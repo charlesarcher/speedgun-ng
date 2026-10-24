@@ -82,6 +82,12 @@
 //                       (SC-05, FR-005)
 //   ownThreadDrain      `drain` from the thread of the context itself (T008;
 //                       FR-006, FR-050)
+//   offlineIndex        an index inside the online set's own range that the
+//                       set gaps, the layout installed and the count seam at
+//                       the set's count (FR-005, FR-041)
+//   pastHighest         an index past the highest online cpu, where a bound
+//                       the count decided would pass on a wide host
+//                       (FR-005, FR-041)
 // ============================================================================
 
 #include <array>
@@ -1953,6 +1959,67 @@ auto breachOwnThreadDrain() -> int
 // SC-05, FR-005: a cpu index the host lacks is a violation at the call. The
 // default placement function builds a cpu set, so the index stays inside the
 // bound of that set on any host with room for it.
+// The M-5 host's shape: the online set carries 0-3 and 8-11, the count the
+// threads report stands 8, and the set's own range gaps 4 to 7 (FR-005,
+// FR-041). One core per cpu keeps the shape off the sibling rule, which the
+// probe scenarios own.
+auto mFiveLayout() -> sg::detail::MachineLayout
+{
+  sg::detail::MachineLayout installed;
+  installed.readable = true;
+  installed.packages = 1;
+  const std::array<std::uint32_t, 8> cpus {0, 1, 2, 3, 8, 9, 10, 11};
+  for (const auto cpu : cpus) {
+    const auto core = static_cast<std::uint32_t>(installed.cores.size());
+    sg::detail::LayoutCore layoutCore;
+    layoutCore.groupOrdinal = 0;
+    installed.cores.push_back(layoutCore);
+    sg::detail::LayoutThread thread;
+    thread.cpuIndex = cpu;
+    thread.coreOrdinal = core;
+    thread.groupOrdinal = 0;
+    installed.cores.at(core).threads.push_back(
+        static_cast<std::uint32_t>(installed.threads.size()));
+    installed.threads.push_back(thread);
+    installed.mask.push_back(cpu);
+  }
+  sg::detail::LayoutGroup layoutGroup;
+  layoutGroup.lowestCpu = 0;
+  for (std::uint32_t core = 0; core < 8; ++core) {
+    layoutGroup.cores.push_back(core);
+  }
+  installed.groups.push_back(layoutGroup);
+  return installed;
+}
+
+// FR-005, FR-041: the construction bound reads the online cpu set the
+// layout carries: an online cpu passes with the count seam short of its
+// index, a count of zero leaves the set deciding, and the offline index
+// the set gaps and the index past the highest online cpu end the
+// process at the construction call.
+auto scenarioOnlineSetBound() -> int
+{
+  sg::detail::installTestLayout(mFiveLayout());
+  sg::detail::installTestOnlineCount(8);
+  const sg::ContextPolicy highest {.waitMode = sg::WaitMode::BLOCK,
+                                   .placement = sg::PlacementSlot::cpu(11)};
+  {
+    sg::ExecutionContext context {highest};
+    context.requestStop();
+    context.join();
+  }
+  sg::detail::installTestOnlineCount(0);
+  {
+    sg::ExecutionContext context {highest};
+    context.requestStop();
+    context.join();
+  }
+  sg::detail::installTestLayout(std::optional<sg::detail::MachineLayout> {});
+  sg::detail::installTestOnlineCount(std::optional<std::uint64_t> {});
+  std::puts("harness_execution_context_test online-set-bound: ok");
+  return 0;
+}
+
 auto breachBadPlacement() -> int
 {
   const long online = sysconf(_SC_NPROCESSORS_ONLN);
@@ -1966,6 +2033,34 @@ auto breachBadPlacement() -> int
   (void)context;
   check(false, "a cpu index the host lacks ends the process at the "
                "construction call (SC-05, FR-005)");
+  return 1;
+}
+
+auto breachOfflineIndex() -> int
+{
+  sg::detail::installTestLayout(mFiveLayout());
+  sg::detail::installTestOnlineCount(8);
+  const sg::ContextPolicy policy {.waitMode = sg::WaitMode::BLOCK,
+                                  .placement = sg::PlacementSlot::cpu(5)};
+  const sg::ExecutionContext context {policy};
+  (void)context;
+  check(false,
+        "an offline index inside the online range ends the process at the "
+        "construction call (FR-005, FR-041)");
+  return 1;
+}
+
+auto breachPastHighest() -> int
+{
+  sg::detail::installTestLayout(mFiveLayout());
+  sg::detail::installTestOnlineCount(8);
+  const sg::ContextPolicy policy {.waitMode = sg::WaitMode::BLOCK,
+                                  .placement = sg::PlacementSlot::cpu(12)};
+  const sg::ExecutionContext context {policy};
+  (void)context;
+  check(false,
+        "an index past the highest online cpu ends the process at the "
+        "construction call (FR-005, FR-041)");
   return 1;
 }
 
@@ -2033,7 +2128,7 @@ struct Mode
   auto (*run)() -> int;
 };
 
-constexpr std::array<Mode, 27> kScenarios {
+constexpr std::array<Mode, 28> kScenarios {
     Mode {.name = "identity", .run = &scenarioIdentity},
     Mode {.name = "waitModes", .run = &scenarioWaitModes},
     Mode {.name = "lifecycle", .run = &scenarioLifecycle},
@@ -2061,14 +2156,17 @@ constexpr std::array<Mode, 27> kScenarios {
     Mode {.name = "drainPendingInbox", .run = &scenarioDrainPendingInbox},
     Mode {.name = "acceptedNotLinked", .run = &scenarioAcceptedNotLinked},
     Mode {.name = "enqueueWindow", .run = &scenarioEnqueueWindow},
+    Mode {.name = "online-set-bound", .run = &scenarioOnlineSetBound},
 };
 
-constexpr std::array<Mode, 5> kBreaches {
+constexpr std::array<Mode, 7> kBreaches {
     Mode {.name = "unjoined", .run = &breachUnjoined},
     Mode {.name = "liveNode", .run = &breachLiveNode},
     Mode {.name = "joinOwnThread", .run = &breachJoinOwnThread},
     Mode {.name = "ownThreadDrain", .run = &breachOwnThreadDrain},
     Mode {.name = "badPlacement", .run = &breachBadPlacement},
+    Mode {.name = "offlineIndex", .run = &breachOfflineIndex},
+    Mode {.name = "pastHighest", .run = &breachPastHighest},
 };
 
 }  // namespace execution_context_test
