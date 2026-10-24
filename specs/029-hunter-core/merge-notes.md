@@ -26,7 +26,7 @@ expected to retake it.
 | `0.19.0` | `CMakeLists.txt:14`, the `project()` `VERSION` | `0.17.0` and `0.18.0` are the minors specs/027 and specs/028 reserve on the master line | Read `VERSION` on the new master and take the next free minor above it |
 | `SOVERSION 4` | `CMakeLists.txt:62`, the `speedgun-ng` archive | The exported `FakeProvider` gains the scripted group-leaf refusal of T013, so an exported layout moves | Read the `SOVERSION` in that same properties block on the new master and add one |
 | `SOVERSION 11` | `CMakeLists.txt:274`, the `harness` archive | `speedgun-ng/hunt.hpp` joins the public surface and both `BenchmarkResult` and `ReportData` gain a hunt record | Read the `SOVERSION` in that same properties block on the new master and add one |
-| `"1.4"` | `source/harness/json_report.cpp:34`, `kSchemaVersion` | The root `hunt` object and the per-benchmark `hunt` object are keys added inside major 1, the move `contracts/report-schema-key.md` states | Take the next free minor and carry the keys of the lanes that merged first |
+| `"1.4"` | `source/harness/json_report.cpp:38`, `kSchemaVersion` | The root `hunt` object and the per-benchmark `hunt` object are keys added inside major 1, the move `contracts/report-schema-key.md` states | Take the next free minor and carry the keys of the lanes that merged first |
 
 ### The project version, 0.19.0
 
@@ -77,7 +77,7 @@ new master, add one, and append the reason.
 
 ### kSchemaVersion, "1.4"
 
-The branch sets it at `source/harness/json_report.cpp:34`, quoted
+The branch sets it at `source/harness/json_report.cpp:38`, quoted
 `constexpr std::string_view kSchemaVersion = "1.4";`, and the writer emits it
 at line 739 through `builder.append(kSchemaVersion);`. At `bd10d76` the same
 declaration reads `constexpr std::string_view kSchemaVersion = "1.1";` at
@@ -89,9 +89,9 @@ took `1.4` takes the next free minor.
 At rebase, take the next free minor above what the new master writes and carry
 the keys of the lanes that merged first (FR-053). Then move
 `docs/schema/report-v1.json` with it and recheck the three statements outside
-the writer that name a written version: `docs/pages/harness.md:1067`,
+the writer that name a written version: `docs/pages/harness.md:1124`,
 `test/source/harness_json_load_test.cpp:113` and
-`test/source/harness_json_load_test.cpp:529`. Two of them are stale at the
+`test/source/harness_json_load_test.cpp:569`. Two of them are stale at the
 time of this audit, as the findings below record, so a rebase onto `1.5` has
 to settle them anyway.
 

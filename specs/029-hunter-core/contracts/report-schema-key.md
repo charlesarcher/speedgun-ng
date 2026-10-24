@@ -27,8 +27,8 @@ object and the per-entry object, and joins neither `required` list.
 
 ## Why `properties` must carry the keys
 
-The per-entry object is closed. `checkNode` (`json_load.cpp:1450`, reached
-through `checkReport` at `json_load.cpp:1546`) compares the key set, the key
+The per-entry object is closed. `checkNode` (`json_load.cpp:1431`, reached
+through `checkReport` at `json_load.cpp:1527`) compares the key set, the key
 order and the value kinds of a written document against the schema, and a key
 that stands in a closed node's document and not in its `properties` is a
 finding. The hunt
@@ -117,8 +117,8 @@ a gate: each is a test or a page that states the number the writer stamps.
 | File | What it pins |
 |---|---|
 | `test/source/harness_json_load_test.cpp:113` | the current-version document the loader test builds, `withVersion("\"1.4\"")` |
-| `test/source/harness_json_load_test.cpp:529` | the `schemaVersion` kind refusal row, which plants `"\"schemaVersion\":1"` beside the current text |
-| `docs/pages/harness.md:1067` | the sentence that states the version a run writes |
+| `test/source/harness_json_load_test.cpp:569` | the `schemaVersion` kind refusal row, which plants `"\"schemaVersion\":1"` beside the current text |
+| `docs/pages/harness.md:1124` | the sentence that states the version a run writes |
 
 The committed comparison fixtures keep their own versions on purpose.
 `test/data/gate_ok_base.json` carries `1.0` and `test/data/gate_schema_11.json`

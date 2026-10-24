@@ -218,10 +218,10 @@ one line naming the value and exit 2. No estimate prints
    The pattern matches the value wherever a file spells it, in the quoted form
    the writer and a written document use, in the escaped form the loader test
    builds, in the `schema 1.1` console words, and in the backticks of the page.
-   Four lines carry the value the bump moves: `json_report.cpp:34` the writer
+   Four lines carry the value the bump moves: `json_report.cpp:38` the writer
    constant, `harness_json_load_test.cpp:113` the current-version document,
-   `harness_json_load_test.cpp:529` the kind refusal row beside it, and
-   `docs/pages/harness.md:1067` the sentence of the page.
+   `harness_json_load_test.cpp:569` the kind refusal row beside it, and
+   `docs/pages/harness.md:1124` the sentence of the page.
    `harness_compare_cli_test.cpp:516` states the header that
    `test/data/gate_schema_11.json` carries, a frozen fixture, and keeps `1.1`.
    T048 moves the writer constant and T049 moves the three rows that name it.
