@@ -1431,31 +1431,38 @@ address before writing: the triage measured `f5df59d`. No local coverage
 number counts here: the lcov capture lane in this checkout fails, so the CI
 `coverage-info` artifact at the pushed head is the measure that closes a row.
 
-- [ ] T204 Close the 56 untaken outcomes in `source/harness/json_load.cpp`.
-      `keepFirstError` at `:111-115` answers false on every path, so the arm of
-      the `||` in the `report` lambda at `:125` that stands for a true answer is
-      dead in all 42 instantiations: state the condition the lambda really
-      tests, let the fold at `:126` run on commas, and the 42 dead arms go with
-      the 2 fold arms. Five live arms at `:125` need one wrong-kind value each,
-      `:683` needs an empty budget text, `:695` needs a round-tripped `8p`
-      budget. The refusal text and the exit status must not move (AC-6).
+- [ ] T204 Close the 56 untaken outcomes in
+      `source/harness/json_load.cpp`. `keepFirstError` at `:111-115`
+      answers nothing since `e9f569f` made it `void`, so the `||` of the
+      `report` lambda stopped existing: that lambda answers a ternary at
+      `:125` and `:126` and the fold stands at `:128`. Five live arms
+      there need one wrong-kind value each, `:685` needs an empty budget
+      text, `:697` needs a round-tripped `8p` budget. The refusal text
+      and the exit status must not move (AC-6).
 - [ ] T205 Close the untaken outcome at `source/harness/report.cpp:453` and the
       five in `source/harness/hunt_plan.cpp` at `:61`, `:151`, `:167` and
       `:425` with scenarios whose inputs the triage names, each re-read at the
       line first (FR-091).
-- [ ] T206 Close the 16 untaken outcomes in `source/harness/hunt_cli.cpp` at
-      `:83`, `:99`, `:113`, `:114`, `:153`, `:157`, `:185`, `:191`, `:211`,
-      `:383`, `:529`, `:617` and `:622`. The `:185` outcome cannot be taken: the
-      loop index reaches `line.size()` exactly and never passes it, so that
-      condition goes or becomes a documented precondition (FR-091).
-- [ ] T207 Close the 12 untaken outcomes in `source/harness/hunt.cpp` at `:66`,
-      `:67`, `:177`, `:212`, `:230`, `:368`, `:548`, `:551`, `:641`, `:672` and
-      `:950`, and the two in `source/harness/detail/hunt_selection.hpp` at `:89`
-      and `:122` (FR-091).
-- [ ] T208 Close the 7 untaken outcomes in `source/harness/runner.cpp` at
-      `:2291`, `:2318`, `:2325`, `:2595` and `:2640`, where the last two are the
-      `else if` arms of a ledger that carries marks without pass results
-      (FR-091).
+- [ ] T206 Close the 16 untaken outcomes in
+      `source/harness/hunt_cli.cpp` at `:83`, `:99`, `:113`, `:114`,
+      `:160`, `:197`, `:217`, `:389`, `:535`, `:623` and `:635`. Two
+      sites stand closed, folded by `8a72476`: the newline class at
+      `:153`, gone from `:156`, and the `piece <= line.size()` test at
+      `:185`, replaced at `:191`. It moved the `object.has_value()` arm
+      of `:622` to `SG_ASSERT` at `:632` (FR-091).
+- [ ] T207 Close the 12 untaken outcomes in `source/harness/hunt.cpp` at
+      `:179`, `:564`, `:567`, `:657`, `:688` and `:966`, and at
+      `detail/hunt_selection.hpp:124`. Six sites stand closed: `48cdb0d`
+      dropped the vertical tab and form feed of `hunt.cpp:66` and `:67`,
+      `d4c6b94` folded `:212`, `:230` and `:368` there (refusal at
+      `:376`), and `cd35076` folded `hunt_selection.hpp:89` (FR-091).
+- [ ] T208 Close the 7 untaken outcomes in `source/harness/runner.cpp`.
+      The five sites stand closed, folded by `16aaf29`: the pair loops
+      of `:2291` and `:2318` became the named tests at `:2290` and
+      `:2293` and the calls at `:2336` and `:2337`; the guard of `:2325`
+      and the `else if` ledger arms at `:2595` and `:2640` became the
+      contracts at `:2332`, `:2607` and `:2650`, which
+      `cmake/coverage.cmake:84` omits (FR-091).
 - [ ] T209 Re-anchor the citations that `specs/026-regression-gate` carries into
       `source/harness/json_load.cpp`. `contracts/reader-extension.md:7` and
       `plan.md:236` name `:1117` to `:1128`, where the noise record now stands
@@ -1469,44 +1476,37 @@ number counts here: the lcov capture lane in this checkout fails, so the CI
 ## Phase 16: Convergence
 
 _Assessed at `d89199b`, the head the six harness commits left behind the
-Phase 15 rows, with `waves/ph14/converge.md` as the full ledger. The two
-commits that landed mid-pass, `1e3ddba` and this phase's own record at
-`65100ba`, leave every address below unchanged._
+Phase 15 rows, with `waves/ph14/converge.md` as the full ledger.
+`48cdb0d` grew `hunt.cpp` by two lines at `:66`, so every address below
+it moved by two._
 
-`32d9397` wrote Phase 15 against `f5df59d`. Six commits landed after it and
-removed branch sites from three of the files those rows name: `e9f569f`
-made `keepFirstError` answer nothing, `8a72476` folded four parser sites in
-`source/harness/hunt_cli.cpp`, `cd35076` folded the separator choice in
-`source/harness/detail/hunt_selection.hpp`, `d4c6b94` folded three in
-`source/harness/hunt.cpp`, `16aaf29` folded five in
-`source/harness/runner.cpp`, and `1da6533` closed 16 reader, plan and report
-outcomes with scenarios alone. T208's five sites all stand closed, and the
-trace stops counting a folded guard through the `SG_` line filter at
-`cmake/coverage.cmake:84`. Two outcomes stay open with no route through the
-tests: the vertical-tab and form-feed classes at
-`source/harness/hunt.cpp:66` and `:67`. `grep` for `\v`, `\f`, `\013`,
-`\014`, `char(11)` and `char(12)` across `test/source/harness_hunt_cli_test.cpp`
-and `test/source/harness_hunt_collect_test.cpp` answers nothing, so FR-091
-and SC-008 stay unsatisfied.
+`32d9397` wrote Phase 15 against `f5df59d`. Six commits landed after it
+and removed branch sites from three of the files those rows name:
+`e9f569f` made `keepFirstError` answer nothing, `8a72476` folded four
+parser sites in `source/harness/hunt_cli.cpp`, `cd35076` folded the
+separator choice in `source/harness/detail/hunt_selection.hpp`,
+`d4c6b94` folded three in `source/harness/hunt.cpp`, `16aaf29` folded
+five in `source/harness/runner.cpp`, and `1da6533` closed 16 reader,
+plan and report outcomes with scenarios alone. T208's five sites all
+stand closed, and the trace stops counting a folded guard through the
+`SG_` line filter at `cmake/coverage.cmake:84`. `48cdb0d` closed the two
+`isSpace` outcomes the same way: the vertical tab and the form feed
+stand gone from the predicate at `source/harness/hunt.cpp:69`.
 
-- [ ] T210 Close the two `isSpace` outcomes and restate the Phase 15 site
-      lists at measured addresses (FR-091, SC-008). `source/harness/hunt.cpp:66`
-      reads `symbol == ' ' || symbol == '\t' || symbol == '\r' || symbol == '\v'`
-      and `:67` continues `|| symbol == '\f'`; `isSpace` answers through `trim`
-      at `:92` and `:680` alone, so a class reaches the trace only through a
-      selection element. Feed a vertical tab and a form feed through one
-      element, or drop the two classes the way `8a72476` dropped the newline
-      class at `source/harness/hunt_cli.cpp:156` with the reason in a comment.
-      Then restate the addresses T206 and T207 name. Eight sites no longer
-      stand: `8a72476` folded T206's `:114`, `:153`, `:185` and `:617`;
-      `d4c6b94` folded T207's `:212`, `:230` and `:368`; `cd35076` folded
-      T207's `detail/hunt_selection.hpp:89`. The live sites stand at
-      `hunt_cli.cpp` `:83`, `:99`, `:160`, `:197`, `:217`, `:389`, `:535`,
-      `:635`; `hunt.cpp` `:66`, `:67`, `:177`, `:562`, `:565`, `:655`, `:686`,
-      `:964`; `detail/hunt_selection.hpp` `:124`. Record against the
-      `coverage-info` artifact at the pushed head that T204, T205 and T208 hold
-      no gap, and keep the two arms at `source/harness/hunt_plan.cpp:151` open
-      on the reservation argument at `:104`.
+- [ ] T210 Close the two `isSpace` outcomes and restate the Phase 15
+      site lists at measured addresses (FR-091, SC-008). `48cdb0d` took
+      the second remedy: the predicate at `source/harness/hunt.cpp:69`
+      keeps space, tab and carriage return, and the comment at `:66` to
+      `:68` states the reason. `isSpace` answers through `trim` at `:94`
+      and `:682` alone, so a class reached the trace only through a
+      selection element. Its commit message records the CI trace taking
+      three of the five classes, so the `coverage-info` artifact at the
+      pushed head settles the pair. T206, T207 and T208 carry the
+      restated addresses and name each closed site with the commit that
+      folded it. Record against that artifact that T204, T205 and T208
+      hold no gap, and keep the two arms at
+      `source/harness/hunt_plan.cpp:151` open on the reservation
+      argument at `:104`.
 - [ ] T211 Re-anchor the source addresses the four contracts state (plan
       Phase 0 touchpoint `contracts/`, Constitution IV).
       `contracts/hunt-cli.md:124` and `:194` name `runner.cpp:2405` for the
