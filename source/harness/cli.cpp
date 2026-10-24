@@ -925,15 +925,10 @@ auto speedgunMain(int argc, char** argv) -> int
       }
     }
     for (auto* entry : selected) {
-      const bool familyCovers =
-          std::any_of(familyProbes.begin(),
-                      familyProbes.end(),
-                      [&](const FamilyProbe& probe)
-                      { return probe.family == entry->family; });
-      if (familyCovers
-          || (entry->threadCount > 1
-              && entry->placement != detail::Preset::NONE))
-      {
+      // R-01: this precheck stands under `batchProbed`, which holds
+      // only when no family carries a probe of its own, so no family
+      // probe covers an entry on any path that reaches here.
+      if (entry->threadCount > 1 && entry->placement != detail::Preset::NONE) {
         continue;
       }
       const auto narrowing = detail::maskNarrowingOf(probeCpus, walkMaskCpus);
@@ -1015,9 +1010,9 @@ auto speedgunMain(int argc, char** argv) -> int
     if (covering != nullptr && !covering->started
         && position == covering->first)
     {
-      if (jitterProbe.has_value()) {
-        jitterProbe->stopAndJoin();
-      }
+      // R-01: the batch probe stands only when no family carries a
+      // probe of its own (`batchProbed`), so no batch session is live
+      // when a family's own probe starts.
       for (auto& other : familyProbes) {
         if (other.holder.has_value() && !other.joined) {
           other.holder->stopAndJoin();
@@ -1111,16 +1106,17 @@ auto speedgunMain(int argc, char** argv) -> int
         std::fprintf(stderr,
                      "--jitter-probe: the probe cpus leave no cpu for '%s'\n",
                      entry->name.c_str());
-        // The holders stand emplaced beside the options that named the
-        // probes (R-01), so the stops land on the live sessions.
+        // The family holders stand emplaced beside the handles that
+        // named their probes (R-01), so the stops land on the live
+        // sessions before the run leaves them. R-01 keeps the batch
+        // probe out of reach here too: it stands only under
+        // `batchProbed`, which holds when no family carries a probe of
+        // its own.
         for (auto& probe : familyProbes) {
           if (probe.holder.has_value() && !probe.joined) {
             probe.holder->stopAndJoin();
             probe.joined = true;
           }
-        }
-        if (jitterProbe.has_value()) {
-          jitterProbe->stopAndJoin();
         }
         return 2;
       }
