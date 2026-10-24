@@ -12,7 +12,7 @@
 // character.
 //
 // One scenario per shape, the shape named in the scenario name the harness
-// prints. Seven scenarios drive a real run of the scripted host of
+// prints. Ten scenarios drive a real run of the scripted host of
 // `detail/hunt_fixture.hpp`, the host the CLI lane scripts the same way, so the
 // bytes they compare are the bytes a reader of `--hunt` holds. Every figure of
 // an expected line follows from the fixture's own arithmetic: the event of
@@ -23,23 +23,31 @@
 // scripted window folds the same figure, so a column the run repeated has no
 // spread and prints `cv=0.00`.
 //
-// The figure no scenario states is the estimate of the plan line: the
+// The figure no run of this file states is the estimate of the plan line: the
 // nanoseconds of the pass the hunt timed (T119), so its digits belong to the
 // host. They stand behind the `<host-calibrated>` token this file's captures
 // substitute, the same stand-in
 // `test/source/detail/pass_identity.expected` carries for the floor of a
-// finished row, and every byte around them is compared.
+// finished row, and every byte around them is compared. The walkthrough row is
+// the one case whose estimate digits stand compared whole, and it stands there
+// because the record carries the calibration the walkthrough states.
 //
-// Two arms stand pinned off a record the scenario builds, the way
+// Three arms stand pinned off a record the scenario builds, the way
 // `harness_hunt_cli_test.cpp` pins the cut reason, because the run that
 // answers them leaves the bytes of the line unpinnable: the `noisy` mark,
 // since a scripted window folds one constant and no scripted `cv` passes
-// the noise threshold; and the `estimate=not available` arm, which only the
+// the noise threshold; the `estimate=not available` arm, which only the
 // entry of a dry run answers, since a hunt that measured no pass holds no
-// figure (T119). Each states its reason where it is pinned.
+// figure (T119); and the walkthrough row of the AC-7 plan, whose 96'000'000 ns
+// is the walkthrough's own 1'920'000 ns calibration over 50 passes, a figure no
+// run of this host carries (D-2, FR-012, FR-013). Each states its reason where
+// it is pinned.
 //
 // The list below is what CTest runs, so an entry absent from it never runs, and
-// `argv[1]` selects one entry of it. Frameworkless check()/fail() convention,
+// `argv[1]` selects one entry of it. Each entry runs in a re-exec of this
+// binary, the pattern `harness_hunt_collect_test.cpp` carries: the counters
+// system takes one object path per process, and one scenario drives a host no
+// other scenario of this file drives. Frameworkless check()/fail() convention,
 // the one `harness_pass_report_test.cpp` carries.
 // ============================================================================
 
@@ -56,6 +64,7 @@
 #include <string_view>
 #include <vector>
 
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "detail/hunt_fixture.hpp"
@@ -93,14 +102,32 @@ constexpr std::string_view kCalibrated = "<host-calibrated>";
 
 // The scripted host: the hunt fixture at the limit of 6 the AC-1 row states,
 // with one event leaf re-scripted permission-blocked so a selected address can
-// reach the skipped list. The counters system takes these object paths once
-// per process, so one host stands for every scenario of this file, and a
-// scenario that wanted a second one would need a re-exec of its own.
+// reach the skipped list. The counters system takes these object paths once per
+// process, so the limit a scenario asks for is the limit of the process that
+// runs it, and `main` gives every scenario a process of its own.
 constexpr std::size_t kHostLimit = 6;
 constexpr std::size_t kRefusedEvent = 7;
 
+// The other host this file drives: the same fixture with no device publishing a
+// programmable-counter limit, the shape D-19 reads. The scenario that asks for
+// it holds its process alone, so the shape reaches no other scenario here.
+constexpr std::optional<std::size_t> kNoLimitHost = std::nullopt;
+
 // The one benchmark case the runs filter down to.
 constexpr const char* kCaseName = "bmHuntReport";
+
+// The row the US2 walkthrough prints: the AC-7 plan of the 200 catalog columns
+// at the AC-1 limit of 6, priced by a calibration of 1'920'000 ns for one
+// pass. `harness_hunt_plan_test.cpp` proves these figures at record level in
+// `overBudgetCut`, so the printed case below and that verdict read one plan.
+constexpr std::size_t kQuickstartEvents = sg::test::kHuntEvents;
+constexpr std::size_t kQuickstartPasses = 50;
+constexpr std::uint64_t kQuickstartCalibrationNs = 1'920'000;
+constexpr std::uint64_t kQuickstartBudgetPasses = 8;
+
+// The columns that plan reaches on the host of this file: the 200 leaves of the
+// scripted catalog beside the one leaf the host refuses outright.
+constexpr std::size_t kAcSevenColumns = sg::test::kHuntEvents - 1;
 
 [[noreturn]] auto fail(const char* what) -> void
 {
@@ -145,26 +172,34 @@ struct Scenario
   return text;
 }
 
-// The host, laid down once: the fixture plus the refused leaf of
-// `kRefusedEvent`, which is the address one scenario selects so that the
-// skipped line and the `events=ran/planned+refused` denominator of the summary
-// print (FR-041, D-12).
-auto ensureHost() -> void
+// The host of this process, laid down once: the fixture at `limit` beside the
+// refused leaf of `kRefusedEvent`, which is the address one scenario selects so
+// that the skipped line and the `events=ran/planned+refused` denominator of the
+// summary print (FR-041, D-12). An empty `limit` leaves every device unable to
+// answer a programmable-counter count (spec PC-2). The counters system takes an
+// object path once per process, so a request for a second shape fails the
+// scenario that asks for it in place of driving the host already laid.
+auto ensureHost(const std::optional<std::size_t> limit) -> void
 {
-  static const bool kAccepted = []
-  {
-    auto provider = std::make_unique<sg::counters::FakeProvider>();
-    auto& host = sg::test::huntHost(*provider, kHostLimit);
-    host.addCounter(sg::test::kHuntCpu,
-                    sg::test::huntEvent(kRefusedEvent),
-                    "none",
-                    "a refused event",
-                    sg::counters::Availability::PERMISSION_BLOCKED);
-    const auto settled =
-        sg::counters::System::local().registerProvider(std::move(provider));
-    return settled.has_value();
-  }();
-  check(kAccepted, "the hunt fixture registers on the local system");
+  static bool laid = false;
+  static std::optional<std::size_t> laidLimit;
+  if (laid) {
+    check(laidLimit == limit,
+          "the host of this process already stands at another limit");
+    return;
+  }
+  laid = true;
+  laidLimit = limit;
+  auto provider = std::make_unique<sg::counters::FakeProvider>();
+  auto& host = sg::test::huntHost(*provider, limit);
+  host.addCounter(sg::test::kHuntCpu,
+                  sg::test::huntEvent(kRefusedEvent),
+                  "none",
+                  "a refused event",
+                  sg::counters::Availability::PERMISSION_BLOCKED);
+  const auto settled =
+      sg::counters::System::local().registerProvider(std::move(provider));
+  check(settled.has_value(), "the hunt fixture registers on the local system");
 }
 
 auto bmHuntReport(sg::State& state) -> void
@@ -187,11 +222,13 @@ auto ensureCase() -> void
 // One byte of the printed report, the redirection seam of
 // `harness_hunt_cli_test.cpp`: stdout points at the scratch file for the span
 // of the entry point and the scenario reads the file back, so every claim
-// below weighs bytes the process wrote and nothing else.
-[[nodiscard]] auto captureRun(const std::vector<std::string>& arguments)
+// below weighs bytes the process wrote and nothing else. `hostLimit` names the
+// host the run stands on, the limit of 6 by default.
+[[nodiscard]] auto captureRun(const std::vector<std::string>& arguments,
+                              std::optional<std::size_t> hostLimit = kHostLimit)
     -> std::string
 {
-  ensureHost();
+  ensureHost(hostLimit);
   ensureCase();
 
   std::vector<char*> argv {const_cast<char*>(kCaseName)};
@@ -232,6 +269,18 @@ auto ensureCase() -> void
     full.push_back(argument);
   }
   return full;
+}
+
+// `--hunt=` text of the whole scripted catalog: the 200 columns of the AC-7
+// row, in catalog order.
+[[nodiscard]] auto allSelection() -> std::string
+{
+  std::vector<std::size_t> indexes;
+  indexes.reserve(sg::test::kHuntEvents);
+  for (std::size_t index = 0; index < sg::test::kHuntEvents; ++index) {
+    indexes.push_back(index);
+  }
+  return selection(indexes);
 }
 
 // The bytes of one print, captured the way `captureRun` captures a run - the
@@ -453,6 +502,85 @@ auto scenarioPlanLineTwoStage() -> void
 }
 
 // ---------------------------------------------------------------------------
+// The walkthrough row: the AC-7 plan line above its cut line (quickstart.md,
+// FR-012, FR-013, E-07, D-2)
+// ---------------------------------------------------------------------------
+
+// The 8-pass budget over the AC-7 plan: the 50 passes of stage 1 stand, the 3
+// passes of the 12-column stage-2 set at 3 repeats do not fit on top of them,
+// so the record holds one stage and the printer answers the cut line directly
+// under the plan line. The estimate is the walkthrough's own arithmetic, the
+// nanoseconds of one pass over the 50 passes of stage 1 at one repeat, so the
+// field carries the scripted figure here and a run of the same plan carries
+// its host's. That is the one reason this case stands on the record the
+// walkthrough states (D-2, FR-012, FR-013).
+auto scenarioQuickstartPlanCut() -> void
+{
+  auto record = contractRecord(kQuickstartCalibrationNs * kQuickstartPasses,
+                               sg::test::huntCatalog(),
+                               kQuickstartEvents);
+  record.passes = kQuickstartPasses;
+  record.options.budget = sg::hunt::HuntBudget {
+      .kind = sg::hunt::HuntBudget::Kind::PASSES,
+      .amount = kQuickstartBudgetPasses,
+  };
+  record.stages = {sg::hunt::HuntStageRange {
+      .first = 0,
+      .count = kQuickstartEvents,
+      .repeats = 1,
+  }};
+  check(capturePrint([&record] { sg::detail::printHuntPlan(record); })
+            == "hunt: plan events=200 passes=50 method=PASSES "
+               "estimate=96000000ns budget=8p\n"
+               "hunt: plan budget cut stage=2 reason=over-budget\n",
+        "the printed plan line carries the walkthrough figures of the AC-7 "
+        "plan: 200 columns, the 50 passes of stage 1, the estimate those "
+        "passes price, the 8-pass budget, and the cut line naming the dropped "
+        "stage directly below it (quickstart.md, FR-012, FR-013, E-07)");
+  std::printf("quickstart-plan-cut: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// The plan line of the AC-7 row under a budget that fits (FR-013, E-07, D-2)
+// ---------------------------------------------------------------------------
+
+// The other arm of the walkthrough row, driven as a run over the scripted
+// catalog: the 60-pass budget hosts the 50 passes of stage 1 plus the 3 passes
+// of the 12-column stage-2 set at 3 repeats, 59 runs in all, so the plan keeps
+// both stages and drops nothing. The runs the two stages cost are a figure of
+// the plan, so the verdict holds whatever the host prices a pass at. The host
+// of this file refuses `cpu/hunt007` outright, so the 200 leaves of the
+// catalog reach 199 planned columns beside one skipped line, and 199 columns
+// still fill 50 passes of 4 columns at the limit of 6. The figure that
+// separates this case from the 4-pass case above is the budget field beside the
+// two stage fields: `budget=60p` here over 199 columns of stage 1, where that
+// case reads `budget=4p` over 4 columns of stage 1.
+auto scenarioPlanLineBudgetFits() -> void
+{
+  const auto run = captureRun(withCase(
+      {"--hunt=" + allSelection(), "--hunt-top=4", "--hunt-budget=60p"}));
+  check(planLine(run)
+            == "hunt: plan events=199 passes=50 method=PASSES estimate="
+                   "<host-calibrated>ns budget=60p stage1=199 stage2=12",
+        "the plan line of the AC-7 plan under the 60-pass budget names both "
+        "stages with the counts of the walkthrough row: every planned column "
+        "in stage 1, the 3 x top set of 12 in stage 2 (FR-013, E-07, SC-07)");
+  check(countOf(run, "hunt: plan budget cut") == 0,
+        "the 60-pass budget hosts the 59 runs the two stages cost, so the run "
+        "prints no cut line at all (FR-013, D-2)");
+  check(countOf(run, "hunt: rank ") == kAcSevenColumns,
+        "the two stages measure into one row set: the table carries one row "
+        "for every planned column (PD-13, I-4)");
+  check(countOf(run,
+                 "hunt: plan summary events=199/200 passes=50 budget=60p")
+            == 1,
+        "the summary carries the 199 measured columns over the 200 the hunt "
+        "stood before, with the budget in the passes it was given (FR-041, "
+        "D-12)");
+  std::printf("plan-line-budget-fits: ok\n");
+}
+
+// ---------------------------------------------------------------------------
 // The MULTIPLEX method line (D-16, D-19, E-07)
 // ---------------------------------------------------------------------------
 
@@ -477,6 +605,40 @@ auto scenarioPlanLineMultiplex() -> void
         "every row of the multiplexed hunt carries the word, in the rank order "
         "of the rate column (D-19, PD-07)");
   std::printf("plan-line-multiplex: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// The plan line of a host that publishes no limit (D-19, D-20, E-07)
+// ---------------------------------------------------------------------------
+
+// The settlement the published limits answer, with no option stating a method
+// and no budget in play: the host of this process publishes no
+// programmable-counter limit at all, so no needed device publishes one and the
+// plan settles the multiplexing method on its own reading (D-19, spec PC-2).
+// `harness_hunt_collect_test.cpp` reads that word off `hunt.method` on the same
+// host shape; here it stands in the printed plan line, and the scenario holds
+// the process the shape needs. The rate of a row divides by the instructions
+// anchor of `cpu`, 4'000, so 300 answers 75.000, 200 answers 50.000 and 100
+// answers 25.000 (I-1, D-6).
+auto scenarioPlanLineNoLimitHost() -> void
+{
+  const auto run =
+      captureRun(withCase({"--hunt=" + selection({0, 1, 2})}), kNoLimitHost);
+  check(huntBlock(run)
+            == "hunt: plan events=3 passes=1 method=MULTIPLEX estimate="
+                   "<host-calibrated>ns budget=none\n"
+                   "hunt: rank 1 cpu/hunt002 instr=75.000 cv=0.00 multiplexed\n"
+                   "hunt: rank 2 cpu/hunt001 instr=50.000 cv=0.00 multiplexed\n"
+                   "hunt: rank 3 cpu/hunt000 instr=25.000 cv=0.00 multiplexed\n"
+                   "hunt: plan summary events=3/3 passes=1 budget=none\n",
+        "the plan line of a hunt whose host publishes no limit carries the "
+        "settled method word with no option stating it, every row carries the "
+        "word of the multiplexed plan beside the figure its own anchor folds, "
+        "and no budget stands anywhere (D-19, D-20, E-07)");
+  check(countOf(run, "hunt: skipped ") == 0,
+        "the one multiplexed pass measured every column of the plan, so no "
+        "column stands in the skipped line beside the three rows (D-19, PD-07)");
+  std::printf("plan-line-no-limit-host: ok\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -538,6 +700,44 @@ auto scenarioHuntBlockOrder() -> void
         "the summary closes the hunt lines, below the list it summarizes "
         "(PD-15)");
   std::printf("hunt-block-order: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// The one row set of a two-stage run (PD-13, I-4, E-07)
+// ---------------------------------------------------------------------------
+
+// The stage-1-only column of a two-stage run, read off the printed table. The
+// plan of four columns at a top of 1 measures stage 2 over the leading 3 x top
+// columns of the plan order, so `cpu/hunt003` stands in stage 1 alone and
+// carries one sample (FR-014). One sample is no repetition, so the column
+// ranks nowhere and its row stands in the marked tail, where the figure it
+// carries is the one its stage 1 window folded: 400 over the 4'000 instructions
+// of `cpu` answers 100.000, the highest figure of the run, while the ranked row
+// is the best column stage 2 re-measured (PD-13, PD-14, D-7).
+auto scenarioStageOneOnlyRow() -> void
+{
+  const auto run = captureRun(withCase({"--hunt=" + selection({0, 1, 2, 3}),
+                                        "--hunt-top=1",
+                                        "--hunt-budget=8p"}));
+  check(huntBlock(run)
+            == "hunt: plan events=4 passes=1 method=PASSES estimate="
+                   "<host-calibrated>ns budget=8p stage1=4 stage2=3\n"
+                   "hunt: rank 1 cpu/hunt002 instr=75.000 cv=0.00\n"
+                   "hunt: rank - cpu/hunt000 instr=25.000 cv=0.00 "
+                   "mark=beyond-top\n"
+                   "hunt: rank - cpu/hunt001 instr=50.000 cv=0.00 "
+                   "mark=beyond-top\n"
+                   "hunt: rank - cpu/hunt003 instr=100.000 cv=0.00 "
+                   "mark=unrepeated\n"
+                   "hunt: plan summary events=4/4 passes=1 budget=8p\n",
+        "one row set stands for the two stages: the column only stage 1 "
+        "measured prints once, in the tail, marked unrepeated, with the figure "
+        "its stage 1 samples folded, and the ranked row is a column stage 2 "
+        "re-measured (PD-13, PD-14, I-4, E-07)");
+  check(countOf(run, "hunt: rank - cpu/hunt003 ") == 1,
+        "the stage-1-only column reaches the table exactly once, so no second "
+        "row stands for the two stages (PD-13, I-4)");
+  std::printf("stage-one-only-row: ok\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -693,9 +893,13 @@ auto scenarioHuntNoneSilence() -> void
   static const std::vector<Scenario> kList {
       Scenario {"plan-line-shape", &scenarioPlanLineShape},
       Scenario {"plan-line-two-stage", &scenarioPlanLineTwoStage},
+      Scenario {"plan-line-budget-fits", &scenarioPlanLineBudgetFits},
       Scenario {"plan-line-multiplex", &scenarioPlanLineMultiplex},
+      Scenario {"plan-line-no-limit-host", &scenarioPlanLineNoLimitHost},
       Scenario {"plan-line-budget-cut", &scenarioPlanLineBudgetCut},
+      Scenario {"quickstart-plan-cut", &scenarioQuickstartPlanCut},
       Scenario {"hunt-block-order", &scenarioHuntBlockOrder},
+      Scenario {"stage-one-only-row", &scenarioStageOneOnlyRow},
       Scenario {"rank-row-marks", &scenarioRankRowMarks},
       Scenario {"skipped-list-line", &scenarioSkippedListLine},
       Scenario {"normalized-iter-line", &scenarioNormalizedIterLine},
@@ -705,6 +909,20 @@ auto scenarioHuntNoneSilence() -> void
 }
 
 }  // namespace
+
+// The walk gives every scenario a process of its own, the pattern
+// `harness_hunt_collect_test.cpp` carries: the counters system takes an object
+// path once per process, and one scenario drives a host no other scenario of
+// this file drives. A child that fails carries its own verdict, so the walk
+// stops on the first one.
+auto runInOwnProcess(const char* self, const std::string_view name) -> void
+{
+  const std::string command =
+      "\"" + std::string {self} + "\" " + std::string {name};
+  const int status = std::system(command.c_str());
+  check(WIFEXITED(status) && WEXITSTATUS(status) == 0,
+        "the re-executed scenario passes");
+}
 
 auto main(const int argc, char** argv) -> int
 {
@@ -729,7 +947,7 @@ auto main(const int argc, char** argv) -> int
     fail("the scenario name is not one of this file's list");
   }
   for (const auto& scenario : list) {
-    scenario.body();
+    runInOwnProcess(argv[0], scenario.name);
   }
   std::printf("harness_hunt_report_test: ok\n");
   return 0;
