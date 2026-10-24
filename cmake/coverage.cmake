@@ -123,11 +123,18 @@ set(
 
 # ---- Coverage target ----
 
+# The listing step reads the same filtered trace, so it needs the same class
+# for the same record shape. lcov reads a hit function whose contained lines
+# the `--omit-lines` filter removed as a contradiction and aborts the read,
+# which takes the target down after the trace was written and before the gate
+# number is read. `--list` reports no gate figure: coverage_gate.sh reads
+# lines and branches from the trace file itself.
 add_custom_target(
     coverage
     COMMAND ${COVERAGE_TRACE_COMMAND}
     COMMAND ${COVERAGE_EXTRACT_COMMAND}
     COMMAND ${LCOV_EXECUTABLE} --branch-coverage --list
+            --ignore-errors inconsistent
             "${PROJECT_BINARY_DIR}/coverage.info"
     COMMAND ${COVERAGE_SUMMARY_COMMAND}
     COMMAND ${COVERAGE_HTML_COMMAND}
