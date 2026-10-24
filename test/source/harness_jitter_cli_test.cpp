@@ -1344,7 +1344,7 @@ auto childFamilyProbe(const bool withCommandLineProbe) -> int
           // keeps the spin's work without a signed overflow (VI).
           volatile std::uint32_t sink = 0;
           for (int step = 0; step < 2000000; ++step) {
-            sink += step;
+            sink += static_cast<std::uint32_t>(step);
           }
           (void)sink;
         }
