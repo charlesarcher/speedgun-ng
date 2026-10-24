@@ -916,6 +916,53 @@ auto speedgunMain(int argc, char** argv) -> int
     }
   }
 
+  // FR-019, D-5, R-10: the empty-intersection refusal stands before
+  // the walk, next to the overlap check the batch probe runs: the
+  // process mask and the probe cpus are known before any run, so an
+  // entry whose mask the probe cpus empty stops the batch before the
+  // first row prints (FR-036). A family the handle named runs its own
+  // probe's narrowing in the walk, where its availability settles.
+  if (batchProbed && !jitterUnavailable
+      && options.jitterProbe->mode != JitterProbeMode::PRECHECK)
+  {
+    cpu_set_t walkMask {};
+    readNarrowingMask(walkMask);
+    std::vector<std::uint32_t> walkMaskCpus;
+    for (std::size_t cpu = 0; cpu < static_cast<std::size_t>(CPU_SETSIZE);
+         ++cpu)
+    {
+      if (CPU_ISSET(cpu, &walkMask) != 0) {
+        walkMaskCpus.push_back(static_cast<std::uint32_t>(cpu));
+      }
+    }
+    for (auto* entry : selected) {
+      const bool familyCovers =
+          std::any_of(familyProbes.begin(),
+                      familyProbes.end(),
+                      [&](const FamilyProbe& probe)
+                      { return probe.family == entry->family; });
+      if (familyCovers
+          || (entry->threadCount > 1
+              && entry->placement != detail::Preset::NONE))
+      {
+        continue;
+      }
+      const auto narrowing = detail::maskNarrowingOf(probeCpus, walkMaskCpus);
+      if (narrowing.remaining.empty()) {
+        std::fprintf(stderr,
+                     "--jitter-probe: the probe cpus leave no cpu for '%s'\n",
+                     entry->name.c_str());
+        // The holder stands emplaced beside the option that named the
+        // probe (R-01), so the stop lands on the live session before
+        // the run leaves it (FR-006, R-01).
+        if (jitterProbe.has_value()) {
+          jitterProbe->stopAndJoin();
+        }
+        return 2;
+      }
+    }
+  }
+
   detail::Runner runner(
       options, options.jitterProbe.has_value() || !familyProbes.empty());
   // specs/028 FR-051, FR-055, D-12: the order the run walks. A seeded run

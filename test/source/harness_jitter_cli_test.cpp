@@ -1322,6 +1322,42 @@ auto entrySegment(const std::string& document,
       begin, next == std::string::npos ? std::string::npos : next - begin);
 }
 
+// The fresh process of the empty-intersection scenario: the child pins
+// its own two-cpu mask, registers a pinned family ahead of the
+// unpinned one, and runs with the probe cpus naming the whole mask, so
+// the unpinned entry's narrowing would leave no cpu (FR-019, D-5,
+// R-10).
+auto childEmptyMask() -> int
+{
+  scriptedProvider();
+  const auto cpus = pickCpus(2);
+  cpu_set_t narrow {};
+  CPU_ZERO(&narrow);
+  CPU_SET(cpus.at(0), &narrow);
+  CPU_SET(cpus.at(1), &narrow);
+  check(sched_setaffinity(0, sizeof(narrow), &narrow) == 0,
+        "the child pins its two-cpu mask (FR-019)");
+  auto pinned = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmPinned");
+  pinned.threads(2).placement("core");
+  std::vector<std::string> arguments {
+      "--repetitions=1",
+      "--iterations=2",
+      "--jitter-probe=" + std::to_string(cpus.at(0)) + ","
+          + std::to_string(cpus.at(1))};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
 // FR-015: the per-family probe the handle promises. The fresh process
 // registers one family whose handle names the probe and runs the batch
 // with no option named: the probed family's entries carry the folds of
@@ -1388,6 +1424,26 @@ auto scenarioFamilyVersusCommandLine() -> int
   return 0;
 }
 
+// FR-019, D-5, R-10: the empty-intersection refusal stands before the
+// walk: the pinned entry ahead of the failing unpinned one runs no row,
+// the refusal prints one line, and the status stands 2 (FR-036). The
+// pinned entry's own plans overlap the whole-mask probe cpus, so the
+// overlap refusal names it before the walk, the same pre-walk region
+// the empty-intersection check reads (FR-018, R-10).
+auto scenarioEmptyMaskBeforeWalk() -> int
+{
+  const Captured run =
+      runExecChild("--jitter-cli-child=empty-mask", "empty-mask");
+  check(run.status == 2,
+        "the empty-intersection refusal stands status 2 (FR-019, R-10)");
+  check(std::count(run.err.begin(), run.err.end(), '\n') == 1,
+        "the refusal stands one line (FR-038)");
+  check(run.out.find("bmPinned") == std::string::npos,
+        "the pinned entry ahead ran no row (FR-036, R-10)");
+  check(run.out.find("bmQuiet") == std::string::npos, "no row prints (R-10)");
+  return 0;
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmQuiet);
@@ -1407,6 +1463,9 @@ auto main(int argc, char** argv) -> int
       return std::freopen(outPath.c_str(), "w", stdout) != nullptr
           && std::freopen(errPath.c_str(), "w", stderr) != nullptr;
     };
+    if (mode == "--jitter-cli-child=empty-mask" && redirect("empty-mask")) {
+      return childEmptyMask();
+    }
     if (mode == "--jitter-cli-child=family-probe" && redirect("family-probe")) {
       return childFamilyProbe(false);
     }
@@ -1476,6 +1535,7 @@ auto main(int argc, char** argv) -> int
   check(scenarioUnavailableStrict() == 0, "unavailableStrict");
   check(scenarioFamilyProbe() == 0, "familyProbe");
   check(scenarioFamilyVersusCommandLine() == 0, "familyVersusCommandLine");
+  check(scenarioEmptyMaskBeforeWalk() == 0, "emptyMaskBeforeWalk");
 
   // FR-011: the cpu list, `idle`, and every key parse once, each key
   // standing once in the value; the accepted value proceeds into the
