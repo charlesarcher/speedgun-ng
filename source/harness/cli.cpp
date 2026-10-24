@@ -82,7 +82,8 @@ auto printOptionDisclosure(const std::vector<detail::OptionUse>& uses,
 {
   std::vector<std::string> parts;
   for (const detail::OptionUse& use : uses) {
-    parts.push_back("--" + std::string(use.row->name) + "=" + use.value);
+    parts.push_back("--" + std::string(use.row->name) + "="
+                    + detail::quotedText(use.value));
   }
   if (interleave.given) {
     parts.push_back("interleave=" + std::to_string(interleave.seed));
@@ -165,7 +166,8 @@ auto timeSourcePresent(counters::System& sys) -> bool
 [[nodiscard]] auto metricNameFailureLine(
     const std::string& name, const counters::Error& error) -> std::string
 {
-  std::string line = "--metric " + name + ": " + error.message;
+  std::string line =
+      "--metric " + quotedText(name) + ": " + quotedText(error.message);
   for (std::size_t here = 0; here < error.suggestions.size(); ++here) {
     line += here == 0 ? " (near: " : ", ";
     line += error.suggestions[here];
@@ -547,7 +549,7 @@ auto speedgunMain(int argc, char** argv) -> int
     if (!parsed.has_value()) {
       std::fprintf(stderr,
                    "--placement: '%s' is not one of the five preset names\n",
-                   options.placement->c_str());
+                   detail::quotedText(*options.placement).c_str());
       return 2;
     }
     processPreset = parsed;
@@ -635,7 +637,7 @@ auto speedgunMain(int argc, char** argv) -> int
   if (selected.empty()) {
     std::fprintf(stderr,
                  "no benchmark matches the filter '%s'\n",
-                 options.filter.c_str());
+                 detail::quotedText(options.filter).c_str());
     return 0;
   }
 
