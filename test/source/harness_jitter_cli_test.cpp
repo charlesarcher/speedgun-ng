@@ -1623,6 +1623,44 @@ auto childFamilyNarrowedEmpty() -> int
   return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
 }
 
+// The fresh process of the family availability scenarios: the fake
+// publishes a monotonic and a thread-cpu leaf with no machine/tsc leaf,
+// so the catalog the availability check reads carries no qualifying
+// entry. The handle names the probe, so the family owns the session. Strict
+// stops the run; the plain run discloses and goes on (FR-024, FR-037).
+auto childFamilyUnavailable(const bool strict) -> int
+{
+  auto owned = std::make_unique<sg::counters::FakeProvider>();
+  auto& provider = *owned;
+  provider.addCounter("machine", "monotonic", "nanoseconds", "wall clock");
+  provider.setPoints("machine", "monotonic", {0}, 4000);
+  provider.addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
+  provider.setPoints("machine", "thread_cpu", {0}, 2000);
+  const auto registered =
+      sg::counters::System::local().registerProvider(std::move(owned));
+  check(registered.has_value(), "the fresh process registers its fake (R-02)");
+  auto handle = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmFamQuiet");
+  sg::JitterProbeOptions probeOptions;
+  probeOptions.cpus.push_back(pickCpus(1).front());
+  probeOptions.thresholdNs = 65000;
+  probeOptions.gapCount = 2000000;
+  probeOptions.strict = strict;
+  handle.jitterProbe(probeOptions);
+  std::vector<std::string> arguments {"--repetitions=1", "--iterations=2"};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
 // FR-015: one family, two argument lists, and the family's own probe.
 // The probe stands once for the family: it starts before the first
 // instance and stops behind the last, and the second instance joins
@@ -1804,6 +1842,35 @@ auto scenarioFamilyNarrowedEmpty() -> int
   return 0;
 }
 
+// FR-024, FR-037: a family probe over a machine with no machine/tsc
+// leaf answers the availability line and leaves status two behind when
+// the handle asks for strict.
+auto scenarioFamilyUnavailableStrict() -> int
+{
+  const Captured run =
+      runExecChild("--jitter-cli-child=family-unavailable-strict",
+                   "family-unavailable-strict");
+  check(run.status == 2,
+        "the strict family probe with no leaf stops with status 2 (FR-024)");
+  check(run.err.find("the machine/tsc leaf is not available")
+            != std::string::npos,
+        "the refusal names the missing leaf (FR-024)");
+  return 0;
+}
+
+// FR-037: the same machine with a plain handle discloses the answer and
+// the run goes on to finish.
+auto scenarioFamilyUnavailable() -> int
+{
+  const Captured run = runExecChild("--jitter-cli-child=family-unavailable",
+                                    "family-unavailable");
+  check(run.status == 0,
+        "the plain family probe with no leaf finishes the run (FR-037)");
+  check(run.out.find("jitter: not available") != std::string::npos,
+        "the report discloses the unavailable answer (FR-037)");
+  return 0;
+}
+
 auto scenarioFamilyVersusCommandLine() -> int
 {
   const Captured run =
@@ -1913,6 +1980,16 @@ auto main(int argc, char** argv) -> int
     {
       return childFamilyNarrowedEmpty();
     }
+    if (mode == "--jitter-cli-child=family-unavailable-strict"
+        && redirect("family-unavailable-strict"))
+    {
+      return childFamilyUnavailable(true);
+    }
+    if (mode == "--jitter-cli-child=family-unavailable"
+        && redirect("family-unavailable"))
+    {
+      return childFamilyUnavailable(false);
+    }
     if (mode == "--jitter-cli-child=family-precheck-idle"
         && redirect("family-precheck-idle"))
     {
@@ -1986,6 +2063,8 @@ auto main(int argc, char** argv) -> int
   check(scenarioFamilyIdleRun() == 0, "familyIdleRun");
   check(scenarioFamilyOverlapRun() == 0, "familyOverlapRun");
   check(scenarioFamilyTwoInstances() == 0, "familyTwoInstances");
+  check(scenarioFamilyUnavailableStrict() == 0, "familyUnavailableStrict");
+  check(scenarioFamilyUnavailable() == 0, "familyUnavailable");
   check(scenarioFamilyNarrowedEmpty() == 0, "familyNarrowedEmpty");
   check(scenarioFamilyPrecheckIdle() == 0, "familyPrecheckIdle");
   check(scenarioFamilyVersusCommandLine() == 0, "familyVersusCommandLine");
