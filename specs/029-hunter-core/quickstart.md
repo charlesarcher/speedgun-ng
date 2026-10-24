@@ -40,6 +40,13 @@ cmake --preset=ci-ubuntu
 cmake --build build
 ```
 
+A warm `build/` runs no analyzer. The preset changes no file timestamp, so a
+tree that `ci-rocky` already built recompiles nothing, and the two analyzers
+run per compiled file: on this host that build answered 122 `Built target`
+lines, zero compiled files and no clang-tidy or cppcheck output. Prove the
+analyzers on a clean tree, either after `rm -rf build` or in a binary directory
+of its own.
+
 ## Run the hunt tests
 
 ```bash
@@ -49,7 +56,10 @@ ctest --test-dir build --output-on-failure -R 'hunt|cli_table' -j 2
 Expected: `harness_hunt_plan_test`, `harness_hunt_rank_test`,
 `harness_hunt_collect_test`, `harness_hunt_cli_test`,
 `harness_hunt_report_test`, `harness_hunt_json_test` and
-`harness_cli_table_test` all pass. `harness_cli_table_test` reports option names and option values unique across
+`harness_cli_table_test` all pass. The pattern is a substring match, so the
+command selects nine tests: those seven plus
+`harness_hunt_json_test_no_hunt` and `report_shape_hunt_rank_sample`, which
+pass as well. `harness_cli_table_test` reports option names and option values unique across
 the whole table, every hunt value inside 270 to 279, the block the lane
 reserves, and the planted clash in the fixture twin of the table.
 
@@ -112,12 +122,21 @@ ctest --test-dir build -R 'harness_hunt_cli_test' -V
 ctest --test-dir build -R 'harness_hunt_report_test' -V
 ```
 
-Expected for the fixed seed, the fixed 200-event catalog and the fixed estimate:
+The two suites print one `ok` line per case and keep every figure inside the
+case, so a reader who wants the two lines below reads them off the case, off
+`harness_hunt_plan_test.cpp`, and off a live hunt. The figures come from the
+fixed seed, the fixed 200-event catalog and the scripted calibration of
+1,920,000 ns per pass at `harness_hunt_plan_test.cpp:94`:
 
 ```text
 hunt: plan events=200 passes=50 method=PASSES estimate=96000000ns budget=8p
 hunt: plan budget cut stage=2 reason=over-budget
 ```
+
+No case prints these two lines: the estimate a run prints weighs the
+nanoseconds of one pass it timed, which `kCalibrated` in
+`harness_hunt_report_test.cpp` stands for, and the cut line is the one shape
+pinned as bytes today, at `harness_hunt_collect_test.cpp:1634`.
 
 Calibration answers 1,920,000 ns per pass, and the plan line states the stage-1
 figure: 1,920,000 x 50 passes x 1 repeat = 96,000,000 ns, whole numbers
@@ -144,7 +163,9 @@ one line naming the value and exit 2. No estimate prints
 2. Read the expectations those two suites state for a hunt document.
 
    Expected: a hunt document carries the top-level `hunt` object after
-   `benchmarks` and a per-entry `hunt` object after `spreadWarning`;
+   `benchmarks` and a per-entry `hunt` object after `spreadWarning`; the first
+   pattern is a substring match, so it runs `harness_hunt_json_test` beside its
+   no-hunt twin `harness_hunt_json_test_no_hunt`;
    `checkReport` over the schema at `SG_SCHEMA_PATH` answers clean for the hunt
    document; the round trip through `loadReport` reads every field back equal,
    including a `rank` that is null and a `budget` that is null; one test per
@@ -160,16 +181,20 @@ one line naming the value and exit 2. No estimate prints
    writes.
 
    ```bash
-   ./build/example/docs_json_reports --json=/tmp/hunt-free.json
+   ./build/example/docs_json_reports --json=/tmp/hunt-free.json \
+     >/tmp/hunt-free.console
    grep -c '"hunt"' /tmp/hunt-free.json
+   grep -c 'hunt:' /tmp/hunt-free.console
    grep -oE '"schemaVersion":"[0-9.]+"' /tmp/hunt-free.json
    ```
 
-   The first grep answers `0` and exits 1: no hunt key stands in the document
-   of a run without the hunt option (FR-052). The second answers the version
-   this feature reserves, `1.4` (FR-053, D-17). The byte golden of
+   The first two greps answer `0` and exit 1: no hunt key stands in the
+   document of a run without the hunt option, and no `hunt:` plan line reaches
+   its console (FR-052). A clean check exits 1 here, because grep exits 1 when
+   it matches nothing. The third grep answers the version this feature
+   reserves, `1.4` (FR-053, D-17). The byte golden of
    `harness_json_report_test.cpp` carries the byte, console and exit-status
-   comparison behind those two lines (AC-6). T048 moved `kSchemaVersion` to
+   comparison behind those lines (AC-6). T048 moved `kSchemaVersion` to
    `1.4` and T049 moved the rows that name it, so the tree stamps `1.4`.
 
 5. Grep every line that names a schema version, so a red line there points at
@@ -270,7 +295,7 @@ joins the case (hard rule 1, FR-092).
 |---|---|
 | `cmake --preset=ci-rocky` | under a minute |
 | `cmake --build build -j` | about 2 minutes |
-| `ctest -R 'hunt\|cli_table' -j 2` | a few seconds: every hunt case is scripted |
+| `ctest -R 'hunt\|cli_table' -j 2` | about two minutes: every hunt case is scripted, and `harness_hunt_cli_test` forks the command-line child once per case, which is the whole of the time (121 seconds alone) |
 | the full suite | minutes on a release build, and far longer under an instrumented build, so give a sanitizer lane a timeout above 3600 seconds; the default is too small |
 | the coverage target | minutes; it runs the suite again with instrumentation |
 
