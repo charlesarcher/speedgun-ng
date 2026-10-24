@@ -267,18 +267,22 @@ auto parseMetricMethod(const char* text) -> std::optional<MetricMethod>
 
 // The content the `--json-raw` row names, and the line that refuses any
 // other word. The scan and the settle function of the row read the word
-// through here, so the two words are written once (FR-034, FR-035, FR-050).
+// through here, so the three words are written once (FR-034, FR-035, FR-050).
 auto parseRawContent(const std::string_view text)
     -> std::expected<RawContent, std::string>
 {
   if (text == "chunks") {
     return RawContent::CHUNKS;
   }
+  if (text == "gaps") {
+    return RawContent::GAPS;
+  }
   if (text == "none") {
     return RawContent::NONE;
   }
   return std::unexpected(
-      "--json-raw: 'chunks' and 'none' are the values the " "option names");
+      "--json-raw: 'chunks', 'gaps' and 'none' are the values the option "
+      "names");
 }
 
 // The pair of report paths of the `--compare` row, split at the first comma.
@@ -590,7 +594,7 @@ auto optionRows() -> std::span<const OptionRow>
        'J',
        OptionArgument::REQUIRED,
        false,
-       "Selects the chunk columns the document carries",
+       "Selects the chunk columns or the kept gaps the document carries",
        "specs/023"},
       {"compare",
        kCompareOptionValue,

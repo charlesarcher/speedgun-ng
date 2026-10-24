@@ -63,8 +63,8 @@
 #include "speedgun-ng/counters_fake.hpp"
 #include "speedgun-ng/counters_system.hpp"
 
-#ifndef SG_CLI_SOURCE
-#  error "the registration passes the CLI source path the scan reads (R-06)"
+#ifndef SG_OPTIONS_SOURCE
+#  error "the registration passes the option table's source path (R-06)"
 #endif
 
 namespace
@@ -1497,42 +1497,46 @@ auto main(int argc, char** argv) -> int
   // registration hands the binary, the way the schema tests read their
   // schema path.
   {
-    std::ifstream source(SG_CLI_SOURCE);
-    check(source.is_open(), "the CLI source stands readable (R-06)");
+    std::ifstream source(SG_OPTIONS_SOURCE);
+    check(source.is_open(), "the option table stands readable (R-06)");
     std::stringstream buffer;
     buffer << source.rdbuf();
     const auto text = buffer.str();
-    const auto tableStart = text.find("const option kLongOptions[]");
+    const auto tableStart =
+        text.find("static constexpr auto kRows = std::to_array<OptionRow>");
     check(tableStart != std::string::npos,
           "the option table stands in the source (R-06)");
-    const auto tableEnd = text.find("\n};", tableStart);
+    const auto tableEnd = text.find("  });", tableStart);
     check(tableEnd != std::string::npos, "the option table closes (R-06)");
 
     std::set<std::string> values;
-    auto cursor = text.find('{', tableStart);
+    auto cursor = text.find("{\"", tableStart);
     while (cursor != std::string::npos && cursor < tableEnd) {
-      const auto entryEnd = text.find('}', cursor);
-      if (entryEnd == std::string::npos || entryEnd > tableEnd) {
+      const auto nameStart = cursor + 1;
+      const auto nameEnd = text.find('"', nameStart);
+      if (nameEnd == std::string::npos) {
         break;
       }
-      const auto entry = text.substr(cursor, entryEnd - cursor);
-      const auto nameStart = entry.find('"');
-      const auto nameEnd = entry.find('"', nameStart + 1);
-      if (nameStart != std::string::npos && nameEnd != std::string::npos) {
-        const auto name = entry.substr(nameStart, nameEnd - nameStart);
-        if (name.empty()) {
-          // The terminator's entry: {"nullptr", 0, nullptr, 0}.
-          break;
-        }
-        const auto valueStart = entry.rfind(", ");
-        check(valueStart != std::string::npos,
-              "the entry carries its value (R-06)");
-        const auto value = entry.substr(valueStart + 2);
+      const auto valueComma = text.find(',', nameEnd);
+      if (valueComma == std::string::npos || valueComma > tableEnd) {
+        break;
+      }
+      auto valueEnd = valueComma + 1;
+      while (valueEnd < tableEnd && text.at(valueEnd) != ',') {
+        ++valueEnd;
+      }
+      auto value = text.substr(valueComma + 1, valueEnd - valueComma - 1);
+      // The token carries the row's internal value: a letter literal or
+      // the named constant of the option's block.
+      const auto trimStart = value.find_first_not_of(" \t\n\r");
+      const auto trimEnd = value.find_last_not_of(" \t\n\r");
+      if (trimStart != std::string::npos) {
+        value = value.substr(trimStart, trimEnd - trimStart + 1);
         const auto inserted = values.insert(value);
         check(inserted.second,
               "every value in the option table is unique (FR-011, R-06)");
       }
-      cursor = text.find('{', entryEnd + 1);
+      cursor = text.find("{\"", valueEnd);
     }
     check(values.size() > 15, "the scan read the whole table (FR-011, R-06)");
   }
