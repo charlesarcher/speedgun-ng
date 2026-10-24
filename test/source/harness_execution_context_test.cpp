@@ -1963,13 +1963,13 @@ auto breachOwnThreadDrain() -> int
 // threads report stands 8, and the set's own range gaps 4 to 7 (FR-005,
 // FR-041). One core per cpu keeps the shape off the sibling rule, which the
 // probe scenarios own.
-auto mFiveLayout() -> sg::detail::MachineLayout
+auto mLayoutMasked(std::vector<std::uint32_t> maskCpus)
+    -> sg::detail::MachineLayout
 {
   sg::detail::MachineLayout installed;
   installed.readable = true;
   installed.packages = 1;
-  const std::array<std::uint32_t, 8> cpus {0, 1, 2, 3, 8, 9, 10, 11};
-  for (const auto cpu : cpus) {
+  for (const auto cpu : maskCpus) {
     const auto core = static_cast<std::uint32_t>(installed.cores.size());
     sg::detail::LayoutCore layoutCore;
     layoutCore.groupOrdinal = 0;
@@ -1985,36 +1985,65 @@ auto mFiveLayout() -> sg::detail::MachineLayout
   }
   sg::detail::LayoutGroup layoutGroup;
   layoutGroup.lowestCpu = 0;
-  for (std::uint32_t core = 0; core < 8; ++core) {
-    layoutGroup.cores.push_back(core);
+  for (std::size_t core = 0; core < maskCpus.size(); ++core) {
+    layoutGroup.cores.push_back(static_cast<std::uint32_t>(core));
   }
   installed.groups.push_back(layoutGroup);
   return installed;
 }
 
+auto mFiveLayout() -> sg::detail::MachineLayout
+{
+  return mLayoutMasked({0, 1, 2, 3, 8, 9, 10, 11});
+}
+
+// The layout whose mask holds part of the set the bound reads: cpus 0,
+// 1, 8 and 9 stand in the mask while the online set installed beside it
+// also holds 2, 3, 10 and 11 (FR-005, FR-041).
+auto mPartialMaskLayout() -> sg::detail::MachineLayout
+{
+  return mLayoutMasked({0, 1, 8, 9});
+}
+
+// The online set the bound reads: the two spans a gapped host carries,
+// 0 to 3 and 8 to 11 (FR-005, FR-041).
+auto mOnlineSet() -> std::optional<std::vector<std::uint32_t>>
+{
+  return std::vector<std::uint32_t> {0, 1, 2, 3, 8, 9, 10, 11};
+}
+
 // FR-005, FR-041: the construction bound reads the online cpu set the
-// layout carries: an online cpu passes with the count seam short of its
-// index, a count of zero leaves the set deciding, and the offline index
-// the set gaps and the index past the highest online cpu end the
-// process at the construction call.
+// topology seam owns, and that set alone. A cpu the set holds passes
+// while the mask the layout carries lacks it; an index the set gaps and
+// an index past its highest end the process at the construction call
+// (the two breach modes); and the count seam at zero leaves the answer
+// unchanged.
 auto scenarioOnlineSetBound() -> int
 {
-  sg::detail::installTestLayout(mFiveLayout());
-  sg::detail::installTestOnlineCount(8);
-  const sg::ContextPolicy highest {.waitMode = sg::WaitMode::BLOCK,
-                                   .placement = sg::PlacementSlot::cpu(11)};
+  sg::detail::installTestLayout(mPartialMaskLayout());
+  sg::detail::installTestOnlineCpus(mOnlineSet());
+  const sg::ContextPolicy outsideMask {.waitMode = sg::WaitMode::BLOCK,
+                                       .placement = sg::PlacementSlot::cpu(2)};
+  const sg::ContextPolicy insideMask {.waitMode = sg::WaitMode::BLOCK,
+                                      .placement = sg::PlacementSlot::cpu(8)};
   {
-    sg::ExecutionContext context {highest};
+    sg::ExecutionContext context {outsideMask};
+    context.requestStop();
+    context.join();
+  }
+  {
+    sg::ExecutionContext context {insideMask};
     context.requestStop();
     context.join();
   }
   sg::detail::installTestOnlineCount(0);
   {
-    sg::ExecutionContext context {highest};
+    sg::ExecutionContext context {outsideMask};
     context.requestStop();
     context.join();
   }
   sg::detail::installTestLayout(std::optional<sg::detail::MachineLayout> {});
+  sg::detail::installTestOnlineCpus(std::nullopt);
   sg::detail::installTestOnlineCount(std::optional<std::uint64_t> {});
   std::puts("harness_execution_context_test online-set-bound: ok");
   return 0;
@@ -2038,8 +2067,8 @@ auto breachBadPlacement() -> int
 
 auto breachOfflineIndex() -> int
 {
-  sg::detail::installTestLayout(mFiveLayout());
-  sg::detail::installTestOnlineCount(8);
+  sg::detail::installTestLayout(mPartialMaskLayout());
+  sg::detail::installTestOnlineCpus(mOnlineSet());
   const sg::ContextPolicy policy {.waitMode = sg::WaitMode::BLOCK,
                                   .placement = sg::PlacementSlot::cpu(5)};
   const sg::ExecutionContext context {policy};
@@ -2052,8 +2081,8 @@ auto breachOfflineIndex() -> int
 
 auto breachPastHighest() -> int
 {
-  sg::detail::installTestLayout(mFiveLayout());
-  sg::detail::installTestOnlineCount(8);
+  sg::detail::installTestLayout(mPartialMaskLayout());
+  sg::detail::installTestOnlineCpus(mOnlineSet());
   const sg::ContextPolicy policy {.waitMode = sg::WaitMode::BLOCK,
                                   .placement = sg::PlacementSlot::cpu(12)};
   const sg::ExecutionContext context {policy};

@@ -646,10 +646,13 @@ ExecutionContext::ExecutionContext(const ContextPolicy policy)
 {
   // FR-005, SC-05: the host bound of the slot's index stands at the
   // construction call, where the online cpu set stands; the placement
-  // itself lands on the context's thread at its start (D-04). The set
-  // is the layout's own, so a count the threads report short of the
-  // set's highest index leaves the membership deciding (FR-005, FR-041).
-  const auto& onlineCpus = detail::layout().mask;
+  // itself lands on the context's thread at its start (D-04). The set is
+  // the one the topology seam owns, read at each call, so an installed
+  // set decides the call that follows it. The process affinity mask
+  // stands a separate rule of its own: a placement the kernel would
+  // refuse at the pinning call is accounted where that call happens
+  // (FR-005, FR-041).
+  const auto onlineCpus = detail::onlineCpuSet();
   [[maybe_unused]] const bool online =
       std::find(onlineCpus.begin(), onlineCpus.end(), policy.placement.cpuIndex)
       != onlineCpus.end();

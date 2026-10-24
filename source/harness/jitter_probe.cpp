@@ -699,26 +699,31 @@ auto parseProbeCpuToken(const std::string& token,
   // FR-011: the mask bit read carries the set type's own bound and
   // the membership in one test - the read answers 0 for an index at
   // or above the set size and for an index the mask does not hold -
-  // so one line stands for both refusals. The count the threads
-  // report bounds the index the ExecutionContext construction reads
-  // beside the mask: a count and not the highest index, so the bound
-  // refuses an online cpu the mask holds whose index stands at or
-  // above the count, on the line of its own below. The count stands
-  // behind the detail seam the tests set and clear, the way the test
-  // layout installs (FR-041).
-  const auto online = onlineCpuCount();
+  // so one line stands for both refusals. The online cpu set the
+  // topology seam owns bounds the index beside the mask: the set is
+  // the list the kernel owns, gaps and all, so a cpu the mask holds
+  // and the set lacks stands refused on the line of its own below. An
+  // index that reaches this test stands below the set type's size, the
+  // mask read having refused the rest, so it reaches the set as the
+  // width the set carries. The set stands behind the detail seam the
+  // tests set and clear, the way the test layout installs (FR-005,
+  // FR-041).
+  const auto onlineCpus = onlineCpuSet();
   for (auto cpu = low; cpu <= high; ++cpu) {
     if (!CPU_ISSET(cpu, &mask)) {
       message = "the cpu '" + quotedText(token)
           + "' stands outside the process affinity mask";
       return false;
     }
-    if (cpu >= static_cast<std::uint64_t>(online)) {
+    const auto index = static_cast<std::uint32_t>(cpu);
+    if (std::find(onlineCpus.begin(), onlineCpus.end(), index)
+        == onlineCpus.end())
+    {
       message = "the cpu '" + quotedText(token)
-          + "' stands past the online cpu count";
+          + "' stands outside the online cpu set";
       return false;
     }
-    cpus.push_back(static_cast<std::uint32_t>(cpu));
+    cpus.push_back(index);
   }
   return true;
 }
