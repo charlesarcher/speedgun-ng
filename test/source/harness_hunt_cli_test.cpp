@@ -422,7 +422,17 @@ auto scenarioSelectionRefusals() -> void
                  {"full", {"--hunt=cpu/r4a03"}, raw},
                  {"full", {"--hunt=" + address(0) + ",r4a03"}, raw},
                  {"full", {"--hunt=cpu/r4a03*"}, raw},
-                 {"full", {"--hunt=@" + std::string(kRawFile)}, raw}});
+                 {"full", {"--hunt=@" + std::string(kRawFile)}, raw},
+                 {"full",
+                  {"--hunt= cpu/cpu-cycles\r\t,cpu/nope"},
+                  "--hunt: 'cpu/nope' is not a catalog address"},
+                 {"full",
+                  {"--hunt=cpu/cpu-cycles,,"},
+                  "--hunt: '' is not a catalog address"},
+                 {"full",
+                  {"--hunt= "},
+                  "--hunt: ' ' is not a catalog address"},
+                 {"full", {"--hunt=r4A"}, rawCodeLine("r4A")}});
   std::printf("selection-refusals: ok\n");
 }
 
@@ -482,7 +492,31 @@ auto scenarioOptionValueRefusals() -> void
         "--hunt-budget: expected a count above 0, got '-5p'"},
        {"full",
         {"--hunt-seed=abc"},
-        "--hunt-seed: expected a whole number, got 'abc'"}});
+        "--hunt-seed: expected a whole number, got 'abc'"},
+       {"full",
+        {"--hunt-top=99999999999999999999999"},
+        "--hunt-top: expected 1 to 10000, got '99999999999999999999999'"},
+       {"full",
+        {"--hunt-top=12x"},
+        "--hunt-top: expected 1 to 10000, got '12x'"},
+       {"full",
+        {"--hunt-top=abc"},
+        "--hunt-top: expected 1 to 10000, got 'abc'"},
+       {"full",
+        {"--hunt-noise=1e400"},
+        "--hunt-noise: expected a percentage above 0, got '1e400'"},
+       {"full",
+        {"--hunt-noise=abc"},
+        "--hunt-noise: expected a percentage above 0, got 'abc'"},
+       {"full",
+        {"--hunt-noise=5x"},
+        "--hunt-noise: expected a percentage above 0, got '5x'"},
+       {"full",
+        {"--hunt-noise=inf"},
+        "--hunt-noise: expected a percentage above 0, got 'inf'"},
+       {"full",
+        {"--hunt-noise=nan"},
+        "--hunt-noise: expected a percentage above 0, got 'nan'"}});
   std::printf("option-value-refusals: ok\n");
 }
 
@@ -528,6 +562,20 @@ auto scenarioAnchorLeafNeedsNoSlot() -> void
         "the option-route gate stood open for an anchor leaf (D-3, T164)");
   check(countOf(output, "slots and a hunt pass needs 3") == 1,
         "the run states its one refusal line");
+
+  const std::string instr =
+      sg::test::huntAddress(sg::test::kHuntCpu, sg::test::kHuntInstr);
+  std::string instrOutput;
+  const int instrStatus = childRun(selfPath, "hunt",
+                                   {kScriptNarrow, "--hunt=" + instr},
+                                   instrOutput);
+  check(WIFEXITED(instrStatus) && WEXITSTATUS(instrStatus) == 1,
+        "the instructions anchor passes the slot gate as its sibling does "
+        "and answers the refused plan's status (FR-081, spec PC-2)");
+  check(lineHolding(instrOutput, "device 'cpu' publishes 2 slots") ==
+            "hunt: device 'cpu' publishes 2 slots and a hunt pass needs 3",
+        "the refused plan of the instructions-anchor selection prints the "
+        "same device-limit line whole (D-3, T164)");
   std::printf("anchor-leaf-needs-no-slot: ok\n");
 }
 
@@ -676,6 +724,12 @@ auto scenarioAcceptedSelectionForms() -> void
         "the same address across a list and a file keeps one column (FR-006)");
   check(countOf(dup, address(0)) == 1,
         "one column means one row naming that address once (FR-006)");
+
+  const auto rated = captureRun(
+      withFilter({"--hunt=" + address(0), "--hunt-rank=rate"}));
+  check(!planLine(rated).empty(),
+        "a run whose rank option spells the word the default answers plans "
+        "the same hunt (FR-032)");
   std::printf("accepted-forms: ok\n");
 }
 
