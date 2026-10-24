@@ -16,7 +16,9 @@ from [contracts/hunt-cli.md](contracts/hunt-cli.md),
   and `ci-ubuntu` on Ubuntu 26.04 are the two release presets, and a future
   specification is what adds a platform
 - GCC and Clang, CMake 3.20 or newer, `python3` for the documentation gates,
-  `doxygen` for `dbc-gate`, and `lcov` plus `gcov` for the coverage target
+  `doxygen` for `dbc-gate`, PyYAML for the `yaml` module that
+  `tools/dbc/dbc_doc_gate.py` and `tools/dbc/dbc_pair_gate.py` import through
+  `dbc_gate_common.py:63-70`, and `lcov` plus `gcov` for the coverage target
   (Principle VIII)
 - No PMU access for the tests: every scripted case drives `FakeProvider`. A host
   that answers `/proc/sys/kernel/perf_event_paranoid` above 2 runs the whole test
