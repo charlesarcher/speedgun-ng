@@ -828,13 +828,13 @@ auto printHuntRanking(const sg::hunt::EntryHunt& hunt,
 
 // specs/029 T027, FR-040, FR-041, FR-050, D-12, PD-15, data-model E-07: the
 // skipped list of one hunt and the plan summary that closes the hunt lines.
-// The caller prints both after the ranked table: one line per event the run
-// will not measure, with the kind of the refusal in the words the catalog
-// listing uses and the stage that lost the event where a stage did, then the
-// one summary line. A host that refused every event prints no ranking row
-// above these lines and the summary reads `events=0/N` (D-12, FR-041), the
-// denominator being the universe of addresses the hunt stood before: the
-// planned ones plus the refusals discovery kept out of the plan.
+// The caller prints both after the ranked table: one line per event the
+// run will not measure in the shape `hunt: skipped <address> <kind>`,
+// the kind in the words the catalog listing uses, then the one summary
+// line. A host that refused every event prints no ranking row above
+// these lines and the summary reads `events=0/N` (D-12, FR-041), the
+// denominator being the universe of addresses the hunt stood before:
+// the planned ones plus the refusals discovery kept out of the plan.
 auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
                     const sg::hunt::RunHunt& run) -> void
 {
