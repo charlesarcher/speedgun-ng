@@ -46,6 +46,12 @@ jobs:
 
     runs-on: ubuntu-26.04
 
+    # GCC 15's libgcov does not merge an exec child's profile counters
+    # into the existing gcda (the family-probe paths read zero with the
+    # suite green, measured 2026-10-24); g++-14 merges them, so the
+    # capture pins the compiler.
+    env: { CXX: g++-14 }
+
     # To enable coverage, delete the last line from the conditional below and
     # edit the "charlesarcher" placeholder to your GitHub name.
     # If you do not wish to use codecov, then simply delete this job from the
@@ -58,7 +64,7 @@ jobs:
 
     - name: Install LCov
       run: sudo apt-get update -q
-        && sudo apt-get install lcov doxygen python3-yaml autoconf automake libtool patch -q -y
+        && sudo apt-get install lcov doxygen python3-yaml autoconf automake libtool patch g++-14 -q -y
 
     - name: Configure
       run: cmake --preset=ci-coverage
