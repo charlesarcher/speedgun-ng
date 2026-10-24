@@ -27,14 +27,14 @@ object and the per-entry object, and joins neither `required` list.
 
 ## Why `properties` must carry the keys
 
-The per-entry object is closed. `checkNode` (`json_load.cpp:1431`, reached
-through `checkReport` at `json_load.cpp:1527`) compares the key set, the key
+The per-entry object is closed. `checkNode` (`json_load.cpp:1433`, reached
+through `checkReport` at `json_load.cpp:1529`) compares the key set, the key
 order and the value kinds of a written document against the schema, and a key
 that stands in a closed node's document and not in its `properties` is a
 finding. The hunt
 documents the harness writes therefore fail the schema check unless the schema
 lists the keys: `harness_json_report_test.cpp:282,386` and
-`harness_hunt_json_test.cpp:1287` run `checkReport` over written documents, so
+`harness_hunt_json_test.cpp:1350` run `checkReport` over written documents, so
 an unlisted hunt key reddens the test that writes one.
 
 `x-order` is normative, the description of the schema file states, so a listed
@@ -45,7 +45,7 @@ byte order a document had before.
 ## Why `required` must not carry them
 
 A required key of a closed node that stands absent is a finding, and the reader
-cannot rescue it: `optionalField` (`json_load.cpp:107`) answers a key that is
+cannot rescue it: `optionalField` (`json_load.cpp:83`) answers a key that is
 not there, and the schema check has already reported the absence. Every entry
 key written by master stands in the entry's `required` list except `reason` and
 `noiseWarning`, so the pattern of a key that a document may omit exists and is
@@ -92,7 +92,7 @@ inside a present `hunt` object every key is required by the hunt node's own
 Both nodes are closed and both list every key as required, because a hunt object
 the harness wrote always carries all of them: an absent value inside one is
 written as `null`, which is the shape `putOrNull` writes for `passSpread`
-(`json_report.cpp:589`). The null-accepting kinds are the top-level `budget`
+(`json_report.cpp:607`). The null-accepting kinds are the top-level `budget`
 and `estimate_ns` and `entries[].rank`, each written as a
 one-of pair of its kind
 and `null` in the form the existing optional entries of the schema use.
@@ -125,8 +125,8 @@ The committed comparison fixtures keep their own versions on purpose.
 carries `1.1`, so `harness_compare_cli_test.cpp:847-848` reads the words
 `schema 1.0` and `schema 1.1` from the two header lines of the pair: the case
 weighs a minor difference between documents on disk, a value the comparison
-reads and reports and never refuses on. `harness_compare_cli_test.cpp:492` and
-`harness_compare_test.cpp:1191-1202` pin the same rule at their own sites. The
+reads and reports and never refuses on. `harness_compare_cli_test.cpp:827` and
+`harness_compare_test.cpp:1193-1213` pin the same rule at their own sites. The
 bump moves none of these facts.
 
 ## Verification
@@ -138,7 +138,7 @@ bump moves none of these facts.
 | A key outside a closed hunt node is a finding | `harness_hunt_json_test.cpp` |
 | A pre-1.4 document, hunt keys absent, stays valid and loads | `harness_json_load_test.cpp` passes unchanged, plus the pre-024 document case of `harness_hunt_json_test.cpp` |
 | A present hunt object with a missing key is refused by the reader | `harness_hunt_json_test.cpp` |
-| The written `schemaVersion` equals the version the page states | the four rows of the table above move with the bump, and `harness_json_report_test.cpp:278,382` keeps checking conformance over written documents |
+| The written `schemaVersion` equals the version the page states | the four rows of the table above move with the bump, and `harness_json_report_test.cpp:282,386` keeps checking conformance over written documents |
 
 The schema file is data, so no coverage line attaches to it; the branch that
 reports a finding for an unlisted key is covered by the existing

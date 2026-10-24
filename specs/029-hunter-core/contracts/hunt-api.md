@@ -17,7 +17,7 @@ target is declared in `cmake/dbc-gate.cmake:41`).
 
 Every contract below is written in the house form: a `\pre`, a `\post`, and for a
 type that owns state an `\invariant`, in the style
-`detail/pass_plan.hpp:63-107` shows. No contract predicate names a lambda
+`detail/pass_plan.hpp:61-107` shows. No contract predicate names a lambda
 (hard rule 6): each predicate below is a named function or a comparison over
 plain values.
 
@@ -86,7 +86,7 @@ struct HuntOptions
 | `HuntNorm` | `\pre` none. `\post` `INSTR` divides by the instructions count of the same pass, `CYCLE` by the cycles count of the same pass, `ITER` by the iteration count of the attempt. No enumerator names `SENSITIVITY`, `DELTA` or `SCORE`: N14b adds those when its method exists (D-3) |
 | `HuntRank` | `\pre` none. `\post` `RATE` orders by median rate descending, `CV` by coefficient of variation ascending; both break a tie by catalog address, so one sample list gives one order |
 | `HuntBudget` | `\pre` `amount` is greater than zero. `\post` the record states the budget in the unit the caller named, and no conversion to the other unit happens here. `\invariant` `amount` above zero |
-| `HuntOptions` | `\pre` `top` stands in 1 to 10000, `repeats` in 1 to 1000, `noise` above `0.0`. `selection` is non-empty for the hunt a record drives: `runHunt` requires it at `hunt.cpp:1101-1105`. The empty text is the spelling of hunt options that never met `--hunt`, the state the option scan parks at `hunt_cli.cpp:332-334` and `hunt.hpp:122` documents. `\post` the record holds exactly one run's settled values; a default-constructed record is the run `--hunt` names with no other hunt option (D-1, D-3, D-6 to D-9). `\invariant` `budget` is empty or holds an `amount` above zero |
+| `HuntOptions` | `\pre` `top` stands in 1 to 10000, `repeats` in 1 to 1000, `noise` above `0.0`. `selection` is non-empty for the hunt a record drives: `runHunt` requires it at `hunt.cpp:1121-1125`. The empty text is the spelling of hunt options that never met `--hunt`, the state the option scan parks at `hunt_cli.cpp:304` and `hunt.hpp:122` documents. `\post` the record holds exactly one run's settled values; a default-constructed record is the run `--hunt` names with no other hunt option (D-1, D-3, D-6 to D-9). `\invariant` `budget` is empty or holds an `amount` above zero |
 
 `selection` holds the text the option carried, because the plan line and the
 document repeat it. A `@file` selection holds the joined address lines rather
@@ -126,13 +126,13 @@ public:
 | `expand` | `\pre` `selection` holds `all`, one glob pattern, or a catalog address list whose entries are separated by commas, newlines or both; the text of an `@file` arrives as its address lines under the same separator rule. `\post` on success `addresses()` holds the selected catalog addresses in catalog order, deduplicated by address, for `all` and the pattern in catalog-scan order and for a list in the order of the text; an unknown address, a pattern that matches nothing, an empty address line and a raw event code shaped `r[0-9a-fA-F]+` are recoverable errors naming the value (D-10, D-11); no raw code resolves on any host (spec PC-6) |
 | `addresses` | `\pre` `expand` returned no error. `\post` no address repeats, and every address has the spelling `Object::path() + "/" + entry.name` the catalog composes (spec PC-1, PC-8) |
 | `split` | `\pre` `expand` returned no error. `\post` the first member holds one entry per address whose `Availability` is `COUNTABLE` in the order the seed shuffle of `--hunt-seed` gave, and the second member holds one `SkippedEvent` per refused entry carrying that entry's `Availability` as its kind; no address stands in both members, because the discovery answer decides membership uniquely |
-| `devicePart` | `\pre` none. `\post` the answer is the text before the last `/`, or the whole address when it holds no `/`; `splitAddress` at `runner.cpp:39-47` answers the same way for the same spelling |
-| `isCoreDevice` | `\pre` none. `\post` true for the device part `cpu`, `cpu_core` and `cpu_atom` (`source/counters/linux_pmu/counter_limits.cpp:284-295` matches the three and `source/counters/linux_pmu/provider.cpp:352,447-448` routes them, spec PC-1) and for a device part that starts with `armv8_` (the prefix rule of D-1; new hunt-side code with no library helper); false for every other device, uncore included (D-1) |
+| `devicePart` | `\pre` none. `\post` the answer is the text before the last `/`, or the whole address when it holds no `/`; `splitAddress` at `runner.cpp:41-49` answers the same way for the same spelling |
+| `isCoreDevice` | `\pre` none. `\post` true for the device part `cpu`, `cpu_core` and `cpu_atom` (`source/counters/linux_pmu/counter_limits.cpp:294-295` matches the three and `source/counters/linux_pmu/provider.cpp:352,447-448` routes them, spec PC-1) and for a device part that starts with `armv8_` (the prefix rule of D-1; new hunt-side code with no library helper); false for every other device, uncore included (D-1) |
 | `\invariant` | `addresses()` is empty until `expand` succeeds |
 
 Discovery reads `System::local().object("machine")`, its `children()`, and
 `Object::counters()` (`counters_system.hpp:109,117,241`; the walk
-`catalog.cpp:81-88` already performs). `CatalogEntry` holds no address field, so
+`catalog.cpp:43-86` already performs). `CatalogEntry` holds no address field, so
 no other composition exists (spec PC-1).
 
 ## `planHunt` and its records (E-04)
@@ -292,7 +292,7 @@ struct EntryHunt
 FR-050; the window gap state is disclosed at `counters_measurement.hpp:406-413`
 through `fold` and `foldPairs`). A group-open refusal that still fails on the
 solo retry carries the kind of the catalog state its refusal names, the state
-the counters discovery probe settled for the entry (`provider.cpp:773-786`,
+the counters discovery probe settled for the entry (`provider.cpp:773-797`,
 spec PC-1, T118): `EINVAL`, `EOPNOTSUPP` and `ENOENT` settle `NOT_ENCODABLE`,
 every other errno settles `PERMISSION_BLOCKED`, and a refusal that names no
 state settles `ABSENT` (D-18).
@@ -301,7 +301,7 @@ The console prints every kind with the spelling
 
 | Name | Contract |
 |---|---|
-| `rankEvents` `\pre` | each address stands at most once in `collected`, and `options` holds the settled values of one run, so `top` stands above zero and `noise` above `0.0` in the range its own option states (`hunt_plan.cpp:221`); every address in `collected` with no `skipped` kind holds at least one sample that is free of a disclosure and yields a rate under the norm `options.norm` names (`instr` when it is unset), which needs `anchorInstr` present above zero for `instr`, `anchorCycle` present above zero for `cycle` and `iterations` above zero for `iter`; a denominator absent or at zero answers no rate for that pass, so an address that breaches this empties the rate list the guard at `statistics.cpp:23-25` protects, and the invariant at `hunt_plan.cpp:250` ends the process over it (AC-10); `method` is the method the plan that produced `collected` settled, `std::nullopt` for samples no plan produced; an address with exactly one such sample is reported and never handed to the summary call, so the deviation assert at `statistics.cpp:46-48` stays out of reach (PD-14); the collector holds the mark, and `skippedOf` at `hunt.cpp:269-281` stamps `ABSENT` over a column no window gave a rate |
+| `rankEvents` `\pre` | each address stands at most once in `collected`, and `options` holds the settled values of one run, so `top` stands above zero and `noise` above `0.0` in the range its own option states (`hunt_plan.cpp:221`); every address in `collected` with no `skipped` kind holds at least one sample that is free of a disclosure and yields a rate under the norm `options.norm` names (`instr` when it is unset), which needs `anchorInstr` present above zero for `instr`, `anchorCycle` present above zero for `cycle` and `iterations` above zero for `iter`; a denominator absent or at zero answers no rate for that pass, so an address that breaches this empties the rate list the guard at `statistics.cpp:23-25` protects, and the invariant at `hunt_plan.cpp:250` ends the process over it (AC-10); `method` is the method the plan that produced `collected` settled, `std::nullopt` for samples no plan produced; an address with exactly one such sample is reported and never handed to the summary call, so the deviation assert at `statistics.cpp:46-48` stays out of reach (PD-14); the collector holds the mark, and `skippedOf` at `hunt.cpp:277-289` stamps `ABSENT` over a column no window gave a rate |
 | `rankEvents` `\post` | one `RankedEvent` per address in `collected` and one `SkippedEvent` per address that carries a `skipped` kind; an address stands at most once in each list, and an address that measured and gapped stands in both (I-4, D-10); `rate` is the median of the per-pass normalized rates and `cv` is the coefficient of variation, both from the single `statisticsOf` call over those rates, so `cv` is one hundred times the `cv=` column ratio of the same samples (I-6); `noisy` is the comparison of the unrounded `cv` against `options.noise`; at most `options.top` entries carry a rank, those ranks are `1` to `k` with no gap, and an entry that is noisy or unrepeated carries none (I-5); `method` states the method the caller handed and `multiplexed` stands set for every entry exactly when that method is `MULTIPLEX`, so the rank route names one method for one table (AC-2, D-19); entries come first in rank order and then in address order |
 | `rankEvents` `\post` (exclusion) | a sample whose anchor read zero for its pass contributes no rate for that pass, and a sample with a disclosure contributes none at all, the way a gap repetition stands out of `Statistics::samples` today |
 | `rankEvents` `\invariant` | no address repeats in `entries`, and no address repeats in `skipped` |

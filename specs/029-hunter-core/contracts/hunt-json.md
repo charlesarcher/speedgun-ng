@@ -18,8 +18,8 @@ the exception D-17 records; the rule and its consequence are in
 
 | Position | At `bd10d76` | After this feature |
 |---|---|---|
-| root | `schemaVersion`, `speedgun`, `benchmarks` (`json_report.cpp:583-598`) | those three, then `hunt` |
-| entry | `...`, `metricMethod`, `passCount`, `passSpread`, `spreadWarning` (`json_report.cpp:500-510`) | those four, then `hunt` |
+| root | `schemaVersion`, `speedgun`, `benchmarks` (`json_report.cpp:784-813`) | those three, then `hunt` |
+| entry | `...`, `metricMethod`, `passCount`, `passSpread`, `spreadWarning` (`json_report.cpp:602-614`) | those four, then `hunt` |
 | `schemaVersion` value | `1.1` (`json_report.cpp:31`) | `1.4` |
 
 Key order stays first-appearance: both `hunt` keys are appended, and the bytes a
@@ -61,7 +61,7 @@ either level, so its document differs from the master capture in the
 | `noisePercent` | number | never |
 | `seed` | integer | never |
 | `budget` | string such as `120s`, or null | a run with no budget writes null |
-| `method` | string, the settled `MetricMethod` word in the spelling `metricMethod` already uses (`json_report.cpp:586`, `kMetricMethodWords`) | never |
+| `method` | string, the settled `MetricMethod` word in the spelling `metricMethod` already uses (`json_report.cpp:605`, `kMetricMethodWords`) | never |
 | `events` | array of strings | never; every planned address in plan order (D-17, FR-050); the example shows two of 42 for space |
 | `stages` | array of closed objects `first`, `count`, `repeats` | never; one object per stage that ran: its first index into `events`, its event count, its repeats; the exact membership of a stage-2 subset stays visible in the rank column of `entries` |
 | `estimate_ns` | integer, or null | a plan with no calibration estimate writes null |
@@ -139,15 +139,15 @@ six entry keys, and the console derives the `unrepeated` mark from `samples`.
 
 ## Reader rules
 
-- `readEntry` (`json_load.cpp:1012`) reads the entry object with
-  `optionalField(value, "hunt")` (`json_load.cpp:107`): an absent key leaves
+- `readEntry` (`json_load.cpp:1014`) reads the entry object with
+  `optionalField(value, "hunt")` (`json_load.cpp:83`): an absent key leaves
   `BenchmarkResult::hunt` empty and the rest of the entry reads as it does
   today, and a present key keeps its own kind and its own refusal. `loadReport`
-  (`json_load.cpp:1561`) does the same for the top-level key before it reads the
+  (`json_load.cpp:1563`) does the same for the top-level key before it reads the
   `benchmarks` array.
 - Inside a present hunt object every key is required, so a key that stands
   missing is a refusal naming the pointer, the way the 024 record reads do
-  through `settled` and `missing` (`json_load.cpp:81-118`).
+  through `missing` (`json_load.cpp:58`) and `settled` (`:95`).
 - Every value read goes through the `.get(out)` error-code form, and one test
   per refused code exists (hard rule 7): a number where a string stands, a
   string where a number stands, a boolean where a number stands, an unknown
@@ -155,7 +155,7 @@ six entry keys, and the console derives the `unrepeated` mark from `samples`.
   field, an array where an object stands, and a missing key of a present object.
 - The schema-major gate is untouched: `detail::schemaMajor` inside
   `loadReport` refuses a text that states no major or a major other than 1
-  before any hunt key is read (`json_load.cpp:1585-1594`).
+  before any hunt key is read (`json_load.cpp:1587-1596`).
 - Unknown keys stay tolerated by the reader (spec PC-5), and the schema checker
   reports them for the closed hunt objects.
 

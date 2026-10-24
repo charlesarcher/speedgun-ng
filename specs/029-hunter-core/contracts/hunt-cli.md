@@ -16,9 +16,9 @@ lives in `hunt_cli.cpp` (D-22). The table stays the single source
 `tools/docs/example_drift.py:493-508` reads for the README option rows, so
 a hunt option with no README row fails `example_drift --options`.
 
-Values 256 to 259 are taken at `bd10d76` (`cli.cpp:69-71` for the three
-comparison options, `cli.cpp:374` for `kMetricMethodOption`), so 270 to 279 stand
-free for this lane (spec D-22).
+Values 256 to 259 are taken by `kMetricMethodOption` and the three comparison
+options at `detail/options.hpp:76-79`, so 270 to 279 stand free for this lane
+(spec D-22).
 
 ## The option table
 
@@ -121,14 +121,14 @@ which are the rows the report prints.
 | Input | Behaviour |
 |---|---|
 | `--hunt` with `--metric-method=multiplex` | legal (D-16): every event is multiplexed, the plan line prints the method word `MULTIPLEX`, every row carries the word `multiplexed`, and the document writes the `method` value `MULTIPLEX` (D-19) |
-| `--hunt` with `--dry-run` | legal: the plan line prints, every pass runs one iteration (`runner.cpp:2405`), and each column reaches the table with one sample, a `cv` of `0.0` and no rank, because an unrepeated event carries none (I-5) |
+| `--hunt` with `--dry-run` | legal: the plan line prints, every pass runs one iteration (`runner.cpp:2412`), and each column reaches the table with one sample, a `cv` of `0.0` and no rank, because an unrepeated event carries none (I-5) |
 | `--hunt=none` with anything | legal: the run is identical to the same command with no `--hunt` and no `--hunt=none` |
 
 ## Conflict check
 
 `hunt_cli.cpp` owns `validateHuntCombination(const RunOptions&)`, which `cli.cpp`
 calls once after the scan. It reads the settled members of
-`detail/internal.hpp:504-550`: `counterAddresses` (line 514), `metricNames`
+`detail/internal.hpp:504-569`: `counterAddresses` (line 514), `metricNames`
 (line 525), `placement` (line 529) and `compareBaseline` (line 543). The check
 runs after the scan because a `--counter` that stands after `--hunt` on the
 command line is the same conflict as one that stands before it.
@@ -191,7 +191,7 @@ record holds no such field (FR-040).
 | No estimate | `estimate=not available`, because the hunt measured no pass to weigh the plan against: the entry of a dry run runs nothing to measure, and a host that refused the seat of the measured pass holds no figure for it (FR-012) |
 | Host that refuses everything | the plan line, no ranked row, the skipped list with one line per refused event, and the summary reading `events=0/N`, the plan line carrying `events=0` (D-12, FR-041) |
 | No hunt | no `hunt:` line at all, and no `hunt` key in the document (FR-052, I-8) |
-| `--dry-run` | composes with the hunt: the pass loop runs one iteration per pass (`runner.cpp:2405`), so every column prints with one sample, a `cv` of `0.0` and the `unrepeated` mark |
+| `--dry-run` | composes with the hunt: the pass loop runs one iteration per pass (`runner.cpp:2412`), so every column prints with one sample, a `cv` of `0.0` and the `unrepeated` mark |
 
 ## Option table test
 
