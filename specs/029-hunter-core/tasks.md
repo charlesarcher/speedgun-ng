@@ -1694,6 +1694,31 @@ prose row joins this phase.
       `source/harness` include path, keep the declaration and correct the
       comment.
 
+- [x] T228 LOW The coverage target lists the filtered trace without the error class
+      the other steps carry, so a hit function whose contained lines the
+      `--omit-lines` filter removed ends the job after the gate figure is read.
+      At `e158de0` the job printed lines 100.0% (10569 of 10569 lines) and
+      branches 100.0% (5319 of 5319 branches), then lcov: ERROR: (inconsistent)
+      hunt_plan.cpp:365: function '_ZZN2sg4hunt10rankEvents...clESF_' is hit but
+      no contained lines are hit, and `make` returned Error 1.
+      `tools/dbc/coverage_gate.sh:22` already carried the class, which is why the
+      class added for the HTML step at `cmake/coverage.cmake:116` left the job
+      red: the abort belongs to the `--list` step at `:136-138`, which runs before
+      `genhtml`. The class now sits on that step at `:137`. On the trace that run
+      published, `lcov 2.5.0-beta` exits 1 for the step as it was and 0 as it is.
+
+- [x] T229 LOW `example_run` failed the Rocky lane once at `e158de0` with no code
+      path to account for it. `test/example_run.sh` runs every `example/docs/*.cpp`
+      binary and requires each `--list` entry to print a matching row, and the one
+      failed entry was FAIL: docs_regression_gate registered bmGate/32    REMOVED
+      but printed no row. That roster names a single test, so the exit code of 8 is
+      a ctest status code and carries no count. `example/` and `source/` are
+      untouched from `418c724` to `e158de0`, where Rocky was green, so the binary
+      that failed is byte-identical to one that passed, and the verdict table
+      `example/docs/regression_gate.cpp` prints is static. Re-running that job on
+      the same commit returned success, so the failure is nondeterministic and no
+      code change follows from it.
+
 Round ten found no unchecked row whose work already stands in the code, no
 checked row whose work is missing from it, and no gap between
 Principle VIII's gates and the wiring in `.github/workflows/ci.yml`. Every
