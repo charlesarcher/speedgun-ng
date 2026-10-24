@@ -509,12 +509,12 @@ struct RunHunt
  *       `calibrationNsPerPass x passes x repeats`, the stage-1
  *       figures on a split plan, or stands empty; `normalized` is
  *       false exactly when `anchorsPerPass` is zero
- * \post an event whose device publishes a limit below 3 with both
- *       anchors present, a `norm` set to `instr` or `cycle` whose
- *       anchor of that name stands refused (D-13), and a `source`
- *       index outside `sourceLimits` are each a recoverable error
- *       naming the cause; the caller prints one line naming the value
- *       and exits 2 (FR-081)
+ * \post an event whose device publishes a limit below 3, which
+ *       `detail::admitsHuntEvent` refuses, a `norm` set to `instr` or
+ *       `cycle` whose anchor of that name stands refused (D-13), and a
+ *       `source` index outside `sourceLimits` are each a recoverable
+ *       error naming the cause; the caller prints one line naming the
+ *       value and exits 2 (FR-081)
  * \invariant `passes` covers every column index exactly once, so no
  *            column stands in two passes
  */

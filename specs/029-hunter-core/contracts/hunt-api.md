@@ -191,11 +191,11 @@ the two-stage estimate does not fit; `estimateNs` holds
 `calibrationNsPerPass x passes x repeats`, the stage-1 figures on a split plan,
 or stands empty; `normalized` is false exactly when `anchorsPerPass` is zero.
 
-`\post` (refusal) an event whose device publishes a limit below 3 with both
-anchors present, a `norm` set to `instr` or `cycle` whose anchor of that name
-stands refused (D-13), and a `source` index outside `sourceLimits` are each a
-recoverable error naming the cause. The caller prints one line naming the value
-and exits 2 (FR-081).
+`\post` (refusal) an event whose device publishes a limit below 3, which
+`detail::admitsHuntEvent` refuses, a `norm` set to `instr` or `cycle`
+whose anchor of that name stands refused (D-13), and a `source` index
+outside `sourceLimits` are each a recoverable error naming the cause.
+The caller prints one line naming the value and exits 2 (FR-081).
 
 An empty `events` list is not a refusal: it is the shape of a host whose
 discovery refused every event, and `planHunt` then answers zero columns, empty
