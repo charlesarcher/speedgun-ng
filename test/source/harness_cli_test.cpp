@@ -401,6 +401,13 @@ auto scriptedProvider() -> void
   provider->addObject("fake", "fake", "scripted events object");
   provider->addCounter("fake", "events", "none", "scripted events");
   provider->setPoints("fake", "events", {0}, 900);
+  // A leaf the scripted catalog lists and this host cannot count, so the
+  // counter walk meets a known leaf that answers nothing (FR-087).
+  provider->addCounter("fake",
+                       "blocked",
+                       "none",
+                       "scripted leaf this host cannot count",
+                       sg::counters::Availability::PERMISSION_BLOCKED);
   const auto registered =
       sg::counters::System::local().registerProvider(std::move(provider));
   check(registered.has_value(), "the fake provider registers");
@@ -629,19 +636,101 @@ auto aBreakOfAValueIsOneFaultLine(const std::string& self) -> void
         "the refusal of the metric names the variable that holds it "
         "(FR-033, FR-046)");
 
-  // The counter row of a host that finds nothing at the address warns and
-  // runs, so the status stays the run's own and the row of the run carries the
-  // column label; the warning names the address quoted whole. The status a
-  // name this host does not find answers is the counter ruling, and the test
-  // of that one line stands with it (FR-021, SC-003).
+  // An address of the variable that this host does not find ends the run, and
+  // a value that carries a backslash is named with its own words in that line:
+  // the variable, the address, and the reason (FR-021, FR-033, FR-087,
+  // SC-003).
   out.clear();
-  subprocessOutput(
+  const int counter = subprocessOutput(
       "SPEEDGUN_COUNTER='/a\nb' \"" + self + "\" arg '--iterations=1' 2>&1",
       out);
-  check(
-      out.find("/a\\nb: no object at path") != std::string::npos,
-      "the counter line names the break with its own words (FR-021, " "SC-"
-                                                                      "003)");
+  check(WEXITSTATUS(counter) == 2,
+        "an address of the variable this host does not find answers status 2 "
+        "(FR-087, SC-003)");
+  check(out.find("SPEEDGUN_COUNTER: /a\\nb: no object at path")
+            != std::string::npos,
+        "the counter line names the variable that holds it and the break with "
+        "its own words (FR-021, FR-033, SC-003)");
+}
+
+// The counter walk: an address a user names that this host does not find ends
+// the run with the usage status, from every source, alone and under a good
+// address of the words. The line names the source that held the address, the
+// address, and what the host found there, and no benchmark runs (FR-087).
+auto counterAddressesOfEverySourceExitTwo(const std::string& self) -> void
+{
+  // The text the child printed before its own marker: the entry point hands
+  // the status back, so the marker of a run that never started can stand
+  // behind the refusal.
+  const auto refusal = [](const std::string& out)
+  {
+    const auto marker = out.find("BENCHMARK_NO_RUN");
+    return marker == std::string::npos ? out : out.substr(0, marker);
+  };
+  const auto refused = [&self, &refusal](const std::string& argument,
+                                         const std::string& environment,
+                                         const std::string& expected)
+  {
+    std::string out;
+    const int status = subprocessOutput(
+        environment + "\"" + self + "\" arg " + argument + " 2>&1", out);
+    check(WEXITSTATUS(status) == 2,
+          "an address this host does not find answers the usage status "
+          "(FR-087)");
+    check(refusal(out) == expected + "\n",
+          "the refusal names its source, the address and what the host found "
+          "there (FR-087, FR-033)");
+    check(out.find("BENCHMARK_RAN") == std::string::npos,
+          "an address this host does not find runs no benchmark (FR-087)");
+  };
+
+  refused("\"--counter=/nosuch/leaf\"",
+          "",
+          "--counter: /nosuch/leaf: no object at path '/nosuch'");
+  refused("\"--counter=fake/nosuchleaf\"",
+          "",
+          "--counter: fake/nosuchleaf: no such leaf in the catalog (FR-023)");
+  refused("\"--counter=fake/blocked\"",
+          "",
+          "--counter: fake/blocked: listed as permission-blocked (FR-023)");
+  refused("\"--iterations=1\"",
+          "SPEEDGUN_COUNTER=/nosuch/leaf ",
+          "SPEEDGUN_COUNTER: /nosuch/leaf: no object at path '/nosuch'");
+  refused("\"--counter=fake/events\"",
+          "SPEEDGUN_COUNTER=/nosuch/leaf ",
+          "SPEEDGUN_COUNTER: /nosuch/leaf: no object at path '/nosuch'");
+
+  const std::string opts = "harness_cli_counter_opts.txt";
+  {
+    std::ofstream stream(opts);
+    stream << "counter=/nosuch/leaf\n";
+  }
+  refused("\"--options=" + opts + "\"",
+          "",
+          opts + ":1: /nosuch/leaf: no object at path '/nosuch'");
+  refused("\"--options=" + opts + "\" \"--counter=fake/events\"",
+          "",
+          opts + ":1: /nosuch/leaf: no object at path '/nosuch'");
+  std::remove(opts.c_str());
+
+  // An address this host counts runs, and the listing answers before the walk,
+  // the way the metric names keep it (FR-087, FR-009).
+  {
+    std::string out;
+    const int status = subprocessOutput(
+        "\"" + self + "\" arg \"--counter=fake/events\" 2>&1", out);
+    check(WEXITSTATUS(status) == 0,
+          "an address this host counts exits zero (FR-087)");
+    check(out.find("BENCHMARK_RAN") != std::string::npos,
+          "a counted address runs the benchmark (FR-087)");
+  }
+  {
+    std::string out;
+    const int status = subprocessOutput(
+        "\"" + self + "\" arg \"--counter=/nosuch/leaf\" \"--list\" 2>&1", out);
+    check(WEXITSTATUS(status) == 0 && out.find("bmAlpha") != std::string::npos,
+          "the listing answers before any address is walked (FR-087, FR-009)");
+  }
 }
 
 }  // namespace
@@ -902,7 +991,7 @@ auto main(const int argc, char** argv) -> int
         UsageCase {"--filter=(", "invalid regular expression", false},
         UsageCase {"--nonsense=1", "unknown option", false},
         UsageCase {"--warmup-time=0", "", true},
-        UsageCase {"--counter=machine/nosuchleaf", "no such leaf", true},
+        UsageCase {"--counter=machine/nosuchleaf", "no such leaf", false},
         UsageCase {"--metric=nosuchmetric", "no metric named", false},
         UsageCase {"--metric", "option '--metric' needs a value", false}})
   {
@@ -1012,6 +1101,7 @@ auto main(const int argc, char** argv) -> int
 
   aSemicolonOfAFileLineIsNoList(self);
   aBreakOfAValueIsOneFaultLine(self);
+  counterAddressesOfEverySourceExitTwo(self);
 
   // FR-027: a metric the host carries but cannot count prints its refusal
   // kind, the benchmark still runs, and the exit status is the run's own.
@@ -1043,14 +1133,17 @@ auto main(const int argc, char** argv) -> int
         "a skipped benchmark prints no statistics (FR-031)");
 
   // FR-032, SC-006: a throw reports the exception text, releases every
-  // descriptor and mapping, and the run continues. The leaf of the real
-  // pmu provider is what opens a descriptor per run, so the failed runs
-  // are counted against it.
-  const std::vector<std::string> failing = {"--filter",
-                                            "^bmThrows$",
-                                            "--iterations=1",
-                                            "--counter",
-                                            "cpu/instructions"};
+  // descriptor and mapping, and the run continues. The leaf of the real pmu
+  // provider is what opens a descriptor per run, so the failed runs are
+  // counted against it. A host that publishes no `cpu` object cannot open
+  // that address at all, and the entry point refuses it (FR-087), so such a
+  // host keeps the shape of the run on the leaf every host publishes.
+  const std::string pmuLeaf =
+      sg::counters::System::local().object("cpu").has_value()
+      ? "cpu/instructions"
+      : "machine/monotonic";
+  const std::vector<std::string> failing = {
+      "--filter", "^bmThrows$", "--iterations=1", "--counter", pmuLeaf};
   const std::string thrown = captureRun(failing, 1);
   check(thrown.find("FAILED: the scripted failure") != std::string::npos,
         "the failure reports the exception text (FR-032)");

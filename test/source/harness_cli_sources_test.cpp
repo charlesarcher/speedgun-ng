@@ -1480,6 +1480,31 @@ auto aHigherSourceReplacesTheWholeList() -> void
 
   const Gathered allRun = gatherSources(
       {"--counter=cycles", "--counter=instructions"}, environment, fileText);
+  // The counter walk reads the host, so it reads every address every source
+  // named: the two of the words behind no origin, the two of the variable
+  // behind its name, and the one of the file line behind its path and number,
+  // although the settled list carries the words alone (FR-038, FR-087).
+  if (const auto* kept =
+          settledOf(allRun, "the three sources over one repeatable"))
+  {
+    const auto originOf =
+        [](const sg::detail::ResolvedOptions& state, const std::string& address)
+    {
+      const auto found =
+          std::ranges::find(state.counterAddresses,
+                            address,
+                            &sg::detail::CounterAddress::address);
+      return found == state.counterAddresses.end() ? std::string("<absent>")
+                                                   : found->origin;
+    };
+    check(kept->counterAddresses.size() == 5
+              && originOf(*kept, "cycles").empty()
+              && originOf(*kept, "instructions").empty()
+              && originOf(*kept, "faults") == "SPEEDGUN_COUNTER"
+              && originOf(*kept, "branches") == "SPEEDGUN_COUNTER"
+              && originOf(*kept, "pages") == "options-file.txt:1",
+          "every counter address keeps the origin of its source (FR-087)");
+  }
   if (const auto* all =
           settledOf(allRun, "the three sources over one repeatable"))
   {
@@ -2070,10 +2095,11 @@ auto aHeldValueOfALowerSourceNamesItsSource() -> void
   // Three rows are kept as text by the settle and read only for the winner:
   // the batch filter, the process preset and the user metrics. A bad word of
   // a lower source therefore settles nothing and exits 0, and the line of the
-  // one that does answer names the option it comes from rather than the
-  // source that holds it. Each of the three is read where it settles now, so
-  // each answers one line behind its own source at status 2, whether or not a
-  // higher source settled the row (FR-027, FR-033, FR-038, FR-046, FR-051).
+  // one that does answer names the option it comes from, with the source
+  // that holds it standing behind that name. Each of the three is read where it
+  // settles now, so each answers one line behind its own source at status 2,
+  // whether or not a higher source settled the row (FR-027, FR-033, FR-038,
+  // FR-046, FR-051).
   const Run barePreset = runEntryWithEnv({}, {"SPEEDGUN_PLACEMENT=bogus"});
   oneFaultLine(barePreset,
                "the refused preset of SPEEDGUN_PLACEMENT (FR-027, FR-046)",
@@ -2699,8 +2725,8 @@ auto aRulesFileOfOneSourceTurnsTheGateFail(const std::string& data) -> void
   // The rule of the file a source names is a rule of the run, so the gate
   // answer of a pair is the answer of that rule. The contender of the two
   // fixtures stands 3% above the baseline: the 5% rule of the first line
-  // passes it and the 1% rule of the named file fails it, so the run answers
-  // the failing-gate status of FR-066 rather than the passing one (FR-063).
+  // passes it and the 1% rule of the named file fails it, so the run takes
+  // the failing-gate status of FR-066 (FR-063).
   const std::filesystem::path rules = capturePath(".rules");
   {
     std::ofstream stream(rules);

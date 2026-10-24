@@ -1103,6 +1103,25 @@ and run the example through `example_run`.
 - **FR-086**: The report schema shall take the next free schema minor,
   1.3 under the planned merge order, and the writer shall stamp it (PC-6).
 
+### Counter addresses this host does not find
+
+- **FR-087**: For a counter that a user names from any source, an address this
+  host does not find shall exit 2 on one line naming the source that held it,
+  the address, and what the host found there. The listing and the catalog
+  shall answer before the addresses are read, and an address that a higher
+  source dropped shall answer its own line behind the source that named it.
+
+This requirement is a ruling, and it is recorded here because it moves a
+status spec 015 sets. For a counter that a user names, an address this host
+does not find exits 2 (FR-087). FR-023 of spec 015 stays for internal leaves:
+a caller that hands addresses to the runner keeps the absent column it
+answers today, and a leaf a metric needs keeps its refusal kind with the run
+going on. The status table of
+`specs/015-benchmark-harness-core/contracts/cli.md:102` answers zero for a run
+whose counter address the host cannot resolve; this requirement answers 2 for
+the address a user named, and spec 015 is not edited for it. The oracle row
+`case17` of `test/data/base_cli_matrix.txt` carries the new status.
+
 ## Key Entities *(include if feature involves data)*
 
 - **Option table row**: one long option with its internal value, its
@@ -1248,7 +1267,7 @@ and run the example through `example_run`.
 
 ## Scope
 
-In: FR-001 to FR-086. The one option table with its fields, the help and
+In: FR-001 to FR-087. The one option table with its fields, the help and
 version options, the environment defaults with their twelve rows, the
 option file, the precedence rule, the disclosure object and console line,
 `--threads`, `--interleave` with its print order, the comparison rules
