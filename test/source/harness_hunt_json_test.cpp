@@ -1214,6 +1214,20 @@ const auto kPlants = std::vector<Plant> {
            .body = "\"\"",
            .pointer = "/hunt/budget",
            .message = "states no budget unit"},
+    // The two event counts of D-17 stand in the same record as `passes`, so a
+    // plant on either of them is the only way its own pointer is reached.
+    Plant {.what = "a string where the planned event count stands",
+           .node = "run",
+           .key = "planned_events",
+           .body = "\"42\"",
+           .pointer = "/hunt/planned_events",
+           .message = "expected an integer, found string"},
+    Plant {.what = "a boolean where the ran event count stands",
+           .node = "run",
+           .key = "ran_events",
+           .body = "true",
+           .pointer = "/hunt/ran_events",
+           .message = "expected an integer, found boolean"},
 };
 
 // One case per refused reader code, each naming the pointer of its position
