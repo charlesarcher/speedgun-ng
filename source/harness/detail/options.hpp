@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <expected>
 #include <optional>
+#include <regex>
 #include <span>
 #include <string>
 #include <string_view>
@@ -161,6 +162,19 @@ struct CommandLineOptions
   // its own: the gather reads this to tell `none` given from nothing given
   // (FR-037, FR-050).
   bool rawContentNamed = false;
+  // The words named the `--filter` row, whose master default is the empty
+  // pattern that selects every benchmark: the gather reads this to tell an
+  // empty pattern given from nothing given (FR-024, FR-037, FR-050).
+  bool filterNamed = false;
+};
+
+/// @brief One metric name one source named, with the origin that names that
+/// source (FR-028, FR-033, FR-038). The origin stands empty for the words of
+/// the command line, whose own refusal line names the option.
+struct MetricName
+{
+  std::string origin;
+  std::string name;
 };
 
 /// @brief What the gather answers: every option at the value of the
@@ -189,6 +203,21 @@ struct ResolvedOptions
   // value the word `none` answers, so the marker is what tells a source
   // that settled the row from one that never named it (FR-037, FR-050).
   bool rawContentSettled = false;
+  // The `--filter` row is settled the same way: its master default is the
+  // empty pattern that selects every benchmark, so the empty word names the
+  // row without filling the text and the mark of the text would miss it
+  // (FR-024, FR-037, FR-050).
+  bool filterSettled = false;
+  // The batch filter pattern of the row that settled, compiled once where it
+  // settles: no pattern when the settled text stands empty, since the empty
+  // pattern selects every benchmark (FR-024, FR-050, FR-051).
+  std::optional<std::regex> filterPattern;
+  // Every metric name every source named, settled or dropped, in the order
+  // the sources named them, each behind the origin that names its source. The
+  // table lookup is a reading of the host, so the entry point walks this list
+  // rather than the gather, and a name that a higher source dropped answers
+  // its own line behind the source that held it (FR-028, FR-033, FR-038).
+  std::vector<MetricName> metricNames;
 };
 
 /// @brief The one option table, in the order
@@ -201,6 +230,20 @@ struct ResolvedOptions
 /// share this one lookup, so the table is walked in one place (FR-033,
 /// FR-017).
 [[nodiscard]] auto rowNamed(std::string_view name) -> const OptionRow*;
+
+/**
+ * @brief The batch filter pattern of FR-024 and FR-050, compiled where the
+ * option settles: the expression the row names, no pattern when the settled
+ * text stands empty, or one text naming the expression the regex library
+ * refused (FR-051).
+ */
+[[nodiscard]] auto compileFilterPattern(const std::string& pattern)
+    -> std::expected<std::optional<std::regex>, std::string>;
+
+/// @brief The exit status when a metric name carries nothing: the first
+/// failure is stated once, with its near-miss names, behind the origin of the
+/// source whose name failed (FR-028, FR-033, FR-038, FR-042).
+[[nodiscard]] auto metricNameFailure(std::span<const MetricName> names) -> int;
 
 /**
  * @brief Scan one command line into the options its words name

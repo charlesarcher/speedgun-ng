@@ -40,6 +40,7 @@
 #include <unistd.h>
 
 #include "../source/harness/detail/internal.hpp"
+#include "../source/harness/detail/options.hpp"
 #include "detail/pass_fixture.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
@@ -498,7 +499,8 @@ auto metricFailureTextScenario() -> void
   if (saved < 0 || std::freopen(path, "w", stderr) == nullptr) {
     fail("cannot redirect the failure line");
   }
-  const int status = sg::detail::metricNameFailure({"cpi_x_no_such_metric"});
+  const sg::detail::MetricName one[] {{"", "cpi_x_no_such_metric"}};
+  const int status = sg::detail::metricNameFailure(one);
   std::fflush(stderr);
   if (dup2(saved, STDERR_FILENO) < 0) {
     fail("cannot restore stderr");
@@ -817,6 +819,68 @@ auto main(const int argc, char** argv) -> int
   check(WEXITSTATUS(bareStatus) == 2
             && bareOutput.find("BENCHMARK_RAN") == std::string::npos,
         "a --metric with no value ends the same way (FR-028, FR-042)");
+
+  // FR-027, FR-033, FR-038: the refused metric of the environment names the
+  // variable that holds it, and it names it also where a metric of the words
+  // settles the row and the variable's own name drops. The environment is
+  // handed to the child in its own environment, as every case of a lower
+  // source does.
+  {
+    std::string output;
+    const int status = subprocessOutput("SPEEDGUN_METRIC=nosuchmetric \""
+                                        + self + "\" arg \"--iterations=1\" "
+                                          "2>&1",
+                                        output);
+    check(WEXITSTATUS(status) == 2,
+          "a refused metric of the environment ends with the usage status "
+          "(FR-027, FR-038)");
+    check(output.find("SPEEDGUN_METRIC: --metric nosuchmetric")
+              != std::string::npos,
+          "the refused metric of the environment names the variable that "
+            "holds it (FR-033)");
+    check(output.find("BENCHMARK_RAN") == std::string::npos,
+          "a refused metric of the environment runs no benchmark (FR-028)");
+  }
+  if (!first.empty()) {
+    std::string output;
+    const int status = subprocessOutput("SPEEDGUN_METRIC=nosuchmetric \"" + self
+                                            + "\" arg \"--metric=" + first
+                                            + "\" \"--iterations=1\" 2>&1",
+                                        output);
+    check(WEXITSTATUS(status) == 2,
+          "a refused metric of the environment ends with the usage status "
+          "under a metric of the words (FR-038)");
+    check(output.find("SPEEDGUN_METRIC: --metric nosuchmetric")
+              != std::string::npos,
+          "the metric that drops still names the variable that held it "
+          "(FR-038, FR-033)");
+    check(output.find("BENCHMARK_RAN") == std::string::npos,
+          "the dropped metric of the environment runs no benchmark (FR-028)");
+  }
+
+  {
+    // FR-033, FR-035: the refused metric of a file line names the file and
+    // the number of the line that holds it, behind the same walk.
+    const std::string opts = "harness_cli_metric_opts.txt";
+    {
+      std::ofstream stream(opts);
+      stream << "metric=nosuchmetric\n";
+    }
+    std::string output;
+    const int status =
+        subprocessOutput("\"" + self + "\" arg \"--options=" + opts
+                             + "\" \"--iterations=1\" " + "2>&1",
+                         output);
+    std::remove(opts.c_str());
+    check(WEXITSTATUS(status) == 2,
+          "a refused metric of an option file ends with the usage status "
+          "(FR-027, FR-038)");
+    check(output.find(opts + ":1: --metric nosuchmetric") != std::string::npos,
+          "the refused metric of a file line names the file and its number "
+            "(FR-033, FR-035)");
+    check(output.find("BENCHMARK_RAN") == std::string::npos,
+          "a refused metric of a file line runs no benchmark (FR-028)");
+  }
 
   // FR-027: a metric the host carries but cannot count prints its refusal
   // kind, the benchmark still runs, and the exit status is the run's own.

@@ -919,11 +919,6 @@ struct MetricColumn
 [[nodiscard]] auto metricNameFailureLine(
     const std::string& name, const sg::counters::Error& error) -> std::string;
 
-/// @brief The exit status when a `--metric` name carries nothing: the first
-/// failure is stated once, with its near-miss names (FR-028, FR-042).
-[[nodiscard]] auto metricNameFailure(const std::vector<std::string>& names)
-    -> int;
-
 /**
  * @brief The text of one file, for every source that needs a whole
  * file: the report loader, the option file and the rules file
