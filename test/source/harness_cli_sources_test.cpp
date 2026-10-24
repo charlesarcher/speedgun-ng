@@ -252,6 +252,21 @@
 //                                is named by the group's own line behind
 //                                a long option as it is alone (FR-005,
 //                                FR-007)
+//   aRulesLineBeforeItsRulesFileOfOneSourceJoins
+//                                the rules of the file one source names join
+//                                after the rules that source spelled, when
+//                                the file line stands first and when it
+//                                stands last (FR-038, FR-063)
+//   anEmptyRulesFilePathNamesNoSource
+//                                a rules line whose path stands empty opens
+//                                no file and settles no source, so a later
+//                                line of the same file settles the list
+//                                (FR-041, FR-063)
+//   aRulesFileOfOneSourceTurnsTheGateFail
+//                                the rule of the file an option file names
+//                                is a rule of the run, so it decides the
+//                                gate answer at the entry point (FR-063,
+//                                FR-066)
 //   aRulesFileTheReaderCannotOpenFaultsTheGather
 //                                the reader the gather is handed answers its
 //                                own line for a path it cannot open (FR-062,
@@ -2168,16 +2183,23 @@ auto oneWordTwiceKeepsTheLastWordOfOneSource() -> void
   }
 }
 
-// The one line of the rules-file reader the gather reads with: a file of no
-// rule stands for the path the higher line names, a file of one rule for the
-// path that took effect.
+// The one line of the rules-file reader the gather reads with: a path this
+// helper does not know answers a file of no rule, and each name a case uses
+// answers one rule of its own text, so the order of a settled list is read
+// from the rules themselves.
 auto oneRuleFile(const std::string& path)
     -> std::expected<std::vector<sg::CompareRule>, std::string>
 {
-  if (path != "second.rules") {
+  std::string_view text;
+  if (path == "second.rules") {
+    text = "time@median:lower:5%";
+  } else if (path == "more.rules") {
+    text = "time@median:lower:1%";
+  }
+  if (text.empty()) {
     return std::vector<sg::CompareRule> {};
   }
-  const auto rule = sg::parseCompareRule("time@median:lower:5%");
+  const auto rule = sg::parseCompareRule(text);
   if (!rule.has_value()) {
     return std::unexpected(rule.error());
   }
@@ -2233,6 +2255,79 @@ auto theLaterRulesFileOfOneSourceStands() -> void
   check(paired.settled->rules.size() == 2,
         "the rule of the source stands before the rules of the later file "
         "(FR-038, FR-063)");
+}
+
+auto aRulesLineBeforeItsRulesFileOfOneSourceJoins() -> void
+{
+  // FR-063, spec D-23, recommendation 8: the rules a source spells stand
+  // first and the rules of the file that source names join after them,
+  // whichever of the two lines came first, so a `compare-rules` line that
+  // follows a `compare-rule` line of one file is read and joins (FR-035,
+  // FR-038).
+  const Gathered joined = gatherSources(
+      {},
+      {},
+      "compare-rule=time@median:lower:5%\n" "compare-rules=more.rules\n",
+      &oneRuleFile);
+  if (!joined.settled.has_value()) {
+    fail("the gather settles a rule line that a rules-file line follows");
+    return;
+  }
+  std::string seen;
+  for (const sg::CompareRule& rule : joined.settled->rules) {
+    seen += seen.empty() ? rule.text : ";" + rule.text;
+  }
+  check(seen == "time@median:lower:5%;time@median:lower:1%",
+        "the rule the source spelled stands before the rule of its file "
+        "(FR-038, FR-063)");
+}
+
+auto anEmptyRulesFilePathNamesNoSource() -> void
+{
+  // A `compare-rules` line whose path stands empty opens no file and names no
+  // rule, so it settles no source and a later line of the same file still
+  // settles the list (FR-041, FR-063).
+  const Gathered settled =
+      gatherSources({},
+                    {},
+                    "compare-rules=\n" "compare-rule=time@median:lower:5%\n",
+                    &oneRuleFile);
+  if (!settled.settled.has_value()) {
+    fail("the gather settles a rules line whose path stands empty");
+    return;
+  }
+  check(settled.settled->rules.size() == 1,
+        "the rule of the later line stands past an empty rules path "
+        "(FR-041, FR-063)");
+}
+
+auto aRulesFileOfOneSourceTurnsTheGateFail(const std::string& data) -> void
+{
+  // The rule of the file a source names is a rule of the run, so the gate
+  // answer of a pair is the answer of that rule. The contender of the two
+  // fixtures stands 3% above the baseline: the 5% rule of the first line
+  // passes it and the 1% rule of the named file fails it, so the run answers
+  // the failing-gate status of FR-066 rather than the passing one (FR-063).
+  const std::filesystem::path rules = capturePath(".rules");
+  {
+    std::ofstream stream(rules);
+    stream << "time@median:lower:1%\n";
+  }
+  const std::filesystem::path file = capturePath(".gateopts");
+  {
+    std::ofstream stream(file);
+    stream << "compare-rule=time@median:lower:5%\n"
+           << "compare-rules=" << rules.string() << "\n";
+  }
+  const Run run = runEntryWithEnv({"--compare=" + data + "/gate_ok_base.json,"
+                                       + data + "/gate_ok_contender.json",
+                                   "--options=" + file.string()},
+                                  {});
+  check(run.status == 1,
+        "the rule of the file one source names turns the gate to fail "
+        "(FR-063, FR-066)");
+  std::filesystem::remove(rules);
+  std::filesystem::remove(file);
 }
 
 auto aRulesFileTheReaderCannotOpenFaultsTheGather() -> void
@@ -2468,6 +2563,9 @@ auto main(int argc, char** argv) -> int
   if (const auto child = runChildMode(argc, argv)) {
     return *child;
   }
+  // The two gate fixtures of the rules-file case stand under the directory
+  // the test registration names (FR-063, FR-066).
+  const std::string data = argc > 1 ? argv[1] : std::string();
   theUnknownOptionNamesTheText();
   theNearestNameRidesTheUnknownLine();
   theAmbiguousPrefixNamesBothCandidates();
@@ -2514,6 +2612,9 @@ auto main(int argc, char** argv) -> int
   aSourceLineWithANulByteIsRefused();
   oneWordTwiceKeepsTheLastWordOfOneSource();
   theLaterRulesFileOfOneSourceStands();
+  aRulesLineBeforeItsRulesFileOfOneSourceJoins();
+  anEmptyRulesFilePathNamesNoSource();
+  aRulesFileOfOneSourceTurnsTheGateFail(data);
   aRulesFileTheReaderCannotOpenFaultsTheGather();
   theEnvironmentRowOfOneProcessName();
   aRefusedThreadRowFaultsTheEntry();

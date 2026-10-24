@@ -173,10 +173,18 @@ struct ResolvedOptions
   std::vector<OptionUse> uses;
   InterleaveSeed interleave;
   std::vector<CompareRule> rules;
-  // The file a `compare-rules` line of the option file names, empty when it
-  // names none. Its rules join after that file's own lines, the last
-  // position of the order spec D-23 states (FR-063).
-  std::string optionFileRulesPath;
+  // The highest source that named a rule or a rules file, when one did: that
+  // source settles the whole list, and a lower source is read for its faults
+  // and then dropped. A `compare-rules` line whose path stands empty names
+  // no rule, so it leaves this empty the way the master default of FR-041
+  // stays for a row no source named (FR-038, FR-063, spec D-23).
+  std::optional<OptionSource> rulesSource;
+  // The rules, and the one rules file, that the source being applied named,
+  // held until that source is applied in full: the rules a source spells
+  // stand before the rules of the file it names, whichever of the two lines
+  // came first (FR-035, FR-063).
+  std::vector<CompareRule> stagedRules;
+  std::optional<std::string> stagedRulesPath;
   // The `--json-raw` row has no unset word: its master default is the same
   // value the word `none` answers, so the marker is what tells a source
   // that settled the row from one that never named it (FR-037, FR-050).

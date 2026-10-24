@@ -1360,7 +1360,9 @@ constexpr auto kSameSourceSettled = PriorSettle::SAME_SOURCE;
 // keeps the last word (FR-035, FR-038).
 // `origin` names the source ahead of the reader's own refusal line: the
 // variable for the environment, the path and the line number for a file
-// (FR-027, FR-035).
+// (FR-027, FR-035). `source` says which source holds the text, which is the
+// mark the two rules rows compare against the source that settled the list
+// (FR-063).
 //
 // The `no-percentiles` row is the negating flag, so the word is the flag's
 // truth and `1` turns percentiles off, the answer the scan's `case 'P'`
@@ -1369,6 +1371,7 @@ auto applySourceValue(const OptionRow& row,
                       const std::string& text,
                       const std::string& origin,
                       const PriorSettle prior,
+                      const OptionSource source,
                       ResolvedOptions& resolved)
     -> std::expected<bool, std::string>
 {
@@ -1596,37 +1599,41 @@ auto applySourceValue(const OptionRow& row,
       return true;
     }
     case kCompareRuleOptionValue: {
-      // FR-063, spec D-23 as this round reads it: the rule list does not
-      // combine across sources, so the highest source that named a rule
-      // settles the whole list. A rule of a lower source is still read, so
-      // its own fault reaches the operator, then drops (FR-024, FR-038).
-      // Within one source the order recommendation 8 keeps holds: every rule
-      // that source spells stands, in the order it spelled them (FR-035).
+      // FR-063, spec D-23: the highest source that named a rule settles the
+      // whole list. The text is parsed first, so a rule of a lower source
+      // answers its own fault line before it drops (FR-024, FR-038); what is
+      // settled is then held until its own source is applied in full, which
+      // is what keeps the rules one source spells before the rules of the
+      // file that source names (FR-035, recommendation 8).
       const auto rule = parseCompareRule(text);
       if (!rule.has_value()) {
         return refuse(rule.error());
       }
-      if (!resolved.rules.empty() && prior != kSameSourceSettled) {
+      if (resolved.rulesSource.has_value() && *resolved.rulesSource != source) {
         return false;
       }
-      if (prior == kSameSourceSettled) {
-        resolved.rules.push_back(std::move(*rule));
-      } else {
-        resolved.rules = {std::move(*rule)};
-      }
+      resolved.rulesSource = source;
+      resolved.stagedRules.push_back(std::move(*rule));
       return true;
     }
     case kCompareRulesOptionValue:
-      // FR-063: the file this source names joins after the rules this
-      // source spells, so the path is kept here and the gather reads it
-      // once every source has been applied. A source below one that named a
-      // rule names no file either: its path drops the way a rule of that
-      // source drops (FR-038, FR-063). A second line of one source keeps its
-      // own path, the scalar rule of FR-035.
-      if (!resolved.rules.empty() && prior != kSameSourceSettled) {
+      // FR-063: the rules of the file one source names join after the rules
+      // that source spells, so the path is held until the gather has applied
+      // that source in full. A second line of one source keeps its own path,
+      // the scalar rule of FR-035. The path of a lower source is held for the
+      // read too, so the fault of a file it cannot open reaches the operator
+      // before the path drops (FR-038, FR-061, FR-062). An empty word names
+      // no rule and settles no source, so the gather opens nothing for it and
+      // a later line of the same source still settles the list (FR-041).
+      if (text.empty()) {
+        return true;
+      }
+      if (resolved.rulesSource.has_value() && *resolved.rulesSource != source) {
+        resolved.stagedRulesPath = text;
         return false;
       }
-      resolved.optionFileRulesPath = text;
+      resolved.rulesSource = source;
+      resolved.stagedRulesPath = text;
       return true;
     case kJitterProbeOptionValue: {
       // The value parses where it settles, so a file line's refusal
@@ -1686,6 +1693,40 @@ auto appendRuleFile(ResolvedOptions& resolved,
     return std::unexpected(rules.error());
   }
   std::move(rules->begin(), rules->end(), std::back_inserter(resolved.rules));
+  return {};
+}
+
+// Join what the source that was just applied named for the rules of the run:
+// first the rules that source spelled, then the rules of the single file it
+// named, whichever of the two lines stood first (FR-063, spec D-23,
+// recommendation 8). A source below the one that settled the list is read for
+// its faults and then dropped, so the file its path names is opened and the
+// reader's own line stands while the rules it holds never join (FR-038,
+// FR-061, FR-062). Either way the held text is cleared, so the next source
+// starts from nothing of its own.
+auto commitRules(ResolvedOptions& resolved,
+                 const OptionSource source,
+                 RuleFileReader ruleFiles) -> std::expected<void, std::string>
+{
+  const bool higher =
+      resolved.rulesSource.has_value() && *resolved.rulesSource != source;
+  if (!higher) {
+    std::move(resolved.stagedRules.begin(),
+              resolved.stagedRules.end(),
+              std::back_inserter(resolved.rules));
+  }
+  resolved.stagedRules.clear();
+  if (resolved.stagedRulesPath.has_value()) {
+    const auto rules = ruleFiles(*resolved.stagedRulesPath);
+    if (!rules.has_value()) {
+      return std::unexpected(rules.error());
+    }
+    if (!higher) {
+      std::move(
+          rules->begin(), rules->end(), std::back_inserter(resolved.rules));
+    }
+  }
+  resolved.stagedRulesPath = std::nullopt;
   return {};
 }
 
@@ -1765,7 +1806,8 @@ auto applyOptionFile(const OptionFileText& file, ResolvedOptions& resolved)
         std::find(settled.begin(), settled.end(), row) != settled.end()
         ? kSameSourceSettled
         : kNoPriorSettle;
-    const auto applied = applySourceValue(*row, value, where, again, resolved);
+    const auto applied = applySourceValue(
+        *row, value, where, again, OptionSource::OPTION_FILE, resolved);
     if (!applied.has_value()) {
       return std::unexpected(applied.error());
     }
@@ -1867,6 +1909,12 @@ auto gatherOptionSources(const CommandLineOptions& scan,
       return std::unexpected(read.error());
     }
   }
+  // The words name the rules list when they spell a rule or name a file, and
+  // a rules file of its own that holds no rule is still a named file
+  // (FR-063, spec D-23).
+  if (!resolved.rules.empty() || !scan.options.compareRulesFile.empty()) {
+    resolved.rulesSource = OptionSource::COMMAND_LINE;
+  }
 
   // The file stands between the words and the environment (FR-037, D-1).
   if (optionFile.has_value()) {
@@ -1874,16 +1922,12 @@ auto gatherOptionSources(const CommandLineOptions& scan,
     if (!read.has_value()) {
       return std::unexpected(read.error());
     }
-  }
-
-  // The last position of the order this round reads: the file that a
-  // `compare-rules` line of the option file names joins after that file's
-  // own rules, and only when no higher source named a rule at all (FR-063).
-  if (!resolved.optionFileRulesPath.empty()) {
-    const auto read =
-        appendRuleFile(resolved, resolved.optionFileRulesPath, ruleFiles);
-    if (!read.has_value()) {
-      return std::unexpected(read.error());
+    // The last position of the order this round reads for the file: its own
+    // rules first, then the rules of the one file its lines name (FR-063).
+    const auto joined =
+        commitRules(resolved, OptionSource::OPTION_FILE, ruleFiles);
+    if (!joined.has_value()) {
+      return std::unexpected(joined.error());
     }
   }
 
@@ -1920,8 +1964,12 @@ auto gatherOptionSources(const CommandLineOptions& scan,
   for (const OptionRow* const row : present) {
     const std::string& text =
         *environmentValue(environment, environmentName(*row));
-    const auto settled = applySourceValue(
-        *row, text, environmentName(*row), kNoPriorSettle, resolved);
+    const auto settled = applySourceValue(*row,
+                                          text,
+                                          environmentName(*row),
+                                          kNoPriorSettle,
+                                          OptionSource::ENVIRONMENT,
+                                          resolved);
     if (!settled.has_value()) {
       return std::unexpected(settled.error());
     }
@@ -1929,6 +1977,10 @@ auto gatherOptionSources(const CommandLineOptions& scan,
       resolved.uses.push_back(OptionUse {row, OptionSource::ENVIRONMENT, text});
     }
   }
+
+  // The two rules rows carry no environment name (FR-026), so the environment
+  // names no rule and the join above, made for the option file, is the last
+  // one the gather makes (FR-063).
 
   // FR-039, FR-040: the disclosed uses stand in table order. The file
   // answers them in line order, so the whole list is put in order here.
