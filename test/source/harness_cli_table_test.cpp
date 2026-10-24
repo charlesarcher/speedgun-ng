@@ -48,8 +48,7 @@
 //
 // Check map:
 //   theTableAnswersARowList        one source file yields rows
-//   theTableHoldsTwentyEightRows   the row count is the contract's 28
-//   theTableHoldsThirtyFiveRows    the row count is the contract's 35
+//   theTableHoldsThirtySixRows     the row count is the contract's 36
 //                                  (FR-001, FR-004, SC-001)
 //   theNamesStandInTheContractOrder
 //                                  the names in table order equal the
@@ -203,8 +202,7 @@ constexpr char kRequired = 'r';
 constexpr char kOptional = 'o';
 constexpr char kNoArgument = 'n';
 
-constexpr std::array<ExpectedRow, 28> kContract = {{
-constexpr std::array<ExpectedRow, 35> kContract = {{
+constexpr std::array<ExpectedRow, 36> kContract = {{
     {"filter", kRequired, 'f'},
     {"list", kNoArgument, 'l'},
     {"repetitions", kRequired, 'r'},
@@ -247,12 +245,8 @@ constexpr std::array<ExpectedRow, 35> kContract = {{
 // this feature adds, and the eight hunt rows of specs/029-hunter-core close
 // the table.
 constexpr std::size_t kMasterRows = 20;
-constexpr std::size_t kRowsBeforeHunt = 27;
+constexpr std::size_t kRowsBeforeHunt = 28;
 
-// The bounds of the two value blocks: the constants the harness carried
-// before this feature, and the constants spec D-24 reserves for the
-// seven new names with 298 to 319 left free for the lanes that follow
-// (FR-004, FR-079).
 // The bounds of the three value blocks: the constants the harness carried
 // before this feature, the constants specs/029-hunter-core reserves for the
 // eight hunt names, and the constants spec D-24 reserves for the seven new
@@ -676,16 +670,13 @@ auto theTableAnswersARowList(const std::vector<Row>& rows) -> void
   check(!rows.empty(), "the table source answers a row list (FR-079)");
 }
 
-auto theTableHoldsTwentyEightRows(const std::vector<Row>& rows) -> void
-auto theTableHoldsThirtyFiveRows(const std::vector<Row>& rows) -> void
+auto theTableHoldsThirtySixRows(const std::vector<Row>& rows) -> void
 {
   if (rows.size() == kContract.size()) {
     return;
   }
-  report("the table holds the 28 rows of the contract (FR-001, FR-004, SC-001)",
-         "28 rows",
-  report("the table holds the 35 rows of the contract (FR-001, FR-004, SC-001)",
-         "35 rows",
+  report("the table holds the 36 rows of the contract (FR-001, FR-004, SC-001)",
+         "36 rows",
          std::to_string(rows.size()) + " rows");
 }
 
@@ -892,14 +883,9 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
                                                          : "the new row '")
           + row.name + "' answers inside its block (FR-004, FR-079)";
       report(label.c_str(),
-             master ? "a letter or a constant from 256 to 259"
-                    : "a constant from 290 to 296, or the lane block's 260",
-             hunt ? "a constant from 270 to 279"
-                  : master ? "a letter or a constant from 256 to 259"
-                           : "a constant from 290 to 296",
              hunt         ? "a constant from 270 to 279"
                  : master ? "a letter or a constant from 256 to 259"
-                          : "a constant from 290 to 296",
+                          : "a constant from 290 to 296, or the lane block's 260",
              valueWord(row.value));
     }
     if (hunt) {
@@ -1723,8 +1709,7 @@ auto main(int argc, char** argv) -> int
   }
 
   theTableAnswersARowList(rows);
-  theTableHoldsTwentyEightRows(rows);
-  theTableHoldsThirtyFiveRows(rows);
+  theTableHoldsThirtySixRows(rows);
   theNamesStandInTheContractOrder(rows);
   eachRowCarriesItsArgumentKind(rows);
   eachRowCarriesItsValue(rows);

@@ -911,34 +911,6 @@ auto scanCommandLine(int argc, char** argv)
         // empty token (FR-011, R-06).
         options.jitterProbeText = optarg;
         break;
-      }
-      case kInterleaveOptionValue: {
-        // FR-051, FR-052: the row's argument kind is optional, so the bare
-        // word stands given with seed 0 and claims nothing from behind it.
-        // The attached text goes to the reader of the seed, whose line names
-        // the option and the text it refused (FR-054). The last word of
-        // several keeps its seed, the master answer of one command line.
-        if (optarg == nullptr) {
-          scan.interleave = InterleaveSeed {true, 0};
-          break;
-        }
-        const auto seed = readSeed(optarg);
-        if (!seed.has_value()) {
-          return std::unexpected(seed.error());
-        }
-        scan.interleave = InterleaveSeed {true, *seed};
-        break;
-      }
-      case kHelpOptionValue:
-        // FR-017: the walk answers the first of the two print options or
-        // a usage fault that it meets, so the walk ends here and reads
-        // no word that stands behind the one it met. The entry point
-        // owns the printing and the status.
-        scan.stop = StopKind::HELP;
-        return scan;
-      case kVersionOptionValue:
-        scan.stop = StopKind::VERSION;
-        return scan;
       // specs/029-hunter-core FR-080 to FR-082, PD-17: one call per hunt row,
       // each body standing in `hunt_cli.cpp` with its own refusal line.
       case kHuntOption:

@@ -28,19 +28,12 @@ namespace
 using Builder = simdjson::builder::string_builder;
 
 // The schema the writer emits and the checker reads (FR-007). The minor
-// stands at 1.4 since specs/027 added the `jitter` object over the 1.3
-// the specs/028 `run` object took, the move
+// stands at 1.3 since specs/028 added the `run` object, at 1.4 since
+// specs/027 added the `jitter` object, and at 1.5 since specs/029 added
+// the root `hunt` object and the per-benchmark `hunt` object, the move
 // specs/023/contracts/schema-file.md states for a key added inside major 1
 // (specs/027 FR-026, specs/028 FR-086, PC-6).
-// The schema the writer emits and the checker reads (FR-007). The minor
-// stands at 1.3 since specs/028 added the `run` object and at 1.4 since
-// specs/029 added the root `hunt` object and the per-benchmark `hunt`
-// object, the move that
-// specs/023/contracts/schema-file.md states for a key added inside major 1
-// (specs/028 FR-086, PC-6).
-// At rebase onto a master that already took 1.4, retake the next free
-// minor.
-constexpr std::string_view kSchemaVersion = "1.4";
+constexpr std::string_view kSchemaVersion = "1.5";
 
 // The `source` word of one disclosed use, spelled as the enum of
 // `docs/schema/report-v1.json` states it (specs/028 E-04, FR-040). The
@@ -482,10 +475,6 @@ void writeRow(Builder& builder,
   }
 }
 
-void writeEntry(Builder& builder,
-                const ReportData& data,
-                std::size_t index,
-                const std::optional<JitterReportRecord>& jitter)
 // specs/029 FR-050, contracts/hunt-json.md: the per-entry hunt object, the key
 // `writeEntry` appends. Every key of the closed node stands in the document of
 // every hunt entry; a rank or a stage the run left unset stands `null`, the
@@ -533,7 +522,10 @@ void writeEntryHunt(Builder& builder, const hunt::EntryHunt& record)
   }
 }
 
-void writeEntry(Builder& builder, const ReportData& data, std::size_t index)
+void writeEntry(Builder& builder,
+                const ReportData& data,
+                std::size_t index,
+                const std::optional<JitterReportRecord>& jitter)
 {
   const BenchmarkResult& result = data.results[index];
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)

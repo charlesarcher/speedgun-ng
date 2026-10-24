@@ -1809,7 +1809,7 @@ auto loadReport(const std::string& path)
       return std::unexpected(read.error());
     }
     data.runJitterStats = std::move(*read);
-  data.schemaVersion = *versionText;
+  }
   // specs/029 FR-051, FR-031 (PD-10): the run-level hunt object, the key the
   // writer closes the document with. It is read before the benchmarks array
   // so the run record stands settled before its entries are. A document

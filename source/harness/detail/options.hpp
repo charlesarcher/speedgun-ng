@@ -71,10 +71,8 @@ enum class StopKind
 // collide with a short option, and no option a later feature adds can
 // reach a switch arm by claiming a letter. The four carried values keep
 // the options master gives them, the jitter probe's lane block holds
-// 260 to 269, the seven names the command-line lane brings take
-// 290 to 296, and 298 to 319 stay free (FR-001, FR-004, FR-005, D-24).
-// the options master gives them, the eight hunt names take the block 270
-// to 279 specs/029-hunter-core reserves, the seven names this feature
+// 260 to 269, the eight hunt names take the block 270 to 279
+// specs/029-hunter-core reserves, the seven names the command-line lane
 // brings take 290 to 296, and 297 to 319 stay free (FR-001, FR-004,
 // FR-005, D-24; specs/029 FR-080, D-22).
 inline constexpr int kMetricMethodOption = 256;

@@ -754,6 +754,8 @@ auto printJitterReport(const bool available,
                 static_cast<unsigned long long>(state->droppedGaps));
   }
   std::printf("jitter: split and percentiles use the kept gaps only\n");
+}
+
 namespace
 {
 

@@ -523,11 +523,6 @@ auto speedgunMain(int argc, char** argv) -> int
   // states, so a rule of the words or of a file can stand here (FR-061).
   options.compareRules = std::move(resolved->rules);
 
-  // specs/026 FR-024, FR-050, FR-051: the batch filter pattern is compiled
-  // where the row settles, so an invalid expression has already answered one
-  // line naming its source at status 2, on the compare path beside the run
-  // path, and the one pattern stands for either path to read.
-  std::optional<std::regex> filterPattern = std::move(resolved->filterPattern);
   // specs/029 FR-081, D-16: the conflict check reads the settled members of the
   // scan, so a `--counter` that stands after `--hunt` is the same conflict as
   // one that stands before it. It stands ahead of the compare mode, which reads
@@ -540,16 +535,11 @@ auto speedgunMain(int argc, char** argv) -> int
   // cost no measured time.
   detail::expandHuntSelection(options);
 
-  // specs/026 FR-024, FR-050, FR-051: the batch filter is compiled while
-  // the scan is all that has happened, so an invalid pattern answers one
-  // line and status 2 on the compare path beside the run path, and the
-  // pattern is compiled once for either path to read.
-  const auto compiled = compileFilterPattern(options.filter);
-  if (!compiled.has_value()) {
-    std::fprintf(stderr, "--filter: %s\n", compiled.error().c_str());
-    return 2;
-  }
-  std::optional<std::regex> filterPattern = *compiled;
+  // specs/026 FR-024, FR-050, FR-051: the batch filter pattern is compiled
+  // where the row settles, so an invalid expression has already answered one
+  // line naming its source at status 2, on the compare path beside the run
+  // path, and the one pattern stands for either path to read.
+  std::optional<std::regex> filterPattern = std::move(resolved->filterPattern);
 
   // specs/026 FR-048, FR-052, D-15: the compare mode stands ahead of the
   // expansion, so the comparison runs no benchmark, reads no clock and
@@ -1142,7 +1132,7 @@ auto speedgunMain(int argc, char** argv) -> int
       maskNarrowed = true;
       maskNarrowedNames.push_back(entry->name);
     }
-    const auto result = runner.run(*entry);
+    auto result = runner.run(*entry);
     if (maskNarrowed) {
       restoreSavedMask(savedMask);
     }
@@ -1154,7 +1144,7 @@ auto speedgunMain(int argc, char** argv) -> int
       coveringStates = &covering->holder->states();
     } else if (batchProbed) {
       coveringStates = &jitterProbe->states();
-    auto result = runner.run(*entry);
+    }
     // specs/029 FR-040, FR-043: `--hunt` hunts the instances the filter
     // selected, and the record rides the result the printers and the writer
     // read; a hunt that refuses stands its error line on stderr with the
@@ -1204,18 +1194,16 @@ auto speedgunMain(int argc, char** argv) -> int
                                 runner.rowRaw().back(),
                                 runner.contextRaw().back(),
                                 runner.takeRunWindows(),
-                                coveringStates};
-    } else {
+                                coveringStates,
                                 runRecord};
     } else {
-      detail::printResult(result, runRecord);
       report.results.push_back(result);
       entryWindows.push_back(runner.takeRunWindows());
       resultProbes.push_back(coveringStates);
       report.rowRaw.push_back(runner.rowRaw().back());
       report.contextRaw.push_back(runner.contextRaw().back());
       if (!consoleDeferred) {
-        detail::printResult(report.results.back());
+        detail::printResult(report.results.back(), runRecord);
       }
     }
     // FR-015: the family's probe stops after the family's last
@@ -1279,9 +1267,8 @@ auto speedgunMain(int argc, char** argv) -> int
         continue;
       }
       if (!consoleDeferred) {
-        detail::printResult(row->result);
+        detail::printResult(row->result, row->hunt);
       }
-      detail::printResult(row->result, row->hunt);
       report.results.push_back(row->result);
       entryWindows.push_back(std::move(row->windows));
       resultProbes.push_back(row->states);

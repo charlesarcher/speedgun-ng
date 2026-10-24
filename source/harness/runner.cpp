@@ -2400,7 +2400,6 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     m_contextRaw.back().erase(m_contextRaw.back().begin(),
                               m_contextRaw.back().begin() + drop);
   };
-  for (pass = 0; pass < passCount; ++pass) {
   // specs/029 PD-11, PD-12, D-18: the retry route of a hunt run. The seat of a
   // pass after the first is a runtime condition for a run that carries hunt
   // columns - a schedulable-set refusal at open says nothing about the frozen
@@ -2502,7 +2501,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     }
     passCount = passColumns.size();
   };
-  for (std::size_t pass = 0; pass < passCount; ++pass) {
+  for (pass = 0; pass < passCount; ++pass) {
     if (pass > 0) {
       // E-04, FR-012: the previous pass's seat closes first - the recorder
       // that stood over it, then the plan - and this pass compiles its own
