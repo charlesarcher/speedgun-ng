@@ -631,7 +631,7 @@ auto printResult(const BenchmarkResult& result) -> void
 // D-8, D-12), the block extending and replacing nothing the probe-free
 // report prints (PC-6, FR-013).
 auto printJitterReport(const bool available,
-                       const std::vector<ProbeCpuState>& states) -> void
+                       const std::vector<const ProbeCpuState*>& states) -> void
 {
   if (!available) {
     std::printf("jitter: not available\n");
@@ -642,11 +642,11 @@ auto printJitterReport(const bool available,
   }
 
   std::string cpuList;
-  for (const auto& state : states) {
+  for (const auto* state : states) {
     if (!cpuList.empty()) {
       cpuList.push_back(',');
     }
-    cpuList += std::to_string(state.cpu);
+    cpuList += std::to_string(state->cpu);
   }
   std::printf("jitter probe: cpus %s\n", cpuList.c_str());
 
@@ -654,8 +654,8 @@ auto printJitterReport(const bool available,
   // disclosure (E-03, E-09).
   std::vector<JitterStats> folds;
   folds.reserve(states.size());
-  for (const auto& state : states) {
-    folds.push_back(gapStatsOf(state));
+  for (const auto* state : states) {
+    folds.push_back(gapStatsOf(*state));
   }
 
   // FR-002: the sixteen fields in the E-03 order.
@@ -710,11 +710,11 @@ auto printJitterReport(const bool available,
   std::printf("jitter: loop period %llu ns, threshold %llu ns\n",
               static_cast<unsigned long long>(folds.front().loopPeriodNs),
               static_cast<unsigned long long>(folds.front().thresholdNs));
-  for (const auto& state : states) {
+  for (const auto* state : states) {
     std::printf("jitter: cpu %u kept %llu dropped %llu\n",
-                static_cast<unsigned>(state.cpu),
-                static_cast<unsigned long long>(state.kept),
-                static_cast<unsigned long long>(state.droppedGaps));
+                static_cast<unsigned>(state->cpu),
+                static_cast<unsigned long long>(state->kept),
+                static_cast<unsigned long long>(state->droppedGaps));
   }
   std::printf("jitter: split and percentiles use the kept gaps only\n");
 }
