@@ -658,7 +658,7 @@ as was the coverage bar. Two rows are BLOCKING.
       passes=<p> budget=<text>|none` (`source/harness/report.cpp:857-863`), so
       the fact table of a hardware record quotes no figure the shipped binary
       cannot print (FR-040, FR-081, T120, AC-10)
-- [ ] T154 Tick the rows whose deliverable stands in the tree and note what
+- [x] T154 Tick the rows whose deliverable stands in the tree and note what
       each one landed behind: T077 and T080 (named closed by the T121 and T119
       rows at `specs/029-hunter-core/tasks.md:553` and `:551`), T082, T083 and
       T084 (the round trip, the per-code reader refusals and the no-hunt
@@ -720,3 +720,160 @@ hosts from here.
       (`test/source/harness_hunt_plan_test.cpp`,
       `test/source/harness_hunt_collect_test.cpp`; FR-004, FR-005, FR-006,
       FR-007, FR-092, E-01)
+## Phase 4: Convergence
+
+Assessed at `48e33ee` (`Meta: Close the Quickstart and Record Rows`, the
+branch tip of the `r4b` lane; `origin/029-hunter-core` at `0c7b791`): the
+reading began at `efcecc4`, the four rows the integrator landed during it
+moved no witness cited below except the two re-cited from
+`harness_hunt_collect_test.cpp` and `quickstart.md`, and every path, line
+and quote here was re-checked against the tree at `48e33ee`. No CRITICAL
+finding: ten rows, four HIGH, five MEDIUM, one LOW. The settled gate facts
+were re-checked where this round could reach them: no coverage-exclusion
+marker reaches the diff against `bd10d76`, the version and schema audit
+comes out clean (the writer states `1.4` at `source/harness/json_report.cpp:34`
+and the tree states `0.19.0` at `CMakeLists.txt:14`, and the fresh hunt
+capture at `example/docs/hunt_rank.expected:2` agrees), and the quickstart
+steps this lane could run ran. The integrator added T168 for the flake
+finding this round filed as owned, so the section holds eleven rows.
+
+- [ ] T158 Pass the norm the plan settled into the rank route in
+      `source/harness/hunt.cpp:1050`, where `rankEvents(measured, options,
+      plan.method)` and the rate test at `hunt.cpp:1031` read the caller's
+      `options.norm` while `hunt.cpp:949-952` settle `HuntNorm::ITER` into
+      the record for a plan that found no anchors. A selection on a device
+      that holds no anchor pair then measures, prints `hunt: plan ...
+      normalized=iter`, and answers every column with `samples` of `0`, a
+      `rate` of `0` and a `skipped` kind of `ABSENT`, so the console names
+      the `iter` label at `report.cpp:612` and prints `hunt: rank -
+      <address> iter=0.000` for a count the run did read (data-model.md
+      E-03 at lines 139-144 and 169, `docs/pages/harness.md:1502-1504`
+      "the rate column reads `iter=`", spec AC-4, FR-023).
+      `test/source/harness_hunt_collect_test.cpp:1176`, named
+      `scenarioUncoreColumnsRankByIterations`, pins the empty table at
+      `:1201` and `ranEvents == 0` at `:1212` under a name that states the
+      other outcome, so it moves with the fix (AC-4, FR-023, PD-08).
+
+- [ ] T159 Send the hunter example through the hunt route. The example
+      writes its own printers: `example/docs/hunt_rank.cpp` keeps its own
+      skipped-kind table at `:109` (a third spelling beside
+      `report.cpp:27` and `json_report.cpp`), its own rank and skip line
+      shapes at `:114-136` with `instr=` fixed into the format at `:118`
+      and `:126`, and its own method words from `:141`. The recorded run
+      the main page quotes, `docs/pages/harness.md:1356-1370` over
+      `example/docs/hunt_rank.expected:1-13`, therefore ends at the skipped
+      list and carries no `hunt: plan summary` line, which every hunt run
+      prints (`report.cpp:857`, and a live
+      `--dry-run --hunt='cpu/*'` prints one). The gate that owns that block,
+      `report_shape_hunt_rank_sample` at `test/CMakeLists.txt:1294-1307`,
+      compares the page against the example's own output, so it cannot see
+      the drift it exists to catch (FR-070, FR-093, Principle X.3).
+
+- [ ] T160 Land the reading T156 records. The row is ticked and cites
+      `docs/pages/analyzer.md:22-41`; `docs/pages/` holds
+      `about.dox`, `building.md`, `barrier-rule.md`, `counters-overhead.md`,
+      `dbc-migration.md`, `dbc-overhead.md`, `harness.md` and
+      `identifier-rename-map.md` and no `analyzer.md`, and no
+      `analyzer-gate` target exists in `cmake/` or `CMakeLists.txt`, where
+      the gate drivers are `coverage`, `dbc-gate`, `docs`, `lint`,
+      `prose-lint` and `spell`. The reading is wrong on its CI half as
+      well: the `test` job installs clang-tidy and cppcheck and builds the
+      `ci-ubuntu` preset (`.github/workflows/ci.yml:165-174`), which
+      inherits the `clang-tidy` and `cppcheck` configure presets that set
+      `CMAKE_CXX_CLANG_TIDY` and `CMAKE_CXX_CPPCHECK`. Write the corrected
+      reading into `docs/pages/building.md`, the developer page that does
+      exist, name the preset that carries each analyzer, and leave ticked
+      only what stands there.
+
+- [ ] T161 Fix the plan line of the worked hunt example at
+      `docs/pages/harness.md:1458`: `hunt: plan events=42 passes=14
+      method=PASSES estimate=1260000ns budget=120s` carries no `stage1=` or
+      `stage2=`, while the run it shows sets a budget over a plan that
+      fits, which `splitStages` splits into two stages and E-07 and
+      `contracts/hunt-cli.md:150` print as `... budget=120s stage1=42
+      stage2=42`; the same block quotes that budget again on the summary
+      line at `docs/pages/harness.md:1465`. The block is a plain `text`
+      fence with no `sg-sample-output` tag, so no gate reads it, which is
+      how a wrong byte survives a green suite (E-07, FR-070, FR-071).
+      Carry the fields or move the block onto a golden the shape gate runs.
+
+- [ ] T162 State in `include/speedgun-ng/hunt.hpp:543-550` the condition
+      `rankEvents` really asserts. `source/harness/hunt_plan.cpp:249`
+      ends the process when an address carries no `skipped` kind and no
+      rate, while that `\pre`, its copy at `contracts/hunt-api.md:304` and
+      the `\post` at `hunt.hpp:566` together admit a caller whose samples
+      are free of a disclosure and whose every anchor read zero, which the
+      same `\post` says contributes no rate for that pass. The run route
+      escapes only because `hunt.cpp` stamps `ABSENT` over the columns that
+      yield no rate before the call (`hunt.cpp:272-280`); the public route
+      has no such step, so a program that satisfies the written
+      precondition aborts. Name the guarantee the caller must hold, or mark
+      the address instead of ending the process (Principle III).
+
+- [ ] T163 Re-anchor the two statistics guards of the public `rankEvents`
+      precondition at `include/speedgun-ng/hunt.hpp:546` and `:550`, which
+      cite `runner.cpp:52-55` and `runner.cpp:74-76`. `statisticsOf` left
+      that file for `source/harness/statistics.cpp` in T009 and its guards
+      stand at `statistics.cpp:23` and `statistics.cpp:46`, the anchors
+      `contracts/hunt-api.md:304` and `data-model.md:271-272` already
+      carry, so the header that is the developer's route contradicts the
+      contract it owns and sends a reader to unrelated code for a deviation
+      guard (FR-093).
+
+- [ ] T164 State the device-limit rule once.
+      `source/harness/hunt_plan.cpp:114-119` refuses when the published
+      limit is at most two and the device names a cycles anchor, in the
+      words `publishes a limit of <n>, below the 3 leaves one event and its
+      two anchors need`; `source/harness/hunt_cli.cpp:616-619` refuses when
+      the published slot count is below three whatever the anchors, in the
+      words `publishes <n> slots and a hunt pass needs 3` that
+      `contracts/hunt-cli.md:86` and `docs/pages/harness.md:1441` pin;
+      `data-model.md` gives the rule as `L` below 3 with both anchors
+      present, a third predicate beside those two. The library route prints
+      the words no contract pins, and the copies disagree on the anchor
+      condition the documents name. Land the planner half and the doc half,
+      one predicate and one wording, and reconcile the CLI copy: a live lane
+      holds `source/harness/hunt_cli.cpp` this round (FR-011, FR-080,
+      Principle X.3).
+
+- [ ] T165 Give `test/source/counters_trap_checked_test.cpp:80` a scratch
+      file of its own. The checker redirects every fixture run into the
+      machine-global `/tmp/counters_trap_checked_out.txt` and reads it back
+      after `std::system` at `:84`, so the `RESOURCE_LOCK` registered at
+      `test/CMakeLists.txt:296-297` and `:313-317` serializes the two
+      entries of one `ctest` run only: two runs on one machine, which the
+      five lanes now are, take the file from each other, and a check can
+      read another run's bytes and pass without its own child having
+      written anything. Name the file after the process id or write into a
+      per-run directory; the fork handshake itself is sound and is not the
+      fault here (Principle VI, AC-9).
+
+- [ ] T166 Name the one line a reader of
+      `specs/029-hunter-core/quickstart.md:159-160` meets and the page does
+      not explain: `ctest --test-dir build -R 'harness_json' -V` prints
+      `error: the report file '/dev/full' could not be written: No space
+      left on device` from a case that passes, the refusal the product owes
+      `test/source/harness_json_report_test.cpp:447` when it asks for a
+      report on a full device. The page drives the verbose form itself, so
+      the reader meets the word `error` in a suite that reports success,
+      and FR-061 holds every step of the page to what a reader walking it
+      sees (FR-061, FR-062). The refusal is right and stays; the step names
+      it in one clause.
+
+- [ ] T167 Do not name a norm for a plan that measures nothing.
+      `source/harness/hunt.cpp:949-952` settles `HuntNorm::ITER` whenever
+      `plan.normalized` is unset, and `source/harness/hunt_plan.cpp`
+      answers that unset for a plan that holds no columns at all, so
+      `--dry-run --hunt='uncore_imc_0/*'` on this host prints `hunt: plan
+      events=0 passes=0 method=AUTO estimate=not available budget=none
+      normalized=iter` although E-03 makes the fallback answer to a device
+      that holds no anchor pair and to nothing else (data-model.md E-03).
+      Gate the settle on a plan that holds columns (E-03, E-07).
+- [ ] T168 Give the JSON suite's scratch files a name per process.
+      `test/source/harness_hunt_json_test.cpp:396-397` writes a fixed path
+      under `/tmp` that a second concurrent run overwrites, and its two
+      `ctest` entries carry no lock, so the suite fails when the machine is
+      busy and passes in two seconds alone. The parent's handshake with the
+      forked child (`pclose` and `WIFEXITED` at `:1379-1388`) is sound and is
+      not the cause. Land the same fix T165 lands for the trap checker, in
+      the same shape (Principle VI, AC-9).
