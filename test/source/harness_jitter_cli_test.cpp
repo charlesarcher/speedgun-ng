@@ -1515,14 +1515,10 @@ auto childIdleHighIndex() -> int
   return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
 }
 
-// FR-015: the per-family probe the handle promises. The fresh process
-// registers one family whose handle names the probe and runs the batch
-// with no option named: the probed family's entries carry the folds of
-// its own probe, the family the handle named not carries none, and the
-// run-level record and lines name the handle's cpus (FR-015, R-06).
-// FR-015: the family probe with no cpu list. The handle names no cpu,
-// so the idle preset resolves against the selected instances' plans,
-// and the run proceeds with the cpus that resolution answers.
+// FR-015: the family probe with no cpu list. The handle names no cpu, so
+// the idle preset resolves over the plans of the family's own instances.
+// The child installs no layout, so that resolution answers no cpu and the
+// run stops with the preset's own line and status 2 (FR-015, FR-017).
 auto childFamilyIdle() -> int
 {
   scriptedProvider();
