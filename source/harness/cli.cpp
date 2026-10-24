@@ -520,10 +520,12 @@ auto speedgunMain(int argc, char** argv) -> int
 
   detail::RunOptions options = std::move(resolved->options);
 
-  // FR-015: the option file's value stands over a family's own probe,
-  // so the flag taken here, before the command line's text parses,
-  // names the file as the source the run honors over the handle
-  // (FR-015, R-06).
+  // FR-015: the gather pass parses the option file's value where the
+  // file settles it and leaves the command line's own text for the
+  // parse below, so a jitter-probe value that stands settled at this
+  // point came from the option file: no environment row names this
+  // option. The flag records that fact, and the family-probe build
+  // reads it (FR-015, R-06).
   const bool jitterProbeFromOptionFile = options.jitterProbe.has_value();
 
   // specs/028 FR-063, spec D-23: the compare mode reads the settled list,
