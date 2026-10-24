@@ -463,11 +463,12 @@ auto zeroAnchorExcluded() -> void
 }
 
 // A window whose divisor for the norm of the run carries no reading
-// contributes no rate at all: the cycle norm over a window with no cycle
-// reading and over one whose cycle reading is 0, and the iter norm over a
-// window that counted no iteration. Every excluded window carries an event
-// figure that would move the median and the deviation, so no exclusion here
-// can pass by coincidence (E-08, contracts/hunt-api.md).
+// contributes no rate at all: the instr norm over a window with no
+// instructions reading, the cycle norm over a window with no cycle reading and
+// over one whose cycle reading is 0, and the iter norm over a window that
+// counted no iteration. Every excluded window carries an event figure that
+// would move the median and the deviation, so no exclusion here can pass by
+// coincidence (E-08, contracts/hunt-api.md).
 auto zeroDivisorExcluded() -> void
 {
   const auto device = deviceIndex(sg::test::kHuntCpu);
@@ -504,6 +505,33 @@ auto zeroDivisorExcluded() -> void
   check(!cycleEntry.repeated, "one rate leaves the entry unrepeated");
   check(!cycleEntry.rank.has_value(), "an unrepeated entry carries no rank");
   checkRecordShape(cycled, cycleOptions);
+
+  // The instr norm over the same shape, the norm `--hunt-norm` leaves unset:
+  // the window with no instructions reading stands out of the list and the one
+  // that divided answers the rate (contracts/hunt-api.md: a denominator absent
+  // or at zero answers no rate for that pass).
+  auto noInstr = sg::hunt::EventSamples {};
+  noInstr.address =
+      sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(6));
+  const auto keptInstr = sg::test::huntInstr(device) * 2;
+  noInstr.samples.push_back(
+      window(0, sg::test::huntValue(6), keptInstr, cycle, kOneIteration));
+  noInstr.samples.push_back(
+      window(1, wide, std::nullopt, cycle * 2, kOneIteration));
+
+  const auto instrOptions = optionsFor(sg::hunt::HuntNorm::INSTR);
+  const auto instrRated =
+      sg::hunt::rankEvents({noInstr}, instrOptions, std::nullopt);
+  const auto& instrEntry = entryOf(instrRated, noInstr.address);
+  const auto keptRate = static_cast<double>(sg::test::huntValue(6))
+      / static_cast<double>(keptInstr) * kRateScale;
+  check(instrEntry.samples == 1,
+        "the window with no instructions divisor contributes no rate");
+  check(sameDouble(instrEntry.rate, keptRate),
+        "the rate is the one window that carries an instructions reading");
+  check(!instrEntry.repeated, "one rate leaves the entry unrepeated");
+  check(!instrEntry.rank.has_value(), "an unrepeated entry carries no rank");
+  checkRecordShape(instrRated, instrOptions);
 
   // The iter norm over the same shape: the window that counted no iteration is
   // out of the list, and the two that stand in it answer different rates, so

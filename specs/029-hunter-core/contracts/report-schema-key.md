@@ -34,7 +34,7 @@ that stands in a closed node's document and not in its `properties` is a
 finding. The hunt
 documents the harness writes therefore fail the schema check unless the schema
 lists the keys: `harness_json_report_test.cpp:282,386` and
-`harness_hunt_json_test.cpp:1350` run `checkReport` over written documents, so
+`harness_hunt_json_test.cpp:1364` run `checkReport` over written documents, so
 an unlisted hunt key reddens the test that writes one.
 
 `x-order` is normative, the description of the schema file states, so a listed
