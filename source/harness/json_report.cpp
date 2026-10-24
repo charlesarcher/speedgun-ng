@@ -757,8 +757,8 @@ auto writeReport(const std::string& path,
   if (!stream.is_open()) {
     std::fprintf(stderr,
                  "error: the report file '%s' cannot be opened: %s\n",
-                 path.c_str(),
-                 std::strerror(errno));
+                 sg::detail::quotedText(path).c_str(),
+                 sg::detail::quotedText(std::strerror(errno)).c_str());
     return false;
   }
   stream.write(text->data(), static_cast<std::streamsize>(text->size()));
@@ -766,8 +766,8 @@ auto writeReport(const std::string& path,
   if (stream.fail()) {
     std::fprintf(stderr,
                  "error: the report file '%s' could not be written: %s\n",
-                 path.c_str(),
-                 std::strerror(errno));
+                 sg::detail::quotedText(path).c_str(),
+                 sg::detail::quotedText(std::strerror(errno)).c_str());
     return false;
   }
   return true;

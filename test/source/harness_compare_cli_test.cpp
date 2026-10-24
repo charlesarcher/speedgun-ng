@@ -56,6 +56,7 @@
 
 #include <array>
 #include <cstdio>
+#include <fstream>
 #include <initializer_list>
 #include <sstream>
 #include <string>
@@ -1202,6 +1203,94 @@ auto anInvalidBatchFilterAnswersTheFilterFault(const std::string& data) -> void
 // on the write: /dev/full opens and refuses every byte, so the mode
 // answers the write fault, one line naming the path, and no table
 // (FR-074, E-10).
+// T-1, FR-051, SC-004: a rule filter may hold a newline and still compile,
+// so the fault that names the rule text is the line that carries it. The
+// byte reaches the line as text, so the fault stands one line.
+auto aRuleFilterWithANewlinePrintsOneLine(const std::string& data) -> void
+{
+  const ModeRun run = runMode({"--compare-rule=time@median:lower:5%:a\nb",
+                               "--compare=" + data + "/gate_ok_base.json,"
+                                   + data + "/gate_ok_contender.json"});
+  oneFaultLine(
+      run, "the rule whose filter holds a newline", {"the rule", "a\\nb"});
+}
+
+// T-1, FR-027, SC-004: an escape sequence inside a rule filter is no
+// regular expression, and the fault names the filter. The byte reads as
+// text, so a terminal reads the sequence and keeps the lines it shows.
+auto aRuleFilterWithAnEscapePrintsOneLine(const std::string& data) -> void
+{
+  const ModeRun run = runMode({"--compare-rule=time@median:lower:5%:\x1b(",
+                               "--compare=" + data + "/gate_ok_base.json,"
+                                   + data + "/gate_ok_contender.json"});
+  oneFaultLine(run,
+               "the rule whose filter holds an escape sequence",
+               {"is no regular expression", "\\x1b"});
+  check(run.out.find('\x1b') == std::string::npos
+            && run.err.find('\x1b') == std::string::npos,
+        "no raw escape byte reaches either stream (FR-027)");
+}
+
+// T-1, FR-024, FR-051: the path of a compare document the file system
+// refuses is quoted where it is read, so the mode's own line quotes the
+// reader's text no second time. A backslash doubled twice reads as four.
+auto aCompareDocumentPathIsQuotedOneTime(const std::string& data) -> void
+{
+  const ModeRun run =
+      runMode({"--compare=a\\b/c\nd.json," + data + "/gate_ok_contender.json"});
+  oneFaultLine(run,
+               "the compare document whose path holds a backslash",
+               {"cannot be opened"});
+  std::size_t slashes = 0;
+  for (const char letter : run.err) {
+    slashes += static_cast<std::size_t>(letter == '\\');
+  }
+  check(slashes == 6, "the path of the document is quoted one time (FR-024)");
+}
+
+// T-1, FR-061, FR-074: the comparison document a run cannot write names
+// its path, and a newline inside that path reaches the line as text.
+auto aNewlineInAComparisonPathPrintsOneLine(const std::string& data) -> void
+{
+  const ModeRun run = runMode({"--compare=" + data + "/gate_ok_base.json,"
+                                   + data + "/gate_ok_contender.json",
+                               "--json=/no/such\ndir/r.json"});
+  check(run.status == 2,
+        "the comparison file the file system refuses answers status 2 "
+        "(FR-074)");
+  const std::vector<std::string> lines = linesOf(run.err);
+  check(lines.size() == 1,
+        "the refused comparison file answers exactly one line (FR-061)");
+  check(run.err.find("such\\ndir") != std::string::npos,
+        "the path of the comparison file reaches the line as text (FR-024)");
+}
+
+// T-1, FR-056: the header names the two texts each load call read. A
+// document that states a schema version with a newline in it forges no
+// extra line, because the version reaches the header as text.
+auto aForgedSchemaVersionPrintsNoRawLine(const std::string& data) -> void
+{
+  const std::string text = sg::test::readText(data + "/gate_ok_contender.json");
+  const std::size_t at = text.find("\"1.0\"");
+  check(at != std::string::npos, "the fixture states its schema version");
+  if (at == std::string::npos) {
+    return;
+  }
+  const std::string forged =
+      text.substr(0, at) + "\"1.3\\nforged\"" + text.substr(at + 5);
+  const char* const forgedPath = "harness_compare_cli_forged.json";
+  std::ofstream stream(forgedPath, std::ios::binary | std::ios::trunc);
+  stream << forged;
+  stream.close();
+  const ModeRun run =
+      runMode({"--compare=" + data + "/gate_ok_base.json," + forgedPath});
+  check(run.status == 0, "the forged minor of major 1 still reads (FR-051)");
+  check(run.out.find("\nforged") == std::string::npos,
+        "the forged text forges no extra line of the header (FR-056)");
+  check(run.out.find("1.3\\nforged") != std::string::npos,
+        "the version the document states reads as text (FR-056)");
+}
+
 auto aFullDeviceRefusesTheWrittenDocument(const std::string& data) -> void
 {
   const ModeRun run = runMode({"--compare=" + data + "/gate_ok_base.json,"
@@ -1272,6 +1361,11 @@ auto main(const int argc, char** argv) -> int
   aRulesLineNamingAnotherFileAnswersTheParserFault(data);
   anUnreadableRulesFileNamesThePathAndItsReason(data);
   theCommandLineSourceSettlesTheRuleList(data);
+  aRuleFilterWithANewlinePrintsOneLine(data);
+  aRuleFilterWithAnEscapePrintsOneLine(data);
+  aCompareDocumentPathIsQuotedOneTime(data);
+  aNewlineInAComparisonPathPrintsOneLine(data);
+  aForgedSchemaVersionPrintsNoRawLine(data);
 
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);

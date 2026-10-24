@@ -258,6 +258,21 @@
 //                                answer the fault line of their own row at
 //                                status 2; a warm-up time of zero keeps its
 //                                answer (FR-046, FR-054, SC-003)
+//   aControlByteReachesTheFaultEscaped
+//                                a byte below 0x20 and 0x7f reaches the
+//                                fault as \xHH, where the forms \n, \r,
+//                                \0 and \\ stand as they are (FR-024,
+//                                FR-027, SC-003)
+//   aFilterWithAControlByteRefusesOneLine
+//                                a filter that is no regular expression
+//                                and holds an escape or a tab answers one
+//                                line with that byte as text (FR-035,
+//                                FR-027, SC-003)
+//   anOptionFileNameWithANewlineKeepsOneLine
+//                                a file whose name holds a newline names
+//                                that origin as text, so one bad line
+//                                answers one line (FR-031, FR-033, FR-061,
+//                                SC-003)
 //   aBadLetterOfAShortGroupAfterALongOption
 //                                the letter a short group is refused on
 //                                is named by the group's own line behind
@@ -634,7 +649,8 @@ constexpr const char* kOptionFile = "options-file.txt";
 auto gatherSources(std::initializer_list<const char*> words,
                    std::vector<sg::detail::EnvironmentRow> environment,
                    const std::optional<std::string>& fileText,
-                   sg::detail::RuleFileReader ruleFiles = nullptr) -> Gathered
+                   sg::detail::RuleFileReader ruleFiles = nullptr,
+                   std::string_view filePath = kOptionFile) -> Gathered
 {
   Gathered gathered;
   const auto scan = scanOf(words);
@@ -644,7 +660,7 @@ auto gatherSources(std::initializer_list<const char*> words,
   }
   std::optional<sg::detail::OptionFileText> file;
   if (fileText.has_value()) {
-    file = sg::detail::OptionFileText {kOptionFile, *fileText};
+    file = sg::detail::OptionFileText {std::string(filePath), *fileText};
   }
   const auto answer =
       sg::detail::gatherOptionSources(*scan, environment, file, ruleFiles);
@@ -965,6 +981,16 @@ auto gatherFile(std::initializer_list<const char*> words,
                 const std::string& text) -> Gathered
 {
   return gatherSources(words, {}, text);
+}
+
+// The fault of an option file that carries a name the caller spells, which
+// is where the name itself is the input under test (FR-033, FR-061).
+auto fileFaultAt(const std::string& filePath,
+                 const std::string& text) -> std::string
+{
+  const Gathered gathered = gatherSources({}, {}, text, nullptr, filePath);
+  return gathered.settled.has_value() ? "the gather answered no fault"
+                                      : gathered.fault;
 }
 
 // The text one option file answers, or the sentence that says the gather
@@ -2541,6 +2567,64 @@ auto aNumberWordBelowItsKindIsRefused() -> void
   std::filesystem::remove(path);
 }
 
+// The quoting of user text turns every byte a terminal acts on into text,
+// so one fault reaches the pipe and the screen alike. The bytes below 0x20
+// and 0x7f carry an escape sequence, and the four forms the rule keeps
+// stand as they are (FR-024, FR-027, SC-003).
+auto aControlByteReachesTheFaultEscaped() -> void
+{
+  check(sg::detail::quotedText("\x1b[1A\x1b[2K") == "\\x1b[1A\\x1b[2K",
+        "an escape sequence reaches the fault as text (FR-027)");
+  check(sg::detail::quotedText("a\tb\x0b\x0c" "\x7f" "c")
+            == "a\\x09b\\x0b\\x0c\\x7fc",
+        "a tab, a vertical tab, a form feed and a delete follow it (FR-027)");
+  check(sg::detail::quotedText(std::string_view {"a\nb\rc\0d\\e", 9})
+            == "a\\nb\\rc\\0d\\\\e",
+        "the four forms the rule keeps stand as they are (FR-024)");
+}
+
+// A filter that is no regular expression names the pattern it was given.
+// The pattern may hold an escape sequence or a tab, and the line still
+// stands one line, with the byte shown as text (FR-035, FR-027, SC-003).
+auto aFilterWithAControlByteRefusesOneLine() -> void
+{
+  for (const char* word : {"--filter=\x1b[1A(", "--filter=a\tb("}) {
+    const std::string fault = faultOf({word});
+    check(fault != "the scan answered no fault",
+          "the invalid filter that holds a control byte is refused (FR-035)");
+    check(fault.find('\n') == std::string::npos,
+          "that fault is one line (SC-003)");
+    check(fault.find('\x1b') == std::string::npos
+              && fault.find('\t') == std::string::npos,
+          "no raw control byte reaches the fault (FR-027)");
+    check(fault.find("\\x1b[1A") != std::string::npos
+              || fault.find("a\\x09b") != std::string::npos,
+          "the pattern the fault names reads as text (FR-024)");
+  }
+}
+
+// The origin of a fault that came from an option file names the file and
+// the line. A name the shell quoted with a newline in it reaches that
+// origin as text, so one bad line still answers one line (FR-031, FR-033,
+// FR-061, SC-003).
+auto anOptionFileNameWithANewlineKeepsOneLine() -> void
+{
+  const std::string name = "opt\nions.txt";
+  for (const char* line : {"repetitions=x", "threads=alpha", "min-time=abc"}) {
+    const std::string fault = fileFaultAt(name, line);
+    check(fault != "the gather answered no fault",
+          "the bad line of a file with a newline in its name is refused "
+          "(FR-031, FR-033)");
+    check(fault.find('\n') == std::string::npos,
+          "that fault is one line (FR-033, SC-003)");
+    check(fault.find("opt\\nions.txt") != std::string::npos,
+          "the origin names the file as text (FR-027, FR-061)");
+  }
+  check(fileFaultAt(name, "repetitions=x").find("opt\\nions.txt:1")
+            != std::string::npos,
+        "the origin carries the line number beside the name (FR-033)");
+}
+
 auto aBadLetterOfAShortGroupAfterALongOption() -> void
 {
   // FR-007, FR-005: the letter a short group is refused on belongs to the
@@ -3323,6 +3407,9 @@ auto main(int argc, char** argv) -> int
   theEnvironmentWalkReadsTheTableItIsGiven();
   anEmptyEnvironmentValueIsRefused();
   aNumberWordBelowItsKindIsRefused();
+  aControlByteReachesTheFaultEscaped();
+  aFilterWithAControlByteRefusesOneLine();
+  anOptionFileNameWithANewlineKeepsOneLine();
   aBadLetterOfAShortGroupAfterALongOption();
   everyRefusedRowLineFaultsTheEntry();
   aWordOfTwoValuesFaultsTheEntry();
