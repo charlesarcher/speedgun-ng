@@ -2598,9 +2598,15 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // answers the refused events from the instance's refusal list.
     result = std::move(passResults.back());
   } else {
-    // specs/029 D-18: no pass folded a row, so the run measured nothing;
-    // the skipped outcome is the one this empty shape tells the truth about.
-    result.outcome = RunOutcome::SKIPPED;
+    // specs/029 D-18: the pass loop always folds pass 0, so no run gets here.
+    SG_ASSERT(!passResults.empty(),
+              "a run that folded no pass needs a pass list of zero: the "
+              "settling that ran no planner keeps one whole-run pass "
+              "(runner.cpp:1330, E-01), the seat before the loop ends the run "
+              "when pass 0 refuses (runner.cpp:1416, PC-9), and the only "
+              "in-loop skip needs a pass after the first (runner.cpp:2352, "
+              "D-18), so the loop at runner.cpp:2351 folds pass 0 at "
+              "runner.cpp:2546");
   }
 
   // specs/023 E-01, FR-019 beside specs/024 FR-014, FR-015: the retained
