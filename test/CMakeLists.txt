@@ -802,7 +802,7 @@ target_include_directories(harness_jitter_cli_test
 target_compile_features(harness_jitter_cli_test PRIVATE cxx_std_23)
 target_compile_definitions(
     harness_jitter_cli_test
-    PRIVATE SG_CLI_SOURCE="${CMAKE_SOURCE_DIR}/source/harness/cli.cpp")
+    PRIVATE SG_OPTIONS_SOURCE="${CMAKE_SOURCE_DIR}/source/harness/options.cpp")
 add_test(NAME harness_jitter_cli_test COMMAND harness_jitter_cli_test)
 
 # The idle resolver, the overlap check and the mask decision over

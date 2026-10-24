@@ -664,7 +664,7 @@ variable.
 | `placement` | required | `SPEEDGUN_PLACEMENT` | Selects the preset that plans the run's cpus |
 | `topology` | none |  | Prints the machine layout listing and stops |
 | `json` | required |  | Writes one JSON report document for the run |
-| `json-raw` | required |  | Selects the chunk columns the document carries |
+| `json-raw` | required |  | Selects the chunk columns or the kept gaps the document carries |
 | `compare` | required |  | Compares two report documents; the mode runs no benchmark |
 | `compare-rule` | required |  | Adds one comparison rule, repeatable in order |
 | `compare-strict` | none |  | Makes every noisy row fail the verdict |
