@@ -667,6 +667,13 @@ auto installTestOnlineCpus(std::optional<std::vector<std::uint32_t>>) -> void;
 /// follows it (FR-005, FR-041).
 [[nodiscard]] auto onlineCpuSet() -> std::vector<std::uint32_t>;
 
+/// @brief Append the cpus one kernel cpu-list line spells: comma-
+/// separated lone indices and `low-high` spans in the order the line
+/// carries them, a token that parses as no number naming no cpu
+/// (FR-005, FR-041).
+auto appendOnlineCpuList(std::vector<std::uint32_t>& cpus,
+                         std::string_view text) -> void;
+
 /// @brief Install a synthetic description the read hands to
 /// `hwloc_topology_set_synthetic`; an empty optional clears it
 /// (FR-006, Q-5, R-04).

@@ -248,11 +248,17 @@ auto installedOnlineCpusSlot() -> std::optional<std::vector<std::uint32_t>>&
   return slot;
 }
 
+}  // namespace
+
+namespace detail
+{
+
 // The list `/sys/devices/system/cpu/online` carries one line in the
 // kernel's cpu-list spelling: comma-separated lone indices and
 // `low-high` spans in ascending order, the gaps standing for the cpus
-// the kernel holds offline. A token that parses as no number ends the
-// read, so a short read answers the cpus it did carry.
+// the kernel holds offline. A token that parses as no number names no
+// cpu and the read moves to the token after it, so a short read answers
+// the cpus it did carry.
 auto appendOnlineCpuList(std::vector<std::uint32_t>& cpus,
                          std::string_view text) -> void
 {
@@ -288,19 +294,14 @@ auto appendOnlineCpuList(std::vector<std::uint32_t>& cpus,
       }
       high = end;
     }
-    for (auto cpu = *low; cpu <= *high; ++cpu) {
-      cpus.push_back(cpu);
-      if (cpu == std::numeric_limits<std::uint32_t>::max()) {
-        break;
-      }
+    // The counter stands wider than an index, so a span whose high end
+    // is the last index the spelling carries answers every index in the
+    // span and cannot wrap around.
+    for (auto cpu = std::uint64_t {*low}; cpu <= *high; ++cpu) {
+      cpus.push_back(static_cast<std::uint32_t>(cpu));
     }
   }
 }
-
-}  // namespace
-
-namespace detail
-{
 
 auto installTestLayout(std::optional<detail::MachineLayout> layout) -> void
 {
