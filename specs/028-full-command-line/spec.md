@@ -888,7 +888,8 @@ and run the example through `example_run`.
   shall print one line naming the file, the line number and the rejected
   name, and answer status 2 (D-9).
 - **FR-032**: A second `--options` option shall print one line naming the
-  option and answer status 2 (D-9).
+  option and answer status 2. An `--options` word whose path stands empty
+  shall print one line naming the option and answer status 2 (D-9).
 - **FR-033**: A line the parse cannot read shall print one line naming the
   file, the line number and the text, and answer status 2, and that answer
   stands when a higher source names the same option with a line that reads
@@ -1021,7 +1022,11 @@ and run the example through `example_run`.
   contributes shall keep the order that source wrote them in. The rule
   list shall not combine across sources: the highest source that names
   rules shall settle it, and a rule of a lower source shall reach the
-  parser before it drops under FR-038 (D-13, D-23).
+  parser before it drops under FR-038 (D-13, D-23). The row shall be
+  scalar within one source: every path that source names shall be read
+  while that source is read, and the last of those paths shall name the
+  rules that join (FR-035). A path word that stands empty shall print
+  one line naming the row and answer status 2 (FR-033).
 - **FR-064**: A line the rule parser refuses shall print one line naming
   the file, the line number and the parser's fault, and answer status 2
   (D-13).

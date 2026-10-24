@@ -302,10 +302,18 @@ auto parseComparePair(const std::string_view text)
                     std::string(text.substr(comma + 1))};
 }
 
-// The one line of the `--json` row whose word stands empty, read the same way
-// by the scan and by the settle function of the row (FR-030, FR-035).
-constexpr const char* kEmptyPathFault =
-    "--json: the path the option names stands empty";
+// The tail of the line a row that names a path answers when the word for
+// that path stands empty, so `--json`, `--compare-rules` and `--options`
+// print one form (FR-007 to FR-009, FR-035, FR-063).
+constexpr std::string_view kEmptyPathTail =
+    "the path the option names stands empty";
+
+// The one line of the row whose path word stands empty, read the same way by
+// the scan and by the settle function of the row (FR-030, FR-035).
+auto emptyPathFault(const std::string_view option) -> std::string
+{
+  return std::string(option) + ": " + std::string(kEmptyPathTail);
+}
 
 // One whole number of a `--threads` item: `from_chars` reads the digits of
 // the item whole, and a text with a stray character, an empty item or a
@@ -787,6 +795,9 @@ auto scanCommandLine(int argc, char** argv)
         // answers one line naming the option alone, with no path repeated.
         // The path reaches `RunOptions` (E-03) and the entry point owns the
         // read, so the gather keeps opening nothing (D-05).
+        if (*optarg == '\0') {
+          return std::unexpected(emptyPathFault("--options"));
+        }
         if (optionsSeen) {
           return std::unexpected("--options cannot stand twice");
         }
@@ -863,7 +874,7 @@ auto scanCommandLine(int argc, char** argv)
             : std::string(row->argument == OptionArgument::OPTIONAL ? "0"
                                                                     : "1");
         const auto again = settledInSource(settled, *row) ? kSameSourceSettled
-                                                         : kNoPriorSettle;
+                                                          : kNoPriorSettle;
         const auto applied = applySourceValue(*row,
                                               text,
                                               std::string {},
@@ -1501,8 +1512,7 @@ auto applySourceValue(const OptionRow& row,
       }
       options.placement = text;
       // The preset stands kept beside the text it came from, so the entry
-      // point reads a preset instead of parsing the same name a second time
-      // (FR-046, FR-048).
+      // point reads a preset the row already parsed (FR-046, FR-048).
       resolved.preset = preset;
       return true;
     }
@@ -1547,7 +1557,7 @@ auto applySourceValue(const OptionRow& row,
     }
     case 'j':
       if (text.empty()) {
-        return refuse(kEmptyPathFault);
+        return refuse(emptyPathFault(option));
       }
       if (!options.jsonPath.empty() && prior != kSameSourceSettled) {
         return false;
@@ -1619,21 +1629,21 @@ auto applySourceValue(const OptionRow& row,
     case kCompareRulesOptionValue:
       // FR-063: the rules of the file one source names join after the rules
       // that source spells, so the path is held until the gather has applied
-      // that source in full. A second line of one source keeps its own path,
-      // the scalar rule of FR-035. The path of a lower source is held for the
-      // read too, so the fault of a file it cannot open reaches the operator
-      // before the path drops (FR-038, FR-061, FR-062). An empty word names
-      // no rule and settles no source, so the gather opens nothing for it and
-      // a later line of the same source still settles the list (FR-041).
+      // that source in full. The row is scalar within one source: every path
+      // a source names is held for the read and the last of them names the
+      // rules that would join, so the fault of an earlier path reaches the
+      // operator before a lower source drops (FR-038, FR-061, FR-062). An
+      // empty word names no file at all, so the row answers the empty-path
+      // line of the source that holds it (FR-033, FR-035, FR-063).
       if (text.empty()) {
-        return true;
+        return refuse(emptyPathFault(option));
       }
       if (resolved.rulesSource.has_value() && *resolved.rulesSource != source) {
-        resolved.stagedRulesPath = text;
+        resolved.stagedRulesPaths.push_back(text);
         return false;
       }
       resolved.rulesSource = source;
-      resolved.stagedRulesPath = text;
+      resolved.stagedRulesPaths.push_back(text);
       return true;
     case kJitterProbeOptionValue: {
       // The value parses where it settles, so a file line's refusal
@@ -1680,10 +1690,10 @@ auto trimmed(const std::string_view line) -> std::string_view
 }
 
 // Join what the source applied most recently named for the rules of the run:
-// first the rules that source spelled, then the rules of the single file it
+// first the rules that source spelled, then the rules of the last file it
 // named, whichever of the two lines stood first (FR-063, spec D-23,
 // recommendation 8). A source below the one that settled the list is read for
-// its faults and then dropped, so the file its path names is opened and the
+// its faults and then dropped, so every file its paths name is opened and the
 // reader's own line stands while the rules it holds never join (FR-038,
 // FR-061, FR-062). Either way the held text is cleared, so the next source
 // starts from nothing of its own.
@@ -1703,20 +1713,23 @@ auto commitRules(ResolvedOptions& resolved,
               std::back_inserter(resolved.rules));
   }
   resolved.stagedRules.clear();
-  if (resolved.stagedRulesPath.has_value()) {
+  std::optional<std::vector<CompareRule>> fileRules;
+  for (const std::string& path : resolved.stagedRulesPaths) {
     SG_ASSERT(ruleFiles != nullptr,
               "a source that names a rules file hands its reader along with "
               "the path (D-05)");
-    const auto rules = ruleFiles(*resolved.stagedRulesPath);
+    auto rules = ruleFiles(path);
     if (!rules.has_value()) {
       return std::unexpected(rules.error());
     }
-    if (!higher) {
-      std::move(
-          rules->begin(), rules->end(), std::back_inserter(resolved.rules));
-    }
+    fileRules = std::move(*rules);
   }
-  resolved.stagedRulesPath = std::nullopt;
+  if (fileRules.has_value() && !higher) {
+    std::move(fileRules->begin(),
+              fileRules->end(),
+              std::back_inserter(resolved.rules));
+  }
+  resolved.stagedRulesPaths.clear();
   return {};
 }
 
@@ -1792,8 +1805,8 @@ auto applyOptionFile(const OptionFileText& file, ResolvedOptions& resolved)
       // seed 0 the bare option carries (FR-029, E-10).
       value = row->argument == OptionArgument::OPTIONAL ? "0" : "1";
     }
-    const auto again = settledInSource(settled, *row) ? kSameSourceSettled
-                                                      : kNoPriorSettle;
+    const auto again =
+        settledInSource(settled, *row) ? kSameSourceSettled : kNoPriorSettle;
     const auto applied = applySourceValue(
         *row, value, where, again, OptionSource::OPTION_FILE, resolved);
     if (!applied.has_value()) {
