@@ -614,7 +614,10 @@ that never prints.
   suite-level call that runs the probe for the suite's run, and a
   `BenchmarkHandle::jitterProbe(...)` fluent form beside the handle's
   existing setters (`include/speedgun-ng/benchmark.hpp:1620` and
-  below), both taking `JitterProbeOptions` (FR-003).
+  below), both taking `JitterProbeOptions` (FR-003). The suite-level
+  sources stand in order: the command line's value, then the option
+  file's, then the suite-level call's, each answering only where no
+  higher source named the probe (FR-015).
 
 ### Placement (C-3)
 

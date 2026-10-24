@@ -581,9 +581,9 @@ auto speedgunMain(int argc, char** argv) -> int
     options.jitterProbe = parsed;
   }
 
-  // FR-015, R-01: the suite-level call binds the suite the way the
-  // command-line option does, and the command-line value wins when
-  // both stand.
+  // FR-015: the option sources stand in order: the command line's
+  // value, then the option file's, then the suite-level call's; the
+  // call answers only where no higher source named the probe.
   if (!options.jitterProbe.has_value()) {
     options.jitterProbe = detail::suiteJitterProbe();
   }
