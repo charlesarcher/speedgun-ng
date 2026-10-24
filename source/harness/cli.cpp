@@ -936,12 +936,10 @@ auto speedgunMain(int argc, char** argv) -> int
         std::fprintf(stderr,
                      "--jitter-probe: the probe cpus leave no cpu for '%s'\n",
                      entry->name.c_str());
-        // The holder stands emplaced beside the option that named the
-        // probe (R-01), so the stop lands on the live session before
-        // the run leaves it (FR-006, R-01).
-        if (jitterProbe.has_value()) {
-          jitterProbe->stopAndJoin();
-        }
+        // R-01: the batch probe is emplaced on every path that reaches
+        // this precheck, so the session this stop lands on is the live
+        // one (FR-006, R-01).
+        jitterProbe->stopAndJoin();
         return 2;
       }
     }
