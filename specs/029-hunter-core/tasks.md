@@ -827,9 +827,9 @@ finding this round filed as owned, so the section holds eleven rows.
       two anchors need`; `source/harness/hunt_cli.cpp:616-619` refuses when
       the published slot count is below three whatever the anchors, in the
       words `publishes <n> slots and a hunt pass needs 3` that
-      `contracts/hunt-cli.md:86` and `docs/pages/harness.md:1441` pin;
+      `contracts/hunt-cli.md:86` and `docs/pages/harness.md:1500` pin;
       `data-model.md` gives the rule as `L` below 3 whatever the anchors, one
-      predicate for both routes, the reading T177 settled.
+      predicate for both routes, the reading T177 settled. It left
       the words no contract pins, and the copies disagree on the anchor
       condition the documents name. Land the planner half and the doc half,
       one predicate and one wording, and reconcile the CLI copy: a live lane
@@ -1186,9 +1186,14 @@ citation row are settled, and both say so where they stand.
       and `:556`. The same gap as T173 above, which carries the wider sweep of eight
       citations (FR-093, T162, T163).
 
-- [ ] T184 MEDIUM Settle two ledger citations that drifted inside this
+      Settled by this commit: `:830` names `docs/pages/harness.md:1500`, the
+      line the refusal prints on, and this row's own number was corrected
+      the same way. The live refusal stands at `hunt_plan.cpp:118-120` and
+      `hunt_cli.cpp:626-627`; the wording both routes borrow stands at
+      `source/harness/detail/hunt_selection.hpp:70-75`.
+- [x] T184 MEDIUM Settle two ledger citations that drifted inside this
       file. `:830` cites `docs/pages/harness.md:1441` for the slot-limit
-      refusal, and that refusal prints at `docs/pages/harness.md:1499` today,
+      refusal, and that refusal prints at `docs/pages/harness.md:1500` today,
       `:1441` holding the selection table instead. Both rows describe work
       that landed; only their addresses moved.
 - [ ] T185 MEDIUM Register `harness_cli_test` with the properties its cost
