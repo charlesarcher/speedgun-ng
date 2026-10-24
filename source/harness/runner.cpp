@@ -16,6 +16,7 @@
 #include "detail/calibration.hpp"
 #include "detail/complexity.hpp"
 #include "detail/internal.hpp"
+#include "detail/options.hpp"
 #include "detail/pass_plan.hpp"
 #include "detail/percentiles.hpp"
 #include "speedgun-ng/benchmark.hpp"
@@ -1237,8 +1238,10 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     if (!object.has_value()) {
       column.unavailable = true;
       column.availability = sg::counters::Availability::ABSENT;
-      std::fprintf(
-          stderr, "%s: %s\n", address.c_str(), object.error().message.c_str());
+      std::fprintf(stderr,
+                   "%s: %s\n",
+                   quotedText(address).c_str(),
+                   quotedText(object.error().message).c_str());
       columns.push_back(std::move(column));
       continue;
     }
@@ -1258,7 +1261,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       column.availability = sg::counters::Availability::ABSENT;
       std::fprintf(stderr,
                    "%s: no such leaf in the catalog (FR-023)\n",
-                   address.c_str());
+                   quotedText(address).c_str());
       columns.push_back(std::move(column));
       continue;
     }

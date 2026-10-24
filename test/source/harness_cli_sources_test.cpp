@@ -2631,6 +2631,52 @@ auto aWordOfTwoValuesFaultsTheEntry() -> void
   check(echoed.find("got '1\\\\2'") != std::string::npos,
         "the refusal doubles the backslash it names (FR-024)");
 
+  // SC-003: every refusal that names the text a source spelled puts a break of
+  // that text through the same quoting, whatever the row and whatever the
+  // source. Each input below carries a break inside the value, or inside the
+  // option word itself, and each answers exactly one line at status 2. The
+  // metric and counter rows are refused by the walk of a run, so they stand in
+  // the command line test, where a benchmark stands to run (FR-024, FR-027,
+  // FR-035, FR-054).
+  oneFaultLine(runEntry({"--interleave=7\n8"}),
+               "a break of the seed word (FR-054, SC-003)",
+               {"--interleave", "7\\n8"});
+  oneFaultLine(runEntryWithEnv({}, {"SPEEDGUN_INTERLEAVE=7\n8"}),
+               "a break of the seed variable (FR-027, FR-054, SC-003)",
+               {"SPEEDGUN_INTERLEAVE: ", "--interleave", "7\\n8"});
+  oneFaultLine(runEntryWithEnv({}, {"SPEEDGUN_PLACEMENT=a\nb"}),
+               "a break of the placement variable (FR-027, FR-046, SC-003)",
+               {"SPEEDGUN_PLACEMENT: ", "--placement", "a\\nb"});
+  oneFaultLine(runEntry({"--metric-method=a\nb"}),
+               "a break of the metric-method word (FR-033, SC-003)",
+               {"--metric-method", "a\\nb"});
+  oneFaultLine(runEntry({"--filter=(\n"}),
+               "a break of the filter expression (FR-051, SC-003)",
+               {"--filter"});
+  oneFaultLine(runEntry({"--options=a\nb"}),
+               "a break of the option-file path (FR-031, SC-003)",
+               {"a\\nb"});
+  oneFaultLine(runEntry({"--compare-rules=a\nb"}),
+               "a break of the rules-file path (FR-065, SC-003)",
+               {"--compare-rules", "a\\nb"});
+  oneFaultLine(runEntry({"--compare-rule=a\nb"}),
+               "a break of a rule word (FR-063, SC-003)",
+               {"a\\nb"});
+  oneFaultLine(runEntry({std::string("--fo\no")}),
+               "a break of an unknown option word (FR-009, SC-003)",
+               {"unknown option", "--fo\\no"});
+
+  // FR-024, SC-003: a carriage return lets a terminal print the second half of
+  // a value over the first, and a NUL byte ends the C string a reader is
+  // handed, so the quoting names both with their own words.
+  oneFaultLine(runEntry({"--interleave=7\r8"}),
+               "a carriage return of the seed word (FR-054, SC-003)",
+               {"--interleave", "7\\r8"});
+  const std::string returnKey = fileFaultOf("filter\r=^bm\n");
+  check(returnKey.find("unknown option 'filter\\r'") != std::string::npos,
+        "the refusal of an unknown key names the return it carries (FR-033, "
+        "SC-003)");
+
   const std::filesystem::path path = capturePath(".twoopts");
   {
     std::ofstream stream(path);
@@ -2660,6 +2706,8 @@ auto aSourceLineWithANulByteIsRefused() -> void
             "options-file.txt:1: expected a value without a NUL byte"),
         "a NUL byte of an option file line is refused by the gather (FR-033, "
         "FR-035)");
+  check(optionFault.find("got 'percentiles=50\\0x'") != std::string::npos,
+        "the refusal names the NUL byte with its own words (FR-033, SC-003)");
   const std::filesystem::path directPath = capturePath(".nuldirect");
   {
     std::ofstream stream(directPath, std::ios::binary);
