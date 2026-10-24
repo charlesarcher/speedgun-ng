@@ -1322,8 +1322,8 @@ auto twoStageDocument() -> void
 
   // The same document with the bound spelled in the passes unit. The fixture
   // of a bounded plan is seconds, so `8p` is the only reading that settles the
-  // passes arm of the unit split, and it reads back as passes rather than as
-  // the seconds figure of the record above (FR-012, FR-051).
+  // passes arm of the unit split: the record reads back eight passes, and the
+  // seconds figure of the record above stands unchanged (FR-012, FR-051).
   const auto bound = keyStart(text, nodeOpen(text, true), "budget");
   const auto value = bound + std::string_view("\"budget\":").size();
   sg::test::writeText(scratchDocument,
