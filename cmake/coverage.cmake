@@ -22,6 +22,19 @@ if(NOT GENHTML_EXECUTABLE)
   )
 endif()
 
+# gcov must match the compiler that wrote the gcda counters: a newer
+# gcov aborts the capture on the older counters' format. Prefer the
+# versioned name a pinned-compiler setup installs, and fall back to
+# the default gcov for a system whose compiler is the default one.
+find_program(GCOV_EXECUTABLE NAMES gcov-14 gcov)
+if(NOT GCOV_EXECUTABLE)
+  message(
+      FATAL_ERROR
+      "gcov is required for developer builds (constitution VI: 100% "
+      "line and branch coverage). Install gcov and reconfigure. "
+  )
+endif()
+
 # ---- Variables ----
 
 # We use variables separate from what CTest uses, because those have
@@ -58,6 +71,7 @@ set(
     "${LCOV_EXECUTABLE}" -c -q
     --branch-coverage
     --no-external
+    --gcov-tool "${GCOV_EXECUTABLE}"
     --ignore-errors mismatch,negative,inconsistent
     --base-directory "${PROJECT_SOURCE_DIR}"
     --rc geninfo_unexecuted_blocks=1
