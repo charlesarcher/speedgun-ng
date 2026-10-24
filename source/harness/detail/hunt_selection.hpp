@@ -85,8 +85,10 @@ inline constexpr std::size_t kHuntPassSlots {3};
 [[nodiscard]] inline auto devicePartOf(const std::string_view address)
     -> std::string_view
 {
+  // `substr` cuts at the view's end when the count runs past it, so a text
+  // without a separator answers itself from the same call.
   const std::size_t slash = address.find_last_of('/');
-  return slash == std::string_view::npos ? address : address.substr(0, slash);
+  return address.substr(0, slash);
 }
 
 /// @brief E-01: the leaf part of one catalog address, the name the anchor
