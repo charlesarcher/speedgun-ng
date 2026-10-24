@@ -192,11 +192,18 @@ struct ResolvedOptions
   // pattern selects every benchmark (FR-024, FR-050, FR-051).
   std::optional<std::regex> filterPattern;
   // Every metric name every source named, settled or dropped, in the order
-  // the sources named them, each behind the origin that names its source. The
-  // table lookup is a reading of the host, so the entry point walks this list
-  // rather than the gather, and a name that a higher source dropped answers
-  // its own line behind the source that held it (FR-028, FR-033, FR-038).
+  // the sources named them, each behind the origin that names its source.
+  // The table lookup is a reading of the host, so the entry point walks this
+  // list and the gather holds the settled text alone; a name a higher source
+  // dropped answers its own line behind the source that held it (FR-028,
+  // FR-033, FR-038).
   std::vector<MetricName> metricNames;
+  // Every counter address every source named, settled or dropped, in the order
+  // the sources named them, each behind the origin that names its source. The
+  // host resolves an address, so the entry point walks this list rather than
+  // the gather, and an address a higher source dropped answers its own line
+  // behind the source that held it (FR-038, FR-087).
+  std::vector<CounterAddress> counterAddresses;
 };
 
 /// @brief What the scan of one command line answers: the settled state of the

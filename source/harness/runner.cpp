@@ -785,6 +785,52 @@ auto appendCounterColumns(std::vector<double>& printed,
   }
 }
 
+auto counterAddressFailure(std::span<const CounterAddress> addresses) -> int
+{
+  // The host resolves every address through the object it names and that
+  // object's own catalog, the two reads the runner makes when it builds a
+  // column, so the line states what the host found there (FR-023, FR-087).
+  auto& sys = sg::counters::System::local();
+  for (const CounterAddress& item : addresses) {
+    const auto [objectPath, leafName] = splitAddress(item.address);
+    std::string message;
+    const auto object = sys.object(objectPath);
+    if (!object.has_value()) {
+      message = quotedText(object.error().message);
+    } else {
+      const sg::counters::CatalogEntry* found = nullptr;
+      // counters() returns the catalog by value, so the vector has to
+      // outlive the search: `found` points into it below.
+      const auto catalog = object->counters();
+      for (const auto& entry : catalog) {
+        if (entry.name == leafName) {
+          found = &entry;
+          break;
+        }
+      }
+      if (found == nullptr) {
+        message = "no such leaf in the catalog (FR-023)";
+      } else if (found->avail != sg::counters::Availability::COUNTABLE) {
+        message = std::string("listed as ") + availabilityName(found->avail)
+            + " (FR-023)";
+      }
+    }
+    if (message.empty()) {
+      continue;
+    }
+    // The line of the words names the option the address came from, so only
+    // a file and a variable carry an origin ahead of it (FR-033, FR-087).
+    const std::string origin = item.origin.empty() ? "--counter" : item.origin;
+    std::fprintf(stderr,
+                 "%s: %s: %s\n",
+                 origin.c_str(),
+                 quotedText(item.address).c_str(),
+                 message.c_str());
+    return 2;
+  }
+  return 0;
+}
+
 }  // namespace sg::detail
 
 namespace sg

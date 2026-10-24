@@ -9,6 +9,10 @@ binary the caller names, and a row whose status or fault fragment moved
 prints one line naming the case. The last line counts the rows that
 match. (FR-003, SC-013)
 
+One row departs from the base commit: case17 follows the counter ruling of
+specs/028-full-command-line, where an address this host does not find exits 2
+(FR-087).
+
 One row of test/data/base_cli_console.txt records, for the case its name
 names, the digit-masked console text that binary printed at the base
 commit and the sorted key set of the JSON document it wrote, each a

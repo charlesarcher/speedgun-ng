@@ -1874,9 +1874,11 @@ auto scenarioCalibrationAheadSignal() -> int
 // split. A `--counter` address the catalog cannot answer for, and a second
 // source with a limit of its own, ride the split: the run measures every
 // pass, and the unanswerable address prints its refusal at the column site.
-// The merged row answers from the reference pass, so a counter column a
-// later pass measured stands outside it - the gap the pull-request record
-// carries (FR-014, D-5).
+// The address reaches the runner through a library call: the entry point
+// refuses such an address from any source with the usage status, while the
+// library keeps answering the column absent (FR-023, FR-087). The merged row
+// answers from the reference pass, so a counter column a later pass measured
+// stands outside it - the gap the pull-request record carries (FR-014, D-5).
 auto scenarioUnplannedColumnsAcrossPasses() -> int
 {
   registerFixtureProvider(sg::test::kHostPassLimit);

@@ -9,6 +9,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -429,6 +430,22 @@ auto expandRegistry(std::optional<Preset> processPreset = std::nullopt) -> void;
 [[nodiscard]] auto instances() -> std::vector<Instance>&;
 
 /**
+ * @brief One counter address beside the origin of the source that named it
+ * (FR-038, FR-087).
+ *
+ * The host resolves an address, so the entry point walks the addresses of
+ * every source and not the settled list alone: an address a higher source
+ * dropped still answers with its own line, behind the origin that names its
+ * source. The empty origin is the command line, whose own line names the
+ * option instead.
+ */
+struct CounterAddress
+{
+  std::string origin;
+  std::string address;
+};
+
+/**
  * @brief The parsed command line (E-09).
  */
 struct RunOptions
@@ -702,6 +719,20 @@ struct MetricColumn
 /// when it has any (FR-028, FR-042).
 [[nodiscard]] auto metricNameFailureLine(
     const std::string& name, const sg::counters::Error& error) -> std::string;
+
+/**
+ * @brief Walk the counter addresses every source named and print the first
+ * refusal: the origin of the source that held the address (or the option
+ * name, for the command line), the address, and what the host found there.
+ * The answer is the usage status, or zero when every address resolves to a
+ * leaf this host can count (FR-087).
+ *
+ * The listing and the catalog answer before this walk, the way the metric
+ * names keep them, and a library caller that hands addresses to the runner
+ * directly keeps the runner's own absent column (FR-023, FR-087).
+ */
+[[nodiscard]] auto counterAddressFailure(
+    std::span<const CounterAddress> addresses) -> int;
 
 /**
  * @brief The text of one file, for every source that needs a whole
