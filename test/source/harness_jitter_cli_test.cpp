@@ -187,6 +187,18 @@ auto pickFillers(std::size_t count) -> std::vector<std::uint32_t>
   return fillers;
 }
 
+// The number of cpus the process affinity mask holds, the bound a
+// scenario reads before it pins three of them (FR-040).
+auto maskCpuCount() -> std::size_t
+{
+  cpu_set_t mask {};
+  CPU_ZERO(&mask);
+  if (sched_getaffinity(0, sizeof(mask), &mask) != 0) {
+    fail("the process affinity mask is unreadable (FR-040)");
+  }
+  return static_cast<std::size_t>(CPU_COUNT(&mask));
+}
+
 // The syscall refusal seam: one seccomp filter that answers the named
 // syscall number with EPERM for the rest of the child's life. The
 // filter is the injection route the unreadable-mask refusal of the
@@ -1870,6 +1882,88 @@ auto childFamilyPrecheckIdle() -> int
   return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
 }
 
+// FR-015, FR-019: a family probe that names no cpu over a machine whose
+// placed instance leaves one cpu free. Two L3 groups hold three single
+// thread cores, the wider one first; the l3 plan stands the lowest cpu of
+// each group down and the idle resolution answers the second core of the
+// first group, so the probe starts beside the instance and the run
+// discloses the probe's own gaps. The scenario stands skipped on a mask
+// too small to hold three pinnable cpus.
+auto childFamilyPlantedProbe() -> int
+{
+  scriptedProvider();
+  const auto cpus = pickCpus(3);
+  sg::detail::MachineLayout installed;
+  installed.readable = true;
+  installed.packages = 1;
+  const std::array<std::uint32_t, 3> coreOfThread {0, 2, 1};
+  const std::array<std::uint32_t, 3> groupOfThread {0, 1, 0};
+  const std::array<std::uint32_t, 3> threadOfCore {0, 2, 1};
+  const std::array<std::uint32_t, 3> groupOfCore {0, 0, 1};
+  for (std::uint32_t index = 0; index < 3; ++index) {
+    sg::detail::LayoutThread thread;
+    thread.cpuIndex = cpus.at(index);
+    thread.coreOrdinal = coreOfThread.at(index);
+    thread.groupOrdinal = groupOfThread.at(index);
+    installed.threads.push_back(thread);
+    installed.mask.push_back(cpus.at(index));
+    sg::detail::LayoutCore layoutCore;
+    layoutCore.groupOrdinal = groupOfCore.at(index);
+    layoutCore.threads.push_back(threadOfCore.at(index));
+    installed.cores.push_back(layoutCore);
+  }
+  installed.groups.push_back({cpus.at(0), {0, 1}});
+  installed.groups.push_back({cpus.at(1), {2}});
+  sg::detail::installTestOnlineCpus(installed.mask);
+  sg::detail::installTestLayout(installed);
+
+  auto handle = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmFamPlanted");
+  handle.threads(2).placement("l3");
+  sg::JitterProbeOptions probeOptions;
+  probeOptions.thresholdNs = 65000;
+  probeOptions.gapCount = 64;
+  handle.jitterProbe(probeOptions);
+  std::vector<std::string> arguments {
+      "--repetitions=1",
+      "--iterations=2000",
+      "--json=harness_jitter_cli_family_planted.json"};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
+auto scenarioFamilyPlantedProbe() -> int
+{
+  if (maskCpuCount() < 3) {
+    std::printf("skip familyPlantedProbe: the mask holds %zu cpus\n",
+                maskCpuCount());
+    return 0;
+  }
+  const Captured run = runExecChild("--jitter-cli-child=family-planted-probe",
+                                    "family-planted-probe");
+  check(run.status == 0, "the family probe on a free cpu runs (FR-015)");
+  check(run.out.find("bmFamPlanted") != std::string::npos,
+        "the planted family prints its row (FR-015)");
+  check(run.out.find("names no free cpu") == std::string::npos,
+        "a family with a free cpu is not refused (FR-015)");
+  check(run.out.find("jitter: cpu") != std::string::npos,
+        "the family probe reports the cpu it stands on (FR-015)");
+  const std::string document =
+      readDocument("harness_jitter_cli_family_planted.json");
+  check(document.find("\"thresholdNs\"") != std::string::npos,
+        "the run discloses the family probe of its own (FR-019)");
+  return 0;
+}
+
 auto scenarioFamilyIdleRun() -> int
 {
   const Captured run =
@@ -2163,6 +2257,11 @@ auto main(int argc, char** argv) -> int
     {
       return childFamilyPrecheckIdle();
     }
+    if (mode == "--jitter-cli-child=family-planted-probe"
+        && redirect("family-planted-probe"))
+    {
+      return childFamilyPlantedProbe();
+    }
     if (mode == "--jitter-cli-child=family-two" && redirect("family-two")) {
       return childFamilyTwoInstances();
     }
@@ -2238,6 +2337,7 @@ auto main(int argc, char** argv) -> int
   check(scenarioFamilyUnavailable() == 0, "familyUnavailable");
   check(scenarioFamilyNarrowedEmpty() == 0, "familyNarrowedEmpty");
   check(scenarioFamilyPrecheckIdle() == 0, "familyPrecheckIdle");
+  check(scenarioFamilyPlantedProbe() == 0, "familyPlantedProbe");
   check(scenarioFamilyVersusCommandLine() == 0, "familyVersusCommandLine");
   check(scenarioEmptyMaskBeforeWalk() == 0, "emptyMaskBeforeWalk");
   check(scenarioIdleHighIndex() == 0, "idleHighIndex");
