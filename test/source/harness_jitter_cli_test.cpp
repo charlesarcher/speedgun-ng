@@ -1475,6 +1475,91 @@ auto main(int argc, char** argv) -> int
                  "a bad precheck value stands rejected (FR-014, FR-038)");
   }
 
+  // The option-file surface of the same grammar (FR-027, FR-033): the
+  // value parses where it settles, so a file line's refusal names the
+  // path and the line the file faults name, the command line's keeps
+  // the option's own prefix, a bad file line is read under a good
+  // command-line value, and every echoed token stands quoted (R-06).
+  {
+    const std::string path = "harness_jitter_cli_file.txt";
+    const auto write = [&path](const std::string& line)
+    {
+      std::ofstream file(path);
+      file << line << "\n";
+    };
+
+    // An empty value on the command line: the head token is empty, so
+    // the refusal names the empty token (FR-014).
+    checkOneLine(captureError({"--jitter-probe="}, 2),
+                 "an empty value stands rejected (FR-014)");
+
+    // The same value from an option file line: the refusal names the
+    // path and the line (FR-027).
+    write("jitter-probe=");
+    {
+      auto arguments = quickRun;
+      arguments.push_back("--options=" + path);
+      const auto note = captureError(arguments, 2);
+      check(note.find(path + ":1: --jitter-probe: ") == 0,
+            "a file line's refusal names the path and the line (FR-027)");
+      check(std::count(note.begin(), note.end(), '\n') == 1,
+            "a file line's refusal stands one line (FR-027)");
+    }
+
+    // A bad file line under a good command-line value: the line is
+    // still read, so its own fault reaches the operator and the run
+    // stops before the expansion (FR-024, FR-038).
+    {
+      auto arguments = quickRun;
+      arguments.push_back("--jitter-probe=" + cpu + ",precheck=1");
+      arguments.push_back("--options=" + path);
+      const auto note = captureError(arguments, 2);
+      check(note.find(path + ":1: --jitter-probe: ") == 0,
+            "a bad file line is read under a good command-line value, "
+            "named with the path and the line (FR-024, FR-027, FR-038)");
+      check(std::count(note.begin(), note.end(), '\n') == 1,
+            "a bad file line's refusal stands one line (FR-024, FR-038)");
+    }
+
+    // A line break inside one token: the refusal stands one line and
+    // names the break with its own words (FR-038).
+    checkOneLine(captureError({std::string("--jitter-probe=0\n1")}, 2),
+                 "a break inside one token stands quoted (FR-038)");
+
+    // A precheck value past the field's own bound: the precheck line
+    // stands for it (FR-014).
+    for (const auto* value : {"4294967296", "4294967297"}) {
+      auto arguments = quickRun;
+      arguments.push_back(std::string("--jitter-probe=") + cpu
+                          + ",precheck=" + value);
+      checkOneLine(
+          captureError(arguments, 2),
+          "a precheck value past the field's bound stands " "rejected "
+                                                            "(FR-014)");
+    }
+
+    // A cpu that stands twice in one value, in either form the tokens
+    // name: the index and the whole value stand named (FR-011).
+    for (const auto* value : {"0,0", "0-1,1"}) {
+      auto arguments = quickRun;
+      arguments.push_back(std::string("--jitter-probe=") + value);
+      checkOneLine(captureError(arguments, 2),
+                   "a cpu repeated in one value stands rejected (FR-011)");
+    }
+
+    // The same refusal from an option file line (FR-027, FR-038).
+    write("jitter-probe=0,0");
+    {
+      auto arguments = quickRun;
+      arguments.push_back("--options=" + path);
+      const auto note = captureError(arguments, 2);
+      check(
+          note.find(path + ":1: --jitter-probe: ") == 0,
+          "a file line's repeated cpu names the path and the line " "(FR-027)");
+    }
+    std::remove(path.c_str());
+  }
+
   // contracts/cli-options.md: `--jitter-probe` with no argument keeps
   // the standing getopt_long missing-argument path, and an unknown flag
   // the standing line; both exit status 2 and no benchmark runs.

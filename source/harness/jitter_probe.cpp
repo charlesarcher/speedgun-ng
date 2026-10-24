@@ -9,16 +9,23 @@
 // ============================================================================
 
 #include <algorithm>
+#include <cerrno>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
+#include <limits>
 #include <memory>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 
 #include "detail/jitter_probe.hpp"
 
+#include <sched.h>
+
+#include "detail/options.hpp"
 #include "detail/percentiles.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_system.hpp"
@@ -627,6 +634,220 @@ auto gapStatsOf(const ProbeCpuState& state,
 auto installTestReader(std::unique_ptr<counters::WindowReader> reader) -> void
 {
   installedReader = std::move(reader);
+}
+
+namespace
+{
+
+// FR-011 with the value grammar of contracts/cli-options.md: a number
+// with no sign and no trailing text; the cpu tokens admit zero, the
+// keys do not.
+auto parseProbeNumber(const std::string& text,
+                      std::uint64_t& out,
+                      const bool allowZero) -> bool
+{
+  if (text.empty() || text.front() < '0' || text.front() > '9') {
+    return false;
+  }
+  errno = 0;
+  char* end = nullptr;
+  const long long number = std::strtoll(text.c_str(), &end, 10);
+  if (errno != 0 || end != text.c_str() + text.size()) {
+    return false;
+  }
+  if (!allowZero && number <= 0) {
+    return false;
+  }
+  out = static_cast<std::uint64_t>(number);
+  return true;
+}
+
+// The cpu token of the value grammar: an index or a closed a-b range,
+// the form the topology listing prints; each cpu stands in the
+// process affinity mask (FR-011, FR-038).
+auto parseProbeCpuToken(const std::string& token,
+                        std::vector<std::uint32_t>& cpus,
+                        std::string& message) -> bool
+{
+  const auto dash = token.find('-');
+  std::uint64_t low = 0;
+  std::uint64_t high = 0;
+  if (dash == std::string::npos) {
+    if (!parseProbeNumber(token, low, true)) {
+      message =
+          "the cpu '" + quotedText(token) + "' is not a cpu index or range";
+      return false;
+    }
+    high = low;
+  } else {
+    const auto lowText = token.substr(0, dash);
+    const auto highText = token.substr(dash + 1);
+    if (!parseProbeNumber(lowText, low, true)
+        || !parseProbeNumber(highText, high, true) || low > high)
+    {
+      message =
+          "the cpu '" + quotedText(token) + "' is not a cpu index or range";
+      return false;
+    }
+  }
+  cpu_set_t mask {};
+  CPU_ZERO(&mask);
+  if (sched_getaffinity(0, sizeof(mask), &mask) != 0) {
+    message = "the process affinity mask is unreadable";
+    return false;
+  }
+  // FR-011: the mask bit read carries the set type's own bound and
+  // the membership in one test - the read answers 0 for an index at
+  // or above the set size and for an index the mask does not hold -
+  // so one line stands for both refusals. The count the threads
+  // report bounds the index the ExecutionContext construction reads
+  // beside the mask: a count and not the highest index, so the bound
+  // refuses an online cpu the mask holds whose index stands at or
+  // above the count, on the line of its own below. The count stands
+  // behind the detail seam the tests set and clear, the way the test
+  // layout installs (FR-041).
+  const auto online = onlineCpuCount();
+  for (auto cpu = low; cpu <= high; ++cpu) {
+    if (!CPU_ISSET(cpu, &mask)) {
+      message = "the cpu '" + quotedText(token)
+          + "' stands outside the process affinity mask";
+      return false;
+    }
+    if (cpu >= static_cast<std::uint64_t>(online)) {
+      message = "the cpu '" + quotedText(token)
+          + "' stands past the online cpu count";
+      return false;
+    }
+    cpus.push_back(static_cast<std::uint32_t>(cpu));
+  }
+  return true;
+}
+
+}  // namespace
+
+// The value grammar of contracts/cli-options.md (FR-011, FR-014, R-06):
+// the head names a cpu list or the word idle, and the keys follow, each
+// standing once in the value, a cpu standing once in any form the
+// tokens name. Every rejection names the token it read, quoted the way
+// the option module quotes a value, so the caller's one line carries
+// it (FR-038).
+auto parseJitterProbeValue(const std::string& value,
+                           JitterProbeOptions& parsed,
+                           std::string& message) -> bool
+{
+  parsed = JitterProbeOptions {};
+  std::set<std::string> seenKeys;
+  bool idleHead = false;
+  bool headSeen = false;
+  std::size_t position = 0;
+  while (position <= value.size()) {
+    const auto comma = value.find(',', position);
+    const std::string token = value.substr(
+        position,
+        comma == std::string::npos ? std::string::npos : comma - position);
+    const bool last = comma == std::string::npos;
+    position = last ? value.size() + 1 : comma + 1;
+
+    if (!headSeen) {
+      headSeen = true;
+      if (token == "idle") {
+        idleHead = true;
+        continue;
+      }
+      std::vector<std::uint32_t> headCpus;
+      if (parseProbeCpuToken(token, headCpus, message)) {
+        parsed.cpus = headCpus;
+        continue;
+      }
+      // parseProbeCpuToken names the token it read in every refusal it
+      // answers (FR-038), so the head refusal carries that message.
+      return false;
+    }
+
+    // A token after the head is a key when it carries '=' or names the
+    // value-less `strict`; every other token extends the cpu list.
+    const bool keyToken =
+        idleHead || token.find('=') != std::string::npos || token == "strict";
+    if (!keyToken) {
+      if (!parseProbeCpuToken(token, parsed.cpus, message)) {
+        return false;
+      }
+      continue;
+    }
+
+    const auto equals = token.find('=');
+    const std::string key =
+        equals == std::string::npos ? token : token.substr(0, equals);
+    const std::string keyArgument =
+        equals == std::string::npos ? "" : token.substr(equals + 1);
+    if (!seenKeys.insert(key).second) {
+      message = "the key '" + quotedText(key) + "' stands twice in the value";
+      return false;
+    }
+    if (key == "threshold") {
+      std::uint64_t number = 0;
+      if (!parseProbeNumber(keyArgument, number, false)) {
+        message = "the threshold '" + quotedText(keyArgument)
+            + "' is not a positive number";
+        return false;
+      }
+      parsed.thresholdNs = number;
+    } else if (key == "gaps") {
+      std::uint64_t number = 0;
+      if (!parseProbeNumber(keyArgument, number, false)
+          || number > kMaxGapCount)
+      {
+        message = "the gaps '" + quotedText(keyArgument)
+            + "' is not a number between 1 and 16777216";
+        return false;
+      }
+      parsed.gapCount = static_cast<std::uint32_t>(number);
+    } else if (key == "mode") {
+      if (keyArgument == "alongside") {
+        parsed.mode = JitterProbeMode::ALONGSIDE;
+      } else if (keyArgument == "precheck") {
+        parsed.mode = JitterProbeMode::PRECHECK;
+      } else if (keyArgument == "both") {
+        parsed.mode = JitterProbeMode::BOTH;
+      } else {
+        message = "the mode '" + quotedText(keyArgument)
+            + "' is not alongside, precheck or both";
+        return false;
+      }
+    } else if (key == "precheck") {
+      std::uint64_t number = 0;
+      if (!parseProbeNumber(keyArgument, number, false)
+          || number > std::numeric_limits<std::uint32_t>::max())
+      {
+        message = "the precheck '" + quotedText(keyArgument)
+            + "' is not a positive number";
+        return false;
+      }
+      parsed.precheckMs = static_cast<std::uint32_t>(number);
+    } else if (key == "strict") {
+      if (!keyArgument.empty()) {
+        message = "the key 'strict' takes no value";
+        return false;
+      }
+      parsed.strict = true;
+    } else {
+      message = "the key '" + quotedText(key) + "' is not one the value names";
+      return false;
+    }
+  }
+
+  // A cpu that stands twice in one value, in any form the tokens name,
+  // is an invalid value (FR-011); the whole value stands named beside
+  // the index that repeated (FR-038).
+  std::set<std::uint32_t> seenCpus;
+  for (const auto cpu : parsed.cpus) {
+    if (!seenCpus.insert(cpu).second) {
+      message = "the cpu '" + std::to_string(cpu)
+          + "' stands more than once in '" + quotedText(value) + "'";
+      return false;
+    }
+  }
+  return true;
 }
 
 }  // namespace sg::detail

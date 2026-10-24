@@ -55,6 +55,31 @@ namespace sg
 {
 namespace detail
 {
+
+/**
+ * @brief The text of a value as one fault record carries it.
+ *
+ * A value of the command line or of the environment can hold a line break,
+ * and the fault of any source is one line (FR-024, FR-027, FR-035, SC-003),
+ * so a break is named with its own words. A backslash stands doubled, so a
+ * named break cannot be confused with the two letters of its own name.
+ */
+auto quotedText(const std::string_view text) -> std::string
+{
+  std::string quoted;
+  quoted.reserve(text.size());
+  for (const char letter : text) {
+    if (letter == '\\') {
+      quoted += "\\\\";
+    } else if (letter == '\n') {
+      quoted += "\\n";
+    } else {
+      quoted.push_back(letter);
+    }
+  }
+  return quoted;
+}
+
 namespace
 {
 
@@ -120,30 +145,6 @@ constexpr std::int64_t kMaxWholeSeconds =
 // left to `strtod`, which reads `.5` and `50.` as numbers and a trailing
 // space as the end of the element.
 constexpr std::size_t kMaxPercentilePoints = 16;
-
-/**
- * @brief The text of a value as one fault record carries it.
- *
- * A value of the command line or of the environment can hold a line break,
- * and the fault of any source is one line (FR-024, FR-027, FR-035, SC-003),
- * so a break is named with its own words. A backslash stands doubled, so a
- * named break cannot be confused with the two letters of its own name.
- */
-auto quotedText(const std::string_view text) -> std::string
-{
-  std::string quoted;
-  quoted.reserve(text.size());
-  for (const char letter : text) {
-    if (letter == '\\') {
-      quoted += "\\\\";
-    } else if (letter == '\n') {
-      quoted += "\\n";
-    } else {
-      quoted.push_back(letter);
-    }
-  }
-  return quoted;
-}
 
 auto parsePercentileList(const char* text,
                          const char* option,
@@ -905,7 +906,9 @@ auto scanCommandLine(int argc, char** argv)
       }
       case kJitterProbeOptionValue:
         // specs/027 FR-011, R-06: the text stands raw here; the entry
-        // point parses it once before the expansion and before any run.
+        // point parses it once before the expansion and before any run,
+        // and an empty value stands stored so its refusal reads the
+        // empty token (FR-011, R-06).
         options.jitterProbeText = optarg;
         break;
       case kHelpOptionValue:
@@ -1625,14 +1628,25 @@ auto applySourceValue(const OptionRow& row,
       }
       resolved.optionFileRulesPath = text;
       return true;
-    case kJitterProbeOptionValue:
-      // specs/027 FR-011: the text stands raw here the way the scan keeps
-      // it; the entry point's single parse covers every source.
-      if (!options.jitterProbeText.empty() && prior != kSameSourceSettled) {
+    case kJitterProbeOptionValue: {
+      // The value parses where it settles, so a file line's refusal
+      // names the path and the line every file fault names, and a lower
+      // source's line is still read before it drops (FR-024, FR-027,
+      // FR-038, R-06).
+      JitterProbeOptions parsed;
+      std::string message;
+      if (!parseJitterProbeValue(text, parsed, message)) {
+        return refuse(option + ": " + message);
+      }
+      if (options.jitterProbeText.has_value() && prior != kSameSourceSettled) {
+        // The command line named the option, so the line sets nothing
+        // and discloses nothing (FR-037, FR-038).
         return false;
       }
-      options.jitterProbeText = text;
+      options.jitterProbe = std::move(parsed);
+      options.jitterProbeText.reset();
       return true;
+    }
   }
 }
 

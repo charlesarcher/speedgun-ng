@@ -139,6 +139,18 @@ private:
 /// optional (R-02, Q-5).
 auto installTestReader(std::unique_ptr<counters::WindowReader> reader) -> void;
 
+/// @brief The value grammar of contracts/cli-options.md (FR-011,
+/// FR-014): the head names a cpu list or the word `idle`, and the keys
+/// follow, each standing once in the value, a cpu standing once in any
+/// form the tokens name. Every rejection names the token it read,
+/// quoted the way the option module quotes a value, so the caller's
+/// one line carries it (FR-038). Declared beside the probe's surface
+/// because the option file's settle arm parses the value where it
+/// settles, with the origin the settle knows (FR-027, R-06).
+[[nodiscard]] auto parseJitterProbeValue(const std::string& value,
+                                         JitterProbeOptions& parsed,
+                                         std::string& message) -> bool;
+
 }  // namespace sg::detail
 
 #endif

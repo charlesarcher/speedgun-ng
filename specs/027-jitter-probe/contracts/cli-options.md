@@ -28,13 +28,15 @@ value in the option table is unique (FR-011).
 | `<cpu-list\|idle>` | one or more cpu indexes or closed `a-b` ranges, comma separated, the form the `--topology` listing prints; or the word `idle` | none: the value names the cpus together with the option | FR-011, FR-016, D-4 |
 | `threshold=<ns>` | the gap threshold in nanoseconds, at or above 1; a negative value is a grammar rule of the value, where the string carries the sign (the field is `std::optional<std::uint64_t>`); a value stands as given, an explicit `threshold=200` staying exactly 200 ns | when the option names no threshold value: 200 ns, or 10 times the measured loop period when that stands larger | FR-007, FR-008, R-05 |
 | `mode=` | `alongside`, `precheck`, or `both` | `alongside` | FR-012, FR-014, D-1 |
-| `precheck=<ms>` | the pre-check duration in milliseconds, at or above 1 | 200 ms | FR-014, D-13 |
+| `precheck=<ms>` | the pre-check duration in milliseconds, at or above 1 and below 2³² | 200 ms | FR-014, D-13 |
 | `gaps=<n>` | the gap buffer size per probe cpu, 1 to 16,777,216 | 65,536 | FR-009 |
 | `strict` | a flag: an unavailable TSC stops the run | absent: an unavailable TSC is disclosed and the run continues | FR-037 |
 
 Each key stands once in
 a value; a second occurrence of one key is an invalid value with the
-standing error shape (FR-038).
+standing error shape (FR-038). A cpu that stands twice in one value,
+in any form the tokens name, is an invalid value with the same shape
+(FR-011).
 
 ## Parse point and stop rule
 
@@ -47,13 +49,17 @@ standing error shape (FR-038).
 | An unknown flag | the standing unknown-option line and exit status 2 |
 | No option at all | no probe exists: the console report and the JSON carry the same fields and shape as master's (FR-013, D-1) |
 
-The value parses once in `speedgunMain`, before the expansion and before
-any run, where the `--placement` parse stands today; a rejected value
-stops the batch with one line and status 2, and no benchmark runs
-(R-06). In `precheck` mode the probe uses the planned cpus the `idle`
-preset names, because it stops before they start (D-3, D-4); in
-`alongside` mode and in the alongside phase of `both`, the overlap
-check of the error surface binds (D-3, R-10).
+The command line's value parses once in `speedgunMain`, before the
+expansion and before any run, where the `--placement` parse stands
+today. The option file's value parses where it settles, so a file
+line's refusal names the path and the line every file fault names
+(FR-027), and a bad file line is read before it drops under a higher
+source's own value (FR-024, FR-038). A rejected value stops the batch
+with one line and status 2, and no benchmark runs (R-06). In
+`precheck` mode the probe uses the planned cpus the `idle` preset
+names, because it stops before they start (D-3, D-4); in `alongside`
+mode and in the alongside phase of `both`, the overlap check of the
+error surface binds (D-3, R-10).
 
 ## Error surface
 
@@ -68,8 +74,10 @@ and exits with status 2, before the first run starts (FR-038, SC-002):
 | `threshold=0`, a negative value, a value that is not a number | the value | 2 |
 | A mode word outside the three | the word | 2 |
 | `gaps=0`, a value above 16,777,216, a value that is not a number | the value | 2 |
-| `precheck=0` or a value that is not a number | the value | 2 |
+| `precheck=0`, a value that is not a number, or a value at or above 2³² | the value | 2 |
 | A key repeated in one value | the key | 2 |
+| A cpu that stands twice in one value, in any form the tokens name | the index and the whole value | 2 |
+| An invalid value from an option file line | the path, the line, and the token | 2 |
 | A precheck batch with no pinned instance, so no cpu is planned | the absence of a plan | 2 |
 | No free cpu at all under `idle` | the preset word | 2 |
 | An overlap in `alongside` mode or in the alongside phase of `both`: a probe cpu that is a planned cpu of a benchmark context, or an SMT sibling of one | the cpu and the benchmark | 2 |
@@ -77,10 +85,13 @@ and exits with status 2, before the first run starts (FR-038, SC-002):
 | The `machine/tsc` leaf missing, with `strict` | the availability fact | 2 |
 
 Message shape: `--jitter-probe: <message>`, one line, carrying the
-offending token and the reason, the shape the `--json-raw` rejection
-prints today (`source/harness/cli.cpp:378`). The overlap line names the
-cpu index and the benchmark name (FR-018). Tests assert the exit status,
-the one-line count, and the prefix; the wording stays unpinned.
+offending token and the reason; from an option file line the shape is
+`<path>:<line>: --jitter-probe: <message>`, the origin every file
+fault names (FR-027). Every echoed token stands quoted, a line break
+named with its own words (FR-024, FR-035). The overlap line names the
+cpu index and the benchmark name (FR-018). Tests assert the exit
+status, the one-line count, and the prefix; the wording stays
+unpinned.
 
 The disclosures that continue a run with status 0, each one line in the
 disclosure region of `report-json.md` and the console contract of the
