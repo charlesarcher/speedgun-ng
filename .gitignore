@@ -7,6 +7,8 @@ cmake-build-*/
 # Scratch build trees the installed-package consumer test configures
 build-consumer*/
 build-tidy/
+# Lane-owned build trees for verification runs (coverage, sanitizers, tidy)
+build-*/
 prefix/
 .clangd
 CMakeLists.txt.user
