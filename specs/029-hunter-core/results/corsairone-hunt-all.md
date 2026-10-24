@@ -196,18 +196,38 @@ skipped:   branch-instructions kind=gap  bus-cycles kind=gap
 
 ## 7. The scripted refusals and the rank equals the printed table
 
-The scripted suites (the refusal fixtures the quickstart walkthrough
-runs, since this tree carries no `hunt_rank` docs example at
-`08ebe0a`) pass on this host verbatim:
+The scripted suites pass on this host verbatim. The block below was taken again
+on 2026-10-24 in a lane built from `7060fc0` (`ci-rocky`, release build), where
+`-R hunt` selects 8 tests and the run answers 0:
 
 ```text
-1/6 Test #106: harness_hunt_plan_test ...........   Passed    0.01 sec
-2/6 Test #107: harness_hunt_rank_test ...........   Passed    0.01 sec
-3/6 Test #108: harness_hunt_collect_test ........   Passed    0.11 sec
-4/6 Test #109: harness_hunt_cli_test ............   Passed   83.54 sec
-5/6 Test #110: harness_hunt_report_test .........   Passed    0.00 sec
-6/6 Test #111: harness_hunt_json_test ...........   Passed    0.00 sec
-100% tests passed out of 6
+$ ctest --test-dir build -R hunt --output-on-failure --timeout 5400
+1/8 Test #106: harness_hunt_plan_test ...........   Passed    0.12 sec
+2/8 Test #107: harness_hunt_rank_test ...........   Passed    0.01 sec
+3/8 Test #108: harness_hunt_collect_test ........   Passed    0.29 sec
+4/8 Test #109: harness_hunt_cli_test ............   Passed  109.50 sec
+5/8 Test #110: harness_hunt_report_test .........   Passed   11.19 sec
+6/8 Test #111: harness_hunt_json_test ...........   Passed    1.61 sec
+7/8 Test #112: harness_hunt_json_test_no_hunt ...   Passed    1.62 sec
+8/8 Test #122: report_shape_hunt_rank_sample ....   Passed    4.20 sec
+100% tests passed out of 8
+```
+
+The six names the capture of 2026-10-22 listed stand in that selection with
+their test numbers unchanged. The two that joined are
+`harness_hunt_json_test_no_hunt` and `report_shape_hunt_rank_sample`. The
+second is the scripted rank-equals-printed-table witness:
+`tools/docs/report_shape.py` runs `build/example/docs_hunt_rank` and compares
+the console it prints against the recording
+`example/docs/hunt_rank.expected` and against the block
+`docs/pages/harness.md` quotes. That table holds two ranked rows with real
+rates, three `mark=` kinds and one `permission-blocked` and one
+`not-encodable` skipped row. Run alone the case answers 0:
+
+```text
+$ ctest --test-dir build -R report_shape_hunt_rank_sample -V
+1/1 Test #122: report_shape_hunt_rank_sample ....   Passed    3.91 sec
+100% tests passed out of 1
 ```
 
 The scripted group-refusal retry case (pass fell back, retried passes,
@@ -215,10 +235,12 @@ skipped list, exit status 0) stands inside `harness_hunt_collect_test`,
 green here.
 
 The rank equals the printed table within rounding on the real narrow
-run: each JSON entry matches its printed row (`rate` 0.0 against
+run too: each JSON entry matches its printed row (`rate` 0.0 against
 `instr=0.000`, `cv` 0.0 against `cv=0.00`, `rank` null against the
 absent rank number and `mark=unrepeated`, skipped `kind=gap` against
-each `hunt: skipped ... gap` line).
+each `hunt: skipped ... gap` line). Every value there reads zero, so that
+agreement checks the shape of the row, while the scripted case above
+checks the values behind it.
 
 ## 8. What this record proves and what it does not
 
@@ -229,7 +251,7 @@ against the `cpu` limit of 4, refusals print with their kind, the
 summary counts, and the JSON matches the console within rounding. It
 proves the headline defect: on this host, a selection of four or more
 events aborts the process inside `rankEvents` (guard at
-`source/harness/hunt_plan.cpp:248`) when an unrefused event holds no
+`source/harness/hunt_plan.cpp:249`) when an unrefused event holds no
 usable sample, and the smallest captured repro is three
 tsx-class events (`tx-abort`, `tx-capacity`, `tx-conflict`), every pair
 of which completes. `--hunt=all` therefore cannot complete here at
@@ -333,7 +355,7 @@ by the acceptance capture the fixed tree will produce.
 
 ## 11. The acceptance capture on the fixed tree
 
-Date: 2026-10-23. Tree: `029-hunter-core` at `3df7a76` with the hunt
+Date: 2026-10-23. Tree: `029-hunter-core` at `1f19e31` with the hunt
 slice uncommitted: `skippedOf` in `source/harness/hunt.cpp` answers
 `SkippedKind::ABSENT` for an address whose windows opened and yielded no
 rate, and the refusal route of `source/harness/cli.cpp` sets the failed
@@ -360,11 +382,20 @@ skipped list, and leaves stderr empty (AC-10).
 | fact | value |
 | --- | --- |
 | plan line | `hunt: plan events=489 passes=245 method=PASSES estimate=not available budget=none` |
+| measured passes | `pass_count` 421, `retried_passes` 44 (`hunt.json`, per-benchmark `hunt` object) |
 | summary line | `hunt: plan summary events=<ran>/<planned> passes=<p> budget=<text>\|none` |
 | rank rows | 489 rows, each `instr=0.000 cv=0.00 mark=unrepeated` |
 | skipped lines | 497 lines: 458 `absent`, 31 `gap`, 8 `permission-blocked` |
 | document | `hunt.json`, 120531 bytes, `schemaVersion` `1.4` |
 | host state | `perf_event_paranoid` 2, no `perf` utility installed |
+
+The plan line states the passes the planner seated. The document of the same
+run states the passes that ran: `pass_count` 421 with `retried_passes` 44 in
+the per-benchmark `hunt` object of `hunt.json`, the fields
+`EntryHunt::passCount` (`include/speedgun-ng/hunt.hpp:415`) and
+`EntryHunt::retriedPasses` (`include/speedgun-ng/hunt.hpp:419`).
+`gary-hunt-all.md` states both sides of its run in the same form, 89 planned
+beside 90 measured and 1 retried.
 
 Those lines came off the tree of this capture, whose summary line read
 `hunt: plan summary events=0/497 passes=245 spend=not available budget=none`:
@@ -401,3 +432,36 @@ tree. T061 and T110 ask for that record, and this directory holds it.
 Sections 5 and 6 stand superseded here for the plan line and the
 top-20 table; those 20 rows are attached as
 `corsairone-hunt-all-top20.txt`.
+
+The attached rows carry the `samples` column of `gary-hunt-all.md`, so the two
+tables read alike:
+
+| rank | address | `instr` | cv | samples |
+| --- | --- | --- | --- | --- |
+| - | `cpu/ARITH.DIVIDER_ACTIVE` | 0.000 | 0.00 | 0 |
+| - | `cpu/BACLEARS.ANY` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_INST_RETIRED.ALL_BRANCHES` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_INST_RETIRED.ALL_BRANCHES_PEBS` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_INST_RETIRED.COND` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_INST_RETIRED.CONDITIONAL` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_INST_RETIRED.COND_NTAKEN` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_INST_RETIRED.FAR_BRANCH` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_INST_RETIRED.NEAR_CALL` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_INST_RETIRED.NEAR_RETURN` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_INST_RETIRED.NEAR_TAKEN` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_INST_RETIRED.NOT_TAKEN` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_MISP_EXEC.ALL_BRANCHES` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_MISP_EXEC.INDIRECT` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_MISP_RETIRED.ALL_BRANCHES` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_MISP_RETIRED.ALL_BRANCHES_PEBS` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_MISP_RETIRED.CONDITIONAL` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_MISP_RETIRED.NEAR_CALL` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_MISP_RETIRED.NEAR_TAKEN` | 0.000 | 0.00 | 0 |
+| - | `cpu/BR_MISP_RETIRED.RET` | 0.000 | 0.00 | 0 |
+
+`samples` is the count of usable windows one event holds. This run states none
+per row: the root `hunt` object of `hunt.json` records `ran_events` 0, the
+final line of `out.txt` reads `events=0/497`, and every row prints
+`mark=unrepeated`, so the column reads 0 on all 20 rows. The settled
+`--hunt-repeats` reads 3 (`repeats` in the same object), and no event holds a
+sample of them.
