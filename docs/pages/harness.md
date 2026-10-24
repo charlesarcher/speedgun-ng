@@ -1680,8 +1680,7 @@ over every planned event at one repetition, then a second stage over the first
 `3 x --hunt-top` planned events, or over the whole plan if it holds fewer, at
 `--hunt-repeats`. A budgeted run measures everything once and the top set
 again. The budget prints in the unit it was given, `budget=120s` or `budget=8p`,
-on the plan line and on the summary, and the summary adds the time the hunt
-spent.
+on the plan line and on the summary.
 
 ### The stated collection method
 
