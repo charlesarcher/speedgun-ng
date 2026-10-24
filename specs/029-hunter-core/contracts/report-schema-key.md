@@ -33,9 +33,9 @@ order and the value kinds of a written document against the schema, and a key
 that stands in a closed node's document and not in its `properties` is a
 finding. The hunt
 documents the harness writes therefore fail the schema check unless the schema
-lists the keys: `harness_json_report_test.cpp:278,382` and
-`harness_compare_cli_test.cpp:636,704` run `checkReport` over written documents,
-so an unlisted key reddens those tests on the first hunt document written.
+lists the keys: `harness_json_report_test.cpp:282,386` and
+`harness_hunt_json_test.cpp:1287` run `checkReport` over written documents, so
+an unlisted hunt key reddens the test that writes one.
 
 `x-order` is normative, the description of the schema file states, so a listed
 key that stands at no position in `x-order` is a finding of the same kind. Both
@@ -122,10 +122,10 @@ a gate: each is a test or a page that states the number the writer stamps.
 
 The committed comparison fixtures keep their own versions on purpose.
 `test/data/gate_ok_base.json` carries `1.0` and `test/data/gate_schema_11.json`
-carries `1.1`, so `harness_compare_cli_test.cpp:516` reads the words
-`schema 1.1` from two stored documents: the case weighs a minor difference
-between documents on disk, a value the comparison reads and reports and never
-refuses on. `harness_compare_cli_test.cpp:492` and
+carries `1.1`, so `harness_compare_cli_test.cpp:847-848` reads the words
+`schema 1.0` and `schema 1.1` from the two header lines of the pair: the case
+weighs a minor difference between documents on disk, a value the comparison
+reads and reports and never refuses on. `harness_compare_cli_test.cpp:492` and
 `harness_compare_test.cpp:1191-1202` pin the same rule at their own sites. The
 bump moves none of these facts.
 
