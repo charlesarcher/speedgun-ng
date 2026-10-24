@@ -26,7 +26,7 @@ endif()
 # gcov aborts the capture on the older counters' format. Prefer the
 # versioned name a pinned-compiler setup installs, and fall back to
 # the default gcov for a system whose compiler is the default one.
-find_program(GCOV_EXECUTABLE NAMES gcov-14 gcov)
+find_program(GCOV_EXECUTABLE NAMES gcov-16 gcov-14 gcov)
 if(NOT GCOV_EXECUTABLE)
   message(
       FATAL_ERROR
