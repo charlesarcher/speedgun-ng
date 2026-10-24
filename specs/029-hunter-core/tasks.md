@@ -720,7 +720,7 @@ hosts from here.
       (`test/source/harness_hunt_plan_test.cpp`,
       `test/source/harness_hunt_collect_test.cpp`; FR-004, FR-005, FR-006,
       FR-007, FR-092, E-01)
-## Phase 4: Convergence
+## Phase 12: Convergence
 
 Assessed at `48e33ee` (`Meta: Close the Quickstart and Record Rows`, the
 branch tip of the `r4b` lane; `origin/029-hunter-core` at `0c7b791`): the
@@ -877,3 +877,282 @@ finding this round filed as owned, so the section holds eleven rows.
       forked child (`pclose` and `WIFEXITED` at `:1379-1388`) is sound and is
       not the cause. Land the same fix T165 lands for the trap checker, in
       the same shape (Principle VI, AC-9).
+
+## Phase 13: Convergence
+
+Assessed at `d3d89a0` ("Harness: Move the Settle Record Out of the Lambda")
+in the detached worktree `/home/archerc/sg029-lanes/ph9-converge`, created for
+this round at 01:39 with the submodules initialized, with no write to
+`specs/029-hunter-core/tasks.md`, to the index or to any ref. Every ticked row
+of Phases 9 to 11 was checked against this tree by reading the code it names or
+by running the test it names, and each of the five un-ticked rows (T055, T063,
+T095, T159, T161) was confirmed open at this head. Nothing Phases 9 to 11
+closed is re-filed here.
+
+The tree moved under this round, so the fact is stated first. At 03:03:48 a
+process outside this assessment ran `checkout: moving from d3d89a0... to
+9b23fec` in this worktree, recorded in its HEAD reflog, so the working files
+now carry the branch tip and two commits stand above the assessed head:
+`101d9b6` ("Docs: Send the Hunter Example Through the Route", which routes
+`example/docs/hunt_rank.cpp` through `printHuntPlan`, `printHuntRanking` and
+`printHuntSkips`, adds `hunt: plan summary events=5/7 passes=3 budget=none` to
+`example/docs/hunt_rank.expected` and to the page block, and ticks T159 and
+T161) and `9b23fec` ("Harness: Give the Two Refusal Arms Their Own Lines",
+which moves `detail::admitsHuntEvent` in `source/harness/hunt_cli.cpp` from
+`:617` to `:626`, because it gives each of the two `--hunt` refusals its own
+statement lines at `hunt_cli.cpp:520-543` so a gcov trace can count the choice).
+`git diff --name-only d3d89a0 9b23fec` answers exactly five paths:
+`docs/pages/harness.md`, `example/docs/hunt_rank.cpp`,
+`example/docs/hunt_rank.expected`, `source/harness/hunt_cli.cpp` and
+`specs/029-hunter-core/tasks.md`. Every claim below about those five paths was
+re-read from `d3d89a0`'s own blobs, and every other file this round read is
+byte-identical at the two heads, including all of `source/harness/` besides
+`hunt_cli.cpp`, every test file, every contract and both hardware records. Each
+gate row names the tip as the head to measure, because the merge lands the tip.
+
+The round-4 fixes all stand at `d3d89a0`, and the ones that print were
+re-exercised live: the norm route of T158 and T167 (`--dry-run` with
+`--hunt='uncore_imc_0/*'` answers `hunt: plan events=0 passes=0 method=AUTO
+estimate=not available budget=none` with no `normalized=` field, every uncore
+address `not-encodable`), the unpriced budget of T145 (`--hunt=all
+--hunt-budget=1s --dry-run` prints `hunt: plan budget cut stage=2
+reason=over-budget`), the refusal of T146 (exit status 2 on
+`--hunt=cpu/cpu-cycles --placement=core`, the status the `--counter` conflict
+and the reserved `--hunt-rank=sensitivity` also answer), the one device-limit
+predicate of T164 (`source/harness/detail/hunt_selection.hpp`, called at
+`source/harness/hunt_plan.cpp:118` and `source/harness/hunt_cli.cpp:617`), the
+per-process scratch files of T165 and T168
+(`test/source/counters_trap_checked_test.cpp:89`,
+`test/source/harness_hunt_json_test.cpp:1482`), and the statistics anchors of
+T162 and T163 (`include/speedgun-ng/hunt.hpp:548-561` reads
+`source/harness/statistics.cpp:23-25` and `:46-48`).
+
+Gate facts this round reached by hand on this tree: the `ci-rocky` developer
+build of `d3d89a0` compiled clean at 02:15, `format-check` answers clean, the
+prose gate answers 571 sources and no finding, and the two DBC gate scripts
+answer 299 interfaces with 0 gaps (run through `/usr/bin/python3`, because the
+`Python3_EXECUTABLE` this box's configure selected carries no PyYAML, which is
+the gap T175 files). The hunt, CLI-table, pass-report, statistics and counters
+suites ran 14/14 green, and a live hunt against this host's PMU wrote a `hunt`
+node at the report root with `norm=instr`, `rank=rate` and 491 entries while a
+run without `--hunt` wrote a `schemaVersion` `1.4` document carrying no `hunt`
+key at all.
+
+The whole-suite run (`ctest --test-dir build --output-on-failure --timeout 600`,
+124 tests) answers 121 passed and no assertion failure anywhere. Two entries
+gave way to this round's own bound: `dbc_semantics_matrix` (#21) and
+`harness_cli_test` (#65) each passed 600 s while three other lanes compiled on
+the box, and both are fork-heavy suites that stall in that shape; T058 puts the
+floor for a whole-suite run above 3600 s and CI's bound is 5400 s, so neither
+timeout is filed here. The third failure is this round's artifact and no
+defect: `report_shape_hunt_rank_sample` (#122) reported `sample output block
+holds 12 lines, the run printed 11` beside
+`hunt: plan summary events=5/7 passes=3 budget=none`, which is the 02:15 binary
+of `d3d89a0` compared against the page and the golden as they stand at the tip,
+both moved at 03:03; at `d3d89a0` the block and the golden stop at the skipped
+list, 11 lines, the number the run prints, so the gate holds at the assessed
+head and at the tip.
+
+A gate with no completed report is unmet here, whatever a ticked row says.
+`waves/ph9/` holds no analyzer report at any head. `sanitize.md:3-4` now reads
+`123/124 passed under ASan+UBSan with zero sanitizer reports; one
+harness_cli_test resource-accounting failure is being re-run solo` at head
+`8914cf0`, and its `## Verdict` still reads `Pending.` The coverage lane at
+`d3d89a0` answers `ctest | FAIL rc=8` and `coverage | FAIL rc=2`
+(`coverage.md:11-12`): its suite failed on one entry alone
+(`logs/ctest.log:455`, `65 - harness_cli_test (Subprocess killed)`, 124 tests in
+3796 s) and the coverage target died in one second at
+`Can't locate Capture/Tiny.pm in @INC ... at geninfo line 66`
+(`logs/coverage.log:2`), the stage the sibling lane records as re-runnable with
+`PERL5LIB` supplied. The setup note of the sanitizer report records `8914cf0` as
+what `origin/029-hunter-core` stood at, so no wave report
+carries a push or a CI read for `d3d89a0` or for the tip, which is T063's and
+T095's own remaining clause. No CRITICAL finding: eight rows, two HIGH, four
+MEDIUM, two LOW.
+
+- [ ] T169 HIGH Run the analyzer build of this work and write its report.
+      `specs/029-hunter-core/tasks.md:280` (T057) is ticked for a `ci-ubuntu`
+      build "clean of clang-tidy and cppcheck findings", and no analyzer report
+      exists in `/home/archerc/sg029-lanes/waves/ph9/` at any head, while
+      `git diff --shortstat 48e33ee..9b23fec -- source include test` answers
+      901 insertions across 15 files, the whole of it unanalyzed.
+      `docs/pages/building.md:266-284` states the route and the trap: no target
+      runs either analyzer, they ride the compile, and a `build` tree another
+      preset already warmed recompiles nothing and prints nothing at exit 0. In
+      a lane-owned directory, `rm -rf build`, `cmake --preset=ci-ubuntu`,
+      `cmake --build build`, then write `waves/ph9/tidy.md` with the head, the
+      cppcheck verdict, and the count of clang-tidy findings that name the one
+      check `.clang-tidy:21` raises to an error
+      (`readability-identifier-naming`), reported beside the pre-existing
+      warning total the `Checks: "*"` bracket at `.clang-tidy:9-19` produces
+      (Principle VIII).
+
+- [ ] T170 HIGH Land the sanitizer verdict over the two newest `json_load.cpp`
+      commits. `/home/archerc/sg029-lanes/waves/ph9/sanitize.md:1` names the
+      measured head as `8914cf0`, three commits behind the tip; `:3-4` report
+      123 of 124 passed with zero sanitizer reports and one `harness_cli_test`
+      failure re-run solo, and `## Verdict` is `Pending.` The commits it misses
+      are the ones the sanitizer suite reads hardest: `d3d89a0` moved the error
+      settle into the plain function `keepFirstError` at
+      `source/harness/json_load.cpp:135-150`, whose single call site is the
+      `keep` predicate at `:149`, and `9b23fec` re-split the two selection
+      refusals at `source/harness/hunt_cli.cpp:520-543`. Re-run the
+      `ci-sanitize` and `ci-tsan` routes at the tip into the lane's own build
+      directory, scan both `--output-on-failure` logs for
+      `ERROR: AddressSanitizer`, `runtime error` and
+      `WARNING: ThreadSanitizer`, and fill `## Verdict` with the head, the
+      passed count and the scan result (T058, Principle VIII).
+
+- [ ] T171 MEDIUM Get a coverage trace that ran, and read the moved settle out
+      of it. The coverage target has produced no trace at any head: the lane at
+      `d3d89a0` fails in one second on the box's moved Perl, with
+      `Can't locate Capture/Tiny.pm ... at geninfo line 66` at
+      `/home/archerc/sg029-lanes/waves/ph9/logs/coverage.log:2` and `make`
+      exiting 2 at `:4`, which leaves the 100 percent line and branch bar of
+      T055 (`tasks.md:278`) without evidence and FR-091 unevaluated. The
+      sibling lane already names the remedy, `PERL5LIB` over the perl5 trees the
+      moved `lcov` and `genhtml` need. Re-run `--target coverage` under that
+      environment, then paste two things into the lane's report: the per-file
+      line and branch totals, and the `gcov -b` lines for
+      `source/harness/json_load.cpp:135-150` with the call at `:149`, which is
+      the block `d3d89a0` moved out of the lambda precisely so the trace could
+      count it. `9b23fec` asks the same question of the two selection refusals
+      it put on their own statement lines at `hunt_cli.cpp:520-543`, so read
+      those lines in the same pass. If `keepFirstError` answers zero runs, write
+      that there: the restructure bought nothing and T055 needs a route that
+      reaches each of its branches from a test (FR-091).
+
+- [ ] T172 MEDIUM Give `harness_cli_test` one recorded green run, or pin what
+      the box takes from it. No lane has it green at these heads and each
+      reports a different ending: `waves/ph9/logs/ctest.log:455` names it as the
+      only failure of the coverage suite at `d3d89a0`, as
+      `65 - harness_cli_test (Subprocess killed)` over a 3796 s run at the
+      5400 s bound; `sanitize.md:3-4` reports a resource-accounting failure of
+      the same entry under ASan and UBSan at `8914cf0`; this round's own run
+      passed 600 s on it (`***Timeout 600.03 sec`,
+      `/tmp/ph9c-ctest-full.log:2399`). The
+      assertions in question are the SC-017 pair at
+      `test/source/harness_cli_test.cpp:887-910`, which read the resource counts
+      of a run interrupted by a signal, and the entry is registered plainly at
+      `test/CMakeLists.txt:654` with no `TIMEOUT`, `PROCESSORS` or
+      `RESOURCE_LOCK`, where the file gives properties to other long entries
+      (`:580`, `:1322`). Run `ctest --test-dir build -R harness_cli_test` alone
+      at the tip, plain and under the sanitizer preset, and record both: if it
+      passes alone, give the entry the properties that keep a loaded box from
+      killing it, and if it fails alone, the SC-017 numbers say which resource
+      the interrupted run still holds (Principle VI, AC-9).
+
+- [ ] T173 MEDIUM Re-anchor the citations the newest commits moved. The `+5` in
+      `source/harness/json_load.cpp` from `d3d89a0`, the `+1` in
+      `source/harness/hunt_plan.cpp` from `20ed572` and the 41 lines added to
+      `test/source/harness_json_load_test.cpp` leave eight live citations short
+      at `d3d89a0` and unchanged at the tip:
+      `specs/029-hunter-core/contracts/hunt-json.md:142` cites the `readEntry`
+      body at `json_load.cpp:1031` (it stands at `:1036`), `:146` cites
+      `loadReport` at `:1580` (`:1585`) and `:158` cites the version-refusal
+      window as `1604-1613` (the block spans `1601-1618`, so the cited window
+      ends inside its comment);
+      `specs/029-hunter-core/contracts/report-schema-key.md:30` cites
+      `checkNode` at `:1450` (`:1455`) and `:31` cites `checkReport` at `:1546`
+      (`:1551`); `include/speedgun-ng/hunt.hpp:548` cites `hunt_plan.cpp:220`
+      for the settled-option guard (the `SG_REQUIRE` stands at `:221`) and
+      `:556` cites `hunt_plan.cpp:249` for the rate invariant (the
+      `SG_INVARIANT` stands at `:250`), and
+      `specs/029-hunter-core/contracts/hunt-api.md:304` carries both of those
+      numbers again; and the `schemaVersion` kind refusal is cited as
+      `test/source/harness_json_load_test.cpp:529` at
+      `contracts/report-schema-key.md:120`,
+      `specs/029-hunter-core/quickstart.md:223` and
+      `specs/029-hunter-core/merge-notes.md:94`, while that mutation row stands
+      at `:569` in `kMutations[]` and `:529` sits inside the pre-pass-fields
+      scenario (FR-093).
+
+- [ ] T174 MEDIUM Note in gary's record that its two summary lines predate
+      T120. `specs/029-hunter-core/results/gary-hunt-all.md:119` and `:140`
+      quote `hunt: plan summary events=343/355 passes=89 spend=not available
+      budget=none` and `... events=341/353 ... spend=not available ...`, and the
+      printer of this tree emits no `spend` field:
+      `source/harness/report.cpp:856-863` writes `events=`, `passes=` and
+      `budget=` and then the newline. The companion record carries the clause
+      that tells a reader those bytes came off an older tree, naming the field's
+      removal and today's shape at
+      `specs/029-hunter-core/results/corsairone-hunt-all.md:399-407`; gary's
+      record holds no such clause anywhere, so a reader takes a line the shipped
+      binary cannot print as what this tree prints. Add the same one-clause
+      provenance note beside the two quoted runs (FR-093, T120).
+
+- [ ] T175 LOW Name PyYAML where the pages hand out the `dbc-gate` step.
+      `specs/029-hunter-core/quickstart.md:19` lists the tool prerequisites a
+      reader needs for the gate steps (`doxygen` for `dbc-gate`, `lcov` and
+      `gcov` for the coverage target) and `docs/pages/building.md:31` gives the
+      command `cmake --build build/dev -t dbc-gate`, while
+      `tools/dbc/dbc_gate_common.py:67` refuses the run with
+      `dbc gates require PyYAML (install python3-yaml)` when the interpreter
+      `find_package(Python3)` selected carries no `yaml`, the shape this round
+      hit, which forced the manual run quoted in the preamble. One clause in the
+      prerequisite line, naming the module the two gate scripts import, keeps
+      FR-061's rule that a reader walking the page sees what the page says
+      (FR-061).
+
+- [ ] T176 LOW Rename the round-4 section header.
+      `specs/029-hunter-core/tasks.md:723` reads `## Phase 4: Convergence` in a
+      ledger that already carries `## Phase 4: User Story 2 - Bound the time and
+      see the plan` at `:142`, so the file holds two `Phase 4` headers, and the
+      three convergence sections above it are numbered `Phase 9`, `Phase 10` and
+      `Phase 11` at `:492`, `:548` and `:578`. A reader who takes the highest
+      phase header as the next number reads `11`, the count the round-4 author
+      used too. When both sections land, rename the header at `:723` to
+      `## Phase 12: Convergence`, the number its position gives it, and carry
+      this section to `## Phase 13: Convergence` in the same edit, since the two
+      cannot share a phase number; no row number moves (Principle IX).
+
+### Second assessment of the same round
+
+Two lanes assessed this round. The rows below are the second lane's, kept where they
+name something the rows above do not. Its summary-time row and its rank-precondition
+citation row are settled, and both say so where they stand.
+
+- [ ] T177 HIGH State the device-limit refusal without the anchor condition.
+      `include/speedgun-ng/hunt.hpp:512` posts the refusal for "an event whose device
+      publishes a limit below 3 with both anchors present", and
+      `specs/029-hunter-core/contracts/hunt-api.md:194` repeats that wording, while
+      `source/harness/hunt_plan.cpp:118` refuses on `!detail::admitsHuntEvent(*limit)`
+      whatever the anchors and `specs/029-hunter-core/data-model.md:112` already reads
+      "L below 3 admits no event, whatever its anchors". 20ed572 landed the predicate,
+      the cause line and the data-model half, leaving the public header and the contract
+      it owns teaching a caller that a two-slot device which publishes no anchor pair
+      still plans (FR-011, FR-081, T164). Remedy: drop "with both anchors present" from
+      both reads and name `detail::admitsHuntEvent` as the predicate in the header.
+- [ ] T178 MEDIUM Give `test/source/dbc_trap_checked_test.cpp:40` a scratch file of its
+      own. `std::string out = "/tmp/dbc_trap_checked_out.txt";` is machine-global, its
+      bytes are read back at `:48-52` after `std::system` at `:46`, and the only
+      `RESOURCE_LOCK` entries in `test/CMakeLists.txt` (`:297`, `:315`, both
+      `counters_trap_checked_out`) cover the sibling that d9161da renamed at
+      `test/source/counters_trap_checked_test.cpp:89`. Two `ctest` runs on one machine
+      take the file from each other, so a check can pass on bytes its own child never
+      wrote (Principle VI, AC-9, T165). Remedy: the T165 form, the name built from
+      `getpid()`, removed before the run and again once read.
+- [ ] T179 LOW Cut the deleted field out of the `printHuntSkips` comment at
+      `source/harness/report.cpp:833` ("the stage that lost the event where a stage
+      did"): the printer answers `hunt: skipped %s %s`, address and kind, at `:842`, and
+      `specs/029-hunter-core/data-model.md:202` states `hunt: skipped <address> <kind>`,
+      so the comment is the last copy of the stage field T123 deleted (FR-041, T123).
+- [ ] T180 LOW Give the two remaining folded string choices their own statement lines,
+      but only if the coverage trace asks: `source/harness/json_report.cpp:613` and
+      `source/harness/compare.cpp:1247` each hold one arm of a string choice as the
+      middle operand of a concatenation whose statement begins on the line above, the
+      shape 9b23fec removed from `source/harness/hunt_cli.cpp:520-546`. Both files stand
+      inside the T055 scope (Principle VI, FR-091).
+- [ ] T181 LOW Say that the three hunt console blocks state a shape and are no captured run,
+      or gate them: `docs/pages/harness.md:1428`, `:1458` and `:1511` open plain `text`
+      fences with no `sg-sample-output` tag, so `tools/docs/example_drift.py` compares
+      none of them. That is how `:1458` carried a plan line with no `stage1=` and
+      `stage2=` until 101d9b6 hand-fixed it under T161, whose remedy offered that second
+      route and did not take it (FR-070, FR-071, T161).
+- [x] T182 Strike "and the summary adds the time the hunt spent" from
+      `docs/pages/harness.md:1532`. Settled by 06b27c4 in this same round, on the same
+      evidence the second assessment reached: the summary printer writes `events=`,
+      `passes=` and `budget=` and then the newline (FR-040, T120).
+- [x] T183 Re-anchor the rank-precondition citations at `include/speedgun-ng/hunt.hpp:548`
+      and `:556`. The same gap as T173 above, which carries the wider sweep of eight
+      citations (FR-093, T162, T163).
