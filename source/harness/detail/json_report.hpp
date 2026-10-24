@@ -12,8 +12,8 @@
 #include <utility>
 #include <vector>
 
-#include "options.hpp"
 #include "jitter_probe.hpp"
+#include "options.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/execution_context.hpp"
