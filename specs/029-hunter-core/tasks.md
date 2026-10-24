@@ -1208,12 +1208,24 @@ citation row are settled, and both say so where they stand.
       `--timeout 3600 -j 2`, so the entry needs no `TIMEOUT` and the 3802 s
       figure was four copies of one binary sharing this box. What it does
       need is slots: `PROCESSORS 2`, which serializes it against siblings
-      under the `-j 2` every CI job uses, and which also keeps a second
-      copy off the one note file the program writes into its working
-      directory. `RESOURCE_LOCK`, following `:297`, is the named upgrade if
-      a job ever raises `-j`.
+      under the `-j 2` every CI job uses, so no other test shares its
+      working directory while it runs. That reach stops at one `ctest`
+      invocation, which is the gap T187 records. `RESOURCE_LOCK`, following
+      `:297`, is the named upgrade if a job ever raises `-j`.
 - [ ] T186 LOW Decide whether the contract and the header must match byte for
       byte. `contracts/hunt-api.md:194` ends the refusal sentence with a
       period where `include/speedgun-ng/hunt.hpp:512` keeps a semicolon, a
       split that predates this round. The pair gate reads the meaning and
       passes; a gate that compared bytes would flag it.
+- [ ] T187 LOW Give the three scratch names in `harness_cli_test.cpp` the pid
+      the T165 shape gives the others. `:476` writes
+      `harness_cli_column_note.txt`, `:1243` to `:1250` write and read back
+      `harness_cli_interrupt.json`, and `:1479` writes
+      `harness_cli_options_file.txt`, each as a path relative to the working
+      directory, so two `ctest` invocations over one build directory can read
+      bytes their own child never wrote. The condition needs two
+      invocations: the lanes of this branch hold one build directory each,
+      and `PROCESSORS 2` at 6c05452 keeps other tests out of that directory
+      while the entry runs, so no CI job meets it. Remedy if taken, the T165
+      form T178 used, a name built from `getpid()`, removed before the run
+      and again once the bytes are read (Principle VI, AC-9).
