@@ -1415,3 +1415,44 @@ full ledger is `/home/archerc/sg029-lanes/waves/ph12/converge.md`.
       `sanitize` job passes it. The remedy is the one that comment's own reasoning
       points at, one discarded `mappingCount()` read ahead of the first baseline,
       measured under `ci-sanitize` before it lands (Principle VI, AC-9).
+
+## Phase 15: Close the untaken branch outcomes
+
+The coverage trace at the round-six head measures 10571 of 10571 lines and
+5339 of 5438 branches, so 99 branch outcomes stand untaken while
+`origin/master` reports 4459 of 4459. FR-091 admits no marker, no waiver and
+no residual row, and `git grep -n 'LCOV_EXCL' -- source/harness
+include/speedgun-ng example test` answers 14 here and 14 at `origin/master`,
+so each outcome below closes under a test or a shape change. Per-outcome
+analysis, with the input that reaches each arm, is at
+`/home/archerc/sg029-lanes/waves/ph13/triage.md`; it proposes 57 exclusions,
+which FR-091 rejects, so its Basis column is the part to use. Verify every
+address before writing: the triage measured `f5df59d`. No local coverage
+number counts here: the lcov capture lane in this checkout fails, so the CI
+`coverage-info` artifact at the pushed head is the measure that closes a row.
+
+- [ ] T204 Close the 56 untaken outcomes in `source/harness/json_load.cpp`.
+      `keepFirstError` at `:111-115` answers false on every path, so the arm of
+      the `||` in the `report` lambda at `:125` that stands for a true answer is
+      dead in all 42 instantiations: state the condition the lambda really
+      tests, let the fold at `:126` run on commas, and the 42 dead arms go with
+      the 2 fold arms. Five live arms at `:125` need one wrong-kind value each,
+      `:683` needs an empty budget text, `:695` needs a round-tripped `8p`
+      budget. The refusal text and the exit status must not move (AC-6).
+- [ ] T205 Close the untaken outcome at `source/harness/report.cpp:453` and the
+      five in `source/harness/hunt_plan.cpp` at `:61`, `:151`, `:167` and
+      `:425` with scenarios whose inputs the triage names, each re-read at the
+      line first (FR-091).
+- [ ] T206 Close the 16 untaken outcomes in `source/harness/hunt_cli.cpp` at
+      `:83`, `:99`, `:113`, `:114`, `:153`, `:157`, `:185`, `:191`, `:211`,
+      `:383`, `:529`, `:617` and `:622`. The `:185` outcome cannot be taken: the
+      loop index reaches `line.size()` exactly and never passes it, so that
+      condition goes or becomes a documented precondition (FR-091).
+- [ ] T207 Close the 12 untaken outcomes in `source/harness/hunt.cpp` at `:66`,
+      `:67`, `:177`, `:212`, `:230`, `:368`, `:548`, `:551`, `:641`, `:672` and
+      `:950`, and the two in `source/harness/detail/hunt_selection.hpp` at `:89`
+      and `:122` (FR-091).
+- [ ] T208 Close the 7 untaken outcomes in `source/harness/runner.cpp` at
+      `:2291`, `:2318`, `:2325`, `:2595` and `:2640`, where the last two are the
+      `else if` arms of a ledger that carries marks without pass results
+      (FR-091).
