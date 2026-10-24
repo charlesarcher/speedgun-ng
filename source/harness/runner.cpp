@@ -2426,7 +2426,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     measuringOfColumn = planning.measuringPass;
     measuringOfColumn.resize(columns.size(), 0);
   }
-  const auto retryHuntPass = [&](const std::size_t pass) -> void
+  const auto retryHuntPass = [&](const std::size_t huntPass) -> void
   {
     std::vector<std::size_t> loneColumns;
     // The anchors of the plan: an anchor column rides retry passes as a
@@ -2440,7 +2440,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         anchorLabels.push_back(candidate.instructions);
       }
     }
-    for (const std::size_t column : passColumns[pass]) {
+    for (const std::size_t column : passColumns[huntPass]) {
       if (std::find(
               anchorLabels.begin(), anchorLabels.end(), columns[column].label)
           != anchorLabels.end())
@@ -2489,7 +2489,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       // carries, so both name this pass from now on (I-2: an anchor one pass
       // claims is counted once in that pass).
       for (const std::size_t measured : passColumns[opened]) {
-        if (measuringOfColumn[measured] == pass) {
+        if (measuringOfColumn[measured] == huntPass) {
           measuringOfColumn[measured] = opened;
         }
       }
@@ -2497,7 +2497,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     }
     if (!loneColumns.empty()) {
       instance.retriedHuntPasses.push_back(detail::RetriedPass {
-          .pass = pass, .loneColumns = std::move(loneColumns)});
+          .pass = huntPass, .loneColumns = std::move(loneColumns)});
     }
     passCount = passColumns.size();
   };
