@@ -138,7 +138,7 @@ hunt: plan budget cut stage=2 reason=over-budget
 No case prints these two lines: the estimate a run prints weighs the
 nanoseconds of one pass it timed, which `kCalibrated` in
 `harness_hunt_report_test.cpp` stands for, and the cut line is the one shape
-pinned as bytes today, at `harness_hunt_collect_test.cpp:1634`.
+pinned as bytes today, at `harness_hunt_collect_test.cpp:1672` to `:1675`.
 
 Calibration answers 1,920,000 ns per pass, and the plan line states the stage-1
 figure: 1,920,000 x 50 passes x 1 repeat = 96,000,000 ns, whole numbers
