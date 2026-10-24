@@ -2287,12 +2287,11 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // member of an event, never as a retry event of its own (D-18).
     std::vector<std::string> anchorLabels;
     for (const auto& candidate : instance.huntPlan->columns) {
-      for (const std::string& anchor :
-           {candidate.cycles, candidate.instructions})
-      {
-        if (!anchor.empty()) {
-          anchorLabels.push_back(anchor);
-        }
+      if (!candidate.cycles.empty()) {
+        anchorLabels.push_back(candidate.cycles);
+      }
+      if (!candidate.instructions.empty()) {
+        anchorLabels.push_back(candidate.instructions);
       }
     }
     for (const std::size_t column : passColumns[pass]) {
@@ -2315,19 +2314,26 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         continue;
       }
       std::vector<std::size_t> single {column};
-      for (const std::string& anchor : {planned->cycles, planned->instructions})
-      {
+      const auto addAnchor = [&](const std::string& anchor) {
         if (anchor.empty()) {
-          continue;
+          return;
         }
         for (std::size_t index = 0; index < columns.size(); ++index) {
-          if (columns[index].label == anchor
-              && std::find(single.begin(), single.end(), index) == single.end())
-          {
-            single.push_back(index);
+          if (columns[index].label != anchor) {
+            continue;
           }
+          // The loop above skipped every column whose label is an anchor of
+          // any column, and the two anchors of one column are two distinct
+          // addresses, so a matched index cannot already stand in `single`
+          // (specs/029 D-18).
+          const bool fresh =
+              std::find(single.begin(), single.end(), index) == single.end();
+          SG_ASSERT(fresh, "one retry pass opens each anchor column once");
+          single.push_back(index);
         }
-      }
+      };
+      addAnchor(planned->cycles);
+      addAnchor(planned->instructions);
       const std::size_t opened = passColumns.size();
       passColumns.push_back(std::move(single));
       rowOf.push_back(kNoHuntIndex);
@@ -2592,13 +2598,11 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       planning.measuringPass.resize(widestRow, 0);
     }
     result = sg::detail::mergePasses(planning, passResults);
-  } else if (!passResults.empty()) {
-    // specs/029 D-18: a hunt run whose every pass refused folds no pass at
-    // all; the published result then keeps the empty shape, and `runHunt`
-    // answers the refused events from the instance's refusal list.
-    result = std::move(passResults.back());
   } else {
-    // specs/029 D-18: the pass loop always folds pass 0, so no run gets here.
+    // specs/029 D-18: the pass loop always folds pass 0, so no run gets here
+    // with an empty list; the assertion says so and the move publishes the
+    // folded pass. A hunt run whose passes refused is answered from the
+    // instance's refusal list by `runHunt`, not from this list.
     SG_ASSERT(!passResults.empty(),
               "a run that folded no pass needs a pass list of zero: the "
               "settling that ran no planner keeps one whole-run pass "
@@ -2607,6 +2611,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
               "in-loop skip needs a pass after the first (runner.cpp:2352, "
               "D-18), so the loop at runner.cpp:2351 folds pass 0 at "
               "runner.cpp:2546");
+    result = std::move(passResults.back());
   }
 
   // specs/023 E-01, FR-019 beside specs/024 FR-014, FR-015: the retained
@@ -2637,7 +2642,14 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       }
       rowRaws.resize(result.rows.size());
       m_contextRaw.back().resize(result.rows.size());
-    } else if (!passLedgerMarks.empty()) {
+    } else {
+      // One mark stands per folded pass and the pass loop folds pass 0 on
+      // every run, so a run outside the merge arm holds a mark to keep; the
+      // helper below already reads that mark unguarded (specs/029 D-18).
+      SG_ASSERT(!passLedgerMarks.empty(),
+                "each folded pass marked its ledger and the pass loop folds "
+                "pass 0 on every run, so a run outside the merge arm holds "
+                "a mark to keep");
       keepCurrentPassLedger();
     }
   }
