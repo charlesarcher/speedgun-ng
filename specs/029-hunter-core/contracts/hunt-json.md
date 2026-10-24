@@ -139,11 +139,11 @@ six entry keys, and the console derives the `unrepeated` mark from `samples`.
 
 ## Reader rules
 
-- `readEntry` (`json_load.cpp:1031`) reads the entry object with
+- `readEntry` (`json_load.cpp:1012`) reads the entry object with
   `optionalField(value, "hunt")` (`json_load.cpp:107`): an absent key leaves
   `BenchmarkResult::hunt` empty and the rest of the entry reads as it does
   today, and a present key keeps its own kind and its own refusal. `loadReport`
-  (`json_load.cpp:1580`) does the same for the top-level key before it reads the
+  (`json_load.cpp:1561`) does the same for the top-level key before it reads the
   `benchmarks` array.
 - Inside a present hunt object every key is required, so a key that stands
   missing is a refusal naming the pointer, the way the 024 record reads do
@@ -155,7 +155,7 @@ six entry keys, and the console derives the `unrepeated` mark from `samples`.
   field, an array where an object stands, and a missing key of a present object.
 - The schema-major gate is untouched: `detail::schemaMajor` inside
   `loadReport` refuses a text that states no major or a major other than 1
-  before any hunt key is read (`json_load.cpp:1604-1613`).
+  before any hunt key is read (`json_load.cpp:1585-1594`).
 - Unknown keys stay tolerated by the reader (spec PC-5), and the schema checker
   reports them for the closed hunt objects.
 
