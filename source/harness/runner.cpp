@@ -2314,7 +2314,8 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         continue;
       }
       std::vector<std::size_t> single {column};
-      const auto addAnchor = [&](const std::string& anchor) {
+      const auto addAnchor = [&](const std::string& anchor)
+      {
         if (anchor.empty()) {
           return;
         }
