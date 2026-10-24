@@ -111,7 +111,7 @@ auto readHuntPercent(const char* text) -> double
   char* end = nullptr;
   const double value = std::strtod(text, &end);
   if (errno != 0 || end == text || *end != '\0' || !std::isfinite(value)
-      || !(value > 0.0))
+      || value <= 0.0)
   {
     rejectHuntValue("--hunt-noise", "expected a percentage above 0", text);
   }
@@ -149,8 +149,11 @@ auto readSelectionFile(const std::string& path) -> std::string
 {
   std::size_t first = 0;
   std::size_t last = text.size();
+  // The line split above keeps every newline for itself, so a newline stands
+  // in no text this cut reads; the classes here are the blanks a line
+  // carries inside it.
   const auto blank = [](const char c)
-  { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; };
+  { return c == ' ' || c == '\t' || c == '\r'; };
   while (first < last && blank(text[first])) {
     ++first;
   }
@@ -182,7 +185,10 @@ auto readSelectionFile(const std::string& path) -> std::string
       line = line.substr(0, comment);
     }
     std::size_t piece = 0;
-    while (piece <= line.size()) {
+    // The last piece of a line breaks below; a trailing comma leaves no
+    // element to push, so reaching the size ends the loop there instead of
+    // running an iteration that could only break again.
+    while (piece < line.size()) {
       const std::size_t comma = line.find(',', piece);
       const std::size_t pieceEnd =
           comma == std::string_view::npos ? line.size() : comma;
@@ -619,7 +625,14 @@ auto expandHuntSelection(RunOptions& options) -> void
     }
     const std::string device = std::string(detail::devicePartOf(address));
     const auto object = counters::System::local().object(device);
-    if (!object.has_value() || !object->programmableCounters().has_value()) {
+    // A selected address is catalog-listed, and its device part is a path
+    // `collectCatalog` walked into that catalog, so the object stands on every
+    // entry of this loop; the walk's own postcondition carries that fact
+    // (spec PC-1).
+    SG_ASSERT(object.has_value(),
+              "every device part of a catalog-listed address names an "
+              "object the catalog walk just enumerated (spec PC-1)");
+    if (!object->programmableCounters().has_value()) {
       continue;
     }
     const std::size_t slots = *object->programmableCounters();
