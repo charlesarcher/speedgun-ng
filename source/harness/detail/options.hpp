@@ -191,6 +191,10 @@ struct ResolvedOptions
   // settles: no pattern when the settled text stands empty, since the empty
   // pattern selects every benchmark (FR-024, FR-050, FR-051).
   std::optional<std::regex> filterPattern;
+  // The preset the `--placement` row settled. The row parses the name where it
+  // settles, so the settled preset stands here and the entry point reads it
+  // instead of parsing the text a second time (FR-046, FR-048).
+  std::optional<Preset> preset;
   // Every metric name every source named, settled or dropped, in the order
   // the sources named them, each behind the origin that names its source.
   // The table lookup is a reading of the host, so the entry point walks this

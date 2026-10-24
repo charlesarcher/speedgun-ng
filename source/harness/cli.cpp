@@ -351,20 +351,12 @@ auto speedgunMain(int argc, char** argv) -> int
     return exit.status;
   }
 
-  // specs/025 FR-016, E-05: the process preset name is parsed once here,
-  // before the expansion and before any run, so a rejected text stops
-  // the batch with one line and status 2.
-  std::optional<detail::Preset> processPreset;
-  if (options.placement.has_value()) {
-    const auto parsed = detail::parsePreset(*options.placement);
-    if (!parsed.has_value()) {
-      std::fprintf(stderr,
-                   "--placement: '%s' is not one of the five preset names\n",
-                   detail::quotedText(*options.placement).c_str());
-      return 2;
-    }
-    processPreset = parsed;
-  }
+  // specs/025 FR-016, E-05: the process preset is the preset of the source
+  // that settled the `--placement` row, which parsed the name where it
+  // settled (FR-046, FR-048). The entry point reads that preset ahead of the
+  // expansion and ahead of any run, so no name is parsed twice and no status
+  // is decided here.
+  std::optional<detail::Preset> processPreset = resolved->preset;
 
   if (options.catalogMode) {
     detail::printCatalog();

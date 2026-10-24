@@ -678,19 +678,20 @@ enum class PriorSettle
 constexpr auto kNoPriorSettle = PriorSettle::NO_SETTLE;
 constexpr auto kSameSourceSettled = PriorSettle::SAME_SOURCE;
 
-// The row of the table that carries this option value, or null when the table
-// holds none: the values of the rows are distinct, so one value names at most
-// one row (FR-002, FR-006).
+// The row of the table that carries this option value. The values of the rows
+// are distinct, so one value names at most one row, and every caller holds a
+// value the table itself carries (FR-002, FR-006).
 auto rowOfValue(const int value) -> const OptionRow*
 {
-  for (const OptionRow& row : optionRows()) {
-    if (row.value == value) {
-      // optionRows() is static constexpr storage, so this address is stable.
-      // cppcheck-suppress returnDanglingLifetime
-      return &row;
-    }
-  }
-  return nullptr;
+  const auto found = std::ranges::find_if(optionRows(),
+                                          [value](const OptionRow& row)
+                                          { return row.value == value; });
+  // The value came out of the option table, so the search stops on a row.
+  SG_ENSURE(found != optionRows().end(),
+            "a value the option table carries names one row");
+  // optionRows() is static constexpr storage, so this address is stable.
+  // cppcheck-suppress returnDanglingLifetime
+  return &*found;
 }
 
 // Settle one row of one source through the reader of its value kind. The
@@ -818,9 +819,6 @@ auto scanCommandLine(int argc, char** argv)
         // stands empty, since the line of the words names the option itself
         // (FR-027, FR-033).
         const OptionRow* const row = rowOfValue(choice);
-        SG_ASSERT(row != nullptr,
-                  "every value the table carries settles below, so a value "
-                  "that reaches this arm names one row");
         // A row that takes no value, and the one row whose value may stand
         // absent, stand bare on the word the way they do on a file line: the
         // flag word is the flag standing, and an absent optional value is
@@ -1469,6 +1467,10 @@ auto applySourceValue(const OptionRow& row,
         return false;
       }
       options.placement = text;
+      // The preset stands kept beside the text it came from, so the entry
+      // point reads a preset instead of parsing the same name a second time
+      // (FR-046, FR-048).
+      resolved.preset = preset;
       return true;
     }
     case kThreadsOptionValue: {
