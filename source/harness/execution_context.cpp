@@ -650,7 +650,7 @@ ExecutionContext::ExecutionContext(const ContextPolicy policy)
   // is the layout's own, so a count the threads report short of the
   // set's highest index leaves the membership deciding (FR-005, FR-041).
   const auto& onlineCpus = detail::layout().mask;
-  const bool online =
+  [[maybe_unused]] const bool online =
       std::find(onlineCpus.begin(), onlineCpus.end(), policy.placement.cpuIndex)
       != onlineCpus.end();
   SG_REQUIRE(policy.placement.cpuIndex == kNoPin || online,
