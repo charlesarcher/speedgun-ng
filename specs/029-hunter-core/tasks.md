@@ -253,7 +253,7 @@ without it.
 **Plan phases**: P9 and the version half of P7; gates V-9 and the version rows
 of V-7. PD-19, PD-20, FR-053, FR-070 to FR-073, FR-090.
 
-- [x] T048 [P] Edit `source/harness/json_report.cpp`: `kSchemaVersion` at `json_report.cpp:31` from `1.1` to the reserved minor `1.4`, with the comment that names the two hunt keys and the rebase rule of taking the next free minor at rebase (FR-053, hard rule 11)
+- [x] T048 [P] Edit `source/harness/json_report.cpp`: `kSchemaVersion` at `json_report.cpp:38` from `1.1` to the reserved minor `1.4`, with the comment that names the two hunt keys and the rebase rule of taking the next free minor at rebase (FR-053, hard rule 11)
 - [x] T049 Move the three rows that name the written version to the new value, once T048 has moved `kSchemaVersion`: `test/source/harness_json_load_test.cpp:113` the current-version document the loader test builds, `test/source/harness_json_load_test.cpp:529` the `schemaVersion` kind refusal row beside it, and `docs/pages/harness.md:1067` the sentence that states the version a run writes. `test/data/gate_schema_11.json` is a frozen `1.1` document: `harness_compare_cli_test.cpp:516` asserts that fixture's own header line and must stay, as must `harness_compare_cli_test.cpp:492`, `harness_compare_test.cpp:1191-1202` and the three `1.0` fixtures at `harness_json_load_test.cpp:158`, `:177` and `:507` (contracts/report-schema-key.md, "What the bump costs")
 - [x] T050 [P] Edit `test/CMakeLists.txt`: the `report_shape_hunt_rank_sample` entry guarded by `if(TARGET docs_hunt_rank)` in the pattern of `test/CMakeLists.txt:1185-1192`, with `--binary $<TARGET_FILE:docs_hunt_rank>`, `--readme ${CMAKE_SOURCE_DIR}/docs/pages/harness.md` and `--example hunt_rank`, and `set_tests_properties(... TIMEOUT 120)` (PD-19)
 - [x] T051 Edit `README.md`: the `### Hunter mode` section after `### Regression gate` at line 621 at or under the 25-line `SECTION_LINE_CAP`, sourced from the marked regions of `example/docs/hunt_rank.cpp` through its `<!-- sg-example: -->` markers and closed by a `See [Hunter mode](docs/pages/harness.md#hunter-mode)` pointer; the eight hunt option rows in the option table that ends at line 766; one quick-reference name row for each new public name in `include/speedgun-ng/hunt.hpp` (FR-070, FR-072, IV.1)
@@ -738,11 +738,11 @@ steps this lane could run ran. The integrator added T168 for the flake
 finding this round filed as owned, so the section holds eleven rows.
 
 - [x] T158 Pass the norm the plan settled into the rank route in
-      `source/harness/hunt.cpp:1050`, where `rankEvents(measured, options,
-      plan.method)` and the rate test at `hunt.cpp:1031` read the caller's
-      `options.norm` while `hunt.cpp:949-952` settle `HuntNorm::ITER` into
-      the record for a plan that found no anchors. A selection on a device
-      that holds no anchor pair then measures, prints `hunt: plan ...
+      `source/harness/hunt.cpp:1077`: the rank call
+      `rankEvents(measured, runRecord.options, plan.method)` and the rate
+      norm at `hunt.cpp:1056` read that settled `options.norm`, while `:973`
+      settles `HuntNorm::ITER` for a plan with no anchors. A selection on a
+      device that holds no anchor pair then measures, prints `hunt: plan ...
       normalized=iter`, and answers every column with `samples` of `0`, a
       `rate` of `0` and a `skipped` kind of `ABSENT`, so the console names
       the `iter` label at `report.cpp:612` and prints `hunt: rank -
@@ -1431,38 +1431,38 @@ address before writing: the triage measured `f5df59d`. No local coverage
 number counts here: the lcov capture lane in this checkout fails, so the CI
 `coverage-info` artifact at the pushed head is the measure that closes a row.
 
-- [ ] T204 Close the 56 untaken outcomes in
-      `source/harness/json_load.cpp`. `keepFirstError` at `:111-115`
-      answers nothing since `e9f569f` made it `void`, so the `||` of the
-      `report` lambda stopped existing: that lambda answers a ternary at
-      `:125` and `:126` and the fold stands at `:128`. Five live arms
-      there need one wrong-kind value each, `:685` needs an empty budget
-      text, `:697` needs a round-tripped `8p` budget. The refusal text
-      and the exit status must not move (AC-6).
-- [ ] T205 Close the untaken outcome at `source/harness/report.cpp:453` and the
+- [x] T204 Close the two untaken outcomes the artifact at `d7459da` leaves in
+      `source/harness/json_load.cpp` at `:128`, one for each of the last two
+      adjacent pairs of the `allSettled` fold: a string where the planned event
+      count stands, a boolean where the ran event count stands (`418c724`). The
+      56 arms this row counted at `f5df59d` emptied through `e9f569f`,
+      `1da6533` and `d89199b`, and the artifact names none elsewhere in the
+      file. The refusal text and the exit status did not move (AC-6). Closed on
+      the CI artifact, the last two arms read per replica.
+- [x] T205 Close the untaken outcome at `source/harness/report.cpp:453` and the
       five in `source/harness/hunt_plan.cpp` at `:61`, `:151`, `:167` and
-      `:425` with scenarios whose inputs the triage names, each re-read at the
-      line first (FR-091).
-- [ ] T206 Close the 16 untaken outcomes in
-      `source/harness/hunt_cli.cpp` at `:83`, `:99`, `:113`, `:114`,
-      `:160`, `:197`, `:217`, `:389`, `:535`, `:623` and `:635`. Two
-      sites stand closed, folded by `8a72476`: the newline class at
-      `:153`, gone from `:156`, and the `piece <= line.size()` test at
-      `:185`, replaced at `:191`. It moved the `object.has_value()` arm
-      of `:622` to `SG_ASSERT` at `:632` (FR-091).
-- [ ] T207 Close the 12 untaken outcomes in `source/harness/hunt.cpp` at
+      `:425`: the artifact at `d7459da` leaves `:61` and `:151`, warmed by the
+      absent-reading window of `418c724` and folded by the shape of `dca1649`.
+- [x] T206 Close the 16 untaken outcomes in
+      `source/harness/hunt_cli.cpp`, at `:83`, `:99`, `:113`, `:114`, `:160`,
+      `:197`, `:217`, `:389`, `:535`, `:623` and `:635`. The artifact at
+      `d7459da` names no cold outcome in that file. `8a72476` folded the two
+      this row recorded (the newline class gone from `:156`, the `piece <=
+      line.size()` test replaced at `:191`, the `object.has_value()` arm of
+      `:622` moved to `SG_ASSERT`; FR-091). The rest is closed on the CI artifact.
+- [x] T207 Close the 12 untaken outcomes in `source/harness/hunt.cpp` at
       `:179`, `:564`, `:567`, `:657`, `:688` and `:966`, and at
-      `detail/hunt_selection.hpp:124`. Six sites stand closed: `48cdb0d`
-      dropped the vertical tab and form feed of `hunt.cpp:66` and `:67`,
-      `d4c6b94` folded `:212`, `:230` and `:368` there (refusal at
-      `:376`), and `cd35076` folded `hunt_selection.hpp:89` (FR-091).
-- [ ] T208 Close the 7 untaken outcomes in `source/harness/runner.cpp`.
-      The five sites stand closed, folded by `16aaf29`: the pair loops
-      of `:2291` and `:2318` became the named tests at `:2290` and
-      `:2293` and the calls at `:2336` and `:2337`; the guard of `:2325`
-      and the `else if` ledger arms at `:2595` and `:2640` became the
-      contracts at `:2331`, `:2607` and `:2650`, which
-      `cmake/coverage.cmake:84` omits (FR-091).
+      `detail/hunt_selection.hpp:124`. The artifact at `d7459da` leaves two:
+      `hunt.cpp:69`, warm on the replica after `ba18568`, and `:124`, warm
+      after `418c724` put `cpu/r4g03` in the refusal table; `48cdb0d`,
+      `d4c6b94` and `cd35076` folded the ten (FR-091, closed per replica).
+- [x] T208 Close the 7 untaken outcomes in `source/harness/runner.cpp`.
+      The artifact at `d7459da` names none; the same commit folded the retry
+      guard into its contract. `16aaf29` made the pair loops of `:2291` and
+      `:2318` the named tests at `:2290` and `:2293` and the calls at `:2336`
+      and `:2337`; the guard of `:2325` and the ledger arms at `:2595` and
+      `:2640` became the contracts at `:2331`, `:2607` and `:2650`, which
+      `cmake/coverage.cmake:84` omits (FR-091, closed on the CI artifact).
 - [ ] T209 Re-anchor the citations that `specs/026-regression-gate` carries into
       `source/harness/json_load.cpp`. `contracts/reader-extension.md:7` and
       `plan.md:236` name `:1117` to `:1128`, where the noise record now stands
@@ -1503,10 +1503,10 @@ stand gone from the predicate at `source/harness/hunt.cpp:69`.
       three of the five classes, so the `coverage-info` artifact at the
       pushed head settles the pair. T206, T207 and T208 carry the
       restated addresses and name each closed site with the commit that
-      folded it. Record against that artifact that T204, T205 and T208
-      hold no gap, and keep the two arms at
-      `source/harness/hunt_plan.cpp:151` open on the reservation
-      argument at `:104`.
+      folded it. T204 to T208 are ticked above against that artifact and the
+      replica, each naming the instrument that gave its reading. The pair at
+      `source/harness/hunt_plan.cpp:151` closes on the code shape of
+      `dca1649`, not on the reservation argument at `:104`.
 - [ ] T211 Re-anchor the source addresses the four contracts state (plan
       Phase 0 touchpoint `contracts/`, Constitution IV).
       `contracts/hunt-cli.md:124` and `:194` name `runner.cpp:2405` for the
@@ -1553,3 +1553,55 @@ owner-only: hardware AC-10 records on `corsairone` and `gary`, or a
 repository-owner action. The prose gate over the whole tree answers
 `591 sources, 106156 units examined, 0 findings, 0 skipped`, so no file
 prose row joins this phase.
+
+## Phase 17: Convergence
+
+- [ ] T213 Give every scratch name of the three hunt suites a process id and a
+      temp directory (round eight F7; Constitution III and VII,
+      `test/CMakeLists.txt:659`). Ten declarations name a fixed file in the
+      working directory: `test/source/harness_hunt_cli_test.cpp:84-89` and
+      `:93-94` (eight), `harness_hunt_report_test.cpp:96` and
+      `harness_hunt_collect_test.cpp:76`. `test/CMakeLists.txt:659` states the
+      invariant as fact for the tree — "Every scratch name carries the process
+      id, so a second copy shares no file" — and a fixed name contradicts it:
+      one scenario of `harness_hunt_cli_test` run from the checkout root leaves
+      four `hunt_cli_*.txt` there, and `git check-ignore` reports none ignored.
+      Reuse the vehicle the repo owns instead of inventing one: the
+      `capturePath` of `harness_cli_interleave_test.cpp:431-436`, which returns
+      `temp_directory_path() / (suite + "_" + getpid() + kind)`, spelled the
+      same at `harness_cli_table_test.cpp:1035-1040` and
+      `harness_cli_sources_test.cpp:930-935`. These suites hand the names to a
+      forked CLI (`harness_hunt_cli_test.cpp:429`, `:717`, `:723`, `:820`), so
+      the temp directory belongs to the fix and is no refinement of it. The
+      file's line numbers are cited at `tasks.md:503` and `:543`, which name
+      `:946` and `:1227`: re-anchor both in place in the same commit, the way
+      `418c724` held `tasks.md` at 1555 lines while three test files grew. The
+      15 fixed names in `harness_pass_collect_test.cpp`,
+      `harness_pass_report_test.cpp` and `harness_compare_cli_test.cpp:76-100`
+      belong to `specs/024-multipass-collection` and
+      `specs/028-full-command-line` and are named there, not here.
+- [x] T214 Re-anchor `data-model.md:371` to the definition it means (round eight
+      F4; Constitution IV). It reads "is read through `optionalField`
+      (`json_load.cpp:107`)", and `json_load.cpp:107` is the first line of the
+      comment above `keepFirstError`, which stands at `:111-:115`.
+      `optionalField` is defined at `json_load.cpp:83`, the address `99d218f`
+      gave the same fact in `contracts/report-schema-key.md:48`. One number
+      moves and nothing else in the sentence changes.
+- [x] T215 Re-anchor the schema-version cite the ticked rows left in place
+      (round eight F5; Constitution IV). `contracts/hunt-json.md:23` and
+      `contracts/report-schema-key.md:26` both place `kSchemaVersion` at
+      `json_report.cpp:31`, inside the comment that runs `:30-:37`; the
+      constant reads `1.4` at `json_report.cpp:38`. `T048` states the same
+      address in its own row at `tasks.md:256`, and `T194` records the pair as
+      owed while standing ticked with `report-schema-key.md:26` unmoved. Move
+      the two contract cites and the number inside `T048`'s row, each in place,
+      holding every line count another cite depends on.
+- [x] T216 Re-anchor the three `runner.cpp` anchors `plan.md` states (round
+      eight F5; Constitution IV). `plan.md:76` names `runner.cpp:866,873` for
+      the named-counter slot arithmetic, which stands at `:832`
+      (`freeSlot = kMaxUserCounters`) and `:839` (the `SG_REQUIRE` that refuses
+      a seventeenth name); `plan.md:525` names `:866-:874` for that same span,
+      `:832-:839`; `plan.md:293` puts `seatPass` at `:1400`, where the lambda
+      stands at `:1368`. The bound itself is `kMaxUserCounters` at
+      `include/speedgun-ng/benchmark.hpp:199`. Read each line before moving its
+      number, as every row of this phase does.

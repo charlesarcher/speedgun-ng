@@ -368,7 +368,7 @@ excluded, counted out the way a gap repetition is counted out of
 ## JSON mapping
 
 The in-memory name, the document key, and the reader path. Every per-entry key
-is read through `optionalField` (`json_load.cpp:107`); a present key keeps its
+is read through `optionalField` (`json_load.cpp:83`); a present key keeps its
 own kind and its own refusal (hard rule 7).
 
 | In memory | Document key | Kind | In `required` |

@@ -20,7 +20,7 @@ the exception D-17 records; the rule and its consequence are in
 |---|---|---|
 | root | `schemaVersion`, `speedgun`, `benchmarks` (`json_report.cpp:784-813`) | those three, then `hunt` |
 | entry | `...`, `metricMethod`, `passCount`, `passSpread`, `spreadWarning` (`json_report.cpp:602-614`) | those four, then `hunt` |
-| `schemaVersion` value | `1.1` (`json_report.cpp:31`) | `1.4` |
+| `schemaVersion` value | `1.1` (`json_report.cpp:38`) | `1.4` |
 
 Key order stays first-appearance: both `hunt` keys are appended, and the bytes a
 run wrote before stay in place. A run with no hunt writes no `hunt` key at
