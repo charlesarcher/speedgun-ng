@@ -1293,10 +1293,14 @@ auto scenarioUnavailableStrict() -> int
 // The fresh process of the per-family probe scenarios: the fake it
 // registers scripts the tsc series the runner's window stamps and the
 // probe's own reads share, with a jump far above the threshold every
-// few actions, so the probe keeps gaps inside the windows the runs
-// stamp (R-02, E-06). The handle names the probe on the first cpu the
-// mask holds; the command line's value, when the caller names one,
-// stands on the second (FR-015).
+// tenth read in the points and a tail that jumps on every read past
+// them, so any window a probe read falls inside carries the gap
+// whatever the runner consumed (R-02, E-06). The points' steps stand
+// at one tick, so the measurement pass reads the small minDelta the
+// adaptive threshold rises from. The buffer holds every read, so no
+// kept gap stands dropped. The handle names the probe on the first
+// cpu the mask holds; the command line's value, when the caller names
+// one, stands on the second (FR-015).
 auto childFamilyProbe(const bool withCommandLineProbe) -> int
 {
   auto owned = std::make_unique<sg::counters::FakeProvider>();
@@ -1312,25 +1316,32 @@ auto childFamilyProbe(const bool withCommandLineProbe) -> int
                       sg::counters::Availability::COUNTABLE,
                       sg::counters::ReadMode::FAST_TSC);
   std::vector<std::uint64_t> series;
+  series.reserve(20000);
   for (std::size_t index = 0; index < 20000; ++index) {
     series.push_back(series.empty()
                          ? 0
                          : series.back() + (index % 10 == 0 ? 1000000ULL : 1));
   }
-  provider.setPoints("machine", "tsc", std::move(series), 1);
+  // The tail jumps far above the threshold too: the runner's own reads
+  // walk the script past its points, and a read past the end answers
+  // the tail delta, so the probe's gaps keep pace with the windows
+  // whatever the runner consumed (R-02, E-06). The points' steps stand
+  // at one tick, so the measurement pass reads the small minDelta the
+  // adaptive threshold rises from (FR-007, R-05).
+  provider.setPoints("machine", "tsc", std::move(series), 1000000);
   const auto registered =
       sg::counters::System::local().registerProvider(std::move(owned));
   check(registered.has_value(), "the fresh process registers its fake (R-02)");
   const auto cpus = pickCpus(2);
-  // The body spins long enough that every attempt's window spans many
-  // probe reads, so the folds the scenarios read stand deterministic
+  // The body spins long enough that every attempt's window spans tens
+  // of probe reads, so the folds the scenarios read stand deterministic
   // (VI: no sleep and no clock).
   auto handle = sg::registerBenchmark(
       [](sg::State& state)
       {
         for (auto _ : state) {
           volatile int sink = 0;
-          for (int step = 0; step < 200000; ++step) {
+          for (int step = 0; step < 2000000; ++step) {
             sink += step;
           }
           (void)sink;
@@ -1339,6 +1350,10 @@ auto childFamilyProbe(const bool withCommandLineProbe) -> int
       "bmProbed");
   auto probeOptions = sg::JitterProbeOptions {};
   probeOptions.cpus = {cpus.at(0)};
+  // The buffer holds every read the run can make, so no kept gap
+  // stands dropped and the folds the scenarios read stand the run's
+  // own (FR-010, D-6).
+  probeOptions.gapCount = 20000;
   handle.jitterProbe(probeOptions);
   std::vector<std::string> arguments {
       "--repetitions=1",
