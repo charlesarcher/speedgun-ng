@@ -315,6 +315,10 @@ auto emptyPathFault(const std::string_view option) -> std::string
   return std::string(option) + ": " + std::string(kEmptyPathTail);
 }
 
+// The tail of the line an environment variable answers when its value stands
+// empty, which no reader of the table settles (FR-025, FR-027).
+constexpr std::string_view kEmptyValueTail = "the value stands empty";
+
 // One whole number of a `--threads` item: `from_chars` reads the digits of
 // the item whole, and a text with a stray character, an empty item or a
 // number past what an `int` holds names no count (FR-045).
@@ -1950,12 +1954,31 @@ auto gatherOptionSources(const CommandLineOptions& scan,
         "SPEEDGUN_PERCENTILES and SPEEDGUN_NO_PERCENTILES cannot both stand");
   }
 
-  for (const OptionRow* const row : present) {
-    const std::string& text =
-        *environmentValue(environment, environmentName(*row));
-    const auto settled = applySourceValue(*row,
+  for (const OptionRow& row : optionRows()) {
+    if (!row.fromEnvironment) {
+      continue;
+    }
+    const std::string* const value =
+        environmentValue(environment, environmentName(row));
+    if (value == nullptr) {
+      // FR-026: the operator set no variable for this row, so the gather
+      // asks nothing of it and the row keeps the value the higher sources
+      // left, if any.
+      continue;
+    }
+    if (value->empty()) {
+      // FR-025, FR-027: the variable names its row and hands it nothing, so
+      // the gather answers here ahead of the reader, and the line names the
+      // variable the operator set. A word of the command line and a line of
+      // a file keep the answer of their own row (FR-035, SC-003).
+      return std::unexpected(environmentName(row) + ": --"
+                             + std::string(row.name) + ": "
+                             + std::string(kEmptyValueTail));
+    }
+    const std::string& text = *value;
+    const auto settled = applySourceValue(row,
                                           text,
-                                          environmentName(*row),
+                                          environmentName(row),
                                           kNoPriorSettle,
                                           OptionSource::ENVIRONMENT,
                                           resolved);
@@ -1963,7 +1986,8 @@ auto gatherOptionSources(const CommandLineOptions& scan,
       return std::unexpected(settled.error());
     }
     if (*settled) {
-      resolved.uses.push_back(OptionUse {row, OptionSource::ENVIRONMENT, text});
+      resolved.uses.push_back(
+          OptionUse {&row, OptionSource::ENVIRONMENT, text});
     }
   }
 
