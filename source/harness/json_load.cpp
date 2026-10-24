@@ -110,10 +110,9 @@ auto settled(const std::vector<
 // inside a generic lambda out of its counts, while the same shape in
 // `settled` above carries its count (specs/023 FR-024).
 auto keepFirstError(std::expected<void, std::string>& answer,
-                    const std::string& error) noexcept -> bool
+                    const std::string& error) noexcept -> void
 {
   answer = std::unexpected(error);
-  return false;
 }
 
 // The same report over the values a record read: the first answer that
@@ -123,7 +122,10 @@ auto allSettled(Parts&&... parts) -> std::expected<void, std::string>
 {
   auto answer = std::expected<void, std::string> {};
   auto report = [&](auto& part) noexcept -> bool
-  { return part.has_value() || keepFirstError(answer, part.error()); };
+  {
+    return part.has_value() ? true
+                            : (keepFirstError(answer, part.error()), false);
+  };
   (void)((report(parts) && ...) && true);
   return answer;
 }
