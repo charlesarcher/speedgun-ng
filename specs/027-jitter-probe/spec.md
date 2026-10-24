@@ -114,9 +114,9 @@ criteria AC-1 to AC-8, and the scope."
 
 ## Decisions
 
-Charles accepted these recommendations with the prompt on 2026-10-21.
-They are governance for this feature; each lands in the requirement
-named beside it.
+D-1 to D-16 restate the recommendations of the feature prompt. They
+are governance for this feature; each lands in the requirement named
+beside it.
 
 - **D-1 Modes (D-13.3, R-13.1).** `alongside` is the default mode when
   `--jitter-probe` is given. With no `--jitter-probe` option, there is
@@ -207,22 +207,21 @@ named beside it.
   their own specs later (Scope).
 - **D-15 FWQ and FTQ out (D-13.9).** The FWQ/FTQ probes and their
   spectrum are N13c, outside this feature (Scope).
-- **D-16 Version and merge order.** Charles set the merge order on
-  2026-10-21: PR #45 lands first, PR #44 second, and N13a reserves
-  0.17.0. Each rebase re-reads `CMakeLists.txt` on master and takes the
-  next free minor version; a `SOVERSION` rises only when that archive's
-  public ABI changes. A change in the order takes the next free value,
-  and the rebase note records why (Run-time binding). The harness
-  ABI changes - `JitterStats`, `JitterEntryFold`, `JitterProbeMode`,
-  `JitterProbeOptions` and `runJitterProbe` join the surface,
-  `BenchmarkResult` gains `jitterFolds`, `ReportData` gains
-  `runJitterStats`, `RawContent` gains `GAPS`, and `BenchmarkHandle`
-  gains the `jitterProbe` member (every name read in
-  `include/speedgun-ng/benchmark.hpp`) - so the harness `SOVERSION`
-  rises to 11. The archive's only counters change is the fake
+- **D-16 Version and SOVERSION order.** Each rebase reads master and
+  takes the next free minor, schema minor and SOVERSION. A
+  `SOVERSION` rises only when that archive's public ABI changes. The
+  harness ABI changes - `JitterStats`, `JitterEntryFold`,
+  `JitterProbeMode`, `JitterProbeOptions` and `runJitterProbe` join
+  the surface, `BenchmarkResult` gains `jitterFolds`, `ReportData`
+  gains `runJitterStats`, `RawContent` gains `GAPS`, and
+  `BenchmarkHandle` gains the `jitterProbe` member (every name read
+  in `include/speedgun-ng/benchmark.hpp`) - so the harness
+  `SOVERSION` rises to 11 from master's 10, and the project minor
+  takes 0.19.0 from master's 0.18.0, the schema minor 1.4 from
+  master's 1.3. The archive's only counters change is the fake
   provider's lock scope, which names no public symbol, so the archive
-  `SOVERSION` stays at master's 3. The audit table's rise rows stand
-  as the plan-time record; this paragraph carries the applied check.
+  `SOVERSION` stays at 3. The audit table's rise rows stand as the
+  plan-time record; this paragraph carries the applied check.
 
 ## Audit point
 
@@ -859,17 +858,17 @@ that never prints.
 - **CI**: the coverage preset keeps what master has
   (`-fprofile-update=atomic`, no `-D_GLIBCXX_ASSERTIONS`, and
   `-Wl,-u,__gcov_dump` when PR #44 has merged). Tests run with
-  `ctest -j 2`. No other CI change without approval.
+  `ctest -j 2`. No other CI change.
 - **Commits**: blank lines between body paragraphs, and one footer
-  block (`Approved-by: OmO` first, then `Refs:`) with no blank line
-  inside. The commit never records approval of Charles Archer in any
-  spelling. The prose rules of Principle XI bind every commit message,
-  and no word is split or changed to pass the spell-check or the prose
-  gate.
+  block (`Refs: specs/027-jitter-probe` first, then `Approved-by:
+  OmO`) with no blank line inside. The commit carries no approval
+  line beside the footer's own. The prose rules of Principle XI bind
+  every commit message, and no word is split or changed to pass the
+  spell-check or the prose gate.
 - **CI logs**: after each push, every job's log is read, including
   dbc-gate, test-rocky (GCC 14, `-Werror`), consumer-release, tsan,
-  and sanitize; the feature's own failures are found and fixed, and no
-  failure is handed to the owner.
+  and sanitize; the feature's own failures are found and fixed, and
+  none stands handed off.
 - **Rebase and push**: rebase, no merge; push with
   `--force-with-lease`; after each push, show
   `git ls-remote origin <branch>`.

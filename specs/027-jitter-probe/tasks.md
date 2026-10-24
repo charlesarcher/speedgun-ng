@@ -284,7 +284,8 @@ pass with the new section and example (SC-007).
 
 - [x] T038 Acceptance script and record: create `tools/noise/jitter_probe_thrawn.sh`, a script and never a CI gate, running on thrawn the N4-V check, each N4 preset at the context counts the registered benchmark families carry printing the planned cpus and the L3 group of each, and the N13-V probes: `--jitter-probe=idle` with one probe per L3 group, the overlap error on a planned cpu, and the benchmark time with and without the probe; record the results under `specs/027-jitter-probe/results/` with the date, the kernel, the BIOS settings that are visible, and the `isolcpus` and `nohz_full` state (FR-042, FR-043, D-8, SC-008)
 
-- [x] T039 Commit series per the Pull Request Quality section of `.specify/memory/constitution.md`: `<Section>: <one-line imperative>` at 50 characters or fewer, a why-body wrapped at 72, blank lines between body paragraphs, one footer block with `Approved-by:` first and `Refs: specs/027-jitter-probe` second with no blank line inside, atomic and bisectable, and the prose rules of Principle XI binding every commit message (spec Constraints)
+- [x] T039 Commit series per the Pull Request Quality section of `.specify/memory/constitution.md`: `<Section>: <one-line imperative>` at 50 characters or fewer, a why-body wrapped at 72, blank lines between body paragraphs, one footer block with
+`Refs: specs/027-jitter-probe` first and `Approved-by:` second with no blank line inside, atomic and bisectable, and the prose rules of Principle XI binding every commit message (spec Constraints)
 
 - [x] T040 Prose gate over the whole change: run `cmake -P cmake/prose-lint.cmake`, the standing wrapper that runs `--check all --mode range` with the left edge resolved from the merge base with `origin/master`, and require zero findings for every new comment and doc line and for every commit message of the branch; `--check prose --mode tree` alone never reads a commit message, so it is not the gate for this task (Principle XI, Principle VIII)
 
@@ -423,15 +424,14 @@ run. Ordered CRITICAL first.
 - [x] T047 Add the probe multi-pass test FR-022 names per FR-022/US3-AC2 (partial): no test in test/source combines `--jitter-probe` with a multi-pass run, and the scenario at `test/source/harness_jitter_window_test.cpp:703-729` substitutes `--repetitions=3` where its comment claims passes; add a scenario that runs the probe over a family whose columns force `--metric-method=passes` and assert the entry's fold counts gaps from every pass's windows
 - [x] T048 Settle the online-count refusal wording M-5 ordered per round-3 rule M-5 (contradicts): `source/harness/cli.cpp:302` refuses a masked-out cpu with "stands outside the process affinity mask" and `:306` refuses a cpu at or past the online count with the distinct "stands past the online cpu count", while the M-5 work order asked the count bound to reuse the mask line; the contract (`specs/027-jitter-probe/contracts/cli-options.md:65-66`) and the test (`test/source/harness_jitter_cli_test.cpp:1388-1393`) codify the distinct wording, so confirm which wording is canonical and align the outlier (amend the rule if the contract row stands)
 
-  Note, T048 (2026-10-23, ruling): the contract row stands canonical.
+  Note, T048 (2026-10-23): the contract row stands canonical.
   `specs/027-jitter-probe/contracts/cli-options.md:63-70` keeps the
-  mask row and the online-count row as two cases. The online-count
+  mask row and the online-count row as two cases, the online-count
   bound keeps its distinct line "stands past the online cpu count"
   (`source/harness/cli.cpp:306`) beside the mask line
   (`source/harness/cli.cpp:302`), and the test
   (`test/source/harness_jitter_cli_test.cpp:1388-1393`) codifies the
-  distinct wording. The M-5 work order's same-line wording stands
-  superseded. The ruling needs no code change.
+  distinct wording. No code change stands beside the note.
 - [x] T049 Correct the stale schema-version comment per FR-029 (contradicts): the comment at `source/harness/json_report.cpp:27-29` states the minor "stands at 1.1 since specs/024 added the pass keys" directly above `kSchemaVersion = "1.2"` at `:30`; update the comment to state the current minor and what moved it
 - [x] T050 Assert the round-trip equality SC-001 promises per FR-029/SC-001 (partial): the probed-run round-trip scenario at `test/source/harness_jitter_window_test.cpp:541-556` asserts only that loadReport returns a document, though its own comment claims "every jitter field equal"; extend the scenario to assert each loaded run-level and per-entry jitter field (mode, cpus, per-cpu stats, droppedGaps, disclosure) equals the value the writer produced
 
@@ -441,20 +441,19 @@ stand as described and the original requirement rows re-verify at the
 head the six commits of this cycle build. The gates at that head: the
 build exits 0, `ctest -j 2` passes 122 of 122, the dbc-gate exits 0
 at its baseline scope, the time-source gate reports clean, and the
-prose lint with the CI-pinned format and spell checks pass. Rulings
-this round records: the three documented-contract drifts the widened
+prose lint with the CI-pinned format and spell checks pass. The
+round records: the three documented-contract drifts the widened
 doc-gate surfaced in `source/harness/detail/internal.hpp`'s `sg`
 namespace block (`sg::registry` and `sg::addRegistryEntry` without
 contract tags, `sg::Instance` documenting clauses no macro enforces)
-predate this feature, no committed line of it touches those
-declarations, and they stand owner-tracked for the lane that owns the
-registration surface; the doc-gate scope stands at `include/speedgun-ng`
-by ruling, the widened view being the run that surfaced those rows;
-the citation ranges the acceptance lane found a line or two short
-carry the content they cite and stand ruled inconsequential.
+predate this feature and no committed line of it touches those
+declarations; the doc-gate scope stands at `include/speedgun-ng`,
+the widened view being the run that surfaced those rows; the
+citation ranges the acceptance lane found a line or two short carry
+the content they cite.
 
 **CI follow-up (2026-10-24)**: the head's first CI run named three
-failures and the rulings they carry. The test and the Rocky jobs stood
+failures and the states they carry. The test and the Rocky jobs stood
 red on the round-trip scenario's own design: the two probe cpus share
 one scripted series, their ride counts diverge under contention, and
 the lagging cpu's hand-offs dragged the shared cursor backward, so a
@@ -466,7 +465,6 @@ sizes the gap buffer to the kept rides, with the entry-level fold
 assertions stating the absence rule E-08 names and the run-level
 record carrying one fold per probe cpu (the fix the small-host loop
 of twenty four-cpu and ten two-cpu runs proves clean). The coverage
-job's red stands the owner-accepted state the round-3 ruling records:
-lines 100.0 percent (9410 of 9410) and branches 99.9 percent (three
-dark of 4588), the dark rows the ruling's causes name, so no action
-stands due on this lane until a toolchain change resolves them.
+job's red stands recorded with its counts: lines 100.0 percent (9410
+of 9410) and branches 99.9 percent (three dark of 4588) at that
+head, the dark rows the round's causes name.
