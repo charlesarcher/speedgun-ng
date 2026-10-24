@@ -1493,7 +1493,7 @@ stand closed, and the trace stops counting a folded guard through the
 `isSpace` outcomes the same way: the vertical tab and the form feed
 stand gone from the predicate at `source/harness/hunt.cpp:69`.
 
-- [ ] T210 Close the two `isSpace` outcomes and restate the Phase 15
+- [x] T210 Close the two `isSpace` outcomes and restate the Phase 15
       site lists at measured addresses (FR-091, SC-008). `48cdb0d` took
       the second remedy: the predicate at `source/harness/hunt.cpp:69`
       keeps space, tab and carriage return, and the comment at `:66` to
@@ -1527,7 +1527,7 @@ stand gone from the predicate at `source/harness/hunt.cpp:69`.
       measured number and state the mechanism beside it, the way T190 and T194
       did. Hold every line count another cite depends on, the way `d89199b`
       held four lines for the wave ledger.
-- [ ] T212 Restate the `PROCESSORS 2` rationale in the commit that lands the
+- [x] T212 Restate the `PROCESSORS 2` rationale in the commit that lands the
       pid-scoped scratch names (T201, T203, Constitution IV).
       `test/CMakeLists.txt:655-659` reads `eight fixed names are written into
       the working directory, so two copies under -j 2 share those files and
