@@ -1,11 +1,11 @@
-Docs: Note That gary's Summary Lines Predate T120
+Docs: Name the Module the Gate Scripts Import
 
-The capture quotes a plan summary carrying a spend field, and the
-printer of this tree writes events, passes and budget only. The field
-left the line when the time source rule removed the figure behind it,
-arriving in 4e6a213 and leaving in a9c3196. The companion record
-already gives its own capture that notice, so gary's gains the same
-clause and the quoted bytes stand as what an older tree printed.
+The quickstart hands out the dbc-gate step and lists doxygen, lcov and
+gcov as the tools it needs, while the shared gate helper refuses the
+run outright when the interpreter the build selected carries no yaml
+module. A reader walking the page met that refusal with no warning, so
+the prerequisite line now names the module the two gate scripts import
+through that helper.
 
 Refs: specs/029-hunter-core
 
