@@ -685,6 +685,10 @@ auto scenarioAllRefusedHost() -> void
   check(planLines.size() == 1,
         "the plan line prints with events=0 on the host that refuses "
         "everything (D-12, FR-041)");
+  check(planLines.front().find("normalized=") == std::string::npos,
+        "a plan that holds no column names no norm: the iteration word "
+        "answers a device that holds no anchor pair and nothing else "
+        "(E-03, E-07)");
   check(linesHolding(lines, "hunt: rank ").empty(),
         "the all-refused host prints no ranked row (D-12, FR-041)");
   check(linesHolding(lines, "hunt: skipped ").size() == sg::test::kHuntEvents,
@@ -1050,23 +1054,23 @@ auto scenarioAnchorlessRetrySeatsItsEventAlone() -> void
   check(onlyAnchoredRefused,
         "every refusal names a cpu event, because the anchorless event seated "
         "its one leaf and refused nothing (I-1, FR-021)");
-  // The four anchorless events do stand in the skipped list, and for their own
-  // reason: no anchor of their device divides their value, so no rate of the
-  // norm answers them (E-05, D-13). Their retry is not that reason - it
-  // measured, which the pass count above reads.
-  check(hunt.skipped.size() == kWidePassEvents + kUncoreSelectedEvents,
-        "the skipped list carries the four refused anchored retries beside "
-        "the four anchorless events the norm divides by nothing (E-05, D-13, "
-        "FR-021)");
-  bool everyAnchorlessSkipped = true;
+  // The four anchorless events stand measured: the device that lacks its
+  // anchor pair leaves the whole plan to the iteration norm, and that norm
+  // divides each window's count by the window's one iteration (E-05, D-13,
+  // AC-4). Their retry is not a refusal - it measured, which the pass count
+  // above reads.
+  check(hunt.skipped.size() == kWidePassEvents,
+        "the skipped list carries the four refused anchored retries and no "
+        "anchorless column, which the settled norm rated (D-13, FR-021)");
+  bool noAnchorlessSkipped = true;
   for (std::size_t offset = 0; offset < kUncoreSelectedEvents; ++offset) {
-    if (skippedOf(hunt, uncoreAddress(offset)) == nullptr) {
-      everyAnchorlessSkipped = false;
+    if (skippedOf(hunt, uncoreAddress(offset)) != nullptr) {
+      noAnchorlessSkipped = false;
     }
   }
-  check(everyAnchorlessSkipped,
-        "each anchorless event answers a skipped entry of its own address, the "
-        "state its device discloses and not a seat refusal (E-05, FR-021)");
+  check(noAnchorlessSkipped,
+        "no anchorless event answers a skipped entry: the run rated its count "
+        "over the iteration of its window (E-05, D-13, FR-021)");
   check(hunt.entries.size() == kRetryPassEvents + kUncoreSelectedEvents,
         "every event of the selection keeps its entry, the measured anchorless "
         "column beside the refused cpu ones (FR-021, PD-12)");
@@ -1170,9 +1174,10 @@ auto scenarioHuntRefusalsNameTheirInput() -> void
 }
 
 // The device that publishes no anchor pair answers a measured record on the
-// iteration norm: the anchor-less columns admit no denominator, so no column
-// is rated, and every column states the denominator it lacks in its own row
-// (I-1, E-05, D-19).
+// iteration norm: the run ranks the counts it read under the norm the plan
+// settled, so both columns carry a rate over the one iteration of their window
+// and the console names `iter=` beside the figure (I-1, E-05, D-13, D-19,
+// AC-4, FR-023).
 auto scenarioUncoreColumnsRankByIterations() -> void
 {
   registerHuntHost(kCollectLimit);
@@ -1187,34 +1192,65 @@ auto scenarioUncoreColumnsRankByIterations() -> void
   check(run.hunt.has_value(),
         "the device that publishes no anchor still answers a measured "
         "record (I-1, D-19)");
+  const EntryHunt& hunt = *run.hunt;
   check(run.run->options.norm.has_value()
             && *run.run->options.norm == sg::hunt::HuntNorm::ITER,
         "a plan that found no anchors states the iteration norm it fell "
         "back to (D-13)");
-  check(run.hunt->entries.size() == 2,
+  check(hunt.entries.size() == 2,
         "both uncore columns stand in the record (I-1)");
-  const bool noRate =
-      std::all_of(run.hunt->entries.begin(),
-                  run.hunt->entries.end(),
+  const bool rated =
+      std::all_of(hunt.entries.begin(),
+                  hunt.entries.end(),
                   [](const RankedEvent& entry)
-                  { return entry.samples == 0 && !entry.rank.has_value(); });
-  check(noRate,
-        "a window of a column whose device lacks both anchors yields no "
-        "rate: the no-leaf position admits no denominator (E-05)");
-  check(run.hunt->skipped.size() == 2
-            && std::all_of(run.hunt->skipped.begin(),
-                           run.hunt->skipped.end(),
-                           [](const SkippedEvent& skipped) {
-                             return skipped.kind == SkippedKind::ABSENT;
-                           }),
-        "both uncore columns state the absent denominator, none a gap the "
-        "rows never show (FR-021, D-10)");
-  check(run.run->ranEvents == 0,
-        "the summary rates no event of the anchor-less plan (E-05, FR-041)");
+                  { return entry.samples == 3 && entry.rate > 0.0; });
+  check(rated,
+        "the iteration norm divides the count of every window by that "
+        "window's one iteration, so the anchor-less columns are rated (AC-4, "
+        "FR-023)");
+  check(hunt.skipped.empty(),
+        "a column the run rated states no absent denominator: the "
+        "denominator a window lacks is the one an unrated column owes, and "
+        "this run rated both (FR-021, D-10)");
+  check(run.run->ranEvents == 2,
+        "the summary counts both columns of the anchor-less plan (E-08, "
+        "FR-041)");
   check(run.run->method.has_value()
             && *run.run->method == sg::MetricMethod::MULTIPLEX,
         "the source that publishes no limit settles MULTIPLEX (D-19, "
         "spec PC-2)");
+
+  const auto lines =
+      printedLines(*needInstance("bmHuntUncore"), hunt, *run.run);
+  // The scripted count of one uncore leaf over the one iteration of its
+  // window is the figure the rate column prints (E-07, AC-4).
+  const std::string firstRow = "hunt: rank 2 " + first
+      + " iter=" + std::to_string(sg::test::huntValue(sg::test::kHuntEvents))
+      + ".000 cv=0.00 multiplexed";
+  const std::string lastRow = "hunt: rank 1 " + last + " iter="
+      + std::to_string(sg::test::huntValue(sg::test::kHuntEvents + 1))
+      + ".000 cv=0.00 multiplexed";
+  check(linesHolding(lines, "hunt: plan events=2 passes=1 "
+                             "method=MULTIPLEX estimate=not available "
+                             "budget=none normalized=iter")
+                .size()
+            == 1,
+        "the plan line of the anchor-less plan names the iteration norm the "
+        "plan settled (E-07, D-13)");
+  const auto rows = linesHolding(lines, "hunt: rank ");
+  check(rows.size() == 2 && rows[0] == lastRow && rows[1] == firstRow,
+        "the two rank rows carry the figure of each column over the iteration "
+        "of its window, the larger count ranked first (AC-4, FR-023, PD-07)");
+  check(linesHolding(lines, "hunt: plan summary events=2/2 passes=1").size()
+            == 1,
+        "the summary counts the two rated columns of the anchor-less plan "
+        "(E-08, FR-041)");
+  check(linesHolding(lines, "hunt: skipped ").empty(),
+        "the run that rated both columns prints no skipped row (FR-021, "
+        "FR-041)");
+  check(linesHolding(lines, "iter=0.000").empty(),
+        "no row names the iteration label at a figure the run never "
+        "measured (AC-4, FR-023)");
   std::printf("uncore-columns-by-iterations: ok\n");
 }
 
