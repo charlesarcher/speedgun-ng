@@ -520,18 +520,27 @@ auto expandHuntSelection(RunOptions& options) -> void
       }
     }
     if (elements.empty()) {
-      rejectHuntSelection("--hunt: '" + selection
-                          + (fromFile ? "' holds no catalog address"
-                                      : "' is not a catalog address"));
+      // The two refusals are chosen here, each on a line of its own. A
+      // coverage trace counts a statement at the line where it begins, so an
+      // arm folded into the concatenation as its middle operand leaves the
+      // trace with no statement to count on either side of the choice
+      // (Principle VI). The refusal itself stays one line, as FR-081 demands.
+      const char* tail = "' is not a catalog address";
+      if (fromFile) {
+        tail = "' holds no catalog address";
+      }
+      rejectHuntSelection("--hunt: '" + selection + tail);
     }
   }
 
   for (const auto& element : elements) {
     const std::string_view raw = rawCodeOf(element);
     if (!raw.empty()) {
-      rejectHuntSelection("--hunt: '" + std::string(raw)
-                          + "' is a raw event code; --hunt takes catalog "
-                            "addresses");
+      // The tail of the line stands on a statement line of its own, for the
+      // same trace reason as the refusal above.
+      std::string message = "--hunt: '" + std::string(raw);
+      message += "' is a raw event code; --hunt takes catalog addresses";
+      rejectHuntSelection(message);
     }
   }
 
