@@ -492,7 +492,8 @@ auto scenarioLimitRefusal() -> void
 // no slot of its own (D-3). So `--hunt=cpu/cpu-cycles` of the two-slot host
 // stands open at the gate that refuses the event addresses of the same host,
 // the benchmark runs, and what the run answers is the planner's own limit
-// refusal, naming the limit and the leaves one event and its two anchors need.
+// refusal: the device-limit line, the same bytes the option route prints, so
+// one device parts over no wording between the two routes (T164).
 auto scenarioAnchorLeafNeedsNoSlot() -> void
 {
   const std::string anchor =
@@ -505,18 +506,13 @@ auto scenarioAnchorLeafNeedsNoSlot() -> void
         "status of the refused plan, not the usage status (FR-081, spec PC-2)");
   check(output.find("BENCHMARK_RAN") != std::string::npos,
         "the run of an anchor-only selection reaches the benchmark");
-  check(output.find("slots and a hunt pass needs 3") == std::string::npos,
-        "the gate that refuses event addresses of a narrow host stands open "
-        "for " "an anchor leaf (D-3, spec PC-2)");
   const std::string line =
-      lineHolding(output, "device 'cpu' publishes a limit");
-  check(!line.empty(),
-        "the refused plan of the anchor-only selection names the device and "
-        "its " "limit");
-  check(line.find("3 leaves one event and its two anchors need")
-            != std::string::npos,
-        "the refusal names the leaves one event and its two anchors need");
-  check(countOf(output, "publishes a limit of") == 1,
+      lineHolding(output, "device 'cpu' publishes 2 slots");
+  check(line == "hunt: device 'cpu' publishes 2 slots and a hunt pass needs 3",
+        "the refused plan prints the device-limit line whole, the bytes "
+        "contracts/hunt-cli.md pins, and the status above is what states that "
+        "the option-route gate stood open for an anchor leaf (D-3, T164)");
+  check(countOf(output, "slots and a hunt pass needs 3") == 1,
         "the run states its one refusal line");
   std::printf("anchor-leaf-needs-no-slot: ok\n");
 }

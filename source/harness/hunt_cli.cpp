@@ -597,10 +597,11 @@ auto expandHuntSelection(RunOptions& options) -> void
     }
   }
 
-  // specs/029 spec PC-2, FR-081: a device that publishes fewer than three
-  // programmable counters cannot carry a hunt pass beside its two anchors,
-  // so the run is refused before any planning states a pass. A device that
-  // publishes no limit stands open (D-3). An anchor leaf needs no slot of
+  // specs/029 spec PC-2, FR-011, FR-081 (T164): `detail::admitsHuntEvent` is
+  // the device-limit rule and `detail::deviceLimitCause` the cause it states,
+  // so the option route refuses the device below three slots with the same
+  // bytes the plan route answers, before any planning states a pass. A device
+  // that publishes no limit stands open (D-3). An anchor leaf needs no slot of
   // its own, so only event addresses of the selection raise the refusal.
   for (const auto& address : selected) {
     const std::string_view leaf = detail::leafPartOf(address);
@@ -613,10 +614,8 @@ auto expandHuntSelection(RunOptions& options) -> void
       continue;
     }
     const std::size_t slots = *object->programmableCounters();
-    if (slots < 3) {
-      rejectHuntSelection("hunt: device '" + device + "' publishes "
-                          + std::to_string(slots)
-                          + " slots and a hunt pass needs 3");
+    if (!detail::admitsHuntEvent(slots)) {
+      rejectHuntSelection("hunt: " + detail::deviceLimitCause(device, slots));
     }
   }
 

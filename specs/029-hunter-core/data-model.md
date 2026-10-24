@@ -107,10 +107,10 @@ the plan drops stage 2 entirely and the run prints one `budget cut` line naming
 the reason. Stage 1 never shrinks and no stage keeps a reduced repeat count.
 
 **Limit rule**: a device that publishes `L` admits `max(L - 2, 0)` events per
-pass; the three-leaf shape of one event with both anchors is the smallest plan
-and fits at `L` of 3 or more. `L` below 3 with both anchors present means no
-event fits: `planHunt` answers a recoverable error naming the device and the
-limit, the caller prints one line and the run exits 2 (FR-081). A device with no
+pass; the three-leaf shape of one event and two anchor leaves fits at `L` of 3
+or more. `L` below 3 admits no event, whatever its anchors: `planHunt` answers
+the error `device '<device>' publishes <L> slots and a hunt pass needs 3`, the
+caller prints one line and the run exits 2 (FR-011, FR-081). A device with no
 published limit leaves `sourceLimits` empty for it, `planPasses` returns an
 empty plan and `settleMethod` settles `MULTIPLEX` (spec PC-2); the plan then
 carries one pass listing every column, `method` reads `MULTIPLEX`, and every

@@ -820,7 +820,7 @@ finding this round filed as owned, so the section holds eleven rows.
       contract it owns and sends a reader to unrelated code for a deviation
       guard (FR-093).
 
-- [ ] T164 State the device-limit rule once.
+- [x] T164 State the device-limit rule once.
       `source/harness/hunt_plan.cpp:114-119` refuses when the published
       limit is at most two and the device names a cycles anchor, in the
       words `publishes a limit of <n>, below the 3 leaves one event and its

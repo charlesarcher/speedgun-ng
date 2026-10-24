@@ -15,6 +15,7 @@
 
 #include "detail/hunt_plan.hpp"
 
+#include "detail/hunt_selection.hpp"
 #include "detail/pass_plan.hpp"
 #include "detail/statistics.hpp"
 #include "speedgun-ng/benchmark.hpp"
@@ -35,8 +36,8 @@ constexpr double kRateScale = 1000.0;
 // samples (I-6).
 constexpr double kPercentScale = 100.0;
 
-// The anchor leaves one column asks of its device besides the event itself,
-// the leaves that make the limit of a device below 3 admit no event (E-04).
+// The anchor leaves one column asks of its device besides the event itself
+// (I-1); `detail::kHuntPassSlots` is the total the device-limit rule asks.
 constexpr std::size_t kAnchorLeaves = 2;
 
 [[nodiscard]] auto refusal(const std::string& message) -> counters::Error
@@ -111,12 +112,12 @@ auto planHunt(const std::vector<CatalogAddress>& events,
     }
     const auto& pair = anchors[entry.source];
     const auto limit = sourceLimits[entry.source];
-    if (limit.has_value() && *limit <= kAnchorLeaves && !pair.first.empty()) {
+    // E-04, FR-011, spec PC-2 (T164): the device-limit rule stands in
+    // `detail::admitsHuntEvent`, the decision the option route makes of the
+    // same device, and the cause line in `detail::deviceLimitCause`.
+    if (limit.has_value() && !detail::admitsHuntEvent(*limit)) {
       return std::unexpected(
-          refusal("hunt: device '" + entry.device + "' publishes a limit of "
-                  + std::to_string(*limit) + ", below the "
-                  + std::to_string(kAnchorLeaves + 1)
-                  + " leaves one event and its two anchors need"));
+          refusal(detail::deviceLimitCause(entry.device, *limit)));
     }
     if (options.norm == HuntNorm::INSTR && pair.second.empty()) {
       return std::unexpected(refusal(

@@ -2,6 +2,7 @@
 #define SG_HARNESS_DETAIL_HUNT_SELECTION_HPP
 
 #include <cstddef>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -35,6 +36,44 @@ namespace sg::detail
 inline constexpr std::string_view kAllSelection {"all"};
 inline constexpr std::string_view kCyclesLeaf {"cpu-cycles"};
 inline constexpr std::string_view kInstrLeaf {"instructions"};
+
+// The slots one hunt pass claims of one device: the event and the two anchor
+// leaves of E-04 and I-1. A device that publishes fewer slots admits no event,
+// whatever anchors it publishes (FR-011, spec PC-2).
+inline constexpr std::size_t kHuntPassSlots {3};
+
+/// @brief E-04, FR-011, spec PC-2 (T164): the one device-limit predicate, the
+/// decision both hunt routes make.
+///
+/// The option route tests it against every device its selection stands on
+/// before any plan states a pass, and the plan route against the device of
+/// every column. One predicate decides both, so one device answers the same
+/// way on either route.
+///
+/// \post true when a device that publishes `slots` carries an event beside the
+///       two anchor leaves of its device
+[[nodiscard]] inline auto admitsHuntEvent(const std::size_t slots) noexcept
+    -> bool
+{
+  return slots >= kHuntPassSlots;
+}
+
+/// @brief E-04, FR-081 (T164): the cause one device that admits no event
+/// states, the bytes `contracts/hunt-cli.md` pins behind its `hunt: ` word.
+///
+/// Each route prints the line the contract states whole: the option route
+/// names the `hunt: ` word beside this cause, and the run route reaches the
+/// same word at the print of a refused hunt in `source/harness/cli.cpp`. One
+/// device therefore prints one line on either route.
+///
+/// \post `device '<device>' publishes <slots> slots and a hunt pass needs 3`
+[[nodiscard]] inline auto deviceLimitCause(
+    const std::string_view device, const std::size_t slots) -> std::string
+{
+  return "device '" + std::string(device) + "' publishes "
+      + std::to_string(slots) + " slots and a hunt pass needs "
+      + std::to_string(kHuntPassSlots);
+}
 
 /// @brief E-01: the device part of one catalog address, the text the limit
 /// list is keyed by.
