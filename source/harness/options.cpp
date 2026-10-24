@@ -32,7 +32,7 @@
 /**
  * @file options.cpp
  * @brief The one option table of specs/028-full-command-line and the scan
- * that walks it: the 27 rows `detail::optionRows()` answers in the order
+ * that walks it: the 35 rows `detail::optionRows()` answers in the order
  * `specs/028-full-command-line/contracts/option-table.md` fixes, the
  * `getopt_long` array built from those rows, the walk of one command
  * line that `detail::scanCommandLine` answers, and the two answers that
@@ -480,14 +480,14 @@ auto argumentText(const OptionArgument argument) -> const char*
 }  // namespace
 
 /**
- * @brief The one option table: the 27 rows in the order the contract
+ * @brief The one option table: the 35 rows in the order the contract
  * fixes them, each with its name, internal value, argument kind,
  * environment flag, help text and owning requirement (FR-001, FR-002,
  * FR-003, FR-004, FR-079, SC-001).
  *
  * The 20 rows the master carries keep their spelling and their internal
  * value, the four constants 256 to 259 among them (FR-003, PC-1). The
- * seven names this feature brings take the constants 290 to 296 that
+ * seven names specs/028 brings take the constants 290 to 296 that
  * spec D-24 reserves (FR-004). The letters of the master rows are switch
  * codes and never short options: the scan's option string carries none
  * (FR-005). Exactly the 12 rows FR-020 names carry the environment flag,
