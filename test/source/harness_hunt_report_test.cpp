@@ -97,9 +97,12 @@ namespace
 // in the system temporary directory under this process number, so a run from
 // the checkout root leaves no file behind and a second copy of this binary
 // shares no file.
-const auto kScratchPath = std::filesystem::temp_directory_path()
-    / ("harness_hunt_report_" + std::to_string(static_cast<long>(getpid()))
-       + "_out.txt");
+auto scratchPath() -> std::filesystem::path
+{
+  return std::filesystem::temp_directory_path()
+      / ("harness_hunt_report_" + std::to_string(static_cast<long>(getpid()))
+         + "_out.txt");
+}
 
 // The token that stands for the figure of a hunt line that belongs to the
 // host: the estimate of the plan line, the nanoseconds of one pass the hunt
@@ -243,7 +246,8 @@ auto ensureCase() -> void
   }
 
   const int saved = dup(STDOUT_FILENO);
-  if (saved < 0 || std::freopen(kScratchPath.c_str(), "w", stdout) == nullptr) {
+  if (saved < 0 || std::freopen(scratchPath().c_str(), "w", stdout) == nullptr)
+  {
     fail("cannot redirect the report");
   }
   const int status =
@@ -258,7 +262,7 @@ auto ensureCase() -> void
     fail("the hunt run of the scenario did not answer status 0");
   }
 
-  std::ifstream file(kScratchPath);
+  std::ifstream file(scratchPath());
   std::stringstream buffer;
   buffer << file.rdbuf();
   return buffer.str();
@@ -295,7 +299,8 @@ template<typename Print>
 [[nodiscard]] auto capturePrint(const Print& print) -> std::string
 {
   const int saved = dup(STDOUT_FILENO);
-  if (saved < 0 || std::freopen(kScratchPath.c_str(), "w", stdout) == nullptr) {
+  if (saved < 0 || std::freopen(scratchPath().c_str(), "w", stdout) == nullptr)
+  {
     fail("cannot redirect the printer");
   }
   print();
@@ -304,7 +309,7 @@ template<typename Print>
     fail("cannot restore stdout");
   }
   close(saved);
-  std::ifstream file(kScratchPath);
+  std::ifstream file(scratchPath());
   std::stringstream buffer;
   buffer << file.rdbuf();
   return buffer.str();

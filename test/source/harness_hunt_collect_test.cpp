@@ -76,9 +76,12 @@ using sg::hunt::SkippedKind;
 // the system temporary directory under this process number, so a run from the
 // checkout root leaves no file behind and a second copy of this binary shares
 // no file.
-const auto kScratchPath = std::filesystem::temp_directory_path()
-    / ("harness_hunt_collect_" + std::to_string(static_cast<long>(getpid()))
-       + "_out.txt");
+auto scratchPath() -> std::filesystem::path
+{
+  return std::filesystem::temp_directory_path()
+      / ("harness_hunt_collect_" + std::to_string(static_cast<long>(getpid()))
+         + "_out.txt");
+}
 
 // The scripted limit the retry arms split over: six leaves per pass on `cpu`,
 // the anchors counted, the row `kHuntRows` carries for AC-1.
@@ -392,8 +395,8 @@ auto printedLines(sg::Instance& instance,
   sg::detail::Runner runner(options);
   sg::BenchmarkResult result = runner.run(instance);
   result.hunt = hunt;
-  captureThrough(kScratchPath, [&] { sg::detail::printResult(result, run); });
-  return splitLines(readAll(kScratchPath));
+  captureThrough(scratchPath(), [&] { sg::detail::printResult(result, run); });
+  return splitLines(readAll(scratchPath()));
 }
 
 // The ranked row of one address; null when the run measured no such address.
