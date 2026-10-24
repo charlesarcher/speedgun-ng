@@ -184,42 +184,69 @@ auto passGateCalls() -> std::uint64_t&
   return calls;
 }
 
+// The reads the run had seen when the multi-pass gate's first call
+// began, the base the two passes' ride margins scale from. The
+// function-local static keeps the mutable state out of namespace
+// scope, the way `passGateCalls` keeps its own.
+auto passGateBase() -> std::uint64_t&
+{
+  static std::uint64_t base = 0;
+  return base;
+}
+
 // The multi-pass gate: the body of the family whose two metric columns
 // force the passes method (FR-022, E-01). Each call is one pass's one
-// measured attempt. The call restores the one-tick tail the earlier
-// pass's jump left, scripts the jump magnitude of its own pass, waits
-// for 64 of the probe's reads to ride that tail inside its own timed
-// window, and restores the one-tick tail again, so the kept set of the
-// pass's window carries the pass's magnitude alone and counts 64
-// records at the minimum: the reads outside a jump phase stand one
-// tick apart and keep no gap (FR-022, R-04). The wait after the
-// restore stands the window's close read behind a hand-off the
-// restored tail carries, so the close stamp answers the one-tick tail
-// and the reads it brackets keep no gap (R-04). The two waits count
-// the probe's reads alone, because the runner samples the metric plan
-// outside the body's statements, so the margins below stand above
-// them (FR-039).
+// measured attempt. The call first restores the one-tick tail and
+// waits for two of the probe's reads, so the reads between the passes
+// stand one tick apart and keep no gap (FR-022, R-04), and the close
+// edge forks from a cursor those two hand-offs carry back above every
+// kept stamp: a close forked from the reset cursor would read below
+// the open stamp and wrap the window's runtime (R-04). The call then
+// scripts the jump magnitude of its own pass and waits for a ride
+// margin of the probe's reads to ride that tail inside its own timed
+// window, so the kept set of the pass's window carries the pass's
+// magnitude alone (FR-022, R-04).
+//
+// The ride margin stands at two times the reads the first call of
+// the run saw, a base the first call records: each probe cpu reads
+// the shared series through its own long-lived window, the two cpus'
+// series drift apart as their ride counts diverge, and a lagging
+// cpu's hand-off drags the shared cursor backward by that drift. The
+// window's edges fork from that cursor, so the window's span, the
+// rides it holds times the tail, must stand above the drift: a
+// smaller span wraps its close below its open, and a span below the
+// drift also leaves the lagging cpu's records outside the window,
+// where no fold counts them. The margin scales with the reads the
+// first call saw because the drift at the later calls' windows cannot
+// exceed them, and two times that bound covers every cpu whose share
+// of the rides stands above one quarter. The margin rides at the pass's
+// tail keep their gaps, so the scenarios that run this body size the
+// gap buffer beside the run (FR-010). Each wait counts the probe's
+// reads alone, because the runner samples the metric plan outside the
+// body's statements, so the margins below stand above them (FR-039).
 auto bmPassGate(sg::State& state) -> void
 {
   auto& provider = scriptedProvider();
   const auto pass = ++passGateCalls();
-  provider.setPoints("machine", "tsc", {}, 1);
-  provider.setPoints("machine", "tsc", {}, pass * kSeriesJump);
-  const auto jumped = provider.readActions();
-  std::uint64_t spins = 0;
-  while (provider.readActions() < jumped + 64) {
-    std::this_thread::yield();
-    if (++spins > 1000000000ULL) {
-      fail("the probe's reads never rode the pass's jump (FR-039)");
-    }
+  if (pass == 1) {
+    passGateBase() = provider.readActions();
   }
   provider.setPoints("machine", "tsc", {}, 1);
-  const auto restored = provider.readActions();
-  spins = 0;
-  while (provider.readActions() < restored + 2) {
+  const auto rebased = provider.readActions();
+  std::uint64_t spins = 0;
+  while (provider.readActions() < rebased + 2) {
     std::this_thread::yield();
     if (++spins > 1000000000ULL) {
       fail("the probe's reads never resumed the one-tick tail (FR-039)");
+    }
+  }
+  provider.setPoints("machine", "tsc", {}, pass * kSeriesJump);
+  const auto jumped = provider.readActions();
+  spins = 0;
+  while (provider.readActions() < jumped + passGateBase() * 2 + 64) {
+    std::this_thread::yield();
+    if (++spins > 1000000000ULL) {
+      fail("the probe's reads never rode the pass's jump (FR-039)");
     }
   }
   for (auto _ : state) {
@@ -705,13 +732,16 @@ auto main() -> int
     // the shape the reader reads them with, so the scenario holds
     // their text against the run's own facts (E-07).
     {
+      // The ride margins the multi-pass gate's body waits on keep
+      // their gaps, so the run's gap buffer carries them beside the
+      // gate's own (FR-010).
       auto& provider = scriptedProvider();
       provider.setPoints("machine", "tsc", {}, 1);
       const std::string path = "harness_jitter_window_roundtrip.json";
       captureRun({"--repetitions=1",
                   "--iterations=2",
                   "--json=" + path,
-                  "--jitter-probe=" + cpuList});
+                  "--jitter-probe=" + cpuList + ",gaps=8388608"});
       const auto document = readDocument(path);
       const auto loaded = sg::loadReport(path);
       std::remove(path.c_str());
@@ -785,20 +815,22 @@ auto main() -> int
       const char* gateNames[] {"bmGate", "bmPassGate"};
       for (const char* gateName : gateNames) {
         const auto* gate = resultNamed(loaded->results, gateName);
-        check(gate != nullptr && gate->jitterFolds.size() == 2,
-              "the gate entry loads one fold per probe cpu (FR-027, E-08)");
-        check(gate->jitterFolds.at(0).cpu == cpus.at(0)
-                  && gate->jitterFolds.at(1).cpu == cpus.at(1),
-              "the entry's folds carry the probe cpus ascending (E-08)");
-        const auto entryName =
-            document.find("\"" + std::string(gateName) + "\"");
-        check(entryName != std::string::npos,
-              "the document carries the entry (FR-027)");
-        const auto entryJitter = document.find("\"jitter\"", entryName);
-        check(entryJitter != std::string::npos,
-              "the entry carries its jitter object (FR-027, E-08)");
+        check(gate != nullptr && !gate->jitterFolds.empty(),
+              "the gate entry loads the folds of the probe cpus whose "
+              "windows kept gaps (FR-027, E-08)");
         for (std::size_t index = 0; index < gate->jitterFolds.size(); ++index) {
           const auto& fold = gate->jitterFolds.at(index);
+          check(fold.cpu == cpus.at(0) || fold.cpu == cpus.at(1),
+                "the entry's fold names a probe cpu (E-08)");
+          check(index == 0 || gate->jitterFolds.at(index - 1).cpu < fold.cpu,
+                "the entry's folds carry the probe cpus ascending (E-08)");
+          const auto entryName =
+              document.find("\"" + std::string(gateName) + "\"");
+          check(entryName != std::string::npos,
+                "the document carries the entry (FR-027)");
+          const auto entryJitter = document.find("\"jitter\"", entryName);
+          check(entryJitter != std::string::npos,
+                "the entry carries its jitter object (FR-027, E-08)");
           const auto objectAt =
               document.find("\"cpu\":" + std::to_string(fold.cpu), entryJitter);
           check(objectAt != std::string::npos,
@@ -992,25 +1024,28 @@ auto main() -> int
   // leaf each and the cpu source they need publishes a limit of one
   // counter, so the auto request settles the passes method and the
   // planner opens one pass per column (E-01, FR-004). Each pass's one
-  // attempt runs the gate body, which restores the one-tick tail the
-  // earlier pass's jump left, scripts its own pass's jump magnitude,
-  // waits for 64 of the probe's reads to ride that tail inside its own
-  // timed window, and restores the one-tick tail again, so the kept set
-  // of each pass's window carries the pass's magnitude alone. The
+  // attempt runs the gate body, which scripts its own pass's jump
+  // magnitude into the shared tsc series' tail, a level that rises
+  // across the passes and never steps back, and waits for the ride
+  // margin the body documents before its window closes, so the kept
+  // set of each pass's window carries the pass's magnitude alone. The
   // fold's minimum equals the first pass's magnitude, its maximum
-  // equals the second pass's, and each magnitude stands in one pass's
-  // window only, so a fold over one pass's windows alone fails either
-  // bound (FR-022, PC-5).
+  // equals the second pass's, and a fold over one pass's windows alone
+  // misses the other pass's kept gaps and fails the bound that
+  // magnitude names (FR-022, PC-5). The gap buffer carries the ride
+  // margins' kept records, the way the kept-buffer scenario sizes its
+  // own (FR-010).
   {
     auto& provider = scriptedProvider();
     provider.setPoints("machine", "tsc", {}, 1);
     passGateCalls() = 0;
     const std::string path = "harness_jitter_window_passsplit.json";
-    captureRun({"--filter=bmPassGate",
-                "--repetitions=1",
-                "--iterations=2",
-                "--json=" + path,
-                "--jitter-probe=" + std::to_string(cpus.at(0))});
+    captureRun(
+        {"--filter=bmPassGate",
+         "--repetitions=1",
+         "--iterations=2",
+         "--json=" + path,
+         "--jitter-probe=" + std::to_string(cpus.at(0)) + ",gaps=8388608"});
     const auto document = readDocument(path);
     std::remove(path.c_str());
     const auto gateName = document.find("\"bmPassGate\"");
