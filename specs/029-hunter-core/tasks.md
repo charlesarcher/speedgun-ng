@@ -1605,3 +1605,97 @@ prose row joins this phase.
       stands at `:1368`. The bound itself is `kMaxUserCounters` at
       `include/speedgun-ng/benchmark.hpp:199`. Read each line before moving its
       number, as every row of this phase does.
+
+## Phase 18: Convergence
+
+- [ ] T217 MEDIUM Retire `SG_CLI_SOURCE` and the `longOptions[]` table from the
+      029 planning docs. Evidence: `source/harness/options.cpp:496` answers
+      `auto optionRows() -> std::span<const OptionRow>` with
+      `std::to_array<OptionRow>({` at `:498`;
+      `test/source/harness_cli_table_test.cpp:1672-1674` reads
+      `detail/options.hpp`, `options.cpp` and `cli.cpp` as three separate texts;
+      `SG_CLI_SOURCE` has zero hits under `source/`, `test/` and `cmake/`, and
+      `longOptions` has zero hits under `source/`. The stale prose stands at
+      `specs/029-hunter-core/plan.md:448`, `plan.md:506`,
+      `specs/029-hunter-core/research.md:518` and
+      `specs/029-hunter-core/merge-notes.md:124`. Remedy: restate each on
+      `detail::optionRows()`. Ledger: `tasks.md:1316-1326` (row T191), which
+      retired the mechanism in the contract and left the planning docs.
+- [ ] T218 LOW Re-anchor the run-then-hunt cite in the hunt CLI test. Evidence:
+      `test/source/harness_hunt_cli_test.cpp:663` says `cli.cpp:736`; that file
+      ends at 702 lines, and the mechanism is
+      `auto result = runner.run(*entry);` at `source/harness/cli.cpp:557` with
+      `hunt::runHuntNamed` at `:569`. Remedy: cite `cli.cpp:557-569`.
+- [ ] T219 LOW Re-anchor the option-table drift cite in the quickstart.
+      Evidence: `specs/029-hunter-core/quickstart.md:284` cites
+      `example_drift.py:681-693` for the option comparison, while `:681` is
+      `if block.region is None or block.sample:` in the snippet scan and the
+      comparison stands at `tools/docs/example_drift.py:724-736`
+      (`table_rows(main_page, "| Option |")` at `:725`). Remedy: cite
+      `example_drift.py:724-736`.
+- [ ] T220 LOW Re-anchor the `/dev/full` refusal cites in the quickstart.
+      Evidence: `quickstart.md:170` cites `source/harness/json_report.cpp:778`,
+      which is the `SG_REQUIRE` on raw-column sizes at `:775-781`; the refusal
+      message stands at `:831`. `quickstart.md:169` cites
+      `test/source/harness_json_report_test.cpp:447`, which is
+      `sg::ReportData data;`, while the pinning check is `:451` inside
+      `aRefusedWriteAnswersFalse` at `:445`. Remedy: cite `json_report.cpp:831`
+      and `harness_json_report_test.cpp:451`.
+- [ ] T221 LOW Re-anchor the missing-`TIMEOUT` cite in the cpuset record.
+      Evidence: `specs/029-hunter-core/results/corsairone-hunt-cpuset.md:99`
+      cites `test/CMakeLists.txt:1131`, which is a comment about the sampling
+      action; the registration is `add_test(NAME harness_hunt_cli_test COMMAND
+      harness_hunt_cli_test)` at `test/CMakeLists.txt:1211` inside the block
+      `:1207-1211`, and no `set_tests_properties` names that test. Remedy: cite
+      `test/CMakeLists.txt:1207-1211`.
+- [ ] T222 LOW Re-anchor the sibling `TIMEOUT` cite in the same record.
+      Evidence: `corsairone-hunt-cpuset.md:101` cites
+      `test/CMakeLists.txt:1308` for the 120 s carried by
+      `report_shape_hunt_rank_sample`; `:1308` is a closing parenthesis and the
+      property stands at `:1374`. Remedy: cite `test/CMakeLists.txt:1374`.
+- [ ] T223 LOW Re-anchor the `rankEvents` guard cite in the all-events record.
+      Evidence: `specs/029-hunter-core/results/corsairone-hunt-all.md:254` puts
+      the guard at `source/harness/hunt_plan.cpp:249`, which is the loop's
+      closing brace; `SG_INVARIANT(!rates.empty() || event.skipped.has_value(),`
+      stands at `:250`, the number `hunt.hpp` and
+      `specs/029-hunter-core/contracts/hunt-api.md:304` already carry, and
+      `tasks.md:801` keeps the old `:249`. Remedy: cite `hunt_plan.cpp:250` in
+      both places, one line each. Ledger: `tasks.md:800-812` (row T162).
+- [ ] T224 LOW Re-anchor the overhead-floor cite in the JSON report test.
+      Evidence: `test/source/harness_json_report_test.cpp:142` cites
+      `source/harness/runner.cpp:1228` for the start of the attempt, and `:1228`
+      is `{ return column.label == name; });` in the metric-column dedup
+      documented at `:1218-1223`; the floor comes from
+      `overheadFloorNs = plan->sampleOverheadNsMedian();` at `:1400`, declared
+      at `:1366`. Remedy: cite `runner.cpp:1398-1400`.
+- [ ] T225 LOW Re-anchor the `addCounter` cite in the pass-collect test.
+      Evidence: `test/source/harness_pass_collect_test.cpp:1342` cites
+      `source/counters/fake_provider.cpp:199-221` for `addCounter`, while
+      `auto FakeProvider::addCounter(` begins at `:213` and `:198-:211` is
+      `setGroupLeafLimit`. Remedy: cite the `addCounter` definition from
+      `fake_provider.cpp:213`.
+- [ ] T226 LOW Re-anchor the fixture-directory cite in the compare-CLI test.
+      Evidence: `test/source/harness_compare_cli_test.cpp:1238` cites the shape
+      of `test/CMakeLists.txt:614`, which is
+      `target_link_libraries(harness_json_schema_test PRIVATE
+      speedgun-ng::harness)` and passes no directory; the registered commands
+      pass `${CMAKE_SOURCE_DIR}/test/data` at `:639` and `:647`. Remedy: cite
+      `test/CMakeLists.txt:646-647`.
+- [ ] T227 LOW Drop the hand-written `parseHuntBudget` declaration and its false
+      precedent in the hunt-plan test. Evidence:
+      `test/source/harness_hunt_plan_test.cpp:69-76` declares
+      `auto parseHuntBudget(const char* text, RunOptions& options) -> void;`
+      inside `namespace sg::detail` on the stated ground that the parse core has
+      no header of its own, and `source/harness/detail/options.hpp:237`
+      declares that same signature among its peers at `:233-240`.
+      `cli.cpp:326`, named as the precedent, sits in the options-file read of
+      `speedgunMain` and declares nothing. Remedy: include `detail/options.hpp`
+      and delete the block at `:73-76`; if that target carries no
+      `source/harness` include path, keep the declaration and correct the
+      comment.
+
+Round ten found no unchecked row whose work already stands in the code, no
+checked row whose work is missing from it, and no gap between
+Principle VIII's gates and the wiring in `.github/workflows/ci.yml`. Every
+remedy above is a within-line substitution or a doc restatement, so the ledger
+keeps its shape.
