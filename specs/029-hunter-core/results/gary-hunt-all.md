@@ -122,6 +122,15 @@ hunt: plan summary events=343/355 passes=89 spend=not available budget=none
 355 events over the same 89 passes is again four hunted events per pass on
 top of the two anchors.
 
+Both `hunt: plan summary` lines of this record, the one above and the one of
+the plan section below, came off the tree of this capture, whose summary line
+carried a `spend` field and whose command-line path handed `runHuntNamed` no
+calibration figure. The field left the summary line when the time source rule
+(D-6) took away the wall-clock figure behind it. `printHuntSkips`
+(`source/harness/report.cpp:857-863`) answers
+`hunt: plan summary events=<ran>/<planned> passes=<p> budget=<text>|none`
+today, and the quoted bytes stand here as captured.
+
 The limit stands published in two places, both of them the plan itself. No
 listing prints a limit for a device wide enough to hold a pass:
 `source/harness/hunt_cli.cpp` reads `Object::programmableCounters()` only to
