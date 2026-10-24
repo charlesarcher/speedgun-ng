@@ -46,10 +46,12 @@ jobs:
 
     runs-on: ubuntu-26.04
 
-    # GCC 14 and 15's libgcov do not merge an exec child's profile
-    # counters into the existing gcda (the family-probe paths read zero
-    # with the suite green, measured 2026-10-24 on both); g++-16 merges
-    # them, so the capture pins the compiler.
+    # GCC 14, 15, and the pre-release GCC 16 snapshot the 26.04 image
+    # packages all fail to merge an exec child's profile counters into
+    # the existing gcda (the family-probe paths read zero with the
+    # suite green, measured 2026-10-24); the toolchain PPA carries the
+    # GCC 16 release whose libgcov merges them, so the capture sources
+    # g++-16 there.
     env: { CXX: g++-16 }
 
     # To enable coverage, delete the last line from the conditional below and
@@ -62,8 +64,9 @@ jobs:
     - uses: actions/checkout@v4
       with: { submodules: true }
 
-    - name: Install LCov
-      run: sudo apt-get update -q
+    - name: Install LCov and the coverage compiler
+      run: sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+        && sudo apt-get update -q
         && sudo apt-get install lcov doxygen python3-yaml autoconf automake libtool patch g++-16 -q -y
 
     - name: Configure
