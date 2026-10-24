@@ -10,7 +10,7 @@
 // layout once and the functions take it as a parameter, so no scenario
 // re-reads the host.
 //
-// The installed layout is quickstart.md's thrawn shape: 4 L3 groups, 24
+// The installed layout is quickstart.md's acceptance shape: 4 L3 groups, 24
 // cores, 48 threads, two siblings per core, where cpu n and cpu n + 24
 // share one core and group n / 6 holds the cores 6n through 6n + 5. The
 // `l3` plan over it names cpus 0, 6, 12 and 18, one lowest cpu per group.
@@ -75,10 +75,10 @@ auto check(const bool cond, const char* what) -> void
   }
 }
 
-// quickstart.md's thrawn shape: 4 L3 groups, 24 cores, 48 threads, two
+// quickstart.md's acceptance shape: 4 L3 groups, 24 cores, 48 threads, two
 // siblings per core; cpu n and cpu n + 24 share one core, and group n / 6
 // holds the cores 6n through 6n + 5 (FR-020, PC-2).
-auto installThrawnShape() -> void
+auto installAcceptanceShape() -> void
 {
   sg::detail::MachineLayout installed;
   installed.readable = true;
@@ -186,7 +186,7 @@ auto main(const int argc, char** argv) -> int
     return 0;
   }
 
-  installThrawnShape();
+  installAcceptanceShape();
   const auto& machine = sg::detail::layout();
 
   // FR-016, D-4, R-07: the `l3` plan names cpus 0, 6, 12 and 18, and the

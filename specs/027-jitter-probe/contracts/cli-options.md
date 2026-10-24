@@ -13,8 +13,8 @@ the parse point, the error surface, and the `--json-raw` extension
 
 The option takes no short letter (FR-011): every short value of master
 and of the two merged lanes names its own option. Its value stands
-at 256 or above, held as the named constant `kOptJitterProbe` in the
-option table (`source/harness/cli.cpp`), and one test asserts every
+held as the named constant `kJitterProbeOptionValue` in
+`source/harness/detail/options.hpp`, and one test asserts every
 value in the option table is unique (FR-011).
 
 ## Value grammar

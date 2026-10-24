@@ -1,7 +1,7 @@
-# thrawn acceptance run: jitter probe (specs/027-jitter-probe)
+# acceptance run: jitter probe (specs/027-jitter-probe)
 
 Run id: 20261022T025849Z
-Script: tools/noise/jitter_probe_thrawn.sh (FR-042, FR-043, SC-008)
+Script: tools/noise/jitter_probe_acceptance.sh (FR-042, FR-043, SC-008)
 
 ## Host state
 
@@ -57,7 +57,7 @@ requested context.
 ## N4 preset none
 
 ```sh
-/home/archerc/code/speedgun-ng/build/example/docs_threads --placement=none --filter=bmSharded 
+build/example/docs_threads --placement=none --filter=bmSharded 
 ```
 
 Exit status: 0
@@ -71,7 +71,7 @@ bmSharded/threads:4      iterations=2937971336  real time/iter (ns)=    0.244  c
 ## N4 preset core
 
 ```sh
-/home/archerc/code/speedgun-ng/build/example/docs_threads --placement=core --filter=bmSharded 
+build/example/docs_threads --placement=core --filter=bmSharded 
 ```
 
 Exit status: 0
@@ -86,7 +86,7 @@ bmSharded/threads:4      iterations=1667744256  real time/iter (ns)=    0.376  c
 ## N4 preset l3
 
 ```sh
-/home/archerc/code/speedgun-ng/build/example/docs_threads --placement=l3 --filter=bmSharded 
+build/example/docs_threads --placement=l3 --filter=bmSharded 
 ```
 
 Exit status: 0
@@ -101,7 +101,7 @@ bmSharded/threads:4      iterations=2381004436  real time/iter (ns)=    0.317  c
 ## N4 preset smt
 
 ```sh
-/home/archerc/code/speedgun-ng/build/example/docs_threads --placement=smt --filter=bmSharded 
+build/example/docs_threads --placement=smt --filter=bmSharded 
 ```
 
 Exit status: 2
@@ -113,7 +113,7 @@ Exit status: 2
 ## N4 preset compact
 
 ```sh
-/home/archerc/code/speedgun-ng/build/example/docs_threads --placement=compact --filter=bmSharded 
+build/example/docs_threads --placement=compact --filter=bmSharded 
 ```
 
 Exit status: 0
@@ -133,7 +133,7 @@ lowest free cpu of each group the plans touch.
 ## N13-V idle one probe per L3 group
 
 ```sh
-/home/archerc/code/speedgun-ng/build/example/docs_threads --placement=l3 --filter=bmSharded --jitter-probe=idle 
+build/example/docs_threads --placement=l3 --filter=bmSharded --jitter-probe=idle 
 ```
 
 Exit status: 0
@@ -177,7 +177,7 @@ benchmark runs (FR-018, D-3).
 ## N13-V overlap error on a planned cpu
 
 ```sh
-/home/archerc/code/speedgun-ng/build/example/docs_threads --placement=l3 --filter=bmSharded --jitter-probe=0 
+build/example/docs_threads --placement=l3 --filter=bmSharded --jitter-probe=0 
 ```
 
 Exit status: 2
@@ -201,7 +201,7 @@ with probe:    1.201 s
 ## N13-V full report with the probe
 
 ```sh
-/home/archerc/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --jitter-probe=2 
+build/example/benchmark_example --filter=bmTouch --jitter-probe=2 
 ```
 
 Exit status: 0

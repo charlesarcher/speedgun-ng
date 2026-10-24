@@ -11,11 +11,11 @@ specify invocation record:
 
 "Built-in jitter probe, item N13a of the roadmap
 `/workspace/speedgun-ng-harness-roadmap.md` (section 10). Short name:
-jitter-probe. Target machine: thrawn (Threadripper 9960X, Zen 5, 24
+jitter-probe. Target machine: the acceptance host (Threadripper 9960X, Zen 5, 24
 cores, 48 threads, one socket, several CCDs with one L3 each, 128 GB).
 Lane: placement and noise (N4 done, N13a now, then N13b, N12, N13e). It
-runs in parallel with the N5 fixes (gary, PR #45) and the N6 fixes
-(corsairone, PR #44). Goal: every benchmark or test binary built with
+runs in parallel with the N5 fixes (PR #45) and the N6 fixes
+(PR #44). Goal: every benchmark or test binary built with
 speedgun can deploy a jitter-probe execution context. It is a built-in
 harness capability. A spinning context, pinned through the N4 placement
 on chosen cpus, reads the time-stamp counter in a tight loop and records
@@ -372,7 +372,7 @@ features the roadmap orders before them.
 
 ### User Story 1 - Deploy a probe alongside a run (Priority: P1)
 
-An engineer runs a benchmark suite on thrawn and suspects the host adds
+An engineer runs a benchmark suite on the acceptance host and suspects the host adds
 noise the benchmark numbers absorb. The engineer adds
 `--jitter-probe=idle` to the standard command line. The harness pins
 one spinning context per L3 group the plans leave free, runs the probe
@@ -760,8 +760,8 @@ that never prints.
 
 ### Acceptance runs (C-9)
 
-- **FR-042**: `tools/noise/jitter_probe_thrawn.sh`, a script and not a
-  CI gate, shall run on thrawn: N4-V, each N4 preset with `--threads`
+- **FR-042**: `tools/noise/jitter_probe_acceptance.sh`, a script and not a
+  CI gate, shall run on the acceptance host: N4-V, each N4 preset with `--threads`
   at 24 and at 48, printing the planned cpus and the L3 group of each;
   N13-V, `--jitter-probe=idle` with one probe per L3 group, the
   overlap error on a planned cpu, and the benchmark time with and
@@ -815,7 +815,7 @@ that never prints.
   sanitize jobs pass.
 - **SC-007** (AC-7): the README section stays at 25 lines or fewer, the
   example runs in CI, and the drift gate passes.
-- **SC-008** (AC-8): the thrawn acceptance results of FR-042 and
+- **SC-008** (AC-8): the acceptance results of FR-042 and
   FR-043 are recorded under `specs/027-jitter-probe/results/`.
 
 ## Constraints

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# The thrawn acceptance script of specs/027-jitter-probe (FR-042, FR-043).
+# The acceptance script of specs/027-jitter-probe (FR-042, FR-043).
 # It runs the N4 preset placement check, the N13-V probes, and it records
 # the host state the results need. It is a script and never a CI gate:
-# thrawn is the only host it runs on, and CI never invokes it (SC-008).
+# the acceptance host is the only host it runs on, and CI never invokes it (SC-008).
 #
 # FR-042 (amended 2026-10-23) names each N4 preset at the context
 # counts the registered benchmark families carry. The CLI of this tree
@@ -26,7 +26,7 @@ OUT="$ROOT/specs/027-jitter-probe/results"
 
 STAMP="$(date +%F)"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
-RECORD="$OUT/thrawn-acceptance-$STAMP.md"
+RECORD="$OUT/acceptance-$STAMP.md"
 
 mkdir -p "$OUT"
 
@@ -56,10 +56,10 @@ run() {
 : > "$RECORD"
 
 cat >> "$RECORD" <<EOF
-# thrawn acceptance run: jitter probe (specs/027-jitter-probe)
+# acceptance run: jitter probe (specs/027-jitter-probe)
 
 Run id: $RUN_ID
-Script: tools/noise/jitter_probe_thrawn.sh (FR-042, FR-043, SC-008)
+Script: tools/noise/jitter_probe_acceptance.sh (FR-042, FR-043, SC-008)
 
 ## Host state
 
