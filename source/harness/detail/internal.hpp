@@ -645,15 +645,27 @@ private:
 auto installTestLayout(std::optional<MachineLayout>) -> void;
 
 /// @brief Install (or clear, with an empty optional) the online cpu
-/// count the value grammar's count bound reads in place of the count
-/// the threads report, the way `installTestLayout` stands in for the
-/// layout read (FR-041, Q-5).
+/// count a caller reads in place of the count the threads report, the
+/// way `installTestLayout` stands in for the layout read (FR-041, Q-5).
 auto installTestOnlineCount(std::optional<std::uint64_t>) -> void;
 
-/// @brief The online cpu count the value grammar's count bound reads:
-/// the installed count when one stands, the count the threads report
-/// otherwise (FR-041).
+/// @brief The online cpu count a caller reads: the installed count when
+/// one stands, the count the threads report otherwise (FR-041).
 [[nodiscard]] auto onlineCpuCount() -> std::uint64_t;
+
+/// @brief Install (or clear, with an empty optional) the online cpu set
+/// the placement bound and the option value grammar read, in place of
+/// the list the kernel owns, the way `installTestLayout` stands in for
+/// the layout read (FR-005, FR-041, Q-5).
+auto installTestOnlineCpus(std::optional<std::vector<std::uint32_t>>) -> void;
+
+/// @brief The online cpu set the placement bound and the option value
+/// grammar read: the installed set when one stands, the list
+/// `/sys/devices/system/cpu/online` carries otherwise, and the indices
+/// the online count counts where that list stands unreadable. The set
+/// is consulted at each call, so an install decides the call that
+/// follows it (FR-005, FR-041).
+[[nodiscard]] auto onlineCpuSet() -> std::vector<std::uint32_t>;
 
 /// @brief Install a synthetic description the read hands to
 /// `hwloc_topology_set_synthetic`; an empty optional clears it
