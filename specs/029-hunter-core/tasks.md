@@ -1456,3 +1456,12 @@ number counts here: the lcov capture lane in this checkout fails, so the CI
       `:2291`, `:2318`, `:2325`, `:2595` and `:2640`, where the last two are the
       `else if` arms of a ledger that carries marks without pass results
       (FR-091).
+- [ ] T209 Re-anchor the citations that `specs/026-regression-gate` carries into
+      `source/harness/json_load.cpp`. `contracts/reader-extension.md:7` and
+      `plan.md:236` name `:1117` to `:1128`, where the noise record now stands
+      at `:1119` to `:1130`; `plan.md:236` also names `:729` to `:743` and
+      `:1067`; `contracts/compare-document.md:61` puts `checkReport` at `:1083`
+      where it is defined at `:1529`. Two of those ranges moved with the shape
+      change under T204 and the rest were stale before it, so each anchor is
+      fixed by measurement against the head. An offset applied to a stale
+      anchor carries the wrong number forward.
