@@ -1638,9 +1638,12 @@ auto applySourceValue(const OptionRow& row,
       if (!parseJitterProbeValue(text, parsed, message)) {
         return refuse(option + ": " + message);
       }
-      if (options.jitterProbeText.has_value() && prior != kSameSourceSettled) {
-        // The command line named the option, so the line sets nothing
-        // and discloses nothing (FR-037, FR-038).
+      // The command line's own text is the only source that fills
+      // `jitterProbeText`, and a row that settles this value clears it
+      // below, so a text standing held here names a command-line value:
+      // the line sets nothing and discloses nothing, and no second test
+      // is needed to say so (FR-037, FR-038).
+      if (options.jitterProbeText.has_value()) {
         return false;
       }
       options.jitterProbe = std::move(parsed);
