@@ -6,7 +6,7 @@
 // contracts/page-and-examples.md).
 //
 // The contract fixes 27 rows in one order, plus the one row this feature
-// adds at 297. The 20 rows master carries keep
+// adds at 260. The 20 rows master carries keep
 // their spelling, their argument kind and their internal value, and the
 // seven new names take the constants 290 to 296 that spec D-24 reserves.
 // The expected rows stand here as literals, the master name to value
@@ -60,7 +60,7 @@
 //                                  `options`, `env`, `threads`,
 //                                  `interleave`, `compare-rules`, `help`
 //                                  and `version` at 290 to 296, and
-//                                  `jitter-probe` at 297 (FR-004)
+//                                  `jitter-probe` at 260 (FR-004)
 //   noNameAndNoValueRepeat         uniqueness over the whole table
 //                                  (FR-004, SC-001)
 //   theValueBlocksStayUniqueAndDisjoint
@@ -212,7 +212,7 @@ constexpr std::array<ExpectedRow, 28> kContract = {{
     {"compare-rules", kRequired, 294},
     {"help", kNoArgument, 295},
     {"version", kNoArgument, 296},
-    {"jitter-probe", kRequired, 297},
+    {"jitter-probe", kRequired, 260},
 }};
 
 // The rows master carries today; the seven rows after them are the ones
@@ -221,13 +221,13 @@ constexpr std::size_t kMasterRows = 20;
 
 // The bounds of the two value blocks: the constants the harness carried
 // before this feature, and the constants spec D-24 reserves for the
-// seven new names with 297 to 319 left free for the lanes that follow
+// seven new names with 298 to 319 left free for the lanes that follow
 // (FR-004, FR-079).
 constexpr int kCarriedLow = 256;
 constexpr int kCarriedHigh = 259;
 constexpr int kReservedLow = 290;
 constexpr int kReservedHigh = 296;
-constexpr int kJitterProbeValue = 297;
+constexpr int kJitterProbeValue = 260;
 
 // The master name to value mapping of FR-013: the sixteen letters and the
 // four carried constants of those 20 rows, spelled out here as a table of
@@ -712,9 +712,18 @@ auto theSevenNewNamesTakeTheReservedConstants(const std::vector<Row>& rows)
       continue;
     }
     if (found->value < 290 || found->value > 319) {
-      report(label.c_str(),
-             "a value inside 290 to 319",
-             std::to_string(found->value));
+      // The jitter row's lane block holds 260 to 269; the rows the
+      // command-line lane brings hold 290 to 319 (FR-004).
+      const bool jitterRow = std::string_view(expected.name) == "jitter-probe";
+      const bool inside = jitterRow
+          ? (found->value >= 260 && found->value <= 269)
+          : (found->value >= 290 && found->value <= 319);
+      if (!inside) {
+        report(label.c_str(),
+               jitterRow ? "a value inside 260 to 269"
+                         : "a value inside 290 to 319",
+               std::to_string(found->value));
+      }
     }
   }
 }
@@ -775,7 +784,7 @@ auto inMasterBlock(const int value) -> bool
 
 // The value block of the 7 rows the command-line lane brings: the
 // constants 290 to 296 that spec D-24 reserves, plus the one row this
-// feature brings at 297 (FR-004).
+// feature brings at 260 (FR-004).
 auto inNewBlock(const int value) -> bool
 {
   return (value >= kReservedLow && value <= kReservedHigh)
@@ -810,7 +819,7 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
           + "' answers inside its block (FR-004, FR-079)";
       report(label.c_str(),
              master ? "a letter or a constant from 256 to 259"
-                    : "a constant from 290 to 297",
+                    : "a constant from 290 to 296, or the lane block's 260",
              valueWord(row.value));
     }
     if (master) {

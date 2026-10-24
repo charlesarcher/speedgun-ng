@@ -69,13 +69,14 @@ enum class StopKind
 // with no letter of its own takes a number of 256 or more, so it cannot
 // collide with a short option, and no option a later feature adds can
 // reach a switch arm by claiming a letter. The four carried values keep
-// the options master gives them, the seven names this feature brings take
-// 290 to 296, the name the jitter probe brings takes 297, and 298 to 319
-// stay free (FR-001, FR-004, FR-005, D-24).
+// the options master gives them, the jitter probe's lane block holds
+// 260 to 269, the seven names the command-line lane brings take
+// 290 to 296, and 298 to 319 stay free (FR-001, FR-004, FR-005, D-24).
 inline constexpr int kMetricMethodOption = 256;
 inline constexpr int kCompareOptionValue = 257;
 inline constexpr int kCompareRuleOptionValue = 258;
 inline constexpr int kCompareStrictOptionValue = 259;
+inline constexpr int kJitterProbeOptionValue = 260;
 inline constexpr int kOptionsOptionValue = 290;
 inline constexpr int kEnvOptionValue = 291;
 inline constexpr int kThreadsOptionValue = 292;
@@ -83,7 +84,6 @@ inline constexpr int kInterleaveOptionValue = 293;
 inline constexpr int kCompareRulesOptionValue = 294;
 inline constexpr int kHelpOptionValue = 295;
 inline constexpr int kVersionOptionValue = 296;
-inline constexpr int kJitterProbeOptionValue = 297;
 
 /**
  * @brief One row of the one option table (E-01, FR-001).
