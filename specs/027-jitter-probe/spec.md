@@ -645,6 +645,15 @@ that never prints.
   layout, and shall change no preset rule. Tests shall take synthetic
   layouts from the N4 seams in `source/harness/detail/internal.hpp`
   (PC-2).
+- **FR-044**: The host bound of a cpu index named for a placement shall
+  stand in the online cpu set: the set the kernel owns, gaps and all,
+  read at each call through the one seam the topology owns. A cpu the
+  set holds shall pass that bound although the process affinity mask
+  lacks it; an index the set gaps, and an index above the highest the
+  set holds, shall end the process at the construction call. The process
+  affinity mask keeps its separate rule for a cpu a `--jitter-probe`
+  value names, and the same set bounds that value (specs/020 FR-005,
+  FR-011).
 
 ### Window split (C-4)
 
@@ -753,7 +762,7 @@ that never prints.
   runs with no real noise, no sleep, and no clock.
 - **FR-040**: No test shall hold a fixed cpu number or a host-size
   assumption. Cpus shall come from `sched_getaffinity`, each cpu shall
-  stand below the online count, the tests shall pass on a 4-cpu CI
+  stand in the online cpu set, the tests shall pass on a 4-cpu CI
   runner and on a 2-cpu host, and no test shall skip. The host check in
   `source/harness/execution_context.cpp` shall not weaken.
 - **FR-041**: The probe-loop test shall write its own file-local

@@ -69,7 +69,7 @@ and exits with status 2, before the first run starts (FR-038, SC-002):
 | Case | The line names | Status |
 | --- | --- | --- |
 | A cpu token outside the list grammar, or a cpu outside the process affinity mask | the token | 2 |
-| A cpu token the mask holds whose index stands at or above the online cpu count | the token | 2 |
+| A cpu token the online cpu set does not hold | the token | 2 |
 | A head that names no cpu list and no `idle` | the head | 2 |
 | `threshold=0`, a negative value, a value that is not a number | the value | 2 |
 | A mode word outside the three | the word | 2 |
