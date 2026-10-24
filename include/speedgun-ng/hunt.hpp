@@ -545,7 +545,7 @@ struct RunHunt
  * \pre each address stands at most once in `collected`, and `options`
  *      holds the settled values of one run, so `top` stands above zero
  *      and `noise` above `0.0` in the range its own option states
- *      (`hunt_plan.cpp:220`); every address with no `skipped` kind
+ *      (`hunt_plan.cpp:221`); every address with no `skipped` kind
  *      holds at least one sample that is free of a disclosure and
  *      yields a rate under the norm `options.norm` names (`instr` when
  *      it is unset), which needs `anchorInstr` present above zero for
@@ -553,7 +553,7 @@ struct RunHunt
  *      `iterations` above zero for `iter`: a denominator absent or at
  *      zero answers no rate for that pass, so an address that breaches
  *      this empties the rate list the guard at `statistics.cpp:23-25`
- *      protects, and the invariant at `hunt_plan.cpp:249` ends the
+ *      protects, and the invariant at `hunt_plan.cpp:250` ends the
  *      process over it (AC-10); `method` is the method the plan that
  *      produced `collected` settled, `std::nullopt` for samples no plan
  *      produced; an address with exactly one such sample is reported
