@@ -160,6 +160,13 @@ one line naming the value and exit 2. No estimate prints
    ctest --test-dir build -R 'harness_json' -V
    ```
 
+   The second pattern's suite asks for a report at `/dev/full`, so a run
+   that reports success prints
+   `error: the report file '/dev/full' could not be written: No space left
+   on device` from a passing case: the refusal
+   `test/source/harness_json_report_test.cpp:447` pins and
+   `source/harness/json_report.cpp:778` writes (specs/023 FR-030).
+
 2. Read the expectations those two suites state for a hunt document.
 
    Expected: a hunt document carries the top-level `hunt` object after
