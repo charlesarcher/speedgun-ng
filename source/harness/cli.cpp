@@ -1149,7 +1149,8 @@ auto speedgunMain(int argc, char** argv) -> int
         }
       }
       return true;
-    };    for (std::size_t index = 0; index < selected.size(); ++index) {
+    };
+    for (std::size_t index = 0; index < selected.size(); ++index) {
       const auto& row = held[index];
       if (!row.has_value()) {
         continue;
