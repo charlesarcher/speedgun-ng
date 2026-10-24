@@ -1532,7 +1532,14 @@ auto applySourceValue(const OptionRow& row,
       // The display flag is what marks this row settled: the scan's
       // `--percentiles` arm and this arm both set it when they fill the
       // points, so the points carry no fact the flag does not (FR-025).
-      std::vector<double> points = options.percentilePoints;
+      // The cap of sixteen points counts the points of the source that
+      // settles the row: a list a higher source drops is never joined to the
+      // points that source holds, so two lists that each stand within the cap
+      // cannot fault together, while the points of one source keep
+      // accumulating over its own earlier lines (FR-022, FR-035, FR-038).
+      std::vector<double> points = prior == kSameSourceSettled
+          ? options.percentilePoints
+          : std::vector<double> {};
       for (const std::string_view item : sourceItems(text, source)) {
         const std::string itemText(item);
         const auto read =
