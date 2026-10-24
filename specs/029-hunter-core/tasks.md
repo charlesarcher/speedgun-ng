@@ -1461,7 +1461,7 @@ number counts here: the lcov capture lane in this checkout fails, so the CI
       of `:2291` and `:2318` became the named tests at `:2290` and
       `:2293` and the calls at `:2336` and `:2337`; the guard of `:2325`
       and the `else if` ledger arms at `:2595` and `:2640` became the
-      contracts at `:2332`, `:2607` and `:2650`, which
+      contracts at `:2331`, `:2607` and `:2650`, which
       `cmake/coverage.cmake:84` omits (FR-091).
 - [ ] T209 Re-anchor the citations that `specs/026-regression-gate` carries into
       `source/harness/json_load.cpp`. `contracts/reader-extension.md:7` and

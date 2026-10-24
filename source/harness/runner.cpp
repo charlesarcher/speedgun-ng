@@ -2473,10 +2473,10 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
           // The loop above skipped every column whose label is an anchor of
           // any column, and the two anchors of one column are two distinct
           // addresses, so a matched index cannot already stand in `single`
-          // (specs/029 D-18).
-          [[maybe_unused]] const bool fresh =
-              std::find(single.begin(), single.end(), index) == single.end();
-          SG_ASSERT(fresh, "one retry pass opens each anchor column once");
+          // twice (specs/029 D-18). The ignore build drops SG_* bodies, so a
+          // local read only by the contract call would be unused there.
+          SG_ASSERT(std::ranges::find(single, index) == single.end(),
+                    "one retry pass opens each anchor column once");
           single.push_back(index);
         }
       };
