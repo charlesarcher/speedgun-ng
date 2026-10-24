@@ -867,7 +867,9 @@ and run the example through `example_run`.
   value on `;` into one entry per item (D-6).
 - **FR-025**: A flag read from the environment shall accept `1`, `0`,
   `true` and `false`, and any other text shall print one line naming the
-  variable and its value and answer status 2 (D-6).
+  variable and its value and answer status 2. A variable of any row whose
+  value stands empty shall answer that one line ahead of the row's own
+  reader, and the line shall name the variable (D-6).
 - **FR-026**: A variable that starts with `SPEEDGUN_` and matches no row
   marked with the environment flag shall be ignored (D-6).
 - **FR-027**: An environment value that the option's own reader rejects
