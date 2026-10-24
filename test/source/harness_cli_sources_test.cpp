@@ -552,8 +552,8 @@ constexpr NameCase kFlagged[] = {
     {"interleave", "7"},
 };
 
-// The fifteen rows FR-021 clears: the mode options, the output options and
-// the options another lane owns.
+// The fifteen rows FR-021 clears: the rows that carry no environment
+// name.
 constexpr NameCase kUnflagged[] = {
     {"list", "1"},
     {"catalog", "1"},
