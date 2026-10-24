@@ -40,12 +40,14 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <set>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -657,7 +659,15 @@ auto runChildScenario(const char* mode,
       std::string("harness_jitter_cli_") + mode + "-out.txt";
   const std::string errPath =
       std::string("harness_jitter_cli_") + mode + "-err.txt";
-
+  // A fork child dumps its own-run counters at exit through the same
+  // shared-gcda merge the runner loses; the exec child's relocation
+  // applies here too, so the child writes its tree behind the parent's
+  // back and the capture folds every tree in with gcov-tool merge.
+  char tree[] = "/tmp/sgcov-XXXXXX";
+  const bool dumping = mkdtemp(tree) != nullptr;
+  if (dumping) {
+    (void)setenv("GCOV_PREFIX", tree, 1);
+  }
   const pid_t pid = fork();
   if (pid < 0) {
     fail("cannot fork the child");
@@ -683,6 +693,9 @@ auto runChildScenario(const char* mode,
     std::fflush(stderr);
     std::exit(status);
   }
+  if (dumping) {
+    (void)unsetenv("GCOV_PREFIX");
+  }
   int waitStatus = 0;
   if (waitpid(pid, &waitStatus, 0) < 0) {
     fail("cannot wait for the child");
@@ -705,6 +718,19 @@ auto runExecChild(const char* mode, const char* tag) -> Captured
       std::string("harness_jitter_cli_") + tag + "-out.txt";
   const std::string errPath =
       std::string("harness_jitter_cli_") + tag + "-err.txt";
+  // An instrumented exec child dumps its profile counters into its
+  // own tree (GCOV_PREFIX, the cross-profiling relocation the gcc
+  // manual documents), because the merge into the shared gcda one
+  // tree loses the child's counters on some runners; the capture
+  // step folds the trees back in with gcov-tool merge and removes
+  // them afterwards. The prefix matters only to a child that runs
+  // instrumented code, so the parent clears it right after the
+  // fork and leaves the tree behind for the capture step.
+  char tree[] = "/tmp/sgcov-XXXXXX";
+  const bool dumping = mkdtemp(tree) != nullptr;
+  if (dumping) {
+    (void)setenv("GCOV_PREFIX", tree, 1);
+  }
   const pid_t pid = fork();
   if (pid < 0) {
     fail("cannot fork the exec child");
@@ -715,6 +741,9 @@ auto runExecChild(const char* mode, const char* tag) -> Captured
                               nullptr};
     (void)execv("/proc/self/exe", execArgv);
     _exit(3);
+  }
+  if (dumping) {
+    (void)unsetenv("GCOV_PREFIX");
   }
   int waitStatus = 0;
   if (waitpid(pid, &waitStatus, 0) < 0) {
