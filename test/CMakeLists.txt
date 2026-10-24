@@ -682,7 +682,8 @@ add_executable(harness_cli_sources_test source/harness_cli_sources_test.cpp)
 target_link_libraries(harness_cli_sources_test PRIVATE speedgun-ng::harness)
 target_include_directories(harness_cli_sources_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
 target_compile_features(harness_cli_sources_test PRIVATE cxx_std_23)
-add_test(NAME harness_cli_sources_test COMMAND harness_cli_sources_test)
+add_test(NAME harness_cli_sources_test
+         COMMAND harness_cli_sources_test ${CMAKE_SOURCE_DIR}/test/data)
 
 # The thread list of `--threads` read as a comma-separated sequence of
 # items: a single count, a `min:max` range expanded through
