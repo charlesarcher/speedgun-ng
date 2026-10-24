@@ -1244,6 +1244,132 @@ auto estimateWithoutCalibration() -> void
         "a zero calibration figure prices no seconds budget, so stage 2 goes");
 }
 
+// ---------------------------------------------------------------------------
+// The window whose published anchor reads zero (E-05, PD-14)
+// ---------------------------------------------------------------------------
+
+// A window that disclosed nothing and whose instruction anchor is published
+// and reads zero divides by nothing: `rateOf` answers no rate for it, so the
+// window joins neither the median nor the spread and the column of two such
+// windows is reported from the one window that divided - one sample, which is
+// no repetition, so the column stands out of the rank (PD-14).
+auto anchorZeroWindowUnrated() -> void
+{
+  auto options = sg::hunt::HuntOptions {};
+  options.norm = sg::hunt::HuntNorm::INSTR;
+
+  const auto rated = sg::hunt::HuntSample {
+      .pass = 0,
+      .stage = 1,
+      .eventValue = 500,
+      .anchorInstr = std::uint64_t {4'000},
+      .anchorCycle = std::uint64_t {2'000},
+      .iterations = 10,
+      .disclosure = std::nullopt,
+  };
+  const auto zeroAnchor = sg::hunt::HuntSample {
+      .pass = 1,
+      .stage = 1,
+      .eventValue = 900,
+      .anchorInstr = std::uint64_t {0},
+      .anchorCycle = std::uint64_t {2'000},
+      .iterations = 10,
+      .disclosure = std::nullopt,
+  };
+  const auto ranked =
+      sg::hunt::rankEvents({sg::hunt::EventSamples {
+                               .address = sg::test::huntAddress(
+                                   sg::test::kHuntCpu, sg::test::huntEvent(0)),
+                               .samples = {rated, zeroAnchor},
+                               .skipped = std::nullopt,
+                           }},
+                           options,
+                           sg::MetricMethod::PASSES);
+
+  check(ranked.entries.size() == 1, "one address answers one row of the table");
+  check(ranked.entries.front().samples == 1,
+        "the window whose published instruction anchor reads zero contributes "
+        "no rate, so the column reports the one window that divided");
+  check(!ranked.entries.front().rank.has_value(),
+        "one sample is no repetition, so the column stands out of the rank "
+        "with a figure in hand (PD-14)");
+  check(ranked.entries.front().rate > 0.0,
+        "the figure of the row is the rate of the window that divided");
+}
+
+// ---------------------------------------------------------------------------
+// The anchor pair of one device that publishes only one of it (I-1)
+// ---------------------------------------------------------------------------
+
+// The all-or-none rule of I-1 keeps a one-sided anchor pair out of every
+// scripted host, so the pair is handed to the planner at the seam it already
+// takes: the device publishes its cycles anchor and withholds its instructions
+// anchor. The column carries one anchor of the pair, the plan claims no anchor
+// leaf and normalizes by iterations, and the column loop runs for a second
+// column of the device that owns neither anchor.
+auto oneSidedAnchorPair() -> void
+{
+  check(registerHuntHost(), "the scripted hunt host registered");
+  auto anchors = sg::test::huntAnchors();
+  anchors[deviceIndex(sg::test::kHuntCpu)].second.clear();
+  const auto events = std::vector<sg::hunt::CatalogAddress> {
+      eventOn(sg::test::kHuntCpu, 0),
+      eventOn(sg::test::kHuntUncore, sg::test::kHuntEvents),
+  };
+  const auto options = sg::hunt::HuntOptions {};
+
+  const auto plan = sg::hunt::planHunt(events,
+                                       sg::test::huntLimits(kAcOneLimit),
+                                       anchors,
+                                       options,
+                                       kCalibrationNsPerPass);
+  check(plan.has_value(),
+        "a device that publishes one anchor of the pair plans");
+  check(plan->columns.size() == 2, "one column per event, over both devices");
+  check(!plan->columns.front().cycles.empty()
+            && plan->columns.front().instructions.empty(),
+        "the column of the one-sided device carries the anchor it publishes "
+        "and none of the anchor it withholds");
+  check(!plan->normalized,
+        "a plan whose column lacks one anchor of the pair normalizes by "
+        "iterations, not by the anchor that stands");
+  check(plan->anchorsPerPass == 0,
+        "no anchor leaf rides a plan whose anchor pair is one-sided");
+}
+
+// ---------------------------------------------------------------------------
+// The seconds budget whose nanoseconds leave the count (FR-012, FR-013)
+// ---------------------------------------------------------------------------
+
+// One second past the largest count of seconds whose nanoseconds still stand
+// in `std::uint64_t`: `18'446'744'073 x 1'000'000'000` is the widest product
+// the range holds, so the conversion `allowedPasses` makes leaves it here and
+// no pass is priced, the same empty answer an absent calibration figure gives.
+auto budgetSecondsOverflow() -> void
+{
+  constexpr std::uint64_t kOverflowSeconds = 18'446'744'074ULL;
+  const auto events = acSevenColumns();
+  const auto limits = sg::test::huntLimits(kAcOneLimit);
+  const auto anchors = sg::test::huntAnchors();
+  const auto options =
+      budgetOptions(secondsBudget(kOverflowSeconds), kAcSevenTop);
+
+  const auto plan = sg::hunt::planHunt(
+      events, limits, anchors, options, kCalibrationNsPerPass);
+  check(plan.has_value(), "a budget too wide to price still plans");
+  check(plan->stages.size() == 1,
+        "a seconds budget whose nanoseconds leave the count prices no pass, so "
+        "stage 2 goes the way it goes for an unpriced budget");
+
+  const auto split =
+      sg::detail::splitStages(*plan, options, kCalibrationNsPerPass);
+  check(split.stages.size() == 1
+            && split.stages.front().columns.size() == sg::test::kHuntEvents,
+        "the unpriceable budget leaves stage 1 whole at the full width");
+  check(split.cutStage2 && split.cutReason == "over-budget",
+        "the overflowed budget carries the reason the cut line prints");
+}
+
 // The scenarios of this file: what CTest runs with no argument, and what
 // `argv[1]` selects from.
 [[nodiscard]] auto scenarios() -> const std::vector<Scenario>&
@@ -1276,6 +1402,9 @@ auto estimateWithoutCalibration() -> void
       Scenario {"stage-one-never-shrinks", stageOneNeverShrinks},
       Scenario {"estimate-stage-one-figures", estimateStageOneFigures},
       Scenario {"estimate-no-calibration", estimateWithoutCalibration},
+      Scenario {"anchor-zero-window-unrated", anchorZeroWindowUnrated},
+      Scenario {"one-sided-anchor-pair", oneSidedAnchorPair},
+      Scenario {"budget-seconds-overflow", budgetSecondsOverflow},
   };
   return kList;
 }

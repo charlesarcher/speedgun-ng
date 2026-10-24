@@ -886,6 +886,59 @@ auto scenarioHuntNoneSilence() -> void
   std::printf("hunt-none-silence: ok\n");
 }
 
+// ---------------------------------------------------------------------------
+// The result that carries a hunt and no run record (PD-10, E-08)
+// ---------------------------------------------------------------------------
+
+// The mixed reading of the one guard that opens the hunt block: the result
+// carries the hunt its run measured, while the run-level record of that hunt
+// did not travel with it, so nothing of the hunt prints - neither the plan
+// line above the first row nor the lines that rank behind it - and the row of
+// the benchmark prints its figures. The same record printed beside its run
+// record is the witness that the silence is the missing record and not an
+// empty hunt (PD-10, E-08, I-8).
+auto scenarioPlanLineAbsentRun() -> void
+{
+  auto row = sg::ResultRow {};
+  auto result = sg::BenchmarkResult {};
+  result.name = kCaseName;
+  result.rows = {row};
+  auto table = sg::hunt::EntryHunt {};
+  table.method = sg::MetricMethod::PASSES;
+  table.entries = {
+      sg::hunt::RankedEvent {
+          .address = address(0),
+          .rate = 50.0,
+          .cv = 0.0,
+          .samples = 3,
+          .noisy = false,
+          .repeated = true,
+          .multiplexed = false,
+          .rank = 1,
+      },
+  };
+  result.hunt = table;
+
+  const auto record = contractRecord(std::nullopt, {address(0)}, 1);
+  const auto withRun = capturePrint(
+      [&result, &record] { sg::detail::printResult(result, record); });
+  check(lineIndex(withRun, "hunt: plan events=") != std::string::npos,
+        "the record of the same hunt beside its run record prints the plan "
+        "line, so the table below is not empty by construction");
+  check(countOf(withRun, "hunt: rank 1 ") == 1,
+        "the ranked table of the record prints behind the row");
+
+  const auto withoutRun = capturePrint(
+      [&result] { sg::detail::printResult(result, std::nullopt); });
+  check(countOf(withoutRun, "hunt:") == 0,
+        "a result that carries a hunt and no run record prints no hunt line "
+        "at all, the plan line and the table that ranks included");
+  check(firstRowIndex(withoutRun) != std::string::npos,
+        "the run without its record still printed the row of its benchmark, "
+        "so the silence above is not an empty report");
+  std::printf("plan-line-absent-run: ok\n");
+}
+
 // The scenarios of this file: what CTest runs with no argument, and what
 // `argv[1]` selects from. One entry per shape of data-model E-07.
 [[nodiscard]] auto scenarios() -> const std::vector<Scenario>&
@@ -904,6 +957,7 @@ auto scenarioHuntNoneSilence() -> void
       Scenario {"skipped-list-line", &scenarioSkippedListLine},
       Scenario {"normalized-iter-line", &scenarioNormalizedIterLine},
       Scenario {"hunt-none-silence", &scenarioHuntNoneSilence},
+      Scenario {"plan-line-absent-run", &scenarioPlanLineAbsentRun},
   };
   return kList;
 }

@@ -1171,6 +1171,49 @@ const auto kPlants = std::vector<Plant> {
            .body = "[\"cpu/hunt000\",7]",
            .pointer = "/hunt/events",
            .message = "expected a string, found number"},
+    // The fields whose value of another kind no row had yet carried. Each
+    // stands in a record whose other fields read clean, so the refusal is the
+    // one this field's own reader wrote: a fold over the fields of one record
+    // reports the first answer that carries an error, and every field of one
+    // type at one record shares that reporting step.
+    Plant {.what = "a number where the address of a rank row stands",
+           .node = "entries",
+           .key = "address",
+           .body = "7",
+           .pointer = "/benchmarks/0/hunt/entries/0/address",
+           .message = "expected a string, found number"},
+    Plant {.what = "a string where the noisy mark of a rank row stands",
+           .node = "entries",
+           .key = "noisy",
+           .body = "\"loud\"",
+           .pointer = "/benchmarks/0/hunt/entries/0/noisy",
+           .message = "expected a boolean, found string"},
+    Plant {.what = "a boolean where the address of a skipped record stands",
+           .node = "skipped",
+           .key = "address",
+           .body = "true",
+           .pointer = "/benchmarks/0/hunt/skipped/0/address",
+           .message = "expected a string, found boolean"},
+    Plant {.what = "a number where the entry hunt method stands",
+           .node = "hunt",
+           .key = "method",
+           .body = "7",
+           .pointer = "/benchmarks/0/hunt/method",
+           .message = "expected a string, found number"},
+    Plant {.what = "a string where the noise percent stands",
+           .node = "run",
+           .key = "noisePercent",
+           .body = "\"ten\"",
+           .pointer = "/hunt/noisePercent",
+           .message = "expected a number, found string"},
+    // The bound stated with no unit because it states no text at all: the
+    // empty reading, which is neither the missing key nor a word.
+    Plant {.what = "an empty budget text",
+           .node = "run",
+           .key = "budget",
+           .body = "\"\"",
+           .pointer = "/hunt/budget",
+           .message = "states no budget unit"},
 };
 
 // One case per refused reader code, each naming the pointer of its position
@@ -1276,6 +1319,26 @@ auto twoStageDocument() -> void
           "the column stage 2 repeated reads back its rank");
   check(sg::test::sameReport(written, *loaded),
         "every field of the two-stage record survives the round trip");
+
+  // The same document with the bound spelled in the passes unit. The fixture
+  // of a bounded plan is seconds, so `8p` is the only reading that settles the
+  // passes arm of the unit split, and it reads back as passes rather than as
+  // the seconds figure of the record above (FR-012, FR-051).
+  const auto bound = keyStart(text, nodeOpen(text, true), "budget");
+  const auto value = bound + std::string_view("\"budget\":").size();
+  sg::test::writeText(scratchDocument,
+                      std::string(text.substr(0, value)) + "\"8p\""
+                          + std::string(text.substr(valueEnd(text, value))));
+  const auto passes = sg::loadReport(scratchDocument);
+  if (!passes.has_value()) {
+    failed("the document whose budget reads 8p refuses to load: "
+           + passes.error());
+  }
+  checked(passes->hunt->options.budget->kind
+                  == sg::hunt::HuntBudget::Kind::PASSES
+              && passes->hunt->options.budget->amount == 8,
+          "a bound in the passes unit reads back as passes, seconds read back "
+          "as seconds");
 }
 
 // Conformance through `SG_SCHEMA_PATH`: the hunt document passes, a planted
