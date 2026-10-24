@@ -952,8 +952,10 @@ auto fixtureRows() -> std::vector<Row>
 // was planted in it (specs/029 FR-083, T020, SC-05).
 auto theFixtureTwinReportsItsPlantedDefects() -> void
 {
+  // Named, so the rows outlive the pointers the two rules take from them.
+  const std::vector<Row> rows = fixtureRows();
   std::size_t huntRows = 0;
-  for (const Row& row : fixtureRows()) {
+  for (const Row& row : rows) {
     if (row.name.starts_with("hunt")) {
       ++huntRows;
     }
@@ -961,14 +963,14 @@ auto theFixtureTwinReportsItsPlantedDefects() -> void
   check(huntRows == kFixtureHuntRows,
         "the twin holds the eight hunt rows and the duplicated one (T020)");
 
-  const std::string* name = repeatedName(fixtureRows());
+  const std::string* name = repeatedName(rows);
   if (name == nullptr || *name != sg::test::kCliFixturePlantedName) {
     report("the name rule reports the planted duplicate of the twin (T020)",
            std::string(sg::test::kCliFixturePlantedName),
            name == nullptr ? "no repeated name" : *name);
   }
 
-  const Row* clash = repeatedValue(fixtureRows());
+  const Row* clash = repeatedValue(rows);
   if (clash == nullptr || clash->value != sg::test::kCliFixturePlantedValue) {
     report(
         "the value rule reports the planted clash of the twin (T020)",
