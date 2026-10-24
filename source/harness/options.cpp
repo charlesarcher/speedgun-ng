@@ -56,6 +56,29 @@ namespace sg
 {
 namespace detail
 {
+
+// The declaration and the contract of the quoting stand in
+// detail/options.hpp (FR-024, FR-027, FR-035, SC-003).
+auto quotedText(const std::string_view text) -> std::string
+{
+  std::string quoted;
+  quoted.reserve(text.size());
+  for (const char letter : text) {
+    if (letter == '\\') {
+      quoted += "\\\\";
+    } else if (letter == '\n') {
+      quoted += "\\n";
+    } else if (letter == '\r') {
+      quoted += "\\r";
+    } else if (letter == '\0') {
+      quoted += "\\0";
+    } else {
+      quoted.push_back(letter);
+    }
+  }
+  return quoted;
+}
+
 namespace
 {
 
@@ -121,30 +144,6 @@ constexpr std::int64_t kMaxWholeSeconds =
 // left to `strtod`, which reads `.5` and `50.` as numbers and a trailing
 // space as the end of the element.
 constexpr std::size_t kMaxPercentilePoints = 16;
-
-/**
- * @brief The text of a value as one fault record carries it.
- *
- * A value of the command line or of the environment can hold a line break,
- * and the fault of any source is one line (FR-024, FR-027, FR-035, SC-003),
- * so a break is named with its own words. A backslash stands doubled, so a
- * named break cannot be confused with the two letters of its own name.
- */
-auto quotedText(const std::string_view text) -> std::string
-{
-  std::string quoted;
-  quoted.reserve(text.size());
-  for (const char letter : text) {
-    if (letter == '\\') {
-      quoted += "\\\\";
-    } else if (letter == '\n') {
-      quoted += "\\n";
-    } else {
-      quoted.push_back(letter);
-    }
-  }
-  return quoted;
-}
 
 auto parsePercentileList(const char* text,
                          const char* option,
@@ -416,10 +415,10 @@ auto unknownOptionLine(std::string_view word) -> std::string
     }
   }
   if (best > kSuggestionDistance) {
-    return "unknown option '" + std::string(word) + "'; --help lists the "
+    return "unknown option '" + quotedText(word) + "'; --help lists the "
            "options";
   }
-  return "unknown option '" + std::string(word) + "', nearest '--"
+  return "unknown option '" + quotedText(word) + "', nearest '--"
       + std::string(nearest) + "'";
 }
 
@@ -448,7 +447,7 @@ auto ambiguousOptionLine(std::string_view word,
   if (count < 2) {
     return std::nullopt;
   }
-  return "ambiguous option '" + std::string(word) + "': " + candidates;
+  return "ambiguous option '" + quotedText(word) + "': " + candidates;
 }
 
 // The needs-a-value line names the row the scanner stopped on: the
@@ -801,7 +800,7 @@ auto scanCommandLine(int argc, char** argv)
         // measurement, so a typo costs no measured time.
         const auto method = parseMetricMethod(optarg);
         if (!method.has_value()) {
-          return std::unexpected("--metric-method '" + std::string(optarg)
+          return std::unexpected("--metric-method '" + quotedText(optarg)
                                  + "' is not auto, passes or multiplex");
         }
         options.metricMethod = method;
@@ -1078,9 +1077,10 @@ auto readSeed(const std::string_view text)
   const auto answer =
       std::from_chars(text.data(), text.data() + text.size(), seed);
   if (answer.ec != std::errc() || answer.ptr != text.data() + text.size()) {
-    const std::string line = "--interleave: the seed '" + std::string(text)
+    const std::string quoted = quotedText(text);
+    const std::string line = "--interleave: the seed '" + quoted
         + "' is not an unsigned decimal value";
-    SG_ENSURE(line.find(text) != std::string::npos,
+    SG_ENSURE(line.find(quoted) != std::string::npos,
               "the refusal names the text the source spelled (SC-003)");
     return std::unexpected(line);
   }
@@ -1142,8 +1142,9 @@ auto readTextFile(const std::string& path)
 {
   std::ifstream stream(path, std::ios::binary);
   if (!stream.is_open()) {
-    return std::unexpected("the file '" + path
-                           + "' cannot be opened: " + std::strerror(errno));
+    return std::unexpected("the file '" + quotedText(path)
+                           + "' cannot be opened: "
+                           + quotedText(std::strerror(errno)));
   }
   std::string text;
   char chunk[1024];
@@ -1155,8 +1156,9 @@ auto readTextFile(const std::string& path)
     // The file opens and the read itself fails (a directory,
     // /proc/self/mem): the expected stays the contract's answer
     // channel, so the failure is answered here.
-    return std::unexpected("the file '" + path
-                           + "' cannot be read: " + std::strerror(errno));
+    return std::unexpected("the file '" + quotedText(path)
+                           + "' cannot be read: "
+                           + quotedText(std::strerror(errno)));
   }
   return text;
 }
@@ -1173,7 +1175,7 @@ auto readTextFile(const std::string& path)
 auto nulLine(const std::string& where, std::string_view line) -> std::string
 {
   return where + ": expected a value without a NUL byte, got '"
-      + std::string(line) + "'";
+      + quotedText(line) + "'";
 }
 
 /**
@@ -1211,15 +1213,15 @@ auto readCompareRulesFile(const std::string& path)
     }
     if (line.find('\0') != std::string_view::npos) {
       return std::unexpected(
-          nulLine(path + ":" + std::to_string(number), line));
+          nulLine(quotedText(path) + ":" + std::to_string(number), line));
     }
     const std::size_t last = line.find_last_not_of(kBlanks);
     const auto rule = parseCompareRule(line.substr(first, last - first + 1));
     if (!rule.has_value()) {
       // The file, the number of the raw line, and the parser's own text for
       // that line, joined in that order (FR-064).
-      return std::unexpected(path + ":" + std::to_string(number) + ": "
-                             + rule.error());
+      return std::unexpected(quotedText(path) + ":" + std::to_string(number)
+                             + ": " + rule.error());
     }
     rules.push_back(std::move(*rule));
   }
@@ -1235,8 +1237,8 @@ auto compileFilterPattern(const std::string& pattern)
   try {
     return std::optional<std::regex>(pattern);
   } catch (const std::regex_error& error) {
-    return std::unexpected("invalid regular expression '" + pattern
-                           + "': " + error.what());
+    return std::unexpected("invalid regular expression '" + quotedText(pattern)
+                           + "': " + quotedText(error.what()));
   }
 }
 
@@ -1560,7 +1562,7 @@ auto applySourceValue(const OptionRow& row,
       // because the settle read it (FR-046).
       const auto preset = parsePreset(text);
       if (!preset.has_value()) {
-        return refuse(option + ": '" + text
+        return refuse(option + ": '" + quotedText(text)
                       + "' is not one of the five preset names");
       }
       if (options.placement.has_value() && prior != kSameSourceSettled) {
@@ -1649,7 +1651,7 @@ auto applySourceValue(const OptionRow& row,
     case kMetricMethodOption: {
       const auto method = parseMetricMethod(text.c_str());
       if (!method.has_value()) {
-        return refuse("--metric-method '" + text
+        return refuse("--metric-method '" + quotedText(text)
                       + "' is not auto, passes or multiplex");
       }
       if (options.metricMethod.has_value() && prior != kSameSourceSettled) {
@@ -1820,7 +1822,7 @@ auto applyOptionFile(const OptionFileText& file, ResolvedOptions& resolved)
     }
     const OptionRow* const row = rowNamed(name);
     if (row == nullptr) {
-      return std::unexpected(where + ": unknown option '" + std::string(name)
+      return std::unexpected(where + ": unknown option '" + quotedText(name)
                              + "'");
     }
     // A line that carries no `=` carries no value either, and what that

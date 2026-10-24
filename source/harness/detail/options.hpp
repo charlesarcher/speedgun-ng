@@ -230,6 +230,14 @@ struct ResolvedOptions
 [[nodiscard]] auto rowNamed(std::string_view name) -> const OptionRow*;
 
 /**
+ * @brief The text of a value as one fault record carries it: a backslash
+ * stands doubled, and a line break, a carriage return and a NUL byte each
+ * stand named with their own words, so the fault of any source stays one line
+ * whatever the value held (FR-024, FR-027, FR-035, SC-003).
+ */
+[[nodiscard]] auto quotedText(const std::string_view text) -> std::string;
+
+/**
  * @brief The batch filter pattern of FR-024 and FR-050, compiled where the
  * option settles: the expression the row names, no pattern when the settled
  * text stands empty, or one text naming the expression the regex library

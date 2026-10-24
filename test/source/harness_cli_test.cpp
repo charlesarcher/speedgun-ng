@@ -578,6 +578,72 @@ auto aSemicolonOfAFileLineIsNoList(const std::string& self) -> void
   }
 }
 
+// The count of lines a child answered across the two streams it merged. The
+// sentinel a run prints when nothing measured stands beside the fault line, so
+// it counts as no line of the answer (SC-003).
+auto lineCount(const std::string& text) -> std::size_t
+{
+  constexpr std::string_view kSentinel {"BENCHMARK_NO_RUN"};
+  std::size_t count = 0;
+  std::size_t at = 0;
+  while (at < text.size()) {
+    const std::size_t end = text.find('\n', at);
+    const std::string_view line = std::string_view {text}.substr(
+        at, (end == std::string::npos ? text.size() : end) - at);
+    if (!line.empty() && line != kSentinel) {
+      ++count;
+    }
+    if (end == std::string::npos) {
+      break;
+    }
+    at = end + 1;
+  }
+  return count;
+}
+
+auto aBreakOfAValueIsOneFaultLine(const std::string& self) -> void
+{
+  // The metric and counter rows are refused by the walk of a run, so they
+  // stand here, where a benchmark stands to run. A value that carries a break
+  // is named with its own words, so each answer stays the one line the source
+  // owes (FR-021, FR-033, SC-003).
+  std::string out;
+  const int metric =
+      subprocessOutput("\"" + self + "\" arg '--metric=a\nb' 2>&1", out);
+  check(WEXITSTATUS(metric) == 2,
+        "a break of the metric word answers status 2 (FR-033, SC-003)");
+  check(lineCount(out) == 1,
+        "a break of the metric word answers one line (SC-003)");
+  check(out.find("no metric named 'a\\nb'") != std::string::npos,
+        "the refusal of the metric names the break with its own words "
+        "(FR-033)");
+
+  out.clear();
+  const int held = subprocessOutput(
+      "SPEEDGUN_METRIC='a\nb' \"" + self + "\" arg '--iterations=1' 2>&1", out);
+  check(WEXITSTATUS(held) == 2,
+        "a break of the metric variable answers status 2 (FR-027, SC-003)");
+  check(lineCount(out) == 1,
+        "a break of the metric variable answers one line (SC-003)");
+  check(out.find("SPEEDGUN_METRIC: --metric ") != std::string::npos,
+        "the refusal of the metric names the variable that holds it "
+        "(FR-033, FR-046)");
+
+  // The counter row of a host that finds nothing at the address warns and
+  // runs, so the status stays the run's own and the row of the run carries the
+  // column label; the warning names the address quoted whole. The status a
+  // name this host does not find answers is the counter ruling, and the test
+  // of that one line stands with it (FR-021, SC-003).
+  out.clear();
+  subprocessOutput(
+      "SPEEDGUN_COUNTER='/a\nb' \"" + self + "\" arg '--iterations=1' 2>&1",
+      out);
+  check(
+      out.find("/a\\nb: no object at path") != std::string::npos,
+      "the counter line names the break with its own words (FR-021, " "SC-"
+                                                                      "003)");
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmAlpha);
@@ -945,6 +1011,7 @@ auto main(const int argc, char** argv) -> int
   }
 
   aSemicolonOfAFileLineIsNoList(self);
+  aBreakOfAValueIsOneFaultLine(self);
 
   // FR-027: a metric the host carries but cannot count prints its refusal
   // kind, the benchmark still runs, and the exit status is the run's own.
