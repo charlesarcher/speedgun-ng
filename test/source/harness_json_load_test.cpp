@@ -575,6 +575,46 @@ auto plantedFieldsOfEveryRecordRefuse() -> void
   }
 }
 
+// Two wrong kinds in one metric column: the fold over the parts of a record
+// records the first answer that carries an error and stops there, so the
+// refusal names the running ratio and says nothing of the availability beside
+// it. One plant per document cannot show the stop, so this document carries
+// two (FR-024, SC-007).
+auto firstFailingPartStopsTheFold() -> void
+{
+  constexpr std::string_view kRatio = "\"runningRatio\":1.0";
+  constexpr std::string_view kState = "\"availability\":\"COUNTABLE\"";
+  constexpr const char* const kWanted =
+      "/benchmarks/0/rows/0/metrics/0/runningRatio"
+      ": expected a number, found string";
+  std::string broken = kRich;
+  const std::size_t ratio = broken.find(kRatio);
+  const std::size_t state = broken.find(kState);
+  if (ratio == std::string::npos || state == std::string::npos) {
+    sg::test::fail("the rich document holds no metric column to plant twice");
+    return;
+  }
+  // The later key first, so the first replace leaves the offset of the second
+  // one standing where it was.
+  broken.replace(state, kState.size(), "\"availability\":\"MAYBE\"");
+  broken.replace(ratio, kRatio.size(), "\"runningRatio\":\"slow\"");
+  sg::test::writeText("harness_json_load_firstpart.json", broken);
+  const auto refused = sg::loadReport("harness_json_load_firstpart.json");
+  if (refused.has_value()) {
+    sg::test::fail("a metric column of two wrong kinds loads (FR-024)");
+    return;
+  }
+  if (refused.error().find(kWanted) == std::string::npos) {
+    std::printf("  the two-plant document refused with: %s\n",
+                refused.error().c_str());
+  }
+  check(refused.error().find(kWanted) != std::string::npos,
+        "the refusal carries the running ratio, the first part to fail");
+  check(refused.error().find("availability") == std::string::npos,
+        "the fold stops, so the availability beside it stands unreported");
+  std::printf("ok: the first failing part of a metric column stops the fold\n");
+}
+
 // The five keys specs/024 FR-038 added, four to the entry and one to a metric
 // column: a document written before that feature carries none of them, and
 // the comparison of specs/026 reads such a stored baseline (FR-051), so a key
@@ -1240,6 +1280,7 @@ auto main() -> int
   eachExtensionErrorCodeRefuses(written);
   anUnknownKeyInAnOpenObjectLoads(written);
   plantedFieldsOfEveryRecordRefuse();
+  firstFailingPartStopsTheFold();
   aDocumentPredatingThePassFieldsLoads();
   theRootListAndTheWarningKeyAnswerTheirOwnRules(written);
   brokenDocumentsRefuseWithPointers(written);
