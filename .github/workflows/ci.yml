@@ -83,6 +83,30 @@ jobs:
       # leaves (the exec children's family paths, measured 2026-10-24).
       run: ctest -j 1 --output-on-failure --no-tests=error
 
+    - name: Fold the exec children's profile trees back in
+      # Each exec child dumped its counters into its own gcov-prefix
+      # tree (the test's runExecChild); gcov-tool merges the trees
+      # pairwise and the replay copies every merged gcda over the
+      # shared one the capture reads.
+      run: |
+        set -euo pipefail
+        prev="$PWD/build/coverage"
+        for tree in /tmp/sgcov-*; do
+          [ -d "$tree" ] || continue
+          sub=$(find "$tree" -type d -name coverage | head -1)
+          out=$(mktemp -d)
+          gcov-tool merge -o "$out" "$prev" "$sub"
+          prev="$out"
+        done
+        if [ "$prev" != "$PWD/build/coverage" ]; then
+          while IFS= read -r -d '' gcda; do
+            rel="${gcda#"$prev"/}"
+            mkdir -p "build/coverage/$(dirname "$rel")"
+            cp "$gcda" "build/coverage/$rel"
+          done < <(find "$prev" -name '*.gcda' -print0)
+        fi
+        rm -rf /tmp/sgcov-*
+
     - name: Process coverage info
       run: cmake --build build/coverage -t coverage
 
