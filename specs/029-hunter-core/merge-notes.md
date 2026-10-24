@@ -7,7 +7,7 @@ against the working tree.
 
 The audit ran on `029-hunter-core` with the merge base to `master` at
 `bd10d76174a402ff694883291458bed470002459`. Two heads were read while it ran,
-`ba015f0` first and `9121226` after a co-running node committed its tasks
+`ba015f0` first and `5c1035b` after a co-running node committed its tasks
 checkmarks, and the four reserved values stood unchanged across both reads.
 Most of the feature sits in the working tree beside those commits: the second
 `git status --porcelain` read counted 18 modified paths and 5 untracked ones.
@@ -79,7 +79,7 @@ new master, add one, and append the reason.
 
 The branch sets it at `source/harness/json_report.cpp:34`, quoted
 `constexpr std::string_view kSchemaVersion = "1.4";`, and the writer emits it
-at line 740 through `builder.append(kSchemaVersion);`. At `bd10d76` the same
+at line 739 through `builder.append(kSchemaVersion);`. At `bd10d76` the same
 declaration reads `constexpr std::string_view kSchemaVersion = "1.1";` at
 line 31. The comment at lines 29 to 33 gives the reason and the rebase rule:
 the root `hunt` object and the per-benchmark `hunt` object are keys added
@@ -106,14 +106,16 @@ its base is a no-op on this host.
 Master has taken neither of the minors `0.17.0` and `0.18.0` reserve, so
 the four values above stand as set: `0.19.0`, `SOVERSION 4`,
 `SOVERSION 11` and `"1.4"`. No number in `CMakeLists.txt` moves for this
-measurement. The page cap of 809 lines that `6e1d28b` recorded is
-already the value the page carries on a tree that holds master.
+measurement. The page cap that `6f74f46` recorded at the measured 809 lines
+stands at 822 after `70bebf4` took the quick-reference rows, the value the
+page carries on a tree that holds master.
 
 ## Shared-list ledger
 
 `plan.md:445-457` names eleven shared surfaces, and `plan.md:48` names one
-more, the vendored pmu events tables. Twelve rows follow. Each states what
-this branch adds and whether the working tree shows it, with the line that was
+more, the vendored pmu events tables. Thirteen rows follow: the twelve the
+plan names and the results directory finding 3 lands. Each states what this
+branch adds and whether the working tree shows it, with the line that was
 read.
 
 | Surface | What this branch adds | Line read | In the tree |
@@ -121,15 +123,16 @@ read.
 | `CMakeLists.txt` | The three reserved values with a comment block each | `14:    VERSION 0.19.0`, `62:    SOVERSION 4`, `274:    SOVERSION 11` | Yes |
 | `test/CMakeLists.txt` | Seven `add_executable` blocks with their `add_test` lines, `SG_SCHEMA_PATH` on the hunt JSON test, `SG_CLI_SOURCE` on the table test, one `report_shape_hunt_rank_sample` entry | `1103`, `1111`, `1119`, `1127`, `1135`, `1145` for the six `harness_hunt_*` targets, `1167` for `harness_cli_table_test`, `1151` and `1173` for the two defines, `1301` for `NAME report_shape_hunt_rank_sample` | Yes |
 | `example/CMakeLists.txt` | One docs example registration | `75:add_docs_example(hunt_rank)` | Yes |
-| `README.md` | A `### Hunter mode` section, eight option rows, seven quick-reference name rows | `621:### Regression gate` then `646:### Hunter mode`, the section running to `667:## Quick reference`; name rows `765` to `771`, option rows `795` to `802`; `git diff --numstat bd10d76` gives `36 0 README.md` | Yes |
-| `docs/pages/harness.md` | The Hunter mode page: option detail, refusal lines, printed lines, the two hunt objects, the library surface | `1342:## Hunter mode` with H3 sections at `1370`, `1397`, `1421`, `1446`, `1480`, `1507`, `1518`, `1530:### The two hunt objects`, `1559`; `git diff --numstat bd10d76` gives `230 1 docs/pages/harness.md` | Yes, with one stale claim, finding 1 |
-| `docs/schema/report-v1.json` | `hunt` in both `x-order` lists and both `properties` objects, with both `required` lists untouched | `7:  "x-order": ["schemaVersion", "speedgun", "benchmarks", "hunt"]`, `50:          "hunt"` in the entry `x-order`, `467:          "hunt": {` as the entry property, `541:    "hunt": {` as the root property; the root `required` at `8` and the entry `required` spanning `52` to `71` hold no `hunt`; `git diff --numstat` gives `149 3 docs/schema/report-v1.json` | Yes |
-| `tools/docs/example_drift.py` | `"Hunter mode"` in `SECTIONS` and in `SECTION_OWNERS`, and a `PAGE_LINE_CAP` raise with its measured note | `32:SECTIONS = (` with `58:    "Hunter mode",` inside it, `64:SECTION_OWNERS = {` with `90:    "Hunter mode": ("hunt_rank.cpp",),`, `174:PAGE_LINE_CAP = 809` with the note at `168` to `173`; `wc -l README.md` answers `809` | Yes |
+| `README.md` | A `### Hunter mode` section, eight option rows, twenty quick-reference name rows | `621:### Regression gate` then `646:### Hunter mode`, the section running to `667:## Quick reference`; name rows `765` to `784`, option rows `808` to `815`; `git diff --numstat bd10d76` gives `49 0 README.md` | Yes |
+| `docs/pages/harness.md` | The Hunter mode page: option detail, refusal lines, printed lines, the two hunt objects, the library surface | `1342:## Hunter mode` with H3 sections at `1371`, `1398`, `1422`, `1452`, `1494`, `1521`, `1532`, `1544:### The two hunt objects`, `1574`; `git diff --numstat bd10d76` gives `247 3 docs/pages/harness.md` | Yes |
+| `docs/schema/report-v1.json` | `hunt` in both `x-order` lists and both `properties` objects, with both `required` lists untouched | `7:  "x-order": ["schemaVersion", "speedgun", "benchmarks", "hunt"]`, `50:          "hunt"` in the entry `x-order`, `467:          "hunt": {` as the entry property, `540:    "hunt": {` as the root property; the root `required` at `8` and the entry `required` spanning `52` to `71` hold no `hunt`; `git diff --numstat` gives `148 3 docs/schema/report-v1.json` | Yes |
+| `tools/docs/example_drift.py` | `"Hunter mode"` in `SECTIONS` and in `SECTION_OWNERS`, and a `PAGE_LINE_CAP` raise with its measured note | `32:SECTIONS = (` with `58:    "Hunter mode",` inside it, `64:SECTION_OWNERS = {` with `90:    "Hunter mode": ("hunt_rank.cpp",),`, `180:PAGE_LINE_CAP = 822` with the note at `174` to `179`; `wc -l README.md` answers `822` | Yes |
 | `external/pmu-events`, `cmake/EmbedPmuEvents.cmake`, `cmake/embed_pmu_blob.cmake` | Nothing, the tables are consumed as they stand | `git diff --quiet bd10d76 -- external/pmu-events cmake/EmbedPmuEvents.cmake` exits `0` and `git status --porcelain` on those paths prints no line; the same quiet check on `cmake/embed_pmu_blob.cmake` exits `0`; the embed entry stays `cmake/EmbedPmuEvents.cmake:15:function(speedgun_embed_pmu_events target vendored_root)` | Yes, as a no-edit row |
-| `test/source/harness_json_load_test.cpp` | The plan asks for the version literals at `113` and `529` to sit beside the bumped version | `113:  sg::test::writeText("harness_json_load_current.json", withVersion("\"1.1\""));` and `529:    {"\"schemaVersion\":\"1.1\"", "\"schemaVersion\":1", "/schemaVersion"},`; the file appears in no row of `git diff --stat bd10d76` for the shared surfaces | No, finding 2 |
+| `test/source/harness_json_load_test.cpp` | The plan asks for the version literals at `113` and `529` to sit beside the bumped version | `113:  sg::test::writeText("harness_json_load_current.json", withVersion("\"1.4\""));` and `529:    {"\"schemaVersion\":\"1.4\"", "\"schemaVersion\":1", "/schemaVersion"},`; `git diff --numstat bd10d76` gives `2 2` for the file | Yes |
 | `test/source/harness_compare_cli_test.cpp` | Nothing, exactly as the plan row requires | The file appears in no row of the same `git diff --stat`; `515:  check(containsAll(lines[0], {"speedgun 0.14.0", "schema 1.0"})` and `516:            && containsAll(lines[1], {"speedgun 0.16.0", "schema 1.1"}),` hold the frozen fixture's own version fields | Yes, as a no-edit row |
 | `test/source/harness_cli_table_test.cpp` | The whole file, created here | `git cat-file -e bd10d76:test/source/harness_cli_table_test.cpp` exits `128`, so master holds no such file, and `git ls-files --error-unmatch` on it exits `0`; `git diff --numstat` gives `610 0` for it; `test/CMakeLists.txt:1167` registers it | Yes |
 | `test/source/harness_pass_report_test.cpp` | Nothing, its expectation stands | The file appears in no row of the same `git diff --stat`; the covering check is `test/CMakeLists.txt:1089:add_test(NAME harness_pass_report_test_identity`, `1090:         COMMAND harness_pass_report_test byte-identity`, `1091:                 ${CMAKE_CURRENT_SOURCE_DIR}/source/detail/pass_identity.expected)` | Yes, as a no-edit row |
+| `specs/029-hunter-core/results/` | Four AC-10 hardware records: the two host records, the top-20 attachment of one of them, and the narrow cpu-set record | `git ls-files specs/029-hunter-core/results/` lists four paths; `51d87d6` added `corsairone-hunt-all.md` and `gary-hunt-all.md`, `934f762` added `corsairone-hunt-all-top20.txt`, `019ddca` added `corsairone-hunt-cpuset.md` | Yes |
 
 Three rows need a word beside the table.
 
@@ -144,7 +147,7 @@ them under the dependencies, and the task that asks for this audit names them
 as a shared surface. They are recorded here as a no-edit row so that the
 absence is a read fact.
 
-`git diff --stat bd10d76 -- test/CMakeLists.txt` reports `93 +++++++++++` and
+`git diff --stat bd10d76 -- test/CMakeLists.txt` reports `101 +++++++++++` and
 `example/CMakeLists.txt` reports one line added against one removed: the new
 registration took the blank line after `add_docs_example(regression_gate)` and
 landed at line 75, where the plan cited "after line 74".
@@ -186,7 +189,7 @@ stands as the audit read it.
    Nothing in the page states `1.4`: the only `1.4` reads over the file land
    inside printed sample values.
 
-   Closed by `c89d56e`, which moves the sentence to `1.4`.
+   Closed by `f442827`, which moves the sentence to `1.4`.
 2. `test/source/harness_json_load_test.cpp` carries no edit at all, while its
    plan row at `plan.md:452` places lines 113 and 529 beside the bumped
    version. The check at line 114 is named "the version this build writes
@@ -196,19 +199,22 @@ stands as the audit read it.
    has to match the committed fixture text it mutates. No test was run here to
    settle either case.
 
-   Closed by `ec3559f`: both rows read `1.4`, the seed at line 529 matches the
+   Closed by `2d0db62`: both rows read `1.4`, the seed at line 529 matches the
    fixture text it mutates, and `harness_json_load_test` passes on this host.
 3. Landing needs the untracked artifacts added. The second status read lists
    `example/docs/hunt_rank.cpp`, `example/docs/hunt_rank.expected`,
    `test/data/hunt_no_hunt_console.txt`, `test/data/hunt_no_hunt_document.json`
    and `specs/029-hunter-core/results/`, the last holding
-   `corsairone-hunt-all.md` and `gary-hunt-all.md`, the AC-10 hardware records.
+   `corsairone-hunt-all.md` and `gary-hunt-all.md`, the AC-10 hardware records;
+   the directory holds four files at this head, those two beside
+   `corsairone-hunt-all-top20.txt` and `corsairone-hunt-cpuset.md`.
    A squash that runs `git commit -a` would drop all of them. The first status
    read also found droppings at the repository root (`hunt_cli_blank.txt`,
    `hunt_cli_dup.txt`, `hunt_cli_list.txt`, `hunt_cli_raw.txt`,
    `harness_hunt_cli_report.json` and a directory named `local:/`) and a later
    read in the same session found them gone.
 
-   Closed: the artifacts are tracked (`9338ca4` the example and its recording,
-   `ec3559f` the two report fixtures, `6f874fe` the two hardware records) and
+   Closed: the artifacts are tracked (`017df4b` the example and its recording,
+   `2d0db62` the two report fixtures, `51d87d6` the two hardware records,
+   `934f762` the top-20 attachment, `019ddca` the narrow cpu-set record) and
    no droppings stand at the repository root.

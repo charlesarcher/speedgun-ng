@@ -53,7 +53,7 @@ Captured logs: `/home/archerc/sg029-lanes/t116-cpu2.log` and
 
 ## 3. The whole suite beside them, and the one failure
 
-The same tree ran the whole suite at commit `97f91e4` under `ctest -j 2`. The
+The same tree ran the whole suite at commit `6337e75` under `ctest -j 2`. The
 tail of the log:
 
 ```text

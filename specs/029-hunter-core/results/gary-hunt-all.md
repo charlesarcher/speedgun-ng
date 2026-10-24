@@ -5,8 +5,9 @@ captured on 2026-10-22 in the lane directory
 `/home/archerc/sg029-lanes/t061-gary/` (`hunt_rec.log`,
 `gary-hunt-rec.json`, `catalog.log`, `hunt_rec_wrap.log`, `glob_wrap.log`).
 
-The companion record `corsairone-hunt-all.md` in this directory stands at
-commit `08ebe0a`. This record stands at `cb570f2` plus the uncommitted hunt
+The companion record `corsairone-hunt-all.md` in this directory takes its
+first capture at commit `08ebe0a` and its acceptance capture at `1f19e31`.
+This record stands at `ba015f0` plus the uncommitted hunt
 sources of the lane, and it runs `example/docs_throughput` with one instance
 selected by `--filter`, while that one runs the quickstart benchmark whole.
 The pair therefore covers two microarchitecture families and isolates one
@@ -43,7 +44,7 @@ both hosts carry glibc 2.44, so the copy runs natively:
 `--list` there answers the three registered instances.
 
 The source is a snapshot of the `029-hunter-core` working tree taken at
-15:53 while HEAD stood at `cb570f2`, with the hunt sources carrying the
+15:53 while HEAD stood at `ba015f0`, with the hunt sources carrying the
 uncommitted work of the lane. The hashes pin what was compiled:
 
 ```
@@ -217,11 +218,17 @@ each: the `--min-time=0.2` window belongs to the instance, and the record
 states no measurement of what each pass window holds. The `--json` report
 carries `rate`, `cv`, `noisy`, `multiplexed` and `rank` per entry and no
 sample count, so the per-row window count in the table rests on the settled
-`--hunt-repeats` value beside the one retried pass. The rates are ratios to
+`--hunt-repeats` value beside the one retried pass. The captured document is a
+`schemaVersion` `1.1` capture, the value `kSchemaVersion` held on the tree the
+snapshot came from:
+`git show ba015f0:source/harness/json_report.cpp` reads `"1.1"` at line 32
+there, and the branch moved that minor to `1.4` in `2d0db62`, later than this
+run and inside the same major 1, so the version rule of a `1.4` reader loads
+the capture as written. The rates are ratios to
 the instruction anchor, so a co-tenancy effect that moves the event and the
 anchor together stays invisible in the CV, which matters on a host at load
 average 11.68. The 12 `gap` events are the twelve floating-point counters of
 the catalog (`fp_ret_x87_fp_ops`, ten `fp_ret_sse_avx_ops` masks and
 `fp_ops_retired_by_width.x87_uops_retired`); `bmEncode` is a byte-fill loop of
-integer arithmetic (`example/docs/throughput.cpp:13`), and the kind stands as
+integer arithmetic (`example/docs/throughput.cpp:15`), and the kind stands as
 all the run publishes for each of them.
