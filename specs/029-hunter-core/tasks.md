@@ -836,7 +836,7 @@ finding this round filed as owned, so the section holds eleven rows.
       holds `source/harness/hunt_cli.cpp` this round (FR-011, FR-080,
       Principle X.3).
 
-- [ ] T165 Give `test/source/counters_trap_checked_test.cpp:80` a scratch
+- [x] T165 Give `test/source/counters_trap_checked_test.cpp:80` a scratch
       file of its own. The checker redirects every fixture run into the
       machine-global `/tmp/counters_trap_checked_out.txt` and reads it back
       after `std::system` at `:84`, so the `RESOURCE_LOCK` registered at
@@ -869,7 +869,7 @@ finding this round filed as owned, so the section holds eleven rows.
       normalized=iter` although E-03 makes the fallback answer to a device
       that holds no anchor pair and to nothing else (data-model.md E-03).
       Gate the settle on a plan that holds columns (E-03, E-07).
-- [ ] T168 Give the JSON suite's scratch files a name per process.
+- [x] T168 Give the JSON suite's scratch files a name per process.
       `test/source/harness_hunt_json_test.cpp:396-397` writes a fixed path
       under `/tmp` that a second concurrent run overwrites, and its two
       `ctest` entries carry no lock, so the suite fails when the machine is
