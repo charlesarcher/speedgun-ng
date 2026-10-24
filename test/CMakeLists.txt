@@ -652,11 +652,11 @@ add_executable(harness_cli_test source/harness_cli_test.cpp)
 target_link_libraries(harness_cli_test PRIVATE speedgun-ng::harness)
 target_compile_features(harness_cli_test PRIVATE cxx_std_23)
 add_test(NAME harness_cli_test COMMAND harness_cli_test)
-# The suite's fork-bound test: it re-executes the harness once per mode and reads
-# its children through `popen`, and it writes one note file into its working
-# directory, so two copies under `-j 2` share that file and compete for one core.
-# Two slots keep a sibling off its CPU; CI needs no TIMEOUT, since the `sanitize`
-# and `tsan` jobs finish this test inside `--timeout 3600` on `master`.
+# The suite's heaviest test: `captureRun` runs the harness in-process behind
+# a `freopen`, and eight fixed names are written into the working directory,
+# so two copies under `-j 2` share those files and compete for one core. Two
+# slots keep a sibling off its CPU and off those names; CI needs no TIMEOUT,
+# since `sanitize` and `tsan` finish this test inside `--timeout 3600`.
 set_tests_properties(harness_cli_test PROPERTIES PROCESSORS 2)
 
 # The one option table of the contract, read out of the source that holds
@@ -668,6 +668,13 @@ set_tests_properties(harness_cli_test PROPERTIES PROCESSORS 2)
 # `harness_compare_test`. The test is red until Phase 1 lands the seven
 # rows, and it is registered as a plain test so the same registration
 # turns green with them.
+# it: 35 rows in the fixed order, each with its argument kind and its value,
+# specs/028's seven names at the constants 290 to 296 and the eight hunt
+# names at 270 to 277 (T004; FR-001, FR-003, FR-004, FR-079, FR-080,
+# SC-001). The directory that holds the table reaches the test by argument,
+# the way the fixture directory reaches `harness_compare_test`. Phase 1
+# landed the hunt rows, and the test is registered as a plain test so the
+# same registration that was red with master stands green with them.
 add_executable(harness_cli_table_test source/harness_cli_table_test.cpp)
 target_link_libraries(harness_cli_table_test PRIVATE speedgun-ng::harness)
 target_include_directories(harness_cli_table_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
