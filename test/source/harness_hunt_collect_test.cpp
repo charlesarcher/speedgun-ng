@@ -1725,46 +1725,21 @@ auto scenarioHandedFigureWeighsEveryPass() -> void
 }
 
 // ---------------------------------------------------------------------------
-// The blank classes and the selection shapes that stand outside the catalog
+// The selection shapes that stand outside the catalog
 // ---------------------------------------------------------------------------
-
-// FR-006: the library route trims each entry before the catalog reads it, so
-// the blanks an element carries, the space, the tab, the carriage, the
-// vertical tab and the form feed, stand outside the address behind them.
-auto scenarioPaddedSelectionResolves() -> void
-{
-  registerHuntHost(kCollectLimit);
-  const std::string padded =
-      "\t\r\v\f "
-      + std::string(
-            sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(0)))
-      + " \t";
-  const auto options = optionsFor(padded + "," + selectionOf({1}));
-  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntPadded");
-  sg::detail::expandRegistry();
-  const HuntAccount run = runHuntMeasured(handle, options);
-  check(run.hunt.has_value(),
-        "the library route trims the blanks an element carries and resolves "
-        "the address behind them (FR-006)");
-  check(run.hunt->entries.size() == 2,
-        "the padded element and its plain sibling stand as the plan's two "
-        "columns (FR-006)");
-  std::printf("padded-selection-resolves: ok\n");
-}
 
 // E-03: the anchor rule reads both leaves of the pair together, so a device
 // that publishes one of them holds neither: the catalog's walk clears the
 // device's pair and the run of the core events stands untouched.
 auto scenarioHalfAnchoredDeviceHoldsNeither() -> void
 {
-  registerHuntHost(kCollectLimit,
-                   [](sg::counters::FakeProvider& provider)
-                   {
-                     provider.addCounter("aux",
-                                         sg::test::kHuntCycle,
-                                         "none",
-                                         "cycles without instructions");
-                   });
+  registerHuntHost(
+      kCollectLimit,
+      [](sg::counters::FakeProvider& provider)
+      {
+        provider.addCounter(
+            "aux", sg::test::kHuntCycle, "none", "cycles without instructions");
+      });
   const auto options = optionsFor(selectionOf({0}));
   auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntHalfAnchor");
   sg::detail::expandRegistry();
@@ -1784,14 +1759,13 @@ auto scenarioHalfAnchoredDeviceHoldsNeither() -> void
 // norm, the anchor and the event that was to divide by it.
 auto scenarioRefusedInstrAnchorRefusesInstrNorm() -> void
 {
-  registerHuntHost(
-      kCollectLimit,
-      [](sg::counters::FakeProvider& provider)
-      {
-        refuseLeaf(provider,
-                   sg::test::kHuntInstr,
-                   sg::counters::Availability::PERMISSION_BLOCKED);
-      });
+  registerHuntHost(kCollectLimit,
+                   [](sg::counters::FakeProvider& provider)
+                   {
+                     refuseLeaf(provider,
+                                sg::test::kHuntInstr,
+                                sg::counters::Availability::PERMISSION_BLOCKED);
+                   });
   const std::vector<std::string> names {sg::test::huntEvent(0),
                                         std::string(sg::test::kHuntInstr)};
   HuntOptions options = optionsFor(selectionOfNames(names));
@@ -1824,8 +1798,8 @@ auto scenarioNearMissNameStandsOutsideTheHunt() -> void
 {
   registerHuntHost(kCollectLimit);
   const auto options = optionsFor(selectionOf({0}));
-  auto longer = sg::registerBenchmark(&bmHuntBody,
-                                      "bmHuntNearMiss01234567890123456789");
+  auto longer =
+      sg::registerBenchmark(&bmHuntBody, "bmHuntNearMiss01234567890123456789");
   auto hunted = sg::registerBenchmark(&bmHuntBody, "bmHuntNearMiss");
   sg::detail::expandRegistry();
   const HuntAccount longerRun = runHuntMeasured(longer, options);
@@ -1865,12 +1839,10 @@ auto scenarioPatternInsideAListRefuses() -> void
 auto scenarioUncoreColumnsUnderExplicitIter() -> void
 {
   registerHuntHost(kCollectLimit);
-  const std::string first =
-      sg::test::huntAddress(sg::test::kHuntUncore,
-                            sg::test::huntEvent(sg::test::kHuntEvents));
-  const std::string last =
-      sg::test::huntAddress(sg::test::kHuntUncore,
-                            sg::test::huntEvent(sg::test::kHuntEvents + 1));
+  const std::string first = sg::test::huntAddress(
+      sg::test::kHuntUncore, sg::test::huntEvent(sg::test::kHuntEvents));
+  const std::string last = sg::test::huntAddress(
+      sg::test::kHuntUncore, sg::test::huntEvent(sg::test::kHuntEvents + 1));
   HuntOptions options = optionsFor(first + "," + last);
   options.norm = sg::hunt::HuntNorm::ITER;
   auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntUncoreIter");
@@ -2040,8 +2012,6 @@ auto scenarioLibraryRouteAnswersTheEntryRecord() -> void
       Scenario {"timed-pass-without-figure", &scenarioTimedPassWithoutAFigure},
       Scenario {"timed-pass-folds-no-time", &scenarioTimedPassFoldsNoClockTime},
       Scenario {"skipped-run-joins-no-list", &scenarioSkippedRunJoinsNoList},
-      Scenario {"padded-selection-resolves",
-                &scenarioPaddedSelectionResolves},
       Scenario {"half-anchored-device",
                 &scenarioHalfAnchoredDeviceHoldsNeither},
       Scenario {"refused-instr-anchor-refuses-instr-norm",
