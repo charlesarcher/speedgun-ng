@@ -1287,7 +1287,7 @@ gap needs the `coverage-info` artifact of a CI run, because a local `lcov`
 2.5-beta counts exception and cleanup edges that CI's gcov never emits. The
 full ledger is `/home/archerc/sg029-lanes/waves/ph12/converge.md`.
 
-- [ ] T189 HIGH Correct the nine addresses `:634-639` records for the option
+- [x] T189 HIGH Correct the nine addresses `:634-639` records for the option
       table. Row T149 re-anchored the reads to `cli.cpp:390` and `:391`, `:602`,
       `:641`, `:646`, `:676` and `detail/internal.hpp:523`, `:534`, `:552`. At
       this head the table is the `to_array<OptionRow>` of `optionRows()` at
@@ -1298,7 +1298,7 @@ full ledger is `/home/archerc/sg029-lanes/waves/ph12/converge.md`.
       `detail/internal.hpp:514`, `:525` and `:543`. No `longOptions[]` exists
       in any source file. Restate the row; no code edit follows (Principle IV,
       X.3).
-- [ ] T190 MEDIUM Re-anchor the addresses `contracts/hunt-cli.md` states. `:12`
+- [x] T190 MEDIUM Re-anchor the addresses `contracts/hunt-cli.md` states. `:12`
       names the one `option longOptions[]` table at `cli.cpp:375`, where the
       compare-mode branch stands. `:15` names
       `tools/docs/example_drift.py:458-465` as the README option-row reader,
@@ -1313,7 +1313,7 @@ full ledger is `/home/archerc/sg029-lanes/waves/ph12/converge.md`.
       `runner.cpp:2184,2394` for one iteration per pass, where `:2184` settles
       repetitions, `:2394` is an `SG_INVARIANT` about seat compilability, and
       `:2405` holds the iteration.
-- [ ] T191 MEDIUM Retire the `SG_CLI_SOURCE` reading the contract and three
+- [x] T191 MEDIUM Retire the `SG_CLI_SOURCE` reading the contract and three
       rows state. `contracts/hunt-cli.md:198` says the option table test reads
       `cli.cpp` through a compiled-in `SG_CLI_SOURCE` path, the registration
       pattern `SG_SCHEMA_PATH` uses at
@@ -1324,7 +1324,7 @@ full ledger is `/home/archerc/sg029-lanes/waves/ph12/converge.md`.
       and `cli.cpp` at `test/source/harness_cli_table_test.cpp:1670-1672`.
       Rows `:55`, `:118` and `:119` still describe the compiled-in path and the
       source spelling it parses. Restate all three (Principle IV).
-- [ ] T192 MEDIUM Rewrite the fixture comment at
+- [x] T192 MEDIUM Rewrite the fixture comment at
       `test/source/detail/cli_table_fixture.hpp:15-23`. It states the gate
       reads the one `option longOptions[]` table of `source/harness/cli.cpp`
       because that table is a function-local `static` array of `speedgunMain`

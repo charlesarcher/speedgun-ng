@@ -12,15 +12,15 @@
 // PD-18; contracts/hunt-cli.md).
 //
 // The uniqueness gate `harness_cli_table_test.cpp` states reads the one
-// `option longOptions[]` table of `source/harness/cli.cpp` as text, because
-// that table is a function-local `static` array of `speedgunMain`
-// (`cli.cpp:346`) no linked test can reach. A gate that has only ever seen a
-// correct table proves nothing: the negative control lives here, a twin of that
-// table in the same spelling - the `option` row type of `<getopt.h>`, the
-// `no_argument` / `required_argument` / `optional_argument` argument kinds, the
-// `nullptr` flag field, the terminating `{ nullptr, 0, nullptr, 0 }` row, and
-// the value of every hunt row taken from a named `constexpr int` constant the
-// way `cli.cpp:66-71` names the comparison constants.
+// option table, the `std::to_array<OptionRow>` of `optionRows()` at
+// `source/harness/options.cpp:498-715`, as text. A gate that has only ever
+// seen a correct table proves nothing: the negative control lives here, a
+// twin of the table's rows in the `getopt_long` spelling of the scan's
+// array at `options.cpp:88-103` - the `option` row type of `<getopt.h>`,
+// the `no_argument` / `required_argument` / `optional_argument` kinds,
+// the `nullptr` flag field, the terminating `{ nullptr, 0, nullptr, 0 }`
+// row, and hunt values taken from named `constexpr int` constants the
+// way `detail/options.hpp:76-79` names the comparison constants.
 //
 // Two defects are planted in it, one each, and each is planted so that only the
 // rule it tests can see it:
@@ -44,11 +44,11 @@
 namespace sg::test
 {
 
-// The named value constants, in the form `cli.cpp:66-71` states them: a long
-// option with no letter of its own takes a number of 256 or more, so it cannot
-// collide with a short option. The numbers 256 to 259 are the ones the tree
-// already holds and 270 to 277 are the ones contracts/hunt-cli.md assigns the
-// hunt family inside the 270 to 279 block the lane reserves (D-22).
+// The named value constants, in the form `detail/options.hpp:68-75` states:
+// a long option with no letter of its own takes a number of 256 or more, so
+// it cannot collide with a short option. The numbers 256 to 259 are the
+// ones the tree already holds and 270 to 277 are the ones the contract
+// assigns the hunt family inside the 270 to 279 block (D-22).
 inline constexpr int kCliFixtureMetricMethodOption = 256;
 inline constexpr int kCliFixtureCompareOption = 257;
 inline constexpr int kCliFixtureCompareRuleOption = 258;
@@ -190,10 +190,10 @@ inline constexpr int kCliFixturePlantedValue = kCliFixtureHuntBudgetOption;
 // ---------------------------------------------------------------------------
 // The names this fixture states, for the task that reads it.
 //
-// kCliFixtureTable                    the twin of `option longOptions[]`, with
-//                                     the planted duplicate name and the
-//                                     planted value clash, and the `nullptr`
-//                                     terminator row of the real table
+// kCliFixtureTable                    the `getopt_long` twin of the option
+//                                     table, with the planted duplicate
+//                                     name and the planted value clash, and
+//                                     the scan's `nullptr` terminator row
 // kCliFixtureMetricMethodOption,
 // kCliFixtureCompareOption,
 // kCliFixtureCompareRuleOption        the numbers the tree already holds

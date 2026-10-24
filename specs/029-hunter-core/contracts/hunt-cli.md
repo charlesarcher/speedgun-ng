@@ -1,19 +1,20 @@
 # Contract: the hunt command line
 
 **Feature**: specs/029-hunter-core | **Surface owner**: `source/harness/hunt_cli.cpp`
-with the table rows of `source/harness/cli.cpp` | **Audit point**: `bd10d76`
+with the table rows of `source/harness/options.cpp` | **Audit point**: `bd10d76`
 **Spec**: FR-080 to FR-083, D-1, D-9, D-10, D-11, D-12, D-16, D-21, D-22,
 hard rules 2, 3, 9 and 10
 
 ## What this contract covers
 
 Eight long options, no short letters, named constants 270 to 277 inside the
-block 270 to 279 the lane reserves (D-22). `cli.cpp` gains the
-eight rows of the one `option longOptions[]` table at `cli.cpp:375` and eight
-named constants; every parse, range check, refusal message, `@file` reader, glob
-matcher and conflict check lives in `hunt_cli.cpp` (D-22). The table stays the
-single source `tools/docs/example_drift.py:458-465` reads for the README option
-rows, so a hunt option with no README row fails `example_drift --options`.
+block 270 to 279 the lane reserves (D-22). The one table of `optionRows()`
+at `source/harness/options.cpp:498-715` holds the eight hunt rows, and
+`detail/options.hpp:91-98` names the eight constants; every parse, range
+check, refusal message, `@file` reader, glob matcher and conflict check
+lives in `hunt_cli.cpp` (D-22). The table stays the single source
+`tools/docs/example_drift.py:493-508` reads for the README option rows, so
+a hunt option with no README row fails `example_drift --options`.
 
 Values 256 to 259 are taken at `bd10d76` (`cli.cpp:69-71` for the three
 comparison options, `cli.cpp:374` for `kMetricMethodOption`), so 270 to 279 stand
@@ -34,10 +35,10 @@ free for this lane (spec D-22).
 
 The eight constants take 270 to 277. The lane reserves 270 to 279 (D-22), so
 278 and 279 stay unused this release, and 280 to 289 stay free for N14a-2.
-Every
-constant is named in `cli.cpp` beside the comparison constants, in the form the
-comment at `cli.cpp:66-68` states: a long option with no letter of its own takes
-a number of 256 or more, so it cannot collide with a short option.
+Each constant is named in `detail/options.hpp` beside the comparison
+constants, in the form the comment at `detail/options.hpp:68-75` states: a
+long option with no letter of its own takes a number of 256 or more, so it
+cannot collide with a short option.
 
 `--hunt` is the tree's first `optional_argument` row. `getopt_long` reads an
 optional argument only in the attached form, so `--hunt=all` selects all events
@@ -63,7 +64,7 @@ catalog entry carries an address-shaped `event` field to resolve it with).
 
 Expansion runs after the option scan and before the first run, where
 `speedgunMain` has registered the clock and PMU providers
-(`cli.cpp:367-381`). The shape rules (raw code, malformed pattern, empty
+(`cli.cpp:262-276`). The shape rules (raw code, malformed pattern, empty
 address line) are checked first, so the same text gives the same refusal on a CI
 host without PMU access and on a host that counts everything.
 
@@ -71,7 +72,7 @@ host without PMU access and on a host that counts everything.
 
 Every refusal prints exactly one line naming the value to stderr and exits with
 status 2 (FR-081). The message form follows the percentile list refusal at
-`cli.cpp:87-95`, which prints the option and the text it was given.
+`options.cpp:806-810`, whose text names the option and the given value.
 
 | Input | Line |
 |---|---|
@@ -106,9 +107,9 @@ round-trips exactly like `--hunt=none` does (spec Assumptions).
 `--hunt` combined with `--list`, `--catalog` or `--topology` prints no `hunt:`
 line: those modes print and stop before any run, so the hunt plan never forms.
 A refusal the expansion answers still precedes them, because `cli.cpp` calls
-`expandHuntSelection` at `cli.cpp:586` and the listing modes answer later:
-`catalogMode` prints and returns at `cli.cpp:625`, `topologyMode` at
-`cli.cpp:630` and `listMode` at `cli.cpp:660`. `--catalog --hunt=r4a03`
+`expandHuntSelection` at `cli.cpp:357` and the listing modes answer later:
+`catalogMode` prints and returns at `cli.cpp:396`, `topologyMode` at
+`cli.cpp:401` and `listMode` at `cli.cpp:445`. `--catalog --hunt=r4a03`
 therefore prints the one refusal line and exits with status 2, and the catalog
 stays unprinted. `--hunt` with `--filter` applies the hunt to the instances
 the filter selected. `--hunt-repeats` sets the repeats of the hunt stages, and
@@ -120,7 +121,7 @@ which are the rows the report prints.
 | Input | Behaviour |
 |---|---|
 | `--hunt` with `--metric-method=multiplex` | legal (D-16): every event is multiplexed, the plan line prints the method word `MULTIPLEX`, every row carries the word `multiplexed`, and the document writes the `method` value `MULTIPLEX` (D-19) |
-| `--hunt` with `--dry-run` | legal: the plan line prints, every pass runs one iteration (`runner.cpp:2184,2394`), and each column reaches the table with one sample, a `cv` of `0.0` and no rank, because an unrepeated event carries none (I-5) |
+| `--hunt` with `--dry-run` | legal: the plan line prints, every pass runs one iteration (`runner.cpp:2405`), and each column reaches the table with one sample, a `cv` of `0.0` and no rank, because an unrepeated event carries none (I-5) |
 | `--hunt=none` with anything | legal: the run is identical to the same command with no `--hunt` and no `--hunt=none` |
 
 ## Conflict check
@@ -190,14 +191,14 @@ record holds no such field (FR-040).
 | No estimate | `estimate=not available`, because the hunt measured no pass to weigh the plan against: the entry of a dry run runs nothing to measure, and a host that refused the seat of the measured pass holds no figure for it (FR-012) |
 | Host that refuses everything | the plan line, no ranked row, the skipped list with one line per refused event, and the summary reading `events=0/N`, the plan line carrying `events=0` (D-12, FR-041) |
 | No hunt | no `hunt:` line at all, and no `hunt` key in the document (FR-052, I-8) |
-| `--dry-run` | composes with the hunt: the pass loop runs one iteration per pass (`runner.cpp:2184,2394`), so every column prints with one sample, a `cv` of `0.0` and the `unrepeated` mark |
+| `--dry-run` | composes with the hunt: the pass loop runs one iteration per pass (`runner.cpp:2405`), so every column prints with one sample, a `cv` of `0.0` and the `unrepeated` mark |
 
 ## Option table test
 
 `test/source/harness_cli_table_test.cpp` exists here and nowhere at `bd10d76`,
-and hard rule 10 gives it to the first lane that merges it. It reads `cli.cpp` through a compiled-in `SG_CLI_SOURCE` path, the registration
-pattern `SG_SCHEMA_PATH` uses at
-`test/source/harness_json_schema_test.cpp:21-22`, and asserts:
+and hard rule 10 gives it to the first lane that merges it. The test takes the
+source directory as an argument, reads `detail/options.hpp`, `options.cpp` and
+`cli.cpp` as text (`harness_cli_table_test.cpp:1672-1674`), and asserts:
 
 - no option name repeats in the table,
 - no option value repeats, counting the named constants as their numbers, so
