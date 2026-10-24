@@ -329,7 +329,7 @@ auto allMaskCpus() -> std::string
 // standing as the two groups' lowest cpus, so the `l3` plan of two
 // contexts pins exactly the two cpus pickCpus returned, and the core
 // mates the FR-018 line names stand on the fillers nothing pins (VI).
-auto installThrawnShape(std::uint32_t base, std::uint32_t sibling) -> void
+auto installAcceptanceShape(std::uint32_t base, std::uint32_t sibling) -> void
 {
   const auto fillers = pickFillers(2);
   std::vector<std::pair<std::uint32_t, std::uint32_t>> placed;
@@ -495,14 +495,14 @@ auto setupNoLayout() -> void {}
 
 auto setupIdleNoFree() -> void
 {
-  installThrawnShape(baseCpu, siblingCpu);
+  installAcceptanceShape(baseCpu, siblingCpu);
   auto handle = sg::registerBenchmark(&bmJitIdleNoFree, "bmJitIdleNoFree");
   handle.threads(2);
 }
 
 auto setupOverlap() -> void
 {
-  installThrawnShape(baseCpu, siblingCpu);
+  installAcceptanceShape(baseCpu, siblingCpu);
   auto handle = sg::registerBenchmark(&bmJitOverlap, "bmJitOverlap");
   handle.threads(2);
 }

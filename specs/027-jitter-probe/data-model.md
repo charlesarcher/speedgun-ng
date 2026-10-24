@@ -278,7 +278,7 @@ percentiles run after the stop (FR-006, D-7).
 - No second schema version; the jitter keys ride version 1 of the document
   with the schema rows moved in the same commit (R-09).
 - No short option letter; the long-option value stands at 256 or above,
-  held as `kOptJitterProbe` (FR-011, R-06).
+  held as `kJitterProbeOptionValue` (FR-011, R-06).
 - No noise attribution on the measured cpus; N13b owns it (D-9).
 - No public type beyond the three names and the two entry points; the
   holder, the gap record, the windows and the disclosure live behind

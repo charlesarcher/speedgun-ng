@@ -2,7 +2,7 @@
 
 Validation a reviewer runs at the feature head. Every step is a command
 in this repository; nothing here needs a privilege. The host examples
-name thrawn (24 cores, 48 threads, 4 L3 groups); the probe runs need a
+name the acceptance host (24 cores, 48 threads, 4 L3 groups); the probe runs need a
 host with 4 or more cpus (AC-1).
 
 ## Build and test
@@ -48,7 +48,7 @@ and each benchmark entry carries its own `jitter` object after
 `noiseWarning` (FR-027). The round-trip tests read the written file back
 through `loadReport` with equal values (SC-001, FR-029).
 
-## The idle preset on thrawn
+## The idle preset on the acceptance host
 
 ```sh
 ./build/example/docs_threads --placement=l3 --filter=bmSharded \
@@ -73,7 +73,7 @@ FR-017).
 
 PASS when each command prints one line and exits with status 2 before
 any benchmark runs (SC-002, FR-038, FR-008, FR-009). The last names the
-cpu and the benchmark in its line: on thrawn, cpu 0 is a planned cpu of
+cpu and the benchmark in its line: on the acceptance host, cpu 0 is a planned cpu of
 the `l3` run, and its SMT sibling cpu 24 is refused the same way
 (FR-018, D-3).
 
@@ -125,7 +125,7 @@ the README section "Jitter probe" equal to the example region, within
 
 ## Out of scope for the gates
 
-The thrawn acceptance script `tools/noise/jitter_probe_thrawn.sh` runs
+The acceptance script `tools/noise/jitter_probe_acceptance.sh` runs
 the N4 presets and the N13-V probes, and records its results under
 `specs/027-jitter-probe/results/` (FR-042, FR-043, SC-008). The
 coverage, sanitizer and tsan gates of SC-006 run in CI. The `jitter:`

@@ -225,7 +225,7 @@ counting `operator new` pair).
 
 - **Decision**: `--jitter-probe` enters the option table as a
   long-only entry whose value stands at 256 or above, held as a named
-  constant (`kOptJitterProbe`), the shape `getopt_long` returns intact
+  constant (`kJitterProbeOptionValue`), the shape `getopt_long` returns intact
   for values above the char range
   (`source/harness/cli.cpp:293-312`, the standing table). The grammar
   is the spec's: `<cpu-list|idle>[,threshold=<ns>][,mode=alongside|precheck|both][,precheck=<ms>][,gaps=<n>][,strict]`.
@@ -544,7 +544,7 @@ counting `operator new` pair).
   dependence: values the host decides (gap counts, ns fields) stand
   outside the check, and only the shapes every host prints stand in
   it, so the example runs green on the 4-cpu CI runner and on
-  thrawn.
+  the acceptance host.
 - **Alternatives considered**:
   - A `SECTION_LINE_CAPS` entry raising this section's cap.
     Rejected: FR-034 forbids the entry, and a section that needs a
@@ -561,7 +561,7 @@ counting `operator new` pair).
   take camelBack (`resolveIdleCpus`, `gapStatsOf`), new constants
   take the `k` prefix
   (`kDefaultGapCount`, `kMaxGapCount`, `kMinGapCount`,
-  `kDefaultThresholdNs`, `kDefaultPrecheckMs`, `kOptJitterProbe`),
+  `kDefaultThresholdNs`, `kDefaultPrecheckMs`, `kJitterProbeOptionValue`),
   and new files take lower_case (`jitter_probe.cpp`,
   `jitter_probe.hpp`), matching the shipped surface: the PascalCase
   types of `include/speedgun-ng/execution_context.hpp`
