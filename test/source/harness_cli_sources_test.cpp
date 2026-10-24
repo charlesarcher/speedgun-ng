@@ -252,6 +252,12 @@
 //                                line naming itself at status 2, for every
 //                                row the environment may name (FR-024,
 //                                FR-027, SC-003)
+//   aNumberWordBelowItsKindIsRefused
+//                                a minimum that casts to no nanosecond and
+//                                a number word with a leading blank each
+//                                answer the fault line of their own row at
+//                                status 2; a warm-up time of zero keeps its
+//                                answer (FR-046, FR-054, SC-003)
 //   aBadLetterOfAShortGroupAfterALongOption
 //                                the letter a short group is refused on
 //                                is named by the group's own line behind
@@ -2449,9 +2455,10 @@ auto anEmptyEnvironmentValueIsRefused() -> void
     }
     std::string name {"SPEEDGUN_"};
     for (const char letter : std::string_view {row.name}) {
-      name.push_back(letter == '-' ? '_' : (letter >= 'a' && letter <= 'z'
-                                                ? static_cast<char>(letter - 32)
-                                                : letter));
+      name.push_back(letter == '-' ? '_'
+                                   : (letter >= 'a' && letter <= 'z'
+                                          ? static_cast<char>(letter - 32)
+                                          : letter));
     }
     const std::string what = "an empty value of " + name;
     oneFaultLine(runEntryWithEnv({}, {name + "="}),
@@ -2465,6 +2472,74 @@ auto anEmptyEnvironmentValueIsRefused() -> void
         "(FR-035)");
 }
 
+// A duration below one whole nanosecond leaves the run no minimum to hold,
+// and a number word that opens with a blank is a text the reader takes whole,
+// blanks and all (FR-046, FR-054, the edge cases of the spec). Each answers
+// the fault line of its own row, the words the reader prints, and the entry
+// answers status 2 with that one line (SC-003).
+auto aNumberWordBelowItsKindIsRefused() -> void
+{
+  constexpr std::
+      string_view
+          kSecondsTail =
+              ": expected a finite positive number of seconds at most "
+              "9223372036, " "got '";
+  expectFault(
+      {"--min-time=1e-12"},
+      "--min-time" + std::string(kSecondsTail) + "1e-12'",
+      "a minimum below one nanosecond answers the min-time line " "(FR-046)");
+  expectFault(
+      {"--min-time=4e-10"},
+      "--min-time" + std::string(kSecondsTail) + "4e-10'",
+      "a second minimum below one nanosecond answers the same line " "(FR-"
+                                                                     "046)");
+  expectFault(
+      {"--repetitions= 3"},
+      "--repetitions: expected a positive integer, got ' 3'",
+      "a count that opens with a blank answers the count line " "(FR-054)");
+  expectFault(
+      {"--min-time= 1"},
+      "--min-time" + std::string(kSecondsTail) + " 1'",
+      "a duration that opens with a blank answers the seconds line " "(FR-"
+                                                                     "046)");
+  expectFileFault("repetitions= 3\n",
+                  std::string(kOptionFile)
+                      + ":1: --repetitions: expected a positive integer, "
+                        "got ' 3'",
+                  "a file line whose value opens with a blank answers the "
+                  "count line behind its number (FR-035, FR-054)");
+
+  const Gathered blank = gather({}, {{"SPEEDGUN_REPETITIONS", " 3"}});
+  check(blank.fault == "SPEEDGUN_REPETITIONS: --repetitions: expected a "
+                       "positive integer, got ' 3'",
+        "a variable whose value opens with a blank answers the count line "
+        "behind the variable (FR-024, FR-054)");
+
+  const Gathered warm = gather({"--warmup-time=0"}, {});
+  check(warm.settled.has_value(),
+        "a warm-up time of zero keeps its answer (FR-046)");
+
+  const std::filesystem::path path = capturePath(".blankline");
+  {
+    std::ofstream stream(path);
+    stream << "repetitions= 3\n";
+  }
+  oneFaultLine(runEntryWithEnv({"--repetitions= 3"}, {}),
+               "a count that opens with a blank at the entry point",
+               {"--repetitions:", "expected a positive integer"});
+  oneFaultLine(runEntryWithEnv({"--min-time=1e-12"}, {}),
+               "a minimum below one nanosecond at the entry point",
+               {"--min-time:", "expected a finite positive number"});
+  oneFaultLine(
+      runEntryWithEnv({}, {"SPEEDGUN_REPETITIONS= 3"}),
+      "a variable whose value opens with a blank at the entry " "point",
+      {"SPEEDGUN_REPETITIONS:", "expected a positive integer"});
+  oneFaultLine(
+      runEntryWithEnv({"--options=" + path.string()}, {}),
+      "a file line whose value opens with a blank at the entry " "point",
+      {path.string() + ":1:", "expected a positive integer"});
+  std::filesystem::remove(path);
+}
 
 auto aBadLetterOfAShortGroupAfterALongOption() -> void
 {
@@ -3247,6 +3322,7 @@ auto main(int argc, char** argv) -> int
   theFourRefusedRowsAnswerTheirOwnLines();
   theEnvironmentWalkReadsTheTableItIsGiven();
   anEmptyEnvironmentValueIsRefused();
+  aNumberWordBelowItsKindIsRefused();
   aBadLetterOfAShortGroupAfterALongOption();
   everyRefusedRowLineFaultsTheEntry();
   aWordOfTwoValuesFaultsTheEntry();

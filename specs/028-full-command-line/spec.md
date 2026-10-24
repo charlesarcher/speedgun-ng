@@ -736,6 +736,12 @@ and run the example through `example_run`.
 - `SPEEDGUN_NOT_AN_OPTION` set to anything: ignored.
 - A variable that names an environment row with an empty value: one line
   names the variable and the value, status 2.
+- `--min-time=1e-12` and `--min-time=4e-10`: the cast to nanoseconds leaves
+  nothing, so each answers the min-time fault line, status 2, while
+  `--warmup-time=0` keeps its answer.
+- A number word that opens with a blank, such as `repetitions= 3` from the
+  command line, the environment or a file line: the reader takes the whole
+  text, so the value answers its own fault line, status 2.
 - `SPEEDGUN_PERCENTILES` and `SPEEDGUN_NO_PERCENTILES` set together beside
   a command line that overrides one half: one line names both variables,
   status 2. Two percentile options on the command line alone: the last one
