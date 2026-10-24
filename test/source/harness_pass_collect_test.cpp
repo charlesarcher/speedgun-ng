@@ -33,6 +33,11 @@
 // disclosure a loop that leaves early publishes: the passes whose folds
 // stand, with no spread and no pass tag
 // (FR-016, FR-031, FR-032, FR-014, FR-017; specs/021 FR-016).
+//
+// The last three arms seat a hunt run over a scripted group ceiling, so the
+// second pass opens no window and the join of the refused pass with the plan
+// of that hunt answers for its columns
+// (specs/029 D-18, PD-11, PD-12, FR-021).
 // ============================================================================
 
 #include <array>
@@ -62,6 +67,7 @@
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
 #include "speedgun-ng/execution_context.hpp"
+#include "speedgun-ng/hunt.hpp"
 
 namespace
 {
@@ -106,6 +112,17 @@ constexpr std::uint64_t kThreePassCount = 3;
 
 // The contexts of the threaded arm (FR-013, FR-034, SC-10).
 constexpr int kThreadCount = 2;
+
+// The widest set of `cpu` leaves one window may carry in the group-refusal
+// arms: the pair of index 0 seats under it and the five-leaf column of index 4
+// opens no window, so the second pass of the split is the refused one
+// (specs/029 D-18, PD-09).
+constexpr std::size_t kGroupLeafCeiling = 2;
+
+// The column position the refused split attaches the over-limit column at, and
+// the leaf count of its group: the two numbers the scripted refusal names.
+constexpr std::size_t kRefusedColumnPosition = 1;
+constexpr std::size_t kRefusedColumnLeaves = 5;
 
 // The running ratio the scripted pair discloses, and the steps of its two
 // leaves: the fold of a declared leaf multiplies `running/enabled` of the
@@ -2448,13 +2465,206 @@ auto scenarioDryRunAcrossPasses() -> int
   return 0;
 }
 
+// ---------------------------------------------------------------------------
+// specs/029 D-18, PD-11, PD-12, FR-021: the join of a refused pass with the
+// plan of the hunt that drove the run.
+//
+// A hunt run whose second group opens no window keeps going inside the same
+// pass loop, and the loop reads the columns of the refused pass against the
+// hand-off plan of the hunt. The plan answers one of three ways: a column it
+// lists as an anchor of an event rides that event's retry pass and opens none
+// of its own, a column no plan entry names as its event opens nothing, and a
+// planned column that left an anchor name empty opens a pass holding the event
+// alone, whose own refusal is the event's answer (D-18, FR-021, T073).
+//
+// The scripted group ceiling is what refuses the seat: the widest leaf set one
+// window may carry on `cpu` stands under the width of the over-limit column,
+// so the first pass seats its pair and the second pass's group answers with
+// the refusal of PD-09. The plan reaches the loop through the hand-off field
+// of the instance, the field `runHunt` fills before the stage it plans runs
+// (E-04).
+// ---------------------------------------------------------------------------
+
+// The fixture of the group refusal: the programmable count the planner splits
+// on, beside the widest leaf set one window may carry. The provider stays
+// reachable, so a scenario reads the refusal the scripted ceiling wrote.
+auto registerGroupFixture(const std::size_t limit, const std::size_t leaves)
+    -> sg::counters::FakeProvider&
+{
+  auto provider = std::make_unique<sg::counters::FakeProvider>();
+  sg::test::scriptPassFixture(*provider, limit);
+  provider->setGroupLeafLimit(sg::test::kPassCpuObject, leaves);
+  auto* scripted = provider.get();
+  const auto settled =
+      sg::counters::System::local().registerProvider(std::move(provider));
+  check(settled.has_value(),
+        "the ceiling fixture registers on the local system");
+  fake = scripted;
+  return *scripted;
+}
+
+// The two columns of the refused split: the pair the first pass seats, and the
+// column over the scripted limit, which the planner gives a pass of its own
+// (FR-004, E-03 rule 4).
+auto attachRefusedSplit(sg::BenchmarkHandle& handle) -> void
+{
+  attachColumns(handle, {0, kWideColumnIndex});
+}
+
+// The hand-off plan of a hunt run as the pass loop reads it: one event beside
+// the two anchor labels of its device (E-04, PD-11).
+auto huntHandoff(const std::string& event,
+                 const std::string& cycles,
+                 const std::string& instructions) -> sg::hunt::HuntPlan
+{
+  sg::hunt::HuntPlan plan;
+  plan.columns.push_back(sg::hunt::HuntColumn {
+      .event = event, .cycles = cycles, .instructions = instructions});
+  return plan;
+}
+
+// The scripted group refusal of the second pass's seat. No other open writes
+// that text, so it is the witness that the join of a refused pass ran over the
+// columns of that pass (PD-09).
+auto groupSeatRefused() -> bool
+{
+  return fake->lastRefusalMessage().find("refuses cpu with "
+                                         + std::to_string(kRefusedColumnLeaves)
+                                         + " leaves over its scripted count of "
+                                         + std::to_string(kGroupLeafCeiling))
+      != std::string::npos;
+}
+
+// The row of the run that measured the first pass: the pair of that pass folds
+// its value, and the column of the refused pass answers the gap of a column no
+// folded pass measured (FR-009, FR-014).
+auto checkRefusedSplitRow(const RunAccount& run) -> void
+{
+  checkColumnsAtFullRatio(
+      run.result.rows.front(), {0}, kPlainSteps, kValueIterations, 2);
+  check(run.result.rows.front().metrics[kRefusedColumnPosition].availability
+            == sg::counters::Availability::GAP,
+        "the column of the refused pass keeps the gap of a column no folded "
+        "pass measured (FR-014)");
+  check(run.result.passCount == 1,
+        "the run publishes the one pass whose fold stands, the count a refused "
+        "pass adds nothing to (FR-017, E-07)");
+}
+
+// PD-11, D-18: the refused pass whose one column is an anchor of the plan. The
+// hand-off names the over-limit column as the cycles anchor of the event it
+// carries, so the join passes that column by: an anchor of the plan rides a
+// retry as a member of its event and opens no pass of its own (D-18).
+auto scenarioHuntAnchorColumnRides() -> int
+{
+  registerGroupFixture(sg::test::kHostPassLimit, kGroupLeafCeiling);
+
+  auto split = sg::registerBenchmark(&bmPlain, "bmHuntAnchorPass");
+  attachRefusedSplit(split);
+  sg::detail::expandRegistry();
+
+  auto* instance = needInstance("bmHuntAnchorPass");
+  instance->huntPlan = huntHandoff("pair_a", "wide", "");
+  const RunAccount run =
+      runMeasured(*instance, optionsFor(kValueIterations, 1));
+
+  check(groupSeatRefused(),
+        "the second pass's group is the seat the scripted ceiling refused "
+        "(D-18, PD-09)");
+  check(instance->huntRetriedPasses().empty(),
+        "the anchor column of the refused pass opens no retry pass of its own "
+        "(D-18, PD-12)");
+  check(instance->huntRefusedEvents().empty(),
+        "a column the join passed by is no event's refusal (D-18, FR-021)");
+  checkRefusedSplitRow(run);
+
+  std::puts("hunt-anchor-column-rides: ok");
+  return 0;
+}
+
+// PD-11, D-18: the refused pass whose one column no plan entry names as its
+// event. The hand-off carries another event with the anchors of its own, so
+// the join finds no plan column to answer for the refused column and opens no
+// retry for it (D-18).
+auto scenarioHuntUnplannedColumn() -> int
+{
+  registerGroupFixture(sg::test::kHostPassLimit, kGroupLeafCeiling);
+
+  auto split = sg::registerBenchmark(&bmPlain, "bmHuntUnplannedPass");
+  attachRefusedSplit(split);
+  sg::detail::expandRegistry();
+
+  auto* instance = needInstance("bmHuntUnplannedPass");
+  instance->huntPlan = huntHandoff("pair_b", "cpu/cycles", "cpu/instructions");
+  const RunAccount run =
+      runMeasured(*instance, optionsFor(kValueIterations, 1));
+
+  check(groupSeatRefused(),
+        "the second pass's group is the seat the scripted ceiling refused "
+        "(D-18, PD-09)");
+  check(instance->huntRetriedPasses().empty(),
+        "a column no plan entry names as its event opens no retry pass (D-18, "
+        "PD-12)");
+  check(instance->huntRefusedEvents().empty(),
+        "an address the plan never carried is no event's refusal (D-18, "
+        "FR-021)");
+  checkRefusedSplitRow(run);
+
+  std::puts("hunt-unplanned-column: ok");
+  return 0;
+}
+
+// D-18, FR-021, T128: the planned column that left its anchor names empty. The
+// device of the hunt publishes no anchors, so the join opens the one pass that
+// holds the event alone; the scripted ceiling refuses that pass too, and the
+// event joins the refusal list with the state the run publishes for an event
+// that produced no value (D-18, FR-021, T073, T118).
+auto scenarioHuntEmptyAnchorRefusal() -> int
+{
+  registerGroupFixture(sg::test::kHostPassLimit, kGroupLeafCeiling);
+
+  auto split = sg::registerBenchmark(&bmPlain, "bmHuntEmptyAnchor");
+  attachRefusedSplit(split);
+  sg::detail::expandRegistry();
+
+  auto* instance = needInstance("bmHuntEmptyAnchor");
+  instance->huntPlan = huntHandoff("wide", "", "");
+  const RunAccount run =
+      runMeasured(*instance, optionsFor(kValueIterations, 1));
+
+  check(instance->huntRetriedPasses().size() == 1,
+        "the planned column of the refused pass opened one retry pass (PD-12, "
+        "D-18)");
+  check(instance->huntRetriedPasses().front().loneColumns
+            == std::vector<std::size_t> {kRefusedColumnPosition},
+        "the retry pass holds the planned event alone, at the position the run "
+        "attached it (PD-12)");
+  check(instance->huntRefusedEvents().size() == 1,
+        "the retry pass of the event alone opened no window either, so the "
+        "event joins the refusal list (D-18, FR-021)");
+  const auto& refused = instance->huntRefusedEvents().front();
+  check(refused.address == "wide",
+        "the refusal names the address of the event its own pass measured "
+        "(FR-021, T073)");
+  check(refused.refusal.message.find("the run plan does not compile: ") == 0,
+        "the refusal travels as the counters-layer text the seat answered, "
+        "with no message written over it (T073)");
+  check(refused.availability == sg::counters::Availability::ABSENT,
+        "a refusal that names no catalog state publishes ABSENT, the state of "
+        "an event that produced no value (T118, T128)");
+  checkRefusedSplitRow(run);
+
+  std::puts("hunt-empty-anchor-refusal: ok");
+  return 0;
+}
+
 struct Scenario
 {
   const char* name;
   int (*run)();
 };
 
-constexpr std::array<Scenario, 21> kScenarios {{
+constexpr std::array<Scenario, 24> kScenarios {{
     Scenario {"two-pass-run", &scenarioTwoPassRun},
     Scenario {"pause-across-passes", &scenarioPauseAcrossPasses},
     Scenario {"over-limit-run", &scenarioOverLimitRun},
@@ -2478,6 +2688,9 @@ constexpr std::array<Scenario, 21> kScenarios {{
     Scenario {"percentiles-across-passes", &scenarioPercentilesAcrossPasses},
     Scenario {"counters-across-passes", &scenarioCounterColumnAcrossPasses},
     Scenario {"dry-run-across-passes", &scenarioDryRunAcrossPasses},
+    Scenario {"hunt-anchor-column-rides", &scenarioHuntAnchorColumnRides},
+    Scenario {"hunt-unplanned-column", &scenarioHuntUnplannedColumn},
+    Scenario {"hunt-empty-anchor-refusal", &scenarioHuntEmptyAnchorRefusal},
 }};
 
 }  // namespace

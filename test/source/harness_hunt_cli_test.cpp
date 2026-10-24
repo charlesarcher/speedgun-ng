@@ -87,6 +87,11 @@ constexpr const char* kBlankFile = "hunt_cli_blank.txt";
 constexpr const char* kRawFile = "hunt_cli_raw.txt";
 constexpr const char* kListFile = "hunt_cli_list.txt";
 constexpr const char* kDupFile = "hunt_cli_dup.txt";
+// The two files of the file-selection refusals below: one whose every line is
+// a comment, one that carries an address beside a raw code in the upper-case
+// hex spelling no other row quotes.
+constexpr const char* kParkedFile = "hunt_cli_parked.txt";
+constexpr const char* kUpperRawFile = "hunt_cli_upper_raw.txt";
 
 auto fail(const char* what) -> void
 {
@@ -270,9 +275,18 @@ struct RefusalRow
   std::string line;
 };
 
-auto rawCodeLine() -> std::string
+auto rawCodeLine(const std::string& code = "r4a03") -> std::string
 {
-  return "--hunt: 'r4a03' is a raw event code; --hunt takes catalog addresses";
+  return "--hunt: '" + code
+      + "' is a raw event code; --hunt takes catalog addresses";
+}
+
+// The one line a selection of files leaves with when their lines hold no
+// address. The whole selection stands quoted, so two file names ride one pair
+// of quotes.
+auto holdsNoAddressLine(const std::string& selection) -> std::string
+{
+  return "--hunt: '" + selection + "' holds no catalog address";
 }
 
 // The one line a reserved rank key leaves with, naming the word the option
@@ -700,6 +714,60 @@ auto scenarioListCarriesAGlob() -> void
         "the resolved selection gives one column per address the text "
         "selected (FR-006)");
   std::printf("list-carries-glob: ok\n");
+}
+
+// The two star arms of `globMatches` of `detail/hunt_selection.hpp`: the arm
+// that records a star, and the arm that backtracks onto the recorded star once
+// a later pattern character mismatches. A pattern of literal text and `?`
+// settles on one pass and never opens a star, so the star has to stand in
+// front of a leaf character the run reaches by lengthening the star's own run.
+// `cpu/*9` is that text: the star opens after `cpu/`, the `9` mismatches the
+// first leaf character of every address at once, and each backtrack hands it
+// one more character until it stands on the last one (FR-007).
+auto scenarioGlobStarArms() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+
+  const auto run = captureRun(withFilter({"--hunt=cpu/*9"}));
+  check(countOf(run, "hunt: plan events=20 ") == 1,
+        "a pattern whose star backtracks selects the twenty scripted events "
+        "whose leaf ends in 9 (FR-007)");
+  check(huntLines(run, "hunt: rank ").size() == 20,
+        "the selection the backtracked star resolved gives one column per "
+        "address it reached (FR-007)");
+  check(!huntLines(run, address(199)).empty(),
+        "the event at the end of the scripted numbering stands in a column of "
+        "that selection");
+  check(huntLines(run, address(20)).empty(),
+        "the event whose leaf ends in 0 stands outside that selection");
+  std::printf("glob-star-arms: ok\n");
+}
+
+// The refusals a selection read out of a files leaves with, and the refusal of
+// a pattern whose star backtracks onto every address and satisfies none. Each
+// line names the value in the spelling the option carried, so a selection of
+// two files quotes both names inside one pair of quotes (FR-006, FR-007,
+// FR-081).
+auto scenarioSelectionRefusalShapes() -> void
+{
+  writeFile(kParkedFile, "# cpu/hunt000 stays parked here\n\n   \n");
+  writeFile(kUpperRawFile, address(3) + "\n# between the two\nr1F\n");
+  checkRefusals(
+      {{"full",
+        {"--hunt=cpu/*z"},
+        "--hunt: pattern 'cpu/*z' matches no catalog address"},
+       {"full",
+        {"--hunt=@" + std::string(kParkedFile)},
+        "--hunt: '@hunt_cli_parked.txt' holds no catalog address"},
+       {"full",
+        {"--hunt=@" + std::string(kParkedFile) + ",@"
+         + std::string(kBlankFile)},
+        holdsNoAddressLine("@hunt_cli_parked.txt,@hunt_cli_blank.txt")},
+       {"full",
+        {"--hunt=@" + std::string(kUpperRawFile)},
+        rawCodeLine("r1F")}});
+  std::printf("selection-refusal-shapes: ok\n");
 }
 
 auto scenarioAllSelectionCount() -> void
@@ -1390,6 +1458,8 @@ auto scenarioFilterSelectsTwoHuntedInstances() -> void
       Scenario {"bare-hunt-whole-catalog", &scenarioBareHuntSelectsTheCatalog},
       Scenario {"all-selection-count", &scenarioAllSelectionCount},
       Scenario {"list-carries-glob", &scenarioListCarriesAGlob},
+      Scenario {"glob-star-arms", &scenarioGlobStarArms},
+      Scenario {"selection-refusal-shapes", &scenarioSelectionRefusalShapes},
       Scenario {"hunt-none-like-no-hunt", &scenarioHuntNoneBehavesLikeNoHunt},
       Scenario {"multiplex-combination", &scenarioMultiplexCombination},
       Scenario {"dry-run-one-row-per-column", &scenarioDryRunCombination},
