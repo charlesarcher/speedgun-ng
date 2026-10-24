@@ -122,7 +122,7 @@ six entry keys, and the console derives the `unrepeated` mark from `samples`.
 ## Writer rules
 
 - The objects go through the existing `Builder` with the RAII helpers
-  `JsonObjectWriter` and `JsonArrayWriter` (`json_report.cpp:43-78`), reached
+  `JsonObjectWriter` and `JsonArrayWriter` (`json_report.cpp:89-143`), reached
   through the `put`, `putOrNull` and `enumWord` helpers the 023 and 024 keys
   already use. No raw string assembly appears.
 - `writeHunt(builder, const RunHunt&)` is called from `writeReport` after the
@@ -131,8 +131,8 @@ six entry keys, and the console derives the `unrepeated` mark from `samples`.
   writer already holds, so a failed buffer is handled the way 023 handles it and
   adds no new branch.
 - A `std::nullopt` estimate or budget writes `null` through `putOrNull`, the
-  path `passSpread` already takes (`json_report.cpp:589`).
-- `writeReport` takes `const ReportData&` (`json_report.cpp:726`), so the run
+  path `passSpread` already takes (`json_report.cpp:607`).
+- `writeReport` takes `const ReportData&` (`json_report.cpp:771`), so the run
   data reaches the writer with no new parameter: `ReportData::hunt` carries it
   (PD-10).
 - No `LCOV_EXCL` marker joins either file (FR-091).

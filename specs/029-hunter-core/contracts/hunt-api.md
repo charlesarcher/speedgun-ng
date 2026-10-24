@@ -131,7 +131,7 @@ public:
 | `\invariant` | `addresses()` is empty until `expand` succeeds |
 
 Discovery reads `System::local().object("machine")`, its `children()`, and
-`Object::counters()` (`counters_system.hpp:47,109,241`; the walk
+`Object::counters()` (`counters_system.hpp:109,117,241`; the walk
 `catalog.cpp:81-88` already performs). `CatalogEntry` holds no address field, so
 no other composition exists (spec PC-1).
 
@@ -316,7 +316,7 @@ every method its caller hands.
 
 `runHunt` is public in `hunt.hpp` (D-15). It drives the harness runner behind its
 own definition, whose `Runner` and `Instance` types stay harness internals
-(`detail/internal.hpp:246,561`). The signature names public types alone: the
+(`detail/internal.hpp:253,578`). The signature names public types alone: the
 forward-declared `BenchmarkHandle`, `HuntOptions` and the entry record, and the
 definition lives in `source/harness/hunt.cpp`:
 
@@ -412,6 +412,6 @@ auto lastRefusalMessage() const -> std::string;
 message says no open was ever refused for one. `\pre` none, `\post` none: the
 accessor reads the scripted state, so a test reads it after the refusal it
 asks about and before the next `open`.
-`test/source/harness_hunt_collect_test.cpp:853` reads the object path and the
+`test/source/harness_hunt_collect_test.cpp:857` reads the object path and the
 leaf count out of that message, which is how the retry scenario names the
 ceiling it hit (spec PC-3, D-18).
