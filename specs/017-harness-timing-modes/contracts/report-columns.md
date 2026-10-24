@@ -69,7 +69,7 @@ after
 | `test/source/harness_capture_test.cpp:330, :372` | the field token moves to `real time/iter (ns)=` |
 | `test/source/harness_fixture_test.cpp:488` | the field token moves to `real time/iter (ns)=` |
 | `test/source/harness_statistics_test.cpp:199` | the field token moves to `real time/iter (ns)=` |
-| `test/source/harness_cli_test.cpp:356`, `harness_family_test.cpp:424`, `harness_instance_name_test.cpp:302` | unchanged: each asserts that list mode prints no `time/iter` text |
+| `test/source/harness_cli_test.cpp:665`, `harness_family_test.cpp:434`, `harness_instance_name_test.cpp:312` | unchanged: each asserts that list mode prints no `time/iter` text |
 
 The old token `time/iter (ns)=` is a suffix of both new column tokens, so
 each reader names the column it means. The move lands in the same commit

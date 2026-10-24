@@ -283,8 +283,8 @@ plan decision below and in [research.md](research.md).
 | PD-14 | Single-sample events | an event with one sample reports `cv` 0.0 and cannot enter the top N; stage-1 selection ranks those samples by rate |
 | PD-15 | Console order | plan before the run; then the ranked table, the marked excluded tail, the skipped list and the plan summary after the benchmark tables |
 | PD-16 | Refusal point | option values are parsed at the scan; list, glob and `@file` expansion runs after the scan, where the catalog answers, and exits 2 naming the value |
-| PD-17 | Option wiring | eight named constants 270 to 277 inside the block 270 to 279 that the lane reserves (D-22) and eight rows in the one `option longOptions[]` table of `cli.cpp`; every parse and refusal body in `hunt_cli.cpp` |
-| PD-18 | Table test | `harness_cli_table_test.cpp` reads `cli.cpp` through a compiled-in path and asserts unique names, unique values and hunt values inside 270 to 279 |
+| PD-17 | Option wiring | eight named constants 270 to 277 inside the block 270 to 279 that the lane reserves (D-22) and eight rows in the one `optionRows()` table of `options.cpp`; every parse and refusal body in `hunt_cli.cpp` |
+| PD-18 | Table test | `harness_cli_table_test.cpp` reads the `detail::optionRows()` table through the source-directory argument and asserts unique names, unique values and hunt values inside 270 to 279 |
 | PD-19 | Docs ownership | `hunt_rank.cpp` owns the "Hunter mode" section with a scripted host that refuses its events, so the skipped list prints on every host |
 | PD-20 | Version and schema | `0.19.0` planned, next free minor at rebase; harness `SOVERSION` 11, archive `SOVERSION` 4; schema minor 1.4 |
 
@@ -445,7 +445,7 @@ Every file the change touches outside its own new files, with the edit:
 | File | Edit |
 |---|---|
 | `CMakeLists.txt` | `VERSION` 0.16.0 to 0.19.0 (line 9), archive `SOVERSION` 3 to 4 (line 53) with its comment, harness `SOVERSION` 10 to 11 (line 261) with its comment |
-| `test/CMakeLists.txt` | seven `add_executable` blocks with their `add_test` lines (pattern at 1079-1091), `SG_CLI_SOURCE` on the table test, `SG_SCHEMA_PATH` on the hunt JSON test, one `report_shape_hunt_rank_sample` entry (pattern at 1185-1192) |
+| `test/CMakeLists.txt` | seven `add_executable` blocks with their `add_test` lines (pattern at 1079-1091), the table test's source-directory argument, `SG_SCHEMA_PATH` on the hunt JSON test, one `report_shape_hunt_rank_sample` entry (pattern at 1185-1192) |
 | `example/CMakeLists.txt` | one `add_docs_example(hunt_rank)` line after line 74 |
 | `README.md` | new `### Hunter mode` section after `### Regression gate` (line 621), at or under 25 section lines; eight option rows in the option table (ends at line 766); one quick-reference name row per new public type |
 | `docs/pages/harness.md` | the "Hunter mode" option detail and the hunt object shape; line 1067 states the version a run writes and moves with the schema minor |
@@ -503,7 +503,7 @@ reports the cause with `gcov -b` evidence (FR-091, FR-092).
 | Two-stage rows (P8) | `harness_hunt_report_test.cpp` runs a budgeted plan whose stage 2 measures fewer columns and checks that a stage-1-only address still reaches the console table and the `entries` array through a record built from its stage 1 samples | two-stage plan, stage-1-only address, merged row set |
 | CLI refusals (P8) | in-process `speedgunMain` for the status-2 returns, forked children for the `std::exit(2)` refusals with the captured single stderr line (the `harness_cli_test.cpp` pattern at its lines 800, 1166 and 1417) | bad glob, unknown address, bad budget, bad norm, bad rank key including `sensitivity`, `delta` and `score`, repeats 0 and 1001, top 0 and 10001, `r4a03`, `--hunt` with `--counter`, `--metric` or `--compare`, missing `@file`, empty address line, an explicit `--hunt-norm` word whose anchor is refused (D-13), a device limit below 3 (FR-081) |
 | CLI legal combinations (P8) | accepted-combination cases on the captured console and document | `--hunt` with `--metric-method=multiplex` (every event multiplexed, the plan line word `MULTIPLEX`, the disclosure in the rows and the document, D-16), `--dry-run` with `--hunt` (the plan line prints, every pass runs one iteration, and each column prints unrepeated with a `cv` of `0.0`, `runner.cpp:2202,2301`), `--hunt=none` (behaves exactly like a run with no `--hunt`), a bare `--hunt` (selects the whole core catalog, D-1) |
-| CLI table (P8) | `harness_cli_table_test.cpp` parses the one `option longOptions[]` table of `cli.cpp` through `SG_CLI_SOURCE` and asserts that declared names and declared values are globally unique, then asserts every hunt value lies in 270 to 279, the block the lane reserves | the planted duplicate in the fixture twin of the table |
+| CLI table (P8) | `harness_cli_table_test.cpp` reads the `detail::optionRows()` table of `options.cpp` as text through the source-directory argument and asserts that declared names and declared values are globally unique, then asserts every hunt value lies in 270 to 279, the block the lane reserves | the planted duplicate in the fixture twin of the table |
 | US4 page (P9) | `snippet_compile` compiles the copied block, `example_run` runs `docs_hunt_rank`, `report_shape_hunt_rank_sample` compares it with `hunt_rank.expected` by shape, `example_drift` checks the section, its owner, the name rows and the eight option rows | the recorded `PAGE_LINE_CAP` move, the 25-line section cap, the host-independent skipped list |
 | Statistics (P2) | existing `harness_statistics_test.cpp` cases plus the hunt CV check: the CV a hunt reports is one hundred times the `cv=` column value of the same samples | empty list guard, one sample, even count, zero mean |
 

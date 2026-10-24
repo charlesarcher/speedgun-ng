@@ -19,7 +19,7 @@ the tree (`cli.cpp:73,256,326-339,345,346`; `runner.cpp:49,866,873,1400,2286-229
 `counters_core.hpp:87-95,247`; `counters_fake.hpp:43,103,252,258-272`; `pass_plan.hpp:27,
 41,105,132`; `internal.hpp:224,434,444,455,486`; `benchmark.hpp:220,261,624,2561`;
 `report-v1.json:7-9,28-51,72`; `example_drift.py:32,63,155,156,161,458`;
-`harness_json_schema_test.cpp:21-22,102`; `harness_cli_test.cpp:800,1166,1417`;
+`harness_json_schema_test.cpp:21-22,102`; `harness_cli_test.cpp:820, 1186, 1437`;
 `harness_compare_cli_test.cpp:492,516`; `harness_compare_test.cpp:1191-1202`;
 `docs/pages/harness.md:1067`; `README.md:621,766`; `example/CMakeLists.txt:74`).
 `ci-rocky` and `ci-ubuntu` exist, `ci-sanitize` and `ci-tsan` exist as presets, every gate

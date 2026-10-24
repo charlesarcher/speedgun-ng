@@ -30,7 +30,7 @@ T029's "first optional-argument row" is true); `json_report.cpp:31`, `:43-78`,
 `:63-107`; `counters_fake.hpp:103`, `:135-248`, `:268`;
 `test/CMakeLists.txt:607`, `:1079-1083`, `:1089-1091`, `:1185-1192`;
 `example/CMakeLists.txt:74`; `test/example_run.sh:35-36`;
-`harness_cli_test.cpp:800`, `:1166`, `:1417`; `harness_json_load_test.cpp:113`,
+`harness_cli_test.cpp:820`, `:1186`, `:1437`; `harness_json_load_test.cpp:113`,
 `:529`; `harness_compare_test.cpp:1191-1202`; `README.md:621` and `:766`;
 `docs/pages/harness.md:1067`; `docs/schema/report-v1.json:7` and `:28-50` (the
 entry `x-order` holds 21 entries, so "the 22nd entry" is exact);

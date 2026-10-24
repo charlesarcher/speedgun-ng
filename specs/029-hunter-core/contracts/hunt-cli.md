@@ -212,7 +212,7 @@ source directory as an argument, reads `detail/options.hpp`, `options.cpp` and
 | Behaviour | Test |
 |---|---|
 | Each refusal line of the table above, one case per row, status 2 and one stderr line | `test/source/harness_hunt_cli_test.cpp` |
-| In-process `speedgunMain` status checks, and forked children where the refusal path calls `std::exit`, following `test/source/harness_cli_test.cpp:800,1166,1417` | `harness_hunt_cli_test.cpp` |
+| In-process `speedgunMain` status checks, and forked children where the refusal path calls `std::exit`, following `test/source/harness_cli_test.cpp:820, 1186, 1437` | `harness_hunt_cli_test.cpp` |
 | Selection forms: `all`, `none`, list, pattern, `@file`, dedup across a list and a file | `harness_hunt_cli_test.cpp`, `harness_hunt_plan_test.cpp` |
 | The conflict check for `--counter`, `--metric`, `--compare` and `--placement`, in both command-line orders | `harness_hunt_cli_test.cpp` |
 | `--hunt` with `--metric-method=multiplex` runs every event multiplexed and discloses it in the plan line, the rows and the document | `harness_hunt_cli_test.cpp` |

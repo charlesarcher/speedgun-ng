@@ -96,9 +96,9 @@ that scheduling.
 
 `harness_hunt_cli_test` holds 117.90 s to 120.34 s across the three columns:
 two cores more moves it by 1.96 s on a run of about two minutes. It carries no
-`TIMEOUT` property (`test/CMakeLists.txt:1131`), so no registered limit bounds
-it, and the 120 s its sibling `report_shape_hunt_rank_sample` carries
-(`test/CMakeLists.txt:1308`) would refuse the four-CPU figure of 120.34 s.
+`TIMEOUT` property (`test/CMakeLists.txt:1207-1211`), so no registered limit
+bounds it, and the 120 s its sibling `report_shape_hunt_rank_sample` carries
+(`test/CMakeLists.txt:1374`) would refuse the four-CPU figure of 120.34 s.
 
 `harness_hunt_collect_test` passed on the two-CPU set at 0.19 s. That run
 executes `scenarioTwoContextWindowOpens`, whose `sched_getaffinity` check is

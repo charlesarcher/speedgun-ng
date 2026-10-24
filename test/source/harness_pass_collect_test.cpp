@@ -1339,7 +1339,7 @@ constexpr std::uint64_t kNoLimitLeafStep = 3 * sg::test::kPassEventStep;
 // Lay the scripted ratio pair on `cpu` and promote one leaf of every rotated
 // column to a carrier of it. `addCounter` rewrites the catalog entry of a leaf
 // it already holds and leaves the scripted sequence alone
-// (`source/counters/fake_provider.cpp:199-221`), so a promoted leaf keeps the
+// (`source/counters/fake_provider.cpp:213-237`), so a promoted leaf keeps the
 // steps the fixture scripted for it. Every scripted fact precedes the
 // registration, the rule `registerFixtureProvider` states.
 auto registerCarrierProvider() -> sg::counters::FakeProvider&

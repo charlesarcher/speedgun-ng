@@ -20,8 +20,8 @@
 // object path once.
 //
 // The budget and stage tables of T031 read two further units of the same plan
-// lane. The option body behind `--hunt-budget` stands in `hunt_cli.cpp`, read
-// here as it is read in `cli.cpp:326`, and a refused value is checked in a
+// lane. The option body behind `--hunt-budget` stands in `hunt_cli.cpp`,
+// called from `options.cpp:982`, and a refused value is checked in a
 // child of its own because the refusal path calls `std::exit(2)`. The stage
 // split stands in `detail::splitStages`, the call `planHunt` makes for its own
 // `stages` field: the plan record carries the stages but not the cut verdict,
@@ -66,10 +66,10 @@
 #include "speedgun-ng/counters_system.hpp"
 #include "speedgun-ng/hunt.hpp"
 
-// The `--hunt-budget` body of `hunt_cli.cpp`, declared here the way
-// `cli.cpp:326` declares it beside its option row and
-// `harness_compare_test.cpp:106` declares the compare bodies it drives: the
-// parse core has no header of its own.
+// The `--hunt-budget` body of `hunt_cli.cpp`. `detail/options.hpp:237`
+// declares it and `options.cpp:982` calls it; this block carries its own
+// declaration for this translation unit, the way
+// `harness_compare_test.cpp:106` declares the compare bodies it drives.
 namespace sg::detail
 {
 auto parseHuntBudget(const char* text, RunOptions& options) -> void;

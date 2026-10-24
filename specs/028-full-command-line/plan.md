@@ -378,8 +378,8 @@ rests on the affinity construction D-29 records and on review (D-29,
 FR-081).
 
 Extended targets: `harness_cli_test` for the entry point over the new
-options and for the usage cases at `test/source/harness_cli_test.cpp:769`
-and `:773`, whose `unknown option` expectation the new line keeps while
+options and for the usage cases at `test/source/harness_cli_test.cpp:806`
+and `:810`, whose `unknown option` expectation the new line keeps while
 its new assertions name the typed text;
 `harness_compare_cli_test` for the rules file (FR-061 to FR-065,
 SC-006); `harness_json_report_test` for the `run` object and the

@@ -166,8 +166,8 @@ one line naming the value and exit 2. No estimate prints
    that reports success prints
    `error: the report file '/dev/full' could not be written: No space left
    on device` from a passing case: the refusal
-   `test/source/harness_json_report_test.cpp:447` pins and
-   `source/harness/json_report.cpp:778` writes (specs/023 FR-030).
+   `test/source/harness_json_report_test.cpp:451` pins and
+   `source/harness/json_report.cpp:831` writes (specs/023 FR-030).
 
 2. Read the expectations those two suites state for a hunt document.
 
@@ -281,7 +281,7 @@ joins the case (hard rule 1, FR-092).
 | `harness_cli_table_test` reports a clash | an option name or value repeats: the eight hunt constants take 270 to 277 and the lane reserves 270 to 279 (D-22) |
 | `checkReport` rejects a hunt document | a `hunt` key stands outside `x-order`, or stands in a closed hunt node's document and not in its `properties` |
 | the byte-identity of a non-hunt run moved | the seat route changed for a run with no hunt columns: `SG_INVARIANT` at `runner.cpp:2391-2395` still serves that route, and the hunt branch is taken only when the plan carries hunt columns |
-| `example_drift` fails on the option table | an option row is missing from the main page: `example_drift.py:681-693` compares every README row with every row of `cli.cpp`'s table |
+| `example_drift` fails on the option table | an option row is missing from the main page: `example_drift.py:724-736` compares every README row with every row of `options.cpp`'s table |
 | `example_run` fails on `docs_hunt_rank` | the example printed no row, or its skipped list moved: the scripted refusal owns the output and no host fact does |
 | the AC-1 or AC-2 hardware record misses | read `perf list` and the device's `programmableCounters` answer on the host, and read the plan line's `method=` word: an `armv8_` device publishes no limit and plans `MULTIPLEX` |
 

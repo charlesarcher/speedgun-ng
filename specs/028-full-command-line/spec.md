@@ -377,8 +377,8 @@ and the macro is written at `CMakeLists.txt:231`.
 
 ### PC-7: the test surface the message changes reach. PASS.
 
-`test/source/harness_cli_test.cpp:769` expects `unknown option` for
-`--nonsense=1`, and `:773` expects the same text for `--metric` with no
+`test/source/harness_cli_test.cpp:806` expects `unknown option` for
+`--nonsense=1`, and `:810` expects the same text for `--metric` with no
 value, because the missing-argument answer falls into the `default` arm at
 `cli.cpp:506`. `test/source/harness_cli_placement_test.cpp:449` matches
 the same text. The two targets are registered at `test/CMakeLists.txt:651`
@@ -1430,7 +1430,7 @@ symbol first.
 | `docs/schema/report-v1.json:7` to `:9` | the top-level key order, the required list, and `additionalProperties: true` |
 | `CMakeLists.txt:9`, `:53`, `:231`, `:261` | VERSION 0.16.0, archive `SOVERSION` 3, `SG_PROJECT_VERSION`, harness `SOVERSION` 10 |
 | `test/cli_shape.sh:32`, `:39`, `:47` | the awk range that finds the run loop, the one-flag-reading count, the `bool interrupted =` spelling |
-| `test/source/harness_cli_test.cpp:769`, `:773` | the two tests that expect `unknown option`, one for an unknown name and one for a missing value |
+| `test/source/harness_cli_test.cpp:806`, `:810` | the two tests that expect `unknown option`, one for an unknown name and one for a missing value |
 | `test/source/harness_cli_placement_test.cpp:449` | a third test that matches the same text |
 | `test/CMakeLists.txt:651` to `:654`, `:695` to `:702` | the CLI test targets the message change reaches |
 | `tools/docs/example_drift.py:32` to `:57`, `:63` | `SECTIONS`, which already lists `The command line`, and the section map |

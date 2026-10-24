@@ -479,14 +479,14 @@ is what a CI host without PMU access needs to test the same line.
 
 ## PD-17 Option wiring
 
-**Decision**: eight named constants in `cli.cpp` at values 270 to 277:
+**Decision**: eight named constants in `options.hpp` at values 270 to 277:
 `kHuntOption` 270, `kHuntNormOption` 271, `kHuntRankOption` 272,
 `kHuntTopOption` 273, `kHuntNoiseOption` 274, `kHuntRepeatsOption` 275,
 `kHuntBudgetOption` 276, `kHuntSeedOption` 277. The lane reserves 270 to 279
 (D-22), so 278 and 279 stay unused this release. `hunt_cli.cpp` holds the parse functions, the value
 ranges, the refusal texts, the `@file` reader, the glob matcher, the raw-code
-refusal and the conflict check. `cli.cpp` gains the eight rows of
-`option longOptions[]` and eight switch arms that call one `hunt_cli` function
+refusal and the conflict check. `options.cpp` gains the eight rows of
+`optionRows()` and eight switch arms that call one `hunt_cli` function
 each. `--hunt` is the tree's first `optional_argument` row, so its value form is
 `--hunt=all` with no space.
 
@@ -515,18 +515,18 @@ conflict check runs after the scan, where the settled `RunOptions` shows whether
 ## PD-18 Option table test
 
 **Decision**: `test/source/harness_cli_table_test.cpp` reads the source of
-`cli.cpp` through a compiled-in `SG_CLI_SOURCE` path, parses the one
-`option longOptions[]` table and the named value constants, and asserts that no
-declared name repeats, that no declared value repeats across the whole table,
-and that every hunt value lies in 270 to 279, the block the lane reserves. The
-fixture twin of a table with a planted duplicate and a planted value clash lives
-under `test/source/detail/`.
+`options.cpp` from the harness directory the registered command passes, parsing
+the `std::to_array<OptionRow>` table of `detail::optionRows()` and the named
+value constants, and asserts that no declared name repeats, that no declared
+value repeats across the whole table, and that every hunt value lies in 270 to
+279, the block the lane reserves. The fixture twin of a table with a planted
+duplicate and a planted value clash lives under `test/source/detail/`.
 
 **Rationale**: hard rule 10 gives the file to the first lane that merges, and
 `git ls-files | grep harness_cli_table` shows no such file at `bd10d76`, so this
 lane creates it and hard rule 9 makes it a requirement (FR-083). The
-option table is a function-local `static` array in `speedgunMain`
-(`cli.cpp:346`), so no linked test can read it; reading the source is what the
+option table is the `detail::optionRows()` span of `options.cpp`, so a linked
+test can read it through that seam, and reading its text is what the
 gate `example_drift.py:458-465` already does for the same table, so the test
 follows a pattern the tree runs in CI. The `SG_SCHEMA_PATH` compiled-in path
 (`test/source/harness_json_schema_test.cpp:21-22`) is the registration pattern,

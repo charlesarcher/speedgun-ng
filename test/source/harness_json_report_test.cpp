@@ -139,7 +139,7 @@ void writtenDocumentAnswersTheRun(const sg::test::ScriptedRun& run,
 
 // The one number of the document a scripted suite cannot fix: the
 // sampling overhead floor the plan measures from the machine at the
-// start of the attempt (`source/harness/runner.cpp:1228`). Every other
+// start of the attempt (`source/harness/runner.cpp:1398-1400`). Every other
 // byte answers the scripted values. The comparison holds out the digits
 // of that key alone, so a loaded machine cannot break the identity of
 // the rest (specs/023 SC-009, D-13).

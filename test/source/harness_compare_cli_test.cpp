@@ -1324,7 +1324,7 @@ auto bmNeverRuns(sg::State& state) -> void
 auto main(const int argc, char** argv) -> int
 {
   // The registered command passes the fixture directory of test/data, the
-  // shape of `test/CMakeLists.txt:614`.
+  // shape of `test/CMakeLists.txt:646-647`.
   const std::string data = argc > 1 ? argv[1] : std::string();
   check(!data.empty(), "the registered command passes the fixture directory");
 

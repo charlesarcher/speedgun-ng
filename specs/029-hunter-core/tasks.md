@@ -114,7 +114,7 @@ those three, and none of them needs PMU access.
 - [x] T015 [P] [US1] Fill `test/source/harness_hunt_plan_test.cpp` with the discovery and plan tables on `test/source/detail/hunt_fixture.hpp`: one column per event holding the event plus the two anchor leaves of its own device and no third column shape (I-1); the limit rows 1, 3, 4, 6 and 8 plus no limit; 200 events at limit 6 giving 50 passes of 4 events with `cpu-cycles` and `instructions` claimed exactly once per pass (AC-1, SC-01); limit 3 giving one event per pass; a device publishing a limit below 3 with both anchors present answered by the recoverable error naming the device and the limit; an empty event list answered by zero columns, empty passes, `anchorsPerPass` 0 and `normalized` false and no error (the D-12 shape, FR-041); catalog order and deduplication by address with the repeat keeping its first position (FR-002); the `--hunt-seed` permutation equal for two runs of one seed and different for two seeds (D-9, PD-06); `isCoreDevice` true for `cpu`, `cpu_core`, `cpu_atom` and the `armv8_pmuv3` fixture device and false for the uncore device (D-1, PD-02); `--hunt-norm=cycle` and `--hunt-norm=instr` answered by the refusal when that anchor stands refused while the unset norm plans `iter` with `normalized` false (D-13); one uncore address through a list planning on its own device (D-1)
 - [x] T016 [P] [US1] Fill `test/source/harness_hunt_rank_test.cpp` with the rank decision table over literal `EventSamples`: `instr` dividing by the `instructions` count of the same pass times 1000, `cycle` by the `cpu-cycles` count of the same pass, `iter` reporting the raw per-iteration median (D-6, PD-08); a sample whose anchor read zero contributing no rate for that pass; a sample carrying a disclosure contributing none at all; `rate` the `statisticsOf` median and `cv` one hundred times the `coefficientOfVariation` of the same list, checked against `statisticsOf` itself (I-6, FR-030); `noisy` read on the unrounded `cv` against `--hunt-noise` (D-7); rank order `rate` descending and `cv` ascending with the tie broken by address ascending (PD-07); at most `--hunt-top` ranks, `1` to `k` with no gap, and no rank for a noisy or unrepeated entry (I-5); one sample giving `cv` `0.0`, `repeated` false and no rank (PD-14); `multiplexed` from the settled method; entries ranked first then in address order; two calls over equal arguments equal (I-7)
 - [x] T017 [P] [US1] Fill `test/source/harness_hunt_collect_test.cpp` with the scripted runs: a high-rate scripted event ranking first and a flat scripted event above the CV threshold marked noisy, kept out of the top N and kept in the record (AC-3, SC-03); one scripted event per refused `Availability` standing in the skipped list with its kind and the run exiting 0 (AC-4, SC-04, D-10); nineteen clean windows plus one gapped window standing in `entries` and in `skipped` with kind `gap` (FR-022); the all-refused host printing the plan line with `events=0`, no ranked row, the skipped list and the summary `events=0/N` and exiting 0 (D-12, FR-041); the no-limit device settling `MULTIPLEX` and marking every event multiplexed (AC-2, SC-02, D-19); `setGroupLeafLimit` refusing the wide pass, the run retrying its events one at a time inside the same pass loop, `retriedPasses` counting the pass, an event that still refuses joining the skipped list with `EINVAL` and `EOPNOTSUPP` mapped to `not-encodable` and `EACCES` and `EPERM` mapped to `permission-blocked`, and the run exiting 0 (D-18, FR-021); a pass-0 seat failure keeping the present failure route with exit 1 (spec PC-9); the two-context threaded run reading window-open counts from the scripted provider at one per context per pass with no sleep, no clock and the CPU set from `sched_getaffinity` (FR-092)
-- [x] T018 [P] [US1] Fill `test/source/harness_hunt_cli_test.cpp` with one case per refusal row of contracts/hunt-cli.md, each asserting one stderr line naming the value and status 2 through in-process `speedgunMain` and through a forked child where the refusal path calls `std::exit`, the pattern of `test/source/harness_cli_test.cpp:800`, `:1166` and `:1417` (FR-081, AC-5, SC-05): `cpu/nope`, a pattern that matches nothing, a missing `@file`, a `@file` that holds no address, `r4a03` bare and inside a list and inside a pattern and on a file line, `--hunt-norm=ipc`, the exit-2 refusal naming the device whose published limit stands below 3 (the binding rule that no planning is attempted there), `--hunt-rank=sensitivity`, `delta` and `score`, `--hunt-top=0` and `10001`, `--hunt-noise=0` and negative, `--hunt-repeats=0` and `1001`, `--hunt-budget` of `120`, `0s`, `0p`, `-5p` and `abc`, `--hunt-seed=abc`, and `--hunt` with `--counter`, `--metric` or `--compare` in both command-line orders (D-16); the accepted forms `all`, `none`, a comma and newline list, a glob, `@file` with comments and blank lines, and a duplicate across a list and a file keeping one column (FR-001, FR-006); a bare `--hunt` selecting the whole core catalog (D-1); `--hunt=none` behaving exactly like a run with no `--hunt` (spec Assumptions); `--hunt` with `--metric-method=multiplex` running every event multiplexed with the word in the plan line, the rows and the document (D-16, D-19); `--dry-run` with `--hunt` running one iteration per pass and printing one unrepeated row per column (contracts/hunt-cli.md accepted combinations); `--hunt` with `--list`, `--catalog` or `--topology` printing and stopping with no `hunt:` line; `--hunt` with `--filter` applying to the filtered instances; a hunt option given twice keeping the last value
+- [x] T018 [P] [US1] Fill `test/source/harness_hunt_cli_test.cpp` with one case per refusal row of contracts/hunt-cli.md, each asserting one stderr line naming the value and status 2 through in-process `speedgunMain` and through a forked child where the refusal path calls `std::exit`, the pattern of `test/source/harness_cli_test.cpp:820`, `:1186` and `:1437` (FR-081, AC-5, SC-05): `cpu/nope`, a pattern that matches nothing, a missing `@file`, a `@file` that holds no address, `r4a03` bare and inside a list and inside a pattern and on a file line, `--hunt-norm=ipc`, the exit-2 refusal naming the device whose published limit stands below 3 (the binding rule that no planning is attempted there), `--hunt-rank=sensitivity`, `delta` and `score`, `--hunt-top=0` and `10001`, `--hunt-noise=0` and negative, `--hunt-repeats=0` and `1001`, `--hunt-budget` of `120`, `0s`, `0p`, `-5p` and `abc`, `--hunt-seed=abc`, and `--hunt` with `--counter`, `--metric` or `--compare` in both command-line orders (D-16); the accepted forms `all`, `none`, a comma and newline list, a glob, `@file` with comments and blank lines, and a duplicate across a list and a file keeping one column (FR-001, FR-006); a bare `--hunt` selecting the whole core catalog (D-1); `--hunt=none` behaving exactly like a run with no `--hunt` (spec Assumptions); `--hunt` with `--metric-method=multiplex` running every event multiplexed with the word in the plan line, the rows and the document (D-16, D-19); `--dry-run` with `--hunt` running one iteration per pass and printing one unrepeated row per column (contracts/hunt-cli.md accepted combinations); `--hunt` with `--list`, `--catalog` or `--topology` printing and stopping with no `hunt:` line; `--hunt` with `--filter` applying to the filtered instances; a hunt option given twice keeping the last value
 - [x] T019 [P] [US1] Fill `test/source/harness_cli_table_test.cpp` to read the three files of the table through the directory named on the command line, opened at `test/source/harness_cli_table_test.cpp:1672-1674`, parse the `std::to_array<OptionRow>` table that `optionRows()` answers at `source/harness/options.cpp:496-717` and the named value constants at `source/harness/detail/options.hpp:76-98`, and assert that no option name repeats, that no option value repeats counting the named constants as their numbers, that every hunt value lies in 270 to 279 with the eight hunt constants at 270 to 277, and that the fixture twin of T020 is reported for both its planted clash and its planted duplicate (D-21, FR-083, PD-18)
 - [x] T020 [P] [US1] Create `test/source/detail/cli_table_fixture.hpp`: the fixture twin of the option table with one planted duplicate name and one planted value clash, in the `OptionRow` spelling of `source/harness/options.cpp:498-716` that T019 parses (PD-18)
 
@@ -798,7 +798,7 @@ finding this round filed as owned, so the section holds eleven rows.
       Carry the fields or move the block onto a golden the shape gate runs.
 
 - [x] T162 State in `include/speedgun-ng/hunt.hpp:543-550` the condition
-      `rankEvents` really asserts. `source/harness/hunt_plan.cpp:249`
+      `rankEvents` really asserts. `source/harness/hunt_plan.cpp:250`
       ends the process when an address carries no `skipped` kind and no
       rate, while that `\pre`, its copy at `contracts/hunt-api.md:304` and
       the `\post` at `hunt.hpp:566` together admit a caller whose samples
@@ -1047,7 +1047,7 @@ MEDIUM, two LOW.
       passed 600 s on it (`***Timeout 600.03 sec`,
       `/tmp/ph9c-ctest-full.log:2399`). The
       assertions in question are the SC-017 pair at
-      `test/source/harness_cli_test.cpp:887-910`, which read the resource counts
+      `test/source/harness_cli_test.cpp:907-930`, which read the resource counts
       of a run interrupted by a signal, and the entry is registered plainly at
       `test/CMakeLists.txt:654` with no `TIMEOUT`, `PROCESSORS` or
       `RESOURCE_LOCK`, where the file gives properties to other long entries
@@ -1382,7 +1382,7 @@ full ledger is `/home/archerc/sg029-lanes/waves/ph12/converge.md`.
 - [x] T200 HIGH Correct the mechanism that the `PROCESSORS 2` comment at
       `test/CMakeLists.txt:655-659` states. It said the test re-executes the
       harness once per mode, reads its children through `popen` and writes one
-      note file. `captureRun` at `test/source/harness_cli_test.cpp:236-252`
+      note file. `captureRun` at `test/source/harness_cli_test.cpp:265-297`
       calls `sg::speedgunMain` in process behind a `freopen` of
       `harness_cli_out.txt`; one `popen` stands at `:367`; no `fork` call
       exists in the file; and eight fixed names are written into the working
@@ -1532,7 +1532,7 @@ stand gone from the predicate at `source/harness/hunt.cpp:69`.
       `test/CMakeLists.txt:655-659` reads `eight fixed names are written into
       the working directory, so two copies under -j 2 share those files and
       compete for one core`. The change in flight routes all eight paths
-      through `scratchName` at `test/source/harness_cli_test.cpp:232`, so each
+      through `scratchName` at `test/source/harness_cli_test.cpp:252`, so each
       name carries the process id and a sibling shares none of them. State the
       core of work the two slots buy, which holds: `captureRun` runs the
       harness in-process behind a `freopen`. Drop the sharing claim, keep the
@@ -1608,7 +1608,7 @@ prose row joins this phase.
 
 ## Phase 18: Convergence
 
-- [ ] T217 MEDIUM Retire `SG_CLI_SOURCE` and the `longOptions[]` table from the
+- [x] T217 MEDIUM Retire `SG_CLI_SOURCE` and the `longOptions[]` table from the
       029 planning docs. Evidence: `source/harness/options.cpp:496` answers
       `auto optionRows() -> std::span<const OptionRow>` with
       `std::to_array<OptionRow>({` at `:498`;
@@ -1621,19 +1621,19 @@ prose row joins this phase.
       `specs/029-hunter-core/merge-notes.md:124`. Remedy: restate each on
       `detail::optionRows()`. Ledger: `tasks.md:1316-1326` (row T191), which
       retired the mechanism in the contract and left the planning docs.
-- [ ] T218 LOW Re-anchor the run-then-hunt cite in the hunt CLI test. Evidence:
+- [x] T218 LOW Re-anchor the run-then-hunt cite in the hunt CLI test. Evidence:
       `test/source/harness_hunt_cli_test.cpp:663` says `cli.cpp:736`; that file
       ends at 702 lines, and the mechanism is
       `auto result = runner.run(*entry);` at `source/harness/cli.cpp:557` with
       `hunt::runHuntNamed` at `:569`. Remedy: cite `cli.cpp:557-569`.
-- [ ] T219 LOW Re-anchor the option-table drift cite in the quickstart.
+- [x] T219 LOW Re-anchor the option-table drift cite in the quickstart.
       Evidence: `specs/029-hunter-core/quickstart.md:284` cites
       `example_drift.py:681-693` for the option comparison, while `:681` is
       `if block.region is None or block.sample:` in the snippet scan and the
       comparison stands at `tools/docs/example_drift.py:724-736`
       (`table_rows(main_page, "| Option |")` at `:725`). Remedy: cite
       `example_drift.py:724-736`.
-- [ ] T220 LOW Re-anchor the `/dev/full` refusal cites in the quickstart.
+- [x] T220 LOW Re-anchor the `/dev/full` refusal cites in the quickstart.
       Evidence: `quickstart.md:170` cites `source/harness/json_report.cpp:778`,
       which is the `SG_REQUIRE` on raw-column sizes at `:775-781`; the refusal
       message stands at `:831`. `quickstart.md:169` cites
@@ -1641,19 +1641,19 @@ prose row joins this phase.
       `sg::ReportData data;`, while the pinning check is `:451` inside
       `aRefusedWriteAnswersFalse` at `:445`. Remedy: cite `json_report.cpp:831`
       and `harness_json_report_test.cpp:451`.
-- [ ] T221 LOW Re-anchor the missing-`TIMEOUT` cite in the cpuset record.
+- [x] T221 LOW Re-anchor the missing-`TIMEOUT` cite in the cpuset record.
       Evidence: `specs/029-hunter-core/results/corsairone-hunt-cpuset.md:99`
       cites `test/CMakeLists.txt:1131`, which is a comment about the sampling
       action; the registration is `add_test(NAME harness_hunt_cli_test COMMAND
       harness_hunt_cli_test)` at `test/CMakeLists.txt:1211` inside the block
       `:1207-1211`, and no `set_tests_properties` names that test. Remedy: cite
       `test/CMakeLists.txt:1207-1211`.
-- [ ] T222 LOW Re-anchor the sibling `TIMEOUT` cite in the same record.
+- [x] T222 LOW Re-anchor the sibling `TIMEOUT` cite in the same record.
       Evidence: `corsairone-hunt-cpuset.md:101` cites
       `test/CMakeLists.txt:1308` for the 120 s carried by
       `report_shape_hunt_rank_sample`; `:1308` is a closing parenthesis and the
       property stands at `:1374`. Remedy: cite `test/CMakeLists.txt:1374`.
-- [ ] T223 LOW Re-anchor the `rankEvents` guard cite in the all-events record.
+- [x] T223 LOW Re-anchor the `rankEvents` guard cite in the all-events record.
       Evidence: `specs/029-hunter-core/results/corsairone-hunt-all.md:254` puts
       the guard at `source/harness/hunt_plan.cpp:249`, which is the loop's
       closing brace; `SG_INVARIANT(!rates.empty() || event.skipped.has_value(),`
@@ -1661,27 +1661,27 @@ prose row joins this phase.
       `specs/029-hunter-core/contracts/hunt-api.md:304` already carry, and
       `tasks.md:801` keeps the old `:249`. Remedy: cite `hunt_plan.cpp:250` in
       both places, one line each. Ledger: `tasks.md:800-812` (row T162).
-- [ ] T224 LOW Re-anchor the overhead-floor cite in the JSON report test.
+- [x] T224 LOW Re-anchor the overhead-floor cite in the JSON report test.
       Evidence: `test/source/harness_json_report_test.cpp:142` cites
       `source/harness/runner.cpp:1228` for the start of the attempt, and `:1228`
       is `{ return column.label == name; });` in the metric-column dedup
       documented at `:1218-1223`; the floor comes from
       `overheadFloorNs = plan->sampleOverheadNsMedian();` at `:1400`, declared
       at `:1366`. Remedy: cite `runner.cpp:1398-1400`.
-- [ ] T225 LOW Re-anchor the `addCounter` cite in the pass-collect test.
+- [x] T225 LOW Re-anchor the `addCounter` cite in the pass-collect test.
       Evidence: `test/source/harness_pass_collect_test.cpp:1342` cites
       `source/counters/fake_provider.cpp:199-221` for `addCounter`, while
       `auto FakeProvider::addCounter(` begins at `:213` and `:198-:211` is
       `setGroupLeafLimit`. Remedy: cite the `addCounter` definition from
       `fake_provider.cpp:213`.
-- [ ] T226 LOW Re-anchor the fixture-directory cite in the compare-CLI test.
+- [x] T226 LOW Re-anchor the fixture-directory cite in the compare-CLI test.
       Evidence: `test/source/harness_compare_cli_test.cpp:1238` cites the shape
       of `test/CMakeLists.txt:614`, which is
       `target_link_libraries(harness_json_schema_test PRIVATE
       speedgun-ng::harness)` and passes no directory; the registered commands
       pass `${CMAKE_SOURCE_DIR}/test/data` at `:639` and `:647`. Remedy: cite
       `test/CMakeLists.txt:646-647`.
-- [ ] T227 LOW Drop the hand-written `parseHuntBudget` declaration and its false
+- [x] T227 LOW Drop the hand-written `parseHuntBudget` declaration and its false
       precedent in the hunt-plan test. Evidence:
       `test/source/harness_hunt_plan_test.cpp:69-76` declares
       `auto parseHuntBudget(const char* text, RunOptions& options) -> void;`
@@ -1724,3 +1724,140 @@ checked row whose work is missing from it, and no gap between
 Principle VIII's gates and the wiring in `.github/workflows/ci.yml`. Every
 remedy above is a within-line substitution or a doc restatement, so the ledger
 keeps its shape.
+
+## Phase 19: Convergence (round eleven)
+
+Three read-only assessors over disjoint scopes (implementation against spec and
+contracts, ledger internal consistency, documents against code) and one adversarial
+verification node that re-opened every cited location. Severity reflects the
+verified list; two assessors' own remedy line numbers were corrected here.
+
+- [ ] T230 CRITICAL make the `--hunt` option route and the run route share one address set, and add
+      `--hunt=machine/monotonic` and `--hunt='machine/*'` cases to
+      `test/source/harness_hunt_cli_test.cpp` asserting one stderr line and status 2
+      Evidence: `source/harness/hunt_cli.cpp:238` adds the machine object's own entries while
+      `source/harness/hunt.cpp:158` walks children only, so `hunt.cpp:636` refuses an address the
+      CLI admitted and `source/harness/cli.cpp:593` exits 1, against FR-081
+
+- [ ] T231 CRITICAL print the hunt plan line before the run, or amend FR-012, D-20 and PD-15 and
+      `contracts/hunt-cli.md:146-148` to the order that ships
+      Evidence: `source/harness/report.cpp:455` reaches `printHuntPlan` from `printResult`, called
+      at `source/harness/cli.cpp:608` after the hunt at `:569`, so the line lands after the run
+      while three artifacts say before it
+
+- [ ] T232 HIGH replace the 5400 s CI bound that `tasks.md:946` and `tasks.md:1044` assert with the
+      bound CI carries, so the choice not to file a timeout finding rests on a real number
+      Evidence: `.github/workflows/ci.yml:125` and `:157` carry per-test `--timeout 3600`, and no
+      `timeout-minutes` key appears under `.github/`; the supporting cite `waves/ph9/sanitize.md`
+      holds no such file in this lane
+
+- [ ] T233 MEDIUM state the `runHunt` precondition address once in `tasks.md:644` and
+      `tasks.md:1514`, as `source/harness/hunt.cpp:1121-1125`
+      Evidence: hunt.cpp holds 1142 lines, `runHunt` opens at `:1116`, and `:1105` is a
+      `SkippedEvent` initializer in another function; `contracts/hunt-api.md:89` already cites
+      `:1121-1125`
+
+- [ ] T234 MEDIUM re-anchor the version reads at `tasks.md:257`, `merge-notes.md:131` and `:132`,
+      and `quickstart.md:227` to the lines that hold the fixtures and sentences named
+      Evidence: `test/source/harness_json_load_test.cpp:529` and `:507` are closing braces, the
+      mutation row stands at `:569` and the third `1.0` fixture at `:547`;
+      `docs/pages/harness.md:1124` carries the version sentence;
+      `harness_compare_cli_test.cpp:517-519` and `:848` the headers
+
+- [ ] T235 MEDIUM point the byte-identity covering check at `test/CMakeLists.txt:1169-1171` in
+      `tasks.md:261` and `merge-notes.md:134`
+      Evidence: `test/CMakeLists.txt:1089-1091` is gcov-flush prose; `add_test(NAME
+      harness_pass_report_test_identity` stands at `:1169` with its arguments at `:1170-1171`
+
+- [ ] T236 MEDIUM cite the `harness_cli_table_test` registration at `test/CMakeLists.txt:670-675`
+      and its comment at `:662-669` in `merge-notes.md:133` and `:141`
+      Evidence: `test/CMakeLists.txt:1167` is a comment about a capture scenario and `:1155` is a
+      `target_include_directories` line for another target
+
+- [ ] T237 MEDIUM re-anchor `tasks.md:543`: `printContextDisclosure` at
+      `source/harness/report.cpp:623`, the FR-025 citation at `:617-619`, the scenario registration
+      at `test/source/harness_hunt_cli_test.cpp:1576`
+      Evidence: `report.cpp:624` is a comment, `:618-620` opens inside the citation block, and
+      `harness_hunt_cli_test.cpp:1542` is a `readAll` call; T143 and T213 both record this
+      re-anchoring as done
+
+- [ ] T238 MEDIUM point `tasks.md:1049` at SC-017's own assertions, `harness_cli_test.cpp:942-952`
+      Evidence: the range cited, `:907-930`, is the SC-006 descriptor and mapping pair that T203
+      owns: `:907` reads `const std::size_t descriptors = openDescriptorCount();`
+
+- [ ] T239 MEDIUM re-anchor the option-table read at `tasks.md:131` to `detail::optionRows()`,
+      defined at `source/harness/options.cpp:496` and declared at
+      `include/speedgun-ng/detail/options.hpp:201`
+      Evidence: `grep -rn longOptions source/` answers nothing and `source/harness/cli.cpp:346` is
+      blank, so the row names a table no file holds
+
+- [ ] T240 MEDIUM restate `tasks.md:661` to measured values: the `hunt::` quick-reference rows, the
+      `kSchemaVersion` line, the emptiness guard and the two non-hunt greps
+      Evidence: `README.md:771-790` holds twenty `hunt::` rows, matching `merge-notes.md:126`;
+      `source/harness/json_report.cpp:38` holds `kSchemaVersion`; the guard stands at
+      `test/source/harness_hunt_json_test.cpp:1578`; the greps are `quickstart.md:195-196`
+
+- [ ] T241 MEDIUM point the shape gate at `test/CMakeLists.txt:1360-1375` in `tasks.md:757` and
+      `:661`
+      Evidence: `NAME report_shape_hunt_rank_sample` stands at `:1367` with `TIMEOUT 120` at
+      `:1374`, while `:1294-1308` holds the conditional `report_shape` entry for `first_benchmark`
+
+- [ ] T242 MEDIUM move the `rejectHuntSelection` read at `tasks.md:655` to
+      `source/harness/hunt_cli.cpp:62-66`
+      Evidence: `:67-71` is the comment block above `scanHuntNumber`; `rejectHuntSelection` is
+      defined at `:62-66` and ends in `std::exit(2)`
+
+- [ ] T243 MEDIUM replace the vanished `rejectPercentileList` precedent at `research.md:478` with
+      the route the tree holds, `parsePercentileList` in `source/harness/options.cpp` printed by
+      `source/harness/cli.cpp`
+      Evidence: `source/harness/cli.cpp` holds no percentile match, and the named function
+      exists nowhere under `source/` outside one stale comment
+
+- [ ] T244 MEDIUM re-point the seat fuse at `quickstart.md:283` to
+      `source/harness/runner.cpp:2398-2402`
+      Evidence: `:2391-2395` hold the refusal assignment and `retryHuntPass`, and `SG_INVARIANT(`
+      opens at `:2398`; at the pinned audit point `bd10d76` that range holds a `std::vector`
+      declaration
+
+- [ ] T245 MEDIUM correct the pass-loop cite at `research.md:354` to `runner.cpp:2358` and `:2369`
+      in this tree, or `:2275` and `:2286` at the audit point the document declares
+      Evidence: `git show bd10d76:source/harness/runner.cpp` puts the loop at `:2275` and
+      `passColumns[pass]` at `:2286`; the document names `:2277`, a comment, and `:2290`, invariant
+      message text
+
+- [ ] T246 MEDIUM re-anchor the timeout clause at `tasks.md:281` to a file that states a bound
+      Evidence: the row cites `plan.md, Verification Strategy`; `plan.md` has no such heading, its
+      test section is `## Test Plan` at `:482`, and no timeout number appears in it
+
+- [ ] T247 MEDIUM settle the hunt selection order rule in one place and pin whichever ships, in
+      `source/harness/hunt.cpp:621-644`, FR-002 and `data-model.md:22`
+      Evidence: the `appendList` comment cites FR-002 while stating text order and no sort appears
+      in the file, while FR-002 requires catalog order as the base order
+
+- [ ] T248 MEDIUM enforce I-4 for a planned column that carries no samples at
+      `source/harness/hunt.cpp:1058`, route it into `skipped`, and cover the branch
+      Evidence: `if (rows.samples.empty()) { continue; }` drops the column from `measured`, so it
+      reaches neither `entries` nor `skipped`, against `data-model.md:290`; the in-code exemption
+      cites PD-14, which rejects excluding such events
+
+- [ ] T249 LOW carry `StageSplit::cutReason` onto the run record or print the word at the cut site
+      Evidence: only `source/harness/hunt_plan.cpp:484` assigns a `cutReason`; nothing assigns the
+      run record's, so `source/harness/report.cpp:790` prints the default initializer that
+      `include/speedgun-ng/hunt.hpp:462` describes as a decision
+
+- [ ] T250 LOW fix the include-guard spelling in `contracts/hunt-api.md:27`
+      Evidence: the block shows `SPEEDGUN_NG_HUNT_HPP`; `include/speedgun-ng/hunt.hpp:1` ships
+      `SG_HUNT_HPP`, the form every other public header uses
+
+- [ ] T251 LOW pin or refresh the two tree measurements `plan-review.md:189` states as fact, and
+      settle the untracked `waves/` ledger before the pending files are committed
+      Evidence: `source/counters/linux_pmu/provider.cpp` holds 975 lines against the stated 963,
+      `armv8` now appears in five tracked files against the stated absence, and `git check-ignore
+      waves/` exits 1
+
+- [ ] T252 LOW read the `coverage` job verdict at the head that carries the `--ignore-errors` flag
+      order fix and record it against T228
+      Evidence: the job failed at `13a1570` in the step `Process coverage info` with `lcov: ERROR:
+      Extra parameter found: 'inconsistent ... coverage.info'`, because lcov 2.3 takes the word
+      after `--list` as the tracefile; `cmake/coverage.cmake:136` now puts the class flag first
+

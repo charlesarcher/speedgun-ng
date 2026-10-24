@@ -251,7 +251,7 @@ against the `cpu` limit of 4, refusals print with their kind, the
 summary counts, and the JSON matches the console within rounding. It
 proves the headline defect: on this host, a selection of four or more
 events aborts the process inside `rankEvents` (guard at
-`source/harness/hunt_plan.cpp:249`) when an unrefused event holds no
+`source/harness/hunt_plan.cpp:250`) when an unrefused event holds no
 usable sample, and the smallest captured repro is three
 tsx-class events (`tx-abort`, `tx-capacity`, `tx-conflict`), every pair
 of which completes. `--hunt=all` therefore cannot complete here at

@@ -125,7 +125,7 @@ never rewritten by it.
   `ctest --test-dir build -R harness_gap_test` passes, and proves no
   usage fault reaches a library exit (FR-010, FR-012, FR-035, SC-013).
 - [x] T013: Follow the changed usage text in the two usage cases at
-  `test/source/harness_cli_test.cpp:769` and `:773` : the unknown-name
+  `test/source/harness_cli_test.cpp:806` and `:810` : the unknown-name
   case keeps the `unknown option` substring the new line still carries,
   and the missing-value case follows the needs-a-value line
   `option '--<name>' needs a value` that replaces the base's second

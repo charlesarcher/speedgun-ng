@@ -12,7 +12,7 @@
 // a CPU count (FR-092).
 //
 // A refusal row is checked through a child, the pattern of
-// `test/source/harness_cli_test.cpp:800`, `:1166` and `:1417`: the refusal path
+// `test/source/harness_cli_test.cpp:820`, `:1186` and `:1437`: the refusal path
 // may return the status or call `std::exit`, and a child answers both shapes
 // with the same wait status. The child prints `BENCHMARK_NO_RUN` when
 // `speedgunMain` reached no benchmark function, so the exact bytes of the child
@@ -660,7 +660,7 @@ auto scenarioSeatRefusalExitsOneWithReason() -> void
         "(FR-081, spec PC-9)");
   // What the child owes is read by content and by count, never as whole bytes
   // and never as a line order between the two streams. `--hunt` runs the
-  // benchmark first and hunts the outcome after (`cli.cpp:736`), so the
+  // benchmark first and hunts the outcome after (`cli.cpp:557-569`), so the
   // refused hunt still prints that run's row, and the row's
   // `overhead floor (ns)=` field is the median the plan measured on this host:
   // equal invocations differ in those bytes. And stderr reaches this pipe

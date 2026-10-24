@@ -192,7 +192,7 @@ table name within two edits; FR-009 asks the candidates in table order.
 The base line `unknown option; see the option table of` plus the
 contract path (`source/harness/cli.cpp:503` to `:506`) names nothing.
 The three checks that read the base line, at
-`test/source/harness_cli_test.cpp:769` and `:773` and
+`test/source/harness_cli_test.cpp:806` and `:810` and
 `test/source/harness_cli_placement_test.cpp:449`, look for the words
 `unknown option`, which the new line keeps at its front, so they stay
 green and the new assertions name the typed text and the nearest name.
