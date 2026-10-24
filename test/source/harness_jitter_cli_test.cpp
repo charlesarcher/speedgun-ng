@@ -1340,7 +1340,9 @@ auto childFamilyProbe(const bool withCommandLineProbe) -> int
       [](sg::State& state)
       {
         for (auto _ : state) {
-          volatile int sink = 0;
+          // The unsigned wrap stands defined, so the sanitizer build
+          // keeps the spin's work without a signed overflow (VI).
+          volatile std::uint32_t sink = 0;
           for (int step = 0; step < 2000000; ++step) {
             sink += step;
           }
