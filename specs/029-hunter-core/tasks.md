@@ -1465,3 +1465,91 @@ number counts here: the lcov capture lane in this checkout fails, so the CI
       change under T204 and the rest were stale before it, so each anchor is
       fixed by measurement against the head. An offset applied to a stale
       anchor carries the wrong number forward.
+
+## Phase 16: Convergence
+
+_Assessed at `d89199b`, the head the six harness commits left behind the
+Phase 15 rows, with `waves/ph14/converge.md` as the full ledger. The two
+commits that landed mid-pass, `1e3ddba` and this phase's own record at
+`65100ba`, leave every address below unchanged._
+
+`32d9397` wrote Phase 15 against `f5df59d`. Six commits landed after it and
+removed branch sites from three of the files those rows name: `e9f569f`
+made `keepFirstError` answer nothing, `8a72476` folded four parser sites in
+`source/harness/hunt_cli.cpp`, `cd35076` folded the separator choice in
+`source/harness/detail/hunt_selection.hpp`, `d4c6b94` folded three in
+`source/harness/hunt.cpp`, `16aaf29` folded five in
+`source/harness/runner.cpp`, and `1da6533` closed 16 reader, plan and report
+outcomes with scenarios alone. T208's five sites all stand closed, and the
+trace stops counting a folded guard through the `SG_` line filter at
+`cmake/coverage.cmake:84`. Two outcomes stay open with no route through the
+tests: the vertical-tab and form-feed classes at
+`source/harness/hunt.cpp:66` and `:67`. `grep` for `\v`, `\f`, `\013`,
+`\014`, `char(11)` and `char(12)` across `test/source/harness_hunt_cli_test.cpp`
+and `test/source/harness_hunt_collect_test.cpp` answers nothing, so FR-091
+and SC-008 stay unsatisfied.
+
+- [ ] T210 Close the two `isSpace` outcomes and restate the Phase 15 site
+      lists at measured addresses (FR-091, SC-008). `source/harness/hunt.cpp:66`
+      reads `symbol == ' ' || symbol == '\t' || symbol == '\r' || symbol == '\v'`
+      and `:67` continues `|| symbol == '\f'`; `isSpace` answers through `trim`
+      at `:92` and `:680` alone, so a class reaches the trace only through a
+      selection element. Feed a vertical tab and a form feed through one
+      element, or drop the two classes the way `8a72476` dropped the newline
+      class at `source/harness/hunt_cli.cpp:156` with the reason in a comment.
+      Then restate the addresses T206 and T207 name. Eight sites no longer
+      stand: `8a72476` folded T206's `:114`, `:153`, `:185` and `:617`;
+      `d4c6b94` folded T207's `:212`, `:230` and `:368`; `cd35076` folded
+      T207's `detail/hunt_selection.hpp:89`. The live sites stand at
+      `hunt_cli.cpp` `:83`, `:99`, `:160`, `:197`, `:217`, `:389`, `:535`,
+      `:635`; `hunt.cpp` `:66`, `:67`, `:177`, `:562`, `:565`, `:655`, `:686`,
+      `:964`; `detail/hunt_selection.hpp` `:124`. Record against the
+      `coverage-info` artifact at the pushed head that T204, T205 and T208 hold
+      no gap, and keep the two arms at `source/harness/hunt_plan.cpp:151` open
+      on the reservation argument at `:104`.
+- [ ] T211 Re-anchor the source addresses the four contracts state (plan
+      Phase 0 touchpoint `contracts/`, Constitution IV).
+      `contracts/hunt-cli.md:124` and `:194` name `runner.cpp:2405` for the
+      one-iteration rule, which stands at `:2412`. `contracts/hunt-api.md:89`
+      names `hunt.cpp:1101-1105` for the `runHunt` precondition, which stands
+      at `:1119`, and `hunt_cli.cpp:332-334` for the state the option scan
+      parks, which stands at `:304`; `contracts/hunt-api.md:129` gives
+      `runner.cpp:39-47` for a function that runs `:41` to `:49`.
+      `contracts/hunt-json.md:142`, `:146` and `:158` name `json_load.cpp:1012`,
+      `:1561` and `:1585-1594` for `readEntry`, `loadReport` and the major
+      gate, which stand at `:1014`, `:1563` and `:1587` to `:1596`; `:143`
+      names `:107` for `optionalField`, which stands at `:83`; `:150` names
+      `:81-118` for `settled` and `missing`, a region that now runs `:83` to
+      `:130` with `settled` at `:95` and `keepFirstError` at `:111`.
+      `contracts/report-schema-key.md:30` and `:31` name `:1431` and `:1527`
+      for `checkNode` and `checkReport`, which stand at `:1433` and `:1529`,
+      and `:48` names `:107` for `optionalField`. Move each cite to the
+      measured number and state the mechanism beside it, the way T190 and T194
+      did. Hold every line count another cite depends on, the way `d89199b`
+      held four lines for the wave ledger.
+- [ ] T212 Restate the `PROCESSORS 2` rationale in the commit that lands the
+      pid-scoped scratch names (T201, T203, Constitution IV).
+      `test/CMakeLists.txt:655-659` reads `eight fixed names are written into
+      the working directory, so two copies under -j 2 share those files and
+      compete for one core`. The change in flight routes all eight paths
+      through `scratchName` at `test/source/harness_cli_test.cpp:232`, so each
+      name carries the process id and a sibling shares none of them. State the
+      core of work the two slots buy, which holds: `captureRun` runs the
+      harness in-process behind a `freopen`. Drop the sharing claim, keep the
+      `--timeout 3600` sentence, and move in the same commit as the rename, so
+      no commit stands justified by a mechanism the tree no longer holds.
+
+**Notes:** The CI `coverage-info` artifact at the pushed head is the
+instrument that closes any branch row, and the `test` job's sanitizer
+artifacts carry the sanitizer verdicts: a local run of either class is
+barred here, so a number from this wave counts for nothing. T203 and T201
+stand in the working tree behind one plain `harness_cli_test` run, and T209
+keeps the `specs/026-regression-gate` cites, which `e9f569f` moved by two
+lines: `contracts/reader-extension.md:7` names `json_load.cpp:1117` to
+`:1128` where the noise record stands at `:1119` to `:1130`, and
+`contracts/compare-document.md:61` names `checkReport` at `:1083` where the
+definition stands at `:1529`. T055, T059, T060, T061, T094 and T095 stay
+owner-only: hardware AC-10 records on `corsairone` and `gary`, or a
+repository-owner action. The prose gate over the whole tree answers
+`591 sources, 106156 units examined, 0 findings, 0 skipped`, so no file
+prose row joins this phase.
