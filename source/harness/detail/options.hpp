@@ -168,16 +168,16 @@ struct ResolvedOptions
   std::vector<CompareRule> rules;
   // The highest source that named a rule or a rules file, when one did: that
   // source settles the whole list, and a lower source is read for its faults
-  // and then dropped. A `compare-rules` line whose path stands empty names
-  // no rule, so it leaves this empty the way the master default of FR-041
-  // stays for a row no source named (FR-038, FR-063, spec D-23).
+  // and then dropped. An empty path word is refused by the row itself, so
+  // nothing here stands for a row no source named (FR-038, FR-063,
+  // spec D-23).
   std::optional<OptionSource> rulesSource;
-  // The rules, and the one rules file, that the source being applied named,
-  // held until that source is applied in full: the rules a source spells
-  // stand before the rules of the file it names, whichever of the two lines
-  // came first (FR-035, FR-063).
+  // The rules, and the rules files in the order their lines stood, that the
+  // source being applied named, held until that source is applied in full:
+  // the rules a source spells stand before the rules of the last file it
+  // names, whichever of the two lines came first (FR-035, FR-063).
   std::vector<CompareRule> stagedRules;
-  std::optional<std::string> stagedRulesPath;
+  std::vector<std::string> stagedRulesPaths;
   // The `--json-raw` row has no unset word: its master default is the same
   // value the word `none` answers, so the marker is what tells a source
   // that settled the row from one that never named it (FR-037, FR-050).
@@ -191,9 +191,9 @@ struct ResolvedOptions
   // settles: no pattern when the settled text stands empty, since the empty
   // pattern selects every benchmark (FR-024, FR-050, FR-051).
   std::optional<std::regex> filterPattern;
-  // The preset the `--placement` row settled. The row parses the name where it
-  // settles, so the settled preset stands here and the entry point reads it
-  // instead of parsing the text a second time (FR-046, FR-048).
+  // The preset the `--placement` row settled. The row parses the name where
+  // it settles, so the preset it read stands here for the entry point to
+  // read, and that text is parsed one time (FR-046, FR-048).
   std::optional<Preset> preset;
   // Every metric name every source named, settled or dropped, in the order
   // the sources named them, each behind the origin that names its source.

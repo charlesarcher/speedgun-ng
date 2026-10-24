@@ -257,11 +257,19 @@
 //                                after the rules that source spelled, when
 //                                the file line stands first and when it
 //                                stands last (FR-038, FR-063)
-//   anEmptyRulesFilePathNamesNoSource
-//                                a rules line whose path stands empty opens
-//                                no file and settles no source, so a later
-//                                line of the same file settles the list
-//                                (FR-041, FR-063)
+//   anEmptyRulesFilePathIsRefused
+//                                an empty rules path answers the empty-path
+//                                line of its own source, from the words and
+//                                from a line of a file alike (FR-033,
+//                                FR-035, FR-063)
+//   eachLowerRulesPathOfOneSourceIsRead
+//                                every rules path of one lower source is
+//                                opened before its rules drop, so the fault
+//                                of the earlier path stands (FR-038, FR-061)
+//   anEmptyPathWordFaultsTheEntry
+//                                an empty `--compare-rules=` or `--options=`
+//                                word answers one line at status 2
+//                                (SC-003, FR-032, FR-063)
 //   aLowerRulesPathIsReadUnderACommandLineRule
 //                                the rules path of a lower source is opened
 //                                before its rules drop, so its own fault
@@ -2574,6 +2582,7 @@ auto thePercentilePairKeepsTheLastWordOfOneSource() -> void
     const char* later;
     bool percentiles;
   };
+
   const Order orders[] {
       {"--percentiles=50", "--no-percentiles", false},
       {"--no-percentiles", "--percentiles=50", true},
@@ -2599,9 +2608,8 @@ auto thePercentilePairKeepsTheLastWordOfOneSource() -> void
     }
     const Run run =
         runEntryWithEnv({order.first, order.later, "--dry-run"}, {});
-    const std::string statusLabel =
-        std::string("the pair ") + order.first + " " + order.later
-        + " keeps status 0 (FR-025, FR-035)";
+    const std::string statusLabel = std::string("the pair ") + order.first + " "
+        + order.later + " keeps status 0 (FR-025, FR-035)";
     check(run.status == 0, statusLabel.c_str());
   }
 
@@ -2610,6 +2618,7 @@ auto thePercentilePairKeepsTheLastWordOfOneSource() -> void
     const char* text;
     bool percentiles;
   };
+
   const FileOrder fileOrders[] {
       {"percentiles=50\nno-percentiles\n", false},
       {"no-percentiles\npercentiles=50\n", true},
@@ -2657,6 +2666,18 @@ auto oneRuleFile(const std::string& path)
     return std::unexpected(rule.error());
   }
   return std::vector<sg::CompareRule> {*rule};
+}
+
+// The reader of the two-path case: it refuses one path the way an open the
+// system refuses does, and answers a file of no rule for every other path, so
+// the order of the two opens is what a case reads (FR-061, FR-064).
+auto refuseOneRulesFile(const std::string& path)
+    -> std::expected<std::vector<sg::CompareRule>, std::string>
+{
+  if (path == "/first.rules") {
+    return std::unexpected("/first.rules: No such file or directory");
+  }
+  return std::vector<sg::CompareRule> {};
 }
 
 auto theLaterRulesFileOfOneSourceStands() -> void
@@ -2735,23 +2756,54 @@ auto aRulesLineBeforeItsRulesFileOfOneSourceJoins() -> void
         "(FR-038, FR-063)");
 }
 
-auto anEmptyRulesFilePathNamesNoSource() -> void
+auto anEmptyRulesFilePathIsRefused() -> void
 {
-  // A `compare-rules` line whose path stands empty opens no file and names no
-  // rule, so it settles no source and a later line of the same file still
-  // settles the list (FR-041, FR-063).
-  const Gathered settled =
-      gatherSources({},
-                    {},
-                    "compare-rules=\n" "compare-rule=time@median:lower:5%\n",
-                    &oneRuleFile);
-  if (!settled.settled.has_value()) {
-    fail("the gather settles a rules line whose path stands empty");
+  // A word that names no path is a value no reader can settle, so the row
+  // answers the empty-path line of the source that holds it (FR-033,
+  // FR-035, FR-063). A line of a file carries the file and its number ahead
+  // of the same text.
+  expectFault({"--compare-rules="},
+              "--compare-rules: the path the option names stands empty",
+              "an empty rules word of the command line answers the empty-path "
+              "line (FR-063)");
+  expectFileFault("compare-rules=\n" "compare-rule=time@median:lower:5%\n",
+                  std::string(kOptionFile)
+                      + ":1: --compare-rules: the path the option names "
+                        "stands empty",
+                  "an empty rules line of a file answers the empty-path line "
+                  "behind its own number (FR-031, FR-063)");
+}
+
+auto eachLowerRulesPathOfOneSourceIsRead() -> void
+{
+  // The row is scalar within one source, so the rules of the last path of a
+  // source are the rules that would join, but every path that source names is
+  // opened while the source is still read: the fault of the earlier path
+  // stands ahead of the drop (FR-038, FR-061, FR-063).
+  const Gathered gathered = gatherSources(
+      {"--compare-rule=time@median:lower:5%"},
+      {},
+      "compare-rules=/first.rules\n" "compare-rules=/next.rules\n",
+      &refuseOneRulesFile);
+  if (gathered.fault.empty()) {
+    fail("the gather opens each rules path of one lower source (FR-038)");
     return;
   }
-  check(settled.settled->rules.size() == 1,
-        "the rule of the later line stands past an empty rules path "
-        "(FR-041, FR-063)");
+  check(gathered.fault == "/first.rules: No such file or directory",
+        "the fault of the earlier path of the lower source stands (FR-061)");
+}
+
+auto anEmptyPathWordFaultsTheEntry() -> void
+{
+  // Both rows that name a path answer the empty-path line at the entry point,
+  // one line behind the option name at status 2, with no benchmark started
+  // (SC-003, FR-032, FR-063).
+  oneFaultLine(runEntryWithEnv({"--compare-rules="}, {}),
+               "an empty rules word at the entry point",
+               {"--compare-rules:", "the path the option names stands empty"});
+  oneFaultLine(runEntryWithEnv({"--options="}, {}),
+               "an empty option-file word at the entry point",
+               {"--options:", "the path the option names stands empty"});
 }
 
 auto aLowerRulesPathIsReadUnderACommandLineRule() -> void
@@ -3167,7 +3219,9 @@ auto main(int argc, char** argv) -> int
   thePercentilePairKeepsTheLastWordOfOneSource();
   theLaterRulesFileOfOneSourceStands();
   aRulesLineBeforeItsRulesFileOfOneSourceJoins();
-  anEmptyRulesFilePathNamesNoSource();
+  anEmptyRulesFilePathIsRefused();
+  eachLowerRulesPathOfOneSourceIsRead();
+  anEmptyPathWordFaultsTheEntry();
   aLowerRulesPathIsReadUnderACommandLineRule();
   anEmptyCommandLineRulesFileSettlesTheList();
   aRulesFileOfOneSourceTurnsTheGateFail(data);
