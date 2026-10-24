@@ -93,17 +93,48 @@ auto capturePath(const char* kind) -> std::filesystem::path
          + kind);
 }
 
-const auto kScratchPath = capturePath("_out.txt");
-const auto kDocumentPath = capturePath("_report.json");
-const auto kBlankFile = capturePath("_blank.txt");
-const auto kRawFile = capturePath("_raw.txt");
-const auto kListFile = capturePath("_list.txt");
-const auto kDupFile = capturePath("_dup.txt");
+auto scratchPath() -> std::filesystem::path
+{
+  return capturePath("_out.txt");
+}
+
+auto documentPath() -> std::filesystem::path
+{
+  return capturePath("_report.json");
+}
+
+auto blankFile() -> std::filesystem::path
+{
+  return capturePath("_blank.txt");
+}
+
+auto rawFile() -> std::filesystem::path
+{
+  return capturePath("_raw.txt");
+}
+
+auto listFile() -> std::filesystem::path
+{
+  return capturePath("_list.txt");
+}
+
+auto dupFile() -> std::filesystem::path
+{
+  return capturePath("_dup.txt");
+}
+
 // The two files of the file-selection refusals below: one whose every line is
 // a comment, one that carries an address beside a raw code in the upper-case
 // hex spelling no other row quotes.
-const auto kParkedFile = capturePath("_parked.txt");
-const auto kUpperRawFile = capturePath("_upper_raw.txt");
+auto parkedFile() -> std::filesystem::path
+{
+  return capturePath("_parked.txt");
+}
+
+auto upperRawFile() -> std::filesystem::path
+{
+  return capturePath("_upper_raw.txt");
+}
 
 auto fail(const char* what) -> void
 {
@@ -138,12 +169,12 @@ auto writeFile(const std::filesystem::path& path,
 // list file the comma and newline spellings with their comments.
 auto writeSelectionFiles() -> void
 {
-  writeFile(kBlankFile, "# a comment\n\n   \n# another comment\n");
-  writeFile(kRawFile, address(0) + "\nr4a03\n");
-  writeFile(kListFile,
+  writeFile(blankFile(), "# a comment\n\n   \n# another comment\n");
+  writeFile(rawFile(), address(0) + "\nr4a03\n");
+  writeFile(listFile(),
             "# one address per line\n" + address(0) + "\n\n" + address(1) + ","
                 + address(2) + "\n");
-  writeFile(kDupFile,
+  writeFile(dupFile(),
             "# the same address the list carries\n" + address(0) + "\n");
 }
 
@@ -229,7 +260,8 @@ auto captureRun(const std::vector<std::string>& arguments,
   }
 
   const int saved = dup(STDOUT_FILENO);
-  if (saved < 0 || std::freopen(kScratchPath.c_str(), "w", stdout) == nullptr) {
+  if (saved < 0 || std::freopen(scratchPath().c_str(), "w", stdout) == nullptr)
+  {
     fail("cannot redirect the report");
   }
   const int status =
@@ -245,7 +277,7 @@ auto captureRun(const std::vector<std::string>& arguments,
     fail("the exit status does not follow contracts/hunt-cli.md (FR-081)");
   }
 
-  std::ifstream file(kScratchPath);
+  std::ifstream file(scratchPath());
   std::stringstream buffer;
   buffer << file.rdbuf();
   return buffer.str();
@@ -429,8 +461,8 @@ auto scenarioSelectionRefusals() -> void
                   {"--hunt=@hunt_cli_missing.txt"},
                   "--hunt: '@hunt_cli_missing.txt' cannot be opened"},
                  {"full",
-                  {"--hunt=@" + kBlankFile.string()},
-                  holdsNoAddressLine("@" + kBlankFile.string())},
+                  {"--hunt=@" + blankFile().string()},
+                  holdsNoAddressLine("@" + blankFile().string())},
                  {"full", {"--hunt=r4a03"}, raw},
                  {"full", {"--hunt=cpu/r4a03"}, raw},
                  {"full", {"--hunt=" + address(0) + ",r4a03"}, raw},
@@ -439,7 +471,7 @@ auto scenarioSelectionRefusals() -> void
                  {"full",
                   {"--hunt=cpu/r4g03"},
                   "--hunt: 'cpu/r4g03' is not a catalog address"},
-                 {"full", {"--hunt=@" + std::string(kRawFile)}, raw},
+                 {"full", {"--hunt=@" + std::string(rawFile())}, raw},
                  {"full",
                   {"--hunt=\t\r cpu/cpu-cycles \r\t,cpu/nope"},
                   "--hunt: 'cpu/nope' is not a catalog address"},
@@ -727,13 +759,13 @@ auto scenarioAcceptedSelectionForms() -> void
   check(!planLine(glob).empty(), "one glob pattern plans (FR-001)");
 
   const auto file =
-      captureRun(withFilter({"--hunt=@" + std::string(kListFile)}));
+      captureRun(withFilter({"--hunt=@" + std::string(listFile())}));
   check(countOf(file, "hunt: plan events=3 ") == 1,
         "a @file with comments and blank lines selects its three addresses "
         "(FR-006)");
 
   const auto dup = captureRun(
-      withFilter({"--hunt=@" + std::string(kDupFile) + "," + address(0)}));
+      withFilter({"--hunt=@" + std::string(dupFile()) + "," + address(0)}));
   check(countOf(dup, "hunt: plan events=1 ") == 1,
         "the same address across a list and a file keeps one column (FR-006)");
   check(countOf(dup, address(0)) == 1,
@@ -823,21 +855,21 @@ auto scenarioSelectionRefusalShapes() -> void
   // stands here too: the child reads a path this process wrote, and the name
   // it lays down carries this process number.
   writeSelectionFiles();
-  writeFile(kParkedFile, "# cpu/hunt000 stays parked here\n\n   \n");
-  writeFile(kUpperRawFile, address(3) + "\n# between the two\nr1F\n");
+  writeFile(parkedFile(), "# cpu/hunt000 stays parked here\n\n   \n");
+  writeFile(upperRawFile(), address(3) + "\n# between the two\nr1F\n");
   checkRefusals({{"full",
                   {"--hunt=cpu/*z"},
                   "--hunt: pattern 'cpu/*z' matches no catalog address"},
                  {"full",
-                  {"--hunt=@" + std::string(kParkedFile)},
-                  holdsNoAddressLine("@" + kParkedFile.string())},
+                  {"--hunt=@" + std::string(parkedFile())},
+                  holdsNoAddressLine("@" + parkedFile().string())},
                  {"full",
-                  {"--hunt=@" + std::string(kParkedFile) + ",@"
-                   + std::string(kBlankFile)},
-                  holdsNoAddressLine("@" + kParkedFile.string() + ",@"
-                                     + kBlankFile.string())},
+                  {"--hunt=@" + std::string(parkedFile()) + ",@"
+                   + std::string(blankFile())},
+                  holdsNoAddressLine("@" + parkedFile().string() + ",@"
+                                     + blankFile().string())},
                  {"full",
-                  {"--hunt=@" + std::string(kUpperRawFile)},
+                  {"--hunt=@" + std::string(upperRawFile())},
                   rawCodeLine("r1F")}});
   std::printf("selection-refusal-shapes: ok\n");
 }
@@ -901,10 +933,10 @@ auto scenarioHuntNoneBehavesLikeNoHunt() -> void
         "Assumptions, FR-001)");
   check(none.find("hunt: ") == std::string::npos,
         "the run with no hunt prints no hunt line at all (FR-052, I-8)");
-  std::remove(kDocumentPath.c_str());
+  std::remove(documentPath().c_str());
   captureRun(
-      withFilter({"--hunt=none", "--json=" + std::string(kDocumentPath)}));
-  check(readAll(kDocumentPath).find("\"hunt\"") == std::string::npos,
+      withFilter({"--hunt=none", "--json=" + std::string(documentPath())}));
+  check(readAll(documentPath()).find("\"hunt\"") == std::string::npos,
         "the run with no hunt writes no hunt key (FR-052, I-8)");
   std::printf("hunt-none-like-no-hunt: ok\n");
 }
@@ -913,12 +945,12 @@ auto scenarioMultiplexCombination() -> void
 {
   registerHost(kScriptFull);
   registerCase();
-  std::remove(kDocumentPath.c_str());
+  std::remove(documentPath().c_str());
 
   const auto run =
       captureRun(withFilter({"--hunt=" + address(0) + "," + address(1),
                              "--metric-method=multiplex",
-                             "--json=" + std::string(kDocumentPath)}));
+                             "--json=" + std::string(documentPath())}));
   check(planLine(run).find("MULTIPLEX") != std::string::npos,
         "--hunt with --metric-method=multiplex prints the method word in the "
         "plan line (D-16, D-19)");
@@ -930,7 +962,7 @@ auto scenarioMultiplexCombination() -> void
                   [](const std::string& line)
                   { return line.find("multiplexed") != std::string::npos; });
   check(everyRow, "every row of the multiplexed hunt carries the word (D-19)");
-  const std::string document = readAll(kDocumentPath);
+  const std::string document = readAll(documentPath());
   check(document.find("MULTIPLEX") != std::string::npos,
         "the document writes the method value MULTIPLEX (D-19)");
   std::printf("multiplex-combination: ok\n");
@@ -1036,37 +1068,15 @@ auto scenarioNoLimitHostPlanLine() -> void
 // The position of a hunt option beside `--hunt` (FR-080 to FR-082, D-22)
 // ---------------------------------------------------------------------------
 
-// One value for every hunt option that carries one, in the spelling the option
-// takes. The scenario below moves the whole list around `--hunt`, so a value
-// that settles in one order and not the other names the option that lost it.
-const std::vector<std::string> kOptionValues {"--hunt-norm=iter",
-                                              "--hunt-rank=cv",
-                                              "--hunt-top=3",
-                                              "--hunt-noise=25",
-                                              "--hunt-repeats=5",
-                                              "--hunt-budget=8p",
-                                              "--hunt-seed=7"};
-
-// The document spelling of each value above, in the same order. The settled
-// `hunt` object states the values the run planned with (E-08), and no needle
-// here stands in the document of defaults a discarded value leaves behind.
-const std::vector<std::string> kSettledWords {"\"norm\":\"iter\"",
-                                              "\"rank\":\"cv\"",
-                                              "\"top\":3",
-                                              "\"noisePercent\":25",
-                                              "\"repeats\":5",
-                                              "\"budget\":\"8p\"",
-                                              "\"seed\":7"};
-
 // The document one hunt run wrote, which is where every settled option value
 // stands once beside the plan it decided.
 auto huntDocument(const std::vector<std::string>& arguments) -> std::string
 {
-  std::remove(kDocumentPath.c_str());
+  std::remove(documentPath().c_str());
   std::vector<std::string> full = withFilter(arguments);
-  full.push_back("--json=" + std::string(kDocumentPath));
+  full.push_back("--json=" + std::string(documentPath()));
   captureRun(full);
-  const std::string text = readAll(kDocumentPath);
+  const std::string text = readAll(documentPath());
   check(text.find("\"hunt\"") != std::string::npos,
         "a hunt run writes the hunt key (FR-050)");
   return text;
@@ -1076,6 +1086,29 @@ auto scenarioOptionOrderSettles() -> void
 {
   registerHost(kScriptFull);
   registerCase();
+
+  // One value for every hunt option that carries one, in the spelling the
+  // option takes. This scenario moves the whole list around `--hunt`, so a
+  // value that settles in one order and not the other names the option that
+  // lost it.
+  const std::vector<std::string> kOptionValues {"--hunt-norm=iter",
+                                                "--hunt-rank=cv",
+                                                "--hunt-top=3",
+                                                "--hunt-noise=25",
+                                                "--hunt-repeats=5",
+                                                "--hunt-budget=8p",
+                                                "--hunt-seed=7"};
+
+  // The document spelling of each value above, in the same order. The settled
+  // `hunt` object states the values the run planned with (E-08), and no needle
+  // here stands in the document of defaults a discarded value leaves behind.
+  const std::vector<std::string> kSettledWords {"\"norm\":\"iter\"",
+                                                "\"rank\":\"cv\"",
+                                                "\"top\":3",
+                                                "\"noisePercent\":25",
+                                                "\"repeats\":5",
+                                                "\"budget\":\"8p\"",
+                                                "\"seed\":7"};
 
   std::vector<std::string> ahead {kOptionValues.begin(), kOptionValues.end()};
   ahead.push_back("--hunt=" + address(0));
@@ -1117,11 +1150,11 @@ auto scenarioOptionWithoutHunt() -> void
   check(run.find("hunt: ") == std::string::npos,
         "a hunt option with no --hunt runs no hunt (FR-001)");
 
-  std::remove(kDocumentPath.c_str());
+  std::remove(documentPath().c_str());
   captureRun(withFilter({"--hunt-norm=iter",
                          "--hunt-seed=7",
-                         "--json=" + std::string(kDocumentPath)}));
-  check(readAll(kDocumentPath).find("\"hunt\"") == std::string::npos,
+                         "--json=" + std::string(documentPath())}));
+  check(readAll(documentPath()).find("\"hunt\"") == std::string::npos,
         "a hunt option with no --hunt writes no hunt key (FR-052)");
   std::printf("option-without-hunt: ok\n");
 }
@@ -1252,7 +1285,8 @@ template<typename Print>
 [[nodiscard]] auto capturePrint(const Print& print) -> std::string
 {
   const int saved = dup(STDOUT_FILENO);
-  if (saved < 0 || std::freopen(kScratchPath.c_str(), "w", stdout) == nullptr) {
+  if (saved < 0 || std::freopen(scratchPath().c_str(), "w", stdout) == nullptr)
+  {
     fail("cannot redirect the plan line");
   }
   print();
@@ -1261,7 +1295,7 @@ template<typename Print>
     fail("cannot restore stdout");
   }
   close(saved);
-  std::ifstream file(kScratchPath);
+  std::ifstream file(scratchPath());
   std::stringstream buffer;
   buffer << file.rdbuf();
   return buffer.str();
@@ -1368,14 +1402,14 @@ auto scenarioPlanWeighsTheMeasuredPass() -> void
   registerHost(kScriptFull);
   registerCase();
 
-  std::remove(kDocumentPath.c_str());
+  std::remove(documentPath().c_str());
   const std::string run =
       captureRun(withFilter({"--hunt=" + address(0),
                              "--hunt-repeats=1",
-                             "--json=" + std::string(kDocumentPath)}));
+                             "--json=" + std::string(documentPath())}));
   const std::string plan = planLine(run);
   const std::string floor =
-      numberAfter(readAll(kDocumentPath), "\"overheadFloorNs\":");
+      numberAfter(readAll(documentPath()), "\"overheadFloorNs\":");
   check(!plan.empty(), "the hunt of one address prints its plan line");
   check(!floor.empty(), "the document carries the floor of the finished row");
 
@@ -1387,7 +1421,7 @@ auto scenarioPlanWeighsTheMeasuredPass() -> void
   check(estimate % passes == 0,
         "the estimate weighs the passes of the plan against one figure of a "
         "pass (FR-012)");
-  std::remove(kDocumentPath.c_str());
+  std::remove(documentPath().c_str());
   std::printf("measured-pass-estimate: ok\n");
 }
 
@@ -1489,7 +1523,7 @@ auto scenarioFilterSelectsTwoHuntedInstances() -> void
                                       "bmHuntCliPair",
                                       "--iterations=1",
                                       "--hunt=" + address(0) + "," + address(1),
-                                      "--json=" + std::string(kDocumentPath)});
+                                      "--json=" + std::string(documentPath())});
   const auto lines = splitLines(run);
   const std::size_t firstPlan = lineStartIndex(lines, "hunt: plan events=", 0);
   const std::size_t firstRow = lineStartIndex(lines, "bmHuntCliPair  ", 0);
@@ -1505,7 +1539,7 @@ auto scenarioFilterSelectsTwoHuntedInstances() -> void
         "T126)");
   check(countOf(run, "hunt: plan summary events=") == 2,
         "both hunt blocks close with their own summary (FR-040)");
-  const std::string document = readAll(kDocumentPath);
+  const std::string document = readAll(documentPath());
   check(countOf(document, "\"hunt\":{") == 3,
         "the document carries one hunt node per hunted result and one "
         "run-level node for the plan both instances hunted under (FR-050, "
