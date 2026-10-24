@@ -737,7 +737,7 @@ capture at `example/docs/hunt_rank.expected:2` agrees), and the quickstart
 steps this lane could run ran. The integrator added T168 for the flake
 finding this round filed as owned, so the section holds eleven rows.
 
-- [ ] T158 Pass the norm the plan settled into the rank route in
+- [x] T158 Pass the norm the plan settled into the rank route in
       `source/harness/hunt.cpp:1050`, where `rankEvents(measured, options,
       plan.method)` and the rate test at `hunt.cpp:1031` read the caller's
       `options.norm` while `hunt.cpp:949-952` settle `HuntNorm::ITER` into
@@ -860,7 +860,7 @@ finding this round filed as owned, so the section holds eleven rows.
       sees (FR-061, FR-062). The refusal is right and stays; the step names
       it in one clause.
 
-- [ ] T167 Do not name a norm for a plan that measures nothing.
+- [x] T167 Do not name a norm for a plan that measures nothing.
       `source/harness/hunt.cpp:949-952` settles `HuntNorm::ITER` whenever
       `plan.normalized` is unset, and `source/harness/hunt_plan.cpp`
       answers that unset for a plan that holds no columns at all, so

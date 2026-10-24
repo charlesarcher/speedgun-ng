@@ -946,9 +946,14 @@ auto runHuntNamed(std::string_view name,
       .ranEvents = 0,
       .stageTwoEvents = 0,
   };
-  if (!plan.normalized && !runRecord.options.norm.has_value()) {
+  if (!plan.normalized && !plan.columns.empty()
+      && !runRecord.options.norm.has_value())
+  {
     // The record carries the norm the run measured under: a plan that found
-    // no anchors ranks by iterations whoever asked (D-13).
+    // no anchors ranks by iterations whoever asked (D-13). E-03 reserves that
+    // fallback for a device that holds no anchor pair, so a plan that holds no
+    // column at all - the selection resolved to nothing the run can measure -
+    // names no norm and its plan line carries no `normalized=` field (E-07).
     runRecord.options.norm = HuntNorm::ITER;
   }
   for (const auto& column : plan.columns) {
@@ -1028,7 +1033,11 @@ auto runHuntNamed(std::string_view name,
   // would have stood beside (AC-10).
   auto measured = std::vector<EventSamples> {};
   measured.reserve(collected.size());
-  const auto rankNorm = options.norm.value_or(HuntNorm::INSTR);
+  // The norm the plan settled is the norm the rate is read under: a caller
+  // that named none and whose device holds no anchor pair measures iterations,
+  // and the rate test reads that figure the console label names (D-13, E-03,
+  // AC-4).
+  const auto rankNorm = runRecord.options.norm.value_or(HuntNorm::INSTR);
   for (auto& rows : collected) {
     if (rows.samples.empty()) {
       continue;
@@ -1046,8 +1055,10 @@ auto runHuntNamed(std::string_view name,
     measured.push_back(std::move(rows));
   }
   // The plan's settled method rides the record from the rank call, so the row
-  // marks and the method of the record are one answer (AC-2, D-19).
-  auto entry = rankEvents(measured, options, plan.method);
+  // marks and the method of the record are one answer (AC-2, D-19). The
+  // settled norm of `runRecord.options` rides with it, so the rate the rank
+  // ranks and the label the rank row prints are one answer (AC-4, FR-023).
+  auto entry = rankEvents(measured, runRecord.options, plan.method);
   entry.top = options.top;
   // The pass count of the plan that ran, the passes a retry appended included
   // (PD-12, D-18).
