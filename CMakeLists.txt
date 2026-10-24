@@ -4,9 +4,9 @@ include(cmake/prelude.cmake)
 
 project(
     speedgun-ng
-    # specs/028-full-command-line FR-078: the minor this lane reserves, after the
-    # 0.17.0 that specs/027 reserves.
-    VERSION 0.18.0
+    # specs/028-full-command-line FR-078: the patch 0.18.1 this fix branch
+    # takes above the 0.18.0 that master carries at fea69c5.
+    VERSION 0.18.1
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
