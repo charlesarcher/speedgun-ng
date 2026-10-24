@@ -1956,7 +1956,9 @@ struct JitterProbeOptions
  * \post the suite's next run starts the probe before its first
  *       selected instance and stops, drains and joins it after the
  *       last, over these options (FR-006, R-01)
- * \post the command-line value wins when both stand (FR-015, R-01)
+ * \post the option sources stand in order: the command line's value,
+ *       then the option file's, then the suite call's, each answering
+ *       only where no higher source named the probe (FR-015, R-01)
  */
 SPEEDGUN_NG_EXPORT auto runJitterProbe(const JitterProbeOptions& options)
     -> void;
@@ -2545,7 +2547,8 @@ public:
    *
    * Where the handle and the command line both stand, the handle wins;
    * where the suite-level call and the command line both stand, the
-   * command line wins (FR-015, R-01).
+   * command line wins; where the suite-level call and the option file
+   * both stand, the option file's value wins (FR-015, R-01).
    *
    * \pre the handle names a registered entry and the run has not
    *      started for this benchmark (E-02, FR-015)

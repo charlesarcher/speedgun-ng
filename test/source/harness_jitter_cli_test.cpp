@@ -714,6 +714,35 @@ auto runExecChild(const char* mode, const char* tag) -> Captured
       WEXITSTATUS(waitStatus), readDocument(outPath), readDocument(errPath)};
 }
 
+// The fresh process of the suite-call precedence scenario: the
+// suite-level call requires a process that has run no benchmark, so
+// the scenario re-enters this binary, binds the call before its entry
+// point reads the option file, and runs with the file's value standing
+// (E-02, FR-015).
+auto childFileOverSuite() -> int
+{
+  scriptedProvider();
+  const std::string probe = std::to_string(pickCpus(1).front());
+  {
+    std::ofstream file("harness_jitter_cli_file2.txt");
+    file << "jitter-probe=" << probe << "\n";
+  }
+  auto suiteOptions = sg::JitterProbeOptions {};
+  suiteOptions.mode = sg::JitterProbeMode::PRECHECK;
+  sg::runJitterProbe(suiteOptions);
+  std::vector<std::string> arguments {"--filter=bmQuiet",
+                                      "--repetitions=1",
+                                      "--iterations=2",
+                                      "--options=harness_jitter_cli_file2.txt",
+                                      "--json=harness_jitter_cli_file2.json"};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
 // The fresh process of the availability scenarios: the fake it
 // registers publishes the leaves the runner resolves its plans
 // through and no tsc leaf, so the catalog the availability check
@@ -1230,6 +1259,11 @@ auto main(int argc, char** argv) -> int
       return std::freopen(outPath.c_str(), "w", stdout) != nullptr
           && std::freopen(errPath.c_str(), "w", stderr) != nullptr;
     };
+    if (mode == "--jitter-cli-child=file-over-suite"
+        && redirect("fileOverSuite"))
+    {
+      return childFileOverSuite();
+    }
     if (mode == "--jitter-cli-child=unavailable" && redirect("unavailable")) {
       return childUnavailable(false);
     }
@@ -1664,6 +1698,26 @@ auto main(int argc, char** argv) -> int
     std::remove(path.c_str());
     check(document.find("\"mode\":\"ALONGSIDE\"") != std::string::npos,
           "no mode= value stands alongside (FR-012, D-1)");
+  }
+
+  // FR-015: the option sources stand in order: the command line's
+  // value, then the option file's, then the suite-level call's; the
+  // call answers only where no higher source named the probe. The
+  // file's value stands, and the mode word the suite call named
+  // stands nowhere in the document (FR-015). The scenario runs in a
+  // fresh exec, because the suite-level call requires a process that
+  // has run no benchmark yet (E-02, FR-015).
+  {
+    const auto captured =
+        runExecChild("--jitter-cli-child=file-over-suite", "fileOverSuite");
+    check(captured.status == 0,
+          "the run with the file's value and the suite call stands "
+          "status 0 (FR-015)");
+    const auto document = readDocument("harness_jitter_cli_file2.json");
+    std::remove("harness_jitter_cli_file2.json");
+    std::remove("harness_jitter_cli_file2.txt");
+    check(document.find("\"mode\":\"ALONGSIDE\"") != std::string::npos,
+          "the option file's value stands over the suite call's (FR-015)");
   }
 
   std::puts("harness_jitter_cli_test: ok");
