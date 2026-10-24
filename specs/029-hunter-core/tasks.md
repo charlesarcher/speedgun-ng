@@ -990,7 +990,7 @@ MEDIUM, two LOW.
       `waves/ph10/tidy.md`: 100 translation units through cppcheck, 0 findings
       for the check `WarningsAsErrors` names, 0 in the hoisted region.
 
-- [ ] T170 HIGH Land the sanitizer verdict over the two newest `json_load.cpp`
+- [x] T170 HIGH Land the sanitizer verdict over the two newest `json_load.cpp`
       commits. `/home/archerc/sg029-lanes/waves/ph9/sanitize.md:1` names the
       measured head as `8914cf0`, three commits behind the tip; `:3-4` report
       123 of 124 passed with zero sanitizer reports and one `harness_cli_test`
@@ -1004,9 +1004,15 @@ MEDIUM, two LOW.
       directory, scan both `--output-on-failure` logs for
       `ERROR: AddressSanitizer`, `runtime error` and
       `WARNING: ThreadSanitizer`, and fill `## Verdict` with the head, the
-      passed count and the scan result (T058, Principle VIII).
+      passed count and the scan result. The lane filled it at `1b6d2f5`:
+      `ci-sanitize` 53 of 53 in 888.80 s and `ci-tsan` 52 of 52 in 957.70 s,
+      both scanning zero reports across the three patterns
+      (`waves/ph9/sanitize.md`). The full roster at `f5df59d` then failed both
+      jobs on the use of freed memory T188 records, so the green pair stands at
+      the head that verdict names and the roster at the fixed head is CI's to
+      report (T058, Principle VIII).
 
-- [ ] T171 MEDIUM Get a coverage trace that ran, and read the moved settle out
+- [x] T171 MEDIUM Get a coverage trace that ran, and read the moved settle out
       of it. The coverage target has produced no trace at any head: the lane at
       `d3d89a0` fails in one second on the box's moved Perl, with
       `Can't locate Capture/Tiny.pm ... at geninfo line 66` at
@@ -1023,9 +1029,15 @@ MEDIUM, two LOW.
       it put on their own statement lines at `hunt_cli.cpp:520-543`, so read
       those lines in the same pass. If `keepFirstError` answers zero runs, write
       that there: the restructure bought nothing and T055 needs a route that
-      reaches each of its branches from a test (FR-091).
+      reaches each of its branches from a test. CI's own trace at `f5df59d`
+      answers it, and `waves/ph11/coverage-tip.md` holds the numbers: 10571 of
+      10571 lines, 5339 of 5438 branches, the predicate at `:145` reached 3536
+      times with both arms taken and the settle body at `:148` run 21 times, so
+      the restructure bought the counting it was meant to buy. Of the two
+      refusals `:521` and `:522` count with both arms and `:529` keeps one arm
+      untaken (T055, FR-091).
 
-- [ ] T172 MEDIUM Give `harness_cli_test` one recorded green run, or pin what
+- [x] T172 MEDIUM Give `harness_cli_test` one recorded green run, or pin what
       the box takes from it. No lane has it green at these heads and each
       reports a different ending: `waves/ph9/logs/ctest.log:455` names it as the
       only failure of the coverage suite at `d3d89a0`, as
@@ -1043,7 +1055,14 @@ MEDIUM, two LOW.
       at the tip, plain and under the sanitizer preset, and record both: if it
       passes alone, give the entry the properties that keep a loaded box from
       killing it, and if it fails alone, the SC-017 numbers say which resource
-      the interrupted run still holds (Principle VI, AC-9).
+      the interrupted run still holds. Both runs are recorded: alone at
+      `f5df59d` it passed plain in 2387 s read from the log's own stamps, and
+      the entry has carried `PROCESSORS 2` with no `TIMEOUT` since 6c05452;
+      alone under `ci-sanitize` it ends failed after 3751.28 s on the SC-006
+      mapping count, with zero sanitizer reports across 2021 log lines, the
+      first `/proc/self/maps` read shifting its own count under ASan. SC-017
+      never reached a verdict, so the question lives in the row that owns
+      SC-006 (Principle VI, AC-9).
 
 - [x] T173 MEDIUM Re-anchor the citations the newest commits moved. The `+5` in
       `source/harness/json_load.cpp` from `d3d89a0`, the `+1` in
@@ -1162,12 +1181,16 @@ citation row are settled, and both say so where they stand.
       so the comment is the last copy of the stage field T123 deleted (FR-041, T123).
       Settled by a27703c: the comment states the address and kind shape the
       printer emits, in the words `data-model.md:202` uses.
-- [ ] T180 LOW Give the two remaining folded string choices their own statement lines,
+- [x] T180 LOW Give the two remaining folded string choices their own statement lines,
       but only if the coverage trace asks: `source/harness/json_report.cpp:613` and
       `source/harness/compare.cpp:1247` each hold one arm of a string choice as the
       middle operand of a concatenation whose statement begins on the line above, the
       shape 9b23fec removed from `source/harness/hunt_cli.cpp:520-546`. Both files stand
-      inside the T055 scope (Principle VI, FR-091).
+      inside the T055 scope. The trace asked for nothing: both files stand at
+      100 percent lines in CI's trace at `f5df59d` and neither appears among
+      the files carrying a gap, per `waves/ph11/coverage-tip.md`, so the
+      condition this row states is unmet and no statement line was split
+      (Principle VI, FR-091).
 - [x] T181 LOW Say that the three hunt console blocks state a shape and are no captured run,
       or gate them: `docs/pages/harness.md:1428`, `:1458` and `:1511` open plain `text`
       fences with no `sg-sample-output` tag, so `tools/docs/example_drift.py` compares
