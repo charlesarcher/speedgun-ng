@@ -828,8 +828,8 @@ finding this round filed as owned, so the section holds eleven rows.
       the published slot count is below three whatever the anchors, in the
       words `publishes <n> slots and a hunt pass needs 3` that
       `contracts/hunt-cli.md:86` and `docs/pages/harness.md:1441` pin;
-      `data-model.md` gives the rule as `L` below 3 with both anchors
-      present, a third predicate beside those two. The library route prints
+      `data-model.md` gives the rule as `L` below 3 whatever the anchors, one
+      predicate for both routes, the reading T177 settled.
       the words no contract pins, and the copies disagree on the anchor
       condition the documents name. Land the planner half and the doc half,
       one predicate and one wording, and reconcile the CLI copy: a live lane
@@ -970,7 +970,7 @@ carries a push or a CI read for `d3d89a0` or for the tip, which is T063's and
 T095's own remaining clause. No CRITICAL finding: eight rows, two HIGH, four
 MEDIUM, two LOW.
 
-- [ ] T169 HIGH Run the analyzer build of this work and write its report.
+- [x] T169 HIGH Run the analyzer build of this work and write its report.
       `specs/029-hunter-core/tasks.md:280` (T057) is ticked for a `ci-ubuntu`
       build "clean of clang-tidy and cppcheck findings", and no analyzer report
       exists in `/home/archerc/sg029-lanes/waves/ph9/` at any head, while
@@ -986,6 +986,9 @@ MEDIUM, two LOW.
       (`readability-identifier-naming`), reported beside the pre-existing
       warning total the `Checks: "*"` bracket at `.clang-tidy:9-19` produces
       (Principle VIII).
+      Settled by the `ci-ubuntu` analyzer run at `a55ea6d`, reported in
+      `waves/ph10/tidy.md`: 100 translation units through cppcheck, 0 findings
+      for the check `WarningsAsErrors` names, 0 in the hoisted region.
 
 - [ ] T170 HIGH Land the sanitizer verdict over the two newest `json_load.cpp`
       commits. `/home/archerc/sg029-lanes/waves/ph9/sanitize.md:1` names the
@@ -1042,19 +1045,19 @@ MEDIUM, two LOW.
       killing it, and if it fails alone, the SC-017 numbers say which resource
       the interrupted run still holds (Principle VI, AC-9).
 
-- [ ] T173 MEDIUM Re-anchor the citations the newest commits moved. The `+5` in
+- [x] T173 MEDIUM Re-anchor the citations the newest commits moved. The `+5` in
       `source/harness/json_load.cpp` from `d3d89a0`, the `+1` in
       `source/harness/hunt_plan.cpp` from `20ed572` and the 41 lines added to
       `test/source/harness_json_load_test.cpp` leave eight live citations short
       at `d3d89a0` and unchanged at the tip:
       `specs/029-hunter-core/contracts/hunt-json.md:142` cites the `readEntry`
-      body at `json_load.cpp:1031` (it stands at `:1036`), `:146` cites
-      `loadReport` at `:1580` (`:1585`) and `:158` cites the version-refusal
-      window as `1604-1613` (the block spans `1601-1618`, so the cited window
+      body at `json_load.cpp:1031` (it stands at `:1012`), `:146` cites
+      `loadReport` at `:1580` (`:1561`) and `:158` cites the version-refusal
+      window as `1604-1613` (the block spans `1585-1594`, so the cited window
       ends inside its comment);
       `specs/029-hunter-core/contracts/report-schema-key.md:30` cites
-      `checkNode` at `:1450` (`:1455`) and `:31` cites `checkReport` at `:1546`
-      (`:1551`); `include/speedgun-ng/hunt.hpp:548` cites `hunt_plan.cpp:220`
+      `checkNode` at `:1450` (`:1431`) and `:31` cites `checkReport` at `:1546`
+      (`:1527`); `include/speedgun-ng/hunt.hpp:548` cites `hunt_plan.cpp:220`
       for the settled-option guard (the `SG_REQUIRE` stands at `:221`) and
       `:556` cites `hunt_plan.cpp:249` for the rate invariant (the
       `SG_INVARIANT` stands at `:250`), and
@@ -1066,8 +1069,14 @@ MEDIUM, two LOW.
       `specs/029-hunter-core/merge-notes.md:94`, while that mutation row stands
       at `:569` in `kMutations[]` and `:529` sits inside the pre-pass-fields
       scenario (FR-093).
+      Settled by 32d9f06 and this commit. Every target was re-read in the pushed
+      tree, whose addresses differ from the audit's sibling tree: the reader
+      bodies stand at `:1012` and `:1561`, the checker at `:1431` and `:1527`, the
+      version window spans `1585-1594`, the mutation row at `:569`, the version
+      sentence at `docs/pages/harness.md:1124`, and the writer constant at
+      `json_report.cpp:38`.
 
-- [ ] T174 MEDIUM Note in gary's record that its two summary lines predate
+- [x] T174 MEDIUM Note in gary's record that its two summary lines predate
       T120. `specs/029-hunter-core/results/gary-hunt-all.md:119` and `:140`
       quote `hunt: plan summary events=343/355 passes=89 spend=not available
       budget=none` and `... events=341/353 ... spend=not available ...`, and the
@@ -1080,8 +1089,11 @@ MEDIUM, two LOW.
       record holds no such clause anywhere, so a reader takes a line the shipped
       binary cannot print as what this tree prints. Add the same one-clause
       provenance note beside the two quoted runs (FR-093, T120).
+      Settled by 1c35cfc: one provenance clause beside the two quoted runs, the
+      quoted bytes untouched. History confirms the field arrived in 4e6a213 and
+      left in a9c3196.
 
-- [ ] T175 LOW Name PyYAML where the pages hand out the `dbc-gate` step.
+- [x] T175 LOW Name PyYAML where the pages hand out the `dbc-gate` step.
       `specs/029-hunter-core/quickstart.md:19` lists the tool prerequisites a
       reader needs for the gate steps (`doxygen` for `dbc-gate`, `lcov` and
       `gcov` for the coverage target) and `docs/pages/building.md:31` gives the
@@ -1093,8 +1105,10 @@ MEDIUM, two LOW.
       prerequisite line, naming the module the two gate scripts import, keeps
       FR-061's rule that a reader walking the page sees what the page says
       (FR-061).
+      Settled by cb4c875: the prerequisite line names PyYAML and the module the
+      two gate scripts import through `dbc_gate_common.py`.
 
-- [ ] T176 LOW Rename the round-4 section header.
+- [x] T176 LOW Rename the round-4 section header.
       `specs/029-hunter-core/tasks.md:723` reads `## Phase 4: Convergence` in a
       ledger that already carries `## Phase 4: User Story 2 - Bound the time and
       see the plan` at `:142`, so the file holds two `Phase 4` headers, and the
@@ -1105,6 +1119,8 @@ MEDIUM, two LOW.
       `## Phase 12: Convergence`, the number its position gives it, and carry
       this section to `## Phase 13: Convergence` in the same edit, since the two
       cannot share a phase number; no row number moves (Principle IX).
+      Settled by 1b6d2f5: the round-four header reads `## Phase 12: Convergence`
+      and this section reads Phase 13.
 
 ### Second assessment of the same round
 
@@ -1112,7 +1128,7 @@ Two lanes assessed this round. The rows below are the second lane's, kept where 
 name something the rows above do not. Its summary-time row and its rank-precondition
 citation row are settled, and both say so where they stand.
 
-- [ ] T177 HIGH State the device-limit refusal without the anchor condition.
+- [x] T177 HIGH State the device-limit refusal without the anchor condition.
       `include/speedgun-ng/hunt.hpp:512` posts the refusal for "an event whose device
       publishes a limit below 3 with both anchors present", and
       `specs/029-hunter-core/contracts/hunt-api.md:194` repeats that wording, while
@@ -1123,7 +1139,11 @@ citation row are settled, and both say so where they stand.
       it owns teaching a caller that a two-slot device which publishes no anchor pair
       still plans (FR-011, FR-081, T164). Remedy: drop "with both anchors present" from
       both reads and name `detail::admitsHuntEvent` as the predicate in the header.
-- [ ] T178 MEDIUM Give `test/source/dbc_trap_checked_test.cpp:40` a scratch file of its
+      Settled by f6def39. `admitsHuntEvent` at
+      `source/harness/detail/hunt_selection.hpp:55-59` reads the slot count alone
+      and both call sites pass only that count, so the anchor condition was
+      invented; header and contract now name the predicate.
+- [x] T178 MEDIUM Give `test/source/dbc_trap_checked_test.cpp:40` a scratch file of its
       own. `std::string out = "/tmp/dbc_trap_checked_out.txt";` is machine-global, its
       bytes are read back at `:48-52` after `std::system` at `:46`, and the only
       `RESOURCE_LOCK` entries in `test/CMakeLists.txt` (`:297`, `:315`, both
@@ -1132,23 +1152,32 @@ citation row are settled, and both say so where they stand.
       take the file from each other, so a check can pass on bytes its own child never
       wrote (Principle VI, AC-9, T165). Remedy: the T165 form, the name built from
       `getpid()`, removed before the run and again once read.
-- [ ] T179 LOW Cut the deleted field out of the `printHuntSkips` comment at
+      Settled by 3a03bc7: the name carries `getpid()` and both removals stand.
+      Two copies run at once both passed, each writing its own file, and a poison
+      file at the old global path stayed unread.
+- [x] T179 LOW Cut the deleted field out of the `printHuntSkips` comment at
       `source/harness/report.cpp:833` ("the stage that lost the event where a stage
       did"): the printer answers `hunt: skipped %s %s`, address and kind, at `:842`, and
       `specs/029-hunter-core/data-model.md:202` states `hunt: skipped <address> <kind>`,
       so the comment is the last copy of the stage field T123 deleted (FR-041, T123).
+      Settled by a27703c: the comment states the address and kind shape the
+      printer emits, in the words `data-model.md:202` uses.
 - [ ] T180 LOW Give the two remaining folded string choices their own statement lines,
       but only if the coverage trace asks: `source/harness/json_report.cpp:613` and
       `source/harness/compare.cpp:1247` each hold one arm of a string choice as the
       middle operand of a concatenation whose statement begins on the line above, the
       shape 9b23fec removed from `source/harness/hunt_cli.cpp:520-546`. Both files stand
       inside the T055 scope (Principle VI, FR-091).
-- [ ] T181 LOW Say that the three hunt console blocks state a shape and are no captured run,
+- [x] T181 LOW Say that the three hunt console blocks state a shape and are no captured run,
       or gate them: `docs/pages/harness.md:1428`, `:1458` and `:1511` open plain `text`
       fences with no `sg-sample-output` tag, so `tools/docs/example_drift.py` compares
       none of them. That is how `:1458` carried a plan line with no `stage1=` and
       `stage2=` until 101d9b6 hand-fixed it under T161, whose remedy offered that second
       route and did not take it (FR-070, FR-071, T161).
+      Settled by 335f11a: each of the three blocks carries a clause saying it
+      states the shape of the output. No sample-output tag was added, so the drift
+      gate still compares none of them, the route the row offers as the
+      alternative, unchosen here.
 - [x] T182 Strike "and the summary adds the time the hunt spent" from
       `docs/pages/harness.md:1532`. Settled by 06b27c4 in this same round, on the same
       evidence the second assessment reached: the summary printer writes `events=`,
@@ -1156,3 +1185,19 @@ citation row are settled, and both say so where they stand.
 - [x] T183 Re-anchor the rank-precondition citations at `include/speedgun-ng/hunt.hpp:548`
       and `:556`. The same gap as T173 above, which carries the wider sweep of eight
       citations (FR-093, T162, T163).
+
+- [ ] T184 MEDIUM Settle two ledger citations that drifted inside this
+      file. `:830` cites `docs/pages/harness.md:1441` for the slot-limit
+      refusal, and that refusal prints at `docs/pages/harness.md:1499` today,
+      `:1441` holding the selection table instead. Both rows describe work
+      that landed; only their addresses moved.
+- [ ] T185 MEDIUM Register `harness_cli_test` with the properties its cost
+      needs. `test/CMakeLists.txt:654` holds a bare `add_test`, so the
+      `--timeout 3600` of the `sanitize` and `tsan` jobs governs it, and a
+      loaded run needed 3802 s. `PROCESSORS` is what shortens the elapsed
+      time. Blocked on a measured instrumented wall-clock and CPU pair.
+- [ ] T186 LOW Decide whether the contract and the header must match byte for
+      byte. `contracts/hunt-api.md:194` ends the refusal sentence with a
+      period where `include/speedgun-ng/hunt.hpp:512` keeps a semicolon, a
+      split that predates this round. The pair gate reads the meaning and
+      passes; a gate that compared bytes would flag it.
