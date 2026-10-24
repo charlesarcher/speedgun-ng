@@ -147,8 +147,8 @@ auto planHunt(const std::vector<CatalogAddress>& events,
     if (!pair.second.empty()) {
       columnLeaves.addresses.push_back(pair.second);
     }
-    leaves.emplace_back(
-        std::vector<detail::ColumnLeaves> {std::move(columnLeaves)});
+    auto& columnRows = leaves.emplace_back();
+    columnRows.push_back(std::move(columnLeaves));
   }
 
   // A device no column needs publishes nothing to this run: only the devices
