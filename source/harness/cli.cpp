@@ -777,16 +777,8 @@ auto speedgunMain(int argc, char** argv) -> int
     if (probeCpus.empty()) {
       // D-4, R-07: the idle resolution runs against the selected
       // instances' plans before the batch starts.
-      std::vector<std::uint32_t> planned;
-      for (const auto* instance : selected) {
-        if (instance->threadCount > 1
-            && instance->placement != detail::Preset::NONE)
-        {
-          const auto plan = detail::resolvePreset(
-              instance->placement, detail::layout(), instance->threadCount);
-          planned.insert(planned.end(), plan.cpu.begin(), plan.cpu.end());
-        }
-      }
+      std::vector<std::uint32_t> planned =
+          detail::plannedCpusOf(selected, detail::layout());
       if (options.jitterProbe->mode == JitterProbeMode::PRECHECK) {
         // FR-006, R-10: no probe thread runs beside a benchmark in the
         // precheck mode - start() returns only after every pre-check
@@ -857,18 +849,13 @@ auto speedgunMain(int argc, char** argv) -> int
   // instance (FR-006, R-01).
   for (auto& probe : familyProbes) {
     std::vector<Instance*> familyInstances;
-    std::vector<std::uint32_t> planned;
     for (auto* entry : selected) {
-      if (entry->family != probe.family) {
-        continue;
-      }
-      familyInstances.push_back(entry);
-      if (entry->threadCount > 1 && entry->placement != detail::Preset::NONE) {
-        const auto plan = detail::resolvePreset(
-            entry->placement, detail::layout(), entry->threadCount);
-        planned.insert(planned.end(), plan.cpu.begin(), plan.cpu.end());
+      if (entry->family == probe.family) {
+        familyInstances.push_back(entry);
       }
     }
+    std::vector<std::uint32_t> planned =
+        detail::plannedCpusOf(familyInstances, detail::layout());
     if (probe.options.cpus.empty()) {
       if (probe.options.mode == JitterProbeMode::PRECHECK) {
         // FR-006, R-10: the precheck mode plans no probe thread beside
@@ -1063,10 +1050,6 @@ auto speedgunMain(int argc, char** argv) -> int
     const bool batchActive = batchProbed && !jitterUnavailable;
     const std::vector<std::uint32_t>& coveringCpus =
         familyActive ? covering->cpus : probeCpus;
-    const bool precheckMode = familyActive
-        ? covering->options.mode == JitterProbeMode::PRECHECK
-        : (batchActive
-           && options.jitterProbe->mode == JitterProbeMode::PRECHECK);
     // FR-022, FR-023: the complexity fit of the family that ended prints
     // between the rows of two families, after every row of the family it
     // summarizes. A shuffled run holds its fits for the print pass, where a
@@ -1102,12 +1085,14 @@ auto speedgunMain(int argc, char** argv) -> int
     // inherit the narrowed mask the benchmark runs under. The change
     // is disclosed and the mask restored after the instance ends; the
     // empty intersection stops with one line naming the benchmark.
+    const bool probeLive = familyActive || batchActive;
+    const JitterProbeMode coveringMode = familyActive
+        ? covering->options.mode
+        : (batchActive ? options.jitterProbe->mode
+                       : JitterProbeMode::ALONGSIDE);
     cpu_set_t savedMask {};
     bool maskNarrowed = false;
-    if ((familyActive || batchActive) && !precheckMode
-        && !(entry->threadCount > 1
-             && entry->placement != detail::Preset::NONE))
-    {
+    if (detail::narrowingApplies(*entry, probeLive, coveringMode)) {
       CPU_ZERO(&savedMask);
       readNarrowingMask(savedMask);
       std::vector<std::uint32_t> maskCpus;
@@ -1250,6 +1235,10 @@ auto speedgunMain(int argc, char** argv) -> int
           }
           report.results.push_back(*fit);
           entryWindows.emplace_back();
+          // R-08: a fit is no run of its own, so it carries no probe
+          // states - the split reads one pointer per entry, and the
+          // held rows' pointers stand ahead of it (FR-022, E-06).
+          resultProbes.push_back(nullptr);
           report.rowRaw.emplace_back();
           report.contextRaw.emplace_back();
         }

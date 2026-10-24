@@ -722,6 +722,24 @@ struct ProbeOverlap
 /// \post a `precheck` mode names no overlap, and every other mode
 ///       names the first probe cpu a plan refuses, if one stands
 ///       (D-3, R-10)
+/// @brief The planned cpus the idle resolution skips: every instance
+/// with more than one context and a preset contributes its plan's cpus
+/// (D-4, FR-016). An instance with one context contributes nothing, and
+/// a multi-context instance the preset names none contributes nothing,
+/// its threads running unpinned beside the probe (FR-019, R-10).
+/// \pre `machine` stands readable (FR-020)
+[[nodiscard]] auto plannedCpusOf(const std::vector<Instance*>& selected,
+                                 const MachineLayout& machine)
+    -> std::vector<std::uint32_t>;
+
+/// @brief The narrowing rule: the calling thread's mask narrows by the
+/// probe cpus for an instance the runner does not pin, beside a live
+/// probe that runs beside the benchmark; the precheck mode runs no
+/// thread beside one (FR-019, FR-006, R-10).
+[[nodiscard]] auto narrowingApplies(const Instance& entry,
+                                    bool probeLive,
+                                    JitterProbeMode mode) -> bool;
+
 [[nodiscard]] auto probeOverlapOf(const MachineLayout& machine,
                                   const std::vector<Instance*>& selected,
                                   const std::vector<std::uint32_t>& probeCpus,
