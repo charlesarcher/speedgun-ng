@@ -21,6 +21,8 @@
 // convention.
 // ============================================================================
 
+#include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
 #include <csignal>
@@ -36,6 +38,7 @@
 #include <string_view>
 #include <vector>
 
+#include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -195,9 +198,8 @@ auto bmThrowInside(sg::State& state) -> void
   }
 }
 
-// The counts SC-006 compares around the failed runs. The listing holds one
-// descriptor of its own while it reads, in both measurements, so the
-// difference is what the comparison sees.
+// The counts SC-006 compares around the failed runs. The descriptor listing
+// holds one descriptor of its own while it reads, in both measurements.
 auto openDescriptorCount() -> std::size_t
 {
   std::error_code failure;
@@ -214,17 +216,35 @@ auto openDescriptorCount() -> std::size_t
   return count;
 }
 
+// The mapping count is read without an allocation, so the read itself maps
+// nothing and consecutive reads of one process answer the same number:
+// 85, 85 and 85, or 86, 86 and 86, under the address sanitizer, and 43 in
+// a plain build. The kernel hands this listing out about four kilobytes at
+// a time, so the count is taken over every read to its end: a reader that
+// stops at the first sees 59 of the 85 lines, a stream build 92 then 112.
 auto mappingCount() -> std::size_t
 {
-  std::ifstream maps("/proc/self/maps");
-  if (!maps) {
+  static std::array<char, 1 << 16> chunk {};
+  const int file = ::open("/proc/self/maps", O_RDONLY | O_CLOEXEC);
+  if (file < 0) {
     fail("the process's own mapping listing is readable");
   }
-  std::size_t count = 0;
-  for (std::string line; std::getline(maps, line);) {
-    ++count;
+  std::size_t lines = 0;
+  for (;;) {
+    const ssize_t taken = ::read(file, chunk.data(), chunk.size());
+    if (taken == 0) {
+      break;
+    }
+    if (taken < 0) {
+      static_cast<void>(::close(file));
+      fail("the process's own mapping listing reads to its end");
+    }
+    lines += static_cast<std::size_t>(std::ranges::count(
+        std::string_view {chunk.data(), static_cast<std::size_t>(taken)},
+        '\n'));
   }
-  return count;
+  static_cast<void>(::close(file));
+  return lines;
 }
 
 // Every scratch file this test writes carries the process id, the way the
@@ -1173,11 +1193,11 @@ auto main(const int argc, char** argv) -> int
     captureRun(failing, 1);
   }
   const std::size_t descriptors = openDescriptorCount();
-  // The first read of the mapping listing maps the chunks the allocation of
-  // that read itself takes, and they stay mapped, so under a sanitizer the
-  // first answer is smaller than every later one. Discard it and take the
-  // baseline from the state the measured window's read returns to.
-  static_cast<void>(mappingCount());
+  // The listing reads through the buffer mappingCount holds, so this read and
+  // the one after the measured window both name the process's own count, one
+  // taken ahead of the window and one after it, and neither read carries a
+  // mapping of its own into the number it answers with. A mapping kept by a
+  // run moves the later number by the count of the runs that kept it.
   const std::size_t mappings = mappingCount();
   for (int run = 0; run < kFailedRunWindow; ++run) {
     captureRun(failing, 1);

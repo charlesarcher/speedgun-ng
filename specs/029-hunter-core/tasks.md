@@ -1403,18 +1403,18 @@ full ledger is `/home/archerc/sg029-lanes/waves/ph12/converge.md`.
       moved (FR-003, FR-004, FR-080, FR-083).
 
 - [ ] T203 LOW Make the SC-006 mapping-count check immune to the step the listing
-      itself causes. The window is two runs of `kFailedRunWindow` 1,000 in-process
-      harness runs each at `test/source/harness_cli_test.cpp:871-873` and
-      `:876-878`, around the baseline reads at `:874` and `:875`, so 2,000 harness
-      runs. The comment at `:864-869` states that the first window pays the first
-      extra chunk of the allocator under a sanitizer, yet no `mappingCount()` call
-      lies inside that window while the step comes from the listing, so the defense
-      that comment describes cannot hold and the equality can fail on the shift
-      alone: ASan at `1b6d2f5` failed this entry once at 3751.28 s on exactly this
-      assertion with zero sanitizer reports across 2021 log lines, while CI's
-      `sanitize` job passes it. The remedy is the one that comment's own reasoning
-      points at, one discarded `mappingCount()` read ahead of the first baseline,
-      measured under `ci-sanitize` before it lands (Principle VI, AC-9).
+      itself causes. Two `kFailedRunWindow` loops of 1,000 in-process harness runs
+      stand at `test/source/harness_cli_test.cpp:904-906` and `:914-916`, with the
+      baselines at `:907` and `:913` and the check at `:919-920`: ASan at `1b6d2f5`
+      failed it once at 3751.28 s with zero sanitizer reports across 2021 log lines,
+      and CI's `sanitize` job passes it. A stream read takes a buffer of its own, and
+      that buffer maps, so the later answer counted the observer: three stream reads
+      of one process under a sanitizer answer 92, 112 and 112 lines, three reads
+      through one standing buffer answer 85, 85 and 85. The check counts through
+      `:224-247` now, to the end of the listing. Five Release runs exit 0 with one
+      ok marker each. The control is certified: under `Sanitize` with clang++, the
+      copy that leaks one mapping per measured run fails at `:919-920` alone, and
+      its delta is a small constant. CI's `sanitize` job owes the unplanted verdict.
 
 ## Phase 15: Close the untaken branch outcomes
 
