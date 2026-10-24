@@ -11,6 +11,8 @@
 // Cross-platform: uses std::system with output redirection to a file, so it
 // needs no fork/exec/pipe plumbing. The fixture's existence is checked first so
 // a missing binary cannot false-pass as "no marker".
+// Scratch is named after this process id, so two `ctest` runs on one machine
+// each read only the bytes their own child wrote (T178).
 // ============================================================================
 
 #include <cstdio>
@@ -18,6 +20,8 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+
+#include <unistd.h>
 
 auto main(int argc, char** argv) -> int
 {
@@ -37,7 +41,10 @@ auto main(int argc, char** argv) -> int
     }
   }
 
-  std::string out = "/tmp/dbc_trap_checked_out.txt";
+  // The name carries the process id, so this check reads only the bytes its
+  // own child wrote (T178).
+  const std::string out =
+      "/tmp/dbc_trap_checked_" + std::to_string(getpid()) + ".txt";
   std::remove(out.c_str());
 
   std::string cmd = "\"" + fixture + "\" > \"" + out + "\" 2>&1";
@@ -46,12 +53,16 @@ auto main(int argc, char** argv) -> int
   int const status = std::system(cmd.c_str());
   static_cast<void>(status);
 
-  std::ifstream f(out);
-  std::ostringstream body;
-  if (f) {
-    body << f.rdbuf();
+  std::string content;
+  {
+    std::ifstream f(out);
+    std::ostringstream body;
+    if (f) {
+      body << f.rdbuf();
+    }
+    content = body.str();
   }
-  std::string content = body.str();
+  std::remove(out.c_str());
 
   bool hasMarker = content.find("gated-site-passed") != std::string::npos;
   if (hasMarker) {
