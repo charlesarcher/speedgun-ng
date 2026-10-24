@@ -23,7 +23,7 @@ object and the per-entry object, and joins neither `required` list.
 | entry `x-order` | 21 keys ending `metricMethod`, `passCount`, `passSpread`, `spreadWarning` (`report-v1.json:28-50`) | those 21, then `hunt` as the 22nd |
 | entry `required` | 19 keys: every entry key except `reason` and `noiseWarning` (`report-v1.json:51-71`) | unchanged |
 | entry `additionalProperties` | `false` (`report-v1.json:72`) | unchanged: the entry stays closed |
-| `schemaVersion` written | `1.1` (`json_report.cpp:31`) | `1.4` |
+| `schemaVersion` written | `1.1` (`json_report.cpp:38`) | `1.4` |
 
 ## Why `properties` must carry the keys
 

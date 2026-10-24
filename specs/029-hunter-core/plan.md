@@ -73,7 +73,7 @@ harness `SOVERSION` 11, archive `SOVERSION` 4 (FR-090)
 **Scale/Scope**: the core catalog of the development host, 279 entries with 151
 refusals recorded in the specs/021 hardware record (spec Assumptions);
 `--hunt-top` accepts 1 to 10000 and `--hunt-repeats` 1 to 1000;
-`kMaxUserCounters` 16 (`runner.cpp:866,873`) bounds named `--counter` columns
+`kMaxUserCounters` 16 (`runner.cpp:832,839`) bounds named `--counter` columns
 alone and bounds no hunt column
 
 ## Constitution Check
@@ -290,8 +290,8 @@ plan decision below and in [research.md](research.md).
 
 ### Risks
 
-- **The seat change reaches every run.** `seatPass` at `runner.cpp:1400` and its
-  use at `runner.cpp:2286-2292` serve the non-hunt path too. Mitigation: the
+- **The seat change reaches every run.** `seatPass` at `runner.cpp:1368` and its
+  use at `runner.cpp:2369-2402` serve the non-hunt path too. Mitigation: the
   hunt branch is taken only when the run carries hunt columns, the
   `SG_INVARIANT` route stays byte-for-byte for every other run, and
   `harness_pass_report_test.cpp` keeps its captured byte-identity golden as a
@@ -432,7 +432,7 @@ form the comments at `CMakeLists.txt:43-52` and `:238-260` record:
 | `harness` archive | 10 (`CMakeLists.txt:261`) | 11 | `hunt.hpp` adds the exported hunt calls; `BenchmarkResult` gains `hunt`; `ReportData` gains `hunt` (FR-090, hard rule 12) |
 
 `docs/schema/report-v1.json` gains both hunt keys at schema minor `1.4`,
-`kSchemaVersion` at `json_report.cpp:31` moves from `1.1` to `1.4`, and a rebase
+`kSchemaVersion` at `json_report.cpp:38` moves from `1.1` to `1.4`, and a rebase
 takes the next free minor while carrying the keys of the lanes that merged
 first (FR-053). The full key rule, the `x-order` positions and the `required`
 exception are in
@@ -522,7 +522,7 @@ and by nothing else.
 **Intentionally untouched**: `compare.cpp` and every comparison rule key (spec
 Scope), `passSpread` and the upper-median convention of
 `source/counters/plan.cpp`, `printContextDisclosure`, `kMaxUserCounters` and the
-named-counter slot arithmetic at `runner.cpp:866-874`, `MetricMethod` and
+named-counter slot arithmetic at `runner.cpp:832-840`, `MetricMethod` and
 `settleMethod`, the `ci-coverage` preset and the CI workflow files (hard rule 14),
 and the counters encode path (raw codes stay refused, spec D-11).
 
