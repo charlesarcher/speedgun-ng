@@ -37,6 +37,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <memory>
@@ -71,9 +72,13 @@ using sg::hunt::RunHunt;
 using sg::hunt::SkippedEvent;
 using sg::hunt::SkippedKind;
 
-// The file one scenario's printed report is captured to, the scratch file of
-// `harness_pass_report_test.cpp` spelled for this binary.
-constexpr const char* kScratchPath = "harness_hunt_collect_out.txt";
+// The file one scenario's printed report is captured to. The name stands in
+// the system temporary directory under this process number, so a run from the
+// checkout root leaves no file behind and a second copy of this binary shares
+// no file.
+const auto kScratchPath = std::filesystem::temp_directory_path()
+    / ("harness_hunt_collect_" + std::to_string(static_cast<long>(getpid()))
+       + "_out.txt");
 
 // The scripted limit the retry arms split over: six leaves per pass on `cpu`,
 // the anchors counted, the row `kHuntRows` carries for AC-1.

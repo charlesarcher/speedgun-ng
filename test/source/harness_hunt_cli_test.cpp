@@ -32,6 +32,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <optional>
@@ -80,18 +81,29 @@ constexpr std::size_t kFullLimit = 6;
 constexpr std::size_t kNarrowLimit = 2;
 
 // The scratch files of this binary: the printed-report capture and the `@file`
-// selections the contract's rows name.
-constexpr const char* kScratchPath = "harness_hunt_cli_out.txt";
-constexpr const char* kDocumentPath = "harness_hunt_cli_report.json";
-constexpr const char* kBlankFile = "hunt_cli_blank.txt";
-constexpr const char* kRawFile = "hunt_cli_raw.txt";
-constexpr const char* kListFile = "hunt_cli_list.txt";
-constexpr const char* kDupFile = "hunt_cli_dup.txt";
+// selections the contract's rows name. Every name stands in the system
+// temporary directory under this process number, so a run from the checkout
+// root leaves no file behind and a second copy of this binary shares no file.
+// The path is absolute because a refusal child reads the `@file` whose name
+// its re-exec carries.
+auto capturePath(const char* kind) -> std::filesystem::path
+{
+  return std::filesystem::temp_directory_path()
+      / ("harness_hunt_cli_" + std::to_string(static_cast<long>(getpid()))
+         + kind);
+}
+
+const auto kScratchPath = capturePath("_out.txt");
+const auto kDocumentPath = capturePath("_report.json");
+const auto kBlankFile = capturePath("_blank.txt");
+const auto kRawFile = capturePath("_raw.txt");
+const auto kListFile = capturePath("_list.txt");
+const auto kDupFile = capturePath("_dup.txt");
 // The two files of the file-selection refusals below: one whose every line is
 // a comment, one that carries an address beside a raw code in the upper-case
 // hex spelling no other row quotes.
-constexpr const char* kParkedFile = "hunt_cli_parked.txt";
-constexpr const char* kUpperRawFile = "hunt_cli_upper_raw.txt";
+const auto kParkedFile = capturePath("_parked.txt");
+const auto kUpperRawFile = capturePath("_upper_raw.txt");
 
 auto fail(const char* what) -> void
 {
@@ -111,7 +123,8 @@ auto address(const std::size_t index) -> std::string
   return sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(index));
 }
 
-auto writeFile(const char* path, const std::string& text) -> void
+auto writeFile(const std::filesystem::path& path,
+               const std::string& text) -> void
 {
   std::ofstream file(path, std::ios::trunc);
   check(static_cast<bool>(file), "the scenario could write its @file fixture");
@@ -216,7 +229,7 @@ auto captureRun(const std::vector<std::string>& arguments,
   }
 
   const int saved = dup(STDOUT_FILENO);
-  if (saved < 0 || std::freopen(kScratchPath, "w", stdout) == nullptr) {
+  if (saved < 0 || std::freopen(kScratchPath.c_str(), "w", stdout) == nullptr) {
     fail("cannot redirect the report");
   }
   const int status =
@@ -416,8 +429,8 @@ auto scenarioSelectionRefusals() -> void
                   {"--hunt=@hunt_cli_missing.txt"},
                   "--hunt: '@hunt_cli_missing.txt' cannot be opened"},
                  {"full",
-                  {"--hunt=@hunt_cli_blank.txt"},
-                  "--hunt: '@hunt_cli_blank.txt' holds no catalog address"},
+                  {"--hunt=@" + kBlankFile.string()},
+                  holdsNoAddressLine("@" + kBlankFile.string())},
                  {"full", {"--hunt=r4a03"}, raw},
                  {"full", {"--hunt=cpu/r4a03"}, raw},
                  {"full", {"--hunt=" + address(0) + ",r4a03"}, raw},
@@ -806,22 +819,26 @@ auto scenarioGlobStarArms() -> void
 // FR-081).
 auto scenarioSelectionRefusalShapes() -> void
 {
+  // The parked-and-blank row below names both files, so the blank fixture
+  // stands here too: the child reads a path this process wrote, and the name
+  // it lays down carries this process number.
+  writeSelectionFiles();
   writeFile(kParkedFile, "# cpu/hunt000 stays parked here\n\n   \n");
   writeFile(kUpperRawFile, address(3) + "\n# between the two\nr1F\n");
-  checkRefusals(
-      {{"full",
-        {"--hunt=cpu/*z"},
-        "--hunt: pattern 'cpu/*z' matches no catalog address"},
-       {"full",
-        {"--hunt=@" + std::string(kParkedFile)},
-        "--hunt: '@hunt_cli_parked.txt' holds no catalog address"},
-       {"full",
-        {"--hunt=@" + std::string(kParkedFile) + ",@"
-         + std::string(kBlankFile)},
-        holdsNoAddressLine("@hunt_cli_parked.txt,@hunt_cli_blank.txt")},
-       {"full",
-        {"--hunt=@" + std::string(kUpperRawFile)},
-        rawCodeLine("r1F")}});
+  checkRefusals({{"full",
+                  {"--hunt=cpu/*z"},
+                  "--hunt: pattern 'cpu/*z' matches no catalog address"},
+                 {"full",
+                  {"--hunt=@" + std::string(kParkedFile)},
+                  holdsNoAddressLine("@" + kParkedFile.string())},
+                 {"full",
+                  {"--hunt=@" + std::string(kParkedFile) + ",@"
+                   + std::string(kBlankFile)},
+                  holdsNoAddressLine("@" + kParkedFile.string() + ",@"
+                                     + kBlankFile.string())},
+                 {"full",
+                  {"--hunt=@" + std::string(kUpperRawFile)},
+                  rawCodeLine("r1F")}});
   std::printf("selection-refusal-shapes: ok\n");
 }
 
@@ -884,7 +901,7 @@ auto scenarioHuntNoneBehavesLikeNoHunt() -> void
         "Assumptions, FR-001)");
   check(none.find("hunt: ") == std::string::npos,
         "the run with no hunt prints no hunt line at all (FR-052, I-8)");
-  std::remove(kDocumentPath);
+  std::remove(kDocumentPath.c_str());
   captureRun(
       withFilter({"--hunt=none", "--json=" + std::string(kDocumentPath)}));
   check(readAll(kDocumentPath).find("\"hunt\"") == std::string::npos,
@@ -896,7 +913,7 @@ auto scenarioMultiplexCombination() -> void
 {
   registerHost(kScriptFull);
   registerCase();
-  std::remove(kDocumentPath);
+  std::remove(kDocumentPath.c_str());
 
   const auto run =
       captureRun(withFilter({"--hunt=" + address(0) + "," + address(1),
@@ -1045,7 +1062,7 @@ const std::vector<std::string> kSettledWords {"\"norm\":\"iter\"",
 // stands once beside the plan it decided.
 auto huntDocument(const std::vector<std::string>& arguments) -> std::string
 {
-  std::remove(kDocumentPath);
+  std::remove(kDocumentPath.c_str());
   std::vector<std::string> full = withFilter(arguments);
   full.push_back("--json=" + std::string(kDocumentPath));
   captureRun(full);
@@ -1100,7 +1117,7 @@ auto scenarioOptionWithoutHunt() -> void
   check(run.find("hunt: ") == std::string::npos,
         "a hunt option with no --hunt runs no hunt (FR-001)");
 
-  std::remove(kDocumentPath);
+  std::remove(kDocumentPath.c_str());
   captureRun(withFilter({"--hunt-norm=iter",
                          "--hunt-seed=7",
                          "--json=" + std::string(kDocumentPath)}));
@@ -1235,7 +1252,7 @@ template<typename Print>
 [[nodiscard]] auto capturePrint(const Print& print) -> std::string
 {
   const int saved = dup(STDOUT_FILENO);
-  if (saved < 0 || std::freopen(kScratchPath, "w", stdout) == nullptr) {
+  if (saved < 0 || std::freopen(kScratchPath.c_str(), "w", stdout) == nullptr) {
     fail("cannot redirect the plan line");
   }
   print();
@@ -1351,7 +1368,7 @@ auto scenarioPlanWeighsTheMeasuredPass() -> void
   registerHost(kScriptFull);
   registerCase();
 
-  std::remove(kDocumentPath);
+  std::remove(kDocumentPath.c_str());
   const std::string run =
       captureRun(withFilter({"--hunt=" + address(0),
                              "--hunt-repeats=1",
@@ -1370,7 +1387,7 @@ auto scenarioPlanWeighsTheMeasuredPass() -> void
   check(estimate % passes == 0,
         "the estimate weighs the passes of the plan against one figure of a "
         "pass (FR-012)");
-  std::remove(kDocumentPath);
+  std::remove(kDocumentPath.c_str());
   std::printf("measured-pass-estimate: ok\n");
 }
 
