@@ -1658,6 +1658,34 @@ auto scenarioFamilyProbe() -> int
 // An entry the handle leaves unpinned plans no cpu, so the resolution
 // answers none for the probe and the run refuses with the line for a
 // preset that names no free cpu.
+// FR-015, FR-019: the family probe asks for a precheck with no cpu
+// list. The precheck takes the selected instances' own plan, and an
+// entry the handle leaves unpinned plans nothing, so the run refuses
+// with the line for a preset left without a plan.
+auto childFamilyPrecheckIdle() -> int
+{
+  scriptedProvider();
+  auto handle = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmFamPrecheck");
+  sg::JitterProbeOptions probeOptions;
+  probeOptions.mode = sg::JitterProbeMode::PRECHECK;
+  probeOptions.thresholdNs = 65000;
+  probeOptions.gapCount = 2000000;
+  handle.jitterProbe(probeOptions);
+  std::vector<std::string> arguments {"--repetitions=1", "--iterations=2"};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
 auto scenarioFamilyIdleRun() -> int
 {
   const Captured run =
@@ -1704,6 +1732,21 @@ auto scenarioFamilyTwoInstances() -> int
         "the family's cpus narrow the last instance's mask (FR-015)");
   check(run.out.find("jitter: cpu ") != std::string::npos,
         "the family's own probe reports once for its instances (FR-015)");
+  return 0;
+}
+
+// FR-015, FR-019: a family precheck with no cpu list answers the plan
+// line for the preset it could not resolve. The run leaves status two
+// behind.
+auto scenarioFamilyPrecheckIdle() -> int
+{
+  const Captured run = runExecChild("--jitter-cli-child=family-precheck-idle",
+                                    "family-precheck-idle");
+  check(run.status == 2,
+        "the family precheck with no plan stops with status 2 (FR-019)");
+  check(run.err.find("no cpu is planned for the idle preset")
+            != std::string::npos,
+        "the refusal names the preset left without a plan (FR-019)");
   return 0;
 }
 
@@ -1811,6 +1854,11 @@ auto main(int argc, char** argv) -> int
     {
       return childFamilyOverlap();
     }
+    if (mode == "--jitter-cli-child=family-precheck-idle"
+        && redirect("family-precheck-idle"))
+    {
+      return childFamilyPrecheckIdle();
+    }
     if (mode == "--jitter-cli-child=family-two" && redirect("family-two")) {
       return childFamilyTwoInstances();
     }
@@ -1879,6 +1927,7 @@ auto main(int argc, char** argv) -> int
   check(scenarioFamilyIdleRun() == 0, "familyIdleRun");
   check(scenarioFamilyOverlapRun() == 0, "familyOverlapRun");
   check(scenarioFamilyTwoInstances() == 0, "familyTwoInstances");
+  check(scenarioFamilyPrecheckIdle() == 0, "familyPrecheckIdle");
   check(scenarioFamilyVersusCommandLine() == 0, "familyVersusCommandLine");
   check(scenarioEmptyMaskBeforeWalk() == 0, "emptyMaskBeforeWalk");
   check(scenarioIdleHighIndex() == 0, "idleHighIndex");
