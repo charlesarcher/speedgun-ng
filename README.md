@@ -649,6 +649,27 @@ auto printComparison(const sg::ReportData& baseline,
 ```
 That pair answers one line per benchmark with its state word, `OK`, `REGRESSED`, `IMPROVED`, `NOISY`, `ADDED`, `REMOVED` or `SKIPPED`, and one verdict line `compare: the verdict is fail`; the command line answers a failed verdict with status 1 and a rejected rule or document with status 2. See [regression gate](docs/pages/harness.md#regression-gate).
 
+### Hunter mode
+`--hunt` puts a wide catalog event set on one benchmark and ranks the events by how far each one stands out of the run. `--hunt=all` selects every entry of every core device, and an address list, a glob such as `uncore/*` or a `@file` of addresses selects the rest. A hunt option beside no `--hunt` leaves the hunt off, and `--hunt=none` states the same run in words. The hunt drives the multi-pass collection loop above, so it opens no second counter path.
+<!-- sg-example: example/docs/hunt_rank.cpp#hunt-rank -->
+```cpp
+// The ranked table of a hunt, with the refusals discovery handed back folded
+// into the skipped list of the record. `rankEvents` decides the order, the
+// noise mark and the size of the table (FR-014, FR-021, I-5).
+auto rankHuntEvents(const std::vector<sg::hunt::EventSamples>& collected,
+                    const std::vector<sg::hunt::SkippedEvent>& refused,
+                    const sg::hunt::HuntOptions& options) -> sg::hunt::EntryHunt
+{
+  // No plan collected these scripted rows, so the record states no method.
+  auto hunt = sg::hunt::rankEvents(collected, options, std::nullopt);
+  hunt.skipped.insert(hunt.skipped.end(), refused.begin(), refused.end());
+  return hunt;
+}
+```
+The run prints its hunt on stdout behind a `hunt:` prefix. One plan line names the event count, the pass count and the settled method, one rank row gives the rate under the label of the norm beside the deviation, one skipped row gives the kind of a refusal, and one summary line counts the events that produced a usable sample.
+`--hunt-budget=120s` splits the run into a stage that measures every planned event once and a stage that measures the top set again, and a plan whose estimate does not fit the budget drops the second stage whole. An event whose deviation stands above `--hunt-noise`, an event with one sample and an event a `--hunt-top` table leaves out print `rank -` with a `mark=` of `noisy`, `unrepeated` or `beyond-top`.
+One line on stderr naming the value ends the run with status 2 for a value outside the range its option states, for a raw event code such as `r4a03`, and for a hunt beside `--counter`, `--metric` or `--compare`. A host that refuses every event prints the plan line, the skipped list and a summary that reads `events=0/N`, and the run ends with status 0. See [Hunter mode](docs/pages/harness.md#hunter-mode).
+
 ## Quick reference
 
 | Name | Owner | What it does | Teaches |
@@ -747,6 +768,26 @@ That pair answers one line per benchmark with its state word, `OK`, `REGRESSED`,
 | `State::threads` | State | Gives the context count the instance was run with | [threads](#threads) |
 | `ContextDisclosure` | type | The wait mode and placement one context disclosed | [reading the report](#reading-the-report) |
 | `BenchmarkResult::contexts` | BenchmarkResult | The disclosures one run recorded for its contexts | [reading the report](#reading-the-report) |
+| `hunt::HuntOptions` | type | The settled values of one hunt run | [hunter mode](#hunter-mode) |
+| `hunt::EntryHunt` | type | The ranked table and the skipped list of one benchmark's hunt | [hunter mode](#hunter-mode) |
+| `hunt::RunHunt` | type | The hunt record one run reports beside its benchmarks | [hunter mode](#hunter-mode) |
+| `hunt::EventCatalog` | type | Expands a selection text against the catalog and splits it | [hunter mode](#hunter-mode) |
+| `hunt::HuntNorm` | type | The denominator one hunt run normalizes an event count by | [hunter mode](#hunter-mode) |
+| `hunt::HuntRank` | type | The key one hunt run orders its ranks by | [hunter mode](#hunter-mode) |
+| `hunt::HuntBudget` | type | The bound one hunt run collects under, in seconds or passes | [hunter mode](#hunter-mode) |
+| `hunt::SkippedKind` | type | The kind of refusal one skipped entry carries | [hunter mode](#hunter-mode) |
+| `hunt::SkippedEvent` | type | One event the run will not measure, with the kind of its refusal | [hunter mode](#hunter-mode) |
+| `hunt::CatalogAddress` | type | One catalog address, its device and the device's slot in the limit list | [hunter mode](#hunter-mode) |
+| `hunt::HuntColumn` | type | The plan's one column: one event and the anchors of its own device | [hunter mode](#hunter-mode) |
+| `hunt::HuntStage` | type | The columns one plan stage measures and the repeats each column gets | [hunter mode](#hunter-mode) |
+| `hunt::HuntPlan` | type | The columns, passes, stages and estimate one hunt run executes | [hunter mode](#hunter-mode) |
+| `hunt::HuntSample` | type | One measured repetition of one column of one pass, with its anchors | [hunter mode](#hunter-mode) |
+| `hunt::EventSamples` | type | The collected rows of one event address, the input of the rank table | [hunter mode](#hunter-mode) |
+| `hunt::RankedEvent` | type | One row of the ranked table, with the marks the console prints | [hunter mode](#hunter-mode) |
+| `hunt::HuntStageRange` | type | The range of planned addresses one stage measured, with its repeats | [hunter mode](#hunter-mode) |
+| `hunt::runHunt` | free function | Plans, measures and ranks one hunt of one benchmark | [hunter mode](#hunter-mode) |
+| `hunt::planHunt` | free function | Answers the passes and stages of a hunt over events it is given | [hunter mode](#hunter-mode) |
+| `hunt::rankEvents` | free function | Ranks samples the caller already holds into the hunt table | [hunter mode](#hunter-mode) |
 
 | Option | What it does |
 | --- | --- |
@@ -777,6 +818,14 @@ That pair answers one line per benchmark with its state word, `OK`, `REGRESSED`,
 | `--compare-rules` | Reads one comparison rule per line from a file |
 | `--help` | Prints one line per option and stops |
 | `--version` | Prints the project version and stops |
+| `--hunt` | Hunts a catalog event set on one benchmark and ranks the events |
+| `--hunt-norm` | Sets the rate denominator to `instr`, `cycle` or `iter` |
+| `--hunt-rank` | Orders the ranked table by `rate` or by `cv` |
+| `--hunt-top` | Sets how many ranked rows the hunt table carries |
+| `--hunt-noise` | Sets the deviation percent above which an event is noisy |
+| `--hunt-repeats` | Sets the repetitions of the hunt stages |
+| `--hunt-budget` | Caps the hunt at `<n>s` seconds or `<n>p` passes in two stages |
+| `--hunt-seed` | Shuffles the planned event order under a seed |
 
 ## Planned work
 

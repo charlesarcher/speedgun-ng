@@ -32,7 +32,7 @@
 /**
  * @file options.cpp
  * @brief The one option table of specs/028-full-command-line and the scan
- * that walks it: the 27 rows `detail::optionRows()` answers in the order
+ * that walks it: the 35 rows `detail::optionRows()` answers in the order
  * `specs/028-full-command-line/contracts/option-table.md` fixes, the
  * `getopt_long` array built from those rows, the walk of one command
  * line that `detail::scanCommandLine` answers, and the two answers that
@@ -480,14 +480,14 @@ auto argumentText(const OptionArgument argument) -> const char*
 }  // namespace
 
 /**
- * @brief The one option table: the 27 rows in the order the contract
+ * @brief The one option table: the 35 rows in the order the contract
  * fixes them, each with its name, internal value, argument kind,
  * environment flag, help text and owning requirement (FR-001, FR-002,
  * FR-003, FR-004, FR-079, SC-001).
  *
  * The 20 rows the master carries keep their spelling and their internal
  * value, the four constants 256 to 259 among them (FR-003, PC-1). The
- * seven names this feature brings take the constants 290 to 296 that
+ * seven names specs/028 brings take the constants 290 to 296 that
  * spec D-24 reserves (FR-004). The letters of the master rows are switch
  * codes and never short options: the scan's option string carries none
  * (FR-005). Exactly the 12 rows FR-020 names carry the environment flag,
@@ -658,6 +658,60 @@ auto optionRows() -> std::span<const OptionRow>
        false,
        "Prints the project version and stops",
        "FR-016"},
+      // specs/029-hunter-core FR-080 to FR-082, D-22: the hunt family. No hunt
+      // row carries an environment name, so the gather refuses each of them
+      // from a file or the environment and the command line owns the family.
+      // `--hunt` is the table's first optional_argument row, and `getopt_long`
+      // reads an optional argument only in the attached form, so `--hunt=all`
+      // selects and `--hunt all` selects nothing and leaves `all` positional.
+      {"hunt",
+       kHuntOption,
+       OptionArgument::OPTIONAL,
+       false,
+       "Hunts the selected catalog events and ranks them",
+       "specs/029"},
+      {"hunt-norm",
+       kHuntNormOption,
+       OptionArgument::REQUIRED,
+       false,
+       "Sets the hunt score normaliser: instr, cycle or iter",
+       "specs/029"},
+      {"hunt-rank",
+       kHuntRankOption,
+       OptionArgument::REQUIRED,
+       false,
+       "Sets the hunt ranking: rate or cv",
+       "specs/029"},
+      {"hunt-top",
+       kHuntTopOption,
+       OptionArgument::REQUIRED,
+       false,
+       "Sets how many ranked events the hunt prints",
+       "specs/029"},
+      {"hunt-noise",
+       kHuntNoiseOption,
+       OptionArgument::REQUIRED,
+       false,
+       "Sets the hunt noise threshold as a percent CV",
+       "specs/029"},
+      {"hunt-repeats",
+       kHuntRepeatsOption,
+       OptionArgument::REQUIRED,
+       false,
+       "Sets how many repeats one hunt event takes",
+       "specs/029"},
+      {"hunt-budget",
+       kHuntBudgetOption,
+       OptionArgument::REQUIRED,
+       false,
+       "Sets the hunt budget in seconds or passes",
+       "specs/029"},
+      {"hunt-seed",
+       kHuntSeedOption,
+       OptionArgument::REQUIRED,
+       false,
+       "Sets the seed the hunt repeats draw from",
+       "specs/029"},
   });
   return kRows;
 }
@@ -903,6 +957,33 @@ auto scanCommandLine(int argc, char** argv)
       case kVersionOptionValue:
         scan.stop = StopKind::VERSION;
         return scan;
+      // specs/029-hunter-core FR-080 to FR-082, PD-17: one call per hunt row,
+      // each body standing in `hunt_cli.cpp` with its own refusal line.
+      case kHuntOption:
+        // specs/029 FR-080, D-1: no value means the whole core catalog.
+        parseHuntSelection(optarg, options);
+        break;
+      case kHuntNormOption:
+        parseHuntNorm(optarg, options);
+        break;
+      case kHuntRankOption:
+        parseHuntRank(optarg, options);
+        break;
+      case kHuntTopOption:
+        parseHuntTop(optarg, options);
+        break;
+      case kHuntNoiseOption:
+        parseHuntNoise(optarg, options);
+        break;
+      case kHuntRepeatsOption:
+        parseHuntRepeats(optarg, options);
+        break;
+      case kHuntBudgetOption:
+        parseHuntBudget(optarg, options);
+        break;
+      case kHuntSeedOption:
+        parseHuntSeed(optarg, options);
+        break;
       case ':':
         return std::unexpected(missingValueLine(optopt));
       default: {

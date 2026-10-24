@@ -5,11 +5,12 @@
 // contracts/option-table.md, contracts/help-and-version.md,
 // contracts/page-and-examples.md).
 //
-// The contract fixes 27 rows in one order. The 20 rows master carries keep
-// their spelling, their argument kind and their internal value, and the
-// seven new names take the constants 290 to 296 that spec D-24 reserves.
-// The expected rows stand here as literals, the master name to value
-// mapping of FR-013 among them.
+// The contract fixes 35 rows in one order. The 20 rows master carries keep
+// their spelling, their argument kind and their internal value, the seven
+// new names take the constants 290 to 296 that spec D-24 reserves, and the
+// eight hunt names of specs/029-hunter-core take the block 270 to 279 that
+// lane reserves. The expected rows stand here as literals, the master name
+// to value mapping of FR-013 among them.
 //
 // The seam the contract names, `detail::optionRows()`, is declared at T006
 // and written at T007, so this file reads the rows out of the source that
@@ -41,7 +42,7 @@
 //
 // Check map:
 //   theTableAnswersARowList        one source file yields rows
-//   theTableHoldsTwentySevenRows   the row count is the contract's 27
+//   theTableHoldsThirtyFiveRows    the row count is the contract's 35
 //                                  (FR-001, FR-004, SC-001)
 //   theNamesStandInTheContractOrder
 //                                  the names in table order equal the
@@ -61,6 +62,17 @@
 //                                  and `version` at 290 to 296 (FR-004)
 //   noNameAndNoValueRepeat         uniqueness over the whole table
 //                                  (FR-004, SC-001)
+//   theHuntNamesTakeTheReservedConstants
+//                                  the eight hunt rows at 270 to 277,
+//                                  the numbers
+//                                  contracts/hunt-cli.md states them with
+//                                  (specs/029 FR-083, D-22)
+//   theFixtureTwinReportsItsPlantedDefects
+//                                  the two rules above report the planted
+//                                  duplicate name and the planted value
+//                                  clash of the fixture twin, so a table
+//                                  that deserves red gets it
+//                                  (specs/029 FR-083, T020)
 //   theValueBlocksStayUniqueAndDisjoint
 //                                  the 20 master rows answer inside the
 //                                  letters and 256 to 259, the 7 new
@@ -135,6 +147,7 @@
 
 #include <unistd.h>
 
+#include "detail/cli_table_fixture.hpp"
 #include "detail/options.hpp"
 #include "speedgun-ng/benchmark.hpp"
 
@@ -183,7 +196,7 @@ constexpr char kRequired = 'r';
 constexpr char kOptional = 'o';
 constexpr char kNoArgument = 'n';
 
-constexpr std::array<ExpectedRow, 27> kContract = {{
+constexpr std::array<ExpectedRow, 35> kContract = {{
     {"filter", kRequired, 'f'},
     {"list", kNoArgument, 'l'},
     {"repetitions", kRequired, 'r'},
@@ -211,20 +224,51 @@ constexpr std::array<ExpectedRow, 27> kContract = {{
     {"compare-rules", kRequired, 294},
     {"help", kNoArgument, 295},
     {"version", kNoArgument, 296},
+    {"hunt", kOptional, 270},
+    {"hunt-norm", kRequired, 271},
+    {"hunt-rank", kRequired, 272},
+    {"hunt-top", kRequired, 273},
+    {"hunt-noise", kRequired, 274},
+    {"hunt-repeats", kRequired, 275},
+    {"hunt-budget", kRequired, 276},
+    {"hunt-seed", kRequired, 277},
 }};
 
 // The rows master carries today; the seven rows after them are the ones
-// this feature adds.
+// this feature adds, and the eight hunt rows of specs/029-hunter-core close
+// the table.
 constexpr std::size_t kMasterRows = 20;
+constexpr std::size_t kRowsBeforeHunt = 27;
 
-// The bounds of the two value blocks: the constants the harness carried
-// before this feature, and the constants spec D-24 reserves for the
-// seven new names with 297 to 319 left free for the lanes that follow
-// (FR-004, FR-079).
+// The bounds of the three value blocks: the constants the harness carried
+// before this feature, the constants specs/029-hunter-core reserves for the
+// eight hunt names, and the constants spec D-24 reserves for the seven new
+// names with 297 to 319 left free for the lanes that follow (FR-004,
+// FR-079; specs/029 FR-083, D-22).
 constexpr int kCarriedLow = 256;
 constexpr int kCarriedHigh = 259;
+constexpr int kHuntLow = 270;
+constexpr int kHuntHigh = 279;
 constexpr int kReservedLow = 290;
 constexpr int kReservedHigh = 296;
+
+// The eight hunt rows and the numbers
+// `specs/029-hunter-core/contracts/hunt-cli.md` assigns them; the rule binds
+// the number, whichever constant spells it (specs/029 FR-083, D-22).
+constexpr std::array<std::pair<std::string_view, int>, 8> kHuntValues = {{
+    {"hunt", 270},
+    {"hunt-norm", 271},
+    {"hunt-rank", 272},
+    {"hunt-top", 273},
+    {"hunt-noise", 274},
+    {"hunt-repeats", 275},
+    {"hunt-budget", 276},
+    {"hunt-seed", 277},
+}};
+
+// The hunt rows of the fixture twin: the eight of the contract plus the row
+// whose name is the planted duplicate.
+constexpr std::size_t kFixtureHuntRows = 9;
 
 // The master name to value mapping of FR-013: the sixteen letters and the
 // four carried constants of those 20 rows, spelled out here as a table of
@@ -618,13 +662,13 @@ auto theTableAnswersARowList(const std::vector<Row>& rows) -> void
   check(!rows.empty(), "the table source answers a row list (FR-079)");
 }
 
-auto theTableHoldsTwentySevenRows(const std::vector<Row>& rows) -> void
+auto theTableHoldsThirtyFiveRows(const std::vector<Row>& rows) -> void
 {
   if (rows.size() == kContract.size()) {
     return;
   }
-  report("the table holds the 27 rows of the contract (FR-001, FR-004, SC-001)",
-         "27 rows",
+  report("the table holds the 35 rows of the contract (FR-001, FR-004, SC-001)",
+         "35 rows",
          std::to_string(rows.size()) + " rows");
 }
 
@@ -698,7 +742,7 @@ auto theBaseOptionsKeepTheirMasterValues(const std::vector<Row>& rows) -> void
 auto theSevenNewNamesTakeTheReservedConstants(const std::vector<Row>& rows)
     -> void
 {
-  for (std::size_t index = kMasterRows; index < kContract.size(); ++index) {
+  for (std::size_t index = kMasterRows; index < kRowsBeforeHunt; ++index) {
     const auto& expected = kContract[index];
     const std::string label = "the new row '" + std::string(expected.name)
         + "' takes the constant " + std::to_string(expected.value)
@@ -777,38 +821,63 @@ auto inNewBlock(const int value) -> bool
   return value >= kReservedLow && value <= kReservedHigh;
 }
 
+// The value block of the 8 hunt rows: the constants 270 to 279 that
+// specs/029-hunter-core reserves, 278 and 279 unused this release
+// (specs/029 FR-083, D-22).
+auto inHuntBlock(const int value) -> bool
+{
+  return value >= kHuntLow && value <= kHuntHigh;
+}
+
 auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
 {
   const std::string* sharedName = repeatedName(rows);
   if (sharedName != nullptr) {
-    report("no name repeats across the two blocks (FR-004, FR-079)",
+    report("no name repeats across the three blocks (FR-004, FR-079)",
            "one row named '" + *sharedName + "'",
            "two rows named '" + *sharedName + "'");
   }
   const Row* sharedValue = repeatedValue(rows);
   if (sharedValue != nullptr) {
-    report("no value repeats across the two blocks (FR-004, FR-079)",
+    report("no value repeats across the three blocks (FR-004, FR-079)",
            "one row with the value " + valueWord(sharedValue->value),
            "two rows with the value " + valueWord(sharedValue->value));
   }
 
   bool sawMaster = false;
   bool sawNew = false;
+  bool sawHunt = false;
   int highestMaster = 0;
   int lowestNew = 0;
+  int lowestHunt = 0;
+  int highestHunt = 0;
   for (std::size_t index = 0; index < rows.size(); ++index) {
     const Row& row = rows[index];
     const bool master = index < kMasterRows;
-    if (!(master ? inMasterBlock(row.value) : inNewBlock(row.value))) {
-      const std::string label =
-          std::string(master ? "the master row '" : "the new row '") + row.name
-          + "' answers inside its block (FR-004, FR-079)";
+    const bool hunt = index >= kRowsBeforeHunt;
+    const bool inside = hunt
+        ? inHuntBlock(row.value)
+        : (master ? inMasterBlock(row.value) : inNewBlock(row.value));
+    if (!inside) {
+      const std::string label = std::string(hunt         ? "the hunt row '"
+                                                : master ? "the master row '"
+                                                         : "the new row '")
+          + row.name + "' answers inside its block (FR-004, FR-079)";
       report(label.c_str(),
-             master ? "a letter or a constant from 256 to 259"
-                    : "a constant from 290 to 296",
+             hunt         ? "a constant from 270 to 279"
+                 : master ? "a letter or a constant from 256 to 259"
+                          : "a constant from 290 to 296",
              valueWord(row.value));
     }
-    if (master) {
+    if (hunt) {
+      if (!sawHunt || row.value < lowestHunt) {
+        lowestHunt = row.value;
+      }
+      if (!sawHunt || row.value > highestHunt) {
+        highestHunt = row.value;
+      }
+      sawHunt = true;
+    } else if (master) {
       if (!sawMaster || row.value > highestMaster) {
         highestMaster = row.value;
       }
@@ -820,11 +889,93 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
       sawNew = true;
     }
   }
+  if (sawMaster && sawHunt && highestMaster >= lowestHunt) {
+    report("the master block and the hunt block share no number (FR-004, "
+           "FR-079, specs/029 D-22)",
+           "the highest master value below the lowest hunt value",
+           std::to_string(highestMaster) + " against "
+               + std::to_string(lowestHunt));
+  }
+  if (sawHunt && sawNew && highestHunt >= lowestNew) {
+    report(
+        "the hunt block and the new block share no number (FR-004, FR-079)",
+        "the highest hunt value below the lowest new value",
+        std::to_string(highestHunt) + " against " + std::to_string(lowestNew));
+  }
   if (sawMaster && sawNew && highestMaster >= lowestNew) {
     report("the two value blocks share no number (FR-004, FR-079)",
            "the highest master value below the lowest new value",
            std::to_string(highestMaster) + " against "
                + std::to_string(lowestNew));
+  }
+}
+
+// The eight hunt rows of the table, each at the number the contract of
+// specs/029-hunter-core states (FR-083, SC-05, D-22).
+auto theHuntNamesTakeTheReservedConstants(const std::vector<Row>& rows) -> void
+{
+  for (const std::pair<std::string_view, int>& entry : kHuntValues) {
+    const Row* row = rowNamed(rows, entry.first);
+    if (row == nullptr) {
+      report("the table carries a row for every hunt option (FR-083)",
+             std::string(entry.first) + " at " + std::to_string(entry.second),
+             "no row named " + std::string(entry.first));
+      continue;
+    }
+    if (row->value != entry.second) {
+      report("every hunt option answers the number its contract states "
+             "(FR-083, D-22)",
+             std::string(entry.first) + " at " + std::to_string(entry.second),
+             std::string(entry.first) + " at " + std::to_string(row->value));
+    }
+  }
+}
+
+// The rows of the fixture twin of T020, in the shape the two rules above
+// read them: the terminator row whose name is null stands out of the list,
+// as it does in a parsed table.
+auto fixtureRows() -> std::vector<Row>
+{
+  std::vector<Row> rows;
+  for (const option& entry : sg::test::kCliFixtureTable) {
+    if (entry.name == nullptr) {
+      continue;
+    }
+    rows.push_back(Row {std::string(entry.name), kRequired, entry.val});
+  }
+  return rows;
+}
+
+// The negative control of the two rules above: a gate that has only ever
+// seen a correct table proves nothing, so the twin carries one planted
+// duplicate name and one planted value clash and each rule must report what
+// was planted in it (specs/029 FR-083, T020, SC-05).
+auto theFixtureTwinReportsItsPlantedDefects() -> void
+{
+  // Named, so the rows outlive the pointers the two rules take from them.
+  const std::vector<Row> rows = fixtureRows();
+  std::size_t huntRows = 0;
+  for (const Row& row : rows) {
+    if (row.name.starts_with("hunt")) {
+      ++huntRows;
+    }
+  }
+  check(huntRows == kFixtureHuntRows,
+        "the twin holds the eight hunt rows and the duplicated one (T020)");
+
+  const std::string* name = repeatedName(rows);
+  if (name == nullptr || *name != sg::test::kCliFixturePlantedName) {
+    report("the name rule reports the planted duplicate of the twin (T020)",
+           std::string(sg::test::kCliFixturePlantedName),
+           name == nullptr ? "no repeated name" : *name);
+  }
+
+  const Row* clash = repeatedValue(rows);
+  if (clash == nullptr || clash->value != sg::test::kCliFixturePlantedValue) {
+    report(
+        "the value rule reports the planted clash of the twin (T020)",
+        std::to_string(sg::test::kCliFixturePlantedValue),
+        clash == nullptr ? "no repeated value" : std::to_string(clash->value));
   }
 }
 
@@ -1539,7 +1690,7 @@ auto main(int argc, char** argv) -> int
   }
 
   theTableAnswersARowList(rows);
-  theTableHoldsTwentySevenRows(rows);
+  theTableHoldsThirtyFiveRows(rows);
   theNamesStandInTheContractOrder(rows);
   eachRowCarriesItsArgumentKind(rows);
   eachRowCarriesItsValue(rows);
@@ -1547,6 +1698,8 @@ auto main(int argc, char** argv) -> int
   theSevenNewNamesTakeTheReservedConstants(rows);
   noNameAndNoValueRepeat(rows);
   theValueBlocksStayUniqueAndDisjoint(rows);
+  theHuntNamesTakeTheReservedConstants(rows);
+  theFixtureTwinReportsItsPlantedDefects();
   theCarriedConstantsNameTheirOptions(rows);
   theScanCarriesNoShortLetter(optionText);
 

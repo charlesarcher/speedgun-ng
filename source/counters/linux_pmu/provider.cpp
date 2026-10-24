@@ -770,6 +770,18 @@ auto pmuProbe(const int type,
     return Availability::COUNTABLE;
     // LCOV_EXCL_STOP
   }
+  // T118, D-18, spec PC-1: the one statement of what a refused open answers.
+  // The state settled here is the state the catalog publishes for the entry,
+  // and `compileCore` names that state, in the words `availabilityName`
+  // gives it, in the refusal of a seat the entry cannot take
+  // (`source/counters/plan.cpp:485-490`). The hunt reads that word for the
+  // kind of its skipped record through `availabilityOfRefusal` of
+  // `source/harness/hunt.cpp`, so no second errno table stands anywhere
+  // else. `EINVAL`, `EOPNOTSUPP` and `ENOENT` are the encoding arm and
+  // answer `NOT_ENCODABLE`; every other errno is the permission arm and
+  // answers `PERMISSION_BLOCKED`. A refusal that names no state answers no
+  // kind, which covers the group open a provider answers with a null window:
+  // the errno of that open reaches nowhere, so no caller may guess one.
   switch (errno) {  // LCOV_EXCL_BR_LINE
     case EINVAL:
     case EOPNOTSUPP:

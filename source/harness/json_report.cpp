@@ -1,3 +1,4 @@
+#include <array>
 #include <cerrno>
 #include <cstdint>
 #include <cstdio>
@@ -27,10 +28,14 @@ namespace
 using Builder = simdjson::builder::string_builder;
 
 // The schema the writer emits and the checker reads (FR-007). The minor
-// stands at 1.3 since specs/028 added the `run` object, the move
+// stands at 1.3 since specs/028 added the `run` object and at 1.4 since
+// specs/029 added the root `hunt` object and the per-benchmark `hunt`
+// object, the move that
 // specs/023/contracts/schema-file.md states for a key added inside major 1
 // (specs/028 FR-086, PC-6).
-constexpr std::string_view kSchemaVersion = "1.3";
+// At rebase onto a master that already took 1.4, retake the next free
+// minor.
+constexpr std::string_view kSchemaVersion = "1.4";
 
 // The `source` word of one disclosed use, spelled as the enum of
 // `docs/schema/report-v1.json` states it (specs/028 E-04, FR-040). The
@@ -45,6 +50,37 @@ static_assert(
     kSourceWords.size()
     == static_cast<std::size_t>(std::to_underlying(OptionSource::ENVIRONMENT))
         + 1);
+
+// The hunt word tables of specs/029 (contracts/hunt-json.md). The document
+// spells `norm` and `rank` with the lower-case words the option takes, and
+// `skipped[].kind` with the words the console prints for a refusal, so this
+// table stands apart from `kAvailabilityWords`, which spells the enumerator.
+// Each table is indexed by its own enumeration and tied to its last
+// enumerator, the shape the tables of the header take (E-02, E-06, FR-050).
+constexpr std::array<std::string_view, 3> kHuntNormWords {
+    "instr",
+    "cycle",
+    "iter",
+};
+static_assert(kHuntNormWords.size()
+              == std::to_underlying(hunt::HuntNorm::ITER) + 1);
+
+constexpr std::array<std::string_view, 2> kHuntRankWords {
+    "rate",
+    "cv",
+};
+static_assert(kHuntRankWords.size()
+              == std::to_underlying(hunt::HuntRank::CV) + 1);
+
+constexpr std::array<std::string_view, 5> kSkippedKindWords {
+    "permission-blocked",
+    "not-encodable",
+    "absent",
+    "scope-refused",
+    "gap",
+};
+static_assert(kSkippedKindWords.size()
+              == std::to_underlying(hunt::SkippedKind::GAP) + 1);
 
 // The builder is a low-level writer that emits no separator of its own,
 // so every object and array of the document opens a scope that puts one
@@ -403,6 +439,53 @@ void writeRow(Builder& builder,
   }
 }
 
+// specs/029 FR-050, contracts/hunt-json.md: the per-entry hunt object, the key
+// `writeEntry` appends. Every key of the closed node stands in the document of
+// every hunt entry; a rank or a stage the run left unset stands `null`, the
+// shape `passSpread` already takes, so no key of the node is ever absent.
+void writeEntryHunt(Builder& builder, const hunt::EntryHunt& record)
+{
+  JsonObjectWriter object(builder);
+  // The settled method of the hunt plan, in the spelling `metricMethod` uses.
+  // A record with no settled method writes the word of an unstated method,
+  // the value the entry's own `metricMethod` key carries in that case.
+  put(builder,
+      object,
+      "method",
+      enumWord(kMetricMethodWords,
+               std::to_underlying(record.method.value_or(MetricMethod::AUTO))));
+  put(builder, object, "pass_count", record.passCount);
+  put(builder, object, "top", record.top);
+  put(builder, object, "retried_passes", record.retriedPasses);
+  object.key("entries");
+  {
+    JsonArrayWriter entries(builder);
+    for (const auto& ranked : record.entries) {
+      entries.item();
+      JsonObjectWriter entry(builder);
+      put(builder, entry, "address", ranked.address);
+      put(builder, entry, "rate", ranked.rate);
+      put(builder, entry, "cv", ranked.cv);
+      put(builder, entry, "noisy", ranked.noisy);
+      put(builder, entry, "multiplexed", ranked.multiplexed);
+      putOrNull(builder, entry, "rank", ranked.rank);
+    }
+  }
+  object.key("skipped");
+  {
+    JsonArrayWriter skipped(builder);
+    for (const auto& skip : record.skipped) {
+      skipped.item();
+      JsonObjectWriter item(builder);
+      put(builder, item, "address", skip.address);
+      put(builder,
+          item,
+          "kind",
+          enumWord(kSkippedKindWords, std::to_underlying(skip.kind)));
+    }
+  }
+}
+
 void writeEntry(Builder& builder, const ReportData& data, std::size_t index)
 {
   const BenchmarkResult& result = data.results[index];
@@ -523,6 +606,80 @@ void writeEntry(Builder& builder, const ReportData& data, std::size_t index)
   put(builder, object, "passCount", result.passCount);
   putOrNull(builder, object, "passSpread", result.passSpread);
   put(builder, object, "spreadWarning", spreadWarned(result.passSpread));
+  // specs/029 FR-050, FR-052: the hunt object is the last key of the entry.
+  // An entry of a run that carried no hunt writes no key, the one rule that
+  // leaves such a document the bytes it was before the hunt existed (I-8).
+  if (result.hunt.has_value()) {
+    object.key("hunt");
+    writeEntryHunt(builder, *result.hunt);
+  }
+}
+
+// specs/029 FR-050, FR-031 (PD-10): the run-level hunt object, the key
+// `writeReport` appends after the `benchmarks` array. The record carries the
+// settled option values, so the document states what the run asked for
+// beside what it ran.
+void writeHunt(Builder& builder, const hunt::RunHunt& record)
+{
+  const hunt::HuntOptions& options = record.options;
+  // The budget keeps the unit the caller named, the rule the console plan
+  // line takes too (FR-012); with no budget the text stays empty, which is
+  // the one case `putOrNull` writes `null` for.
+  auto budget = std::string {};
+  if (options.budget.has_value()) {
+    budget = std::to_string(options.budget->amount)
+        + (options.budget->kind == hunt::HuntBudget::Kind::SECONDS ? "s" : "p");
+  }
+  JsonObjectWriter object(builder);
+  put(builder, object, "selection", record.selection);
+  // A run that named no norm ranks by instructions, the norm the console
+  // label answers for the same case (D-13).
+  put(builder,
+      object,
+      "norm",
+      enumWord(
+          kHuntNormWords,
+          std::to_underlying(options.norm.value_or(hunt::HuntNorm::INSTR))));
+  put(builder,
+      object,
+      "rank",
+      enumWord(kHuntRankWords, std::to_underlying(options.rank)));
+  put(builder, object, "top", options.top);
+  put(builder, object, "noisePercent", options.noise);
+  put(builder, object, "repeats", options.repeats);
+  put(builder, object, "seed", options.seed);
+  putOrNull(builder, object, "budget", std::string_view {budget});
+  put(builder, object, "passes", record.passes);
+  put(builder,
+      object,
+      "method",
+      enumWord(kMetricMethodWords,
+               std::to_underlying(record.method.value_or(MetricMethod::AUTO))));
+  // Every planned address in plan order, the addresses the stages index
+  // (FR-050, D-17).
+  object.key("events");
+  {
+    JsonArrayWriter events(builder);
+    for (const auto& address : record.plannedAddresses) {
+      events.item();
+      builder.escape_and_append_with_quotes(address);
+    }
+  }
+  object.key("stages");
+  {
+    JsonArrayWriter stages(builder);
+    for (const auto& stage : record.stages) {
+      stages.item();
+      JsonObjectWriter range(builder);
+      put(builder, range, "first", stage.first);
+      put(builder, range, "count", stage.count);
+      put(builder, range, "repeats", stage.repeats);
+    }
+  }
+  putOrNull(builder, object, "estimate_ns", record.estimateNs);
+  put(builder, object, "planned_events", record.plannedAddresses.size());
+  put(builder, object, "ran_events", record.ranEvents);
+  put(builder, object, "stage_two_events", record.stageTwoEvents);
 }
 
 // The count of cpus the noise condition compares the spinning contexts
@@ -646,6 +803,13 @@ auto writeReport(const std::string& path,
         entries.item();
         writeEntry(builder, data, index);
       }
+    }
+    // specs/029 FR-050, FR-052: the hunt record of the run closes the
+    // document; a run that carried no hunt writes no key and no byte of the
+    // document it wrote before the hunt existed changes.
+    if (data.hunt.has_value()) {
+      root.key("hunt");
+      writeHunt(builder, *data.hunt);
     }
   }
 

@@ -652,15 +652,21 @@ add_executable(harness_cli_test source/harness_cli_test.cpp)
 target_link_libraries(harness_cli_test PRIVATE speedgun-ng::harness)
 target_compile_features(harness_cli_test PRIVATE cxx_std_23)
 add_test(NAME harness_cli_test COMMAND harness_cli_test)
+# The suite's heaviest test: `captureRun` runs the harness in-process behind
+# a `freopen`, so its two windows of 1,000 runs each hold one core for the
+# whole entry. Two slots keep a sibling off that core; CI needs no TIMEOUT,
+# since `sanitize` and `tsan` finish this test inside `--timeout 3600`.
+# Every scratch name carries the process id, so a second copy shares no file.
+set_tests_properties(harness_cli_test PROPERTIES PROCESSORS 2)
 
 # The one option table of the contract, read out of the source that holds
-# it: 27 rows in the fixed order, each with its argument kind and its
-# value, the seven new names at the constants 290 to 296 (T004; FR-001,
-# FR-003, FR-004, FR-079, SC-001). The directory that holds the table
-# reaches the test by argument, the way the fixture directory reaches
-# `harness_compare_test`. The test is red until Phase 1 lands the seven
-# rows, and it is registered as a plain test so the same registration
-# turns green with them.
+# it: 35 rows in the fixed order, each with its argument kind and its value,
+# specs/028's seven names at the constants 290 to 296 and the eight hunt
+# names at 270 to 277 (T004; FR-001, FR-003, FR-004, FR-079, FR-080,
+# SC-001). The directory that holds the table reaches the test by argument,
+# the way the fixture directory reaches `harness_compare_test`. Phase 1
+# landed the hunt rows, and the test is registered as a plain test so the
+# same registration that was red with master stands green with them.
 add_executable(harness_cli_table_test source/harness_cli_table_test.cpp)
 target_link_libraries(harness_cli_table_test PRIVATE speedgun-ng::harness)
 target_include_directories(harness_cli_table_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
@@ -1164,6 +1170,76 @@ add_test(NAME harness_pass_report_test_identity
          COMMAND harness_pass_report_test byte-identity
                  ${CMAKE_CURRENT_SOURCE_DIR}/source/detail/pass_identity.expected)
 
+# ---- Hunter mode core (feature 029) ----
+
+# T007 registers the seven skeletons so the build carries the hunt tree ahead
+# of the first assertion; the story tasks named beside each target fill it.
+# The hunt plan header is internal to the harness archive, so each target
+# carries the source/harness include directory the way
+# harness_pass_plan_test does.
+
+# The column shape, the limit rows, the budget split and the seed order
+# (T015; US1, FR-002, FR-011, FR-041, AC-1, AC-2, SC-01).
+add_executable(harness_hunt_plan_test source/harness_hunt_plan_test.cpp)
+target_link_libraries(harness_hunt_plan_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_hunt_plan_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_hunt_plan_test PRIVATE cxx_std_23)
+add_test(NAME harness_hunt_plan_test COMMAND harness_hunt_plan_test)
+
+# The normalization, the median and CV, the noise mark and the rank order
+# (T016; US1, FR-030, AC-3, I-5 to I-7).
+add_executable(harness_hunt_rank_test source/harness_hunt_rank_test.cpp)
+target_link_libraries(harness_hunt_rank_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_hunt_rank_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_hunt_rank_test PRIVATE cxx_std_23)
+add_test(NAME harness_hunt_rank_test COMMAND harness_hunt_rank_test)
+
+# The collection walk, the skipped kinds and the retry route
+# (T017; US1, FR-021, FR-022, AC-3, AC-4, SC-02, SC-04).
+add_executable(harness_hunt_collect_test source/harness_hunt_collect_test.cpp)
+target_link_libraries(harness_hunt_collect_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_hunt_collect_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_hunt_collect_test PRIVATE cxx_std_23)
+add_test(NAME harness_hunt_collect_test COMMAND harness_hunt_collect_test)
+
+# One case per refusal row of contracts/hunt-cli.md, in process and forked
+# (T018; US1, FR-001, FR-006, FR-081, AC-5, SC-05).
+add_executable(harness_hunt_cli_test source/harness_hunt_cli_test.cpp)
+target_link_libraries(harness_hunt_cli_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_hunt_cli_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_hunt_cli_test PRIVATE cxx_std_23)
+add_test(NAME harness_hunt_cli_test COMMAND harness_hunt_cli_test)
+
+# The plan line, the ranked table, the skipped list, the estimate and the cut
+# line (T032; US2, FR-040 to FR-043, D-19, D-20).
+add_executable(harness_hunt_report_test source/harness_hunt_report_test.cpp)
+target_link_libraries(harness_hunt_report_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_hunt_report_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_hunt_report_test PRIVATE cxx_std_23)
+add_test(NAME harness_hunt_report_test COMMAND harness_hunt_report_test)
+
+# The hunt objects of the written document against the schema the compiled-in
+# path names, and the round trip back (T038; US3, FR-051, AC-6,
+# contracts/hunt-json.md). The schema path enters the way
+# harness_json_report_test takes it.
+add_executable(harness_hunt_json_test source/harness_hunt_json_test.cpp)
+target_link_libraries(harness_hunt_json_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_hunt_json_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_hunt_json_test PRIVATE cxx_std_23)
+target_compile_definitions(
+    harness_hunt_json_test
+    PRIVATE SG_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/docs/schema/report-v1.json"
+)
+add_test(NAME harness_hunt_json_test COMMAND harness_hunt_json_test)
+
+# The byte-identity scenario compares a run with no hunt option against the
+# bytes committed under test/data, so its entry names that directory beside
+# scenario, the shape harness_pass_report_test_identity gives its fixture
+# (T038; FR-052, SC-006).
+add_test(NAME harness_hunt_json_test_no_hunt
+         COMMAND harness_hunt_json_test no-hunt-bytes
+                 ${CMAKE_SOURCE_DIR}/test/data)
+
 # ---- Main-page documentation gates (feature 018) ----
 
 # The root README.md teaches the harness surface, and every code block it
@@ -1279,6 +1355,23 @@ if(TARGET docs_json_reports)
         --example json_reports
   )
   set_tests_properties(report_shape_json_reports_sample PROPERTIES TIMEOUT 120)
+endif()
+
+if(TARGET docs_hunt_rank)
+  # The guide page carries the recorded run of the hunter example, so the selector
+  # names the golden that owns this invocation's block. The fold checks the
+  # recorded run against a real run of the example, which is what fails the suite
+  # when a hunt column is renamed or dropped while the page still quotes it
+  # (T109, FR-070, PD-19).
+  add_test(
+      NAME report_shape_hunt_rank_sample
+      COMMAND
+        python3 ${CMAKE_SOURCE_DIR}/tools/docs/report_shape.py
+        --binary $<TARGET_FILE:docs_hunt_rank>
+        --readme ${CMAKE_SOURCE_DIR}/docs/pages/harness.md
+        --example hunt_rank
+  )
+  set_tests_properties(report_shape_hunt_rank_sample PROPERTIES TIMEOUT 120)
 endif()
 
 # Each docs example is a complete program whose regions the page quotes, so the

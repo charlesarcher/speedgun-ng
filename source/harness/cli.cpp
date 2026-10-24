@@ -344,6 +344,18 @@ auto speedgunMain(int argc, char** argv) -> int
   // where the words of the command line alone no longer stand (FR-061).
   options.compareRules = std::move(resolved->rules);
 
+  // specs/029 FR-081, D-16: the conflict check reads the settled members of the
+  // scan, so a `--counter` that stands after `--hunt` is the same conflict as
+  // one that stands before it. It stands ahead of the compare mode, which reads
+  // no catalog and runs no benchmark.
+  detail::validateHuntCombination(options);
+
+  // specs/029 FR-006, FR-081, PD-17: the selection expands here, where the
+  // clock and PMU providers stand registered and before the first run, so an
+  // unknown address, a pattern that matches nothing and an unreadable `@path`
+  // cost no measured time.
+  detail::expandHuntSelection(options);
+
   // specs/026 FR-024, FR-050, FR-051: the batch filter is compiled while
   // the scan is all that has happened, so an invalid pattern answers one
   // line and status 2 on the compare path beside the run path, and the
@@ -516,6 +528,10 @@ auto speedgunMain(int argc, char** argv) -> int
     BenchmarkResult result;
     std::vector<RowRaw> raw;
     std::vector<std::vector<RowRaw>> contextRaw;
+    // specs/029 T126: the record of the hunt that built this row's hunt
+    // object rides the row, so the deferred print of a shuffled run prints
+    // the same hunt block the immediate print of an ordered run prints.
+    std::optional<hunt::RunHunt> hunt;
   };
 
   std::vector<std::optional<HeldRow>> held(selected.size());
@@ -538,12 +554,58 @@ auto speedgunMain(int argc, char** argv) -> int
         report.contextRaw.emplace_back();
       }
     }
-    const auto result = runner.run(*entry);
+    auto result = runner.run(*entry);
+    // specs/029 FR-040, FR-043: `--hunt` hunts the instances the filter
+    // selected, and the record rides the result the printers and the writer
+    // read; a hunt that refuses stands its error line on stderr with the
+    // failed outcome's exit status (FR-081, spec PC-9).
+    auto runRecord = std::optional<hunt::RunHunt> {};
+    if (options.hunt.has_value()) {
+      // specs/029 T080 superseded by T119, FR-012: the run hands the hunt no
+      // calibration figure. The sampling overhead a row carries prices one
+      // read of an open window; the hunt entry times one pass of its own
+      // plan, so the estimate of the plan line weighs the pass count against
+      // the cost of a pass. No figure here means no figure lies there.
+      auto hunted = hunt::runHuntNamed(entry->name,
+                                       *options.hunt,
+                                       std::nullopt,
+                                       options.metricMethod,
+                                       options.dryRun,
+                                       true);
+      if (hunted.has_value()) {
+        result.hunt = std::move(hunted->entry);
+        runRecord = std::move(hunted->run);
+        // specs/029 FR-031, PD-10, T126: the run-level record the hunt
+        // answered rides the report data the document writer reads, so the
+        // root `hunt` object stands in the document of a hunt run. The
+        // record reaches here with the answer of its own hunt, and the
+        // console printer below reads the same record. A run with no hunt
+        // leaves both empty and the document keeps its former bytes (I-8,
+        // FR-052).
+        report.hunt = runRecord;
+        // D-19: a hunt run states its method outright, so the method of the
+        // forced collection rides the result the document writer reads even
+        // where no counter column of its own settled one.
+        if (options.metricMethod.has_value()) {
+          result.metricMethod = *options.metricMethod;
+        }
+      } else {
+        std::fprintf(stderr, "hunt: %s\n", hunted.error().message.c_str());
+        // A refused hunt carries the failed outcome its status comes from
+        // (FR-081), so the flag rides it too: the FR-036 table compares the
+        // status against the flags, and a status standing over no flag aborts
+        // on the postcondition below before the shell sees it.
+        anyFailed = true;
+        status = 1;
+      }
+    }
     if (interleaved) {
-      held[position] =
-          HeldRow {result, runner.rowRaw().back(), runner.contextRaw().back()};
+      held[position] = HeldRow {result,
+                                runner.rowRaw().back(),
+                                runner.contextRaw().back(),
+                                runRecord};
     } else {
-      detail::printResult(result);
+      detail::printResult(result, runRecord);
       report.results.push_back(result);
       report.rowRaw.push_back(runner.rowRaw().back());
       report.contextRaw.push_back(runner.contextRaw().back());
@@ -587,7 +649,7 @@ auto speedgunMain(int argc, char** argv) -> int
       if (!row.has_value()) {
         continue;
       }
-      detail::printResult(row->result);
+      detail::printResult(row->result, row->hunt);
       report.results.push_back(row->result);
       report.rowRaw.push_back(row->raw);
       report.contextRaw.push_back(row->contextRaw);

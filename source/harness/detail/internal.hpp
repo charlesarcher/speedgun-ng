@@ -19,6 +19,11 @@
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_metrics.hpp"
 #include "speedgun-ng/execution_context.hpp"
+#include "speedgun-ng/hunt.hpp"
+
+// specs/029 data-model.md preamble: `detail::RetriedPass` is the record of one
+// pass that fell back to lone-event seats, the account an instance carries.
+#include "hunt_plan.hpp"
 
 /**
  * @file internal.hpp
@@ -119,6 +124,30 @@ struct PlacementPlan
   std::vector<std::uint32_t> cpu;
   std::vector<std::uint32_t> group;
   std::uint32_t places = 0;
+};
+
+/**
+ * @brief specs/029 data-model.md E-05, D-18, T073, T118: one hunt event whose
+ * solo retry pass refused too, kept with the refusal that refused it and the
+ * availability the run published for its column.
+ *
+ * The pass loop cannot name the kind of a refusal - the reading of the state a
+ * refusal names, and the kind that state answers, belong to `hunt.cpp` - so it
+ * hands the refusal over whole and records the state it published for the
+ * column beside it, so the row of that address and the skipped line of that
+ * event answer one state (T128).
+ */
+struct RefusedRetry
+{
+  // The address of the event the retry pass measured alone.
+  std::string address;
+  // The error the seat of that pass answered, the counters-layer text with
+  // the availability word the skipped kind is read from.
+  counters::Error refusal;
+  // The availability the run published for that column: the state
+  // `detail::availabilityOfRefusal` read off `refusal`, with
+  // `Availability::ABSENT` for a refusal that names no state (T118, T128).
+  counters::Availability availability = counters::Availability::ABSENT;
 };
 
 }  // namespace detail
@@ -238,6 +267,47 @@ public:
   // command-line preset otherwise, `NONE` when neither stands.
   detail::Preset placement = detail::Preset::NONE;
   RegistryEntry* family = nullptr;
+
+  // specs/029 data-model.md E-04, D-15: the plan of the hunt this instance
+  // runs, set by `runHunt` before the run and empty for a run `--hunt` did not
+  // select. The pass loop reads it only to tell a hunt run from every other
+  // run, so a run with no hunt keeps its present route (PD-11).
+  std::optional<hunt::HuntPlan> huntPlan;
+
+  // specs/029 PD-12, D-18: one entry per pass whose group open refused and
+  // fell back to one pass per event of that pass.
+  std::vector<detail::RetriedPass> retriedHuntPasses;
+
+  // specs/029 D-18, FR-021: the events whose own retry pass refused too, each
+  // with the refusal that refused it: the run keeps going and `runHunt` turns
+  // each into a skipped entry with the kind of that refusal.
+  std::vector<detail::RefusedRetry> refusedHuntEvents;
+
+  /// @brief specs/029 PD-12, D-18: the passes of this instance's hunt run that
+  /// fell back to one event per pass, in the order the pass loop appended them.
+  ///
+  /// \pre none
+  /// \post one entry per pass whose group open refused, and no entry for a pass
+  ///       that seated; the list stands empty for a run that carried no hunt
+  ///       (I-8)
+  [[nodiscard]] auto huntRetriedPasses() const noexcept
+      -> const std::vector<detail::RetriedPass>&
+  {
+    return retriedHuntPasses;
+  }
+
+  /// @brief specs/029 D-18, FR-021, T073: the events that still refused after
+  /// their solo retry pass, each with the refusal that refused it.
+  ///
+  /// \pre none
+  /// \post one entry per refused solo retry, in refusal order, each holding the
+  ///       error its seat answered; empty for a run whose retries all seated
+  ///       (D-18)
+  [[nodiscard]] auto huntRefusedEvents() const noexcept
+      -> const std::vector<detail::RefusedRetry>&
+  {
+    return refusedHuntEvents;
+  }
 };
 
 /// @brief The process registry, in registration order (R-09).
@@ -493,6 +563,9 @@ struct RunOptions
   // `off` stands, and it settles the run with no environment source, so the
   // gather is handed no rows at all.
   bool environmentOff = false;
+  // specs/029 data-model.md E-09, FR-080 to FR-082, D-22: the hunt selection
+  // and its settled values, empty when the run carries no hunt.
+  std::optional<hunt::HuntOptions> hunt;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it
@@ -651,8 +724,31 @@ auto printTopologyListing(const MachineLayout&) -> void;
  */
 auto printContext(bool placementInEffect) -> void;
 
-/// @brief Format one benchmark result in fixed columns (FR-035, FR-036).
-auto printResult(const BenchmarkResult& result) -> void;
+/**
+ * @brief Format one benchmark result in fixed columns (FR-035, FR-036).
+ *
+ * specs/029 T126, FR-040, E-08, PD-10: the hunt block of a result that
+ * carries a hunt prints from the run-level record handed over beside it,
+ * so the plan line and the lines that rank read the record of the hunt
+ * that built `result.hunt`. The record stands empty for a result that
+ * carried no hunt, and such a result prints the bytes it printed before
+ * the hunt existed (I-8).
+ */
+auto printResult(const BenchmarkResult& result,
+                 const std::optional<hunt::RunHunt>& run = std::nullopt)
+    -> void;
+
+/// @brief specs/029 T035, FR-012, FR-013, data-model E-07: the plan line of
+/// one hunt run, and the one line a cut plan adds below it.
+///
+/// Every figure is a field of the record the caller hands over, the cut
+/// reason included: the printer decides no plan shape and spells no reason.
+///
+/// \pre none
+/// \post the plan line of the record stands on stdout, and a budgeted record
+///       that holds one stage is followed by the cut line naming
+///       `RunHunt::cutReason`
+auto printHuntPlan(const hunt::RunHunt& run) -> void;
 
 /// @brief Print the catalog listing; false when the listing failed
 /// (FR-037).
@@ -741,6 +837,46 @@ auto appendCounterColumns(std::vector<double>& printed,
                           const std::uint64_t iterations) -> void;
 
 }  // namespace detail
+
+namespace hunt
+{
+
+/**
+ * @brief specs/029 T126: the pair of records one hunt answered: the entry
+ * record a result carries at `BenchmarkResult::hunt`, and the run-level
+ * record the printers and `ReportData::hunt` read (E-06, E-08, PD-10).
+ * The record travels with the answer, so a printer reads the record of
+ * the hunt that built the entry standing beside it.
+ */
+struct Hunted
+{
+  /// @brief the ranked rows, the skipped list and the pass figures of the
+  /// hunt that ran (E-06)
+  EntryHunt entry;
+  /// @brief the plan the hunt ran under and the stages that ran (E-08)
+  RunHunt run;
+};
+
+/**
+ * @brief specs/029 D-23: the name-addressable driver behind the public
+ * `runHunt`, so the entry point hunts the instances the filter selected
+ * without a handle of its own (FR-040).
+ *
+ * `hunt.cpp` defines it. `timedPass` states which route calls: the
+ * harness run path prints the figures of E-07, holds no calibration data
+ * of its own, and measures one pass of the plan to price it (T119,
+ * FR-012). A hunt that ran answers both records; a hunt that refuses
+ * answers the error whose text the caller prints (FR-081).
+ */
+[[nodiscard]] auto runHuntNamed(
+    std::string_view name,
+    const HuntOptions& options,
+    std::optional<std::uint64_t> calibrationNsPerPass,
+    std::optional<MetricMethod> forcedMethod = std::nullopt,
+    bool dryRun = false,
+    bool timedPass = false) -> std::expected<Hunted, counters::Error>;
+
+}  // namespace hunt
 
 }  // namespace sg
 

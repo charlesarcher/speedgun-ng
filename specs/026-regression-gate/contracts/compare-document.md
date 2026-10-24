@@ -58,8 +58,8 @@ carries.
 ## The checker
 
 The existing checker `checkReport`
-(`source/harness/json_load.cpp:1083`, declared at
-`source/harness/detail/json_report.hpp:176`) reads any schema file in
+(`source/harness/json_load.cpp:1529`, declared at
+`source/harness/detail/json_report.hpp:244`) reads any schema file in
 these conventions and compares the key set, the key order and the value
 kinds of a document against it. The comparison document test calls it
 with the new schema path and the written bytes; no second checker

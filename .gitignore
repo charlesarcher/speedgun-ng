@@ -7,6 +7,8 @@ cmake-build-*/
 # Scratch build trees the installed-package consumer test configures
 build-consumer*/
 build-tidy/
+# Lane-owned build trees for verification runs (coverage, sanitizers, tidy)
+build-*/
 prefix/
 .clangd
 CMakeLists.txt.user
@@ -32,5 +34,7 @@ speedgun-ng-*-specify-prompt.md
 *.so
 *.log
 
-# Report captures written by harness suites run from the repository root
+# Report captures written by harness suites run from the repository root:
+# the fixed names, and the names harness_cli_test suffixes with its pid.
 harness_*_out.txt
+/harness_cli_*

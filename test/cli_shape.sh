@@ -29,7 +29,7 @@ fi
 status=0
 
 # The loop body: from the run call to the end of the for loop.
-loop=$(awk '/const auto result = runner\.run\(\*entry\);/,/^  \}$/' "$SOURCE")
+loop=$(awk '/auto result = runner\.run\(\*entry\);/,/^  \}$/' "$SOURCE")
 if [ -z "$loop" ]; then
   echo "FAIL: could not locate the benchmark loop of speedgunMain" \
     "in $SOURCE" >&2

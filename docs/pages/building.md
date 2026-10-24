@@ -263,6 +263,36 @@ cmake --build build/dev -t format-check
 Pass `FORMAT_COMMAND` when the `clang-format` on your `PATH` is not
 18.1.8. `format-fix` rewrites the files in place.
 
+Two static analyzers ride the compile of each translation unit.
+`CMAKE_CXX_CLANG_TIDY` carries clang-tidy and `CMAKE_CXX_CPPCHECK` carries
+cppcheck, each set by the configure preset of the same name
+(`CMakePresets.json:33-43`). The `ci-ubuntu` preset inherits both, so it is
+the analyzer build; `ci-rocky` carries neither. No target runs either
+analyzer on its own: an analyzer speaks where a compiler speaks, and a name
+such as `analyzer-gate` stands for no target in `cmake/` or
+`CMakeLists.txt`. CI runs both in the `test` job, which installs clang-tidy
+and cppcheck and builds the `ci-ubuntu` preset
+(`.github/workflows/ci.yml:165-174`).
+
+The `ci-ubuntu` and `ci-rocky` presets share the `build` directory, and the
+Unix Makefiles generator judges a file by its timestamp, so a `build` tree
+another preset already warmed recompiles nothing, and a recompile-free build
+prints no analyzer output at exit 0. An analyzer pass needs a tree no
+preset has built:
+
+```sh
+rm -rf build
+cmake --preset=ci-ubuntu
+cmake --build build
+```
+
+One check carries the hard part of the verdict. `.clang-tidy` sets
+`Checks: "*"` with nine negations (`.clang-tidy:9-19`), so an analyzer build
+prints a warning-rich log, and `WarningsAsErrors` names
+`readability-identifier-naming` (`.clang-tidy:21`) as the check that ends
+the build. cppcheck runs with `--inline-suppr` and no exit-code flag, so its
+findings print and the build continues.
+
 One command runs the prose and commit-message gate over the range from
 the merge base with `origin/master` to `HEAD`, the same verdict CI
 produces:

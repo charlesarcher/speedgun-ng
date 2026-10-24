@@ -763,7 +763,7 @@ auto theLoopShapeStandsOverTheWalk(const std::string& root) -> void
   auto closeLine = missing;
   for (std::size_t index = 0; index < lines.size(); ++index) {
     if (runLine == missing
-        && lines.at(index).find("const auto result = runner.run(*entry);")
+        && lines.at(index).find("auto result = runner.run(*entry);")
             != std::string::npos)
     {
       runLine = index;

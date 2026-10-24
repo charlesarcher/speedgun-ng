@@ -23,12 +23,12 @@ PREMARK = re.compile(r"^\s*<!--\s*(sg-example|sg-sample-output):\s*(\S+)\s*-->\s
 REQUIRES = re.compile(r"^\s*<!--\s*sg-requires:\s*(\S+)\s*-->\s*$")
 INFO_TOKEN = re.compile(r"^(sg-example|sg-sample-output)=(\S+)$")
 
-# The twenty-five capabilities of the main page as the H3 titles of "How you
+# The twenty-six capabilities of the main page as the H3 titles of "How you
 # do it": the twelve of spec FR-009 at the H3 audit point, the six specs/018
 # adds (FR-028, FR-044, research D-13), the two specs/020 adds (FR-029), the
 # one specs/021 add (FR-027), the one specs/023 add (FR-037), the one
-# specs/025 add (FR-016), the one specs/026 add (FR-063), and the one
-# specs/024 add (FR-027).
+# specs/025 add (FR-016), the one specs/026 add (FR-063), the one
+# specs/024 add (FR-027) and the one specs/029 add (FR-070).
 SECTIONS = (
     "The run loop",
     "Registration",
@@ -55,6 +55,7 @@ SECTIONS = (
     "Percentiles",
     "JSON reports",
     "Regression gate",
+    "Hunter mode",
 )
 
 # The example file each section owns its snippets by (FR-028, FR-032, D-12, D-13).
@@ -86,6 +87,7 @@ SECTION_OWNERS = {
     "Percentiles": ("percentiles.cpp",),
     "JSON reports": ("json_reports.cpp",),
     "Regression gate": ("regression_gate.cpp",),
+    "Hunter mode": ("hunt_rank.cpp",),
 }
 
 # The distinctively named jobs of .github/workflows/ci.yml, plus the
@@ -156,7 +158,30 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # so 13 lines move the cap from 773 to 786, the measured length of the page
 # with both in place. The section stays under SECTION_LINE_CAP, so no entry
 # joins SECTION_LINE_CAPS (FR-073).
-PAGE_LINE_CAP = 786
+# specs/029 FR-070 measures its own move on top: the "Hunter mode" section
+# runs 6 lines and the seven quick-reference name rows and the eight option
+# rows add 15, so 21 lines move the cap from 786 to 807, the measured length
+# of the page as the feature lands. The section sits under the per-section
+# budget of FR-024, so no entry joins SECTION_LINE_CAPS.
+# The marked block of IV.1 measures its own move on top: the
+# `example/docs/hunt_rank.cpp#hunt-rank` region runs 16 lines and its marker
+# comment and two fences add 3, so 19 lines move the cap from 807 to 826, the
+# measured length of the page with the block in place. The section then spans
+# 25 lines, the per-section budget itself, so the section holds no spare line
+# and no entry joins SECTION_LINE_CAPS.
+# FR-072 asks for the re-measure as the feature lands. The page carries the
+# Hunter mode section, the quick-reference rows and the hunt-rank block, and
+# measures 822 lines, so the cap is the measured 822: the 826 kept four lines
+# the landing never added. The budgets that carry a copy hold their measured
+# span already (Fixtures 43, Registration 38, Hardware counter 25), so
+# SECTION_LINE_CAP and SECTION_LINE_CAPS keep their values.
+# T063 re-measures the cap as the T090 rows land: the thirteen
+# quick-reference name rows for the hunt types add 13, so 13 lines move
+# the cap from 822 to 835, the measured length of the page with the rows
+# in place. The rows join the Quick reference table, which the
+# per-section budgets do not inspect, so SECTION_LINE_CAP and
+# SECTION_LINE_CAPS keep their values.
+PAGE_LINE_CAP = 835
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that
@@ -444,15 +469,21 @@ def table_rows(page: Path, header: str) -> list[str]:
     raise Finding(f"{rel(page)}: no table with header '{header}'")
 
 
+# The headers the quick-reference name scan reads (FR-070). The finding text
+# names this tuple, so the message cannot lag the scan.
+NAME_SCAN_HEADERS = (
+    "benchmark.hpp",
+    "barrier.hpp",
+    "execution_context.hpp",
+    "counters_metrics.hpp",
+    "counters_system.hpp",
+    "hunt.hpp",
+)
+
+
 def header_names(root: Path) -> set[str]:
     names: set[str] = set()
-    for header in (
-        "benchmark.hpp",
-        "barrier.hpp",
-        "execution_context.hpp",
-        "counters_metrics.hpp",
-        "counters_system.hpp",
-    ):
+    for header in NAME_SCAN_HEADERS:
         path = root / "include" / "speedgun-ng" / header
         if path.is_file():
             names.update(re.findall(r"\b[A-Za-z_][A-Za-z0-9_]{2,}\b", path.read_text()))
@@ -685,7 +716,8 @@ def run_all(root: Path, main_page: Path, args: argparse.Namespace) -> list[str]:
         present = header_names(root)
         findings.extend(
             f"{rel(main_page)}: quick-reference name '{name}' is not in "
-            "benchmark.hpp, barrier.hpp, or execution_context.hpp"
+            + ", ".join(NAME_SCAN_HEADERS[:-1])
+            + f", or {NAME_SCAN_HEADERS[-1]}"
             for name in table_rows(main_page, "| Name |")
             if any(part not in present for part in name.split("::") if part)
         )

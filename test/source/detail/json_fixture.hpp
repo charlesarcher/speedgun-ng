@@ -17,6 +17,7 @@
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
 #include "speedgun-ng/counters_fake.hpp"
+#include "speedgun-ng/hunt.hpp"
 
 // The scripted run and the field-by-field comparison the three report
 // tests share (specs/023 T016, T017, T022, T023). The scripted window is
@@ -305,6 +306,105 @@ auto sameRowRaw(const std::vector<std::vector<sg::RowRaw>>& actual,
   return true;
 }
 
+// The hunt records of specs/029 (data-model.md E-06, E-08; FR-051) travel the
+// document as the six keys of the closed entry node and the sixteen of the
+// closed run node, so both members compare field by field beside the rest of
+// the result. `RankedEvent::samples` and `RankedEvent::repeated` stand outside
+// the comparison: D-17 keeps the sample count and the repeated mark out of the
+// document, so the reader leaves both at the default an unmarked rank carries
+// and no round trip restores them.
+auto sameRankedEvent(const sg::hunt::RankedEvent& actual,
+                     const sg::hunt::RankedEvent& want) -> bool
+{
+  return actual.address == want.address && sameValue(actual.rate, want.rate)
+      && sameValue(actual.cv, want.cv) && actual.noisy == want.noisy
+      && actual.multiplexed == want.multiplexed && actual.rank == want.rank;
+}
+
+auto sameSkippedEvent(const sg::hunt::SkippedEvent& actual,
+                      const sg::hunt::SkippedEvent& want) -> bool
+{
+  return actual.address == want.address && actual.kind == want.kind;
+}
+
+auto sameEntryHunt(const sg::hunt::EntryHunt& actual,
+                   const sg::hunt::EntryHunt& want) -> bool
+{
+  if (actual.method != want.method || actual.passCount != want.passCount
+      || actual.top != want.top || actual.retriedPasses != want.retriedPasses
+      || actual.entries.size() != want.entries.size()
+      || actual.skipped.size() != want.skipped.size())
+  {
+    return false;
+  }
+  return std::equal(actual.entries.begin(),
+                    actual.entries.end(),
+                    want.entries.begin(),
+                    sameRankedEvent)
+      && std::equal(actual.skipped.begin(),
+                    actual.skipped.end(),
+                    want.skipped.begin(),
+                    sameSkippedEvent);
+}
+
+// The per-entry hunt of one result. Two empty members agree: that is the
+// reading of a run that carried no hunt (PD-10).
+auto sameEntryHunt(const std::optional<sg::hunt::EntryHunt>& actual,
+                   const std::optional<sg::hunt::EntryHunt>& want) -> bool
+{
+  return actual.has_value() == want.has_value()
+      && (!actual.has_value() || sameEntryHunt(*actual, *want));
+}
+
+auto sameStageRange(const sg::hunt::HuntStageRange& actual,
+                    const sg::hunt::HuntStageRange& want) -> bool
+{
+  return actual.first == want.first && actual.count == want.count
+      && actual.repeats == want.repeats;
+}
+
+auto sameBudget(const std::optional<sg::hunt::HuntBudget>& actual,
+                const std::optional<sg::hunt::HuntBudget>& want) -> bool
+{
+  return actual.has_value() == want.has_value()
+      && (!actual.has_value()
+          || (actual->kind == want->kind && actual->amount == want->amount));
+}
+
+// The run-level hunt beside the benchmark array: the settled options, the
+// shape of the plan the run ran, and nothing else (PD-10).
+// `HuntOptions::selection` stands outside the comparison: the closed node
+// carries one selection text and the reader hangs it on `RunHunt::selection`,
+// so the CLI text of the options is empty in anything that came back from a
+// document.
+auto sameRunHunt(const std::optional<sg::hunt::RunHunt>& actual,
+                 const std::optional<sg::hunt::RunHunt>& want) -> bool
+{
+  if (actual.has_value() != want.has_value()) {
+    return false;
+  }
+  if (!actual.has_value()) {
+    return true;
+  }
+  const auto& got = actual->options;
+  const auto& asked = want->options;
+  const bool options = got.norm == asked.norm && got.rank == asked.rank
+      && got.top == asked.top && sameValue(got.noise, asked.noise)
+      && got.repeats == asked.repeats && got.seed == asked.seed
+      && sameBudget(got.budget, asked.budget);
+  return options && actual->selection == want->selection
+      && actual->passes == want->passes && actual->method == want->method
+      && actual->estimateNs == want->estimateNs
+      && actual->plannedAddresses == want->plannedAddresses
+      && actual->ranEvents == want->ranEvents
+      && actual->stageTwoEvents == want->stageTwoEvents
+      && actual->stages.size() == want->stages.size()
+      && std::equal(actual->stages.begin(),
+                    actual->stages.end(),
+                    want->stages.begin(),
+                    sameStageRange);
+}
+
 // One result against the run that wrote it, field by field (FR-022,
 // SC-010).
 auto sameResult(const sg::BenchmarkResult& actual,
@@ -327,7 +427,8 @@ auto sameResult(const sg::BenchmarkResult& actual,
       || actual.counterStats.size() != want.counterStats.size()
       || actual.statisticValues.size() != want.statisticValues.size()
       || actual.contexts.size() != want.contexts.size()
-      || actual.contextPercentiles.size() != want.contextPercentiles.size())
+      || actual.contextPercentiles.size() != want.contextPercentiles.size()
+      || !sameEntryHunt(actual.hunt, want.hunt))
   {
     return false;
   }
@@ -382,7 +483,8 @@ auto sameReport(const sg::ReportData& actual,
 {
   if (actual.results.size() != want.results.size()
       || actual.rowRaw.size() != want.rowRaw.size()
-      || actual.contextRaw.size() != want.contextRaw.size())
+      || actual.contextRaw.size() != want.contextRaw.size()
+      || !sameRunHunt(actual.hunt, want.hunt))
   {
     return false;
   }

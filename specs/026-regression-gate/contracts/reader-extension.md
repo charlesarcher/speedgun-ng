@@ -2,21 +2,21 @@
 
 ## What changes and what does not
 
-The load call `loadReport` (`include/speedgun-ng/benchmark.hpp:2330`)
+The load call `loadReport` (`include/speedgun-ng/benchmark.hpp:2570`)
 keeps its signature, its version gate
-(`source/harness/json_load.cpp:1117` to `:1128`) and its open-object
-key rule (`:1000` to `:1030`). It gains three fields of `ReportData`
+(`source/harness/json_load.cpp:1587` to `:1596`) and its open-object
+key rule (`:1472` to `:1483`). It gains three fields of `ReportData`
 to fill (FR-070, D-04, E-07):
 
 | Field | Source in the document |
 | --- | --- |
 | `schemaVersion` | the `schemaVersion` text the version gate already reads |
 | `speedgunVersion` | the `version` text under the `speedgun` header object; empty when the document omits it |
-| `noiseWarnings` | one entry per benchmark entry: the record the reader already parses at `source/harness/json_load.cpp:729` to `:743`, now stored; nothing when the entry carried no `noiseWarning` |
+| `noiseWarnings` | one entry per benchmark entry: the record the reader already parses at `source/harness/json_load.cpp:1119` to `:1147`, now stored; nothing when the entry carried no `noiseWarning` |
 
 The report writer keeps its current behavior: it stamps its own version
-texts (`source/harness/json_report.cpp:28`, `:530`) and recomputes the
-warning from the result's contexts (`:400`, `:485`), so the writer
+texts (`source/harness/json_report.cpp:786`, `:790`) and recomputes the
+warning from the result's contexts (`:704`, `:709`), so the writer
 reads none of the new fields and 023's byte-identical round trip
 stands. The run path leaves the fields empty.
 
@@ -24,7 +24,7 @@ stands. The run path leaves the fields empty.
 
 `NoiseWarning` moves from `source/harness/detail/json_report.hpp:137`
 to the public header with its fields unchanged (FR-070, D-05). The
-predicate `noiseWarningOf` (`source/harness/detail/json_report.hpp:154`)
+predicate `noiseWarningOf` (`source/harness/detail/json_report.hpp:151`)
 stays internal and answers `std::optional<sg::NoiseWarning>`.
 
 ## Error forms

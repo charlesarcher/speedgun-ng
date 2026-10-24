@@ -170,6 +170,32 @@ public:
                                std::size_t limit) -> FakeProvider&;
 
   /**
+   * @brief Scripts the widest leaf set one object's `open` accepts
+   * (D-18, PD-09).
+   *
+   * The count is how many leaves of this object one window may carry: a
+   * leaf set carrying more leaves of it than `leaves` opens no window,
+   * which is the group-open failure a pass loop retries one event at a
+   * time (D-18). No catalog fact produces it on its own, because the
+   * plan compiler refuses an unknown or non-countable leaf before it
+   * ever calls `open`, so an over-wide set never reaches a provider on
+   * its own. An object nobody scripts keeps the present behaviour of
+   * `open`, which refuses an undeclared object or counter only.
+   *
+   * \pre `objectPath` names an object the script declares, and the call
+   *      precedes `System::open` as every scripted fake fact does. A
+   *      path the script declares no object for traps: a script that
+   *      names nothing would silently test nothing.
+   * \post `open` refuses a leaf set carrying more leaves of that object
+   *       than `leaves`, with the object path and the leaf count in the
+   *       message `lastRefusalMessage` answers; an object with no
+   *       scripted limit behaves as it does today; the setter is
+   *       fluent, and the last call for an object wins.
+   */
+  auto setGroupLeafLimit(std::string_view objectPath,
+                         std::size_t leaves) -> FakeProvider&;
+
+  /**
    * @brief Declares one named counter on one object.
    *
    * `unit` is the unit token mapped through the closed switch at
@@ -229,6 +255,37 @@ public:
   }
 
   /**
+   * @brief The number of windows this provider has opened, refusals
+   * aside (US1 threads scenario).
+   *
+   * A threaded run opens one window per context per pass, so a caller
+   * can read that count off the scripted provider.
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto windowOpens() const noexcept -> std::uint64_t
+  {
+    return m_windowOpens.load(std::memory_order_relaxed);
+  }
+
+  /**
+   * @brief The message of the last `open` this provider refused for a
+   * scripted leaf count (PD-09).
+   *
+   * The refusal is the scripted group refusal of `setGroupLeafLimit`,
+   * and the message names the object path and the leaf count it
+   * refused. A granted open, or one refused for an undeclared object or
+   * counter, leaves the message where it stood, so a caller reads it
+   * after the refusal it asks about. An empty message says no open
+   * was ever refused for a scripted leaf count.
+   *
+   * \pre none
+   * \post none
+   */
+  [[nodiscard]] auto lastRefusalMessage() const -> std::string;
+
+  /**
    * @brief Scripts the actions one leaf measures nothing on (FR-007).
    *
    * `actions` names the one-based sampling actions at which this leaf
@@ -266,10 +323,21 @@ private:
     // object, which reproduces a source that cannot answer (FR-005,
     // FR-006).
     std::optional<std::size_t> programmableCounters = std::nullopt;
+    // The widest leaf set one window over this object may carry, refused
+    // at `open` with the object path and the leaf count named in the
+    // message; no value means `open` takes any leaf set, the way it does
+    // today (D-18, PD-09).
+    std::optional<std::size_t> groupLeafLimit = std::nullopt;
   };
 
   std::map<std::string, ObjectSeedData> m_objects;
   std::atomic<std::uint64_t> m_readActions {0};
+  std::atomic<std::uint64_t> m_windowOpens {0};
+  // The message of the last scripted leaf-count refusal. It is read and
+  // written under the file-scope script lock, which is why
+  // `lastRefusalMessage` is defined out of line, never inline here
+  // (PD-09).
+  std::string m_lastRefusal;
 
   [[nodiscard]] auto counter(const std::string& objectPath,
                              const std::string& name) -> FakeCounterData&;

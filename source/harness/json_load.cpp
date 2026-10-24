@@ -1,8 +1,12 @@
+#include <array>
+#include <cerrno>
+#include <charconv>
 #include <cstdint>
 #include <expected>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -13,6 +17,7 @@
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/dbc.hpp"
+#include "speedgun-ng/hunt.hpp"
 
 namespace sg
 {
@@ -99,6 +104,16 @@ auto settled(const std::vector<
   return {};
 }
 
+// The record of the first answer that carries an error, held by a plain
+// function: a coverage trace drawn from a template body leaves a cold block
+// inside a generic lambda out of its counts, while the same shape in
+// `settled` above carries its count (specs/023 FR-024).
+auto keepFirstError(std::expected<void, std::string>& answer,
+                    const std::string& error) noexcept -> void
+{
+  answer = std::unexpected(error);
+}
+
 // The same report over the values a record read: the first answer that
 // carries an error names the field, and the rest are not looked at.
 template<class... Parts>
@@ -107,11 +122,8 @@ auto allSettled(Parts&&... parts) -> std::expected<void, std::string>
   auto answer = std::expected<void, std::string> {};
   auto report = [&](auto& part) noexcept -> bool
   {
-    if (part.has_value()) {
-      return true;
-    }
-    answer = std::unexpected(part.error());
-    return false;
+    return part.has_value() ? true
+                            : (keepFirstError(answer, part.error()), false);
   };
   (void)((report(parts) && ...) && true);
   return answer;
@@ -626,6 +638,379 @@ auto readRow(Element value,
   return {};
 }
 
+// The hunt word tables of specs/029 (contracts/hunt-json.md). The document
+// spells `norm` and `rank` with the lower-case words the option takes and
+// `skipped[].kind` with the words the console prints for a refusal, so no
+// table here is `kAvailabilityWords`, which spells the enumerator. The
+// writer's three tables stand inside `json_report.cpp`, so the reader keeps
+// its own copy beside its own keys; each is indexed by its own enumeration
+// and tied to its last enumerator, the shape the tables of the header take
+// (E-02, E-06, FR-050).
+constexpr std::array<std::string_view, 3> kHuntNormWords {
+    "instr",
+    "cycle",
+    "iter",
+};
+static_assert(kHuntNormWords.size()
+              == std::to_underlying(hunt::HuntNorm::ITER) + 1);
+
+constexpr std::array<std::string_view, 2> kHuntRankWords {
+    "rate",
+    "cv",
+};
+static_assert(kHuntRankWords.size()
+              == std::to_underlying(hunt::HuntRank::CV) + 1);
+
+constexpr std::array<std::string_view, 5> kSkippedKindWords {
+    "permission-blocked",
+    "not-encodable",
+    "absent",
+    "scope-refused",
+    "gap",
+};
+static_assert(kSkippedKindWords.size()
+              == std::to_underlying(hunt::SkippedKind::GAP) + 1);
+
+// The bound of the run record, in the spelling the document carries: the
+// amount with the unit the caller named it in, `120s` or `8p`. The record
+// holds the two figures apart, so a text that names no unit or spells no
+// amount is a document the reader refuses by its pointer (FR-012, FR-051).
+auto asBudget(Element value, const std::string& where)
+    -> std::expected<hunt::HuntBudget, std::string>
+{
+  auto text = asString(value, where);
+  if (!text.has_value()) {
+    return std::unexpected(text.error());
+  }
+  const char unit = text->empty() ? '\0' : text->back();
+  if (unit != 's' && unit != 'p') {
+    return std::unexpected(where + ": '" + *text
+                           + "' states no budget unit the option takes");
+  }
+  std::uint64_t amount = 0;
+  const auto* const end = text->data() + text->size() - 1;
+  const auto [stop, code] = std::from_chars(text->data(), end, amount);
+  if (code != std::errc {} || stop != end) {
+    return std::unexpected(where + ": '" + *text + "' states no budget amount");
+  }
+  return hunt::HuntBudget {
+      .kind = unit == 'p' ? hunt::HuntBudget::Kind::PASSES
+                          : hunt::HuntBudget::Kind::SECONDS,
+      .amount = amount,
+  };
+}
+
+// One object of the closed `hunt.stages` node: the range of planned
+// addresses one stage measured, and the repeats it gave them (E-08, FR-050).
+auto readStageRange(Element value, const std::string& where)
+    -> std::expected<hunt::HuntStageRange, std::string>
+{
+  if (!value.is_object()) {
+    return std::unexpected(wrongKind(where, value, "an object"));
+  }
+  std::vector<std::pair<std::string, std::expected<Element, std::string>>>
+      parts {
+          {"first", field(value, where, "first")},
+          {"count", field(value, where, "count")},
+          {"repeats", field(value, where, "repeats")},
+      };
+  auto keys = settled(parts);
+  if (!keys.has_value()) {
+    return std::unexpected(keys.error());
+  }
+  auto first = asUnsigned(parts[0].second.value(), where + "/first");
+  auto count = asUnsigned(parts[1].second.value(), where + "/count");
+  auto repeats = asUnsigned(parts[2].second.value(), where + "/repeats");
+  auto settledValues = allSettled(first, count, repeats);
+  if (!settledValues.has_value()) {
+    return std::unexpected(settledValues.error());
+  }
+  return hunt::HuntStageRange {
+      .first = static_cast<std::size_t>(*first),
+      .count = static_cast<std::size_t>(*count),
+      .repeats = static_cast<std::size_t>(*repeats),
+  };
+}
+
+// One object of the closed `hunt.entries` node: one column of the rank table
+// (E-06, FR-050). The sample count and the repeated mark stay out of the
+// document (D-17), so the record keeps the two defaults a rank the console
+// prints unmarked carries.
+auto readRankedEvent(Element value, const std::string& where)
+    -> std::expected<hunt::RankedEvent, std::string>
+{
+  if (!value.is_object()) {
+    return std::unexpected(wrongKind(where, value, "an object"));
+  }
+  std::vector<std::pair<std::string, std::expected<Element, std::string>>>
+      parts {
+          {"address", field(value, where, "address")},
+          {"rate", field(value, where, "rate")},
+          {"cv", field(value, where, "cv")},
+          {"noisy", field(value, where, "noisy")},
+          {"multiplexed", field(value, where, "multiplexed")},
+          {"rank", field(value, where, "rank")},
+      };
+  auto keys = settled(parts);
+  if (!keys.has_value()) {
+    return std::unexpected(keys.error());
+  }
+  auto address = asString(parts[0].second.value(), where + "/address");
+  auto rate = asDouble(parts[1].second.value(), where + "/rate");
+  auto variation = asDouble(parts[2].second.value(), where + "/cv");
+  auto noisy = asBool(parts[3].second.value(), where + "/noisy");
+  auto multiplexed = asBool(parts[4].second.value(), where + "/multiplexed");
+  auto settledValues = allSettled(address, rate, variation, noisy, multiplexed);
+  if (!settledValues.has_value()) {
+    return std::unexpected(settledValues.error());
+  }
+  hunt::RankedEvent event {
+      .address = *address,
+      .rate = *rate,
+      .cv = *variation,
+      .samples = 0,
+      .noisy = *noisy,
+      .repeated = false,
+      .multiplexed = *multiplexed,
+      .rank = std::nullopt,
+  };
+  // A noisy event, a single-sample event and an event outside the top N
+  // carry no rank, which the document writes `null` (D-7).
+  const Element rank = parts[5].second.value();
+  if (!rank.is_null()) {
+    auto number = asUnsigned(rank, where + "/rank");
+    if (!number.has_value()) {
+      return std::unexpected(number.error());
+    }
+    event.rank = static_cast<std::size_t>(*number);
+  }
+  return event;
+}
+
+// One object of the closed `hunt.skipped` node: one event the run refused,
+// with the kind of the refusal spelled as the console spells it (E-06,
+// FR-050).
+auto readSkippedEvent(Element value, const std::string& where)
+    -> std::expected<hunt::SkippedEvent, std::string>
+{
+  if (!value.is_object()) {
+    return std::unexpected(wrongKind(where, value, "an object"));
+  }
+  std::vector<std::pair<std::string, std::expected<Element, std::string>>>
+      parts {
+          {"address", field(value, where, "address")},
+          {"kind", field(value, where, "kind")},
+      };
+  auto keys = settled(parts);
+  if (!keys.has_value()) {
+    return std::unexpected(keys.error());
+  }
+  auto address = asString(parts[0].second.value(), where + "/address");
+  auto kind = asEnum<hunt::SkippedKind>(
+      kSkippedKindWords, parts[1].second.value(), where + "/kind");
+  auto settledValues = allSettled(address, kind);
+  if (!settledValues.has_value()) {
+    return std::unexpected(settledValues.error());
+  }
+  return hunt::SkippedEvent {
+      .address = *address,
+      .kind = *kind,
+  };
+}
+
+// The per-entry hunt object of specs/029 (contracts/hunt-json.md). Every key
+// of the closed node stands in the document of a hunt entry, so a key that
+// stands missing is a refusal naming the pointer, and a value the run left
+// unset stands `null` rather than away (FR-051).
+auto readEntryHunt(Element value, const std::string& where)
+    -> std::expected<hunt::EntryHunt, std::string>
+{
+  if (!value.is_object()) {
+    return std::unexpected(wrongKind(where, value, "an object"));
+  }
+  std::vector<std::pair<std::string, std::expected<Element, std::string>>>
+      parts {
+          {"method", field(value, where, "method")},
+          {"pass_count", field(value, where, "pass_count")},
+          {"top", field(value, where, "top")},
+          {"retried_passes", field(value, where, "retried_passes")},
+          {"entries", field(value, where, "entries")},
+          {"skipped", field(value, where, "skipped")},
+      };
+  auto keys = settled(parts);
+  if (!keys.has_value()) {
+    return std::unexpected(keys.error());
+  }
+  auto method = asEnum<sg::MetricMethod>(
+      detail::kMetricMethodWords, parts[0].second.value(), where + "/method");
+  auto passCount = asUnsigned(parts[1].second.value(), where + "/pass_count");
+  auto top = asUnsigned(parts[2].second.value(), where + "/top");
+  auto retried = asUnsigned(parts[3].second.value(), where + "/retried_passes");
+  auto settledValues = allSettled(method, passCount, top, retried);
+  if (!settledValues.has_value()) {
+    return std::unexpected(settledValues.error());
+  }
+  hunt::EntryHunt record {
+      .method = *method,
+      .passCount = static_cast<std::size_t>(*passCount),
+      .top = static_cast<std::size_t>(*top),
+      .entries = {},
+      .skipped = {},
+      .retriedPasses = static_cast<std::size_t>(*retried),
+  };
+  auto entries = asArray(parts[4].second.value(), where + "/entries");
+  if (!entries.has_value()) {
+    return std::unexpected(entries.error());
+  }
+  std::size_t index = 0;
+  for (const auto item : *entries) {
+    auto read =
+        readRankedEvent(item, where + "/entries/" + std::to_string(index));
+    if (!read.has_value()) {
+      return std::unexpected(read.error());
+    }
+    record.entries.push_back(*read);
+    ++index;
+  }
+  auto skipped = asArray(parts[5].second.value(), where + "/skipped");
+  if (!skipped.has_value()) {
+    return std::unexpected(skipped.error());
+  }
+  index = 0;
+  for (const auto item : *skipped) {
+    auto read =
+        readSkippedEvent(item, where + "/skipped/" + std::to_string(index));
+    if (!read.has_value()) {
+      return std::unexpected(read.error());
+    }
+    record.skipped.push_back(*read);
+    ++index;
+  }
+  return record;
+}
+
+// The run-level hunt object of specs/029 (contracts/hunt-json.md): the
+// settled option values beside the plan the run ran (E-08, PD-10). As in the
+// entry record, every key of the closed node is required.
+auto readHunt(Element value, const std::string& where)
+    -> std::expected<hunt::RunHunt, std::string>
+{
+  if (!value.is_object()) {
+    return std::unexpected(wrongKind(where, value, "an object"));
+  }
+  std::vector<std::pair<std::string, std::expected<Element, std::string>>>
+      parts;
+  for (const auto* key : {"selection",
+                          "norm",
+                          "rank",
+                          "top",
+                          "noisePercent",
+                          "repeats",
+                          "seed",
+                          "budget",
+                          "passes",
+                          "method",
+                          "events",
+                          "stages",
+                          "estimate_ns",
+                          "planned_events",
+                          "ran_events",
+                          "stage_two_events"})
+  {
+    parts.emplace_back(key, field(value, where, key));
+  }
+  auto keys = settled(parts);
+  if (!keys.has_value()) {
+    return std::unexpected(keys.error());
+  }
+  const auto at = [&parts](std::size_t index) noexcept -> Element
+  { return parts[index].second.value(); };
+  auto selection = asString(at(0), where + "/selection");
+  auto norm = asEnum<hunt::HuntNorm>(kHuntNormWords, at(1), where + "/norm");
+  auto rank = asEnum<hunt::HuntRank>(kHuntRankWords, at(2), where + "/rank");
+  auto top = asUnsigned(at(3), where + "/top");
+  auto noise = asDouble(at(4), where + "/noisePercent");
+  auto repeats = asUnsigned(at(5), where + "/repeats");
+  auto seed = asUnsigned(at(6), where + "/seed");
+  auto passes = asUnsigned(at(8), where + "/passes");
+  auto method = asEnum<sg::MetricMethod>(
+      detail::kMetricMethodWords, at(9), where + "/method");
+  // `planned_events` is the size of `events` restated (D-17), so its kind is
+  // checked here and the addresses themselves are kept once, below.
+  auto planned = asUnsigned(at(13), where + "/planned_events");
+  auto ran = asUnsigned(at(14), where + "/ran_events");
+  auto stageTwo = asUnsigned(at(15), where + "/stage_two_events");
+  auto settledValues = allSettled(selection,
+                                  norm,
+                                  rank,
+                                  top,
+                                  noise,
+                                  repeats,
+                                  seed,
+                                  passes,
+                                  method,
+                                  planned,
+                                  ran,
+                                  stageTwo);
+  if (!settledValues.has_value()) {
+    return std::unexpected(settledValues.error());
+  }
+  hunt::RunHunt record;
+  record.selection = *selection;
+  record.options.norm = *norm;
+  record.options.rank = *rank;
+  record.options.top = static_cast<std::size_t>(*top);
+  record.options.noise = *noise;
+  record.options.repeats = static_cast<std::size_t>(*repeats);
+  record.options.seed = *seed;
+  record.passes = static_cast<std::size_t>(*passes);
+  record.method = *method;
+  record.ranEvents = static_cast<std::size_t>(*ran);
+  record.stageTwoEvents = static_cast<std::size_t>(*stageTwo);
+  // The two values a run may leave unset stand `null`: the budget of a run
+  // that named no bound and the estimate of a plan that calibrated nothing.
+  if (!at(7).is_null()) {
+    auto budget = asBudget(at(7), where + "/budget");
+    if (!budget.has_value()) {
+      return std::unexpected(budget.error());
+    }
+    record.options.budget = *budget;
+  }
+  if (!at(12).is_null()) {
+    auto estimate = asUnsigned(at(12), where + "/estimate_ns");
+    if (!estimate.has_value()) {
+      return std::unexpected(estimate.error());
+    }
+    record.estimateNs = *estimate;
+  }
+  auto events = asArray(at(10), where + "/events");
+  if (!events.has_value()) {
+    return std::unexpected(events.error());
+  }
+  for (const auto item : *events) {
+    auto address = asString(item, where + "/events");
+    if (!address.has_value()) {
+      return std::unexpected(address.error());
+    }
+    record.plannedAddresses.push_back(*address);
+  }
+  auto stages = asArray(at(11), where + "/stages");
+  if (!stages.has_value()) {
+    return std::unexpected(stages.error());
+  }
+  std::size_t index = 0;
+  for (const auto item : *stages) {
+    auto stage =
+        readStageRange(item, where + "/stages/" + std::to_string(index));
+    if (!stage.has_value()) {
+      return std::unexpected(stage.error());
+    }
+    record.stages.push_back(*stage);
+    ++index;
+  }
+  return record;
+}
+
 auto readEntry(Element value,
                const std::string& where,
                BenchmarkResult& result,
@@ -889,6 +1274,19 @@ auto readEntry(Element value,
     }
   }
   result.passSpread = spread;
+  // specs/029 FR-051: the hunt object the writer appends beside these keys.
+  // A document written before the hunt keys, and a run of this build that
+  // carried no `--hunt`, write no key at all: the member then stays empty,
+  // which is the hunt-less reading, and the rest of the entry reads as it
+  // did. A key that stands present keeps its own kind and its own refusal.
+  const auto hunted = optionalField(value, "hunt");
+  if (hunted.has_value()) {
+    auto record = readEntryHunt(*hunted, where + "/hunt");
+    if (!record.has_value()) {
+      return std::unexpected(record.error());
+    }
+    result.hunt = *record;
+  }
   return {};
 }
 
@@ -1196,6 +1594,22 @@ auto loadReport(const std::string& path)
                            + "', which this build cannot read: the reader "
                              "knows version 1");
   }
+  ReportData data;
+  data.schemaVersion = *versionText;
+  // specs/029 FR-051, FR-031 (PD-10): the run-level hunt object, the key the
+  // writer closes the document with. It is read before the benchmarks array
+  // so the run record stands settled before its entries are. A document
+  // written before specs/029, and a run of this build that carried no
+  // `--hunt`, write no key: the member stays empty, which is the reading of a
+  // run that carried no hunt (I-8), and the rest of the document reads as it
+  // did. A key that stands present keeps its own kind and its own refusal.
+  if (const auto hunted = optionalField(root, "hunt"); hunted.has_value()) {
+    auto record = readHunt(*hunted, "/hunt");
+    if (!record.has_value()) {
+      return std::unexpected(record.error());
+    }
+    data.hunt = *record;
+  }
   auto entries = field(root, "", "benchmarks");
   if (!entries.has_value()) {
     return std::unexpected(entries.error());
@@ -1204,8 +1618,6 @@ auto loadReport(const std::string& path)
   if (!items.has_value()) {
     return std::unexpected(items.error());
   }
-  ReportData data;
-  data.schemaVersion = *versionText;
   if (const auto header = field(root, "", "speedgun"); header.has_value()) {
     // A header text the reader only ever prints stays lenient: the object
     // or the key may stand absent and answer an empty text with no fault,

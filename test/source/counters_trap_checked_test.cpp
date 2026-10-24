@@ -22,9 +22,10 @@
 // The semantic arrives as SG_CONTRACTS_SEMANTIC, the PUBLIC compile
 // definition of the speedgun-ng target this test links, so the
 // expectation and the fixture under test always come from one
-// configuration. Cross-platform: std::system with output redirection, as
-// in the dbc precedent; a missing fixture binary is reported, never
-// passed.
+// configuration. std::system with output redirection drives the fixture, as
+// in the dbc precedent; a missing fixture binary is reported, never passed.
+// Each fixture run writes to scratch named after this process id, so two
+// `ctest` runs on one machine hold separate files (T165).
 // ============================================================================
 
 #include <cstdio>
@@ -32,6 +33,8 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+
+#include <unistd.h>
 
 #include "speedgun-ng/dbc.hpp"  // SG_CONTRACTS_SEMANTIC
 
@@ -77,18 +80,28 @@ auto runMode(const std::string& fixture,
              const bool expectAbort) -> int
 {
   const std::string name {mode.name};
-  std::string out = "/tmp/counters_trap_checked_out.txt";
+  // The name carries the process id, so a check reads only the bytes its own
+  // child wrote: a second `ctest` run on this machine holds a file of its own
+  // and cannot be the source of these bytes (T165). Removing the name before
+  // the run erases a file a finished process left under a reused id; removing
+  // it once read leaves no debris behind.
+  const std::string out =
+      "/tmp/counters_trap_checked_" + std::to_string(getpid()) + ".txt";
   std::remove(out.c_str());
   const std::string cmd =
       "\"" + fixture + "\" " + name + " > \"" + out + "\" 2>&1";
   const int status = std::system(cmd.c_str());
 
-  std::ifstream f(out);
-  std::ostringstream body;
-  if (f) {
-    body << f.rdbuf();
+  std::string content;
+  {
+    std::ifstream f(out);
+    std::ostringstream body;
+    if (f) {
+      body << f.rdbuf();
+    }
+    content = body.str();
   }
-  const std::string content = body.str();
+  std::remove(out.c_str());
   const std::string marker = "counters-trap-survived-" + name;
   const bool printedMarker = content.find(marker) != std::string::npos;
   const bool reportedViolation =

@@ -15,9 +15,11 @@
 
 #include "detail/calibration.hpp"
 #include "detail/complexity.hpp"
+#include "detail/hunt_plan.hpp"
 #include "detail/internal.hpp"
 #include "detail/pass_plan.hpp"
 #include "detail/percentiles.hpp"
+#include "detail/statistics.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
@@ -44,42 +46,6 @@ auto splitAddress(std::string_view address)
     return {address, {}};
   }
   return {address.substr(0, slash), address.substr(slash + 1)};
-}
-
-auto statisticsOf(std::vector<double> values) -> sg::Statistics
-{
-  sg::Statistics stats;
-  SG_ASSERT(!values.empty(),
-            "the caller builds the summary only for a measured run with more "
-            "than one repetition, so it hands over one value per row");
-
-  std::sort(values.begin(), values.end());
-  stats.samples = static_cast<std::uint64_t>(values.size());
-  stats.min = values.front();
-  stats.max = values.back();
-
-  double sum = 0.0;
-  for (const double value : values) {
-    sum += value;
-  }
-  stats.mean = sum / static_cast<double>(values.size());
-
-  const std::size_t n = values.size();
-  stats.median =
-      (n % 2 == 1) ? values[n / 2] : (values[n / 2 - 1] + values[n / 2]) / 2.0;
-
-  double squared = 0.0;
-  for (const double value : values) {
-    squared += (value - stats.mean) * (value - stats.mean);
-  }
-  SG_ASSERT(n > 1,
-            "the caller builds the summary only for a measured run with more "
-            "than one repetition");
-  stats.sampleStdDev = std::sqrt(squared / static_cast<double>(n - 1));
-  stats.coefficientOfVariation = std::fpclassify(stats.mean) != FP_ZERO
-      ? stats.sampleStdDev / stats.mean
-      : 0.0;
-  return stats;
 }
 
 constexpr const char* kInterruptReason = "interrupted by the user (SIGINT)";
@@ -1364,7 +1330,9 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   if (passColumns.empty()) {
     passColumns.push_back(wholeRun);
   }
-  const std::size_t passCount = passColumns.size();
+  // specs/029 PD-12: a hunt run appends passes to this list while the loop
+  // reads it, so the count the loop bounds itself with moves with the list.
+  std::size_t passCount = passColumns.size();
 
   // E-07, FR-017, FR-019: the disclosure of a collection whose method has
   // settled. Every return that follows this settling publishes it through this
@@ -1398,7 +1366,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   double overheadFloorNs = 0.0;
   std::vector<bool> measuredColumn(columns.size(), true);
   const auto seatPass = [&](const std::vector<std::size_t>& columnsOfPass)
-      -> std::expected<void, std::string>
+      -> std::expected<void, sg::counters::Error>
   {
     cores.clear();
     cores.push_back(&realTime.core);
@@ -1416,9 +1384,16 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     auto seated =
         sg::counters::detail::compileCore(sys, sg::counters::Target {}, cores);
     if (!seated.has_value()) {
-      return std::expected<void, std::string> {
+      // specs/029 D-18, T073: the refusal travels as the error the counter
+      // layer answered, so a seat that fails inside the pass loop still names
+      // the cause the host gave and not a message this file wrote over it.
+      return std::expected<void, sg::counters::Error> {
           std::unexpect,
-          "the run plan does not compile: " + seated.error().message};
+          sg::counters::Error {
+              .message =
+                  "the run plan does not compile: " + seated.error().message,
+              .suggestions = seated.error().suggestions,
+          }};
     }
     plan = std::move(*seated);
     slotReset = plan->recorder(2);
@@ -1431,8 +1406,15 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // audit point compiled; a run the plan split seats its first pass's own
   // leaf list, because the whole spine is the leaf list that does not fit
   // the source's programmable-counter limit (FR-004).
+  // specs/029 spec PC-9, contracts/hunt-api.md: this seat is the run's one
+  // clean failure and a hunt run keeps it, because the same compile serves
+  // warm-up and calibration. A host that refuses the first pass's group
+  // therefore ends the run on the failure route with exit 1 naming the
+  // refusal; the retry of D-18 belongs to a pass after the first, inside the
+  // loop below, where the seat is a runtime condition and not the ground the
+  // measured numbers stand on.
   if (const auto seated = seatPass(passColumns.front()); !seated.has_value()) {
-    return fail(seated.error());
+    return fail(seated.error().message);
   }
 
   // FR-023: the availability of every leaf a metric needs is read
@@ -2272,6 +2254,107 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     m_contextRaw.back().erase(m_contextRaw.back().begin(),
                               m_contextRaw.back().begin() + drop);
   };
+  // specs/029 PD-11, PD-12, D-18: the retry route of a hunt run. The seat of a
+  // pass after the first is a runtime condition for a run that carries hunt
+  // columns - a schedulable-set refusal at open says nothing about the frozen
+  // catalog - so such a pass hands each of its events a pass of its own beside
+  // the two anchors of that event's device, and this same loop runs them
+  // (D-18, hard rule 15). `loneEventOf` marks a pass a retry opened and the one
+  // event it measures; `rowOf` names the fold result each pass of the grown
+  // list produced, so the merge and the chunk ledger read the pass that
+  // measured a column; a pass that was refused keeps no ledger.
+  // `kNoHuntIndex` names the absent entry of both: no column and no row carry
+  // that index. The retry route exists for a hunt run alone, so the three
+  // tables stand only when one runs: a run that carries no hunt allocates what
+  // it allocated before the hunt existed (plan VII, I-8, T130).
+  constexpr std::size_t kNoHuntIndex = std::numeric_limits<std::size_t>::max();
+  const bool huntRun = instance.huntPlan.has_value();
+  std::vector<std::size_t> rowOf;
+  std::vector<std::size_t> loneEventOf;
+  // The pass that measures each column, remapped by the retry below. It feeds
+  // the merge and the ledger exactly as `planning.measuringPass` does.
+  std::vector<std::size_t> measuringOfColumn;
+  if (huntRun) {
+    rowOf.assign(passCount, kNoHuntIndex);
+    loneEventOf.assign(passCount, kNoHuntIndex);
+    measuringOfColumn = planning.measuringPass;
+    measuringOfColumn.resize(columns.size(), 0);
+  }
+  const auto retryHuntPass = [&](const std::size_t pass) -> void
+  {
+    std::vector<std::size_t> loneColumns;
+    // The anchors of the plan: an anchor column rides retry passes as a
+    // member of an event, never as a retry event of its own (D-18).
+    std::vector<std::string> anchorLabels;
+    for (const auto& candidate : instance.huntPlan->columns) {
+      if (!candidate.cycles.empty()) {
+        anchorLabels.push_back(candidate.cycles);
+      }
+      if (!candidate.instructions.empty()) {
+        anchorLabels.push_back(candidate.instructions);
+      }
+    }
+    for (const std::size_t column : passColumns[pass]) {
+      if (std::find(
+              anchorLabels.begin(), anchorLabels.end(), columns[column].label)
+          != anchorLabels.end())
+      {
+        continue;
+      }
+      // The plan column of this column, by address: an anchor column answers
+      // nothing, because no plan column names an anchor as its event.
+      const hunt::HuntColumn* planned = nullptr;
+      for (const auto& candidate : instance.huntPlan->columns) {
+        if (candidate.event == columns[column].label) {
+          planned = &candidate;
+          break;
+        }
+      }
+      if (planned == nullptr) {
+        continue;
+      }
+      std::vector<std::size_t> single {column};
+      const auto addAnchor = [&](const std::string& anchor)
+      {
+        if (anchor.empty()) {
+          return;
+        }
+        for (std::size_t index = 0; index < columns.size(); ++index) {
+          if (columns[index].label != anchor) {
+            continue;
+          }
+          // The loop above skipped every column whose label is an anchor of
+          // any column, and the two anchors of one column are two distinct
+          // addresses, so a matched index cannot already stand in `single`
+          // twice (specs/029 D-18). The ignore build drops SG_* bodies, so a
+          // local read only by the contract call would be unused there.
+          SG_ASSERT(std::ranges::find(single, index) == single.end(),
+                    "one retry pass opens each anchor column once");
+          single.push_back(index);
+        }
+      };
+      addAnchor(planned->cycles);
+      addAnchor(planned->instructions);
+      const std::size_t opened = passColumns.size();
+      passColumns.push_back(std::move(single));
+      rowOf.push_back(kNoHuntIndex);
+      loneEventOf.push_back(column);
+      // The retry pass measures the event it opened for and the anchors it
+      // carries, so both name this pass from now on (I-2: an anchor one pass
+      // claims is counted once in that pass).
+      for (const std::size_t measured : passColumns[opened]) {
+        if (measuringOfColumn[measured] == pass) {
+          measuringOfColumn[measured] = opened;
+        }
+      }
+      loneColumns.push_back(column);
+    }
+    if (!loneColumns.empty()) {
+      instance.retriedHuntPasses.push_back(detail::RetriedPass {
+          .pass = pass, .loneColumns = std::move(loneColumns)});
+    }
+    passCount = passColumns.size();
+  };
   for (std::size_t pass = 0; pass < passCount; ++pass) {
     if (pass > 0) {
       // E-04, FR-012: the previous pass's seat closes first - the recorder
@@ -2284,6 +2367,34 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       // at every later seat; the invariant below is the fuse for a
       // counter layer that broke that fact.
       [[maybe_unused]] const auto seated = seatPass(passColumns[pass]);
+      if (huntRun && !seated.has_value()) {
+        // specs/029 PD-11, D-18: the refusal of one group is a runtime
+        // condition, so a hunt run keeps going where the invariant below would
+        // stop every other run.
+        if (const std::size_t lone = loneEventOf[pass]; lone != kNoHuntIndex) {
+          // specs/029 D-18, FR-021, T128: the state the refusal names is the
+          // state the column publishes, so the row of that address and the
+          // skipped line of that event answer one state. A refusal that names
+          // no state publishes `Availability::ABSENT`, the state the run
+          // reports for an event that produced no value.
+          const auto published =
+              sg::detail::availabilityOfRefusal(seated.error())
+                  .value_or(sg::counters::Availability::ABSENT);
+          columns[lone].unavailable = true;
+          columns[lone].availability = published;
+          // specs/029 D-18, FR-021, T073, T118: the event that still refuses
+          // is recorded with the refusal itself and the state published for
+          // it, so `runHunt` gives it the kind that state names. No kind is
+          // guessed here.
+          instance.refusedHuntEvents.push_back(
+              detail::RefusedRetry {.address = columns[lone].label,
+                                    .refusal = seated.error(),
+                                    .availability = published});
+        } else {
+          retryHuntPass(pass);
+        }
+        continue;
+      }
       SG_INVARIANT(
           seated.has_value(),
           "the catalog frozen at open and the additive providers keep every "
@@ -2436,10 +2547,31 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // attempt's recorder first, then the plan that recorder stood over.
     attemptRecorder.reset();
     plan.reset();
+    if (huntRun) {
+      rowOf[pass] = passResults.size();
+    }
     passResults.push_back(std::move(result));
     if (interrupted) {
       break;
     }
+  }
+
+  if (!instance.retriedHuntPasses.empty()) {
+    // specs/029 PD-12: the retry passes joined the list the loop read and a
+    // refused pass folded no row, so the merge and the ledger read the passes
+    // that folded, in the order they folded, with every column naming the pass
+    // that measured it (FR-014).
+    sg::detail::PassPlan folded;
+    folded.columns.resize(passResults.size());
+    folded.exclusive.assign(passResults.size(), false);
+    folded.measuringPass = std::move(measuringOfColumn);
+    for (std::size_t& measuring : folded.measuringPass) {
+      // A column whose pass folded no row - the event that still refused after
+      // its own pass, or an anchor no retry pass carried - reads the reference
+      // pass, whose row holds that column's own disclosure (D-18).
+      measuring = rowOf[measuring] == kNoHuntIndex ? 0 : rowOf[measuring];
+    }
+    planning = std::move(folded);
   }
 
   if (passResults.size() > 1 && !interrupted) {
@@ -2468,6 +2600,18 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     }
     result = sg::detail::mergePasses(planning, passResults);
   } else {
+    // specs/029 D-18: the pass loop always folds pass 0, so no run gets here
+    // with an empty list; the assertion says so and the move publishes the
+    // folded pass. A hunt run whose passes refused is answered from the
+    // instance's refusal list by `runHunt`, not from this list.
+    SG_ASSERT(!passResults.empty(),
+              "a run that folded no pass needs a pass list of zero: the "
+              "settling that ran no planner keeps one whole-run pass "
+              "(runner.cpp:1330, E-01), the seat before the loop ends the run "
+              "when pass 0 refuses (runner.cpp:1416, PC-9), and the only "
+              "in-loop skip needs a pass after the first (runner.cpp:2352, "
+              "D-18), so the loop at runner.cpp:2351 folds pass 0 at "
+              "runner.cpp:2546");
     result = std::move(passResults.back());
   }
 
@@ -2500,6 +2644,13 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       rowRaws.resize(result.rows.size());
       m_contextRaw.back().resize(result.rows.size());
     } else {
+      // One mark stands per folded pass and the pass loop folds pass 0 on
+      // every run, so a run outside the merge arm holds a mark to keep; the
+      // helper below already reads that mark unguarded (specs/029 D-18).
+      SG_ASSERT(!passLedgerMarks.empty(),
+                "each folded pass marked its ledger and the pass loop folds "
+                "pass 0 on every run, so a run outside the merge arm holds "
+                "a mark to keep");
       keepCurrentPassLedger();
     }
   }
@@ -2566,7 +2717,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // aggregate keeps the default record, zero in every field beside
     // a zero sample count, and statisticsOf keeps its non-empty input.
     aggregate.timeStats =
-        times.empty() ? sg::Statistics {} : statisticsOf(times);
+        times.empty() ? sg::Statistics {} : sg::detail::statisticsOf(times);
 
     // FR-013, FR-014, FR-015: every attached statistic computes over the
     // same clean primary values the built-in set summarized, in the
@@ -2597,8 +2748,9 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       // record. The value lands in the slot before the push, so the
       // fold's summary carries the identical structure of the time
       // aggregate beside it.
-      sg::Statistics columnStats =
-          values.empty() ? sg::Statistics {} : statisticsOf(std::move(values));
+      sg::Statistics columnStats = values.empty()
+          ? sg::Statistics {}
+          : sg::detail::statisticsOf(std::move(values));
       aggregate.metricStats.push_back(columnStats);
     }
 
@@ -2630,8 +2782,9 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     // The same two-step shape as the metric fold above, so both folds of one
     // aggregate row compute the summary into the slot before the push.
     for (auto& values : counterValues) {
-      sg::Statistics columnStats =
-          values.empty() ? sg::Statistics {} : statisticsOf(std::move(values));
+      sg::Statistics columnStats = values.empty()
+          ? sg::Statistics {}
+          : sg::detail::statisticsOf(std::move(values));
       result.counterStats.push_back(columnStats);
     }
 
