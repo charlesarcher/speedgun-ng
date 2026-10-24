@@ -412,6 +412,6 @@ auto lastRefusalMessage() const -> std::string;
 message says no open was ever refused for one. `\pre` none, `\post` none: the
 accessor reads the scripted state, so a test reads it after the refusal it
 asks about and before the next `open`.
-`test/source/harness_hunt_collect_test.cpp:857` reads the object path and the
+`test/source/harness_hunt_collect_test.cpp:865-869` reads the object path and the
 leaf count out of that message, which is how the retry scenario names the
 ceiling it hit (spec PC-3, D-18).

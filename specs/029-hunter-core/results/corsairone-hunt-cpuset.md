@@ -21,7 +21,7 @@ one thread: the two runs measured two cores and four cores at one hardware
 thread each.
 
 Inside the process the restricted set is what `sched_getaffinity` reports, the
-same source `affinityCount` at `test/source/harness_hunt_collect_test.cpp:1294`
+same source `affinityCount` at `test/source/harness_hunt_collect_test.cpp:1454`
 reads for FR-092.
 
 Both restricted runs drove one test at a time (no `ctest -j`) over the same
@@ -103,7 +103,7 @@ it, and the 120 s its sibling `report_shape_hunt_rank_sample` carries
 `harness_hunt_collect_test` passed on the two-CPU set at 0.19 s. That run
 executes `scenarioTwoContextWindowOpens`, whose `sched_getaffinity` check is
 `cpus >= kThreadCount` with `kThreadCount = 2`
-(`test/source/harness_hunt_collect_test.cpp:100`): the two-core set satisfies
+(`test/source/harness_hunt_collect_test.cpp:108`): the two-core set satisfies
 it at the boundary, so the threaded arm of that scenario really ran there.
 
 ## 5. The re-run of `harness_cli_test` alone passes on its own deadline
