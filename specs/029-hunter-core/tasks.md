@@ -769,7 +769,7 @@ finding this round filed as owned, so the section holds eleven rows.
       compares the page against the example's own output, so it cannot see
       the drift it exists to catch (FR-070, FR-093, Principle X.3).
 
-- [ ] T160 Land the reading T156 records. The row is ticked and cites
+- [x] T160 Land the reading T156 records. The row is ticked and cites
       `docs/pages/analyzer.md:22-41`; `docs/pages/` holds
       `about.dox`, `building.md`, `barrier-rule.md`, `counters-overhead.md`,
       `dbc-migration.md`, `dbc-overhead.md`, `harness.md` and
@@ -848,7 +848,7 @@ finding this round filed as owned, so the section holds eleven rows.
       per-run directory; the fork handshake itself is sound and is not the
       fault here (Principle VI, AC-9).
 
-- [ ] T166 Name the one line a reader of
+- [x] T166 Name the one line a reader of
       `specs/029-hunter-core/quickstart.md:159-160` meets and the page does
       not explain: `ctest --test-dir build -R 'harness_json' -V` prints
       `error: the report file '/dev/full' could not be written: No space
