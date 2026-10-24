@@ -149,25 +149,6 @@ struct InterleaveSeed
   std::uint64_t seed = 0;
 };
 
-/// @brief What the scan of one command line answers: the options the
-/// words named, the seed `--interleave` settled, the uses it recorded in
-/// scan order, and the stop the walk met (E-06, FR-010, FR-017, FR-051).
-struct CommandLineOptions
-{
-  RunOptions options;
-  std::vector<OptionUse> uses;
-  InterleaveSeed interleave;
-  StopKind stop = StopKind::NONE;
-  // The words named the `--json-raw` row, whose value has no unset word of
-  // its own: the gather reads this to tell `none` given from nothing given
-  // (FR-037, FR-050).
-  bool rawContentNamed = false;
-  // The words named the `--filter` row, whose master default is the empty
-  // pattern that selects every benchmark: the gather reads this to tell an
-  // empty pattern given from nothing given (FR-024, FR-037, FR-050).
-  bool filterNamed = false;
-};
-
 /// @brief One metric name one source named, with the origin that names that
 /// source (FR-028, FR-033, FR-038). The origin stands empty for the words of
 /// the command line, whose own refusal line names the option.
@@ -218,6 +199,16 @@ struct ResolvedOptions
   // rather than the gather, and a name that a higher source dropped answers
   // its own line behind the source that held it (FR-028, FR-033, FR-038).
   std::vector<MetricName> metricNames;
+};
+
+/// @brief What the scan of one command line answers: the settled state of the
+/// words, in the shape the gather carries on from, and the stop the walk met
+/// (E-06, FR-010, FR-017, FR-051). The words are the highest source, so the
+/// gather starts here and asks the sources below it (FR-037).
+struct CommandLineOptions
+{
+  ResolvedOptions settled;
+  StopKind stop = StopKind::NONE;
 };
 
 /// @brief The one option table, in the order
