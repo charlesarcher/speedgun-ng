@@ -35,6 +35,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <csignal>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -1699,6 +1700,78 @@ auto childFamilyTwoFamilies() -> int
   return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
 }
 
+// The fresh process of the interrupted family scenario: the body of the
+// first family raises the interrupt signal once, so the walk stops with
+// that family's probe live and the second family's probe never starts
+// (R-01, FR-015).
+auto childFamilyInterrupted() -> int
+{
+  scriptedProvider();
+  const auto cpus = pickCpus(1);
+  auto first = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        static bool fired = false;
+        for (auto _ : state) {
+          if (!fired) {
+            fired = true;
+            std::raise(SIGINT);
+          }
+        }
+      },
+      "bmFamInterrupt");
+  auto second = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmFamAfter");
+  for (auto handle : {first, second}) {
+    sg::JitterProbeOptions probeOptions;
+    probeOptions.cpus.push_back(cpus.front());
+    probeOptions.thresholdNs = 65000;
+    probeOptions.gapCount = 2000000;
+    handle.jitterProbe(probeOptions);
+  }
+  std::vector<std::string> arguments {"--repetitions=1", "--iterations=2"};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
+// The fresh process of the source-order scenario: the option file names
+// one cpu and the command line names another. The words are scanned
+// first and the file follows them, so the file's row settles nothing
+// while the command line's text stands (FR-037, FR-038).
+auto childFileVersusCommandLine() -> int
+{
+  scriptedProvider();
+  const auto cpus = pickCpus(2);
+  {
+    std::ofstream file("harness_jitter_cli_probe-order.txt");
+    file << "jitter-probe=" << cpus[0] << "\n";
+  }
+  const std::string path = "harness_jitter_cli_probe-order.txt";
+  std::vector<std::string> arguments {
+      "--repetitions=1",
+      "--iterations=2",
+      "--options=" + path,
+      "--jitter-probe=" + std::to_string(cpus[1])};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  const int status =
+      sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+  std::remove(path.c_str());
+  return status;
+}
+
 // FR-015: one family, two argument lists, and the family's own probe.
 // The probe stands once for the family: it starts before the first
 // instance and stops behind the last, and the second instance joins
@@ -1921,6 +1994,40 @@ auto scenarioFamilyTwoFamilies() -> int
   return 0;
 }
 
+// R-01, FR-015: the interrupt stops the walk beside the live session of
+// the first family. The second family never starts, so its probe keeps
+// no session and its benchmark stands outside the record.
+auto scenarioFamilyInterrupted() -> int
+{
+  const Captured run = runExecChild("--jitter-cli-child=family-interrupted",
+                                    "family-interrupted");
+  check(run.status == 1, "the interrupt leaves the run with status 1 (R-01)");
+  check(run.out.find("jitter: probe on cpus ") != std::string::npos,
+        "the report carries the family probe that ran (FR-015)");
+  check(run.out.find("bmFamAfter") == std::string::npos,
+        "the pending family never starts (R-01)");
+  return 0;
+}
+
+// FR-037, FR-038: the words are scanned first, so the file's row
+// settles nothing while the command line's text stands. The report
+// carries the probe of the command line.
+auto scenarioFileVersusCommandLine() -> int
+{
+  const auto cpus = pickCpus(2);
+  const Captured run =
+      runExecChild("--jitter-cli-child=file-versus-command-line",
+                   "file-versus-command-line");
+  check(run.status == 0, "the two sources finish the run (FR-037)");
+  check(run.out.find("jitter: cpu " + std::to_string(cpus[1]) + " kept")
+            != std::string::npos,
+        "the command line's probe cpu stands in the report (FR-038)");
+  check(run.out.find("jitter: cpu " + std::to_string(cpus[0]) + " kept")
+            == std::string::npos,
+        "the file's row settles nothing here (FR-038)");
+  return 0;
+}
+
 auto scenarioFamilyVersusCommandLine() -> int
 {
   const Captured run =
@@ -2025,6 +2132,16 @@ auto main(int argc, char** argv) -> int
     {
       return childFamilyOverlap();
     }
+    if (mode == "--jitter-cli-child=file-versus-command-line"
+        && redirect("file-versus-command-line"))
+    {
+      return childFileVersusCommandLine();
+    }
+    if (mode == "--jitter-cli-child=family-interrupted"
+        && redirect("family-interrupted"))
+    {
+      return childFamilyInterrupted();
+    }
     if (mode == "--jitter-cli-child=family-two-families"
         && redirect("family-two-families"))
     {
@@ -2118,6 +2235,8 @@ auto main(int argc, char** argv) -> int
   check(scenarioFamilyIdleRun() == 0, "familyIdleRun");
   check(scenarioFamilyOverlapRun() == 0, "familyOverlapRun");
   check(scenarioFamilyTwoInstances() == 0, "familyTwoInstances");
+  check(scenarioFamilyInterrupted() == 0, "familyInterrupted");
+  check(scenarioFileVersusCommandLine() == 0, "fileVersusCommandLine");
   check(scenarioFamilyTwoFamilies() == 0, "familyTwoFamilies");
   check(scenarioFamilyUnavailableStrict() == 0, "familyUnavailableStrict");
   check(scenarioFamilyUnavailable() == 0, "familyUnavailable");
