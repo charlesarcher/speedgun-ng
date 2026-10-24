@@ -1358,6 +1358,78 @@ auto childEmptyMask() -> int
   return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
 }
 
+// The fresh process of the online-set scenario: the fake it registers
+// publishes the leaves the runner resolves its plans through and a tsc
+// leaf the probe reads, and the layout it installs carries the online
+// set 0-3 and 8-11 with the count seam at 8, the shape the M-5 host
+// reports. The pinned benchmark plans the first block's leads, so the
+// idle resolution yields the second block's lowest free cpu, and the
+// probe starts on it with no failed contract (FR-016, FR-041, R-02).
+auto childIdleHighIndex() -> int
+{
+  auto owned = std::make_unique<sg::counters::FakeProvider>();
+  auto& provider = *owned;
+  provider.addCounter("machine", "monotonic", "nanoseconds", "wall clock");
+  provider.setPoints("machine", "monotonic", {0}, 4000);
+  provider.addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
+  provider.setPoints("machine", "thread_cpu", {0}, 2000);
+  provider.addCounter("machine",
+                      "tsc",
+                      "none",
+                      "raw tick counter",
+                      sg::counters::Availability::COUNTABLE,
+                      sg::counters::ReadMode::FAST_TSC);
+  provider.setPoints("machine", "tsc", {0}, 1);
+  const auto registered =
+      sg::counters::System::local().registerProvider(std::move(owned));
+  check(registered.has_value(), "the fresh process registers its fake (R-02)");
+  sg::detail::MachineLayout installed;
+  installed.readable = true;
+  installed.packages = 1;
+  const std::array<std::pair<std::uint32_t, std::uint32_t>, 4> cores {
+      {{0, 1}, {2, 3}, {8, 9}, {10, 11}}};
+  for (const auto& pair : cores) {
+    const auto core = static_cast<std::uint32_t>(installed.cores.size());
+    sg::detail::LayoutCore layoutCore;
+    layoutCore.groupOrdinal = 0;
+    installed.cores.push_back(layoutCore);
+    for (const auto cpu : {pair.first, pair.second}) {
+      sg::detail::LayoutThread thread;
+      thread.cpuIndex = cpu;
+      thread.coreOrdinal = core;
+      thread.groupOrdinal = 0;
+      installed.cores.at(core).threads.push_back(
+          static_cast<std::uint32_t>(installed.threads.size()));
+      installed.threads.push_back(thread);
+      installed.mask.push_back(cpu);
+    }
+  }
+  sg::detail::LayoutGroup layoutGroup;
+  layoutGroup.lowestCpu = 0;
+  for (std::uint32_t core = 0; core < 4; ++core) {
+    layoutGroup.cores.push_back(core);
+  }
+  installed.groups.push_back(layoutGroup);
+  sg::detail::installTestLayout(installed);
+  sg::detail::installTestOnlineCount(8);
+  auto pinned = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmIdlePinned");
+  pinned.threads(2).placement("core");
+  std::vector<std::string> arguments {
+      "--repetitions=1", "--iterations=2", "--jitter-probe=idle"};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
 // FR-015: the per-family probe the handle promises. The fresh process
 // registers one family whose handle names the probe and runs the batch
 // with no option named: the probed family's entries carry the folds of
@@ -1444,6 +1516,20 @@ auto scenarioEmptyMaskBeforeWalk() -> int
   return 0;
 }
 
+// FR-016, FR-041: the idle resolution yields the second block's lowest
+// free cpu, an index the count the threads report stands at or above,
+// and the probe starts on it with no failed contract: the run stands
+// status 0 and the console block names the picked cpu (FR-005).
+auto scenarioIdleHighIndex() -> int
+{
+  const Captured run =
+      runExecChild("--jitter-cli-child=idle-high-index", "idle-high-index");
+  check(run.status == 0, "the idle run stands status 0 (FR-016, FR-041)");
+  check(run.out.find("jitter probe: cpus 8") != std::string::npos,
+        "the probe starts on the cpu the set holds past the count (FR-005)");
+  return 0;
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmQuiet);
@@ -1465,6 +1551,11 @@ auto main(int argc, char** argv) -> int
     };
     if (mode == "--jitter-cli-child=empty-mask" && redirect("empty-mask")) {
       return childEmptyMask();
+    }
+    if (mode == "--jitter-cli-child=idle-high-index"
+        && redirect("idle-high-index"))
+    {
+      return childIdleHighIndex();
     }
     if (mode == "--jitter-cli-child=family-probe" && redirect("family-probe")) {
       return childFamilyProbe(false);
@@ -1536,6 +1627,7 @@ auto main(int argc, char** argv) -> int
   check(scenarioFamilyProbe() == 0, "familyProbe");
   check(scenarioFamilyVersusCommandLine() == 0, "familyVersusCommandLine");
   check(scenarioEmptyMaskBeforeWalk() == 0, "emptyMaskBeforeWalk");
+  check(scenarioIdleHighIndex() == 0, "idleHighIndex");
 
   // FR-011: the cpu list, `idle`, and every key parse once, each key
   // standing once in the value; the accepted value proceeds into the

@@ -645,12 +645,15 @@ ExecutionContext::ExecutionContext()
 ExecutionContext::ExecutionContext(const ContextPolicy policy)
 {
   // FR-005, SC-05: the host bound of the slot's index stands at the
-  // construction call, where the online cpu count stands; the placement
-  // itself lands on the context's thread at its start (D-04).
-  [[maybe_unused]] const auto onlineCpus =
-      static_cast<std::uint32_t>(std::thread::hardware_concurrency());
-  SG_REQUIRE(policy.placement.cpuIndex == kNoPin
-                 || policy.placement.cpuIndex < onlineCpus,
+  // construction call, where the online cpu set stands; the placement
+  // itself lands on the context's thread at its start (D-04). The set
+  // is the layout's own, so a count the threads report short of the
+  // set's highest index leaves the membership deciding (FR-005, FR-041).
+  const auto& onlineCpus = detail::layout().mask;
+  const bool online =
+      std::find(onlineCpus.begin(), onlineCpus.end(), policy.placement.cpuIndex)
+      != onlineCpus.end();
+  SG_REQUIRE(policy.placement.cpuIndex == kNoPin || online,
              "the policy's placement names a cpu the host lacks (FR-005)");
 
   // FR-002: one identity per live context, from the harness-wide
