@@ -361,17 +361,23 @@ auto main(const int argc, char** argv) -> int
 
   // FR-019, FR-006, R-10: the narrowing rule as one named step: a
   // pinned multi-context entry beside a live alongside probe narrows
-  // nothing, an unpinned entry narrows, the precheck mode narrows
-  // nothing, and no live probe narrows nothing (FR-019, R-10).
+  // nothing, an unpinned entry narrows, a multi-context entry whose
+  // placement is none narrows, the precheck mode narrows nothing, and
+  // no live probe narrows nothing (FR-019, R-10).
   {
     sg::Instance pinned = pinnedInstance();
     sg::Instance single = singlePinnedInstance();
+    sg::Instance unpinned = noneInstance();
     check(!sg::detail::narrowingApplies(
               pinned, true, sg::JitterProbeMode::ALONGSIDE),
           "a pinned multi-context entry narrows nothing (FR-019, R-10)");
     check(sg::detail::narrowingApplies(
               single, true, sg::JitterProbeMode::ALONGSIDE),
           "an unpinned entry narrows beside a live probe (FR-019, R-10)");
+    check(sg::detail::narrowingApplies(
+              unpinned, true, sg::JitterProbeMode::ALONGSIDE),
+          "a multi-context entry with no placement narrows beside a live "
+          "probe (FR-019, R-10)");
     check(!sg::detail::narrowingApplies(
               single, true, sg::JitterProbeMode::PRECHECK),
           "the precheck mode narrows nothing (FR-006, R-10)");
