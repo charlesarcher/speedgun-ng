@@ -234,8 +234,10 @@ struct CommandLineOptions
 /**
  * @brief The text of a value as one fault record carries it: a backslash
  * stands doubled, and a line break, a carriage return and a NUL byte each
- * stand named with their own words, so the fault of any source stays one line
- * whatever the value held (FR-024, FR-027, FR-035, SC-003).
+ * stand named with their own words. Every other byte a terminal acts on,
+ * which is each byte below 0x20 and the byte 0x7f, stands as `\xHH`, so the
+ * fault of any source stays one line and reads alike in a pipe and on a
+ * screen (FR-024, FR-027, FR-035, SC-003).
  */
 [[nodiscard]] auto quotedText(const std::string_view text) -> std::string;
 

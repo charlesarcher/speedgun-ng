@@ -61,9 +61,11 @@ namespace detail
 // detail/options.hpp (FR-024, FR-027, FR-035, SC-003).
 auto quotedText(const std::string_view text) -> std::string
 {
+  static constexpr std::string_view kHexDigits = "0123456789abcdef";
   std::string quoted;
   quoted.reserve(text.size());
   for (const char letter : text) {
+    const auto byte = static_cast<unsigned char>(letter);
     if (letter == '\\') {
       quoted += "\\\\";
     } else if (letter == '\n') {
@@ -72,6 +74,13 @@ auto quotedText(const std::string_view text) -> std::string
       quoted += "\\r";
     } else if (letter == '\0') {
       quoted += "\\0";
+    } else if (byte < 0x20 || byte == 0x7f) {
+      // A tab, an escape and the rest of that class move the cursor or
+      // erase a line, so the byte reaches the record as its own number
+      // (FR-027, SC-003).
+      quoted += "\\x";
+      quoted.push_back(kHexDigits[byte >> 4]);
+      quoted.push_back(kHexDigits[byte & 0x0f]);
     } else {
       quoted.push_back(letter);
     }
@@ -1756,8 +1765,11 @@ auto applyOptionFile(const OptionFileText& file, ResolvedOptions& resolved)
     const std::string_view name =
         equals == std::string_view::npos ? line : line.substr(0, equals);
     // Every fault of the file names the path and the line number, the way
-    // the environment names its variable (FR-031, FR-033, FR-035).
-    const std::string where = file.path + ":" + std::to_string(number);
+    // the environment names its variable (FR-031, FR-033, FR-035). The path
+    // is quoted at this one place, so the origin a dropped name carries
+    // reads as text wherever it is later printed (FR-027, FR-061).
+    const std::string where =
+        quotedText(file.path) + ":" + std::to_string(number);
     if (line.find('\0') != std::string_view::npos) {
       return std::unexpected(nulLine(where, line));
     }

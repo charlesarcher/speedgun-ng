@@ -318,10 +318,11 @@ auto readRule(std::string_view text) -> std::expected<CompareRule, std::string>
       try {
         static_cast<void>(std::regex(rule.filter));
       } catch (const std::regex_error& error) {
-        return ruleFault(
-            "filter",
-            text,
-            "'" + rule.filter + "' is no regular expression: " + error.what());
+        return ruleFault("filter",
+                         text,
+                         "'" + detail::quotedText(rule.filter)
+                             + "' is no regular expression: "
+                             + detail::quotedText(error.what()));
       }
     }
   }
@@ -1250,9 +1251,9 @@ auto missingValueFault(const CompareRule& rule,
                        std::string_view report,
                        const bool uncountable) -> std::string
 {
-  return "the rule '" + rule.text + "' finds no "
+  return "the rule '" + detail::quotedText(rule.text) + "' finds no "
       + (uncountable ? "countable " : "") + rule.valueName + " for "
-      + std::string(name) + " in the " + std::string(report) + " report";
+      + detail::quotedText(name) + " in the " + std::string(report) + " report";
 }
 
 // The availability of the metric column a value name reads in one row,
@@ -1376,8 +1377,8 @@ auto scopedValuesOf(const std::vector<PairSite>& matched,
   // D-19, which answers no entry and no fault.
   if (comparable == 0 && !firstPaired.empty()) {
     return std::unexpected(
-        "the rule '" + rule.text
-        + "' reaches no comparable row: " + std::string(firstPaired)
+        "the rule '" + detail::quotedText(rule.text)
+        + "' reaches no comparable row: " + detail::quotedText(firstPaired)
         + " holds no row the rule can read in either report");
   }
   return scope;
@@ -1460,8 +1461,8 @@ auto compareReportValues(const ReportData& baseline,
   if (!baselineMajor || baselineMajor != contenderMajor) {
     return std::unexpected(
         "the two reports carry no common schema major version: '"
-        + baseline.schemaVersion + "' against '" + contender.schemaVersion
-        + "'");
+        + detail::quotedText(baseline.schemaVersion) + "' against '"
+        + detail::quotedText(contender.schemaVersion) + "'");
   }
   const std::vector<PairSite> matched = matchPair(baseline, contender);
   // FR-035: every rule walks its whole scope before any value is compared.
@@ -1542,7 +1543,7 @@ auto runCompareMode(const RunOptions& options) -> CompareExit
     std::fprintf(stderr,
                  "error: the compare document '%s' was rejected: %s\n",
                  detail::quotedText(options.compareBaseline).c_str(),
-                 detail::quotedText(baseline.error()).c_str());
+                 baseline.error().c_str());
     return {.status = 2, .failed = true};
   }
   auto contender = loadReport(options.compareContender);
@@ -1550,7 +1551,7 @@ auto runCompareMode(const RunOptions& options) -> CompareExit
     std::fprintf(stderr,
                  "error: the compare document '%s' was rejected: %s\n",
                  detail::quotedText(options.compareContender).c_str(),
-                 detail::quotedText(contender.error()).c_str());
+                 contender.error().c_str());
     return {.status = 2, .failed = true};
   }
   // D-12, FR-050: `--filter` scopes the loaded values. The command line
@@ -1617,13 +1618,13 @@ auto printCompareTable(const CompareResult& result,
   // FR-056: the header names the two files and, for each report, the two
   // texts the load call read.
   std::printf("compare: baseline %s (speedgun %s, schema %s)\n",
-              baselinePath.c_str(),
-              baseline.speedgunVersion.c_str(),
-              baseline.schemaVersion.c_str());
+              detail::quotedText(baselinePath).c_str(),
+              detail::quotedText(baseline.speedgunVersion).c_str(),
+              detail::quotedText(baseline.schemaVersion).c_str());
   std::printf("compare: contender %s (speedgun %s, schema %s)\n",
-              contenderPath.c_str(),
-              contender.speedgunVersion.c_str(),
-              contender.schemaVersion.c_str());
+              detail::quotedText(contenderPath).c_str(),
+              detail::quotedText(contender.speedgunVersion).c_str(),
+              detail::quotedText(contender.schemaVersion).c_str());
   // FR-053: the seven columns of one row. The name field takes the
   // console report's width, so a long instance name overflows its field
   // the way a report row does.
@@ -1754,8 +1755,8 @@ auto writeCompareReport(const std::string& path,
   if (!stream.is_open()) {
     std::fprintf(stderr,
                  "error: the comparison file '%s' cannot be opened: %s\n",
-                 path.c_str(),
-                 std::strerror(errno));
+                 detail::quotedText(path).c_str(),
+                 detail::quotedText(std::strerror(errno)).c_str());
     return false;
   }
   stream.write(text->data(), static_cast<std::streamsize>(text->size()));
@@ -1763,8 +1764,8 @@ auto writeCompareReport(const std::string& path,
   if (stream.fail()) {
     std::fprintf(stderr,
                  "error: the comparison file '%s' could not be written: %s\n",
-                 path.c_str(),
-                 std::strerror(errno));
+                 detail::quotedText(path).c_str(),
+                 detail::quotedText(std::strerror(errno)).c_str());
     return false;
   }
   return true;
