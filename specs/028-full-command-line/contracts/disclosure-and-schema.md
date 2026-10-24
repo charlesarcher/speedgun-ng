@@ -91,8 +91,9 @@ document above reads as a report whose `run` key the reader ignores.
 
 `detail::writeReport` takes a `RunDisclosure` (E-08) beside the
 `ReportData` it already takes. `ReportData` gains no field and the
-public headers gain no symbol, so the harness `SOVERSION` stays 10
-(`CMakeLists.txt:261`) and the archive `SOVERSION` stays 3 (`:53`)
+public headers gain no symbol, so the harness `SOVERSION` stays at the
+value `master` carries (`CMakeLists.txt:261`) and the archive
+`SOVERSION` stays 3 (`:53`)
 (FR-076, FR-077, research D-24).
 
 ## Oracle

@@ -212,9 +212,11 @@ gains the typed command lines and the fenced block at
 The option-row check of `tools/docs/example_drift.py` follows the table
 to `source/harness/options.cpp` in the same task as the move, and the
 liveness fixture moves with it (D-20, FR-075). The public headers gain
-no symbol, so the harness `SOVERSION` stays 10 and the archive
-`SOVERSION` stays 3 (D-24, FR-076, FR-077). The project version and the
-schema minor are read from master at rebase (D-19, FR-078, FR-086). The
+no symbol, so the harness `SOVERSION` stays at the value `master`
+carries and the archive `SOVERSION` stays 3 (D-24, FR-076, FR-077). The
+project version and the schema minor are read from master at rebase
+(D-19, FR-078, FR-086). The fix branch 028b takes the patch 0.18.1, the
+next version above master at its last rebase. The
 new tests set no environment, run no sleep, read no clock and name no
 cpu count (FR-081, D-29). The exit status table of
 `specs/015-benchmark-harness-core/contracts/cli.md` gains the new rows

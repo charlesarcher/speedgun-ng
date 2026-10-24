@@ -1076,7 +1076,8 @@ and run the example through `example_run`.
 - **FR-077**: The `speedgun-ng` archive `SOVERSION` shall stay 3
   (PC-8).
 - **FR-078**: The project version shall take the next free minor at rebase
-  time, 0.18.0 under the planned merge order.
+  time, 0.18.0 under the planned merge order. The fix branch 028b takes
+  the patch 0.18.1, the next version above master at its last rebase.
 - **FR-079**: One test file, `test/source/harness_cli_table_test.cpp`,
   shall check that every option name and every option value in the table is
   unique, and that the values 256 to 259 keep their options.
