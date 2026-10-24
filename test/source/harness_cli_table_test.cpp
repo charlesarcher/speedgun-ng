@@ -759,7 +759,7 @@ auto theBaseOptionsKeepTheirMasterValues(const std::vector<Row>& rows) -> void
 auto theSevenNewNamesTakeTheReservedConstants(const std::vector<Row>& rows)
     -> void
 {
-  for (std::size_t index = kMasterRows; index < kContract.size(); ++index) {
+  for (std::size_t index = kMasterRows; index < kRowsBeforeHunt; ++index) {
     const auto& expected = kContract[index];
     const std::string label = "the new row '" + std::string(expected.name)
         + "' takes the constant " + std::to_string(expected.value)
