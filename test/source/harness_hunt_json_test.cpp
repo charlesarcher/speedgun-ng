@@ -387,17 +387,39 @@ struct Hunted
 // The document
 // ---------------------------------------------------------------------------
 
-constexpr const char* kScratchPath = "harness_hunt_json_document.json";
-
-// The child mode, its scratch files and the committed capture beside them. The
-// capture is `hunt_no_hunt_*`: what a run with no `--hunt` wrote before the
-// hunt keys, held as bytes (SC-006).
+// The child mode, the benchmark it registers and the committed capture it
+// must match. The capture is `hunt_no_hunt_*`: what a run with no `--hunt`
+// wrote before the hunt keys, held as bytes (SC-006).
 constexpr const char* kCaptureMode = "capture-no-hunt";
-constexpr const char* kCaptureDocument = "harness_hunt_json_capture.json";
-constexpr const char* kCaptureConsole = "harness_hunt_json_capture_console.txt";
 constexpr const char* kCaptureCase = "bmHuntJsonCapture";
 constexpr const char* kCommittedDocument = "hunt_no_hunt_document.json";
 constexpr const char* kCommittedConsole = "hunt_no_hunt_console.txt";
+
+// The three scratch files of this run, named with a prefix no second process
+// on the machine shares, so a concurrent `ctest` run cannot take them and a
+// check cannot read another run's bytes (T168). The capture child is told the
+// prefix of the run that spawned it, so parent and child meet at one set of
+// names.
+auto scratchPrefix = std::string {};
+auto scratchDocument = std::string {};
+auto captureDocument = std::string {};
+auto captureConsole = std::string {};
+
+auto adoptScratch(const std::string& prefix) -> void
+{
+  scratchPrefix = prefix;
+  scratchDocument = prefix + "harness_hunt_json_document.json";
+  captureDocument = prefix + "harness_hunt_json_capture.json";
+  captureConsole = prefix + "harness_hunt_json_capture_console.txt";
+}
+
+// Whatever route a run exits on, it leaves no scratch behind.
+auto clearScratch() -> void
+{
+  std::remove(scratchDocument.c_str());
+  std::remove(captureDocument.c_str());
+  std::remove(captureConsole.c_str());
+}
 
 auto selfPath = std::string {};
 
@@ -456,14 +478,14 @@ auto dataArgument = std::string {};
   if (hunted != nullptr) {
     data.hunt = hunted->run;
   }
-  check(sg::detail::writeReport(kScratchPath, data),
+  check(sg::detail::writeReport(scratchDocument, data),
         "the writer wrote the document");
   return data;
 }
 
 [[nodiscard]] auto documentText() -> std::string
 {
-  auto file = std::ifstream(kScratchPath);
+  auto file = std::ifstream(scratchDocument);
   auto buffer = std::stringstream {};
   buffer << file.rdbuf();
   return buffer.str();
@@ -866,7 +888,7 @@ auto huntRoundTrip() -> void
   check(text.find("\"rank\":null") != std::string::npos,
         "an unranked event is written with a null rank");
 
-  const auto loaded = sg::loadReport(kScratchPath);
+  const auto loaded = sg::loadReport(scratchDocument);
   if (!loaded.has_value()) {
     failed("the hunt document refuses to load: " + loaded.error());
   }
@@ -1159,8 +1181,8 @@ auto readerRefusals() -> void
   static_cast<void>(writeReportDocument(&hunted));
   const auto text = documentText();
   for (const auto& plant : kPlants) {
-    sg::test::writeText(kScratchPath, planted(text, plant));
-    const auto answer = sg::loadReport(kScratchPath);
+    sg::test::writeText(scratchDocument, planted(text, plant));
+    const auto answer = sg::loadReport(scratchDocument);
     if (answer.has_value()) {
       failed("the reader accepted " + std::string(plant.what));
     }
@@ -1183,7 +1205,7 @@ auto huntLessDocument() -> void
   check(text.find("\"hunt\"") == std::string::npos,
         "a report with no hunt writes no hunt key");
 
-  const auto loaded = sg::loadReport(kScratchPath);
+  const auto loaded = sg::loadReport(scratchDocument);
   if (!loaded.has_value()) {
     failed("the hunt-less document refuses to load: " + loaded.error());
   }
@@ -1222,7 +1244,7 @@ auto twoStageDocument() -> void
   check(objectCount(text, runNode, "events") == 0,
         "the events array holds addresses, not objects");
 
-  const auto loaded = sg::loadReport(kScratchPath);
+  const auto loaded = sg::loadReport(scratchDocument);
   if (!loaded.has_value()) {
     failed("the two-stage hunt document refuses to load: " + loaded.error());
   }
@@ -1326,7 +1348,8 @@ auto captureCaseBody(sg::State& state) -> void
     argv.push_back(const_cast<char*>(argument.c_str()));
   }
   const int saved = dup(STDOUT_FILENO);
-  if (saved < 0 || std::freopen(kCaptureConsole, "w", stdout) == nullptr) {
+  if (saved < 0 || std::freopen(captureConsole.c_str(), "w", stdout) == nullptr)
+  {
     fail("cannot redirect the report of the captured run");
   }
   *status = sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
@@ -1335,7 +1358,7 @@ auto captureCaseBody(sg::State& state) -> void
     fail("cannot restore stdout after the captured run");
   }
   close(saved);
-  auto file = std::ifstream(kCaptureConsole);
+  auto file = std::ifstream(captureConsole);
   auto buffer = std::stringstream {};
   buffer << file.rdbuf();
   return buffer.str();
@@ -1356,14 +1379,14 @@ auto captureNoHuntRun() -> void
       sg::registerBenchmark(&captureCaseBody, kCaptureCase).iterations(1);
   static_cast<void>(kHandle);
 
-  std::remove(kCaptureDocument);
-  std::remove(kCaptureConsole);
+  std::remove(captureDocument.c_str());
+  std::remove(captureConsole.c_str());
   auto status = 0;
   const auto console = captureRun({"--filter",
                                    "^bmHuntJsonCapture$",
-                                   std::string("--json=") + kCaptureDocument},
+                                   std::string("--json=") + captureDocument},
                                   &status);
-  sg::test::writeText(kCaptureConsole, console);
+  sg::test::writeText(captureConsole, console);
   std::printf("status=%d\n", status);
 }
 
@@ -1372,9 +1395,10 @@ auto captureNoHuntRun() -> void
 // values that state which build wrote the file.
 auto noHuntBytesMatchCapture() -> void
 {
-  std::remove(kCaptureDocument);
-  std::remove(kCaptureConsole);
-  const auto command = "\"" + selfPath + "\" " + kCaptureMode + " 2>/dev/null";
+  std::remove(captureDocument.c_str());
+  std::remove(captureConsole.c_str());
+  const auto command = "\"" + selfPath + "\" " + kCaptureMode + " \""
+      + scratchPrefix + "\" 2>/dev/null";
   auto output = std::string {};
   FILE* const pipe = popen(command.c_str(), "r");
   if (pipe == nullptr) {
@@ -1387,10 +1411,10 @@ auto noHuntBytesMatchCapture() -> void
   const int pipeStatus = pclose(pipe);
   check(WIFEXITED(pipeStatus) && WEXITSTATUS(pipeStatus) == 0,
         "the capture child ran the run");
-  auto document = sg::test::readText(kCaptureDocument);
-  auto console = sg::test::readText(kCaptureConsole);
-  std::remove(kCaptureDocument);
-  std::remove(kCaptureConsole);
+  auto document = sg::test::readText(captureDocument);
+  auto console = sg::test::readText(captureConsole);
+  std::remove(captureDocument.c_str());
+  std::remove(captureConsole.c_str());
 
   const auto wantDocument = sg::test::readText(dataPath(kCommittedDocument));
   const auto wantConsole =
@@ -1455,10 +1479,18 @@ auto main(const int argc, char** argv) -> int
 {
   selfPath =
       argc > 0 && argv[0] != nullptr ? argv[0] : "harness_hunt_json_test";
+  adoptScratch("harness_hunt_json_" + std::to_string(getpid()) + "_");
   if (argc > 1 && std::string_view(argv[1]) == kCaptureMode) {
+    // The child writes where the parent can read: the prefix of the run that
+    // spawned it travels as the argument beside the mode name, the slot the
+    // registered commands give the fixture directory.
+    if (argc > 2 && argv[2] != nullptr) {
+      adoptScratch(argv[2]);
+    }
     captureNoHuntRun();
     return 0;
   }
+  std::atexit(&clearScratch);
   if (argc > 2 && argv[2] != nullptr) {
     dataArgument = argv[2];
   }
