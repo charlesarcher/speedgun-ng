@@ -1661,6 +1661,44 @@ auto childFamilyUnavailable(const bool strict) -> int
   return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
 }
 
+// FR-015: two families, each with a handle of its own. The walk starts
+// the second family's probe as the first family ends, so the live
+// session of the first meets the stop there and one report carries both
+// families' reads.
+auto childFamilyTwoFamilies() -> int
+{
+  scriptedProvider();
+  const auto cpus = pickCpus(1);
+  auto first = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmFamOne");
+  auto second = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmFamTwoFam");
+  for (auto handle : {first, second}) {
+    sg::JitterProbeOptions probeOptions;
+    probeOptions.cpus.push_back(cpus.front());
+    probeOptions.thresholdNs = 65000;
+    probeOptions.gapCount = 2000000;
+    handle.jitterProbe(probeOptions);
+  }
+  std::vector<std::string> arguments {"--repetitions=1", "--iterations=2"};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
 // FR-015: one family, two argument lists, and the family's own probe.
 // The probe stands once for the family: it starts before the first
 // instance and stops behind the last, and the second instance joins
@@ -1871,6 +1909,18 @@ auto scenarioFamilyUnavailable() -> int
   return 0;
 }
 
+// FR-015: the two-family run finishes with one report that carries the
+// reads of both families' probes.
+auto scenarioFamilyTwoFamilies() -> int
+{
+  const Captured run = runExecChild("--jitter-cli-child=family-two-families",
+                                    "family-two-families");
+  check(run.status == 0, "two probed families finish the run (FR-015)");
+  check(run.out.find("jitter: cpu ") != std::string::npos,
+        "one report carries the probe reads (FR-015)");
+  return 0;
+}
+
 auto scenarioFamilyVersusCommandLine() -> int
 {
   const Captured run =
@@ -1975,6 +2025,11 @@ auto main(int argc, char** argv) -> int
     {
       return childFamilyOverlap();
     }
+    if (mode == "--jitter-cli-child=family-two-families"
+        && redirect("family-two-families"))
+    {
+      return childFamilyTwoFamilies();
+    }
     if (mode == "--jitter-cli-child=family-narrowed-empty"
         && redirect("family-narrowed-empty"))
     {
@@ -2063,6 +2118,7 @@ auto main(int argc, char** argv) -> int
   check(scenarioFamilyIdleRun() == 0, "familyIdleRun");
   check(scenarioFamilyOverlapRun() == 0, "familyOverlapRun");
   check(scenarioFamilyTwoInstances() == 0, "familyTwoInstances");
+  check(scenarioFamilyTwoFamilies() == 0, "familyTwoFamilies");
   check(scenarioFamilyUnavailableStrict() == 0, "familyUnavailableStrict");
   check(scenarioFamilyUnavailable() == 0, "familyUnavailable");
   check(scenarioFamilyNarrowedEmpty() == 0, "familyNarrowedEmpty");
