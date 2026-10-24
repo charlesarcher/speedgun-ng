@@ -4,8 +4,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <type_traits>
-#include <utility>
 #include <vector>
 
 #include "speedgun-ng/hunt.hpp"
@@ -14,6 +12,22 @@
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
 #include "speedgun-ng/counters_fake.hpp"
+
+// The hunt lines belong to the report printers of the library: `printHuntPlan`
+// owns the plan line, `printHuntRanking` the ranked table, and `printHuntSkips`
+// the skipped list with the plan summary that closes the block (FR-040, FR-041,
+// PD-15). They are defined in `source/harness/report.cpp` below the report's
+// own declaration and carry no header of their own, so they are declared here
+// the way `test/source/harness_hunt_report_test.cpp` declares them: the
+// definitions stand at namespace scope and this file names the same functions.
+namespace sg::detail
+{
+auto printHuntPlan(const hunt::RunHunt& run) -> void;
+auto printHuntRanking(const hunt::EntryHunt& hunt,
+                      const hunt::HuntNorm norm) -> void;
+auto printHuntSkips(const hunt::EntryHunt& hunt,
+                    const hunt::RunHunt& run) -> void;
+}  // namespace sg::detail
 
 namespace
 {
@@ -103,58 +117,37 @@ auto rankHuntEvents(const std::vector<sg::hunt::EventSamples>& collected,
 
 // sg-example:end hunt-rank
 
-// sg-example:begin hunt-print
-// The refusal words are the words `--catalog` prints, indexed by the
-// enumeration the skipped entry carries (FR-021, FR-040).
-constexpr std::array<const char*, 5> kSkippedWords {
-    "permission-blocked", "not-encodable", "absent", "scope-refused", "gap"};
-
-// The ranked table and the skipped list of one hunt. The third mark names the
-// event that left the table on its size alone (D-7, D-8, FR-040, FR-041).
-auto printHunt(const sg::hunt::EntryHunt& hunt) -> void
+// The run-level record the three printers read. Every figure of a hunt line is
+// a field of it, so this file states no line shape of its own: the plan the
+// planner answered fills what the run path fills from the passes it measured
+// (E-07, E-08, PD-10). The example hands the planner no calibration figure and
+// names no budget, so the two fields carry E-07's words `not available` and
+// `none` out of that record.
+auto makeRunRecord(const sg::hunt::HuntPlan& plan,
+                   const std::vector<sg::hunt::EventSamples>& collected,
+                   const sg::hunt::HuntOptions& options) -> sg::hunt::RunHunt
 {
-  for (const auto& entry : hunt.entries) {
-    if (entry.rank.has_value()) {
-      std::printf("hunt: rank %zu %s instr=%.3f cv=%.2f\n",
-                  *entry.rank,
-                  entry.address.c_str(),
-                  entry.rate,
-                  entry.cv);
-      continue;
-    }
-    std::printf(
-        "hunt: rank - %s instr=%.3f cv=%.2f mark=%s\n",
-        entry.address.c_str(),
-        entry.rate,
-        entry.cv,
-        entry.noisy ? "noisy" : (entry.repeated ? "beyond-top" : "unrepeated"));
+  auto record = sg::hunt::RunHunt {};
+  record.selection = options.selection;
+  record.options = options;
+  record.passes = plan.passes.size();
+  record.method = plan.method;
+  record.estimateNs = plan.estimateNs;
+  for (const auto& column : plan.columns) {
+    record.plannedAddresses.push_back(column.event);
   }
-  for (const auto& skipped : hunt.skipped) {
-    std::printf("hunt: skipped %s %s\n",
-                skipped.address.c_str(),
-                kSkippedWords[std::to_underlying(skipped.kind)]);
+  for (const auto& stage : plan.stages) {
+    record.stages.push_back(sg::hunt::HuntStageRange {
+        .first = stage.columns.front(),
+        .count = stage.columns.size(),
+        .repeats = stage.repeats,
+    });
   }
-}
-
-// sg-example:end hunt-print
-
-// The words the plan line prints for the settled collection method, the
-// capital words the data model spells (E-07, hunt-cli.md).
-constexpr std::array<const char*, 3> kMethodWords {
-    "AUTO", "PASSES", "MULTIPLEX"};
-
-// The plan line hunt-cli.md prints once per hunt run, spelled from the plan
-// `planHunt` settled for the scripted selection. The example hands the
-// planner no calibration figure and names no budget, so those two fields
-// carry E-07's words `not available` and `none`.
-auto printPlanLine(const sg::hunt::HuntPlan& plan) -> void
-{
-  std::printf(
-      "hunt: plan events=%zu passes=%zu method=%s"
-      " estimate=not available budget=none\n",
-      plan.columns.size(),
-      plan.passes.size(),
-      kMethodWords[std::to_underlying(*plan.method)]);
+  // FR-041: the summary counts the addresses a window rated, and every scripted
+  // column of this file arrives anchored and sampled, so the count is the
+  // number of collected addresses.
+  record.ranEvents = collected.size();
+  return record;
 }
 
 }  // namespace
@@ -205,7 +198,14 @@ auto main(int argc, char** argv) -> int
     std::fprintf(stderr, "hunt: %s\n", plan.error().message.c_str());
     return status != 0 ? status : 2;
   }
-  printPlanLine(*plan);
-  printHunt(rankHuntEvents(collectedRows(), refused, options));
+  const auto rows = collectedRows();
+  const auto record = makeRunRecord(*plan, rows, options);
+  const auto hunt = rankHuntEvents(rows, refused, options);
+  // One call per line family, in the order the report prints them: the plan
+  // line, the ranked table, then the skipped list with its summary (PD-15).
+  sg::detail::printHuntPlan(record);
+  sg::detail::printHuntRanking(
+      hunt, record.options.norm.value_or(sg::hunt::HuntNorm::INSTR));
+  sg::detail::printHuntSkips(hunt, record);
   return status;
 }

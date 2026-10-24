@@ -1413,8 +1413,8 @@ existed.
 <!-- sg-sample-output: example/docs/hunt_rank.expected#report -->
 ```text
 speedgun-ng 0.19.0 build=Release
-bmHunt/8                 iterations= 231869456  real time/iter (ns)=    3.438  cpu time/iter (ns)=    2.939  overhead floor (ns)=  677.000  endpoint samples=2
-bmHunt/64                iterations=  27430438  real time/iter (ns)=   30.484  cpu time/iter (ns)=   24.900  overhead floor (ns)=  677.000  endpoint samples=2
+bmHunt/8                 iterations= 262004939  real time/iter (ns)=    2.677  cpu time/iter (ns)=    2.672  overhead floor (ns)=  671.000  endpoint samples=2
+bmHunt/64                iterations=  32779693  real time/iter (ns)=   21.392  cpu time/iter (ns)=   21.357  overhead floor (ns)=  671.000  endpoint samples=2
 hunt: plan events=5 passes=3 method=PASSES estimate=not available budget=none
 hunt: rank 1 cpu/hunt_branches instr=2000.000 cv=0.00
 hunt: rank 2 cpu/hunt_loads instr=1000.000 cv=0.00
@@ -1423,6 +1423,7 @@ hunt: rank - cpu/hunt_stalls instr=3000.000 cv=33.33 mark=noisy
 hunt: rank - cpu/hunt_stores instr=0.000 cv=0.00 mark=beyond-top
 hunt: skipped cpu/hunt_blocked permission-blocked
 hunt: skipped cpu/hunt_noenc not-encodable
+hunt: plan summary events=5/7 passes=3 budget=none
 ```
 
 ### Selecting events
@@ -1512,7 +1513,7 @@ The plan line prints once above the first result row, the cut line directly
 under it, and the lines that rank print after the benchmark tables.
 
 ```text
-hunt: plan events=42 passes=14 method=PASSES estimate=1260000ns budget=120s
+hunt: plan events=42 passes=14 method=PASSES estimate=1260000ns budget=120s stage1=42 stage2=42
 hunt: rank 1 cpu/instructions_retired_any instr=1042.300 cv=1.20
 hunt: rank 2 cpu/l2_lines_out.any_core instr=6.910 cv=2.05 multiplexed
 hunt: rank - cpu/mem_load_stalled_on_l2 instr=2.110 cv=24.80 mark=noisy
@@ -1533,7 +1534,9 @@ rule reserves the monotonic clock for the counters layer, whose measurement this
 figure is. A hunt that measures no pass prints `estimate=not available`: the
 entry of a dry run runs nothing to measure, and so does a host that refuses the
 seat of the pass. A seconds budget is read against the
-estimate, which is why the estimate decides the two-stage run. The rank lines
+estimate, which is why the estimate decides the two-stage run. A plan the budget
+splits names both stages, `stage1=` and `stage2=`, each with the events it
+measures, and a plan of one stage names none. The rank lines
 carry the rate under the label of the
 norm in force, `instr=`, `cycle=` or `iter=`. A skipped line names the address
 and the kind of the refusal in the words the `--catalog` listing prints. The

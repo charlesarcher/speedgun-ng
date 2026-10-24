@@ -754,7 +754,7 @@ finding this round filed as owned, so the section holds eleven rows.
       `:1201` and `ranEvents == 0` at `:1212` under a name that states the
       other outcome, so it moves with the fix (AC-4, FR-023, PD-08).
 
-- [ ] T159 Send the hunter example through the hunt route. The example
+- [x] T159 Send the hunter example through the hunt route. The example
       writes its own printers: `example/docs/hunt_rank.cpp` keeps its own
       skipped-kind table at `:109` (a third spelling beside
       `report.cpp:27` and `json_report.cpp`), its own rank and skip line
@@ -785,7 +785,7 @@ finding this round filed as owned, so the section holds eleven rows.
       exist, name the preset that carries each analyzer, and leave ticked
       only what stands there.
 
-- [ ] T161 Fix the plan line of the worked hunt example at
+- [x] T161 Fix the plan line of the worked hunt example at
       `docs/pages/harness.md:1458`: `hunt: plan events=42 passes=14
       method=PASSES estimate=1260000ns budget=120s` carries no `stage1=` or
       `stage2=`, while the run it shows sets a budget over a plan that
