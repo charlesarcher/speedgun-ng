@@ -247,6 +247,11 @@
 //                                row, and a handed table answers the one
 //                                entry the prefix covers (FR-012,
 //                                FR-021, FR-026)
+//   anEmptyEnvironmentValueIsRefused
+//                                a variable that holds nothing answers one
+//                                line naming itself at status 2, for every
+//                                row the environment may name (FR-024,
+//                                FR-027, SC-003)
 //   aBadLetterOfAShortGroupAfterALongOption
 //                                the letter a short group is refused on
 //                                is named by the group's own line behind
@@ -2431,6 +2436,36 @@ auto theEnvironmentWalkReadsTheTableItIsGiven() -> void
         "the walk answers the one entry the prefix covers (FR-021, FR-026)");
 }
 
+// A variable whose value stands empty hands the row a value no reader
+// settles, so the gather answers it ahead of the reader and the line names
+// the variable (FR-024, FR-027, SC-003, the edge case of FR-023). The same
+// word of the command line keeps the answer of its own row: an empty filter
+// pattern settles the row it names (FR-035).
+auto anEmptyEnvironmentValueIsRefused() -> void
+{
+  for (const sg::detail::OptionRow& row : sg::detail::optionRows()) {
+    if (!row.fromEnvironment) {
+      continue;
+    }
+    std::string name {"SPEEDGUN_"};
+    for (const char letter : std::string_view {row.name}) {
+      name.push_back(letter == '-' ? '_' : (letter >= 'a' && letter <= 'z'
+                                                ? static_cast<char>(letter - 32)
+                                                : letter));
+    }
+    const std::string what = "an empty value of " + name;
+    oneFaultLine(runEntryWithEnv({}, {name + "="}),
+                 what.c_str(),
+                 {name + ":", std::string("--") + row.name});
+  }
+
+  const Gathered empty = gather({"--filter="}, {});
+  check(empty.settled.has_value(),
+        "an empty filter word of the command line settles its own row "
+        "(FR-035)");
+}
+
+
 auto aBadLetterOfAShortGroupAfterALongOption() -> void
 {
   // FR-007, FR-005: the letter a short group is refused on belongs to the
@@ -3211,6 +3246,7 @@ auto main(int argc, char** argv) -> int
   theBareFlagOfEverySourceSettlesItsRow();
   theFourRefusedRowsAnswerTheirOwnLines();
   theEnvironmentWalkReadsTheTableItIsGiven();
+  anEmptyEnvironmentValueIsRefused();
   aBadLetterOfAShortGroupAfterALongOption();
   everyRefusedRowLineFaultsTheEntry();
   aWordOfTwoValuesFaultsTheEntry();
