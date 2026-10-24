@@ -1584,6 +1584,45 @@ auto childFamilyOverlap() -> int
   return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
 }
 
+// FR-015, FR-019: the family probe whose cpus fill the affinity mask.
+// The instance asks for two threads and stands unpinned, so the walk
+// narrows the mask to what the probe leaves. Nothing stands left, so
+// the run refuses with one line naming the benchmark.
+auto childFamilyNarrowedEmpty() -> int
+{
+  scriptedProvider();
+  auto handle = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmFamNarrow");
+  handle.threads(2);
+  sg::JitterProbeOptions probeOptions;
+  cpu_set_t mask {};
+  CPU_ZERO(&mask);
+  if (sched_getaffinity(0, sizeof(mask), &mask) != 0) {
+    fail("the child cannot read its own affinity mask");
+  }
+  for (std::size_t cpu = 0; cpu < static_cast<std::size_t>(CPU_SETSIZE); ++cpu)
+  {
+    if (CPU_ISSET(cpu, &mask) != 0) {
+      probeOptions.cpus.push_back(static_cast<std::uint32_t>(cpu));
+    }
+  }
+  probeOptions.thresholdNs = 65000;
+  probeOptions.gapCount = 2000000;
+  handle.jitterProbe(probeOptions);
+  std::vector<std::string> arguments {"--repetitions=1", "--iterations=2"};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
 // FR-015: one family, two argument lists, and the family's own probe.
 // The probe stands once for the family: it starts before the first
 // instance and stops behind the last, and the second instance joins
@@ -1750,6 +1789,21 @@ auto scenarioFamilyPrecheckIdle() -> int
   return 0;
 }
 
+// FR-015, FR-019: a family probe that fills the mask leaves the
+// two-thread instance no cpu to run on. The run answers one line naming
+// that benchmark and leaves status two behind.
+auto scenarioFamilyNarrowedEmpty() -> int
+{
+  const Captured run = runExecChild("--jitter-cli-child=family-narrowed-empty",
+                                    "family-narrowed-empty");
+  check(run.status == 2,
+        "the family probe that fills the mask stops with status 2 (FR-019)");
+  check(run.err.find("the probe cpus leave no cpu for 'bmFamNarrow/threads:2'")
+            != std::string::npos,
+        "the refusal names the benchmark left without a cpu (FR-019)");
+  return 0;
+}
+
 auto scenarioFamilyVersusCommandLine() -> int
 {
   const Captured run =
@@ -1854,6 +1908,11 @@ auto main(int argc, char** argv) -> int
     {
       return childFamilyOverlap();
     }
+    if (mode == "--jitter-cli-child=family-narrowed-empty"
+        && redirect("family-narrowed-empty"))
+    {
+      return childFamilyNarrowedEmpty();
+    }
     if (mode == "--jitter-cli-child=family-precheck-idle"
         && redirect("family-precheck-idle"))
     {
@@ -1927,6 +1986,7 @@ auto main(int argc, char** argv) -> int
   check(scenarioFamilyIdleRun() == 0, "familyIdleRun");
   check(scenarioFamilyOverlapRun() == 0, "familyOverlapRun");
   check(scenarioFamilyTwoInstances() == 0, "familyTwoInstances");
+  check(scenarioFamilyNarrowedEmpty() == 0, "familyNarrowedEmpty");
   check(scenarioFamilyPrecheckIdle() == 0, "familyPrecheckIdle");
   check(scenarioFamilyVersusCommandLine() == 0, "familyVersusCommandLine");
   check(scenarioEmptyMaskBeforeWalk() == 0, "emptyMaskBeforeWalk");
