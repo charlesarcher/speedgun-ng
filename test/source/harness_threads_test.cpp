@@ -308,6 +308,44 @@ auto captureRun(const std::vector<std::string>& arguments) -> std::string
   return report;
 }
 
+// The console report of a run the library drove: `printResult` behind the
+// stdout capture, the seam harness_context_report_test.cpp prints through.
+auto printedReport(const sg::BenchmarkResult& result) -> std::string
+{
+  const char* const path = "harness_threads_out.txt";
+  const int saved = dup(STDOUT_FILENO);
+  if (saved < 0 || std::freopen(path, "w", stdout) == nullptr) {
+    fail("cannot redirect the report");
+  }
+  sg::detail::printResult(result);
+  std::fflush(stdout);
+  if (dup2(saved, STDOUT_FILENO) < 0) {
+    fail("cannot restore stdout");
+  }
+  close(saved);
+
+  std::ifstream file(path);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  return buffer.str();
+}
+
+// The registry instance whose name the filter prefix `name` opens, after the
+// expansion that opens it. The threaded dimension joins the name, so the
+// match is the prefix match of `--filter`.
+auto needInstance(const std::string& name) -> sg::Instance*
+{
+  sg::detail::expandRegistry();
+  sg::Instance* found = nullptr;
+  for (auto& instance : sg::detail::instances()) {
+    if (instance.name.starts_with(name)) {
+      found = &instance;
+    }
+  }
+  check(found != nullptr, "the expansion produced the named instance");
+  return found;
+}
+
 auto lineOf(const std::string& report, const std::string& name) -> std::string
 {
   std::istringstream stream(report);
@@ -856,11 +894,16 @@ auto scenarioUnavailableFold() -> int
                      "work");
   threaded.threads(2);
 
-  const std::string report = captureRun({"--filter",
-                                         "^bmThreadsStale",
-                                         "--iterations=4",
-                                         "--counter=fake/work",
-                                         "--counter=machine/nosuch"});
+  // FR-087: the entry point refuses the address this host does not find, so
+  // the column of that address reaches the console through the runner, which
+  // keeps the answer FR-023 of spec 015 leaves to a library caller.
+  sg::detail::RunOptions options;
+  options.fixedIterations = 4;
+  options.counterAddresses = {"fake/work", "machine/nosuch"};
+  sg::detail::Runner runner(options);
+  const sg::BenchmarkResult result =
+      runner.run(*needInstance("bmThreadsStale"));
+  const std::string report = printedReport(result);
   const std::string merged = lineOf(report, "bmThreadsStale");
   check(!merged.empty(),
         "the threaded row prints beside gapped and absent columns (FR-016)");

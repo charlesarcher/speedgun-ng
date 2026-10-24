@@ -156,7 +156,8 @@ auto baseProvider(const std::string& threadCpuUnit) -> void
 
 auto captureRun(const std::vector<std::string>& arguments,
                 const int expected = 0,
-                int* statusOut = nullptr) -> std::string
+                int* statusOut = nullptr,
+                std::string* faultOut = nullptr) -> std::string
 {
   std::vector<char*> argv;
   argv.push_back(const_cast<char*>("harness_gap_test"));
@@ -165,13 +166,27 @@ auto captureRun(const std::vector<std::string>& arguments,
   }
 
   const char* const path = "harness_gap_out.txt";
+  const char* const faultPath = "harness_gap_fault.txt";
   const int saved = dup(STDOUT_FILENO);
   if (saved < 0 || std::freopen(path, "w", stdout) == nullptr) {
     fail("cannot redirect the report");
   }
+  const int savedFault = faultOut != nullptr ? dup(STDERR_FILENO) : -1;
+  if (faultOut != nullptr
+      && (savedFault < 0 || std::freopen(faultPath, "w", stderr) == nullptr))
+  {
+    fail("cannot redirect the fault line");
+  }
   const int status =
       sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
   std::fflush(stdout);
+  std::fflush(stderr);
+  if (faultOut != nullptr) {
+    if (dup2(savedFault, STDERR_FILENO) < 0) {
+      fail("cannot restore stderr");
+    }
+    close(savedFault);
+  }
   if (dup2(saved, STDOUT_FILENO) < 0) {
     fail("cannot restore stdout");
   }
@@ -183,6 +198,13 @@ auto captureRun(const std::vector<std::string>& arguments,
   }
   if (statusOut != nullptr) {
     *statusOut = status;
+  }
+
+  if (faultOut != nullptr) {
+    std::ifstream faultFile(faultPath);
+    std::stringstream faultBuffer;
+    faultBuffer << faultFile.rdbuf();
+    *faultOut = faultBuffer.str();
   }
 
   std::ifstream file(path);
@@ -488,6 +510,7 @@ auto modeCounterAddress() -> int
   check(row.contains("counts="),
         "an event address resolves through the catalog (R-04)");
 
+  std::string fault;
   const auto refused = captureRun({"--filter",
                                    "^bmPlain$",
                                    "--repetitions",
@@ -496,9 +519,15 @@ auto modeCounterAddress() -> int
                                    "4",
                                    "--counter",
                                    "gap/blocked"},
-                                  1);
-  check(refused.contains("gap/blocked"),
-        "an address the host refuses stops the run (FR-023)");
+                                  2,
+                                  nullptr,
+                                  &fault);
+  check(fault
+            == "--counter: gap/blocked: listed as permission-blocked (FR-023)\n",
+        "one line names the source, the address and what the host found there "
+        "(FR-033, FR-087)");
+  check(refused.empty(),
+        "the refused address ends the run before any row prints (FR-087)");
 
   const auto bare = captureRun({"--filter",
                                 "^bmPlain$",
@@ -507,9 +536,14 @@ auto modeCounterAddress() -> int
                                 "--iterations",
                                 "4",
                                 "--counter",
-                                "seconds"});
-  check(lineWith(bare, "bmPlain").contains("iterations="),
-        "an address with no object leaves the run running (R-04)");
+                                "seconds"},
+                               2,
+                               nullptr,
+                               &fault);
+  check(fault == "--counter: seconds: no object at path 'seconds'\n",
+        "an address that names no object ends the run on one line (FR-087, "
+        "R-04)");
+  check(bare.empty(), "the run of that address prints no row (FR-087)");
   return 0;
 }
 

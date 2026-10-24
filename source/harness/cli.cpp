@@ -650,6 +650,18 @@ auto speedgunMain(int argc, char** argv) -> int
     return nameStatus;
   }
 
+  // FR-087: every counter address every source named is resolved against the
+  // host here, at the place the metric names keep, after the listing and
+  // before any measurement starts. An address this host does not find prints
+  // one line naming its source and ends the run with the usage status; a
+  // library caller that hands addresses to the runner keeps the runner's own
+  // absent column (FR-023, FR-033).
+  const int addressStatus =
+      detail::counterAddressFailure(resolved->counterAddresses);
+  if (addressStatus != 0) {
+    return addressStatus;
+  }
+
   // specs/025 FR-005, FR-018, Q-6, Q-7: the fit walk, before the first
   // run and before any measurement starts.
   const auto fitOutcome = detail::placementFitStatus(selected);

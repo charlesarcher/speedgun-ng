@@ -1395,6 +1395,13 @@ auto applySourceValue(const OptionRow& row,
       return true;
     }
     case 'c':
+      // FR-038, FR-087: the host resolves an address, so every address every
+      // source named is kept for the walk of the entry point, settled or
+      // dropped, behind the origin of the source that held it.
+      for (const std::string_view item : sourceItems(text, source)) {
+        resolved.counterAddresses.push_back(
+            CounterAddress {origin, std::string(item)});
+      }
       if (!options.counterAddresses.empty() && prior != kSameSourceSettled) {
         return false;
       }
@@ -1654,7 +1661,7 @@ auto trimmed(const std::string_view line) -> std::string_view
   return line.substr(begin, line.find_last_not_of(kBlanks) - begin + 1);
 }
 
-// Join what the source that was just applied named for the rules of the run:
+// Join what the source applied most recently named for the rules of the run:
 // first the rules that source spelled, then the rules of the single file it
 // named, whichever of the two lines stood first (FR-063, spec D-23,
 // recommendation 8). A source below the one that settled the list is read for
