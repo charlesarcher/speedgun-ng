@@ -63,9 +63,9 @@ constexpr std::size_t kNoLeaf = std::numeric_limits<std::size_t>::max();
 
 [[nodiscard]] auto isSpace(const char symbol) noexcept -> bool
 {
-  // No requirement asks to trim a vertical tab or a form feed, and no input
-  // in the tree carries either class, so these two arms stand untaken in the
-  // trace; FR-091 bars the marker that would hide them.
+  // FR-006 ignores the blank that stands around an address or around a
+  // comma, and the classes it names are these three: no requirement asks to
+  // trim a vertical tab or a form feed, and no input in the tree carries.
   return symbol == ' ' || symbol == '\t' || symbol == '\r';
 }
 
