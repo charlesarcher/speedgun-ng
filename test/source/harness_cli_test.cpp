@@ -516,6 +516,68 @@ auto metricFailureTextScenario() -> void
       "the walk prints the failure of the first bad name (FR-042)");
 }
 
+// FR-024, FR-035: the `;` list belongs to the environment alone, so a file
+// line hands the whole of its value to the reader of its row and answers the
+// line of the command line behind the file and the number of the line. The
+// counter row is the one of the four whose reader takes any text at all, so
+// its two forms answer the run's own line for the one address, with no
+// prefix of a source.
+auto aSemicolonOfAFileLineIsNoList(const std::string& self) -> void
+{
+  struct RowCase
+  {
+    const char* name;
+    const char* value;
+    bool faults;
+  };
+
+  for (const RowCase& wanted : {RowCase {"threads", "1;2", true},
+                                RowCase {"percentiles", "50;90", true},
+                                RowCase {"metric", "a;b", true},
+                                RowCase {"counter", "a;b", false}})
+  {
+    const std::string opts =
+        std::string("harness_cli_semicolon_") + wanted.name + ".txt";
+    {
+      std::ofstream stream(opts);
+      stream << wanted.name << '=' << wanted.value << "\n";
+    }
+    std::string words;
+    const int wordsStatus =
+        subprocessOutput("\"" + self + "\" arg \"--" + wanted.name + "="
+                             + wanted.value + "\" 2>&1",
+                         words);
+    std::string held;
+    const int heldStatus = subprocessOutput(
+        "\"" + self + "\" arg \"--options=" + opts + "\" 2>&1", held);
+    std::remove(opts.c_str());
+
+    const std::string line = words.substr(0, words.find('\n'));
+    const std::string what = std::string("the ") + wanted.name
+        + " line of a file is the line of "
+        + "the words behind the file and its number (FR-024, FR-035)";
+    if (wanted.faults) {
+      check(WEXITSTATUS(wordsStatus) == 2 && WEXITSTATUS(heldStatus) == 2,
+            (what + ", at the usage status (SC-003)").c_str());
+      check(held.find(opts + ":1: " + line) != std::string::npos, what.c_str());
+    } else {
+      // The counter row takes any text, so neither form faults: each runs and
+      // names the whole value as one address, never two halves of it
+      // (FR-021, FR-024).
+      check(WEXITSTATUS(wordsStatus) == WEXITSTATUS(heldStatus),
+            (what + ", at the status of the run").c_str());
+      check(words.find("no object at path '" + std::string(wanted.value) + "'")
+                != std::string::npos,
+            (what + ", and the words name the whole value").c_str());
+      check(held.find("no object at path '" + std::string(wanted.value) + "'")
+                != std::string::npos,
+            what.c_str());
+      check(held.find("no object at path 'a'") == std::string::npos,
+            (what + ", and the value splits nowhere").c_str());
+    }
+  }
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmAlpha);
@@ -881,6 +943,8 @@ auto main(const int argc, char** argv) -> int
     check(output.find("BENCHMARK_RAN") == std::string::npos,
           "a refused metric of a file line runs no benchmark (FR-028)");
   }
+
+  aSemicolonOfAFileLineIsNoList(self);
 
   // FR-027: a metric the host carries but cannot count prints its refusal
   // kind, the benchmark still runs, and the exit status is the run's own.

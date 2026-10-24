@@ -2553,9 +2553,14 @@ auto aWordOfTwoValuesFaultsTheEntry() -> void
 {
   // FR-024, FR-046: a value word that carries two values is a fault of the
   // source that holds it, never the failure of a contract. The semicolon and
-  // the break are the two shapes a scripted source can hold, and each answers
-  // one line at status 2 from each of the three sources while no benchmark
-  // starts (FR-027, FR-035, FR-054, SC-003).
+  // the break are the two shapes a scripted source can hold. Each answers one
+  // line at status 2 while no benchmark starts: the semicolon of the count
+  // list and of the seed from the words and from the environment, the break of
+  // the count list from the environment, and the semicolon of the seed from an
+  // option file line. The `;` list of FR-024 belongs to the environment alone,
+  // so a file line of a list row answers the line of the words too; those four
+  // rows stand in the command line test, where a benchmark stands to run
+  // (FR-027, FR-035, FR-054, SC-003).
   const std::string counts = faultOf({"--threads=1;2"});
   const std::string seed = faultOf({"--interleave=7;8"});
   oneFaultLine(
