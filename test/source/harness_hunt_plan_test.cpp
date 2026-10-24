@@ -537,11 +537,11 @@ auto limitThree() -> void
   checkPassesCoverColumnsOnce(plan);
 }
 
-// A device that publishes a limit below 3 with both anchors present admits no
-// event: the answer is the recoverable error naming the device and the limit
-// (FR-081), and the same event plans as soon as the device publishes 3. The
-// `armv8_` fixture device carries the check, because its name is unlike every
-// other path of the scripted host.
+// A device that publishes a limit below 3 admits no event, whatever anchors it
+// publishes (E-04 limit rule, FR-011, T164): the answer is the recoverable
+// error carrying the cause line `contracts/hunt-cli.md` pins, and the same
+// event plans as soon as the device publishes 3. The `armv8_` fixture device
+// carries the check, because its name is unlike every other path of the host.
 auto narrowLimitRefusal() -> void
 {
   const auto arm = sg::test::kHuntArm;
@@ -558,13 +558,35 @@ auto narrowLimitRefusal() -> void
                                          sg::test::huntAnchors(),
                                          options,
                                          kCalibrationNsPerPass);
-    check(!plan.has_value(), "a limit below 3 with both anchors is refused");
+    check(!plan.has_value(), "a limit below 3 admits no event");
     if (!plan.has_value()) {
-      check(mentions(plan.error(), arm),
-            "the refusal names the device that publishes the narrow limit");
-      check(mentions(plan.error(), std::to_string(narrow)),
-            "the refusal names the limit itself");
+      const std::string expected = "device '" + std::string(arm)
+          + "' publishes " + std::to_string(narrow)
+          + " slots and a hunt pass needs 3";
+      check(plan.error().message == expected,
+            "the refusal states the device-limit cause, naming the device and "
+            "the slots it publishes");
     }
+  }
+
+  // The device that owns neither anchor answers the same line: the rule reads
+  // the slots of the device and no anchor, so the two routes of one device
+  // cannot part over it (T164).
+  const auto uncore = sg::test::kHuntUncore;
+  auto anchorless = sg::test::huntLimits(kAcOneLimit);
+  anchorless[deviceIndex(uncore)] = 2;
+  const auto refused = sg::hunt::planHunt(eventsOn(uncore, 1),
+                                          anchorless,
+                                          sg::test::huntAnchors(),
+                                          options,
+                                          kCalibrationNsPerPass);
+  check(!refused.has_value(),
+        "a limit below 3 is refused on the device that owns neither anchor");
+  if (!refused.has_value()) {
+    check(refused.error().message
+              == "device '" + std::string(uncore)
+                  + "' publishes 2 slots and a hunt pass needs 3",
+          "the device that owns neither anchor states the same cause");
   }
 
   auto fits = sg::test::huntLimits(kAcOneLimit);

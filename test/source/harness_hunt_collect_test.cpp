@@ -1296,8 +1296,9 @@ auto scenarioRefusedAnchorRefusesTheNamedNorm() -> void
 // FR-012, spec PC-9, T119: the driver that times one pass of its own plan
 // ---------------------------------------------------------------------------
 
-// The device whose limit cannot hold an event beside its two anchors refuses
-// the plan itself, so the driver answers the planner's sentence whole.
+// The device whose limit cannot hold an event refuses the plan itself, so the
+// driver answers the planner's cause whole: the bytes behind the line the
+// option route prints for the same device (T164).
 auto scenarioLimitBelowAnchorsRefusesThePlan() -> void
 {
   registerHuntHost(std::optional<std::size_t> {2});
@@ -1308,11 +1309,9 @@ auto scenarioLimitBelowAnchorsRefusesThePlan() -> void
       sg::hunt::runHuntNamed(handle.name(), options, std::nullopt);
   check(!answered.has_value()
             && answered.error().message
-                   == "hunt: device 'cpu' publishes a limit of 2, below the "
-                      "3 leaves one event and its two anchors need",
-        "the limit that cannot seat one event beside its anchors refuses the "
-        "plan, and the driver hands the planner's sentence through whole "
-        "(spec PC-2, FR-081)");
+                   == "device 'cpu' publishes 2 slots and a hunt pass needs 3",
+        "the limit that cannot seat an event refuses the plan, and the driver "
+        "hands the planner's cause through whole (spec PC-2, FR-081, T164)");
   std::printf("limit-below-anchors-refusal: ok\n");
 }
 
