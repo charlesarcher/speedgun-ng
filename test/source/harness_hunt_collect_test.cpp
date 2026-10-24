@@ -1725,6 +1725,165 @@ auto scenarioHandedFigureWeighsEveryPass() -> void
 }
 
 // ---------------------------------------------------------------------------
+// The blank classes and the selection shapes that stand outside the catalog
+// ---------------------------------------------------------------------------
+
+// FR-006: the library route trims each entry before the catalog reads it, so
+// the blanks an element carries, the space, the tab, the carriage, the
+// vertical tab and the form feed, stand outside the address behind them.
+auto scenarioPaddedSelectionResolves() -> void
+{
+  registerHuntHost(kCollectLimit);
+  const std::string padded =
+      "\t\r\v\f "
+      + std::string(
+            sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(0)))
+      + " \t";
+  const auto options = optionsFor(padded + "," + selectionOf({1}));
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntPadded");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(run.hunt.has_value(),
+        "the library route trims the blanks an element carries and resolves "
+        "the address behind them (FR-006)");
+  check(run.hunt->entries.size() == 2,
+        "the padded element and its plain sibling stand as the plan's two "
+        "columns (FR-006)");
+  std::printf("padded-selection-resolves: ok\n");
+}
+
+// E-03: the anchor rule reads both leaves of the pair together, so a device
+// that publishes one of them holds neither: the catalog's walk clears the
+// device's pair and the run of the core events stands untouched.
+auto scenarioHalfAnchoredDeviceHoldsNeither() -> void
+{
+  registerHuntHost(kCollectLimit,
+                   [](sg::counters::FakeProvider& provider)
+                   {
+                     provider.addCounter("aux",
+                                         sg::test::kHuntCycle,
+                                         "none",
+                                         "cycles without instructions");
+                   });
+  const auto options = optionsFor(selectionOf({0}));
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntHalfAnchor");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(run.hunt.has_value(),
+        "the device that publishes one anchor walks into the catalog and "
+        "holds neither leaf as a denominator, so the cpu plan runs whole "
+        "(E-03)");
+  check(run.hunt->entries.size() == 1,
+        "the cleared pair contributes no column of its own to the plan "
+        "(E-03, FR-001)");
+  std::printf("half-anchored-device: ok\n");
+}
+
+// D-13, FR-081: the instr mirror of the cycle norm refusal: the refused
+// instructions anchor ends the hunt of the norm that named it, naming the
+// norm, the anchor and the event that was to divide by it.
+auto scenarioRefusedInstrAnchorRefusesInstrNorm() -> void
+{
+  registerHuntHost(
+      kCollectLimit,
+      [](sg::counters::FakeProvider& provider)
+      {
+        refuseLeaf(provider,
+                   sg::test::kHuntInstr,
+                   sg::counters::Availability::PERMISSION_BLOCKED);
+      });
+  const std::vector<std::string> names {sg::test::huntEvent(0),
+                                        std::string(sg::test::kHuntInstr)};
+  HuntOptions options = optionsFor(selectionOfNames(names));
+  options.norm = sg::hunt::HuntNorm::INSTR;
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntNormInstrAnchor");
+  sg::detail::expandRegistry();
+  const auto answered =
+      sg::hunt::runHuntNamed(handle.name(), options, std::nullopt);
+  const std::string anchor =
+      sg::test::huntAddress(sg::test::kHuntCpu, sg::test::kHuntInstr);
+  const std::string event =
+      sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(0));
+  check(!answered.has_value()
+            && answered.error().message
+                == "the hunt norm instr names the anchor '" + anchor
+                    + "', which discovery refused for the hunt of '" + event
+                    + "'",
+        "the explicit instr norm whose anchor discovery refused ends the "
+        "hunt, naming the norm, the anchor and the event that was to divide "
+        "by it (D-13, FR-081)");
+  std::printf("refused-instr-anchor-refuses-instr-norm: ok\n");
+}
+
+// FR-092: the instance search reads a longer registered name by its nine
+// characters past the prefix before it lets the name stand, so a name that
+// opens with the hunted name and continues with anything besides the threads
+// segment stands outside the hunt. It registers first, so the scan reaches it
+// before its own prefix.
+auto scenarioNearMissNameStandsOutsideTheHunt() -> void
+{
+  registerHuntHost(kCollectLimit);
+  const auto options = optionsFor(selectionOf({0}));
+  auto longer = sg::registerBenchmark(&bmHuntBody,
+                                      "bmHuntNearMiss01234567890123456789");
+  auto hunted = sg::registerBenchmark(&bmHuntBody, "bmHuntNearMiss");
+  sg::detail::expandRegistry();
+  const HuntAccount longerRun = runHuntMeasured(longer, options);
+  const HuntAccount huntedRun = runHuntMeasured(hunted, options);
+  check(longerRun.hunt.has_value() && huntedRun.hunt.has_value(),
+        "the scan passes the longer name on its nine-character verdict and "
+        "finds the hunted instance behind it (FR-092)");
+  check(huntedRun.hunt->entries.size() == 1
+            && longerRun.hunt->entries.size() == 1,
+        "each hunt measures its own plan over its own instance (FR-092)");
+  std::printf("near-miss-name-outside-hunt: ok\n");
+}
+
+// E-02, FR-007: glob characters beside a comma leave the selection a list,
+// and the list route names the pattern entry it cannot find in the catalog.
+auto scenarioPatternInsideAListRefuses() -> void
+{
+  registerHuntHost(kCollectLimit);
+  const std::string pattern = std::string(sg::test::kHuntCpu) + "/*";
+  const auto options = optionsFor(pattern + "," + selectionOf({0}));
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntPatternList");
+  sg::detail::expandRegistry();
+  const auto answered =
+      sg::hunt::runHuntNamed(handle.name(), options, std::nullopt);
+  check(!answered.has_value()
+            && answered.error().message
+                == "the hunt selection names '" + pattern
+                    + "', which the catalog holds no such address (FR-004)",
+        "the glob characters beside a comma stand under the list rule, and "
+        "the list refuses the pattern entry it carries (FR-007, E-02)");
+  std::printf("pattern-inside-list-refuses: ok\n");
+}
+
+// D-13: the explicit iterations norm over the anchorless uncore pair keeps
+// the record's norm the caller stated: the fallback to iterations speaks on
+// a record that carries no norm at all.
+auto scenarioUncoreColumnsUnderExplicitIter() -> void
+{
+  registerHuntHost(kCollectLimit);
+  const std::string first =
+      sg::test::huntAddress(sg::test::kHuntUncore,
+                            sg::test::huntEvent(sg::test::kHuntEvents));
+  const std::string last =
+      sg::test::huntAddress(sg::test::kHuntUncore,
+                            sg::test::huntEvent(sg::test::kHuntEvents + 1));
+  HuntOptions options = optionsFor(first + "," + last);
+  options.norm = sg::hunt::HuntNorm::ITER;
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntUncoreIter");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, options);
+  check(run.hunt.has_value() && run.run->options.norm.has_value()
+            && *run.run->options.norm == sg::hunt::HuntNorm::ITER,
+        "the stated norm stands in the record the uncore run answers: the "
+        "iteration fallback belongs to a record that carries none (D-13)");
+  std::printf("uncore-columns-explicit-iter: ok\n");
+}
+
+// ---------------------------------------------------------------------------
 // The scenario list CTest runs
 // ---------------------------------------------------------------------------
 
@@ -1881,6 +2040,18 @@ auto scenarioLibraryRouteAnswersTheEntryRecord() -> void
       Scenario {"timed-pass-without-figure", &scenarioTimedPassWithoutAFigure},
       Scenario {"timed-pass-folds-no-time", &scenarioTimedPassFoldsNoClockTime},
       Scenario {"skipped-run-joins-no-list", &scenarioSkippedRunJoinsNoList},
+      Scenario {"padded-selection-resolves",
+                &scenarioPaddedSelectionResolves},
+      Scenario {"half-anchored-device",
+                &scenarioHalfAnchoredDeviceHoldsNeither},
+      Scenario {"refused-instr-anchor-refuses-instr-norm",
+                &scenarioRefusedInstrAnchorRefusesInstrNorm},
+      Scenario {"near-miss-name-outside-hunt",
+                &scenarioNearMissNameStandsOutsideTheHunt},
+      Scenario {"pattern-inside-list-refuses",
+                &scenarioPatternInsideAListRefuses},
+      Scenario {"uncore-columns-explicit-iter",
+                &scenarioUncoreColumnsUnderExplicitIter},
   };
   return kList;
 }

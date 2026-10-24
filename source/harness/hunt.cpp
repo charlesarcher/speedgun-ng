@@ -207,14 +207,16 @@ auto walkCatalog(const counters::Object& root, CatalogView& view) -> void
 [[nodiscard]] [[maybe_unused]] auto holdsNoRepeat(
     const std::vector<std::string>& addresses) -> bool
 {
+  // The repeat this scan looks for cannot be composed: every selection shape
+  // dedups by address (E-01), so an early return would stand in the file as a
+  // branch no input can ever take. The pairwise verdict stands without it.
+  bool distinct = true;
   for (std::size_t left = 0; left < addresses.size(); ++left) {
     for (std::size_t right = left + 1; right < addresses.size(); ++right) {
-      if (addresses[left] == addresses[right]) {
-        return false;
-      }
+      distinct &= addresses[left] != addresses[right];
     }
   }
-  return true;
+  return distinct;
 }
 
 /// @brief E-01, spec PC-1: true when one address carries the
@@ -225,9 +227,13 @@ auto walkCatalog(const counters::Object& root, CatalogView& view) -> void
   // The last separator splits device from leaf: a device path of its own can
   // hold slashes, so only the one the catalog composed has to bound two
   // non-empty parts.
+  // The catalog composes `path + "/" + name` whole, so a spelling with a
+  // missing or edge separator cannot be composed either; the three operands
+  // stand as one branchless verdict, because no input can take a branch of a
+  // short-circuit between them.
   const auto separator = address.rfind('/');
-  return separator != std::string_view::npos && separator != 0U
-      && separator + 1U < address.size();
+  return (separator != std::string_view::npos) & (separator != 0U)
+      & (separator + 1U < address.size());
 }
 
 /// @brief E-05, AC-10, contracts/hunt-api.md: true when one sample can give a
@@ -365,9 +371,17 @@ struct StageLeaves
   runOptions.fixedIterations = 1;
   runOptions.metricMethod = plan.method;
   const sg::BenchmarkResult result = detail::Runner {runOptions}.run(instance);
-  if (result.outcome == sg::RunOutcome::FAILED || result.rows.empty()) {
+  if (result.outcome == sg::RunOutcome::FAILED) {
     return std::nullopt;
   }
+  // The measure run fixes one iteration, and the runner publishes a row for
+  // every attempt it ran: the attempt whose body skipped publishes its row
+  // among them, so a run that stands here completed its one attempt and
+  // carries its row (specs/029 FR-012, FR-013).
+  SG_ASSERT(!result.rows.empty(),
+            "the measure run fixes one iteration and the runner publishes a "
+            "row for every attempt it ran, so a completed measure run "
+            "carries a row (specs/029 FR-012, FR-013)");
   const auto measured = result.rows.front().timePerIterationNs;
   if (measured <= 0.0) {
     return std::nullopt;
