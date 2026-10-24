@@ -1229,3 +1229,22 @@ citation row are settled, and both say so where they stand.
       while the entry runs, so no CI job meets it. Remedy if taken, the T165
       form T178 used, a name built from `getpid()`, removed before the run
       and again once the bytes are read (Principle VI, AC-9).
+- [x] T188 CRITICAL Hold the fixture the twin's two rules read. CI's
+      `sanitize` and `tsan` jobs each failed `harness_cli_table_test` with
+      `heap-use-after-free` at the head they ran, ASan reading
+      `harness_cli_table_test.cpp:965` one statement after the binding that freed the
+      memory at `:964`, and `master` runs both jobs green, so the branch introduced it.
+      `fixtureRows()` at `:937` returns its rows by value while `repeatedName` at `:782`
+      and `repeatedValue` at `:796` return pointers into the vector handed to them, so
+      the temporary died at the semicolon before the read. The uninstrumented suite
+      cannot see the defect: freed heap still holds the planted bytes, so the gate
+      reported what was planted and passed. Remedy taken, the named `rows` local at
+      `:956`, which outlives the read at `:967` and the two at `:974` and `:978`. A
+      sweep of `source/`, `include/` and `test/source/` for a pointer initialised from a
+      call handed a temporary found no second site: the pair at `:834` and `:840` passes
+      a named vector, and the range-`for` uses at `:958` and
+      `test/source/detail/metric_fixture.hpp:394` are sound because the temporary lives
+      for the loop. Verified by a pair on one Clang 23.1.3 `ci-sanitize` build, the
+      unfixed head exiting 1 with the report and the fixed tree exiting 0 with zero
+      `AddressSanitizer` lines, while the release preset still runs the test green in
+      12.62 s.
