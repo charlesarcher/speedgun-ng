@@ -529,8 +529,8 @@ auto speedgunMain(int argc, char** argv) -> int
   const bool jitterProbeFromOptionFile = options.jitterProbe.has_value();
 
   // specs/028 FR-063, spec D-23: the compare mode reads the settled list,
-  // which carries the rules of every source in the order spec D-23 states,
-  // where the words of the command line alone no longer stand (FR-061).
+  // which the highest source that names rules sets in the order spec D-23
+  // states, so a rule of the words or of a file can stand here (FR-061).
   options.compareRules = std::move(resolved->rules);
 
   // specs/026 FR-024, FR-050, FR-051: the batch filter is compiled while

@@ -680,8 +680,8 @@ variable.
 
 The highest source that sets an option wins: the command line, then the option
 file, then the environment, then the built-in default. A repeatable option from
-a higher source replaces the whole list of a lower one; the comparison rules
-from every source combine.
+a higher source, the comparison rules included, replaces the whole list of a
+lower one.
 
 ## User counters
 

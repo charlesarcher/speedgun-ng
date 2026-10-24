@@ -1873,9 +1873,9 @@ auto rowNamed(const std::string_view name) -> const OptionRow*
  * The option file arrives as the path and the whole text the entry point
  * read: the gather splits the text and opens no file, and a file the
  * system refused is answered at the entry point before the gather runs
- * (FR-012, FR-029, FR-034, D-05). The rule list of FR-063 combines across
- * the sources in the order spec D-23 states, and the master default of
- * FR-041 stays for every option no source names.
+ * (FR-012, FR-029, FR-034, D-05). The highest source that names rules sets
+ * the whole list of FR-063, and the master default of FR-041 stays for every
+ * option no source names.
  */
 auto gatherOptionSources(const CommandLineOptions& scan,
                          const std::vector<EnvironmentRow>& environment,
