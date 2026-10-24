@@ -58,7 +58,7 @@ each test task in `tasks.md` names the run that fails red first.
 | VII, performance discipline | PASS | the feature touches no per-iteration path; `test/loop_shape.sh` must print its base reading (FR-072, PC-11); the comparison runs once after the run |
 | VIII, hard CI gates | PASS | the Implementation Strategy schedules every gate: both release builds, `ctest -j 2`, sanitizers, tsan, coverage, format, spell, prose, the three shape gates, the drift gate and the DBC gates |
 | IX, spec-driven development | PASS | this artifact set follows the clarified spec |
-| X, anti-slop | PASS | the plan reuses the report reader, the schema checker `checkReport` (`source/harness/json_load.cpp:1083`), the unit scale and printers of `source/harness/report.cpp`, the pattern rule of `--filter` (`source/harness/cli.cpp:529` to `:536`) and the test helper `sameValue` (`test/source/detail/json_fixture.hpp:48`); one new translation unit |
+| X, anti-slop | PASS | the plan reuses the report reader, the schema checker `checkReport` (`source/harness/json_load.cpp:1529`), the unit scale and printers of `source/harness/report.cpp`, the pattern rule of `--filter` (`source/harness/cli.cpp:529` to `:536`) and the test helper `sameValue` (`test/source/detail/json_fixture.hpp:48`); one new translation unit |
 | XI, prose law | PASS | the artifacts pass `tools/prose/prose_gate.py` with zero findings |
 
 **Re-check after Phase 1**: the design grows the public surface of the

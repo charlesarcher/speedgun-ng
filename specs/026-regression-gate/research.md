@@ -89,7 +89,7 @@ at write time, so the round-trip byte identity of 023 SC-009 stands.
 table prints (FR-056) and the version pairing check (FR-051) must
 arrive through the load call; the struct is where the load call answers.
 The reader already reads the noise record and discards it
-(`source/harness/json_load.cpp:729` to `:743`), so the extension stores
+(`source/harness/json_load.cpp:1119` to `:1147`), so the extension stores
 what it already parses (FR-070). A run-path `ReportData` leaves all
 three fields empty and the writer ignores them.
 
@@ -267,7 +267,7 @@ does not ask for; rejected.
 `docs/schema/compare-v1.json` follows the report schema's conventions
 (`x-order`, `required`, inlined definitions, `docs/schema/report-v1.json:7`)
 and the existing checker `checkReport`
-(`source/harness/json_load.cpp:1083`) validates the written bytes
+(`source/harness/json_load.cpp:1529`) validates the written bytes
 against it: the checker reads any schema file in those conventions, so
 no second checker enters the tree.
 
