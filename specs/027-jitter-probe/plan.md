@@ -18,7 +18,7 @@ The harness gains a built-in jitter probe: one spinning execution context per pr
 
 **Testing**: the repository's own harness (`speedgun-ng_test` pattern: one executable per area plus `add_test`), the `FakeProvider` scripting a `machine/tsc` leaf at `ReadMode::FAST_TSC`, the `installTestLayout` seam for synthetic layouts, the probe reader-install seam (R-02), and per-file counting `operator new` pairs (Q-2). Tests run with `ctest -j 2`.
 
-**Target Platform**: Linux only (`ci-ubuntu`, `ci-rocky`). The daily loop drives `ci-rocky`; once per feature, `ci-ubuntu` builds with clang-tidy and cppcheck wired in. the acceptance host (4 L3 groups, 24 cores, 48 threads, one node) is the reference host. Every test passes on a 4-cpu CI runner and on a 2-cpu host: cpus come from `sched_getaffinity` and each stands below the online count (FR-040).
+**Target Platform**: Linux only (`ci-ubuntu`, `ci-rocky`). The daily loop drives `ci-rocky`; once per feature, `ci-ubuntu` builds with clang-tidy and cppcheck wired in. the acceptance host (4 L3 groups, 24 cores, 48 threads, one node) is the reference host. Every test passes on a 4-cpu CI runner and on a 2-cpu host: cpus come from `sched_getaffinity` and each stands in the online cpu set (FR-040).
 
 **Project Type**: library feature: a C++ archive surface plus a command line of the harness entry point. No new target.
 
@@ -268,7 +268,7 @@ No new public header, no new target: the names join `include/speedgun-ng/benchma
 **Test rules** (FR-039, FR-040, the Constraints):
 
 - No sleep and no clock in any test: the time series is scripted, start and stop ride barriers, and every branch runs on every host.
-- No fixed cpu number and no host-size assumption: cpus come from `sched_getaffinity`, each below the online count; the suite passes on a 4-cpu CI runner and on a 2-cpu host, and no test skips. The host check in `source/harness/execution_context.cpp` does not weaken.
+- No fixed cpu number and no host-size assumption: cpus come from `sched_getaffinity`, each in the online cpu set; the suite passes on a 4-cpu CI runner and on a 2-cpu host, and no test skips. The host check in `source/harness/execution_context.cpp` does not weaken.
 - The no-allocation proof follows the pattern the harness tests carry (Q-2): the file writes its own file-local replaceable `operator new`/`operator delete` counting hooks, in the shape of `test/source/harness_capture_test.cpp:33-44`, and diffs the count around the region under test; a negative test plants one allocation and sees the count move, so a proof that inspects nothing cannot pass.
 
 **Gates each wave runs** (Principle VIII): `ctest -j 2`; the coverage build with the 100 percent line and branch rule; `test/time_source_gate.sh` (the counters-only rule, FR-004); the docs drift set (`example_drift`, `snippet_compile`, `example_run`, `report_shape`); `tools/dbc/dbc_pair_gate.py`; the prose gate; and, once per feature, the `ci-ubuntu` release build with clang-tidy and cppcheck wired in, beside the `ci-sanitize` and `ci-tsan` builds.

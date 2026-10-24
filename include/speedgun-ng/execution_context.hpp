@@ -128,7 +128,8 @@ struct PlacementSlot
    * @brief The slot that names cpu `index` (FR-005).
    *
    * The host check for that index belongs to the context that applies
-   * the slot, where the online cpu count stands (FR-005, SC-05).
+   * the slot: the index must stand in the online cpu set, the set the
+   * kernel owns, gaps and all (FR-005, SC-05, specs/027 FR-044).
    *
    * \pre none
    * \post none

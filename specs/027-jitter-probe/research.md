@@ -496,7 +496,7 @@ counting `operator new` pair).
   the clarify run lists (FR-041, Clarifications Q-2). Start and stop
   synchronize on barriers; no test sleeps, reads a clock, holds a
   fixed cpu number, or skips: cpus come from `sched_getaffinity`,
-  each below the online count (FR-039, FR-040).
+  each in the online cpu set (FR-039, FR-040, FR-044).
 - **Rationale**: one executable per area keeps the failure surfaces
   apart and lets the pure resolver test run without the harness
   entry point, the reasoning R-11 of specs/025 recorded for the
