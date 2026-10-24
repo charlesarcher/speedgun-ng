@@ -653,10 +653,10 @@ target_link_libraries(harness_cli_test PRIVATE speedgun-ng::harness)
 target_compile_features(harness_cli_test PRIVATE cxx_std_23)
 add_test(NAME harness_cli_test COMMAND harness_cli_test)
 # The suite's heaviest test: `captureRun` runs the harness in-process behind
-# a `freopen`, and eight fixed names are written into the working directory,
-# so two copies under `-j 2` share those files and compete for one core. Two
-# slots keep a sibling off its CPU and off those names; CI needs no TIMEOUT,
+# a `freopen`, so its two windows of 1,000 runs each hold one core for the
+# whole entry. Two slots keep a sibling off that core; CI needs no TIMEOUT,
 # since `sanitize` and `tsan` finish this test inside `--timeout 3600`.
+# Every scratch name carries the process id, so a second copy shares no file.
 set_tests_properties(harness_cli_test PROPERTIES PROCESSORS 2)
 
 # The one option table of the contract, read out of the source that holds
