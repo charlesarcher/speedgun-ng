@@ -715,12 +715,12 @@ auto catalogOrderAndDedup() -> void
 }
 
 // The selection shapes `expand` reads beside a plain list, and the refusals it
-// answers for the shapes it will not take. Spaces and tabs stand outside every
-// address of a list (FR-006); a `*` with the rest of the pattern spent matches
-// the address it follows (FR-007); a raw event code is refused before the
-// catalog is consulted (FR-005); a pattern that matches nothing, an empty
-// address line, and an address the catalog holds none of each answer the error
-// naming the value it was given (FR-004, FR-006, E-01).
+// answers for the shapes it will not take. Spaces, tabs and carriage returns
+// stand outside every address of a list (FR-006); a `*` with the rest of the
+// pattern spent matches the address it follows (FR-007); a raw event code is
+// refused before the catalog is consulted (FR-005); a pattern that matches
+// nothing, an empty address line, and an address the catalog holds none of each
+// answer the error naming the value it was given (FR-004, FR-006, E-01).
 auto selectionShapesAndRefusals() -> void
 {
   check(registerHuntHost(), "the scripted hunt host registered");
@@ -729,7 +729,7 @@ auto selectionShapesAndRefusals() -> void
   const auto second = std::string(catalog[1]);
 
   auto padded = sg::hunt::EventCatalog {};
-  check(padded.expand("  " + first + " ,\t" + second + " \t").has_value(),
+  check(padded.expand("\r " + first + " ,\t" + second + " \t").has_value(),
         "a list padded around every address expands (FR-006)");
   check(
       padded.addresses().size() == 2 && padded.addresses()[0] == first
