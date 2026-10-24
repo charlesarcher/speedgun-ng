@@ -2131,11 +2131,11 @@ auto scenarioFamilyVersusCommandLine() -> int
   const std::string plain = entrySegment(document, "bmQuiet");
   check(!probed.empty() && !plain.empty(),
         "the document carries both families' entries (FR-015)");
-  check(probed.find("\"cpu\":" + familyCpu + ",") != std::string::npos,
-        ("the family's folds carry the handle's cpu (FR-015); probed "
-          "segment: "
-         + probed.substr(0, 400))
-            .c_str());
+  check(
+      probed.find("\"cpu\":" + familyCpu + ",") != std::string::npos,
+      ("the family's folds carry the handle's cpu (FR-015); probed " "segment: "
+       + probed.substr(0, 400))
+          .c_str());
   check(probed.find("\"cpu\":" + cliCpu + ",") == std::string::npos,
         "the family's folds carry no command-line cpu (FR-015)");
   check(plain.find("\"jitter\":null") != std::string::npos,
