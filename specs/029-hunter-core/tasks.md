@@ -1240,7 +1240,7 @@ citation row are settled, and both say so where they stand.
       cannot see the defect: freed heap still holds the planted bytes, so the gate
       reported what was planted and passed. Remedy taken, the named `rows` local at
       `:956`, which outlives the read at `:967` and the two at `:974` and `:978`. A
-      sweep of `source/`, `include/` and `test/source/` for a pointer initialised from a
+      sweep of `source/`, `include/` and `test/source/` for a pointer initialized from a
       call handed a temporary found no second site: the pair at `:834` and `:840` passes
       a named vector, and the range-`for` uses at `:958` and
       `test/source/detail/metric_fixture.hpp:394` are sound because the temporary lives
