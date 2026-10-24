@@ -262,6 +262,14 @@
 //                                no file and settles no source, so a later
 //                                line of the same file settles the list
 //                                (FR-041, FR-063)
+//   aLowerRulesPathIsReadUnderACommandLineRule
+//                                the rules path of a lower source is opened
+//                                before its rules drop, so its own fault
+//                                stands (FR-038, FR-061)
+//   anEmptyCommandLineRulesFileSettlesTheList
+//                                a rules file of no rule named by the words
+//                                settles the empty list, and a later source
+//                                adds no rule to it (FR-038, FR-063)
 //   aRulesFileOfOneSourceTurnsTheGateFail
 //                                the rule of the file an option file names
 //                                is a rule of the run, so it decides the
@@ -2301,6 +2309,47 @@ auto anEmptyRulesFilePathNamesNoSource() -> void
         "(FR-041, FR-063)");
 }
 
+auto aLowerRulesPathIsReadUnderACommandLineRule() -> void
+{
+  // The path a lower source names is held for the read, so the fault of a
+  // file that cannot be opened stands even though the words settled the list
+  // ahead of it (FR-038, FR-061, FR-063).
+  const std::string path = "/speedgun-absent-directory/more.rules";
+  const auto refused = sg::detail::readCompareRulesFile(path);
+  if (refused.has_value()) {
+    fail("the rules reader refuses a path that stands absent");
+    return;
+  }
+  const Gathered gathered =
+      gatherSources({"--compare-rule=time@median:lower:5%"},
+                    {},
+                    "compare-rules=" + path + "\n",
+                    &sg::detail::readCompareRulesFile);
+  if (gathered.fault != refused.error()) {
+    report("the gather reads the rules path a lower source names (FR-038, "
+           "FR-061)",
+           refused.error(),
+           gathered.fault);
+  }
+}
+
+auto anEmptyCommandLineRulesFileSettlesTheList() -> void
+{
+  // The words name the list through a file that holds no rule, so the list of
+  // the run stands empty and a rule line of the option file adds nothing to it
+  // (FR-038, FR-063, spec D-23).
+  const Gathered gathered = gatherSources({"--compare-rules=empty.rules"},
+                                          {},
+                                          "compare-rule=time@median:lower:5%\n",
+                                          &oneRuleFile);
+  if (!gathered.settled.has_value()) {
+    fail("the gather settles a rules file of no rule named by the words");
+    return;
+  }
+  check(gathered.settled->rules.empty(),
+        "the empty rules file the words name settles an empty list (FR-063)");
+}
+
 auto aRulesFileOfOneSourceTurnsTheGateFail(const std::string& data) -> void
 {
   // The rule of the file a source names is a rule of the run, so the gate
@@ -2614,6 +2663,8 @@ auto main(int argc, char** argv) -> int
   theLaterRulesFileOfOneSourceStands();
   aRulesLineBeforeItsRulesFileOfOneSourceJoins();
   anEmptyRulesFilePathNamesNoSource();
+  aLowerRulesPathIsReadUnderACommandLineRule();
+  anEmptyCommandLineRulesFileSettlesTheList();
   aRulesFileOfOneSourceTurnsTheGateFail(data);
   aRulesFileTheReaderCannotOpenFaultsTheGather();
   theEnvironmentRowOfOneProcessName();
