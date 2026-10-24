@@ -797,7 +797,7 @@ finding this round filed as owned, so the section holds eleven rows.
       how a wrong byte survives a green suite (E-07, FR-070, FR-071).
       Carry the fields or move the block onto a golden the shape gate runs.
 
-- [ ] T162 State in `include/speedgun-ng/hunt.hpp:543-550` the condition
+- [x] T162 State in `include/speedgun-ng/hunt.hpp:543-550` the condition
       `rankEvents` really asserts. `source/harness/hunt_plan.cpp:249`
       ends the process when an address carries no `skipped` kind and no
       rate, while that `\pre`, its copy at `contracts/hunt-api.md:304` and
@@ -810,7 +810,7 @@ finding this round filed as owned, so the section holds eleven rows.
       precondition aborts. Name the guarantee the caller must hold, or mark
       the address instead of ending the process (Principle III).
 
-- [ ] T163 Re-anchor the two statistics guards of the public `rankEvents`
+- [x] T163 Re-anchor the two statistics guards of the public `rankEvents`
       precondition at `include/speedgun-ng/hunt.hpp:546` and `:550`, which
       cite `runner.cpp:52-55` and `runner.cpp:74-76`. `statisticsOf` left
       that file for `source/harness/statistics.cpp` in T009 and its guards
