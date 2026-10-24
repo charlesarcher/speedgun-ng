@@ -297,6 +297,23 @@
 //                                higher source and a list of seventeen
 //                                points answers behind its own source
 //                                (FR-022, FR-038)
+//   theBadValueOfEverySourceSharesTheWordsLine
+//                                one bad value of each value row given to the
+//                                words, the file and the variable answers one
+//                                line, and the line of a lower source is the
+//                                line of the words behind that source's own
+//                                prefix (FR-024, FR-027, FR-031, FR-046)
+//   theBareFlagOfEverySourceSettlesItsRow
+//                                the six rows that carry no value settle from
+//                                the bare word and the bare line, and a text
+//                                that is not a flag answers behind the source
+//                                that holds it (FR-025, FR-029, FR-033)
+//   theFourRefusedRowsAnswerTheirOwnLines
+//                                the two rows that would re-root a file's own
+//                                sources and the two that print keep the
+//                                lines of the scan, and a print row stops
+//                                the walk where it stands (FR-015 to FR-017,
+//                                FR-028, FR-031, FR-032)
 //   theEnvironmentRowOfOneProcessName
 //                                one process name answers a row only when it
 //                                carries the prefix and an `=`, and the rows of
@@ -1374,7 +1391,7 @@ auto settledOf(const Gathered& gathered,
 auto minTimeOf(const std::string& word) -> std::optional<std::int64_t>
 {
   const auto scan = scanOf({word.c_str()});
-  return scan.has_value() ? scan->options.minTimeNs
+  return scan.has_value() ? scan->settled.options.minTimeNs
                           : std::optional<std::int64_t> {};
 }
 
@@ -1688,7 +1705,7 @@ auto theEnvironmentSwitchLeavesTheProcessNamesUnread() -> void
   // it answers the gather's line at status 2; switched off, the run answers
   // what the same words answer with the variable absent (SC-005).
   const auto off = scanOf({"--env=off"});
-  check(off.has_value() && off->options.environmentOff,
+  check(off.has_value() && off->settled.options.environmentOff,
         "--env=off settles the switch the entry point reads (FR-028)");
   expectFault({"--env=on"},
               "--env: expected 'off', got 'on'",
@@ -1739,7 +1756,7 @@ auto theThreadListFaultStandsAtTheScan() -> void
       expectFault({word.c_str()}, counts.error(), what.c_str());
       continue;
     }
-    check(answer->options.threadCounts == *counts,
+    check(answer->settled.options.threadCounts == *counts,
           (what + ": the counts the reader answers").c_str());
   }
 }
@@ -1818,12 +1835,12 @@ auto aRefusedValueOfEveryKindNamesItsSource() -> void
     }
   }
   // The rule list of a file the parser refuses names the file and the line
-  // before the parser's own words (FR-035, FR-061).
-  const std::string ruleLine =
-      faultOf({"--compare-rule=not-a-rule"})
-          .substr(std::string_view("--compare-rule: ").size());
+  // before the reader's line, which is the line the words answer with the
+  // option in front of it: the row settles in one function, so its text is
+  // one text in every source (FR-035, FR-049, FR-061).
   expectFileFault("compare-rule=not-a-rule\n",
-                  std::string(kOptionFile) + ":1: " + ruleLine,
+                  std::string(kOptionFile) + ":1: "
+                      + faultOf({"--compare-rule=not-a-rule"}),
                   "a rule of the file its parser refuses names the file, the "
                   "line and the parser's line (FR-035, FR-061, SC-003)");
 }
@@ -2149,20 +2166,13 @@ auto anEmptyFilterWordSettlesTheRowItNames() -> void
           "would name (FR-035, FR-037)");
   }
 
-  // The expression of the words is read too, after every lower source has
-  // answered what its own line has to answer: the row is the words' row, so
-  // the refusal names the option and not a source path (FR-024, FR-033,
-  // FR-051).
-  const Gathered badWords = gatherSources(
-      {"--filter=("}, {{"SPEEDGUN_FILTER", "^bm"}}, "filter=^bm\n");
-  if (badWords.settled.has_value()) {
-    fail("an expression the words hold is read (FR-051)");
-  } else {
-    check(badWords.fault.starts_with(
-              "--filter: invalid regular expression '(': "),
-          "the refusal of the expression of the words names the option it "
-          "holds (FR-051, FR-033)");
-  }
+  // The expression of the words is read where their own row settles, in the
+  // one seam a file line and a variable use, so the refusal names the option
+  // and not a source path (FR-024, FR-033, FR-051).
+  const std::string badWords = faultOf({"--filter=("});
+  check(badWords.starts_with("--filter: invalid regular expression '(': "),
+        "the refusal of the expression of the words names the option it "
+        "holds (FR-051, FR-033)");
 }
 
 auto aLowerPercentileListIsCountedAlone() -> void
@@ -2198,6 +2208,169 @@ auto aLowerPercentileListIsCountedAlone() -> void
     check(over.fault.starts_with("SPEEDGUN_PERCENTILES: --percentiles: "),
           "the refusal of the list that drops names the variable that holds "
           "it (FR-033, FR-038)");
+  }
+}
+
+// One value row of the table given one bad text through every source that may
+// name it. The three refusals must be one line each, and the line of a lower
+// source must be the line of the words with that source's own prefix in front
+// of it: the scan and the gather read a row through one reader, so no row can
+// drift into two fault texts (FR-024, FR-027, FR-031, FR-046, FR-054, SC-003).
+struct SettleCase
+{
+  const char* name;  // the long name of the row, no dashes
+  const char* bad;  // the text no reader of that kind takes
+  const char* variable;  // SPEEDGUN_* name, empty when the row has none
+};
+
+// The rows that answer a fault when the text of their value is refused. The
+// two rows that name a catalog object take any text and answer where the
+// object is looked up, and the rules row answers where its file is read, so
+// none of the three carries a bad value here (FR-028, FR-061, FR-064).
+constexpr SettleCase kSettleCases[] = {
+    {"filter", "[", "SPEEDGUN_FILTER"},
+    {"repetitions", "x", "SPEEDGUN_REPETITIONS"},
+    {"min-time", "x", "SPEEDGUN_MIN_TIME"},
+    {"iterations", "x", "SPEEDGUN_ITERATIONS"},
+    {"warmup-time", "x", "SPEEDGUN_WARMUP_TIME"},
+    {"percentiles", "150", "SPEEDGUN_PERCENTILES"},
+    {"placement", "nosuchpreset", "SPEEDGUN_PLACEMENT"},
+    {"threads", "x", "SPEEDGUN_THREADS"},
+    {"interleave", "x", "SPEEDGUN_INTERLEAVE"},
+    {"json", "", ""},
+    {"json-raw", "nosuch", ""},
+    {"compare", "nocomma", ""},
+    {"compare-rule", "garbage", ""},
+    {"metric-method", "x", ""},
+};
+
+auto theBadValueOfEverySourceSharesTheWordsLine() -> void
+{
+  for (const SettleCase& row : kSettleCases) {
+    const std::string name {row.name};
+    const std::string word = "--" + name + "=" + row.bad;
+    const std::string words = faultOf({word.c_str()});
+    if (words == "the scan answered no fault") {
+      const std::string label =
+          "the bad value of " + word + " is refused by the scan (FR-046)";
+      report(label.c_str(), "one fault line", words);
+      continue;
+    }
+    check(words.find('\n') == std::string::npos,
+          "the fault of the words is one line (SC-003)");
+
+    const std::string wanted = std::string(kOptionFile) + ":1: " + words;
+    const std::string file = fileFaultOf(name + "=" + row.bad + "\n");
+    if (file != wanted) {
+      const std::string label = "the file line of " + name
+          + " is the line of the words behind the path and its number "
+            "(FR-027, FR-031)";
+      report(label.c_str(), wanted, file);
+    }
+
+    if (row.variable[0] == '\0') {
+      continue;
+    }
+    const Gathered under = gather({}, {{row.variable, row.bad}});
+    if (under.settled.has_value()) {
+      const std::string label =
+          "the variable of " + name + " is refused (FR-027, FR-046)";
+      report(label.c_str(), "one fault line", "the gather answered no fault");
+      continue;
+    }
+    const std::string wantedEnv = std::string(row.variable) + ": " + words;
+    if (under.fault != wantedEnv) {
+      const std::string label = "the variable line of " + name
+          + " is the line of the words behind the variable name "
+            "(FR-027, FR-033)";
+      report(label.c_str(), wantedEnv, under.fault);
+    }
+  }
+}
+
+// The six rows that carry no value on the command line. The bare word is the
+// flag standing, and so is the bare line of a file or a variable; the text a
+// lower source holds is read as a flag, so the refusal of a text that is not
+// one stands behind that source's own prefix and nowhere else (FR-025,
+// FR-029, FR-033).
+constexpr const char* kFlagRows[] = {
+    "list",
+    "dry-run",
+    "catalog",
+    "topology",
+    "compare-strict",
+    "no-percentiles",
+};
+
+auto theBareFlagOfEverySourceSettlesItsRow() -> void
+{
+  for (const char* const name : kFlagRows) {
+    const std::string word = std::string("--") + name;
+    const std::string label = "the bare word " + word + " settles its row";
+    check(faultOf({word.c_str()}) == "the scan answered no fault",
+          (label + " (FR-025)").c_str());
+
+    const std::string wanted =
+        std::string(kOptionFile) + ":1: expected 1, 0, true or false, got 'x'";
+    const std::string text = fileFaultOf(std::string(name) + "=x\n");
+    if (text != wanted) {
+      const std::string bad =
+          "the flag text of " + word + " answers its own line (FR-025)";
+      report(bad.c_str(), wanted, text);
+    }
+
+    const std::string bare = fileFaultOf(std::string(name) + "\n");
+    if (bare != "the gather answered no fault") {
+      const std::string missing =
+          "the bare line of " + word + " settles its row (FR-029)";
+      report(missing.c_str(), "the gather answered no fault", bare);
+    }
+  }
+
+  const Gathered under = gather({}, {{"SPEEDGUN_NO_PERCENTILES", "x"}});
+  const std::string wanted =
+      "SPEEDGUN_NO_PERCENTILES: expected 1, 0, true or false, got 'x'";
+  if (under.settled.has_value()) {
+    report("the flag text of a variable answers its own line (FR-025)",
+           wanted,
+           "the gather answered no fault");
+  } else if (under.fault != wanted) {
+    report("the flag text of a variable answers its own line (FR-025)",
+           wanted,
+           under.fault);
+  }
+}
+
+// The four rows the words settle and no lower source may name: the two that
+// would re-root the file's own sources and the two that print. Their lines
+// belong to the scan alone, and a print row ends the walk where it stands, so
+// no word behind it is read (FR-015 to FR-017, FR-028, FR-031, FR-032,
+// spec D-9).
+auto theFourRefusedRowsAnswerTheirOwnLines() -> void
+{
+  expectFault({"--options=a", "--options=b"},
+              "--options cannot stand twice",
+              "the second option file answers the twice line (FR-032)");
+  expectFault({"--env=on"},
+              "--env: expected 'off', got 'on'",
+              "a word other than off answers the env line (FR-028)");
+  check(faultOf({"--help"}) == "the scan answered no fault",
+        "the help row answers no fault (FR-015)");
+  check(faultOf({"--version"}) == "the scan answered no fault",
+        "the version row answers no fault (FR-016)");
+  check(faultOf({"--help", "--zzzz"}) == "the scan answered no fault",
+        "the help row stops before a word behind it (FR-017)");
+  expectFault({"--zzzz", "--help"},
+              "unknown option '--zzzz'; --help lists the options",
+              "an unknown word before the help row still faults (FR-017)");
+
+  for (const char* const name : {"options", "env", "help", "version"}) {
+    const std::string wanted = std::string(kOptionFile) + ":1: the option '"
+        + name + "' cannot stand in an option file";
+    const std::string label =
+        std::string("a refused row of a file answers the refusal line for ")
+        + name + " (FR-031)";
+    expectFileFault(std::string(name) + "=a\n", wanted, label.c_str());
   }
 }
 
@@ -2881,6 +3054,9 @@ auto main(int argc, char** argv) -> int
   aHeldValueOfALowerSourceNamesItsSource();
   anEmptyFilterWordSettlesTheRowItNames();
   aLowerPercentileListIsCountedAlone();
+  theBadValueOfEverySourceSharesTheWordsLine();
+  theBareFlagOfEverySourceSettlesItsRow();
+  theFourRefusedRowsAnswerTheirOwnLines();
   theEnvironmentWalkReadsTheTableItIsGiven();
   aBadLetterOfAShortGroupAfterALongOption();
   everyRefusedRowLineFaultsTheEntry();

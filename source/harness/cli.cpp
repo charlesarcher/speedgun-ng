@@ -479,7 +479,7 @@ auto speedgunMain(int argc, char** argv) -> int
   // status 2, the shape the scan fault above uses, and it stands ahead of
   // the filter compile, the placement parse and the run loop (SC-003).
   std::vector<detail::EnvironmentRow> environment;
-  if (!scan->options.environmentOff) {
+  if (!scan->settled.options.environmentOff) {
     environment = detail::environmentRows(environ);
   }
 
@@ -489,14 +489,14 @@ auto speedgunMain(int argc, char** argv) -> int
   // at status 2, ahead of the filter compile, the placement parse and the
   // run loop (SC-003, SC-013).
   std::optional<detail::OptionFileText> optionFile;
-  if (!scan->options.optionsFile.empty()) {
-    const auto text = detail::readTextFile(scan->options.optionsFile);
+  if (!scan->settled.options.optionsFile.empty()) {
+    const auto text = detail::readTextFile(scan->settled.options.optionsFile);
     if (!text.has_value()) {
       std::fprintf(stderr, "--options: %s\n", text.error().c_str());
       return 2;
     }
     optionFile = detail::OptionFileText {
-        scan->options.optionsFile,
+        scan->settled.options.optionsFile,
         std::move(*text),
     };
   }
