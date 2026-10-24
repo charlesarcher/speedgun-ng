@@ -704,6 +704,24 @@ auto rowOfValue(const int value) -> const OptionRow*
   return &*found;
 }
 
+// Whether the source in hand settled this row already. The two percentile
+// rows write one flag, so a word or a line of the sibling row is a prior
+// settle of the state this row writes: the last word of one source wins the
+// flag and the points, while a higher source keeps its word over a lower one
+// (FR-025, FR-035, FR-038).
+auto settledInSource(const std::vector<const OptionRow*>& seen,
+                     const OptionRow& row) -> bool
+{
+  if (std::find(seen.begin(), seen.end(), &row) != seen.end()) {
+    return true;
+  }
+  if (row.value != 'p' && row.value != 'P') {
+    return false;
+  }
+  const OptionRow* const sibling = rowOfValue(row.value == 'p' ? 'P' : 'p');
+  return std::find(seen.begin(), seen.end(), sibling) != seen.end();
+}
+
 // Settle one row of one source through the reader of its value kind. The
 // definition stands below, where the readers of every kind stand, and the
 // scan calls it for every word that names a row so that one row answers one
@@ -844,10 +862,8 @@ auto scanCommandLine(int argc, char** argv)
             ? std::string(optarg)
             : std::string(row->argument == OptionArgument::OPTIONAL ? "0"
                                                                     : "1");
-        const auto again =
-            std::find(settled.begin(), settled.end(), row) != settled.end()
-            ? kSameSourceSettled
-            : kNoPriorSettle;
+        const auto again = settledInSource(settled, *row) ? kSameSourceSettled
+                                                         : kNoPriorSettle;
         const auto applied = applySourceValue(*row,
                                               text,
                                               std::string {},
@@ -1776,10 +1792,8 @@ auto applyOptionFile(const OptionFileText& file, ResolvedOptions& resolved)
       // seed 0 the bare option carries (FR-029, E-10).
       value = row->argument == OptionArgument::OPTIONAL ? "0" : "1";
     }
-    const auto again =
-        std::find(settled.begin(), settled.end(), row) != settled.end()
-        ? kSameSourceSettled
-        : kNoPriorSettle;
+    const auto again = settledInSource(settled, *row) ? kSameSourceSettled
+                                                      : kNoPriorSettle;
     const auto applied = applySourceValue(
         *row, value, where, again, OptionSource::OPTION_FILE, resolved);
     if (!applied.has_value()) {
