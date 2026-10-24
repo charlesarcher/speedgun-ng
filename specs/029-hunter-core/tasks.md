@@ -1196,11 +1196,22 @@ citation row are settled, and both say so where they stand.
       refusal, and that refusal prints at `docs/pages/harness.md:1500` today,
       `:1441` holding the selection table instead. Both rows describe work
       that landed; only their addresses moved.
-- [ ] T185 MEDIUM Register `harness_cli_test` with the properties its cost
+- [x] T185 MEDIUM Register `harness_cli_test` with the properties its cost
       needs. `test/CMakeLists.txt:654` holds a bare `add_test`, so the
       `--timeout 3600` of the `sanitize` and `tsan` jobs governs it, and a
       loaded run needed 3802 s. `PROCESSORS` is what shortens the elapsed
       time. Blocked on a measured instrumented wall-clock and CPU pair.
+      Settled by 6c05452, with a smaller remedy than this row drafted. CI
+      decides the bound: `master` at `fea69c5` carries the identical
+      `test/source/harness_cli_test.cpp` (`bec0628` added `kFailedRunWindow`)
+      and its `sanitize` and `tsan` jobs read `success` under
+      `--timeout 3600 -j 2`, so the entry needs no `TIMEOUT` and the 3802 s
+      figure was four copies of one binary sharing this box. What it does
+      need is slots: `PROCESSORS 2`, which serializes it against siblings
+      under the `-j 2` every CI job uses, and which also keeps a second
+      copy off the one note file the program writes into its working
+      directory. `RESOURCE_LOCK`, following `:297`, is the named upgrade if
+      a job ever raises `-j`.
 - [ ] T186 LOW Decide whether the contract and the header must match byte for
       byte. `contracts/hunt-api.md:194` ends the refusal sentence with a
       period where `include/speedgun-ng/hunt.hpp:512` keeps a semicolon, a
