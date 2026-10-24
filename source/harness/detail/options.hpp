@@ -275,6 +275,13 @@ using RuleFileReader = std::expected<std::vector<CompareRule>, std::string> (*)(
     RuleFileReader ruleFiles = nullptr)
     -> std::expected<ResolvedOptions, std::string>;
 
+/// @brief The text of a value as one fault record carries it: a line
+/// break named with its own words and a backslash doubled, so the break
+/// cannot be confused with the two letters of its own name (FR-024,
+/// FR-027, FR-035). The one place the value parsers quote an echoed
+/// token, so every refusal stands one line (FR-038).
+[[nodiscard]] auto quotedText(std::string_view text) -> std::string;
+
 /// @brief The thread counts of one `--threads=` list: a comma-separated
 /// sequence of counts and `min:max` ranges, the ranges expanded by
 /// `buildThreadCounts` (E-11, FR-045, FR-046, D-14). The same reader

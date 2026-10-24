@@ -510,10 +510,11 @@ struct RunOptions
   // once before the expansion and before any run. Empty when the option
   // stood absent.
   std::optional<JitterProbeOptions> jitterProbe;
-  // specs/027 FR-015, R-06: the option's raw text, as the scan and the
-  // gather read it; the parse stands once at the application point the
-  // placement parse uses.
-  std::string jitterProbeText;
+  // specs/027 FR-015, R-06: the option's raw text as the command line
+  // reads it, standing only while the scan carried it; the option
+  // file's settle arm parses its own value in place, so the entry
+  // point parses the command line's text alone (FR-027, R-06).
+  std::optional<std::string> jitterProbeText;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it
