@@ -1307,6 +1307,20 @@ auto splitItems(const std::string& text) -> std::vector<std::string_view>
   return items;
 }
 
+// The values one source's text holds. The `;` list of FR-024 belongs to the
+// environment alone, which names a row once: a file line and a word of the
+// command line hand the whole of their text to the reader of the row, the
+// rule FR-035 gives the file, so the same value faults the same way from
+// either (FR-024, FR-035).
+auto sourceItems(const std::string& text,
+                 const OptionSource source) -> std::vector<std::string_view>
+{
+  if (source != OptionSource::ENVIRONMENT) {
+    return {std::string_view(text)};
+  }
+  return splitItems(text);
+}
+
 // The rows whose value accumulates within one source: their arms below
 // append the items of every word, where a scalar keeps the last word
 // (FR-035, FR-038). The disclosure of an accumulated row joins its items
@@ -1490,12 +1504,12 @@ auto applySourceValue(const OptionRow& row,
       if (!options.counterAddresses.empty() && prior != kSameSourceSettled) {
         return false;
       }
-      for (const std::string_view item : splitItems(text)) {
+      for (const std::string_view item : sourceItems(text, source)) {
         options.counterAddresses.emplace_back(item);
       }
       return true;
     case 'M': {
-      const std::vector<std::string_view> items = splitItems(text);
+      const std::vector<std::string_view> items = sourceItems(text, source);
       // FR-028, FR-033, FR-038: the lookup of a metric name reads the host,
       // so the entry point walks the names and not the gather. Every name
       // every source named is kept for that walk, settled or dropped, behind
@@ -1519,7 +1533,7 @@ auto applySourceValue(const OptionRow& row,
       // `--percentiles` arm and this arm both set it when they fill the
       // points, so the points carry no fact the flag does not (FR-025).
       std::vector<double> points = options.percentilePoints;
-      for (const std::string_view item : splitItems(text)) {
+      for (const std::string_view item : sourceItems(text, source)) {
         const std::string itemText(item);
         const auto read =
             parsePercentileList(itemText.c_str(), option.c_str(), points);
@@ -1571,12 +1585,14 @@ auto applySourceValue(const OptionRow& row,
       // replacement FR-038 states for a repeatable a higher source named.
       // Within one source the items append in order, the way the counter
       // addresses do (FR-035).
-      // Each `;` item carries the comma-separated list the command line
-      // reads, and the settled counts stand in `RunOptions` (E-11) until
-      // the loop over `registry()` writes them into every family
-      // record ahead of the expansion (FR-044, FR-045, FR-050, D-14).
+      // The word of the environment carries the `;` items of FR-024, each one
+      // the comma-separated list the command line reads and that a file line
+      // hands over whole; the settled counts stand in `RunOptions` (E-11)
+      // until the loop over `registry()` writes them into every family
+      // record ahead of the expansion (FR-024, FR-035, FR-044, FR-045,
+      // FR-050, D-14).
       std::vector<int> counts;
-      for (const std::string_view item : splitItems(text)) {
+      for (const std::string_view item : sourceItems(text, source)) {
         const auto words = readThreadList(item);
         if (!words.has_value()) {
           return refuse(words.error());
