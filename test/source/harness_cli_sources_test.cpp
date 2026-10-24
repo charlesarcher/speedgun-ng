@@ -279,6 +279,17 @@
 //                                the reader the gather is handed answers its
 //                                own line for a path it cannot open (FR-062,
 //                                D-05)
+//   aHeldValueOfALowerSourceNamesItsSource
+//                                the bad filter, preset and metric word that
+//                                the settle keeps as text answers one line
+//                                behind its own source at status 2, settled
+//                                or dropped, and so does a rules path it
+//                                holds (FR-027, FR-033, FR-038)
+//   anEmptyFilterWordSettlesTheRowItNames
+//                                an empty filter word of the words or of a
+//                                file line settles the row, so a lower
+//                                source leaves the empty pattern standing
+//                                (FR-035, FR-037, FR-050)
 //   theEnvironmentRowOfOneProcessName
 //                                one process name answers a row only when it
 //                                carries the prefix and an `=`, and the rows of
@@ -512,7 +523,7 @@ constexpr NameCase kFlagged[] = {
     {"metric", "ipc"},
     {"percentiles", "90"},
     {"no-percentiles", "true"},
-    {"placement", "balanced"},
+    {"placement", "core"},
     {"threads", "2"},
     {"interleave", "7"},
 };
@@ -2030,6 +2041,123 @@ auto aShadowedBadValueStillNamesItsSource() -> void
         "FR-063)");
 }
 
+auto aHeldValueOfALowerSourceNamesItsSource() -> void
+{
+  // Three rows are kept as text by the settle and read only for the winner:
+  // the batch filter, the process preset and the user metrics. A bad word of
+  // a lower source therefore settles nothing and exits 0, and the line of the
+  // one that does answer names the option it comes from rather than the
+  // source that holds it. Each of the three is read where it settles now, so
+  // each answers one line behind its own source at status 2, whether or not a
+  // higher source settled the row (FR-027, FR-033, FR-038, FR-046, FR-051).
+  const Run barePreset = runEntryWithEnv({}, {"SPEEDGUN_PLACEMENT=bogus"});
+  oneFaultLine(barePreset,
+               "the refused preset of SPEEDGUN_PLACEMENT (FR-027, FR-046)",
+               {"SPEEDGUN_PLACEMENT: ", "--placement"});
+  const Run heldPreset =
+      runEntryWithEnv({"--placement=compact"}, {"SPEEDGUN_PLACEMENT=bogus"});
+  oneFaultLine(heldPreset,
+               "the refused preset SPEEDGUN_PLACEMENT holds under a preset of "
+               "the words (FR-038, FR-046)",
+               {"SPEEDGUN_PLACEMENT: ", "--placement"});
+
+  const Run bareFilter = runEntryWithEnv({}, {"SPEEDGUN_FILTER=("});
+  oneFaultLine(bareFilter,
+               "the refused pattern of SPEEDGUN_FILTER (FR-027, FR-051)",
+               {"SPEEDGUN_FILTER: ", "--filter"});
+  const Run heldFilter =
+      runEntryWithEnv({"--filter=^bm"}, {"SPEEDGUN_FILTER=("});
+  oneFaultLine(heldFilter,
+               "the refused pattern SPEEDGUN_FILTER holds under a pattern of "
+               "the words (FR-038, FR-051)",
+               {"SPEEDGUN_FILTER: ", "--filter"});
+
+  // The metric row is read at the entry point, where a benchmark stands to
+  // be run: its two cases of the lower source, of the environment and of a
+  // file line, are in the command line test beside the metric cases of the
+  // words (FR-027, FR-028).
+
+  // The same two words of a file line name the file and the number of the
+  // line that holds them, as every refusal of a file line does (FR-033,
+  // FR-035, FR-065).
+  for (const NameCase& wanted :
+       {NameCase {"placement", "bogus"}, NameCase {"filter", "("}})
+  {
+    const std::filesystem::path path = capturePath(".held");
+    {
+      std::ofstream stream(path);
+      stream << wanted.name << '=' << wanted.value << "\n";
+    }
+    const Run held = runEntry({"--options=" + path.string()});
+    const std::string what =
+        std::string("a file line whose ") + wanted.name
+        + " the settle keeps as text names its file and its number "
+          "(FR-033, FR-035)";
+    oneFaultLine(held,
+                 what.c_str(),
+                 {path.string() + ":1: ", std::string("--") + wanted.name});
+    std::filesystem::remove(path);
+  }
+
+  // The path of a rules file a lower source names is opened before its rules
+  // drop, so its own refusal stands (FR-038, FR-061, FR-063).
+  const std::filesystem::path file = capturePath(".heldrules");
+  {
+    std::ofstream stream(file);
+    stream << "compare-rules=/speedgun-absent-directory/more.rules\n";
+  }
+  const Run heldRules = runEntry(
+      {"--compare-rule=time@median:lower:5%", "--options=" + file.string()});
+  oneFaultLine(heldRules,
+               "the rules path a lower source names is opened before it drops "
+               "(FR-038, FR-061)",
+               {"/speedgun-absent-directory/more.rules"});
+  std::filesystem::remove(file);
+}
+
+auto anEmptyFilterWordSettlesTheRowItNames() -> void
+{
+  // `--filter=` names the row with an empty pattern, and an empty pattern is
+  // the pattern that selects every benchmark, so the row is settled and no
+  // lower source replaces it. The mark of the row cannot be the emptiness of
+  // the text, so the settle keeps a mark of its own (FR-024, FR-035, FR-037,
+  // FR-050).
+  const Gathered fromWords =
+      gatherSources({"--filter="}, {{"SPEEDGUN_FILTER", "^bm"}}, std::nullopt);
+  if (!fromWords.settled.has_value()) {
+    fail("the gather settles an empty filter word of the words");
+  } else {
+    check(fromWords.settled->options.filter.empty(),
+          "the empty filter word of the words settles the row the variable "
+          "would name (FR-037, FR-050)");
+  }
+
+  const Gathered fromFile =
+      gatherSources({}, {{"SPEEDGUN_FILTER", "^bm"}}, "filter=\n");
+  if (!fromFile.settled.has_value()) {
+    fail("the gather settles an empty filter line of a file");
+  } else {
+    check(fromFile.settled->options.filter.empty(),
+          "the empty filter line of one file settles the row the variable "
+          "would name (FR-035, FR-037)");
+  }
+
+  // The expression of the words is read too, after every lower source has
+  // answered what its own line has to answer: the row is the words' row, so
+  // the refusal names the option and not a source path (FR-024, FR-033,
+  // FR-051).
+  const Gathered badWords = gatherSources(
+      {"--filter=("}, {{"SPEEDGUN_FILTER", "^bm"}}, "filter=^bm\n");
+  if (badWords.settled.has_value()) {
+    fail("an expression the words hold is read (FR-051)");
+  } else {
+    check(badWords.fault.starts_with(
+              "--filter: invalid regular expression '(': "),
+          "the refusal of the expression of the words names the option it "
+          "holds (FR-051, FR-033)");
+  }
+}
+
 auto theEnvironmentWalkReadsTheTableItIsGiven() -> void
 {
   // FR-012, FR-026: the entry point owns the read of the process table and
@@ -2090,7 +2218,7 @@ constexpr RepeatCase kRepeats[] = {
     {"metric", "ipc", "cpi", true},
     {"percentiles", "90", "99", true},
     {"no-percentiles", "true", "false", false},
-    {"placement", "balanced", "pinned", false},
+    {"placement", "core", "l3", false},
     {"threads", "2", "4", true},
     {"interleave", "7", "9", false},
     {"list", "0", "1", false},
@@ -2654,6 +2782,8 @@ auto main(int argc, char** argv) -> int
   everyRowOfTheTableSettlesItsRow();
   aGoodLineOfALowerSourceYieldsAndDrops();
   aShadowedBadValueStillNamesItsSource();
+  aHeldValueOfALowerSourceNamesItsSource();
+  anEmptyFilterWordSettlesTheRowItNames();
   theEnvironmentWalkReadsTheTableItIsGiven();
   aBadLetterOfAShortGroupAfterALongOption();
   everyRefusedRowLineFaultsTheEntry();

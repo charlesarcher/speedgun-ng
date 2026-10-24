@@ -16,6 +16,7 @@
 #include <numeric>
 #include <optional>
 #include <random>
+#include <regex>
 #include <span>
 #include <string>
 #include <string_view>
@@ -698,6 +699,9 @@ auto scanCommandLine(int argc, char** argv)
     switch (choice) {
       case 'f':
         options.filter = optarg;
+        // The empty pattern selects every benchmark, so the mark that tells
+        // a named row from an unnamed one cannot be the text itself (FR-037).
+        scan.filterNamed = true;
         break;
       case 'l':
         options.listMode = true;
@@ -1222,6 +1226,20 @@ auto readCompareRulesFile(const std::string& path)
   return rules;
 }
 
+auto compileFilterPattern(const std::string& pattern)
+    -> std::expected<std::optional<std::regex>, std::string>
+{
+  if (pattern.empty()) {
+    return std::optional<std::regex> {};
+  }
+  try {
+    return std::optional<std::regex>(pattern);
+  } catch (const std::regex_error& error) {
+    return std::unexpected("invalid regular expression '" + pattern
+                           + "': " + error.what());
+  }
+}
+
 namespace
 {
 
@@ -1362,12 +1380,26 @@ auto applySourceValue(const OptionRow& row,
   const auto refuse = [&](const std::string& line)
   { return std::unexpected(origin + ": " + line); };
   switch (row.value) {
-    case 'f':
-      if (!options.filter.empty() && prior != kSameSourceSettled) {
+    case 'f': {
+      // FR-024, FR-050, FR-051: the pattern is compiled where the row
+      // settles, so the expression a lower source holds is read whether or
+      // not it wins, and the refusal of an expression the regex library
+      // refuses names the source that holds it (FR-027, FR-033, FR-038). The
+      // row is settled by the word that named it and not by the text it
+      // holds: the empty pattern selects every benchmark, so a line whose
+      // word stands empty settles the row (FR-037).
+      const auto pattern = compileFilterPattern(text);
+      if (!pattern.has_value()) {
+        return refuse(option + ": " + pattern.error());
+      }
+      if (resolved.filterSettled && prior != kSameSourceSettled) {
         return false;
       }
+      resolved.filterSettled = true;
+      resolved.filterPattern = *pattern;
       options.filter = text;
       return true;
+    }
     default: {
       // The five rows that carry no value turn one member of `RunOptions`,
       // and the word is the flag's truth, the way `--no-percentiles` reads
@@ -1444,14 +1476,26 @@ auto applySourceValue(const OptionRow& row,
         options.counterAddresses.emplace_back(item);
       }
       return true;
-    case 'M':
+    case 'M': {
+      const std::vector<std::string_view> items = splitItems(text);
+      // FR-028, FR-033, FR-038: the lookup of a metric name reads the host,
+      // so the entry point walks the names and not the gather. Every name
+      // every source named is kept for that walk, settled or dropped, behind
+      // the origin of the source that held it, so a name that drops still
+      // states its own failure. The words keep their names in the settled
+      // list, and the gather seeds that walk with the empty origin its own
+      // line carries (FR-037).
+      for (const std::string_view item : items) {
+        resolved.metricNames.push_back(MetricName {origin, std::string(item)});
+      }
       if (!options.metricNames.empty() && prior != kSameSourceSettled) {
         return false;
       }
-      for (const std::string_view item : splitItems(text)) {
+      for (const std::string_view item : items) {
         options.metricNames.emplace_back(item);
       }
       return true;
+    }
     case 'p': {
       // The display flag is what marks this row settled: the scan's
       // `--percentiles` arm and this arm both set it when they fill the
@@ -1487,12 +1531,23 @@ auto applySourceValue(const OptionRow& row,
       options.showPercentiles = !*flag;
       return true;
     }
-    case 'A':
+    case 'A': {
+      // FR-046, FR-048: the preset text is parsed where the row settles, so
+      // the name a lower source holds is read whether or not it wins, and the
+      // refusal of a name that is not a preset names the source that holds it
+      // (FR-027, FR-033, FR-038). No run can meet a name the settle let stand
+      // because the settle read it (FR-046).
+      const auto preset = parsePreset(text);
+      if (!preset.has_value()) {
+        return refuse(option + ": '" + text
+                      + "' is not one of the five preset names");
+      }
       if (options.placement.has_value() && prior != kSameSourceSettled) {
         return false;
       }
       options.placement = text;
       return true;
+    }
     case kThreadsOptionValue: {
       // A count list the command line settled keeps its word, which is the
       // replacement FR-038 states for a repeatable a higher source named.
@@ -1876,6 +1931,18 @@ auto gatherOptionSources(const CommandLineOptions& scan,
     resolved.rulesSource = OptionSource::COMMAND_LINE;
   }
 
+  // The two rows that settle through a mark of their own are seeded the way
+  // the seed of FR-037 is: the words are asked first, and a mark of theirs
+  // keeps a file or a variable from replacing what they named. The filter
+  // mark cannot be the settled text, because the empty pattern that selects
+  // every benchmark is a settled value (FR-037, FR-050). Every metric name
+  // the words named joins the walk of the entry point with the empty origin,
+  // since the line of the words names the option itself (FR-028, FR-033).
+  resolved.filterSettled = scan.filterNamed;
+  for (const std::string& name : scan.options.metricNames) {
+    resolved.metricNames.push_back(MetricName {"", name});
+  }
+
   // The file stands between the words and the environment (FR-037, D-1).
   if (optionFile.has_value()) {
     const auto read = applyOptionFile(*optionFile, resolved);
@@ -1941,6 +2008,19 @@ auto gatherOptionSources(const CommandLineOptions& scan,
   // The two rules rows carry no environment name (FR-026), so the environment
   // names no rule and the join above, made for the option file, is the last
   // one the gather makes (FR-063).
+
+  // FR-024, FR-050, FR-051: the pattern of the words is compiled here, after
+  // every lower source has answered its own fault, the way the entry point
+  // compiled it before this round, since the scan keeps the text of its own
+  // row unread (FR-038). The row is settled by the words, so no lower text
+  // reaches this point under them (FR-037).
+  if (scan.filterNamed) {
+    const auto pattern = compileFilterPattern(resolved.options.filter);
+    if (!pattern.has_value()) {
+      return std::unexpected("--filter: " + pattern.error());
+    }
+    resolved.filterPattern = *pattern;
+  }
 
   // FR-039, FR-040: the disclosed uses stand in table order. The file
   // answers them in line order, so the whole list is put in order here.
