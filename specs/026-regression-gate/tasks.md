@@ -1005,7 +1005,7 @@ the compare branch at `:477` to `:486`, and the run-path postcondition at
 **The reader and the document read complete.** `loadReport` fills the
 three document fields at `source/harness/json_load.cpp:1155` to `:1197`,
 and the noise record is read and stored at `:731` to `:758` (FR-070). The
-lenient key rule stands at `:1000` to `:1030`, and its pair runs at
+lenient key rule stands at `:1016` to `:1046`, and its pair runs at
 `test/source/harness_json_load_test.cpp:913` to `:944` (FR-073).
 `docs/schema/compare-v1.json` lists the six top keys at `:7` and the
 eight entry keys at `:57`. `writeCompareReport` answers a refused file at
@@ -1154,8 +1154,8 @@ writes at `:1678`, and a refused file answers at `:1738` to `:1753`
 (FR-006, FR-007, FR-053, FR-056 to FR-058, FR-074). The public surface
 stands at `include/speedgun-ng/benchmark.hpp:596`, `:613`, `:624`,
 `:647`, `:674`, `:697`, `:712`, `:2515` and `:2544` (FR-001,
-FR-064). The lenient key rule stands at `source/harness/json_load.cpp:1000`
-to `:1030` with its case at `test/source/harness_json_load_test.cpp:914`
+FR-064). The lenient key rule stands at `source/harness/json_load.cpp:1016`
+to `:1046` with its case at `test/source/harness_json_load_test.cpp:914`
 (FR-067, FR-070, FR-073). 61 cases run in
 `test/source/harness_compare_test.cpp` and 22 in
 `test/source/harness_compare_cli_test.cpp` over eleven fixtures under
