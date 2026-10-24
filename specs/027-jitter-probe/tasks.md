@@ -452,3 +452,21 @@ registration surface; the doc-gate scope stands at `include/speedgun-ng`
 by ruling, the widened view being the run that surfaced those rows;
 the citation ranges the acceptance lane found a line or two short
 carry the content they cite and stand ruled inconsequential.
+
+**CI follow-up (2026-10-24)**: the head's first CI run named three
+failures and the rulings they carry. The test and the Rocky jobs stood
+red on the round-trip scenario's own design: the two probe cpus share
+one scripted series, their ride counts diverge under contention, and
+the lagging cpu's hand-offs dragged the shared cursor backward, so a
+pass-gate window's close stamp read below its open one and the
+window's unsigned runtime wrapped past the signed range the reader
+parses; the pass-gate body now rebases behind a guarded close, sizes
+its ride margins from the first call's read count, and the scenario
+sizes the gap buffer to the kept rides, with the entry-level fold
+assertions stating the absence rule E-08 names and the run-level
+record carrying one fold per probe cpu (the fix the small-host loop
+of twenty four-cpu and ten two-cpu runs proves clean). The coverage
+job's red stands the owner-accepted state the round-3 ruling records:
+lines 100.0 percent (9410 of 9410) and branches 99.9 percent (three
+dark of 4588), the dark rows the ruling's causes name, so no action
+stands due on this lane until a toolchain change resolves them.
