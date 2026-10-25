@@ -61,9 +61,9 @@ later attempt in flight, so the row carries no count.
 Nothing cached, everything rebuilt: the five suite lanes spend 191 to 553
 seconds in `Build` and the three analyzer shards spend 420, 1006 and 1884, which
 makes `static-analysis (tests)` the long pole of the run at 32 minutes of build
-alone. Those shard times are what a cold bucket costs, and FR-055 asks for that
-number rather than for a lane that hides it: an empty bucket makes every lane
-compile from source, and the cache is what removes the cost.
+alone. Those shard times are what a cold bucket costs. FR-055 asks for that
+number: an empty bucket makes every lane compile from source, and the cache is
+what removes the cost.
 
 Two details in the same log matter for the warm pair in `warm.md`.
 
@@ -76,8 +76,8 @@ one-line change that lets a red suite still save, and `warm.md` needs it.
 `consumer-release` compiles the same sources twice inside one job — the consumer
 library first, then the trap fixture and `dbc_test` — and the second `Build`
 reports `Hits: 43 / 125 (34.40%)` against the first one's `0 / 142`. That is the
-intra-job control: with matching keys the cache does answer, so every `0.00%`
-above is a miss on the bucket, not a broken ccache.
+intra-job control: with matching keys the cache does answer. Each `0.00%`
+above is therefore a miss on the bucket while the ccache itself works.
 
 ## Commands
 
@@ -95,5 +95,5 @@ gh run view --job 121318595391 --attempt 1 --log --allow-escape-sequences | tail
 
 VERDICT: PASS. One cold run exists with every lane's `Build` time and
 `ccache -s` reading, all thirteen at zero hits, and the two mechanisms that
-shape the warm pair — the skipped save behind a failed step, and the intra-job
-34.40% control — are on record.
+shape the warm pair (the skipped save behind a failed step, and the intra-job
+34.40% control) are on record.
