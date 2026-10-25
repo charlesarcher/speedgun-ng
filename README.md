@@ -82,6 +82,7 @@ Its output on one host's run, with the numbers of that machine:
 speedgun-ng 0.9.0 build=Release
 bmSum                    iterations=   1066261  real time/iter (ns)=  657.575  cpu time/iter (ns)=  656.663  overhead floor (ns)=  684.000  endpoint samples=2
 ```
+Run `tools/ci/prepush.sh` before you push: [docs/pages/prepush.md](docs/pages/prepush.md) carries the two tiers and the step map.
 
 ## How you do it
 ### The run loop
