@@ -883,9 +883,10 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
                                                          : "the new row '")
           + row.name + "' answers inside its block (FR-004, FR-079)";
       report(label.c_str(),
-             hunt         ? "a constant from 270 to 279"
-                 : master ? "a letter or a constant from 256 to 259"
-                          : "a constant from 290 to 296, or the lane block's 260",
+             hunt ? "a constant from 270 to 279"
+                 : master
+                 ? "a letter or a constant from 256 to 259"
+                 : "a constant from 290 to 296, or the lane block's 260",
              valueWord(row.value));
     }
     if (hunt) {
