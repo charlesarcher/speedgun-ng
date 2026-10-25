@@ -1407,7 +1407,7 @@ the two. The split, the merge and the disclosure run in
 `test/source/harness_pass_report_test.cpp`, on the fake provider with a set
 counter limit.
 ## Jitter probe
-The `--jitter-probe` option and the `runJitterProbe` call state the probe options of the run: a spinning context per touched L3 group counts the gaps the host inserts above a threshold while the batch runs, and the report prints one block of the folds after the benchmark tables.
+The `--jitter-probe` option and the `runJitterProbe` call state the probe options of the run: a spinning context per touched L3 group counts the gaps the host inserts above a threshold while the batch runs, and the report prints one block of the folds after the benchmark tables. An empty `cpus` field names the `idle` preset: in `precheck` mode the probe runs on the planned cpus, and in the other modes on one cpu of each L3 group the plans leave free. The block opens with `jitter probe: cpus`, carries one field line per stats field from `gapCount:` to `droppedGaps:`, one value per probe cpu, and closes with the disclosure lines.
 <!-- sg-example: example/docs/jitter_probe.cpp#jitter-probe -->
 ```cpp
 auto bmMeasured(sg::State& state) -> void
