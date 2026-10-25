@@ -64,11 +64,11 @@ jobs:
       run: cmake --preset=ci-coverage
 
     - name: Build
-      run: cmake --build build/coverage -j 2
+      run: cmake --build build/coverage -j "$(nproc)"
 
     - name: Test
       working-directory: build/coverage
-      run: ctest -j 2 --output-on-failure --no-tests=error
+      run: ctest -j 1 --output-on-failure --no-tests=error
 
     - name: Process coverage info
       run: cmake --build build/coverage -t coverage
@@ -107,7 +107,7 @@ jobs:
       run: cmake --preset=ci-sanitize
 
     - name: Build
-      run: cmake --build build/sanitize -j 2
+      run: cmake --build build/sanitize -j "$(nproc)"
 
     - name: Test
       working-directory: build/sanitize
@@ -120,7 +120,7 @@ jobs:
           halt_on_error=1"
         UBSAN_OPTIONS: "print_stacktrace=1:\
           halt_on_error=1"
-      run: ctest --output-on-failure --no-tests=error -j 2
+      run: ctest --output-on-failure --no-tests=error -j "$(nproc)"
 
   tsan:
     needs: [lint]
@@ -141,7 +141,7 @@ jobs:
       run: cmake --preset=ci-tsan
 
     - name: Build
-      run: cmake --build build/tsan -j 2
+      run: cmake --build build/tsan -j "$(nproc)"
 
     # The thread sanitizer needs its own build tree: the compilers reject
     # pairing it with the address sanitizer, so ci-sanitize keeps address
@@ -150,7 +150,7 @@ jobs:
       working-directory: build/tsan
       env:
         TSAN_OPTIONS: "halt_on_error=1:second_deadlock_stack=1"
-      run: ctest --output-on-failure --no-tests=error -j 2
+      run: ctest --output-on-failure --no-tests=error -j "$(nproc)"
 
   test:
     needs: [lint]
@@ -165,7 +165,7 @@ jobs:
     - name: Configure
       run: cmake --preset=ci-ubuntu
     - name: Build
-      run: cmake --build build --config Release -j 2
+      run: cmake --build build --config Release -j "$(nproc)"
     - name: Install
       run: cmake --install build --config Release --prefix prefix
     - name: Audit install tree for hwloc
@@ -219,7 +219,7 @@ jobs:
       run: python3 tools/pmu_events/update_pmu_events.py --check
     - name: Test
       working-directory: build
-      run: ctest --output-on-failure --no-tests=error -C Release -j 2
+      run: ctest --output-on-failure --no-tests=error -C Release -j "$(nproc)"
 
   test-rocky:
     needs: [lint]
@@ -241,12 +241,12 @@ jobs:
     - name: Configure
       run: cmake --preset=ci-rocky
     - name: Build
-      run: cmake --build build --config Release -j 2
+      run: cmake --build build --config Release -j "$(nproc)"
     - name: Install
       run: cmake --install build --config Release --prefix prefix
     - name: Test
       working-directory: build
-      run: ctest --output-on-failure --no-tests=error -C Release -j 2
+      run: ctest --output-on-failure --no-tests=error -C Release -j "$(nproc)"
 
   shared-audit:
     needs: [lint]
@@ -261,7 +261,7 @@ jobs:
     - name: Configure
       run: cmake --preset=ci-linux-audit -B build-shared -D BUILD_SHARED_LIBS=ON -D CMAKE_BUILD_TYPE=Release
     - name: Build
-      run: cmake --build build-shared -j 2
+      run: cmake --build build-shared -j "$(nproc)"
     - name: Install
       run: cmake --install build-shared --prefix prefix-shared
     - name: Audit shared symbols for hwloc
@@ -363,7 +363,7 @@ jobs:
       run: >-
         cmake -S external/hdrhistogram_c -B sys-hdr
         -DHDR_HISTOGRAM_BUILD_PROGRAMS=OFF -DCMAKE_BUILD_TYPE=Release
-        && cmake --build sys-hdr -j 2
+        && cmake --build sys-hdr -j "$(nproc)"
         && sudo cmake --install sys-hdr --prefix /usr/local
     # The same premise for yaml-cpp, the sys-hdr pattern: build the
     # vendored tree out-of-tree and put it on the default search path,
@@ -373,7 +373,7 @@ jobs:
       run: >-
         cmake -S external/yaml-cpp -B sys-yaml
         -DYAML_CPP_BUILD_TESTS=OFF -DYAML_CPP_BUILD_TOOLS=OFF
-        && cmake --build sys-yaml -j 2
+        && cmake --build sys-yaml -j "$(nproc)"
         && sudo cmake --install sys-yaml --prefix /usr/local
     # The same premise for quill (specs/009 R-014). Upstream publishes no
     # system development package on Ubuntu, so the copy is built from the
@@ -388,11 +388,11 @@ jobs:
         -DQUILL_ENABLE_INSTALL=ON -DQUILL_BUILD_EXAMPLES=OFF
         -DQUILL_BUILD_TESTS=OFF -DQUILL_BUILD_BENCHMARKS=OFF
         -DCMAKE_BUILD_TYPE=Release
-        && cmake --build sys-quill -j 2
+        && cmake --build sys-quill -j "$(nproc)"
         && sudo cmake --install sys-quill --prefix /usr/local
     - name: Install library
       run: cmake --preset=ci-linux-audit -B build -D CMAKE_BUILD_TYPE=Release
-        && cmake --build build -j 2
+        && cmake --build build -j "$(nproc)"
         && cmake --install build --prefix prefix
     - name: Configure consumer
       run: >-
@@ -521,7 +521,7 @@ jobs:
           build/consumer-release/CMakeCache.txt
 
     - name: Build consumer library
-      run: cmake --build build/consumer-release -j 2
+      run: cmake --build build/consumer-release -j "$(nproc)"
 
     - name: Assert no gated check_ symbols
       run: |
@@ -541,7 +541,7 @@ jobs:
         -D speedgun-ng_DEVELOPER_MODE=ON
 
     - name: Build trap fixture and dbc_test
-      run: cmake --build build/consumer-release-dev -j 2
+      run: cmake --build build/consumer-release-dev -j "$(nproc)"
         --target dbc_trap_fixture counters_trap_fixture
         counters_trap_noguard_fixture dbc_test
 
@@ -648,7 +648,7 @@ jobs:
     - name: Run counters_trap_checked under ignore
       run: |
         ulimit -c 0
-        cmake --build build/consumer-release-dev -j 2 \
+        cmake --build build/consumer-release-dev -j "$(nproc)" \
           --target counters_trap_checked_test
         ctest --test-dir build/consumer-release-dev -R counters_trap \
           --output-on-failure
@@ -689,11 +689,11 @@ jobs:
       run: cmake -S . -B build/dev --preset=ci-ubuntu
 
     - name: Build dbc-gate
-      run: cmake --build build/dev -t dbc-gate -j 2
+      run: cmake --build build/dev -t dbc-gate -j "$(nproc)"
 
     - name: Test dbc gate fixtures
       working-directory: build/dev
-      run: ctest -R dbc_gate_fixtures --output-on-failure --no-tests=error -j 2
+      run: ctest -R dbc_gate_fixtures --output-on-failure --no-tests=error -j "$(nproc)"
 
     - name: Upload dbc-matrix
       uses: actions/upload-artifact@v4
