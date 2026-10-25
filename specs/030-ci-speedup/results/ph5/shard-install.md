@@ -90,3 +90,52 @@ cache a runner charges for stays 8960 MB as `analyzer-job.md` reads it.
 
 A GitHub reading of the fixed step is owed by the next run: T029 needs the
 finding artifacts of a shard that reaches its compile.
+
+## The second gap, read from run 40236978814
+
+**Head sha**: 3cf4d639a3ae85af42d2dd087a5aa83094eb7943
+**Run id**: 40236978814
+**Command**: the two commands under The two readings, the first for the
+job table, the second for the shard log
+**Numbers**: 3 shards failed, 1 failing step each named Configure, 8
+packages installed before this second fix, 10 after it
+
+The bootstrap tools got the shard past the hwloc probe and into the
+project's own gate module, where a second required program was missing.
+
+### The two readings
+
+```bash
+gh run view 40236978814 --json jobs
+gh run view --log --job 121300655678 | awk -F'\t' '$2=="Configure"'
+```
+
+The second command prints the Configure step of the library shard, whose
+tail reads:
+
+```text
+CMake Error at cmake/dbc-gate.cmake:11 (message):
+  dbc-gate requires doxygen on PATH
+Call Stack (most recent call first):
+  CMakeLists.txt:945 (include)
+```
+
+`cmake/dbc-gate.cmake:10` runs `find_program(DOXYGEN_EXECUTABLE NAMES
+doxygen)` and stops with a fatal error at `cmake/dbc-gate.cmake:11` when
+the search comes back empty, and `CMakeLists.txt:945` includes that module
+on every developer-mode configure, which is what each shard runs. Every
+other lane of the workflow installs doxygen for that reason, as the eight
+install steps of `ci.yml` show.
+
+A grep for the fatal stops over `cmake/` and `CMakeLists.txt` names the
+whole configure-time program set for this path: doxygen at
+`cmake/dbc-gate.cmake:11`, the autotools probes of
+`cmake/ImportAutotoolsSubmodule.cmake:164` to `:172`, and nothing else
+until `cmake/coverage.cmake`, which only the coverage preset reads. The
+install step now carries clang-tidy, cppcheck, ccache, doxygen,
+python3-yaml, autoconf, automake, libtool and patch, matching the set the
+`test` lane installs plus the two analyzers.
+
+Verdict: the install set of the first fix was one package short of the
+configure path, read from a run that failed at the same step for a
+different reason.
