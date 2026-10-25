@@ -325,10 +325,12 @@ jobs:
     - name: ccache stats after Build
       run: ccache -s
 
-    # The three report steps carry if: always() because .clang-tidy lists
+    # The report steps carry if: always() because .clang-tidy lists
     # readability-identifier-naming under WarningsAsErrors: such a finding
     # stops the compile, and the finding list still has to reach the log
-    # and the artifact (specs/030-ci-speedup FR-016, FR-018, FR-054).
+    # and the artifact (specs/030-ci-speedup FR-016, FR-018, FR-054). The
+    # gate is the list WarningsAsErrors holds: a check outside it prints a
+    # warning the base build prints too, and FR-049 keeps that set as is.
     - name: Count translation units
       if: always()
       run: |
@@ -348,12 +350,18 @@ jobs:
           sed -nE 's#^\[([^:]+):([0-9]+)(:[0-9]+)?\]: \((warning|error)\).* \[([^],]+).*#\1:\2:\5#p' "$log"
         } | LC_ALL=C sort -u > findings.txt
 
-    - name: Fail on findings
+    - name: Fail on gate findings
       if: always()
       run: |
-        n=$(wc -l < findings.txt)
-        printf 'shard %s: %s findings\n' '${{ matrix.scope }}' "$n"
-        test "$n" -eq 0
+        printf 'shard %s: %s findings\n' '${{ matrix.scope }}' "$(wc -l < findings.txt)"
+        gate=$(sed -nE "s/^WarningsAsErrors: '?([^']*)'?.*/\1/p" .clang-tidy)
+        hits=0
+        for check in ${gate//,/ }; do
+          hits=$((hits + $(grep -c ":${check}\$" findings.txt || true)))
+        done
+        printf 'shard %s: %s findings on the gate checks (%s)\n' '${{ matrix.scope }}' \
+          "$hits" "$gate"
+        test "$hits" -eq 0
 
     - name: Upload findings
       if: always()
