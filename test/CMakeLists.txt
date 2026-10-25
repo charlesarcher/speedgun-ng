@@ -1606,6 +1606,8 @@ set(
   dbc_matrix_observe_off_o0
   # compiles the documentation snippets, 27 to 50 s measured
   snippet_compile
+  # two windows of 1,000 in-process runs, 52 min on a host granted the PMU
+  harness_cli_test
 )
 
 # The five matrix rows name entries phase 6 registers; where the matrix is
