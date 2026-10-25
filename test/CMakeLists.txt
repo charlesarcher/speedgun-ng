@@ -153,18 +153,45 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/dbc/asm_smoke.sh ${CMAKE_SOURCE_DIR}/include
   )
   # Only the lanes whose preset sets SPEEDGUN_DBC_MATRIX carry the matrix
-  # entry: it configures and builds a tree of its own, so coverage and
-  # sanitize leave it unregistered (030 D-5, P-01).
+  # entries: each configures and builds a tree of its own, so coverage and
+  # sanitize leave them unregistered (030 FR-019, D-5, P-01).
   if(SPEEDGUN_DBC_MATRIX)
+    # NDEBUG off at -O0: assert aborts and contract semantic stays 2
     add_test(
-      NAME dbc_semantics_matrix
-      COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/dbc/semantics_matrix.sh ${CMAKE_SOURCE_DIR}
+      NAME dbc_matrix_off_o0
+      COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/dbc/semantics_matrix.sh ${CMAKE_SOURCE_DIR} dbc_matrix_off_o0 ${SPEEDGUN_TEST_JOBS}
     )
-    # The cell hands SPEEDGUN_TEST_JOBS to its own build as its compile
-    # concurrency, so the entry holds that many slots while its compiler
-    # fleet runs (030 FR-003).
-    set_tests_properties(dbc_semantics_matrix PROPERTIES
-                         PROCESSORS ${SPEEDGUN_TEST_JOBS})
+    # NDEBUG off at -O2: the same semantic value under optimization
+    add_test(
+      NAME dbc_matrix_off_o2
+      COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/dbc/semantics_matrix.sh ${CMAKE_SOURCE_DIR} dbc_matrix_off_o2 ${SPEEDGUN_TEST_JOBS}
+    )
+    # NDEBUG on at -O0: assert elided and contract semantic stays 2
+    add_test(
+      NAME dbc_matrix_on_o0
+      COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/dbc/semantics_matrix.sh ${CMAKE_SOURCE_DIR} dbc_matrix_on_o0 ${SPEEDGUN_TEST_JOBS}
+    )
+    # NDEBUG on at -O2: assert elided under optimization, semantic 2
+    add_test(
+      NAME dbc_matrix_on_o2
+      COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/dbc/semantics_matrix.sh ${CMAKE_SOURCE_DIR} dbc_matrix_on_o2 ${SPEEDGUN_TEST_JOBS}
+    )
+    # observe mode: the negative probe that must print contract semantic 1
+    add_test(
+      NAME dbc_matrix_observe_off_o0
+      COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/dbc/semantics_matrix.sh ${CMAKE_SOURCE_DIR} dbc_matrix_observe_off_o0 ${SPEEDGUN_TEST_JOBS}
+    )
+    # Each cell hands SPEEDGUN_TEST_JOBS to its own build as its compile
+    # concurrency, so each of the five entries holds that many slots
+    # while its compiler fleet runs (030 FR-003).
+    set_tests_properties(
+      dbc_matrix_off_o0
+      dbc_matrix_off_o2
+      dbc_matrix_on_o0
+      dbc_matrix_on_o2
+      dbc_matrix_observe_off_o0
+      PROPERTIES PROCESSORS ${SPEEDGUN_TEST_JOBS}
+    )
   endif()
 
   # Codegen-shape gate for the raw time-stamp read (T026; 008 FR-003,
