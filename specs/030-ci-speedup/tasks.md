@@ -162,8 +162,8 @@ equals master's list, and a branch carrying one planted
 - [X] T027 [US3] In `.github/workflows/ci.yml`, strip the analyzer install step and the analyzer build from the `test` job so it configures `ci-ubuntu-test`, keeping its install and audit steps as they are (FR-015, FR-045). Depends on T026
 - [X] T028 [US3] In `.github/workflows/ci.yml`, make each shard print the count of translation units it compiled and upload its sorted `file:line:check` finding list as a named artifact (FR-018, FR-054). Depends on T027
 - [ ] T029 [P] [US3] Write `specs/030-ci-speedup/results/ph5/finding-diff.md` holding master's finding list from the last master run beside the union of the branch's three shard artifacts, with the diff of the two sorted sets (FR-049, SC-005, SC-011). Depends on T028
-- [ ] T030 [P] [US3] On a throwaway branch cut from the feature branch, plant one `readability-identifier-naming` violation in a library unit, push, and write `specs/030-ci-speedup/results/ph5/planted.md` naming the shard that failed and the finding line; delete the throwaway branch afterwards (FR-016, SC-011). Depends on T028
-- [ ] T031 [US3] Repeat the planted-violation run with a warm cache and write `specs/030-ci-speedup/results/ph5/warm-bite.md`, which records that the analyzer still ran before the compile and the shard still failed (FR-017). Depends on T030
+- [X] T030 [P] [US3] On a throwaway branch cut from the feature branch, plant one `readability-identifier-naming` violation in a library unit, push, and write `specs/030-ci-speedup/results/ph5/planted.md` naming the shard that failed and the finding line; delete the throwaway branch afterwards (FR-016, SC-011). Depends on T028
+- [X] T031 [US3] Repeat the planted-violation run with a warm cache and write `specs/030-ci-speedup/results/ph5/warm-bite.md`, which records that the analyzer still ran before the compile and the shard still failed (FR-017). Depends on T030
 
 **Checkpoint**: `test` builds without analyzers, and the analyzer verdict lands
 in its own job with an unchanged finding set.
@@ -202,9 +202,9 @@ main page teaches both tiers (SC-010).
 
 - [X] T039 [P] [US5] In `test/tier_labels.sh`, close the label checks against the filled list: the two label lists partition `ctest -N`, no entry carries both labels, and every `SPEEDGUN_SLOW_TESTS` row names an entry that exists (FR-025, FR-026). Depends on T011
 - [X] T040 [P] [US5] Read every `ctest` line in `.github/workflows/ci.yml` and write `specs/030-ci-speedup/results/ph7/no-filter.md` listing each line with its `-L` and `-LE` state; add a filter nowhere (FR-027)
-- [ ] T041 [P] [US5] Add to `README.md`, inside `## Quick start`, a plain fenced `sh` block with one sentence each side that names the `quick` and `slow` tiers and `tools/ci/prepush.sh`, in 25 lines or fewer (FR-050, SC-010, P-09)
-- [ ] T042 [US5] Move `PAGE_LINE_CAP` in `tools/docs/example_drift.py:192` from 835 to the measured page length with the file's comment form naming the block that moved it, and confirm `python3 tools/docs/example_drift.py .` passes (P-09). Depends on T041
-- [ ] T043 [P] [US5] Write `specs/030-ci-speedup/results/ph7/tiers.md` with the quick tier's time and the full suite's time on the same tree, and the two label lists' entry counts (SC-007 context, FR-025). Depends on T039
+- [X] T041 [P] [US5] Add to `README.md`, inside `## Quick start`, a plain fenced `sh` block with one sentence each side that names the `quick` and `slow` tiers and `tools/ci/prepush.sh`, in 25 lines or fewer (FR-050, SC-010, P-09)
+- [X] T042 [US5] Move `PAGE_LINE_CAP` in `tools/docs/example_drift.py:192` from 835 to the measured page length with the file's comment form naming the block that moved it, and confirm `python3 tools/docs/example_drift.py .` passes (P-09). Depends on T041
+- [X] T043 [P] [US5] Write `specs/030-ci-speedup/results/ph7/tiers.md` with the quick tier's time and the full suite's time on the same tree, and the two label lists' entry counts (SC-007 context, FR-025). Depends on T039
 
 **Checkpoint**: the local quick tier is provably a subset, and CI still runs
 everything.
