@@ -210,7 +210,9 @@
       "name": "prepush-quick",
       "configurePreset": "prepush",
       "filter": {
-        "labelInclude": "quick"
+        "include": {
+          "label": "quick"
+        }
       },
       "output": {
         "outputOnFailure": true
