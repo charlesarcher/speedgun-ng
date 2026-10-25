@@ -15,7 +15,7 @@ FR-025 wants every entry to carry exactly one tier label, `quick` by
 default, with a written reason beside each slow entry. The list carries the
 six rows T011 names, one reason comment per row, and the block after it reads
 the directory `TESTS` property, so a registration that names no label is
-labelled by the same rule that labelled the 133 existing entries of the
+labeled by the same rule that labeled the 133 existing entries of the
 directory. The rows name the five `dbc_matrix_*` entries phase 6 registers
 (T033) and `snippet_compile`; a row whose entry the lane does not register is
 inert, which the block comment states.
