@@ -1490,6 +1490,17 @@ The block prints one field line per stats field, in this order, one value per pr
 
 The block ends with the disclosure lines: the probe cpus, the loop period and the threshold the run used, one `kept` and `dropped` line per cpu, and the kept-gaps-only rule the split reads.
 
+The names of the probe surface:
+
+| Name | Owner | What it does | Teaches |
+| --- | --- | --- | --- |
+| `runJitterProbe` | free function | States the probe options of the suite's next run | [jitter-probe](#jitter-probe) |
+| `BenchmarkHandle::jitterProbe` | BenchmarkHandle | States the probe options of this family's runs | [jitter-probe](#jitter-probe) |
+| `JitterProbeOptions` | type | The one argument of every probe entry point | [jitter-probe](#jitter-probe) |
+| `JitterProbeMode` | type | The three phases one probe run can take | [jitter-probe](#jitter-probe) |
+| `JitterStats` | type | One probe cpu's fold over the covered windows | [jitter-probe](#jitter-probe) |
+| `JitterEntryFold` | type | One probe cpu's fold over one benchmark's windows | [jitter-probe](#jitter-probe) |
+
 ## Hunter mode
 
 Hunter mode puts a wide catalog event set on one benchmark and ranks the events
@@ -1681,7 +1692,8 @@ With no `--hunt-budget` one stage measures every planned event at
 over every planned event at one repetition, then a second stage over the first
 `3 x --hunt-top` planned events, or over the whole plan if it holds fewer, at
 `--hunt-repeats`. A budgeted run measures everything once and the top set
-again. The budget prints in the unit it was given, `budget=120s` or `budget=8p`,
+again. A plan whose estimate does not fit the budget drops the second stage
+whole. The budget prints in the unit it was given, `budget=120s` or `budget=8p`,
 on the plan line and on the summary.
 
 ### The stated collection method
@@ -1737,3 +1749,28 @@ caller already holds under the method it hands. None of the three opens a
 window: every time and count figure in their records comes from an argument.
 `EventCatalog` expands a selection text against the catalog and splits it into
 the events to plan and the events discovery refused.
+
+### The names
+
+| Name | Owner | What it does | Teaches |
+| --- | --- | --- | --- |
+| `hunt::HuntOptions` | type | The settled values of one hunt run | [hunter mode](#hunter-mode) |
+| `hunt::EntryHunt` | type | The ranked table and the skipped list of one benchmark's hunt | [hunter mode](#hunter-mode) |
+| `hunt::RunHunt` | type | The hunt record one run reports beside its benchmarks | [hunter mode](#hunter-mode) |
+| `hunt::EventCatalog` | type | Expands a selection text against the catalog and splits it | [hunter mode](#hunter-mode) |
+| `hunt::HuntNorm` | type | The denominator one hunt run normalizes an event count by | [hunter mode](#hunter-mode) |
+| `hunt::HuntRank` | type | The key one hunt run orders its ranks by | [hunter mode](#hunter-mode) |
+| `hunt::HuntBudget` | type | The bound one hunt run collects under, in seconds or passes | [hunter mode](#hunter-mode) |
+| `hunt::SkippedKind` | type | The kind of refusal one skipped entry carries | [hunter mode](#hunter-mode) |
+| `hunt::SkippedEvent` | type | One event the run will not measure, with the kind of its refusal | [hunter mode](#hunter-mode) |
+| `hunt::CatalogAddress` | type | One catalog address, its device and the device's slot in the limit list | [hunter mode](#hunter-mode) |
+| `hunt::HuntColumn` | type | The plan's one column: one event and the anchors of its own device | [hunter mode](#hunter-mode) |
+| `hunt::HuntStage` | type | The columns one plan stage measures and the repeats each column gets | [hunter mode](#hunter-mode) |
+| `hunt::HuntPlan` | type | The columns, passes, stages and estimate one hunt run executes | [hunter mode](#hunter-mode) |
+| `hunt::HuntSample` | type | One measured repetition of one column of one pass, with its anchors | [hunter mode](#hunter-mode) |
+| `hunt::EventSamples` | type | The collected rows of one event address, the input of the rank table | [hunter mode](#hunter-mode) |
+| `hunt::RankedEvent` | type | One row of the ranked table, with the marks the console prints | [hunter mode](#hunter-mode) |
+| `hunt::HuntStageRange` | type | The range of planned addresses one stage measured, with its repeats | [hunter mode](#hunter-mode) |
+| `hunt::runHunt` | free function | Plans, measures and ranks one hunt of one benchmark | [hunter mode](#hunter-mode) |
+| `hunt::planHunt` | free function | Answers the passes and stages of a hunt over events it is given | [hunter mode](#hunter-mode) |
+| `hunt::rankEvents` | free function | Ranks samples the caller already holds into the hunt table | [hunter mode](#hunter-mode) |

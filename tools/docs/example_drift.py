@@ -166,7 +166,6 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # specs/027 FR-034 stacks its own move on top: the "Jitter probe"
 # section and its quick-reference rows move the cap from 787 to 813,
 # the measured length of the page as the section lands.
-PAGE_LINE_CAP = 813
 # specs/029 FR-070 measures its own move on top: the "Hunter mode" section
 # runs 6 lines and the seven quick-reference name rows and the eight option
 # rows add 15, so 21 lines move the cap from 786 to 807, the measured length
