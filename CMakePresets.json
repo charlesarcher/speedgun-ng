@@ -137,6 +137,16 @@
       "hidden": true
     },
     {
+      "name": "ci-cache",
+      "description": "ccache fronts every compile of a build that inherits this preset. It is abstract like dev-mode: no generator and no binaryDir, so it is inherited and never configured directly.",
+      "hidden": true,
+      "inherits": "dev-mode",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
+      }
+    },
+    {
       "name": "ci-ubuntu",
       "inherits": ["ci-build", "ci-linux", "clang-tidy", "cppcheck", "dev-mode"]
     },
