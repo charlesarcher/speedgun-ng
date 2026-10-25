@@ -5,9 +5,9 @@
 `test-rocky`), the entry list `ctest -N` prints from each lane's build
 tree, and the configure preset each lane names.
 **Head sha**: 680356a3be5e523454ef64eb35ae5f8860762533, the head
-`git rev-parse HEAD` gave while the ten configures ran. `49c12ec`
-landed during this record and moves neither registration file: its two
-blobs hash to the values quoted under The two trees.
+`git rev-parse HEAD` gave while the ten configures ran. Both registration
+blobs are unchanged since `489480f`, so every head after that commit
+holds the two values quoted under The two trees.
 **Run id**: local
 **Command**: the tree commands under The two trees, the configure
 command under Ten configures, and the listing command under The
@@ -67,8 +67,9 @@ files by name into the tree root, which clobbered the root
 `CMakeLists.txt` and failed its configure; that tree was removed and
 rebuilt with the sequence above. The branch head took both files in
 `bcc16bf test: Split the matrix row into five cells` and
-`489480f CMake: Register the matrix on three lanes`, and the branch tree
-holds the same bytes as the head holds at both `680356a` and `49c12ec`:
+`489480f CMake: Register the matrix on three lanes`. Neither blob moved
+after `489480f`, so the branch tree holds the bytes that `git show HEAD:`
+printed for it at every head after that commit:
 
 ```text
 $ git show HEAD:test/CMakeLists.txt | sha256sum
@@ -306,7 +307,7 @@ every lane. No other line appears anywhere in the five hunks.
 
 ```text
 $ python3 tools/prose/prose_gate.py --check prose --mode tree --paths specs/030-ci-speedup/results/ph6/list-diff.md
-prose-lint: 0 sources, 0 units examined, 0 findings, 0 skipped
+prose-lint: 1 sources, 292 units examined, 0 findings, 0 skipped
 PROSE_RC=0
 $ cmake -P cmake/spell.cmake
 Used config files:
@@ -315,10 +316,10 @@ SPELL_RC=0
 ```
 
 Both gates exit 0. Tree mode of the prose gate discovers its files
-through `git ls-files`, which lists tracked paths, and the driver holds
-the commit for this record, so the summary above reads 0 sources. The
-same rule data and the same evaluation function were run over this
-record alone:
+through `git ls-files`, so the run above reads this record once the
+driver's commit tracks it. While the record stood untracked that summary
+read 0 sources, so the same rule data and the same evaluation function
+were run over the file directly:
 
 ```text
 $ python3 - <<'PY'
@@ -332,14 +333,15 @@ args = pg.parse_args(["--check", "prose", "--mode", "tree", "--paths", path])
 data = pg.load_rules(pathlib.Path("tools/prose/prose_rules.yaml"))
 print("evaluate_prose ->", pg.evaluate_prose(args, data))
 PY
-evaluate_prose -> (1, 291, 0, 0)
+evaluate_prose -> (1, 292, 0, 0)
 exit 0
 ```
 
-The tuple is sources, units examined, findings, skipped: 291 units of
-this record were examined against `tools/prose/prose_rules.yaml` and
-none hit a rule. `cmake -P cmake/spell.cmake` walks the working tree,
-so codespell read this record and reported nothing.
+The tuple is sources, units examined, findings, skipped. That run
+examined every unit of this record against
+`tools/prose/prose_rules.yaml` and none hit a rule.
+`cmake -P cmake/spell.cmake` walks the working tree, so codespell read
+this record and reported nothing.
 
 VERDICT: PASS. Five lanes diffed and all 25 name lines accounted for:
 20 matrix moves and 5 tier audit lines named above.
