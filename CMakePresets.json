@@ -151,8 +151,22 @@
       "inherits": ["ci-build", "ci-linux", "clang-tidy", "cppcheck", "dev-mode"]
     },
     {
+      "name": "ci-ubuntu-test",
+      "inherits": ["ci-build", "ci-linux", "dev-mode", "ci-cache"],
+      "cacheVariables": {
+        "SPEEDGUN_DBC_MATRIX": "ON"
+      }
+    },
+    {
       "name": "ci-rocky",
       "inherits": ["ci-build", "ci-linux", "dev-mode"]
+    },
+    {
+      "name": "prepush",
+      "description": "The local pre-push build tree, kept out of the CI tree at build. The generator is named here because none of the presets this one inherits names a generator.",
+      "binaryDir": "${sourceDir}/build/prepush",
+      "generator": "Unix Makefiles",
+      "inherits": ["ci-build", "dev-mode", "ci-cache"]
     }
   ],
   "buildPresets": [
@@ -179,6 +193,29 @@
     {
       "name": "ci-sanitize",
       "configurePreset": "ci-sanitize",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "prepush-quick",
+      "configurePreset": "prepush",
+      "filter": {
+        "labelInclude": "quick"
+      },
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "prepush-full",
+      "configurePreset": "prepush",
       "output": {
         "outputOnFailure": true
       },
