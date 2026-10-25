@@ -139,3 +139,59 @@ python3-yaml, autoconf, automake, libtool and patch, matching the set the
 Verdict: the install set of the first fix was one package short of the
 configure path, read from a run that failed at the same step for a
 different reason.
+
+## The third gap, read from run 40239619604
+
+**Head sha**: 49c12ecee775ed6fafa66e18d341c081edd194b9
+**Run id**: 40239619604
+**Command**: the library shard's own log, at the command under The third
+stop
+**Numbers**: 3 shards failed at Configure again, 10 packages installed
+before this fix, 11 after it, 3 fatal stops the modules can raise
+
+Doxygen moved the shard past `cmake/dbc-gate.cmake` and one include
+further, into the coverage module. That module is included by
+`cmake/dev-mode.cmake:17`, so it runs on every developer-mode configure,
+and it stops when no lcov stands on PATH:
+
+```text
+CMake Error at cmake/coverage.cmake:7 (message):
+  lcov is required for developer builds (constitution VI: 100% line and
+  branch coverage).  Install lcov and reconfigure.  Coverage is not disabled
+  when the tool is absent.
+Call Stack (most recent call first):
+  cmake/dev-mode.cmake:17 (include)
+  CMakeLists.txt:946 (include)
+```
+
+### The third reading
+
+```bash
+gh api --allow-escape-sequences \
+  repos/charlesarcher/speedgun-ng/actions/jobs/121308544924/logs
+```
+
+The endpoint needs the escape flag because the runner log carries terminal
+escape sequences, and `gh api` refuses such a body without it.
+
+A search for every program the configure looks for, over the cmake
+modules and the two registration files, names the whole set: the six
+autotools probes of `cmake/ImportAutotoolsSubmodule.cmake:164` to
+`:172`, lcov and genhtml at `cmake/coverage.cmake:5` and `:15`,
+doxygen at `cmake/dbc-gate.cmake:9`, and the interpreter at
+`cmake/docs-ci.cmake:40`. Three of those searches can raise a fatal
+stop: doxygen, lcov with genhtml, and the interpreter, the last only on
+the docs path. The Debian lcov package carries genhtml, so one package
+answers the second stop.
+
+The install step now holds eleven packages and covers all three stops,
+so the shard configure has no program left to ask for.
+
+Each of the three gaps cost one CI cycle to find, because no local
+reading shows the shard's environment: this host carries every one of
+these tools. The exhaustive search above is the reading that would have
+found all three at once, and it is the reading this section keeps.
+
+Verdict: the shard install set is complete against the configure path.
+The modules name every program that path asks for, and the install step
+carries a package for each of them.
