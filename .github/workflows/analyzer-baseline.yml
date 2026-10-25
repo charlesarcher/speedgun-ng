@@ -1,0 +1,82 @@
+name: Analyzer baseline
+on:
+  push:
+jobs:
+  static-analysis:
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - scope: library
+        - scope: tests
+        - scope: examples
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-${{ matrix.scope }}-ci-ubuntu
+      CCACHE_MAXSIZE: 256MB
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: Install analyzers
+      run: sudo apt-get update -q && sudo apt-get install clang-tidy cppcheck ccache doxygen python3-yaml lcov autoconf automake libtool patch -q -y
+    - name: Record compiler version
+      run: ${CXX:-c++} --version | head -n 1 > .ccache-cxx-version
+    - name: Restore ccache
+      id: ccache
+      env:
+        CCACHE_CXX_HASH: ${{ hashFiles('.ccache-cxx-version') }}
+        CCACHE_TREE_HASH: ${{ hashFiles('CMakePresets.json', 'external/**') }}
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-${{ github.run_id }}
+        restore-keys: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-
+    - name: Configure
+      run: cmake --preset=ci-ubuntu
+    - name: Zero ccache before Build
+      run: ccache -z
+    - name: Build library scope
+      if: matrix.scope == 'library'
+      run: "set -euo pipefail\ncmake --build build --target speedgun-ng_speedgun-ng speedgun-ng_harness \\\n  -j \"$(nproc)\" 2>&1 | tee analyzer-build.log\n"
+    - name: Build tests scope
+      if: matrix.scope == 'tests'
+      run: 'set -euo pipefail
+
+        cmake --build build/test -j "$(nproc)" 2>&1 | tee analyzer-build.log
+
+        '
+    - name: Build examples scope
+      if: matrix.scope == 'examples'
+      run: 'set -euo pipefail
+
+        cmake --build build/example -j "$(nproc)" 2>&1 | tee analyzer-build.log
+
+        '
+    - name: ccache stats after Build
+      run: ccache -s
+    - name: Count translation units
+      if: always()
+      run: "log=analyzer-build.log\n[ -f \"$log\" ] || : > \"$log\"\nprintf 'shard %s: %s translation units\\n' '${{ matrix.scope }}' \\\n  \"$(grep -c 'Building CXX object' \"$log\" || true)\"\n"
+    - name: Collect findings
+      if: always()
+      run: "set -euo pipefail\nlog=analyzer-build.log\n[ -f \"$log\" ] || : > \"$log\"\n{\n  sed -nE 's#^([^:]+):([0-9]+):[0-9]+: (warning|error): .* \\[([^],]+).*#\\1:\\2:\\4#p' \"$log\"\n  sed -nE 's#^\\\
+        [([^:]+):([0-9]+)(:[0-9]+)?\\]: \\((warning|error)\\).* \\[([^],]+).*#\\1:\\2:\\5#p' \"$log\"\n} | LC_ALL=C sort -u > findings.txt\n"
+    - name: Fail on gate findings
+      if: always()
+      run: "printf 'shard %s: %s findings\\n' '${{ matrix.scope }}' \"$(wc -l < findings.txt)\"\ngate=$(sed -nE \"s/^WarningsAsErrors: '?([^']*)'?.*/\\1/p\" .clang-tidy)\nhits=0\nfor check in ${gate//,/\
+        \ }; do\n  hits=$((hits + $(grep -c \":${check}\\$\" findings.txt || true)))\ndone\nprintf 'shard %s: %s findings on the gate checks (%s)\\n' '${{ matrix.scope }}' \\\n  \"$hits\" \"$gate\"\ntest\
+        \ \"$hits\" -eq 0\n"
+    - name: Upload findings
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: analyzer-findings-${{ matrix.scope }}
+        path: findings.txt
+    - name: Save ccache
+      if: github.event_name == 'push'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ steps.ccache.outputs.cache-primary-key }}
