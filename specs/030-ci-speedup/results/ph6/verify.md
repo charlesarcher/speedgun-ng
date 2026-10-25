@@ -7,7 +7,7 @@ the audit `test/tier_labels.sh` runs over them, the cache steps and the
 `ctest` lines of `.github/workflows/ci.yml`, and the three source gates.
 Every reading is taken from the working tree, and this record edits
 nothing outside itself.
-**Head sha**: 88be8d071b92fdf7b99fc4f9ef4fdeb75415cd1b
+**Head sha**: 92e457eda155dcf2082f7c36a44d955a185c0cf8
 **Run id**: local
 **Command**: the commands under Check 1 to Check 7, each run from the
 repository root, plus the two supporting reads named inside Check 1
@@ -17,16 +17,18 @@ the verdict table at the end
 Seven files sit in `specs/030-ci-speedup/results/ph6`. Six of them are
 the records of T033 to T038 (`entries.md`, `lane-flag.md`, `lanes.md`,
 `compiler-records.md`, `list-diff.md`, `dropping-lanes.md`) and one is
-T032's `cell-matrix.md`. Each check below carries the claim those records
-make, the command that reads it back, and the number that command
-printed.
+T032's `cell-matrix.md`. Each check below carries one claim those
+records make, the command that reads it back, and the number that
+command printed.
 
 Five build trees belong to this node, each named under `build/`:
-`ph6-verify-on`, `ph6-verify-off`, `ph6-verify-cov`, `ph6-verify-san` and
-`ph6-verify-jobs`. The configures ran while `git rev-parse HEAD` read
-`dae612e949bdd91abba07c2d9e6555e90cadc844`. Two driver commits landed
-during the reading, and the head this record names holds the same three
-inputs: `git diff --stat` over the range prints one line for
+`ph6-verify-on`, `ph6-verify-off`, `ph6-verify-cov`,
+`ph6-verify-san` and `ph6-verify-jobs`. The configures ran while
+`git rev-parse HEAD` read
+`dae612e949bdd91abba07c2d9e6555e90cadc844`. Driver commits landed
+during the reading and the branch was rebased once, so their shas
+shifted while the reading ran. The head this record names holds the same
+three inputs: `git diff --stat` over the range prints one line for
 `.github/workflows/ci.yml` and nothing for the two registration files.
 
 ```text
@@ -39,27 +41,30 @@ $ git diff --stat dae612e949bdd91abba07c2d9e6555e90cadc844 HEAD -- \
 
 The one line is the `static-analysis` install step, which gained the
 `lcov` package name. Check 5 and Check 6 read the workflow after that
-commit, so both hold at the head above. The blob of
-`test/CMakeLists.txt` at that head is `913ebb67a4c05de75a8711ab8b3fd86a1a0465b3`
-and the blob of `CMakePresets.json` is `07e235b279cc9f372f8d20434efa3ab04445a537`, which
-are the bytes the trees were configured from.
+commit, so both hold at the head above. Two blob ids pin the inputs:
+`test/CMakeLists.txt` is `913ebb67a4c05de75a8711ab8b3fd86a1a0465b3`
+and `CMakePresets.json` is `07e235b279cc9f372f8d20434efa3ab04445a537`.
+Those are the bytes the trees were configured from.
 
-## Check 1: five entries in a `ci-ubuntu-test` tree, none in a coverage or sanitizer tree
+## Check 1: five entries present, none in the two dropping trees
+
+One scratch script runs one
+`cmake --preset=<lane> -B build/ph6-verify-<tag>` per tag, with
+`-DSPEEDGUN_DBC_MATRIX=OFF` on the `off` tag that Check 3 uses. Each
+configure log sits at `/tmp/ph6-verify-<tag>-cfg.log`.
 
 ```text
-$ cmake --preset=ci-ubuntu-test -B build/ph6-verify-on
-$ cmake --preset=ci-coverage -B build/ph6-verify-cov
-$ cmake --preset=ci-sanitize -B build/ph6-verify-san
+$ bash /tmp/ph6-verify-cfg.sh
 CFG tag=on preset=ci-ubuntu-test exit=0
+CFG tag=off preset=ci-ubuntu-test exit=0
 CFG tag=cov preset=ci-coverage exit=0
 CFG tag=san preset=ci-sanitize exit=0
+ALL_CFG_DONE
 [exit status: 0]
 ```
 
 ```text
-$ for t in on cov san; do
-    ctest --test-dir build/ph6-verify-$t -N -R dbc_matrix
-  done
+$ for t in on cov san; do out=$(ctest --test-dir build/ph6-verify-$t -N -R dbc_matrix 2>&1); rc=$?; n=$(printf '%s\n' "$out" | grep -cE '^ *Test +#[0-9]+: '); echo "tag=$t exit=$rc matrix=$n"; printf '%s\n' "$out" | grep -E '^ *Test +#[0-9]+: '; done; echo LOOP_RC=$?
 tag=on exit=0 matrix=5
   Test #21: dbc_matrix_off_o0
   Test #22: dbc_matrix_off_o2
@@ -68,30 +73,34 @@ tag=on exit=0 matrix=5
   Test #25: dbc_matrix_observe_off_o0
 tag=cov exit=0 matrix=0
 tag=san exit=0 matrix=0
-[exit status: 0]
+LOOP_RC=1
+[each listing exits 0; LOOP_RC is the trailing grep -c, 1 for a 0 count]
 ```
 
 `matrix=` counts the name lines the listing printed and `exit=` is that
-listing's status. The registering tree holds the five names at numbers 21
-to 25, matching `entries.md` and `lanes.md`. The two other trees hold
-none, which is the D-5 split the same two records state.
+listing's status. `LOOP_RC` is the status of the last `grep -c` in the
+loop body, and `grep -c` exits 1 when its count is 0. The registering
+tree holds the five names at numbers 21 to 25, matching `entries.md` and
+`lanes.md`. The two other trees hold none, which is the D-5 split the
+same two records state.
 
-Two supporting reads. The first shows the trees are the lanes they claim:
+Two supporting reads. The first shows the trees are their lanes:
 
 ```text
-$ for t in cov san; do ctest --test-dir build/ph6-verify-$t -N | grep 'Total Tests'; done
+$ for t in cov san; do echo -n "tag=$t "; ctest --test-dir build/ph6-verify-$t -N 2>/dev/null | grep -E "^Total Tests: " | tr -d "\n"; grep -hE "^(ENABLE_COVERAGE:|CMAKE_BUILD_TYPE:|SPEEDGUN_DBC_MATRIX:)" build/ph6-verify-$t/CMakeCache.txt | tr "\n" " "; echo; done
 tag=cov Total Tests: 134CMAKE_BUILD_TYPE:STRING=Coverage ENABLE_COVERAGE:BOOL=ON
 tag=san Total Tests: 134CMAKE_BUILD_TYPE:STRING=Sanitize ENABLE_COVERAGE:BOOL=OFF
 [exit status: 0]
 ```
 
 Both are real lane trees: 134 entries apiece, the `Coverage` build
-configuration with `ENABLE_COVERAGE` on, and the `Sanitize` configuration.
-The `134` matches the `lanes.md` and `list-diff.md` counts for those two
-lanes. The second supporting read is the cache switch:
+configuration with `ENABLE_COVERAGE` on, and the `Sanitize` build
+configuration. The `134` matches the `lanes.md` and `list-diff.md`
+counts for those two lanes, and neither cache carries the switch. The
+second read counts that key across the four trees of this node:
 
 ```text
-$ grep -c SPEEDGUN_DBC_MATRIX build/ph6-verify-{on,off,cov,san}/CMakeCache.txt
+$ grep -c "SPEEDGUN_DBC_MATRIX" build/ph6-verify-on/CMakeCache.txt build/ph6-verify-off/CMakeCache.txt build/ph6-verify-cov/CMakeCache.txt build/ph6-verify-san/CMakeCache.txt
 build/ph6-verify-on/CMakeCache.txt:1
 build/ph6-verify-off/CMakeCache.txt:1
 build/ph6-verify-cov/CMakeCache.txt:0
@@ -104,11 +113,12 @@ The two lines the counts name read
 `SPEEDGUN_DBC_MATRIX:UNINITIALIZED=OFF` for the tree of Check 3, so the
 switch is the only difference between them.
 
-## Check 2: each command names the script, the source dir, its cell and the job count
+## Check 2: command shape and `PROCESSORS` per entry
 
 ```text
-$ ctest --test-dir build/ph6-verify-on -N --show-only=json-v1
-$ ctest --test-dir build/ph6-verify-jobs -N --show-only=json-v1
+$ ctest --test-dir build/ph6-verify-on -N --show-only=json-v1 > /tmp/ph6-verify-on.json
+$ ctest --test-dir build/ph6-verify-jobs -N --show-only=json-v1 > /tmp/ph6-verify-jobs.json
+$ python3 /tmp/ph6-verify-cmd.py /tmp/ph6-verify-on.json /tmp/ph6-verify-jobs.json
 tree=/tmp/ph6-verify-on.json matrix_entries=5
   dbc_matrix_observe_off_o0 argc=5 script=semantics_matrix.sh dir=/home/archerc/code/speedgun-ng cell=dbc_matrix_observe_off_o0 jobs=2 PROCESSORS=2
   dbc_matrix_off_o0 argc=5 script=semantics_matrix.sh dir=/home/archerc/code/speedgun-ng cell=dbc_matrix_off_o0 jobs=2 PROCESSORS=2
@@ -131,9 +141,8 @@ the script's usage line names as its third argument.
 `build/ph6-verify-jobs` is the same preset configured with
 `-DSPEEDGUN_TEST_JOBS=3`, whose cache line reads
 `SPEEDGUN_TEST_JOBS:STRING=3`, so the fifth argument and `PROCESSORS`
-both move from 2 to 3. That is the proof the two carry
-`SPEEDGUN_TEST_JOBS` and a literal count, and 5 entries out of 5 match
-in each tree.
+both move from 2 to 3. The two therefore track the cache variable and
+hold no literal count, and 5 entries out of 5 match in each tree.
 
 ## Check 3: the slow rows and the tier audit, both switch settings
 
@@ -153,29 +162,29 @@ slow_labelled=dbc_matrix_observe_off_o0,dbc_matrix_off_o0,dbc_matrix_off_o2,dbc_
 `snippet_compile` and `harness_cli_test`. Read on its matrix subset, the
 row set equals the 5 registered names exactly, and each of the five
 carries the `slow` label inside the tree, which is the number the audit
-line below reports as `7 slow`. A reader who takes the sentence to mean
-seven rows in the list in total finds 7 with two names belonging to
-earlier phases.
+line below reports as `7 slow`. The list total reads 7 because the two
+earlier rows sit in it beside the five matrix rows.
 
 The audit runs four times, once per tree of this node:
 
 ```text
-$ bash test/tier_labels.sh build/ph6-verify-on ctest
+$ for t in on off cov san; do echo "tag=$t"; bash test/tier_labels.sh build/ph6-verify-$t ctest; echo "exit=$?"; done
+tag=on
 read: 139 entries, 132 quick, 7 slow
 ok: every entry carries one label and a budget, and neither registration breaks FR-048
-AUDIT_ON_RC=0
-$ bash test/tier_labels.sh build/ph6-verify-off ctest
+exit=0
+tag=off
 read: 134 entries, 132 quick, 2 slow
 ok: every entry carries one label and a budget, and neither registration breaks FR-048
-AUDIT_OFF_RC=0
-$ bash test/tier_labels.sh build/ph6-verify-cov ctest
+exit=0
+tag=cov
 read: 134 entries, 132 quick, 2 slow
 ok: every entry carries one label and a budget, and neither registration breaks FR-048
-AUDIT_EXTRA_RC=0
-$ bash test/tier_labels.sh build/ph6-verify-san ctest
+exit=0
+tag=san
 read: 134 entries, 132 quick, 2 slow
 ok: every entry carries one label and a budget, and neither registration breaks FR-048
-AUDIT_EXTRA_RC=0
+exit=0
 [exit status: 0]
 ```
 
@@ -191,10 +200,10 @@ four exits are 0, so the audit passes with the five entries present at
 ```text
 $ python3 /tmp/ph6-verify-preset.py
 ci-coverage own=ABSENT effective=None inherits=['coverage-linux', 'dev-mode', 'ci-cache']
-ci-sanitize own=ABSENT effective=None inherits=['ci-linux', 'dev-mode', 'ci-cache']
-ci-tsan own=ON effective=ON inherits=['ci-build', 'ci-linux', 'dev-mode', 'ci-cache']
-ci-ubuntu-test own=ON effective=ON inherits=['ci-build', 'ci-linux', 'dev-mode', 'ci-cache']
 ci-rocky own=ON effective=ON inherits=['ci-build', 'ci-linux', 'dev-mode', 'ci-cache']
+ci-sanitize own=ABSENT effective=None inherits=['ci-linux', 'dev-mode', 'ci-cache']
+ci-tsan own=ON effective=ON inherits=['ci-linux', 'dev-mode', 'ci-cache']
+ci-ubuntu-test own=ON effective=ON inherits=['ci-build', 'ci-linux', 'dev-mode', 'ci-cache']
 own_key_count=3
 [exit status: 0]
 ```
@@ -255,11 +264,12 @@ collects three tests per building job: restore before the first build,
 save after the last one, and `CCACHE_DIR` in the job `env`. The two
 non-building jobs `lint` and `docs` hold no cache step and no `env`
 block, the phase 3 shape. `jobs_that_lost_a_step=0` compares each job's
-step count with the same job at the base `f507b8f`: 11 jobs gained 5 or 7
-steps, `lint` and `docs` hold their base counts, `static-analysis` is new
-with 15 steps, and no job is smaller than it was. The phase 3 record
-counted 10 building jobs of 12; the 11th is `static-analysis`, the shard
-phase 5 added, and it carries the same restore, build and save triple.
+step count with the same job at the base `f507b8f`: 11 jobs gained 5
+or 7 steps, `lint` and `docs` hold their base counts, and
+`static-analysis` is new with 15 steps: no job is smaller than before.
+The phase 3 record counted 10 building jobs of 12; the 11th is
+`static-analysis`, the shard phase 5 added, and it carries the same
+restore, build and save triple.
 
 ## Check 6: the test lane preset and the label filters
 
@@ -280,7 +290,7 @@ test_job_configure=['cmake --preset=ci-ubuntu-test']
 
 The scan walks every line of every `run` block in the file, keeps the 8
 that name `ctest`, splits each into shell tokens and looks for `-L` and
-`-LE`, including the joined forms such as `-Lquick`. `label_filter_hits=0`
+`-LE`, including joined forms such as `-Lquick`. `label_filter_hits=0`
 is FR-027 holding: the labels reach no CI scope. The last line is the
 `Configure` step of the `test` job, and it names `ci-ubuntu-test`, the
 preset Check 4 and Check 1 read. The `line=` column is cut at 64
@@ -301,26 +311,28 @@ SPELL_RC=0
 [exit status: 0]
 
 $ python3 tools/prose/prose_gate.py --check prose --mode tree --paths specs/030-ci-speedup/results
-prose-lint: 30 sources, 3345 units examined, 0 findings, 0 skipped
+prose-lint: 32 sources, 3776 units examined, 0 findings, 0 skipped
 PROSE_RC=0
 [exit status: 0]
 ```
 
-All three exit 0. `lint.cmake` prints nothing before its status, the shape
-it has when no file is badly formatted. `spell.cmake` prints its
-configuration banner, which is the shape it has when `codespell` flags no
-word; it walks the working tree, so it read this record. The prose gate
-counts 30 sources and reports 0 findings over the ledger directory.
+All three exit 0. `lint.cmake` prints nothing before its status, the
+shape it has when no file is badly formatted. `spell.cmake` prints its
+configuration banner, the shape it has when `codespell` flags no word;
+it walks the working tree, so it read this record. The prose
+gate counts 32 sources over the ledger directory and reports 0 findings.
+The two counts follow the ledger: a sibling record committed after this
+run joins the source list and moves both counts.
 
 Tree mode takes its candidate list from `git ls-files`
-(`tools/prose/prose_gate.py:598`), so an untracked file is outside its
-count. This record stays untracked while the driver holds the commit, and
-the driver may not be asked to stage it, so the same rule data and the
-same evaluation function were driven over this file directly:
+(`tools/prose/prose_gate.py:598`), so the count of sources covers the
+files the driver has committed. This record is one of them, and the run
+below narrows the same gate to this one file, which is the count that
+covers it:
 
 ```text
-$ python3 /tmp/ph6-verify-prose.py
-prose-lint: 1 sources, 298 units examined, 0 findings, 0 skipped
+$ python3 tools/prose/prose_gate.py --check prose --mode tree --paths specs/030-ci-speedup/results/ph6/verify.md
+prose-lint: 1 sources, 316 units examined, 0 findings, 0 skipped
 PROSE_SELF_RC=0
 [exit status: 0]
 ```
@@ -335,6 +347,13 @@ PROSE_SELF_RC=0
 | 4 | three presets set the switch, two leave it out | 0 | 3 keys of 5 lanes, `own_key_count=3` | PASS |
 | 5 | every building job restores before its first build, saves after its last, and no job lost a step | 0 | 11 building jobs, 0 order problems, 0 jobs with fewer steps | PASS |
 | 6 | the `test` job configures `ci-ubuntu-test` and no `ctest` line carries `-L` or `-LE` | 0 | 8 `ctest` lines, 0 label hits | PASS |
-| 7 | the format, spell and prose gates exit 0 | 0, 0, 0 | 0 findings, 30 sources | PASS |
+| 7 | the format, spell and prose gates exit 0 | 0, 0, 0 | 0 findings, 32 sources | PASS |
 
-VERDICT: PASS. All seven checks ran, each with exit 0 and the count its claim names: 5 entries against 0, 5 of 5 command vectors carrying `SPEEDGUN_TEST_JOBS`, 5 matrix rows equal to the 5 registered names with the audit ok line at both switch settings, 3 preset keys, 11 building jobs with 0 order problems and 0 jobs that lost a step, 8 `ctest` lines with 0 label filters, and 0 findings across the three gates.
+VERDICT: PASS. All seven checks ran at exit 0 and each printed the count
+its claim names: 5 entries against 0 in the three lane trees, 5 of 5
+command vectors carrying the `SPEEDGUN_TEST_JOBS` value in its argument
+and in `PROCESSORS`, 5 matrix rows equal to the 5 registered names with
+the audit ok line at 139 entries and at 134, 3 preset keys of 5 lanes,
+11 building jobs with 0 order problems and 0 jobs with fewer steps than
+the base, 8 `ctest` lines with 0 label filters, and 0 findings over the
+three gates.
