@@ -1584,6 +1584,55 @@ add_test(
       ${CMAKE_SOURCE_DIR}
 )
 
+# ---- Tier labels and budgets ----
+
+# The entries a fast local run may leave out (030 P-05, FR-025): one row per
+# slow entry, with the reason that entry is slow. The block below gives every
+# other entry of this directory the quick label, so a new registration lands
+# in the tier every path runs until it is listed here. CI passes no label
+# filter on any ctest line, so these labels move local speed and never CI
+# scope (FR-027).
+set(
+  SPEEDGUN_SLOW_TESTS
+  # the NDEBUG-off -O0 cell configures and builds a tree of its own
+  dbc_matrix_off_o0
+  # the NDEBUG-off -O2 cell configures and builds a tree of its own
+  dbc_matrix_off_o2
+  # the NDEBUG-on -O0 cell configures and builds a tree of its own
+  dbc_matrix_on_o0
+  # the NDEBUG-on -O2 cell configures and builds a tree of its own
+  dbc_matrix_on_o2
+  # the observe negative-probe cell configures and builds a tree of its own
+  dbc_matrix_observe_off_o0
+  # compiles the documentation snippets, 27 to 50 s measured
+  snippet_compile
+)
+
+# The five matrix rows name entries phase 6 registers; where the matrix is
+# unregistered, because the preset leaves SPEEDGUN_DBC_MATRIX off or because
+# phase 6 has not landed, the loop finds no entry for those rows.
+get_property(speedgun_test_entries DIRECTORY PROPERTY TESTS)
+foreach(speedgun_test IN LISTS speedgun_test_entries)
+  if(speedgun_test IN_LIST SPEEDGUN_SLOW_TESTS)
+    set_tests_properties(${speedgun_test} PROPERTIES LABELS slow)
+  else()
+    set_tests_properties(${speedgun_test} PROPERTIES LABELS quick)
+  endif()
+endforeach()
+
+# The time budget (030 P-07, FR-031), from the same read of the directory
+# TESTS property: an entry whose registration names no TIMEOUT runs under
+# the 1500 s CTest default, so it takes 300 s here and a hang ends inside
+# the change that caused it. An entry that names its own value keeps it, so
+# the eight master 120 s rows and the 300 s example_run stand where master
+# set them.
+foreach(speedgun_test IN LISTS speedgun_test_entries)
+  get_test_property(${speedgun_test} TIMEOUT speedgun_test_timeout)
+  if(NOT speedgun_test_timeout)
+    set_tests_properties(${speedgun_test} PROPERTIES TIMEOUT 300)
+  endif()
+endforeach()
+
 # ---- End-of-file commands ----
 
 add_folders(Test)
