@@ -12,6 +12,15 @@ if(PROJECT_IS_TOP_LEVEL)
   enable_testing()
 endif()
 
+# The compile concurrency one matrix entry may start: each dbc matrix entry
+# hands this value to its own build as JOBS, so it bounds that entry's
+# compiler fleet and never the concurrency of the whole suite (030 P-04).
+set(
+  SPEEDGUN_TEST_JOBS "2"
+  CACHE STRING
+  "Compile concurrency one dbc matrix entry may start"
+)
+
 # ---- Tests ----
 
 add_executable(speedgun-ng_test source/speedgun-ng_test.cpp)
@@ -135,10 +144,15 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     NAME dbc_asm_smoke
     COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/dbc/asm_smoke.sh ${CMAKE_SOURCE_DIR}/include
   )
-  add_test(
-    NAME dbc_semantics_matrix
-    COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/dbc/semantics_matrix.sh ${CMAKE_SOURCE_DIR}
-  )
+  # Only the lanes whose preset sets SPEEDGUN_DBC_MATRIX carry the matrix
+  # entry: it configures and builds a tree of its own, so coverage and
+  # sanitize leave it unregistered (030 D-5, P-01).
+  if(SPEEDGUN_DBC_MATRIX)
+    add_test(
+      NAME dbc_semantics_matrix
+      COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/dbc/semantics_matrix.sh ${CMAKE_SOURCE_DIR}
+    )
+  endif()
 
   # Codegen-shape gate for the raw time-stamp read (T026; 008 FR-003,
   # FR-022): the optimized read arm carries no function call, so nothing
