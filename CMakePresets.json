@@ -106,7 +106,7 @@
     {
       "name": "ci-coverage",
       "description": "The capture builds without -D_GLIBCXX_ASSERTIONS, because that flag adds standard-library branches inside the inline atomic operations that no project test can reach.",
-      "inherits": ["coverage-linux", "dev-mode"],
+      "inherits": ["coverage-linux", "dev-mode", "ci-cache"],
       "cacheVariables": {
         "CMAKE_CXX_FLAGS": "-fstack-protector-strong -fcf-protection=full -fstack-clash-protection -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wcast-qual -Wformat=2 -Wundef -Werror=float-equal -Wshadow -Wcast-align -Wunused -Wnull-dereference -Wdouble-promotion -Wimplicit-fallthrough -Wextra-semi -Woverloaded-virtual -Wnon-virtual-dtor -Wold-style-cast -Werror"
       }
@@ -114,7 +114,7 @@
     {
       "name": "ci-sanitize",
       "binaryDir": "${sourceDir}/build/sanitize",
-      "inherits": ["ci-linux", "dev-mode"],
+      "inherits": ["ci-linux", "dev-mode", "ci-cache"],
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Sanitize",
         "CMAKE_CXX_FLAGS_SANITIZE": "-U_FORTIFY_SOURCE -O2 -g -fsanitize=address,undefined -fno-omit-frame-pointer -fno-common"
@@ -124,7 +124,7 @@
       "name": "ci-tsan",
       "description": "ci-linux flags at the thread sanitizer, on the project and on every vendored tree. The flags ride the Release config, which a cache variable passes to each add_subdirectory, so the vendored sources are instrumented too. ci-sanitize keeps address and undefined behavior alone, because the compilers reject the pairing.",
       "binaryDir": "${sourceDir}/build/tsan",
-      "inherits": ["ci-linux", "dev-mode"],
+      "inherits": ["ci-linux", "dev-mode", "ci-cache"],
       "cacheVariables": {
         "CMAKE_CXX_FLAGS_RELEASE": "-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -O2 -g -DNDEBUG -fsanitize=thread -fno-omit-frame-pointer -fno-common",
         "CMAKE_EXE_LINKER_FLAGS_RELEASE": "-fsanitize=thread",
@@ -148,7 +148,7 @@
     },
     {
       "name": "ci-ubuntu",
-      "inherits": ["ci-build", "ci-linux", "clang-tidy", "cppcheck", "dev-mode"]
+      "inherits": ["ci-build", "ci-linux", "clang-tidy", "cppcheck", "dev-mode", "ci-cache"]
     },
     {
       "name": "ci-ubuntu-test",
@@ -159,7 +159,7 @@
     },
     {
       "name": "ci-rocky",
-      "inherits": ["ci-build", "ci-linux", "dev-mode"]
+      "inherits": ["ci-build", "ci-linux", "dev-mode", "ci-cache"]
     },
     {
       "name": "prepush",
