@@ -68,11 +68,7 @@ jobs:
 
     - name: Test
       working-directory: build/coverage
-      # The capture runs the suite serially: the profile counters merge
-      # into one gcda per object without a lock, so concurrent test
-      # processes lose updates and the capture reads gaps no test
-      # leaves (the exec children's family paths, measured 2026-10-24).
-      run: ctest -j 1 --output-on-failure --no-tests=error
+      run: ctest -j 2 --output-on-failure --no-tests=error
 
     - name: Process coverage info
       run: cmake --build build/coverage -t coverage
