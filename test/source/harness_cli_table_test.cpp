@@ -867,7 +867,7 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
   bool sawNew = false;
   bool sawHunt = false;
   int highestMaster = 0;
-  int lowestNew = 0;
+  int lowestNew = kReservedHigh;
   int lowestHunt = 0;
   int highestHunt = 0;
   for (std::size_t index = 0; index < rows.size(); ++index) {
@@ -903,7 +903,7 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
       }
       sawMaster = true;
     } else {
-      if (!sawNew || row.value < lowestNew) {
+      if (row.value >= kReservedLow && (!sawNew || row.value < lowestNew)) {
         lowestNew = row.value;
       }
       sawNew = true;
