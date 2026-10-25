@@ -54,7 +54,7 @@ jobs:
 
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
-      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-coverage
+      CCACHE_KEY_PREFIX: ccache-cold-${{ github.job }}-ci-coverage
       CCACHE_MAXSIZE: 1280MB
 
     steps:
@@ -130,7 +130,7 @@ jobs:
     env:
       CXX: clang++
       CCACHE_DIR: ${{ github.workspace }}/.ccache
-      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-sanitize
+      CCACHE_KEY_PREFIX: ccache-cold-${{ github.job }}-ci-sanitize
       CCACHE_MAXSIZE: 1280MB
 
     steps:
@@ -195,7 +195,7 @@ jobs:
     env:
       CXX: clang++
       CCACHE_DIR: ${{ github.workspace }}/.ccache
-      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-tsan
+      CCACHE_KEY_PREFIX: ccache-cold-${{ github.job }}-ci-tsan
       CCACHE_MAXSIZE: 1280MB
 
     steps:
@@ -269,7 +269,7 @@ jobs:
 
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
-      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-${{ matrix.scope }}-ci-ubuntu
+      CCACHE_KEY_PREFIX: ccache-cold-${{ github.job }}-${{ matrix.scope }}-ci-ubuntu
       CCACHE_MAXSIZE: 256MB
 
     steps:
@@ -383,7 +383,7 @@ jobs:
 
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
-      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-ubuntu
+      CCACHE_KEY_PREFIX: ccache-cold-${{ github.job }}-ci-ubuntu
       CCACHE_MAXSIZE: 768MB
 
     steps:
@@ -481,7 +481,7 @@ jobs:
 
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
-      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-rocky
+      CCACHE_KEY_PREFIX: ccache-cold-${{ github.job }}-ci-rocky
       CCACHE_MAXSIZE: 768MB
 
     steps:
@@ -535,7 +535,7 @@ jobs:
 
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
-      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-linux-audit
+      CCACHE_KEY_PREFIX: ccache-cold-${{ github.job }}-ci-linux-audit
       CCACHE_MAXSIZE: 768MB
 
     steps:
@@ -660,7 +660,7 @@ jobs:
 
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
-      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-linux-audit
+      CCACHE_KEY_PREFIX: ccache-cold-${{ github.job }}-ci-linux-audit
       CCACHE_MAXSIZE: 640MB
 
     steps:
@@ -840,7 +840,7 @@ jobs:
 
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
-      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-linux-ignore
+      CCACHE_KEY_PREFIX: ccache-cold-${{ github.job }}-ci-linux-ignore
       CCACHE_MAXSIZE: 640MB
 
     steps:
@@ -1058,7 +1058,7 @@ jobs:
 
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
-      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-ubuntu
+      CCACHE_KEY_PREFIX: ccache-cold-${{ github.job }}-ci-ubuntu
       CCACHE_MAXSIZE: 384MB
 
     steps:
@@ -1118,7 +1118,7 @@ jobs:
 
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
-      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-ubuntu
+      CCACHE_KEY_PREFIX: ccache-cold-${{ github.job }}-ci-ubuntu
       CCACHE_MAXSIZE: 384MB
 
     steps:
