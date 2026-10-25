@@ -23,3 +23,11 @@ cmake --build build
 ./build/first_benchmark --counter=machine/monotonic --dry-run
 ./build/first_benchmark --catalog
 # sg-example:end options
+
+# sg-example:begin tiers
+cmake --preset=prepush
+cmake --build build/prepush -j "$(nproc)"
+ctest --preset prepush-quick -j "$(nproc)"
+taskset -c 0,1 ctest --preset prepush-quick -j 2
+ctest --preset prepush-full -j "$(nproc)"
+# sg-example:end tiers
