@@ -113,21 +113,9 @@ set(
     "; separated command to fail the 'coverage' target under 100%"
 )
 
-# The HTML step reads the filtered trace, so it needs the `inconsistent`
-# class as well. `--omit-lines` drops every `SG_*` contract line, and a lambda
-# written inside a contract predicate keeps its own function record with its
-# hit count while each line it spanned leaves the trace: the
-# `std::ranges::all_of` lambda inside the `SG_ENSURE` at
-# source/harness/hunt_plan.cpp:365 arrives as a hit function whose contained
-# lines are absent, which genhtml reads as a contradiction and aborts the
-# target over. The class names that record-shape complaint, and it changes no
-# line or branch count: the omitted lines were never counted, and the gate
-# reads lines and branches, never functions. Removing the lambda to move a
-# record would be the source change decision D-16 declined.
 set(
     COVERAGE_HTML_COMMAND
     "${GENHTML_EXECUTABLE}" --legend -f -q --branch-coverage
-    --ignore-errors inconsistent
     "${PROJECT_BINARY_DIR}/coverage.info"
     -p "${PROJECT_SOURCE_DIR}"
     -o "${PROJECT_BINARY_DIR}/coverage_html"
