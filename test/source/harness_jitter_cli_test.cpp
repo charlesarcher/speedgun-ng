@@ -721,7 +721,11 @@ auto runExecChild(const char* mode, const char* tag) -> Captured
     fail("cannot wait for the exec child");
   }
   if (!WIFEXITED(waitStatus)) {
-    fail("the exec child did not exit normally");
+    const std::string why =
+        std::string("the exec child did not exit normally: mode ") + mode
+        + ", status " + std::to_string(waitStatus) + ", signal "
+        + std::to_string(WTERMSIG(waitStatus));
+    fail(why.c_str());
   }
   return Captured {
       WEXITSTATUS(waitStatus), readDocument(outPath), readDocument(errPath)};
