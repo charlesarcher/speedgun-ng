@@ -52,19 +52,43 @@ jobs:
     # workflow.
     if: github.repository_owner == 'charlesarcher'
 
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-coverage
+
     steps:
     - uses: actions/checkout@v4
       with: { submodules: true }
 
     - name: Install LCov
       run: sudo apt-get update -q
-        && sudo apt-get install lcov doxygen python3-yaml autoconf automake libtool patch -q -y
+        && sudo apt-get install lcov ccache doxygen python3-yaml autoconf automake libtool patch -q -y
+
+    - name: Record compiler version
+      run: ${CXX:-c++} --version | head -n 1 > .ccache-cxx-version
+
+    - name: Restore ccache
+      id: ccache
+      env:
+        CCACHE_CXX_HASH: ${{ hashFiles('.ccache-cxx-version') }}
+        CCACHE_TREE_HASH: ${{ hashFiles('CMakePresets.json', 'external/**') }}
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-${{ github.run_id }}
+        restore-keys: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-
 
     - name: Configure
       run: cmake --preset=ci-coverage
 
+    - name: Zero ccache before Build
+      run: ccache -z
+
     - name: Build
       run: cmake --build build/coverage -j "$(nproc)"
+
+    - name: ccache stats after Build
+      run: ccache -s
 
     - name: Test
       working-directory: build/coverage
@@ -88,12 +112,24 @@ jobs:
         file: build/coverage/coverage.info
         token: ${{ secrets.CODECOV_TOKEN }}
 
+    # Push only: a pull_request run must write no shared cache, and the two
+    # warm runs of one commit need a push to leave one behind (FR-008).
+    - name: Save ccache
+      if: github.event_name == 'push'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ steps.ccache.outputs.cache-primary-key }}
+
   sanitize:
     needs: [lint]
 
     runs-on: ubuntu-26.04
 
-    env: { CXX: clang++ }
+    env:
+      CXX: clang++
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-sanitize
 
     steps:
     - uses: actions/checkout@v4
@@ -101,13 +137,33 @@ jobs:
 
     - name: Install clang, Doxygen, and python3-yaml
       run: sudo apt-get update -q
-        && sudo apt-get install clang doxygen python3-yaml lcov autoconf automake libtool patch -q -y
+        && sudo apt-get install clang ccache doxygen python3-yaml lcov autoconf automake libtool patch -q -y
+
+    - name: Record compiler version
+      run: ${CXX:-c++} --version | head -n 1 > .ccache-cxx-version
+
+    - name: Restore ccache
+      id: ccache
+      env:
+        CCACHE_CXX_HASH: ${{ hashFiles('.ccache-cxx-version') }}
+        CCACHE_TREE_HASH: ${{ hashFiles('CMakePresets.json', 'external/**') }}
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-${{ github.run_id }}
+        restore-keys: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-
 
     - name: Configure
       run: cmake --preset=ci-sanitize
 
+    - name: Zero ccache before Build
+      run: ccache -z
+
     - name: Build
       run: cmake --build build/sanitize -j "$(nproc)"
+
+    - name: ccache stats after Build
+      run: ccache -s
 
     - name: Test
       working-directory: build/sanitize
@@ -122,12 +178,22 @@ jobs:
           halt_on_error=1"
       run: ctest --output-on-failure --no-tests=error -j "$(nproc)"
 
+    - name: Save ccache
+      if: github.event_name == 'push'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ steps.ccache.outputs.cache-primary-key }}
+
   tsan:
     needs: [lint]
 
     runs-on: ubuntu-26.04
 
-    env: { CXX: clang++ }
+    env:
+      CXX: clang++
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-tsan
 
     steps:
     - uses: actions/checkout@v4
@@ -135,13 +201,33 @@ jobs:
 
     - name: Install clang, Doxygen, and python3-yaml
       run: sudo apt-get update -q
-        && sudo apt-get install clang doxygen python3-yaml lcov autoconf automake libtool patch -q -y
+        && sudo apt-get install clang ccache doxygen python3-yaml lcov autoconf automake libtool patch -q -y
+
+    - name: Record compiler version
+      run: ${CXX:-c++} --version | head -n 1 > .ccache-cxx-version
+
+    - name: Restore ccache
+      id: ccache
+      env:
+        CCACHE_CXX_HASH: ${{ hashFiles('.ccache-cxx-version') }}
+        CCACHE_TREE_HASH: ${{ hashFiles('CMakePresets.json', 'external/**') }}
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-${{ github.run_id }}
+        restore-keys: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-
 
     - name: Configure
       run: cmake --preset=ci-tsan
 
+    - name: Zero ccache before Build
+      run: ccache -z
+
     - name: Build
       run: cmake --build build/tsan -j "$(nproc)"
+
+    - name: ccache stats after Build
+      run: ccache -s
 
     # The thread sanitizer needs its own build tree: the compilers reject
     # pairing it with the address sanitizer, so ci-sanitize keeps address
@@ -152,20 +238,48 @@ jobs:
         TSAN_OPTIONS: "halt_on_error=1:second_deadlock_stack=1"
       run: ctest --output-on-failure --no-tests=error -j "$(nproc)"
 
+    - name: Save ccache
+      if: github.event_name == 'push'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ steps.ccache.outputs.cache-primary-key }}
+
   test:
     needs: [lint]
     runs-on: ubuntu-26.04
+
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-ubuntu
+
     steps:
     - uses: actions/checkout@v4
       with: { submodules: true }
     - name: Install analyzers
       run: >-
         sudo apt-get update -q &&
-        sudo apt-get install clang-tidy cppcheck doxygen python3-yaml lcov autoconf automake libtool patch -y -q
+        sudo apt-get install clang-tidy cppcheck ccache doxygen python3-yaml lcov autoconf automake libtool patch -y -q
+    - name: Record compiler version
+      run: ${CXX:-c++} --version | head -n 1 > .ccache-cxx-version
+    - name: Restore ccache
+      id: ccache
+      env:
+        CCACHE_CXX_HASH: ${{ hashFiles('.ccache-cxx-version') }}
+        CCACHE_TREE_HASH: ${{ hashFiles('CMakePresets.json', 'external/**') }}
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-${{ github.run_id }}
+        restore-keys: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-
     - name: Configure
       run: cmake --preset=ci-ubuntu
+    - name: Zero ccache before Build
+      run: ccache -z
     - name: Build
       run: cmake --build build --config Release -j "$(nproc)"
+    - name: ccache stats after Build
+      run: ccache -s
     - name: Install
       run: cmake --install build --config Release --prefix prefix
     - name: Audit install tree for hwloc
@@ -220,11 +334,22 @@ jobs:
     - name: Test
       working-directory: build
       run: ctest --output-on-failure --no-tests=error -C Release -j "$(nproc)"
+    - name: Save ccache
+      if: github.event_name == 'push'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ steps.ccache.outputs.cache-primary-key }}
 
   test-rocky:
     needs: [lint]
     runs-on: ubuntu-26.04
     container: rockylinux/rockylinux:10
+
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-rocky
+
     steps:
     - name: Install toolchain
       run: |
@@ -234,34 +359,77 @@ jobs:
         dnf -y install epel-release || \
           dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
         dnf -y install gcc-c++ cmake git python3 python3-pip python3-pyyaml \
-          make doxygen lcov tar gzip diffutils
+          make doxygen lcov tar gzip diffutils ccache
         dnf -y install autoconf automake libtool patch
     - uses: actions/checkout@v4
       with: { submodules: true }
+    - name: Record compiler version
+      run: ${CXX:-c++} --version | head -n 1 > .ccache-cxx-version
+    - name: Restore ccache
+      id: ccache
+      env:
+        CCACHE_CXX_HASH: ${{ hashFiles('.ccache-cxx-version') }}
+        CCACHE_TREE_HASH: ${{ hashFiles('CMakePresets.json', 'external/**') }}
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-${{ github.run_id }}
+        restore-keys: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-
     - name: Configure
       run: cmake --preset=ci-rocky
+    - name: Zero ccache before Build
+      run: ccache -z
     - name: Build
       run: cmake --build build --config Release -j "$(nproc)"
+    - name: ccache stats after Build
+      run: ccache -s
     - name: Install
       run: cmake --install build --config Release --prefix prefix
     - name: Test
       working-directory: build
       run: ctest --output-on-failure --no-tests=error -C Release -j "$(nproc)"
+    - name: Save ccache
+      if: github.event_name == 'push'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ steps.ccache.outputs.cache-primary-key }}
 
   shared-audit:
     needs: [lint]
     runs-on: ubuntu-26.04
+
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-linux-audit
+
     steps:
     - uses: actions/checkout@v4
       with: { submodules: true }
     - name: Install autotools and audit tools
       run: >-
         sudo apt-get update -q &&
-        sudo apt-get install autoconf automake libtool patch doxygen python3-yaml lcov -q -y
+        sudo apt-get install autoconf automake libtool patch doxygen python3-yaml lcov ccache -q -y
+    - name: Record compiler version
+      run: ${CXX:-c++} --version | head -n 1 > .ccache-cxx-version
+    - name: Restore ccache
+      id: ccache
+      env:
+        CCACHE_CXX_HASH: ${{ hashFiles('.ccache-cxx-version') }}
+        CCACHE_TREE_HASH: ${{ hashFiles('CMakePresets.json', 'external/**') }}
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-${{ github.run_id }}
+        restore-keys: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-
     - name: Configure
       run: cmake --preset=ci-linux-audit -B build-shared -D BUILD_SHARED_LIBS=ON -D CMAKE_BUILD_TYPE=Release
+    - name: Zero ccache before Build
+      run: ccache -z
     - name: Build
       run: cmake --build build-shared -j "$(nproc)"
+    - name: ccache stats after Build
+      run: ccache -s
     - name: Install
       run: cmake --install build-shared --prefix prefix-shared
     - name: Audit shared symbols for hwloc
@@ -344,17 +512,40 @@ jobs:
       run: "! nm -D --defined-only prefix-shared/lib/libspeedgun-ng.so | grep '8fmtquill'"
     - name: Audit shared runtime deps for quill
       run: "! ldd prefix-shared/lib/libspeedgun-ng.so | grep -iE 'quill'"
+    - name: Save ccache
+      if: github.event_name == 'push'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ steps.ccache.outputs.cache-primary-key }}
 
   downstream-consumer:
     needs: [lint]
     runs-on: ubuntu-26.04
+
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-linux-audit
+
     steps:
     - uses: actions/checkout@v4
       with: { submodules: true }
     - name: Install autotools, libhwloc-dev, libsimdjson-dev, zlib1g-dev, and build tools
       run: >-
         sudo apt-get update -q &&
-        sudo apt-get install autoconf automake libtool patch libhwloc-dev libsimdjson-dev zlib1g-dev doxygen python3-yaml lcov -q -y
+        sudo apt-get install autoconf automake libtool patch libhwloc-dev libsimdjson-dev zlib1g-dev doxygen python3-yaml lcov ccache -q -y
+    - name: Record compiler version
+      run: ${CXX:-c++} --version | head -n 1 > .ccache-cxx-version
+    - name: Restore ccache
+      id: ccache
+      env:
+        CCACHE_CXX_HASH: ${{ hashFiles('.ccache-cxx-version') }}
+        CCACHE_TREE_HASH: ${{ hashFiles('CMakePresets.json', 'external/**') }}
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-${{ github.run_id }}
+        restore-keys: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-
     # Ubuntu carries no HdrHistogram_c dev package, unlike hwloc and
     # simdjson, so build a system copy from the vendored sources and put
     # it on the default search path: the machine then genuinely carries a
@@ -390,18 +581,26 @@ jobs:
         -DCMAKE_BUILD_TYPE=Release
         && cmake --build sys-quill -j "$(nproc)"
         && sudo cmake --install sys-quill --prefix /usr/local
+    - name: Zero ccache before Install library
+      run: ccache -z
     - name: Install library
       run: cmake --preset=ci-linux-audit -B build -D CMAKE_BUILD_TYPE=Release
         && cmake --build build -j "$(nproc)"
         && cmake --install build --prefix prefix
+    - name: ccache stats after Install library
+      run: ccache -s
     - name: Configure consumer
       run: >-
         cmake -S test/consumer -B build-consumer
         -D CMAKE_PREFIX_PATH=$PWD/prefix
         -D CMAKE_BUILD_TYPE=Release
         | tee consumer-configure.log
+    - name: Zero ccache before Build consumer verbose
+      run: ccache -z
     - name: Build consumer verbose
       run: cmake --build build-consumer -v | tee consumer-build.log
+    - name: ccache stats after Build consumer verbose
+      run: ccache -s
     - name: Run consumer
       run: |
         set -euo pipefail
@@ -491,11 +690,21 @@ jobs:
       run: test -z "$(grep -riE 'yaml[-_]?cpp' consumer-configure.log consumer-build.log)"
     - name: Audit consumer logs for quill
       run: test -z "$(grep -riE 'quill' consumer-configure.log consumer-build.log)"
+    - name: Save ccache
+      if: github.event_name == 'push'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ steps.ccache.outputs.cache-primary-key }}
 
   consumer-release:
     needs: [lint]
 
     runs-on: ubuntu-26.04
+
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-linux-ignore
 
     steps:
     - uses: actions/checkout@v4
@@ -503,7 +712,21 @@ jobs:
 
     - name: Install Doxygen and python3-yaml
       run: sudo apt-get update -q
-        && sudo apt-get install doxygen python3-yaml lcov autoconf automake libtool patch -q -y
+        && sudo apt-get install doxygen python3-yaml lcov autoconf automake libtool patch ccache -q -y
+
+    - name: Record compiler version
+      run: ${CXX:-c++} --version | head -n 1 > .ccache-cxx-version
+
+    - name: Restore ccache
+      id: ccache
+      env:
+        CCACHE_CXX_HASH: ${{ hashFiles('.ccache-cxx-version') }}
+        CCACHE_TREE_HASH: ${{ hashFiles('CMakePresets.json', 'external/**') }}
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-${{ github.run_id }}
+        restore-keys: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-
 
     - name: Configure consumer release
       run: >
@@ -520,8 +743,14 @@ jobs:
         grep -F 'speedgun-ng_CONTRACTS:STRING=ignore' \
           build/consumer-release/CMakeCache.txt
 
+    - name: Zero ccache before Build consumer library
+      run: ccache -z
+
     - name: Build consumer library
       run: cmake --build build/consumer-release -j "$(nproc)"
+
+    - name: ccache stats after Build consumer library
+      run: ccache -s
 
     - name: Assert no gated check_ symbols
       run: |
@@ -540,10 +769,16 @@ jobs:
         -D CMAKE_BUILD_TYPE=Release
         -D speedgun-ng_DEVELOPER_MODE=ON
 
+    - name: Zero ccache before Build trap fixture and dbc_test
+      run: ccache -z
+
     - name: Build trap fixture and dbc_test
       run: cmake --build build/consumer-release-dev -j "$(nproc)"
         --target dbc_trap_fixture counters_trap_fixture
         counters_trap_noguard_fixture dbc_test
+
+    - name: ccache stats after Build trap fixture and dbc_test
+      run: ccache -s
 
     - name: Run dbc_trap_fixture under ignore
       run: |
@@ -672,10 +907,21 @@ jobs:
         fi
         test "$first" = "DBC TEST FAIL: pre: violation delivered to the observer"
 
+    - name: Save ccache
+      if: github.event_name == 'push'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ steps.ccache.outputs.cache-primary-key }}
+
   dbc-gate:
     needs: [lint]
 
     runs-on: ubuntu-26.04
+
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-ubuntu
 
     steps:
     - uses: actions/checkout@v4
@@ -683,13 +929,33 @@ jobs:
 
     - name: Install Doxygen and python3-yaml
       run: sudo apt-get update -q
-        && sudo apt-get install doxygen python3-yaml lcov autoconf automake libtool patch -q -y
+        && sudo apt-get install doxygen python3-yaml lcov autoconf automake libtool patch ccache -q -y
+
+    - name: Record compiler version
+      run: ${CXX:-c++} --version | head -n 1 > .ccache-cxx-version
+
+    - name: Restore ccache
+      id: ccache
+      env:
+        CCACHE_CXX_HASH: ${{ hashFiles('.ccache-cxx-version') }}
+        CCACHE_TREE_HASH: ${{ hashFiles('CMakePresets.json', 'external/**') }}
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-${{ github.run_id }}
+        restore-keys: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-
 
     - name: Configure
       run: cmake -S . -B build/dev --preset=ci-ubuntu
 
+    - name: Zero ccache before Build dbc-gate
+      run: ccache -z
+
     - name: Build dbc-gate
       run: cmake --build build/dev -t dbc-gate -j "$(nproc)"
+
+    - name: ccache stats after Build dbc-gate
+      run: ccache -s
 
     - name: Test dbc gate fixtures
       working-directory: build/dev
@@ -701,16 +967,28 @@ jobs:
         name: dbc-matrix
         path: build/dev/dbc-gate/matrix.json
 
+    - name: Save ccache
+      if: github.event_name == 'push'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ${{ steps.ccache.outputs.cache-primary-key }}
+
   prose-lint:
     needs: [lint]
     runs-on: ubuntu-26.04
+
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-ubuntu
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0          # R-07: default 1 cannot support a range
           submodules: true
       - name: Install PyYAML, Doxygen, and lcov
-        run: sudo apt-get update -q && sudo apt-get install -q -y python3-yaml doxygen lcov autoconf automake libtool patch
+        run: sudo apt-get update -q && sudo apt-get install -q -y python3-yaml doxygen lcov autoconf automake libtool patch ccache
       - name: Resolve range
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -748,11 +1026,34 @@ jobs:
           -D PROSE_BASE="${PROSE_BASE}"
           -D PROSE_HEAD="${PROSE_HEAD}"
           -P cmake/prose-lint.cmake
+      - name: Record compiler version
+        run: ${CXX:-c++} --version | head -n 1 > .ccache-cxx-version
+      - name: Restore ccache
+        id: ccache
+        env:
+          CCACHE_CXX_HASH: ${{ hashFiles('.ccache-cxx-version') }}
+          CCACHE_TREE_HASH: ${{ hashFiles('CMakePresets.json', 'external/**') }}
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-${{ github.run_id }}
+          restore-keys: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-
       - name: Configure
         run: cmake --preset=ci-ubuntu -B build/dev
-      - run: cmake --build build/dev -t prose-lint-fixtures || true
+      - name: Zero ccache before Build prose-lint fixtures
+        run: ccache -z
+      - name: Build prose-lint fixtures
+        run: cmake --build build/dev -t prose-lint-fixtures || true
+      - name: ccache stats after Build prose-lint fixtures
+        run: ccache -s
       - run: ctest --test-dir build/dev -R prose_gate_fixtures
              --output-on-failure --no-tests=error
+      - name: Save ccache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ steps.ccache.outputs.cache-primary-key }}
 
   docs:
     # Deploy docs only when builds succeed
