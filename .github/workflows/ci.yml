@@ -260,10 +260,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with: { submodules: true }
-    - name: Install analyzers
+    - name: Install Doxygen and python3-yaml
       run: >-
         sudo apt-get update -q &&
-        sudo apt-get install clang-tidy cppcheck ccache doxygen python3-yaml lcov autoconf automake libtool patch -y -q
+        sudo apt-get install ccache doxygen python3-yaml lcov autoconf automake libtool patch -y -q
     - name: Record compiler version
       run: ${CXX:-c++} --version | head -n 1 > .ccache-cxx-version
     - name: Restore ccache
@@ -277,7 +277,7 @@ jobs:
         key: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-${{ github.run_id }}
         restore-keys: ${{ env.CCACHE_KEY_PREFIX }}-${{ env.CCACHE_CXX_HASH }}-${{ env.CCACHE_TREE_HASH }}-
     - name: Configure
-      run: cmake --preset=ci-ubuntu
+      run: cmake --preset=ci-ubuntu-test
     - name: Zero ccache before Build
       run: ccache -z
     - name: Build
