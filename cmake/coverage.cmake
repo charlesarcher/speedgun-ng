@@ -142,16 +142,14 @@ set(
 # the `--omit-lines` filter removed as a contradiction and aborts the read,
 # which takes the target down after the trace was written and before the gate
 # number is read. `--list` reports no gate figure: coverage_gate.sh reads
-# lines and branches from the trace file itself. The class flag precedes
-# `--list` because lcov 2.3 takes the word after `--list` as the tracefile
-# name, so a flag written after it leaves its class and the real tracefile as
-# two unclaimed parameters, which lcov reports as `Extra parameter found`.
+# lines and branches from the trace file itself.
 add_custom_target(
     coverage
     COMMAND ${COVERAGE_TRACE_COMMAND}
     COMMAND ${COVERAGE_EXTRACT_COMMAND}
-    COMMAND ${LCOV_EXECUTABLE} --branch-coverage --ignore-errors inconsistent
-            --list "${PROJECT_BINARY_DIR}/coverage.info"
+    COMMAND ${LCOV_EXECUTABLE} --branch-coverage --list
+            --ignore-errors inconsistent
+            "${PROJECT_BINARY_DIR}/coverage.info"
     COMMAND ${COVERAGE_SUMMARY_COMMAND}
     COMMAND ${COVERAGE_HTML_COMMAND}
     COMMENT "Generating coverage report (100% line and branch required)"
