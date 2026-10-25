@@ -6,8 +6,8 @@ line, and the `--self-check` option that drives all four in place.
 **Head sha**: 92ca8c9 with the fault-path block of this task in the working
 tree
 **Run id**: local
-**Command**: the four lines under The paths and `bash tools/ci/prepush.sh
---self-check`, run from the repository root
+**Command**: the four lines under The paths and the self-check option of the
+same script, run from the repository root
 **Numbers**: the exit status beside each path, and the four `self-check:` lines
 
 FR-030 wants a failing local run to say which check failed, in the same shape
