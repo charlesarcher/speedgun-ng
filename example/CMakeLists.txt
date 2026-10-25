@@ -76,4 +76,17 @@ add_docs_example(jitter_probe)
 
 add_docs_example(hunt_rank)
 
+# The time budget (030 P-07, FR-031), the rule the test directory applies
+# with its own trailing block: an entry this directory registers with no
+# TIMEOUT of its own runs under the 1500 s CTest default, so it takes 300 s
+# here and a value the registration names stays where it was set. The
+# directory registers no entry today, so this read finds an empty list.
+get_property(speedgun_example_entries DIRECTORY PROPERTY TESTS)
+foreach(speedgun_example IN LISTS speedgun_example_entries)
+  get_test_property(${speedgun_example} TIMEOUT speedgun_example_timeout)
+  if(NOT speedgun_example_timeout)
+    set_tests_properties(${speedgun_example} PROPERTIES TIMEOUT 300)
+  endif()
+endforeach()
+
 add_folders(Example)
