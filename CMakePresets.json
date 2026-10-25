@@ -80,14 +80,20 @@
       "binaryDir": "${sourceDir}/build/ci-linux-ignore",
       "inherits": "ci-linux",
       "cacheVariables": {
-        "speedgun-ng_CONTRACTS": "ignore"
+        "speedgun-ng_CONTRACTS": "ignore",
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
       }
     },
     {
       "name": "ci-linux-audit",
       "description": "ci-linux flags for the two jobs that install a release tree to audit its package surface. The preset adds no cache variable: both trees already run at the enforcing contract semantic and with developer mode off, which are the defaults (T186).",
       "binaryDir": "${sourceDir}/build/ci-linux-audit",
-      "inherits": "ci-linux"
+      "inherits": "ci-linux",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
+      }
     },
     {
       "name": "coverage-linux",
