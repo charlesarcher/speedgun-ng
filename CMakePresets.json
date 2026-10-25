@@ -134,7 +134,8 @@
       "cacheVariables": {
         "CMAKE_CXX_FLAGS_RELEASE": "-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -O2 -g -DNDEBUG -fsanitize=thread -fno-omit-frame-pointer -fno-common",
         "CMAKE_EXE_LINKER_FLAGS_RELEASE": "-fsanitize=thread",
-        "CMAKE_SHARED_LINKER_FLAGS_RELEASE": "-fsanitize=thread"
+        "CMAKE_SHARED_LINKER_FLAGS_RELEASE": "-fsanitize=thread",
+        "SPEEDGUN_DBC_MATRIX": "ON"
       }
     },
     {
@@ -165,7 +166,10 @@
     },
     {
       "name": "ci-rocky",
-      "inherits": ["ci-build", "ci-linux", "dev-mode", "ci-cache"]
+      "inherits": ["ci-build", "ci-linux", "dev-mode", "ci-cache"],
+      "cacheVariables": {
+        "SPEEDGUN_DBC_MATRIX": "ON"
+      }
     },
     {
       "name": "prepush",
