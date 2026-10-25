@@ -19,13 +19,8 @@ if [[ -z "${LCOV}" ]]; then
   exit 2
 fi
 
-out=$("${LCOV}" --branch-coverage --summary --ignore-errors inconsistent "${info}" 2>&1) || true
+out=$("${LCOV}" --branch-coverage --summary "${info}" 2>&1) || true
 printf '%s\n' "${out}"
-
-if ! echo "${out}" | grep -q 'lines\.\.\.\.\.\.\.: '; then
-  echo "coverage-gate: lcov could not read the trace; this is not a coverage verdict" >&2
-  exit 2
-fi
 
 echo "${out}" | grep -q 'lines\.\.\.\.\.\.\.: 100.0%' || {
   echo "coverage-gate: line coverage is not 100%" >&2
