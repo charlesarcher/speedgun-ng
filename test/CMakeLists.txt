@@ -192,6 +192,21 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     NAME simulation_mark_shape
     COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/simulation_mark_shape.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}
   )
+
+  # Tier and budget audit of the registration (030 T010; FR-026, FR-031,
+  # FR-047, FR-048): the tier label and the time budget are set by the two
+  # blocks at the end of the file, where no compiler reads them, so this
+  # entry reads the suite back from ctest and fails when an entry carries
+  # both labels or none, when a slow row names no entry, when an entry holds
+  # no budget, or when a registration sleeps, reads a clock for its verdict,
+  # retries, or sets a skip rule master does not set. The build directory and
+  # the ctest program come in as arguments, so the entry runs from any
+  # working directory, and the two blocks give it its label and its budget
+  # with the rest of the suite (Principle III: seen red before they land).
+  add_test(
+    NAME test_tier_labels
+    COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/tier_labels.sh ${CMAKE_BINARY_DIR} ${CMAKE_CTEST_COMMAND}
+  )
 endif()
 
 # Gate-effectiveness harness (001 T024 / SC-006). Self-contained: invokes
