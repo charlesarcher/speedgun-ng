@@ -21,6 +21,14 @@ set(
   "Compile concurrency one dbc matrix entry may start"
 )
 
+# The slots the cross-processor scenario of counters_clock_raw_test needs:
+# it starts one worker per logical processor of the host it runs on, so the
+# entry reserves that many (030 FR-003).
+cmake_host_system_information(
+  RESULT SPEEDGUN_HOST_PROCESSORS
+  QUERY NUMBER_OF_LOGICAL_CORES
+)
+
 # ---- Tests ----
 
 add_executable(speedgun-ng_test source/speedgun-ng_test.cpp)
@@ -152,6 +160,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
       NAME dbc_semantics_matrix
       COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/../tools/dbc/semantics_matrix.sh ${CMAKE_SOURCE_DIR}
     )
+    # The cell hands SPEEDGUN_TEST_JOBS to its own build as its compile
+    # concurrency, so the entry holds that many slots while its compiler
+    # fleet runs (030 FR-003).
+    set_tests_properties(dbc_semantics_matrix PROPERTIES
+                         PROCESSORS ${SPEEDGUN_TEST_JOBS})
   endif()
 
   # Codegen-shape gate for the raw time-stamp read (T026; 008 FR-003,
@@ -261,6 +274,10 @@ add_executable(counters_recorder_test source/counters_recorder_test.cpp)
 target_link_libraries(counters_recorder_test PRIVATE speedgun-ng::speedgun-ng)
 target_compile_features(counters_recorder_test PRIVATE cxx_std_23)
 add_test(NAME counters_recorder_test COMMAND counters_recorder_test)
+# The concurrent-resolution scenario resolves, walks and compiles on eight
+# threads at once (kThreadCount of source/counters_recorder_test.cpp), so
+# eight slots keep those workers off cpus a sibling entry holds (030 FR-003).
+set_tests_properties(counters_recorder_test PROPERTIES PROCESSORS 8)
 
 # Allocation-free sampling proof (T027; FR-026): counting global
 # operator new/delete in this TU, sampling under the counter.
@@ -546,6 +563,11 @@ target_link_libraries(counters_clock_raw_test
                       PRIVATE speedgun-ng::speedgun-ng)
 target_compile_features(counters_clock_raw_test PRIVATE cxx_std_23)
 add_test(NAME counters_clock_raw_test COMMAND counters_clock_raw_test)
+# The cross-processor scenario starts one worker per logical processor of
+# the host and joins them, so the entry takes as many slots as the host has
+# cpus (030 FR-003, SPEEDGUN_HOST_PROCESSORS above).
+set_tests_properties(counters_clock_raw_test PROPERTIES
+                     PROCESSORS ${SPEEDGUN_HOST_PROCESSORS})
 
 # ---- Trace-start marker (feature 011) ----
 
@@ -844,6 +866,10 @@ target_include_directories(harness_jitter_preset_test
 target_compile_features(harness_jitter_preset_test PRIVATE cxx_std_23)
 add_test(NAME harness_jitter_preset_test
          COMMAND harness_jitter_preset_test)
+# The widest preset instance of the fit scenarios names four threads
+# (instance.threadCount of source/harness_jitter_preset_test.cpp), so four
+# slots cover one threaded run (030 FR-003).
+set_tests_properties(harness_jitter_preset_test PROPERTIES PROCESSORS 4)
 
 # The machine layout read, the two install seams and the mask intersection
 # (T007; US1, FR-001, FR-002, FR-003, FR-005, FR-006, R-04, R-11, R-13,
@@ -1072,6 +1098,10 @@ target_include_directories(harness_execution_context_test PRIVATE ${CMAKE_SOURCE
 target_compile_features(harness_execution_context_test PRIVATE cxx_std_23)
 add_test(NAME harness_execution_context_test
          COMMAND harness_execution_context_test)
+# The widest scenario drives two dispatchers at once
+# (source/harness_execution_context_test.cpp), so two slots cover the pair
+# (030 FR-003).
+set_tests_properties(harness_execution_context_test PROPERTIES PROCESSORS 2)
 
 # The context barrier of feature 020 (T012; C-4, FR-014, FR-015, D-03, Q-3): a
 # round releases every participant, a SPIN participant waits without sleeping
@@ -1088,6 +1118,11 @@ target_include_directories(harness_context_barrier_test PRIVATE ${CMAKE_SOURCE_D
 target_compile_features(harness_context_barrier_test PRIVATE cxx_std_23)
 add_test(NAME harness_context_barrier_test
          COMMAND harness_context_barrier_test)
+# A barrier round holds four participants at the barrier: three workers plus
+# the thread that opens the round (kRoundParticipants of
+# source/harness_context_barrier_test.cpp), so four slots cover one round
+# (030 FR-003).
+set_tests_properties(harness_context_barrier_test PROPERTIES PROCESSORS 4)
 
 # The benchmark over N contexts of feature 020 (T014 to T017; US2, C-5, FR-016,
 # FR-017, FR-020, D-06; SC-06, SC-07): the thread index and count a state
@@ -1107,6 +1142,10 @@ target_include_directories(harness_threads_test PRIVATE ${CMAKE_SOURCE_DIR}/sour
 target_compile_features(harness_threads_test PRIVATE cxx_std_23)
 add_test(NAME harness_threads_test
          COMMAND harness_threads_test)
+# The benchmark of the threaded scenarios runs four contexts at once
+# (kThreadCount of source/harness_threads_test.cpp), so four slots cover one
+# run (030 FR-003).
+set_tests_properties(harness_threads_test PROPERTIES PROCESSORS 4)
 
 # The disclosure line and the noise warning of the report (T022 to T024; US4,
 # C-7, FR-025, FR-026, FR-028, E-07, SC-12). Each scenario builds the policy
@@ -1252,6 +1291,10 @@ target_link_libraries(harness_pass_collect_test PRIVATE speedgun-ng::harness)
 target_include_directories(harness_pass_collect_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
 target_compile_features(harness_pass_collect_test PRIVATE cxx_std_23)
 add_test(NAME harness_pass_collect_test COMMAND harness_pass_collect_test)
+# The threaded arm of the pass scenarios runs two contexts at once
+# (kThreadCount of source/harness_pass_collect_test.cpp), so two slots cover
+# it (030 FR-003).
+set_tests_properties(harness_pass_collect_test PROPERTIES PROCESSORS 2)
 
 add_executable(harness_pass_report_test source/harness_pass_report_test.cpp)
 target_link_libraries(harness_pass_report_test PRIVATE speedgun-ng::harness)
@@ -1266,6 +1309,14 @@ add_test(NAME harness_pass_report_test COMMAND harness_pass_report_test)
 add_test(NAME harness_pass_report_test_identity
          COMMAND harness_pass_report_test byte-identity
                  ${CMAKE_CURRENT_SOURCE_DIR}/source/detail/pass_identity.expected)
+# Both entries capture the printed report through the one fixed relative
+# name harness_pass_report_out.txt of
+# source/harness_pass_report_test.cpp, so neither may read it while the
+# other writes it (030 FR-004, P-13).
+set_tests_properties(
+  harness_pass_report_test harness_pass_report_test_identity
+  PROPERTIES RESOURCE_LOCK harness_pass_report_out
+)
 
 # ---- Hunter mode core (feature 029) ----
 
@@ -1298,6 +1349,10 @@ target_link_libraries(harness_hunt_collect_test PRIVATE speedgun-ng::harness)
 target_include_directories(harness_hunt_collect_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
 target_compile_features(harness_hunt_collect_test PRIVATE cxx_std_23)
 add_test(NAME harness_hunt_collect_test COMMAND harness_hunt_collect_test)
+# The threaded arm of the collection scenarios runs two contexts at once
+# (kThreadCount of source/harness_hunt_collect_test.cpp), so two slots cover
+# it (030 FR-003).
+set_tests_properties(harness_hunt_collect_test PROPERTIES PROCESSORS 2)
 
 # One case per refusal row of contracts/hunt-cli.md, in process and forked
 # (T018; US1, FR-001, FR-006, FR-081, AC-5, SC-05).
