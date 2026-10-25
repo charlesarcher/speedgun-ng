@@ -4,6 +4,7 @@ on:
   push:
     branches:
     - master
+    - 030-nocache-evidence
 
   pull_request:
     branches:
