@@ -200,7 +200,7 @@ main page teaches both tiers (SC-010).
 **Independent Test**: the two label lists are disjoint, their union equals
 `ctest -N`, and no CI `ctest` line carries `-L` or `-LE`.
 
-- [ ] T039 [P] [US5] In `test/tier_labels.sh`, close the label checks against the filled list: the two label lists partition `ctest -N`, no entry carries both labels, and every `SPEEDGUN_SLOW_TESTS` row names an entry that exists (FR-025, FR-026). Depends on T011
+- [X] T039 [P] [US5] In `test/tier_labels.sh`, close the label checks against the filled list: the two label lists partition `ctest -N`, no entry carries both labels, and every `SPEEDGUN_SLOW_TESTS` row names an entry that exists (FR-025, FR-026). Depends on T011
 - [X] T040 [P] [US5] Read every `ctest` line in `.github/workflows/ci.yml` and write `specs/030-ci-speedup/results/ph7/no-filter.md` listing each line with its `-L` and `-LE` state; add a filter nowhere (FR-027)
 - [ ] T041 [P] [US5] Add to `README.md`, inside `## Quick start`, a plain fenced `sh` block with one sentence each side that names the `quick` and `slow` tiers and `tools/ci/prepush.sh`, in 25 lines or fewer (FR-050, SC-010, P-09)
 - [ ] T042 [US5] Move `PAGE_LINE_CAP` in `tools/docs/example_drift.py:192` from 835 to the measured page length with the file's comment form naming the block that moved it, and confirm `python3 tools/docs/example_drift.py .` passes (P-09). Depends on T041
