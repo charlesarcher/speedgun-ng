@@ -3,9 +3,15 @@
 # T019 / FR-017: contract evaluation is independent of NDEBUG and of
 # optimization, and the dedicated switch never changes standard assert.
 #
-# Usage: bash tools/dbc/semantics_matrix.sh [repo-root]
+# Usage: bash tools/dbc/semantics_matrix.sh [repo-root] [cell] [jobs]
 #   repo-root defaults to the repository root (two levels above this
 #   script) or $1 from ctest (PROJECT_SOURCE_DIR).
+#   cell names one cell to run, by the entry name ctest carries (FR-019,
+#   P-04). Without it every cell runs, so a direct invocation is what it
+#   was before the argument existed.
+#   jobs is the build concurrency for that cell: argument 3 when given,
+#   else SPEEDGUN_TEST_JOBS from the environment, else 2. Never nproc
+#   (FR-020, P-04).
 #
 # Four cells: NDEBUG on/off x -O0/-O2. Each cell is a distinct fresh
 # CMake build directory configured with:
@@ -27,7 +33,9 @@
 # standard assert. A fifth observe configure is the negative probe:
 # SG_CONTRACTS_SEMANTIC must be 1.
 #
-# Exit 0 if every cell and the observe probe pass.
+# Exit 0 if every cell that ran passes; the observe negative probe is
+# checked on the run that runs it, and the four-cell count on the run
+# that runs all four.
 
 set -euo pipefail
 
@@ -57,7 +65,42 @@ if ! command -v "$CXX" >/dev/null 2>&1; then
   exit 1
 fi
 
-JOBS=$(nproc 2>/dev/null || echo 4)
+# Argument 2 selects one cell by its ctest entry name, so one ctest
+# entry names one cell; absent means all five (FR-019, P-04). Argument
+# 3, then SPEEDGUN_TEST_JOBS, then 2 gives the build concurrency, and
+# nproc is never read (FR-020).
+CELL=${2:-all}
+JOBS=${3:-${SPEEDGUN_TEST_JOBS:-2}}
+
+ALL_CELLS=(
+  dbc_matrix_off_o0
+  dbc_matrix_off_o2
+  dbc_matrix_on_o0
+  dbc_matrix_on_o2
+  dbc_matrix_observe_off_o0
+)
+
+CELLS=("${ALL_CELLS[@]}")
+if [ "$CELL" != all ]; then
+  CELLS=()
+  for cell in "${ALL_CELLS[@]}"; do
+    if [ "$cell" = "$CELL" ]; then
+      CELLS=("$CELL")
+    fi
+  done
+  if [ "${#CELLS[@]}" -eq 0 ]; then
+    echo "FAIL: unknown cell '$CELL'; accepted cells: all ${ALL_CELLS[*]}" >&2
+    exit 1
+  fi
+fi
+
+case "$JOBS" in
+  '' | 0 | *[!0-9]*)
+    echo "FAIL: jobs must be a positive integer, got '$JOBS'" >&2
+    exit 1
+    ;;
+esac
+
 TIMEOUT_BIN=
 if command -v timeout >/dev/null 2>&1; then
   TIMEOUT_BIN=timeout
@@ -85,9 +128,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# The first three lines are the record FR-023 asks for: the cell, its
+# jobs value and the compiler version, so the job log of the lane that
+# ran the cell holds them.
+COMPILER_VERSION=$("$CXX" --version 2>&1 | sed -n '1p')
+echo "semantics_matrix.sh: cell=$CELL"
+echo "semantics_matrix.sh: jobs=$JOBS"
+echo "semantics_matrix.sh: compiler=$COMPILER_VERSION"
+echo "semantics_matrix.sh: cxx=$CXX"
 echo "semantics_matrix.sh: repo=$REPO_ROOT"
 echo "semantics_matrix.sh: matrix_root=$MATRIX_ROOT"
-echo "semantics_matrix.sh: cxx=$CXX jobs=$JOBS"
 echo "semantics_matrix.sh: NOTE: dbc_test PASS is unreachable under"
 echo "  enforce until T021 (group (e) TDD red). Semantic and"
 echo "  exactly-once are asserted by a probe TU compiled with each"
@@ -320,14 +370,32 @@ run_cell() {
     >>"$MATRIX_ROOT/results.tsv"
 }
 
-run_cell "NDEBUG=off_-O0" off -O0 enforce 2 yes
-run_cell "NDEBUG=off_-O2" off -O2 enforce 2 yes
-run_cell "NDEBUG=on_-O0" on -O0 enforce 2 yes
-run_cell "NDEBUG=on_-O2" on -O2 enforce 2 yes
+# Entry name to script cell, per data-model.md E-06. run_cell keeps
+# every check of its cell on either path (FR-022).
+run_named_cell() {
+  case "$1" in
+    dbc_matrix_off_o0) run_cell "NDEBUG=off_-O0" off -O0 enforce 2 yes ;;
+    dbc_matrix_off_o2) run_cell "NDEBUG=off_-O2" off -O2 enforce 2 yes ;;
+    dbc_matrix_on_o0) run_cell "NDEBUG=on_-O0" on -O0 enforce 2 yes ;;
+    dbc_matrix_on_o2) run_cell "NDEBUG=on_-O2" on -O2 enforce 2 yes ;;
+    dbc_matrix_observe_off_o0)
+      run_cell "observe_NDEBUG=off_-O0" off -O0 observe 1 no
+      ;;
+  esac
+}
 
-echo
-echo "=== negative probe: observe must print SEMANTIC=1 ==="
-run_cell "observe_NDEBUG=off_-O0" off -O0 observe 1 no
+want_enforce=0
+ran_observe=no
+for cell in "${CELLS[@]}"; do
+  if [ "$cell" = dbc_matrix_observe_off_o0 ]; then
+    ran_observe=yes
+    echo
+    echo "=== negative probe: observe must print SEMANTIC=1 ==="
+  else
+    want_enforce=$((want_enforce + 1))
+  fi
+  run_named_cell "$cell"
+done
 
 echo
 echo "=== FR-017 independence matrix ==="
@@ -341,22 +409,28 @@ while IFS='|' read -r name dir sem once assertb; do
   echo "  dir: $dir"
 done <"$MATRIX_ROOT/results.tsv"
 
-obs_line=$(grep '^observe' "$MATRIX_ROOT/results.tsv" || true)
-obs_sem=$(printf '%s\n' "$obs_line" | cut -d'|' -f3)
-echo
-echo "negative probe (observe): SG_CONTRACTS_SEMANTIC=$obs_sem"
-if [ "$obs_sem" != "1" ]; then
-  echo "FAIL: observe probe semantic=$obs_sem want 1" >&2
-  exit 1
+if [ "$ran_observe" = yes ]; then
+  obs_line=$(grep '^observe' "$MATRIX_ROOT/results.tsv" || true)
+  obs_sem=$(printf '%s\n' "$obs_line" | cut -d'|' -f3)
+  echo
+  echo "negative probe (observe): SG_CONTRACTS_SEMANTIC=$obs_sem"
+  if [ "$obs_sem" != "1" ]; then
+    echo "FAIL: observe probe semantic=$obs_sem want 1" >&2
+    exit 1
+  fi
 fi
 
 ncells=$(grep -c '^NDEBUG=' "$MATRIX_ROOT/results.tsv" || true)
-if [ "$ncells" -ne 4 ]; then
-  echo "FAIL: expected 4 enforce cells, got $ncells" >&2
+if [ "$ncells" -ne "$want_enforce" ]; then
+  echo "FAIL: expected $want_enforce enforce cells, got $ncells" >&2
   exit 1
 fi
 
 echo
-echo "ALL 4 CELLS PASS (SG_CONTRACTS_SEMANTIC=2); observe probe SEMANTIC=1"
-echo "exactly-once holds in every enforce cell; assert follows NDEBUG only"
+if [ "$CELL" = all ]; then
+  echo "ALL 4 CELLS PASS (SG_CONTRACTS_SEMANTIC=2); observe probe SEMANTIC=1"
+  echo "exactly-once holds in every enforce cell; assert follows NDEBUG only"
+else
+  echo "CELL $CELL PASS (SG_CONTRACTS_SEMANTIC recorded above)"
+fi
 exit 0
