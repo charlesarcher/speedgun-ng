@@ -278,7 +278,7 @@ jobs:
 
     - name: Install analyzers
       run: sudo apt-get update -q
-        && sudo apt-get install clang-tidy cppcheck ccache autoconf automake libtool patch -q -y
+        && sudo apt-get install clang-tidy cppcheck ccache doxygen python3-yaml autoconf automake libtool patch -q -y
 
     - name: Record compiler version
       run: ${CXX:-c++} --version | head -n 1 > .ccache-cxx-version
