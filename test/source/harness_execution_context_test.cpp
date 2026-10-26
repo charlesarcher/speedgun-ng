@@ -574,11 +574,41 @@ auto scenarioWaitModes() -> int
 // hand.
 auto scenarioUndispatchedNode() -> int
 {
-  NodeBatch<NoAllocItem, 1> batch;
-  batch.construct(0, NoAllocItem {0});
-  check(batch.at(0).state() == sg::WorkNodeState::PENDING,
+  // Each item type the suite instantiates one node of: the destructor
+  // arm is per instantiation, so the pending state stands read and the
+  // destruction runs for each of the three.
+  NodeBatch<NoAllocItem, 1> noAlloc;
+  noAlloc.construct(0, NoAllocItem {0});
+  check(noAlloc.at(0).state() == sg::WorkNodeState::PENDING,
         "the fresh node reads PENDING (FR-008)");
-  batch.destroyAll();
+  NodeBatch<ObserveItem, 1> observe;
+  std::array<Observation, 1> observed {};
+  observe.construct(0, ObserveItem {0, &observed[0]});
+  check(observe.at(0).state() == sg::WorkNodeState::PENDING,
+        "the fresh observe node reads PENDING (FR-008)");
+  NodeBatch<ValueItem, 1> value;
+  std::array<int, 1> slots {};
+  value.construct(0, ValueItem {&slots[0]});
+  check(value.at(0).state() == sg::WorkNodeState::PENDING,
+        "the fresh value node reads PENDING (FR-008)");
+  noAlloc.destroyAll();
+  observe.destroyAll();
+  value.destroyAll();
+
+  // FR-050: a settled node re-dispatches: a DONE node and a STOPPED
+  // node both stand legal at dispatch, so the contract arms read the
+  // settled states and the dispatch links the node again.
+  NodeBatch<NoAllocItem, 1> again;
+  again.construct(0, NoAllocItem {0});
+  sg::ExecutionContext context {blockingPolicy()};
+  sg::dispatch(context, again.at(0));
+  closeContext(context);
+  check(again.at(0).state() == sg::WorkNodeState::DONE,
+        "the first dispatch reads DONE (FR-006)");
+  sg::dispatch(context, again.at(0));
+  check(again.at(0).state() == sg::WorkNodeState::STOPPED,
+        "the re-dispatch past the stop reads STOPPED (FR-050)");
+  again.destroyAll();
   return 0;
 }
 
