@@ -1086,7 +1086,7 @@ carries each:
 ## Items that spec 032 must check
 
 The review round of this feature landed four fixes inside spec 032's
-scope, and spec 032 checks each item instead of doing it again:
+scope, and spec 032 checks each item and does not do it again:
 
 - The clang-format pass over the CLI table test: commit `9ddb50f`,
   file `test/source/harness_cli_table_test.cpp`.
