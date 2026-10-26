@@ -11,11 +11,13 @@
 # by blocks at the end of the registration files, where no compiler reads
 # them, so this entry is the check that the blocks did their work.
 #
-# Five faults are named, one line each, with the entry that carries it:
+# Six faults are named, one line each, with the entry that carries it:
 #   both-labels     a name in the quick list and in the slow list
 #   unlabeled       an entry of the -N list in neither label list
 #   stale-slow-row  a row of SPEEDGUN_SLOW_TESTS that names no entry
 #   no-budget       an entry with no TIMEOUT property and no exception row
+#   wrong-budget    an entry whose exception row lists a value the entry
+#                   does not carry as its TIMEOUT
 #   determinism     a registration that sleeps, reads a clock for its
 #                   verdict, retries, or sets a skip rule master does not set
 #
@@ -99,7 +101,11 @@ PROPS_BLOCK = re.compile(r"set_tests_properties\s*\(([^)]*)\)", re.I | re.S)
 SKIP_RULE = re.compile(r"SKIP_RETURN_CODE\s+(\S+)", re.I)
 # The exceptions block of FR-032 names one entry per row, and the row opens
 # with the words budget exception. That marker form is set by this script.
-EXCEPTION_ROW = re.compile(r"budget[ -]exception[s]?[:\s]+([A-Za-z0-9_.:-]+)", re.I)
+# The row also states the seconds the entry keeps, and the budget check
+# compares that number with the TIMEOUT property of the listing.
+EXCEPTION_ROW = re.compile(
+    r"budget[ -]exception[s]?[:\s]+([A-Za-z0-9_.:-]+)(?:\D*(\d+)\s*s)?",
+    re.I)
 MATRIX_PREFIX = "dbc_matrix_"
 
 FAULTS = []
@@ -172,18 +178,28 @@ for row in slow_rows:
           "SPEEDGUN_SLOW_TESTS names %s, which this suite does not register"
           % row)
 
-exceptions = set()
+# name -> the seconds its row lists, absent when the row lists none
+exceptions = {}
 for path in (reg_test, reg_example):
     for line in read_lines(path):
         if is_comment(line):
             found = EXCEPTION_ROW.search(line)
             if found:
-                exceptions.add(found.group(1))
+                exceptions[found.group(1)] = found.group(2)
 
 for entry in suite:
-    if prop(entry, "TIMEOUT") is None and entry["name"] not in exceptions:
-        fault("no-budget",
-              "%s holds no TIMEOUT and no exception row" % entry["name"])
+    name = entry["name"]
+    timeout = prop(entry, "TIMEOUT")
+    if timeout is None and name not in exceptions:
+        fault("no-budget", "%s holds no TIMEOUT and no exception row" % name)
+    listed = exceptions.get(name)
+    if listed is not None and (timeout is None
+                               or float(timeout) != float(listed)):
+        carries = ("no TIMEOUT" if timeout is None
+                   else "TIMEOUT %g" % float(timeout))
+        fault("wrong-budget",
+              "%s carries %s, its exception row lists %s s"
+              % (name, carries, listed))
 
 for path in (reg_test, reg_example):
     for number, line in enumerate(read_lines(path), 1):
