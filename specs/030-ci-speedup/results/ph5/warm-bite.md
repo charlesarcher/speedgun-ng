@@ -48,20 +48,13 @@ speaking during `Build library scope`. The two collection steps run after that
 failure and produce the same list, which is the property FR-017 protects: a
 stopping compile costs the object file, never the finding.
 
-No analyzer result reaches the cache. The ratio that proves it is the
-`ccache stats after Build` line of a shard whose build succeeds, where
-`Cacheable calls` counts the real compiles while the unit count shows two extra
-analyzer launches each. That line stays unread at the head of this record: on a
-failing shard the step is skipped, and the run that would show it was still
-open. The command that closes it:
+No analyzer result reaches the cache. The proof is a ratio: `Cacheable calls`
+beside the compile lines of a shard whose build succeeds, where two analyzer
+launches per unit would triple the call count. The section that reads it sits
+below, for the five jobs of run 40242340926.
 
-```sh
-gh run view 40242340926 --log | sed -E 's/^[^Z]*Z //' \
-  | grep -a 'Cacheable calls\|translation units'
-```
-
-`specs/030-ci-speedup/results/ph5/finding-diff.md` carries that reading once run
-40242340926 closes.
+`specs/030-ci-speedup/results/ph5/finding-diff.md` carries the finding list of
+that same run beside master's.
 
 ## What a failed shard leaves behind
 
@@ -80,6 +73,31 @@ nothing on `master`, where the job does not exist, and it
 costs the feature branch nothing once the analyzer list is clean, because a
 clean shard reaches `Save ccache` with a passing build.
 
+## Whether ccache sees the analyzers
+
+FR-017 asks that the cache hold compiles and no analyzer result, on the ground
+that CMake runs both analyzers ahead of the compile of every unit, so a cached
+compile would still leave the analyzer work undone. The statistics answer that
+without any instrumenting, because ccache reports the launches it is asked
+about. Run 40242340926 at `e77b713` gives, per job, the compile lines its build
+printed and the launches ccache was consulted for:
+
+| Job | `Building CXX object` | `Building C object` | compiles | `Cacheable calls` |
+| --- | --- | --- | --- | --- |
+| `static-analysis (library)` | 123 | 22 | 145 | 142 / 144 |
+| `static-analysis (tests)` | 214 | 22 | 236 | 233 / 235 |
+| `static-analysis (examples)` | 155 | 22 | 177 | 174 / 176 |
+| `test` | 245 | 22 | 267 | 265 / 267 |
+| `tsan` | 241 | 22 | 263 | 261 / 263 |
+
+Each lane is asked about one launch per compile, within three of the compile
+count. The shard builds 145 units and ccache hears about 144 calls, of which 142
+are cacheable. Three launches per unit would read 435 for that shard, and the
+analyzers together add 290 units of work that never appear. The two analyzer
+processes per unit run outside ccache, which is the arrangement FR-017 asks for:
+the cache stores the object file, and a cache hit still runs both analyzers over
+the unit.
+
 ## Commands
 
 ```sh
@@ -89,9 +107,13 @@ gh run view 40243459369 --json jobs --jq '.jobs[]
   | .name + " | " + .conclusion'
 gh run view 40243459369 --log | sed -E 's/^[^Z]*Z //' \
   | grep -a 'invalid case style\|findings on the gate checks\|CCACHE_KEY_PREFIX'
+gh run view --job 121316717719 --log | grep -ac 'Building CXX object'
+gh run view --job 121316717719 --log | grep -ac 'Building C object'
+gh run view 40242340926 --log | sed -E 's/^[^Z]*Z //' \
+  | grep -a 'Cacheable calls\|Direct cache hits'
 python3 tools/prose/prose_gate.py --check prose --mode tree
 ```
 
-VERDICT: PASS on the two things T031 asks: the analyzer ran inside the build on
-the repeat and the shard failed again. The cache-hit ratio for FR-017 stays
-open and names its command above.
+VERDICT: PASS on all three readings. The analyzer ran inside the build on the
+repeat and the shard failed again; and the cache is consulted once per compile
+across five jobs, so no analyzer result sits in it (FR-017).
