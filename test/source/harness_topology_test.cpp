@@ -64,9 +64,11 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #include <sched.h>
@@ -461,6 +463,49 @@ auto childReadOnce() -> int
   return 0;
 }
 
+// FR-005, FR-041: the online count and set seams answer what an install
+// states, and a cleared seam answers the host: the count the kernel
+// publishes and the set the /sys online line parses to (Q-5).
+auto childOnlineSeams() -> int
+{
+  sg::detail::installTestOnlineCount(7);
+  if (sg::detail::onlineCpuCount() != 7) {
+    std::fprintf(stderr, "an installed count did not answer\n");
+    return 1;
+  }
+  sg::detail::installTestOnlineCount(std::optional<std::uint64_t> {});
+  if (sg::detail::onlineCpuCount() != std::thread::hardware_concurrency()) {
+    std::fprintf(stderr, "the cleared count did not answer the host\n");
+    return 1;
+  }
+  sg::detail::installTestOnlineCpus(std::vector<std::uint32_t> {9U, 3U});
+  if (sg::detail::onlineCpuSet() != (std::vector<std::uint32_t> {9U, 3U})) {
+    std::fprintf(stderr, "an installed set did not answer\n");
+    return 1;
+  }
+  sg::detail::installTestOnlineCpus(std::nullopt);
+  auto hostSet = std::vector<std::uint32_t> {};
+  if (auto stream = std::ifstream("/sys/devices/system/cpu/online");
+      stream.good())
+  {
+    auto text = std::string {};
+    std::getline(stream, text);
+    sg::detail::appendOnlineCpuList(hostSet, text);
+  }
+  if (hostSet.empty()) {
+    const auto count = sg::detail::onlineCpuCount();
+    hostSet.reserve(static_cast<std::size_t>(count));
+    for (auto index = std::uint64_t {0}; index < count; ++index) {
+      hostSet.push_back(static_cast<std::uint32_t>(index));
+    }
+  }
+  if (sg::detail::onlineCpuSet() != hostSet) {
+    std::fprintf(stderr, "the cleared set did not answer the host\n");
+    return 1;
+  }
+  return 0;
+}
+
 }  // namespace
 
 auto main(int argc, char** argv) -> int
@@ -503,6 +548,9 @@ auto main(int argc, char** argv) -> int
     if (mode == "readOnce") {
       return childReadOnce();
     }
+    if (mode == "onlineSeams") {
+      return childOnlineSeams();
+    }
     fail("unknown child mode");
   }
 
@@ -512,7 +560,7 @@ auto main(int argc, char** argv) -> int
     const char* what;
   };
 
-  const std::array<Expected, 12> scenarios {
+  const std::array<Expected, 13> scenarios {
       Expected {
           "hostRead",
           "the host read scenario ended clean (FR-001, " "FR-005, R-11, R-13)"},
@@ -539,6 +587,8 @@ auto main(int argc, char** argv) -> int
                 "the single-cpu listing scenario ended clean (FR-036)"},
       Expected {"readOnce",
                 "the read-once scenario ended clean (FR-002, R-04)"},
+      Expected {"onlineSeams",
+                "the online seam scenario ended clean (FR-005, FR-041)"},
   };
   for (const auto& scenario : scenarios) {
     const int status = runChild(argv[0], scenario.mode);
