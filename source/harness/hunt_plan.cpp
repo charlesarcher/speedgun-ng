@@ -87,6 +87,21 @@ constexpr std::size_t kAnchorLeaves = 2;
   return indices;
 }
 
+// The rank closure's mark predicate: every ranked row marks the method the
+// record states (AC-2, D-19). The predicate stands in a named helper because
+// a lambda written inside an `SG_ENSURE` argument expands once per expansion
+// of the macro's predicate, and gcov then records every expansion at the
+// macro line alone, which leaves the closure without a line of its own and
+// stops the lcov extract on a function that is hit while none of its lines
+// are.
+[[maybe_unused]] auto everyEntryMarks(const std::vector<RankedEvent>& entries,
+                                      bool multiplexed) -> bool
+{
+  return std::ranges::all_of(entries,
+                             [multiplexed](const RankedEvent& entry)
+                             { return entry.multiplexed == multiplexed; });
+}
+
 }  // namespace
 
 auto planHunt(const std::vector<CatalogAddress>& events,
@@ -363,10 +378,7 @@ auto rankEvents(const std::vector<EventSamples>& collected,
   // record, so the word the console prints and the boolean the document writes
   // cannot part over one table.
   SG_ENSURE(result.method == method
-                && std::ranges::all_of(
-                    result.entries,
-                    [multiplexed](const RankedEvent& entry)
-                    { return entry.multiplexed == multiplexed; }),
+                && everyEntryMarks(result.entries, multiplexed),
             "the record states the method the caller handed and every entry "
             "marks that method");
   return result;
