@@ -1461,11 +1461,15 @@ auto childEmptyMask() -> int
 
 // The fresh process of the online-set scenario: the fake it registers
 // publishes the leaves the runner resolves its plans through and a tsc
-// leaf the probe reads, and the layout it installs carries the online
-// set 0-3 and 8-11 with the count seam at 8, the shape the M-5 host
-// reports. The pinned benchmark plans the first block's leads, so the
-// idle resolution yields the second block's lowest free cpu, and the
-// probe starts on it with no failed contract (FR-016, FR-041, R-02).
+// leaf the probe reads, and the layout it installs is the two-block
+// shape the M-5 host reports, built from the cpus the process affinity
+// mask holds: block one carries the cores the pinned benchmark plans,
+// block two carries the highest cpu of the mask alone, and the count
+// seam stands at that cpu, so the idle resolution yields an index the
+// count the threads report stands at or above and the probe starts on
+// it with no failed contract (FR-016, FR-041, R-02). A mask of two
+// holds no second block one core can plan beside, so its filler is the
+// lowest cpu below the online count that the mask does not hold.
 auto childIdleHighIndex() -> int
 {
   auto owned = std::make_unique<sg::counters::FakeProvider>();
@@ -1484,35 +1488,85 @@ auto childIdleHighIndex() -> int
   const auto registered =
       sg::counters::System::local().registerProvider(std::move(owned));
   check(registered.has_value(), "the fresh process registers its fake (R-02)");
+  cpu_set_t mask {};
+  CPU_ZERO(&mask);
+  check(sched_getaffinity(0, sizeof(mask), &mask) == 0,
+        "the fresh process reads its affinity mask (FR-040)");
+  std::vector<std::uint32_t> cpus;
+  for (std::size_t index = 0; index < static_cast<std::size_t>(CPU_SETSIZE);
+       ++index)
+  {
+    if (CPU_ISSET(index, &mask) != 0) {
+      cpus.push_back(static_cast<std::uint32_t>(index));
+    }
+  }
+  check(cpus.size() >= 2,
+        "the mask holds the two cpus the shape needs (FR-040)");
+  const std::uint32_t probeCpu = cpus.back();
+  std::vector<std::vector<std::uint32_t>> coreCpus;
+  if (cpus.size() >= 4) {
+    coreCpus.push_back({cpus.at(0), cpus.at(1)});
+  } else {
+    coreCpus.push_back({cpus.at(0)});
+  }
+  if (cpus.size() >= 5) {
+    coreCpus.push_back({cpus.at(2), cpus.at(3)});
+  } else if (cpus.size() == 4) {
+    coreCpus.push_back({cpus.at(2)});
+  } else if (cpus.size() == 3) {
+    coreCpus.push_back({cpus.at(1)});
+  } else {
+    const auto online = ::sysconf(_SC_NPROCESSORS_ONLN);
+    check(online > 0, "the host reports an online cpu count (FR-040)");
+    std::uint32_t filler = probeCpu;
+    for (std::uint64_t index = 0;
+         index < static_cast<std::uint64_t>(online) && filler == probeCpu;
+         ++index)
+    {
+      if (CPU_ISSET(index, &mask) == 0) {
+        filler = static_cast<std::uint32_t>(index);
+      }
+    }
+    check(filler != probeCpu,
+          "the online count holds a cpu the mask does not (FR-040)");
+    coreCpus.push_back({filler});
+  }
+  coreCpus.push_back({probeCpu});
   sg::detail::MachineLayout installed;
   installed.readable = true;
   installed.packages = 1;
-  const std::array<std::pair<std::uint32_t, std::uint32_t>, 4> cores {
-      {{0, 1}, {2, 3}, {8, 9}, {10, 11}}};
-  for (const auto& pair : cores) {
-    const auto core = static_cast<std::uint32_t>(installed.cores.size());
-    sg::detail::LayoutCore layoutCore;
-    layoutCore.groupOrdinal = 0;
-    installed.cores.push_back(layoutCore);
-    for (const auto cpu : {pair.first, pair.second}) {
-      sg::detail::LayoutThread thread;
-      thread.cpuIndex = cpu;
-      thread.coreOrdinal = core;
-      thread.groupOrdinal = 0;
-      installed.cores.at(core).threads.push_back(
-          static_cast<std::uint32_t>(installed.threads.size()));
-      installed.threads.push_back(thread);
-      installed.mask.push_back(cpu);
+  // The layout read carries the threads ascending by cpu index, and the
+  // mask and the thread list stand in one order (the slot lookup reads
+  // the thread by the mask position), so the build sorts what the cores
+  // named before it fills the walk's lists.
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> placed;
+  installed.cores.resize(coreCpus.size());
+  for (std::uint32_t core = 0; core < coreCpus.size(); ++core) {
+    installed.cores.at(core).groupOrdinal = 0;
+    for (const auto cpu : coreCpus.at(core)) {
+      placed.emplace_back(cpu, core);
     }
   }
+  std::ranges::sort(placed);
+  for (const auto& placedThread : placed) {
+    sg::detail::LayoutThread thread;
+    thread.cpuIndex = placedThread.first;
+    thread.coreOrdinal = placedThread.second;
+    thread.groupOrdinal = 0;
+    installed.cores.at(placedThread.second)
+        .threads.push_back(
+            static_cast<std::uint32_t>(installed.threads.size()));
+    installed.threads.push_back(thread);
+    installed.mask.push_back(placedThread.first);
+  }
   sg::detail::LayoutGroup layoutGroup;
-  layoutGroup.lowestCpu = 0;
-  for (std::uint32_t core = 0; core < 4; ++core) {
+  layoutGroup.lowestCpu = cpus.front();
+  for (std::uint32_t core = 0; core < installed.cores.size(); ++core) {
     layoutGroup.cores.push_back(core);
   }
   installed.groups.push_back(layoutGroup);
   sg::detail::installTestLayout(installed);
-  sg::detail::installTestOnlineCount(8);
+  sg::detail::installTestOnlineCount(probeCpu);
   auto pinned = sg::registerBenchmark(
       [](sg::State& state)
       {
@@ -2173,17 +2227,34 @@ auto scenarioEmptyMaskBeforeWalk() -> int
   return 0;
 }
 
-// FR-016, FR-041: the idle resolution yields the second block's lowest
-// free cpu, an index the count the threads report stands at or above,
-// and the probe starts on it with no failed contract: the run stands
-// status 0 and the console block names the picked cpu (FR-005).
+// FR-016, FR-041: the idle resolution yields the highest cpu of the
+// process affinity mask, an index the count the threads report stands
+// at or above, and the probe starts on it with no failed contract: the
+// run stands status 0 and the console block names the picked cpu
+// (FR-005). The parent reads the same mask the child inherits, so the
+// cpu it asserts on is the cpu the child's shape computes (FR-040).
 auto scenarioIdleHighIndex() -> int
 {
+  cpu_set_t mask {};
+  CPU_ZERO(&mask);
+  check(sched_getaffinity(0, sizeof(mask), &mask) == 0,
+        "the parent reads the affinity mask it hands the child (FR-040)");
+  std::uint32_t probeCpu = 0;
+  for (std::size_t index = 0; index < static_cast<std::size_t>(CPU_SETSIZE);
+       ++index)
+  {
+    if (CPU_ISSET(index, &mask) != 0) {
+      probeCpu = static_cast<std::uint32_t>(index);
+    }
+  }
   const Captured run =
       runExecChild("--jitter-cli-child=idle-high-index", "idle-high-index");
   check(run.status == 0, "the idle run stands status 0 (FR-016, FR-041)");
-  check(run.out.find("jitter probe: cpus 8") != std::string::npos,
-        "the probe starts on the cpu the set holds past the count (FR-005)");
+  check(run.out.find("jitter probe: cpus " + std::to_string(probeCpu))
+            != std::string::npos,
+        "the probe starts on the highest cpu the mask holds, an index "
+        "the count the threads report stands at or above (FR-016, "
+        "FR-041)");
   return 0;
 }
 
