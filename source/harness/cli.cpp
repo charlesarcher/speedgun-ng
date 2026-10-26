@@ -1207,8 +1207,11 @@ auto speedgunMain(int argc, char** argv) -> int
       }
     }
     // FR-015: the family's probe stops after the family's last
-    // instance in the walk, outside the timed windows (FR-006).
-    if (covering != nullptr && !covering->joined && position == covering->last)
+    // instance in the walk, outside the timed windows (FR-006). A
+    // shuffled walk can visit the last instance before the first, so
+    // the stop stands only on a probe the walk started (R-01).
+    if (covering != nullptr && covering->started && !covering->joined
+        && position == covering->last)
     {
       covering->holder->stopAndJoin();
       covering->joined = true;

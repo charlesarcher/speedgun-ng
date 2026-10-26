@@ -1766,10 +1766,11 @@ auto childFamilyTwoFamilies() -> int
   return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
 }
 
-// The fresh process of the interrupted family scenario: the body of the
-// first family raises the interrupt signal once, so the walk stops with
-// that family's probe live and the second family's probe never starts
-// (R-01, FR-015).
+// The fresh process of the interrupted family scenario: the body of
+// the family's first instance raises the interrupt signal once, so the
+// walk stops with that family's probe live: the family's second
+// instance never runs, the span stays open at the walk's end, and the
+// second family's probe never starts (R-01, FR-015).
 auto childFamilyInterrupted() -> int
 {
   scriptedProvider();
@@ -1793,6 +1794,7 @@ auto childFamilyInterrupted() -> int
         }
       },
       "bmFamAfter");
+  first.arg(1).arg(2);
   for (auto handle : {first, second}) {
     sg::JitterProbeOptions probeOptions;
     probeOptions.cpus.push_back(cpus.front());
@@ -1801,6 +1803,52 @@ auto childFamilyInterrupted() -> int
     handle.jitterProbe(probeOptions);
   }
   std::vector<std::string> arguments {"--repetitions=1", "--iterations=2"};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
+// The fresh process of the handover scenario: two probed families of
+// two instances each run under an interleave whose walk visits one
+// family's first instance inside the other family's live span, so the
+// walk starts that family's probe while the other's session is still
+// live, stopping that session first (R-01).
+auto childFamilyHandover() -> int
+{
+  scriptedProvider();
+  const auto cpus = pickCpus(1);
+  auto first = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        const auto label = state.range(0);
+        (void)label;
+        for (auto _ : state) {
+        }
+      },
+      "bmHandFirst");
+  auto second = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        const auto label = state.range(0);
+        (void)label;
+        for (auto _ : state) {
+        }
+      },
+      "bmHandSecond");
+  first.arg(1).arg(2);
+  second.arg(1).arg(2);
+  for (auto handle : {first, second}) {
+    sg::JitterProbeOptions probeOptions;
+    probeOptions.cpus.push_back(cpus.front());
+    probeOptions.thresholdNs = 65000;
+    probeOptions.gapCount = 2000000;
+    handle.jitterProbe(probeOptions);
+  }
+  std::vector<std::string> arguments {
+      "--repetitions=1", "--iterations=2", "--interleave=2"};
   std::vector<char*> argv;
   argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
   for (auto& argument : arguments) {
@@ -2142,6 +2190,20 @@ auto scenarioFamilyTwoFamilies() -> int
   return 0;
 }
 
+// R-01: an interleaved run of two probed families hands the session
+// over: the second family's probe starts only after the first family's
+// live session stops, so two sessions never stand at once.
+auto scenarioFamilyHandover() -> int
+{
+  const Captured run =
+      runExecChild("--jitter-cli-child=family-handover", "family-handover");
+  check(run.status == 0, "the interleaved families finish the run (R-01)");
+  check(run.out.find("bmHandFirst") != std::string::npos
+            && run.out.find("bmHandSecond") != std::string::npos,
+        "both probed families run (R-01)");
+  return 0;
+}
+
 // R-01, FR-015: the interrupt stops the walk beside the live session of
 // the first family. The second family never starts, so its probe keeps
 // no session and its benchmark stands outside the record.
@@ -2315,6 +2377,11 @@ auto main(int argc, char** argv) -> int
     {
       return childFamilyTwoFamilies();
     }
+    if (mode == "--jitter-cli-child=family-handover"
+        && redirect("family-handover"))
+    {
+      return childFamilyHandover();
+    }
     if (mode == "--jitter-cli-child=family-narrowed-empty"
         && redirect("family-narrowed-empty"))
     {
@@ -2411,6 +2478,7 @@ auto main(int argc, char** argv) -> int
   check(scenarioFamilyInterrupted() == 0, "familyInterrupted");
   check(scenarioFileVersusCommandLine() == 0, "fileVersusCommandLine");
   check(scenarioFamilyTwoFamilies() == 0, "familyTwoFamilies");
+  check(scenarioFamilyHandover() == 0, "familyHandover");
   check(scenarioFamilyUnavailableStrict() == 0, "familyUnavailableStrict");
   check(scenarioFamilyUnavailable() == 0, "familyUnavailable");
   check(scenarioFamilyNarrowedEmpty() == 0, "familyNarrowedEmpty");
