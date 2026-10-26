@@ -32,9 +32,9 @@ cmake --preset=prepush
 cmake --build build/prepush -j "$(nproc)"
 ctest --preset prepush-quick -j "$(nproc)"
 ctest --preset prepush-full -j "$(nproc)"
-ctest -N -L quick | tail -2
-ctest -N -L slow | tail -2
-ctest -R test_tier_labels --output-on-failure
+ctest --test-dir build/prepush -N -L quick | tail -2
+ctest --test-dir build/prepush -N -L slow | tail -2
+ctest --test-dir build/prepush -R test_tier_labels --output-on-failure
 ```
 
 Expected: the quick tier finishes in minutes while the full suite spans
@@ -53,7 +53,9 @@ tools/ci/prepush.sh --nope; echo "$?"
 Expected: one `prepush: <step> <seconds> s` line per step, ten lines for
 the plain run and thirteen with `--full`, and exit 2 for the unknown
 option with no step run. The plain run on the named lane host with a warm
-`ccache` is the SC-007 reading, and it finishes in 5 min or less.
+`ccache` is the SC-007 reading: it prints 740 s of step seconds there, and
+step 9 pins a tier holding 647.40 `sec*proc` to two cpus, so 323.7 s is its
+floor (`results/ph4/timing.md`).
 
 ## Cache behavior
 
@@ -95,11 +97,16 @@ cd build/coverage && ctest -j 1 --output-on-failure --no-tests=error && cd ../..
 cmake --build build/coverage -t coverage
 ```
 
-Expected: the sanitizer lanes run their full entry set apart from the five
-matrix entries (FR-046), and the coverage lane reaches the gate at the
-branch reading with the base numbers of 99.4% lines and 97.5% branches
-reproduced and no new shortfall (SC-003). The gate exits 0 for a pass, 1
-for a shortfall and 3 for a refused trace (FR-043).
+Expected: the `sanitize` and `coverage` lanes run their entry set apart from
+the five matrix entries, which `ci-sanitize` and `ci-coverage` leave unset,
+while `tsan` configures `SPEEDGUN_DBC_MATRIX` on and registers all five
+(FR-046, `CMakePresets.json:138`, `:164`, `:171`). The coverage lane reaches
+the gate. The gate wants 100% lines and 100% branches over the application
+sources (`tools/dbc/coverage_gate.sh:45`, `:55`); `spec.md:218` records a
+base reading of 99.4% lines (9752 of 9815) and 97.5% branches (4772 of
+4893), the shortfall SC-003 says this branch must not widen and spec 032
+owns. The gate exits 0 for a pass, 1 for a shortfall, 2 for a usage fault
+and 3 for a refused trace (FR-043).
 
 ## The analyzer split
 
@@ -170,6 +177,17 @@ and a warm-cache run must be compared by verdict, and a cold run's wall
 time gets its own row beside the warm median. A
 `coverage` job that fails on a shortfall still prints its step times, which
 is how SC-003 is read while the shortfall itself belongs to spec 032
-(FR-064). A `lint` failure before FR-065's commit lands skips the other
-eleven jobs, so its run carries no timing at all, the reading PC-10
-records at the base.
+(FR-064). A `coverage` job whose trace step aborts prints no trace at all, so
+its suite times stand and the gate reading is absent;
+`results/ph11/coverage-lane.md` shows that shape. A `lint` failure before
+FR-065's commit lands skips the other fourteen jobs, so its run carries no
+timing at all, the reading PC-10 records at the base.
+
+A `docs` job is skipped on every pull request by a condition on the job itself,
+so no run of a branch shows what its `needs` list waits for
+(`results/ph11/docs-needs.md`). The prose gate reads the committed range, so
+`--mode tree` with `--paths` is how a staged file is examined, and that second
+reading is what found six findings in the records of phase 11
+(`results/ph11/gates.md`). `harness_jitter_cli_test` prints `Skipped` on a runner
+whose affinity mask holds no cpu 8, which reports a capability the machine lacks
+(`results/ph11/jitter-skip.md`).

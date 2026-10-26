@@ -34,5 +34,9 @@ skip = */.git,*/build,*/build-tidy,*/prefix,*/node_modules,*/.omo,*/external
 # "unexpect" is the std::unexpect in-place error tag (source/harness/runner.cpp):
 # the standard's own name for it, and codespell's dictionary proposes
 # "unexpected", a different token that would not compile.
-ignore-words-list = unparseable,strat,sur,analogue,copyable,deque,stdio,behaviour,judgement,licence,serialisation,organisation,onother,nowns,compilability,unexpect
+# "cancelled" is the conclusion string GitHub Actions returns for a run its
+# concurrency group stopped (.github/workflows/ci.yml concurrency block);
+# records that quote the API value cannot drop the double l, and prose keeps
+# the American spelling the rest of this file uses (specs/030-ci-speedup).
+ignore-words-list = unparseable,strat,sur,analogue,copyable,deque,stdio,behaviour,judgement,licence,serialisation,organisation,onother,nowns,compilability,unexpect,cancelled
 quiet-level = 2
