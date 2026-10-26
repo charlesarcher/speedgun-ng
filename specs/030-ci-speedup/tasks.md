@@ -219,10 +219,10 @@ change that caused it (SC-008).
 **Independent Test**: the audit entry passes, and no entry exceeds its budget in
 any lane of the branch's last run.
 
-- [ ] T044 [US6] In `test/CMakeLists.txt` and `example/CMakeLists.txt`, write the exceptions block beside the budget loop: one row per entry that keeps a value other than 300, with its reason and the per-lane number read from a CI run of this branch (FR-032, D-7). Depends on T012, T037
-- [ ] T045 [US6] In `test/tier_labels.sh`, close the budget check: every entry reports a `TIMEOUT` or an exception row, and the eight master 120 s entries plus `example_run` carry their listed values (FR-031, FR-033). Depends on T044
-- [ ] T046 [US6] Write `specs/030-ci-speedup/results/ph8/audit.md` with the slowest entries per lane read from the job logs of the branch's last run, each beside its budget (FR-033, SC-008). Depends on T044
-- [ ] T047 [US6] Write `specs/030-ci-speedup/results/ph8/exceptions.md` holding the final exceptions table with its measured numbers, and confirm no `ctest` line carries `--timeout` and no job carries a raised `timeout-minutes` (FR-032, FR-034). Depends on T046
+- [X] T044 [US6] In `test/CMakeLists.txt` and `example/CMakeLists.txt`, write the exceptions block beside the budget loop: one row per entry that keeps a value other than 300, with its reason and the per-lane number read from a CI run of this branch (FR-032, D-7). Depends on T012, T037
+- [X] T045 [US6] In `test/tier_labels.sh`, close the budget check: every entry reports a `TIMEOUT` or an exception row, and the eight master 120 s entries plus `example_run` carry their listed values (FR-031, FR-033). Depends on T044
+- [X] T046 [US6] Write `specs/030-ci-speedup/results/ph8/audit.md` with the slowest entries per lane read from the job logs of the branch's last run, each beside its budget (FR-033, SC-008). Depends on T044
+- [X] T047 [US6] Write `specs/030-ci-speedup/results/ph8/exceptions.md` holding the final exceptions table with its measured numbers, and confirm no `ctest` line carries `--timeout` and no job carries a raised `timeout-minutes` (FR-032, FR-034). Depends on T046
 
 **Checkpoint**: the budget audit passes and the exceptions carry numbers.
 
@@ -253,7 +253,7 @@ the next run starts on a free machine.
 **Independent Test**: two pushes to one pull-request ref leave the older run
 canceled, and a master run stands to its end.
 
-- [ ] T052 [US8] In `.github/workflows/ci.yml`, add the top-level `concurrency` key with `group: ${{ github.workflow }}-${{ github.ref }}` and `cancel-in-progress` true only for the `pull_request` event (FR-039)
+- [X] T052 [US8] In `.github/workflows/ci.yml`, add the top-level `concurrency` key with `group: ${{ github.workflow }}-${{ github.ref }}` and `cancel-in-progress` true only for the `pull_request` event (FR-039)
 - [ ] T053 [US8] Write `specs/030-ci-speedup/results/ph10/cancel.md` with the two push runs on one pull-request ref, naming which reports canceled and which ran, plus one master run that completed, and confirm no canceled run enters a timing table (FR-039, SC-002, story 8). Depends on T052
 
 **Checkpoint**: the cancellation is observed and no master measurement is
