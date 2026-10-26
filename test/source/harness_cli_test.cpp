@@ -1277,6 +1277,19 @@ auto main(const int argc, char** argv) -> int
   check(skipBeforePasses == 0,
         "the skip before the loop runs no pass (FR-031)");
 
+  // FR-031, IF-04: a repetition that follows a skip begins on the skip
+  // the first repetition left: begin() reads the standing skip and
+  // opens no window for the second repetition, whose body runs no
+  // pass.
+  skipBeforePasses = 0;
+  const std::string skipRepeat = captureRun(
+      {"--filter", "^bmSkipBefore$", "--iterations=5", "--repetitions=2"});
+  check(skipRepeat.find("SKIPPED: the scripted skip before the loop")
+            != std::string::npos,
+        "the repetition after a skip keeps the skip reason (FR-031)");
+  check(skipBeforePasses == 0,
+        "the repetition after a skip runs no pass (FR-031)");
+
   skipInsidePasses = 0;
   const std::string skipInside =
       captureRun({"--filter", "^bmSkipInside$", "--iterations=9"});
