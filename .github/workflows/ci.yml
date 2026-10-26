@@ -1398,7 +1398,7 @@ jobs:
 
   docs:
     # Deploy docs only when builds succeed
-    needs: [sanitize, test, test-rocky]
+    needs: [sanitize, static-analysis, test, test-rocky]
 
     runs-on: ubuntu-26.04
 
