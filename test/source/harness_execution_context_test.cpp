@@ -568,6 +568,20 @@ auto scenarioWaitModes() -> int
 
 // SC-03, FR-006: the trio runs every queued node exactly once, and nothing runs
 // after join returns.
+// FR-012: a node the run never accepted stands destroyed in the pending
+// state, the not-accepted arm of the destructor's release contract: the
+// node was constructed, never dispatched, and the batch destroys it by
+// hand.
+auto scenarioUndispatchedNode() -> int
+{
+  NodeBatch<NoAllocItem, 1> batch;
+  batch.construct(0, NoAllocItem {0});
+  check(batch.at(0).state() == sg::WorkNodeState::PENDING,
+        "the fresh node reads PENDING (FR-008)");
+  batch.destroyAll();
+  return 0;
+}
+
 auto scenarioLifecycle() -> int
 {
   sg::ExecutionContext context {blockingPolicy()};
@@ -2157,8 +2171,9 @@ struct Mode
   auto (*run)() -> int;
 };
 
-constexpr std::array<Mode, 28> kScenarios {
+constexpr std::array<Mode, 29> kScenarios {
     Mode {.name = "identity", .run = &scenarioIdentity},
+    Mode {.name = "undispatchedNode", .run = &scenarioUndispatchedNode},
     Mode {.name = "waitModes", .run = &scenarioWaitModes},
     Mode {.name = "lifecycle", .run = &scenarioLifecycle},
     Mode {.name = "order", .run = &scenarioOrder},
