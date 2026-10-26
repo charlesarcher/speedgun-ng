@@ -236,9 +236,9 @@ deciding the wall time (SC-002).
 **Independent Test**: each install step's time is recorded, and a warm run shows
 the same or a shorter install than the base 991 s worst case.
 
-- [ ] T048 [US7] In `.github/workflows/ci.yml`, cache the rocky container's dnf packages through `keepcache` and `actions/cache`, and reorder its install step to install the minimal bootstrap set first (FR-014, FR-035)
-- [ ] T049 [US7] In `.github/workflows/ci.yml`, cache the ubuntu runners' apt archives with `actions/cache` on the package list directories, keeping the package versions CI installs unchanged (FR-014, FR-036). Depends on T048
-- [ ] T050 [US7] In `.github/workflows/ci.yml`, confirm every install step keeps a name that `gh run view --json steps` reports, and print nothing extra (FR-037). Depends on T049
+- [X] T048 [US7] In `.github/workflows/ci.yml`, cache the rocky container's dnf packages through `keepcache` and `actions/cache`, and reorder its install step to install the minimal bootstrap set first (FR-014, FR-035)
+- [X] T049 [US7] In `.github/workflows/ci.yml`, cache the ubuntu runners' apt archives with `actions/cache` on the package list directories, keeping the package versions CI installs unchanged (FR-014, FR-036). Depends on T048
+- [X] T050 [US7] In `.github/workflows/ci.yml`, confirm every install step keeps a name that `gh run view --json steps` reports, and print nothing extra (FR-037). Depends on T049
 - [ ] T051 [US7] Write `specs/030-ci-speedup/results/ph9/install-steps.md` with every install step's time on a warm run and on a cache-miss run, and the install-step time of each of the six runs FR-052 counts (FR-037, FR-052, SC-002). Depends on T050
 
 **Checkpoint**: the install steps carry recorded times and no longer own a job.
