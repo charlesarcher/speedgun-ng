@@ -115,7 +115,7 @@ jobs:
 
     - name: Test
       working-directory: build/coverage
-      run: ctest -j "$(nproc)" --output-on-failure --no-tests=error
+      run: ctest -j 1 --output-on-failure --no-tests=error
 
     - name: Process coverage info
       run: cmake --build build/coverage -t coverage
