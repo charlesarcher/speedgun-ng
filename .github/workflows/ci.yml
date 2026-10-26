@@ -61,6 +61,24 @@ jobs:
     - uses: actions/checkout@v4
       with: { submodules: true }
 
+    # The Ubuntu image ships docker-clean, an apt hook that
+    # deletes the .deb files in the archives after dpkg and
+    # after apt-get update, so the directory holds nothing to
+    # cache while it is in place. actions/cache restores as
+    # the runner user, who needs write access to it.
+    - name: Prepare apt package cache
+      run: |
+        set -euo pipefail
+        sudo rm -f /etc/apt/apt.conf.d/docker-clean
+        sudo chown -R "$(id -un)" /var/cache/apt/archives
+
+    - name: Restore apt package cache
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: apt-${{ github.job }}-ubuntu-26.04-${{ hashFiles('.github/workflows/ci.yml') }}
+        restore-keys: apt-${{ github.job }}-ubuntu-26.04-
+
     - name: Install LCov
       run: sudo apt-get update -q
         && sudo apt-get install lcov ccache doxygen python3-yaml autoconf automake libtool patch -q -y
@@ -137,6 +155,24 @@ jobs:
     - uses: actions/checkout@v4
       with: { submodules: true }
 
+    # The Ubuntu image ships docker-clean, an apt hook that
+    # deletes the .deb files in the archives after dpkg and
+    # after apt-get update, so the directory holds nothing to
+    # cache while it is in place. actions/cache restores as
+    # the runner user, who needs write access to it.
+    - name: Prepare apt package cache
+      run: |
+        set -euo pipefail
+        sudo rm -f /etc/apt/apt.conf.d/docker-clean
+        sudo chown -R "$(id -un)" /var/cache/apt/archives
+
+    - name: Restore apt package cache
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: apt-${{ github.job }}-ubuntu-26.04-${{ hashFiles('.github/workflows/ci.yml') }}
+        restore-keys: apt-${{ github.job }}-ubuntu-26.04-
+
     - name: Install clang, Doxygen, and python3-yaml
       run: sudo apt-get update -q
         && sudo apt-get install clang ccache doxygen python3-yaml lcov autoconf automake libtool patch -q -y
@@ -201,6 +237,24 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with: { submodules: true }
+
+    # The Ubuntu image ships docker-clean, an apt hook that
+    # deletes the .deb files in the archives after dpkg and
+    # after apt-get update, so the directory holds nothing to
+    # cache while it is in place. actions/cache restores as
+    # the runner user, who needs write access to it.
+    - name: Prepare apt package cache
+      run: |
+        set -euo pipefail
+        sudo rm -f /etc/apt/apt.conf.d/docker-clean
+        sudo chown -R "$(id -un)" /var/cache/apt/archives
+
+    - name: Restore apt package cache
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: apt-${{ github.job }}-ubuntu-26.04-${{ hashFiles('.github/workflows/ci.yml') }}
+        restore-keys: apt-${{ github.job }}-ubuntu-26.04-
 
     - name: Install clang, Doxygen, and python3-yaml
       run: sudo apt-get update -q
@@ -275,6 +329,24 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with: { submodules: true }
+
+    # The Ubuntu image ships docker-clean, an apt hook that
+    # deletes the .deb files in the archives after dpkg and
+    # after apt-get update, so the directory holds nothing to
+    # cache while it is in place. actions/cache restores as
+    # the runner user, who needs write access to it.
+    - name: Prepare apt package cache
+      run: |
+        set -euo pipefail
+        sudo rm -f /etc/apt/apt.conf.d/docker-clean
+        sudo chown -R "$(id -un)" /var/cache/apt/archives
+
+    - name: Restore apt package cache
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: apt-${{ github.job }}-ubuntu-26.04-${{ hashFiles('.github/workflows/ci.yml') }}
+        restore-keys: apt-${{ github.job }}-ubuntu-26.04-
 
     - name: Install analyzers
       run: sudo apt-get update -q
@@ -389,6 +461,24 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with: { submodules: true }
+    # The Ubuntu image ships docker-clean, an apt hook that
+    # deletes the .deb files in the archives after dpkg and
+    # after apt-get update, so the directory holds nothing to
+    # cache while it is in place. actions/cache restores as
+    # the runner user, who needs write access to it.
+    - name: Prepare apt package cache
+      run: |
+        set -euo pipefail
+        sudo rm -f /etc/apt/apt.conf.d/docker-clean
+        sudo chown -R "$(id -un)" /var/cache/apt/archives
+
+    - name: Restore apt package cache
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: apt-${{ github.job }}-ubuntu-26.04-${{ hashFiles('.github/workflows/ci.yml') }}
+        restore-keys: apt-${{ github.job }}-ubuntu-26.04-
+
     - name: Install Doxygen and python3-yaml
       run: >-
         sudo apt-get update -q &&
@@ -483,8 +573,28 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_KEY_PREFIX: ccache-${{ github.job }}-ci-rocky
       CCACHE_MAXSIZE: 768MB
+      DNF_BOOTSTRAP: tar zstd
+      DNF_PACKAGES: gcc-c++ cmake git python3 python3-pip python3-pyyaml make doxygen lcov gzip diffutils ccache autoconf automake libtool patch
 
     steps:
+    # actions/cache unpacks its archive with tar and zstd, so those two go in
+    # ahead of it. keepcache=1 leaves the RPMs under /var/cache/dnf for it.
+    - name: Install dnf bootstrap packages
+      run: |
+        set -euo pipefail
+        sed -i '/^\[main\]/a keepcache=1' /etc/dnf/dnf.conf
+        dnf -y install $DNF_BOOTSTRAP
+    - name: Resolve dnf package cache key
+      id: dnf-pkgs
+      run: |
+        set -euo pipefail
+        echo "key=$(printf '%s' "$DNF_BOOTSTRAP $DNF_PACKAGES" | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+    - name: Restore dnf package cache
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/dnf
+        key: dnf-rockylinux10-${{ steps.dnf-pkgs.outputs.key }}
+        restore-keys: dnf-rockylinux10-
     - name: Install toolchain
       run: |
         set -euo pipefail
@@ -492,9 +602,7 @@ jobs:
         dnf config-manager --set-enabled crb || true
         dnf -y install epel-release || \
           dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
-        dnf -y install gcc-c++ cmake git python3 python3-pip python3-pyyaml \
-          make doxygen lcov tar gzip diffutils ccache
-        dnf -y install autoconf automake libtool patch
+        dnf -y install $DNF_PACKAGES
     - uses: actions/checkout@v4
       with: { submodules: true }
     - name: Record compiler version
@@ -541,6 +649,24 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with: { submodules: true }
+    # The Ubuntu image ships docker-clean, an apt hook that
+    # deletes the .deb files in the archives after dpkg and
+    # after apt-get update, so the directory holds nothing to
+    # cache while it is in place. actions/cache restores as
+    # the runner user, who needs write access to it.
+    - name: Prepare apt package cache
+      run: |
+        set -euo pipefail
+        sudo rm -f /etc/apt/apt.conf.d/docker-clean
+        sudo chown -R "$(id -un)" /var/cache/apt/archives
+
+    - name: Restore apt package cache
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: apt-${{ github.job }}-ubuntu-26.04-${{ hashFiles('.github/workflows/ci.yml') }}
+        restore-keys: apt-${{ github.job }}-ubuntu-26.04-
+
     - name: Install autotools and audit tools
       run: >-
         sudo apt-get update -q &&
@@ -666,6 +792,24 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with: { submodules: true }
+    # The Ubuntu image ships docker-clean, an apt hook that
+    # deletes the .deb files in the archives after dpkg and
+    # after apt-get update, so the directory holds nothing to
+    # cache while it is in place. actions/cache restores as
+    # the runner user, who needs write access to it.
+    - name: Prepare apt package cache
+      run: |
+        set -euo pipefail
+        sudo rm -f /etc/apt/apt.conf.d/docker-clean
+        sudo chown -R "$(id -un)" /var/cache/apt/archives
+
+    - name: Restore apt package cache
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: apt-${{ github.job }}-ubuntu-26.04-${{ hashFiles('.github/workflows/ci.yml') }}
+        restore-keys: apt-${{ github.job }}-ubuntu-26.04-
+
     - name: Install autotools, libhwloc-dev, libsimdjson-dev, zlib1g-dev, and build tools
       run: >-
         sudo apt-get update -q &&
@@ -846,6 +990,24 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with: { submodules: true }
+
+    # The Ubuntu image ships docker-clean, an apt hook that
+    # deletes the .deb files in the archives after dpkg and
+    # after apt-get update, so the directory holds nothing to
+    # cache while it is in place. actions/cache restores as
+    # the runner user, who needs write access to it.
+    - name: Prepare apt package cache
+      run: |
+        set -euo pipefail
+        sudo rm -f /etc/apt/apt.conf.d/docker-clean
+        sudo chown -R "$(id -un)" /var/cache/apt/archives
+
+    - name: Restore apt package cache
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: apt-${{ github.job }}-ubuntu-26.04-${{ hashFiles('.github/workflows/ci.yml') }}
+        restore-keys: apt-${{ github.job }}-ubuntu-26.04-
 
     - name: Install Doxygen and python3-yaml
       run: sudo apt-get update -q
@@ -1065,6 +1227,24 @@ jobs:
     - uses: actions/checkout@v4
       with: { submodules: true }
 
+    # The Ubuntu image ships docker-clean, an apt hook that
+    # deletes the .deb files in the archives after dpkg and
+    # after apt-get update, so the directory holds nothing to
+    # cache while it is in place. actions/cache restores as
+    # the runner user, who needs write access to it.
+    - name: Prepare apt package cache
+      run: |
+        set -euo pipefail
+        sudo rm -f /etc/apt/apt.conf.d/docker-clean
+        sudo chown -R "$(id -un)" /var/cache/apt/archives
+
+    - name: Restore apt package cache
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: apt-${{ github.job }}-ubuntu-26.04-${{ hashFiles('.github/workflows/ci.yml') }}
+        restore-keys: apt-${{ github.job }}-ubuntu-26.04-
+
     - name: Install Doxygen and python3-yaml
       run: sudo apt-get update -q
         && sudo apt-get install doxygen python3-yaml lcov autoconf automake libtool patch ccache -q -y
@@ -1126,6 +1306,24 @@ jobs:
         with:
           fetch-depth: 0          # R-07: default 1 cannot support a range
           submodules: true
+      # The Ubuntu image ships docker-clean, an apt hook that
+      # deletes the .deb files in the archives after dpkg and
+      # after apt-get update, so the directory holds nothing to
+      # cache while it is in place. actions/cache restores as
+      # the runner user, who needs write access to it.
+      - name: Prepare apt package cache
+        run: |
+          set -euo pipefail
+          sudo rm -f /etc/apt/apt.conf.d/docker-clean
+          sudo chown -R "$(id -un)" /var/cache/apt/archives
+
+      - name: Restore apt package cache
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-${{ github.job }}-ubuntu-26.04-${{ hashFiles('.github/workflows/ci.yml') }}
+          restore-keys: apt-${{ github.job }}-ubuntu-26.04-
+
       - name: Install PyYAML, Doxygen, and lcov
         run: sudo apt-get update -q && sudo apt-get install -q -y python3-yaml doxygen lcov autoconf automake libtool patch ccache
       - name: Resolve range
@@ -1227,6 +1425,24 @@ jobs:
 
     - name: Install m.css dependencies
       run: pip3 install jinja2 Pygments
+
+    # The Ubuntu image ships docker-clean, an apt hook that
+    # deletes the .deb files in the archives after dpkg and
+    # after apt-get update, so the directory holds nothing to
+    # cache while it is in place. actions/cache restores as
+    # the runner user, who needs write access to it.
+    - name: Prepare apt package cache
+      run: |
+        set -euo pipefail
+        sudo rm -f /etc/apt/apt.conf.d/docker-clean
+        sudo chown -R "$(id -un)" /var/cache/apt/archives
+
+    - name: Restore apt package cache
+      uses: actions/cache@v4
+      with:
+        path: /var/cache/apt/archives
+        key: apt-${{ github.job }}-ubuntu-26.04-${{ hashFiles('.github/workflows/ci.yml') }}
+        restore-keys: apt-${{ github.job }}-ubuntu-26.04-
 
     - name: Install Doxygen
       run: sudo apt-get update -q
