@@ -4,7 +4,7 @@
 contract table at `specs/030-ci-speedup/contracts/prepush-script.md`, and the
 plain run of the script measured on this host.
 **Head sha**: b1f8edaba7a7a0e75bbc8465e2b08fc18361b34b, the head the script and the contract both stand at
-**Run id**: local, run A of `results/ph4/prepush-script.md`
+**Run id**: local, run A of this record, under Run A below
 **Command**: `bash tools/ci/prepush.sh` with no option, and
 `bash tools/ci/prepush.sh --bogus` for the option path
 **Numbers**: the table under Rows, the ten timing lines quoted under Run A,
