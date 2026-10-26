@@ -89,4 +89,16 @@ foreach(speedgun_example IN LISTS speedgun_example_entries)
   endif()
 endforeach()
 
+# The time budget exceptions (030 FR-032, D-7, SC-008) of this directory
+# are an empty list, which is the reading the block above takes. The row
+# form lives beside the loop of `test/CMakeLists.txt`: one comment row
+# per entry, opening with the words `budget exception`, naming the
+# entry, the reason it holds its own ceiling and the reading of one lane
+# that supports it. No row can land here, because this directory
+# registers no test entry: master's own `example/CMakeLists.txt` names
+# no `add_test` and no `TIMEOUT`, the read above finds an empty list at
+# head, and the 139 entries of the `test` lane of CI run 40239619604 at
+# head 49c12ec all come from the `test` directory. So the empty list is
+# what FR-031 and FR-033 ask for here.
+
 add_folders(Example)

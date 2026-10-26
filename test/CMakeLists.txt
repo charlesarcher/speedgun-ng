@@ -1654,13 +1654,56 @@ endforeach()
 # the 1500 s CTest default, so it takes 300 s here and a hang ends inside
 # the change that caused it. An entry that names its own value keeps it, so
 # the eight master 120 s rows and the 300 s example_run stand where master
-# set them.
+# set them. The list under the loop names each of those entries with its
+# reason and its measured number (FR-032).
 foreach(speedgun_test IN LISTS speedgun_test_entries)
   get_test_property(${speedgun_test} TIMEOUT speedgun_test_timeout)
   if(NOT speedgun_test_timeout)
     set_tests_properties(${speedgun_test} PROPERTIES TIMEOUT 300)
   endif()
 endforeach()
+
+# The time budget exceptions (030 FR-032, D-7, SC-008): the entries that
+# keep a value other than 300 s, one row per entry. Every value is one
+# master names, and FR-031 keeps every lower value master sets. Each row
+# names the reason the entry holds its own ceiling and the slowest
+# reading of one lane that supports it, from CI run 40239619604 at head
+# 49c12ec of branch `030-ci-speedup`, read from the five jobs named
+# `test`, `test-rocky`, `coverage`, `sanitize` and `tsan`, read with
+# `gh run view --job <job id> --log` piped to `sed -E 's/^[^Z]*Z //'`.
+# That run's only red is `harness_jitter_cli_test`, the base red PC-10
+# records, so each reading below is a passing duration. No ceiling moves
+# here, which is what FR-034 asks of this list. Every entry outside this
+# list holds the 300 s above: the slowest such reading is
+# dbc_matrix_on_o0 at 138.05 s on the `tsan` lane of the same run.
+#
+# budget exception harness_calibration_test keeps the 120 s master
+#   sets for the run-control calibration, the one entry that drives the
+#   real clock: slowest 0.85 s, the `coverage` lane.
+# budget exception base_cli_matrix keeps the 120 s master sets for the
+#   base command line replayed over the built example binary, one
+#   process per matrix row: slowest 26.54 s, the `sanitize` lane.
+# budget exception report_shape keeps the 120 s master sets for the
+#   shape fold of the quick start report against the root page: slowest
+#   1.09 s, the `coverage` lane.
+# budget exception report_shape_guide_sample keeps the 120 s master
+#   sets for the shape fold of the guide page's recorded run: slowest
+#   9.85 s, the `tsan` lane.
+# budget exception report_shape_percentiles_sample keeps the 120 s
+#   master sets for the shape fold of the percentiles example report:
+#   slowest 0.22 s, the `coverage` lane.
+# budget exception report_shape_json_reports_sample keeps the 120 s
+#   master sets for the shape fold of the json report example: slowest
+#   0.18 s, the `coverage` lane.
+# budget exception report_shape_jitter_sample keeps the 120 s master
+#   sets for the shape fold of the jitter probe example: slowest 1.17 s,
+#   the `test` lane.
+# budget exception report_shape_hunt_rank_sample keeps the 120 s
+#   master sets for the shape fold of the hunt rank example: slowest
+#   2.21 s, the `tsan` lane.
+# budget exception example_run keeps the 300 s master sets for the
+#   entry that runs every docs example through `example_run.sh`, equal
+#   to the budget this loop gives: slowest 7.78 s, the `coverage` lane.
 
 # ---- End-of-file commands ----
 
