@@ -13,6 +13,11 @@
 # ran are both visible. A declared skip that never prints is a lie about the
 # example, so the pairing is checked in both directions.
 #
+# The run captures the two streams into files of their own: a stderr line
+# a benchmark writes beside its rows lands in the stderr file alone, so a
+# row still starts at column 1 of the stdout the pairing reads, and the
+# stderr prints beside any failure the check names.
+#
 # The build directory holds the docs_ binaries. The CMake test passes it as the
 # first argument; a manual run can set SG_BUILD_DIR instead. With neither, the
 # gate fails and names both.
@@ -47,17 +52,23 @@ for source in "$ROOT"/example/docs/*.cpp; do
     continue
   fi
 
-  output=$("$binary" --min-time=0.01 2>&1)
+  run_out=$(mktemp)
+  run_err=$(mktemp)
+  "$binary" --min-time=0.01 >"$run_out" 2>"$run_err"
   code=$?
+  output=$(cat "$run_out")
+  errors=$(cat "$run_err")
+  rm -f "$run_out" "$run_err"
 
-  if printf '%s\n' "$output" | grep -q 'FAILED'; then
+  if printf '%s\n' "$output" "$errors" | grep -q 'FAILED'; then
     echo "FAIL: docs_$name printed a FAILED row" >&2
-    printf '%s\n' "$output" | grep 'FAILED' >&2
+    printf '%s\n' "$output" "$errors" | grep 'FAILED' >&2
     status=1
     continue
   fi
   if [ "$code" -ne 0 ]; then
     echo "FAIL: docs_$name exited $code" >&2
+    printf '%s\n' "$errors" >&2
     status=1
     continue
   fi
@@ -109,6 +120,7 @@ EOF
 
   if [ "$ok" -ne 1 ]; then
     status=1
+    printf '%s\n' "$errors" >&2
   else
     echo "PASS: docs_$name ($(printf '%s\n' "$listed" | grep -c .) instances)"
   fi

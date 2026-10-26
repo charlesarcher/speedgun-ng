@@ -27,10 +27,12 @@ rowB='bmB                 2.40 ns         2.38 ns'
 skipB='bmB                 SKIPPED: no cells configured'
 
 # build_tree <case> <marker-line> <row-for-bmA> <row-for-bmB-or-empty>
-# The fake binary answers the list query with the registered set and prints
-# the rows the case says print.
+# <stderr-line-or-empty>
+# The fake binary answers the list query with the registered set, prints
+# the rows the case says print, and writes the case's stderr line, its
+# last byte unterminated so the line lands beside what follows it.
 build_tree() {
-  case=$1 marker=$2 first=$3 second=$4
+  case=$1 marker=$2 first=$3 second=$4 noise=${5:-}
   tree="$WORK/$case"
   mkdir -p "$tree/test" "$tree/example/docs" "$tree/build/example"
   cp "$GATE" "$tree/test/example_run.sh"
@@ -41,6 +43,7 @@ build_tree() {
   cat > "$tree/build/example/docs_demo" <<SCRIPT
 #!/usr/bin/env bash
 if [ "\$1" = "--list" ]; then printf '%s\n' $LISTED; exit 0; fi
+if [ -n '$noise' ]; then printf '%s' '$noise' >&2; fi
 printf '%s\n' '$first'
 if [ -n '$second' ]; then printf '%s\n' '$second'; fi
 exit 0
@@ -85,5 +88,8 @@ expect 0 "$tree" 'PASS: docs_demo' 'declared skip' || failed=1
 
 tree=$(build_tree stale 'example-run: expect-skip bmB: no cells configured' "$rowA" "$rowB")
 expect 1 "$tree" 'did not print' 'expectation the run never prints' || failed=1
+
+tree=$(build_tree stderr-noise '' "$rowA" "$rowB" 'a warning the run writes')
+expect 0 "$tree" 'PASS: docs_demo' 'a stderr line beside the rows' || failed=1
 
 exit "$failed"
