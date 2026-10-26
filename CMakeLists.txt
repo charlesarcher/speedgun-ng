@@ -21,6 +21,23 @@ project(
 include(cmake/project-is-top-level.cmake)
 include(cmake/variables.cmake)
 
+# The cache presets front the compiler with ccache, and a launcher the
+# host cannot answer turns the build into an `Error 127` with no tool
+# named in it. The configure names the missing tool instead, the way the
+# developer-mode gates name a missing lcov or doxygen.
+if(CMAKE_C_COMPILER_LAUNCHER MATCHES "ccache"
+   OR CMAKE_CXX_COMPILER_LAUNCHER MATCHES "ccache")
+  find_program(CCACHE_PROGRAM ccache NO_CACHE)
+  if(NOT CCACHE_PROGRAM)
+    message(
+        FATAL_ERROR
+        "a launcher of this configure names ccache and ccache answers "
+        "nothing on this host: install ccache, or reconfigure without "
+        "the ci-cache preset"
+    )
+  endif()
+endif()
+
 # ---- Declare library ----
 
 add_library(
