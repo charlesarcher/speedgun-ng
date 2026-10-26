@@ -626,6 +626,12 @@ auto testMultiExpressionSplice() -> void
   // (2100 / 2100) + (200 / 200) over the same window.
   check(sameDouble(window.metric(ratioSum).value, 2.0),
         "the sum of two spliced ratios folds exactly");
+  // The bare leaf as the spliced operand: its spine's one node carries
+  // no operands, so the remap takes the leaf arm alone and the sum
+  // folds both leaves' points over the same window.
+  const auto leafSum = numerator + numerator;
+  check(sameDouble(window.metric(leafSum).value, 4200.0),
+        "the sum of two spliced bare leaves folds exactly");
 }
 
 // A plan and a fan-out plan are move-only values: move assignment
