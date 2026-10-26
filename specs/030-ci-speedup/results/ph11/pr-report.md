@@ -145,10 +145,13 @@ no ignore class anywhere on the extract, the summary or `genhtml`.
 
 ## Deviations this PR states
 
-1. SC-007's five-minute bound for `tools/ci/prepush.sh` is missed on the lane
-   host: 740 s of printed steps against 300 s. The breach has a floor: step 9
-   pins the quick tier to two cpus and that tier holds 647.40
-   `sec*proc`, so 323.7 s is its minimum before any other step runs
+1. SC-007's five-minute bound for `tools/ci/prepush.sh` was missed on
+   `CorsairOne`, the lane host the first edition of the timing record
+   measured: 740 s of printed steps against 300 s, with a floor in step 9's
+   two-cpu pin (that host's quick tier holds 647.40 `sec*proc`, so 323.7 s is
+   its minimum). The lane host is `thrawn` now: the same `--full` run prints
+   thirteen steps summing to 175 s, steps 1 to 10 sum 93 s, and the clause
+   stands met on the host the record names
    (`results/ph4/timing.md`, `results/ph7/tiers.md`).
 2. SC-002's median of six runs at 15 minutes or less is unreachable as written:
    three of the six are master pushes at 1732, 2466 and 2697 s, so the median
@@ -174,15 +177,21 @@ no ignore class anywhere on the extract, the summary or `genhtml`.
 
 ## Green on this host
 
-Host `CorsairOne`, Linux 7.3.0-4-cachyos, Intel i9-9920X at 3.50 GHz, 24 cores,
-gcc 16.2.1 20260810, clang 23.1.3, clang-format 18.1.8, cmake 4.4.2, ccache
-4.11.3. Every gate the plan's Implementation Strategy names is run against this
-head and recorded with its exit status and its seconds in
-`results/ph11/gates.md`, with the lanes that CI measures instead of this host
-named there. `harness_cli_test` exceeds its 300 s budget on a host that grants the
-cpu PMU (3110.37 s measured at the base commit, `results/ph2/cli-slow.md`), so a
-local full-suite run reports that one entry as a timeout in each lane; CI's
-runners withhold the counters and the entry passes there.
+Host `thrawn`, Linux 7.3.0-5-cachyos, AMD Ryzen Threadripper 9960X 24-Cores, 48
+threads, gcc 16.2.1 20260810, clang 23.1.3, clang-format 18.1.8, cmake 4.4.4,
+ccache 4.14.1. Every gate the plan's Implementation Strategy names is run
+against the head the timing record names, with its exit status and its seconds
+recorded: the first edition read them at `88fc715` on `CorsairOne` and
+recorded them in `results/ph11/gates.md`, and the review round re-ran the four
+text gates and the full pre-push run on this host, with the seconds in
+`results/ph4/timing.md` and the lanes that CI measures instead of this host
+named in gates.md. The full suite at step 11 of the pre-push run passed 134 of 134
+entries at this head, and `harness_cli_test` kept its 300 s budget: the host
+withholds the cpu PMU the way CI's runners do, so the entry's slow region does
+not execute. `CorsairOne`, the host the first edition measured, granted the
+counters and showed that entry as a timeout in each lane (3110.37 s measured at
+the base commit, `results/ph2/cli-slow.md`); that host is down, and its rows
+stand in the record's history.
 
 ## Tracking
 
