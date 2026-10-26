@@ -250,11 +250,15 @@ the route a live need takes inside the approved scope.
   gcov-matching logic out.
 - `45d5e42` (ignore the class in genhtml), `f82406e` (ignore it when
   listing) and `b0d0f9b` (give lcov its error class early).
-  **Need: not observed.** At the closest full run of this tree family
-  those stages printed warnings and completed (PC-10), and the
-  `coverage` failure there was a shortfall. **Route:** FR-041 adds no
-  ignore class to the extract, summary or `genhtml` command; a run that
-  shows a stage abort on that class reopens the point.
+  **Need: observed.** Run 40259383390 and its rerun at the same commit
+  stopped the extract command on that class, at
+  `source/harness/hunt_plan.cpp:365`, and six separate entries reach that
+  closure when each runs alone, so no exclusion clears it. **Route:** the
+  cause is the lambda inside the closure's `SG_ENSURE` argument, which
+  gcov records at the macro line alone
+  (`results/ph11/coverage-lane.md`), and the fix moves the predicate into
+  a named helper of `source/harness/hunt_plan.cpp`; no ignore class
+  lands.
 - `dcbdfa6` "dbc: Separate an Unreadable Trace From a Gap".
   **Need: probably.** `lcov --summary` can refuse a trace whose every
   gated measure reads 100.00 percent, and the gate then reports a
@@ -1078,3 +1082,18 @@ carries each:
   commits' rulings, live outside the repository, on the rule FR-062
   states. Spec 031 (`host-validation`) follows spec 032 (the three merged
   features).
+
+## Items that spec 032 must check
+
+The review round of this feature landed four fixes inside spec 032's
+scope, and spec 032 checks each item instead of doing it again:
+
+- The clang-format pass over the CLI table test: commit `9ddb50f`,
+  file `test/source/harness_cli_table_test.cpp`.
+- The mutation test's anchor at schema version 1.5: commit `c491337`,
+  file `test/source/harness_json_load_test.cpp`.
+- The hunt-row order test below the reserved block: commit `9e82e0c`,
+  file `test/source/harness_cli_table_test.cpp`.
+- The jitter scenario's cpus read from the affinity mask, with the
+  probe on the highest cpu of the mask: commit `744b132`, file
+  `test/source/harness_jitter_cli_test.cpp`.
