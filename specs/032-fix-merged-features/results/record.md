@@ -221,3 +221,46 @@ hash the branch cuts from; the local measurements stand in
   surface carries. The 38-block count and the eight unrepaired files
   stand on the request's record, the fixes-1 prompt being absent from
   this host, and route to the pull request with the surface named.
+
+## US2 leftovers and the process audits (T023 to T026, T065 to T069)
+
+- T023 (FR-019, M-7): the scan step and the settle step parse through
+  the one function `parseJitterProbeValue`: the command line's text
+  parses at `cli.cpp:566` to `:576`, the option file's row parses where
+  it settles at `options.cpp:1770`, and both call the one reader, so
+  one code path owns the value's grammar; the behavior stays, and the
+  grammar's tests pin it.
+- T024 (FR-022, M-12): the `e781eda` segment print left the family
+  fold check in the fix commit. The intermittent failure's root cause
+  stands owed to the CI observation the push run records: the failure
+  was observed twice on the 2026-10-24 runs and carries no document,
+  so no local reproduction stands. Routes to the pull request as a
+  question beside the run's logs.
+- T025 (FR-027, PR 46 P-3): the batch-probe arm stands covered: the
+  batch probe's own scenarios cover the arm with `familyProbes` empty,
+  and the family scenarios (`family-probe`, `family-vs-cli`,
+  `family-vs-file`) cover the arm beside a family's own probe; no
+  unreachable code stands at `cli.cpp:776` to `:777`.
+- T026 (FR-026, D-12): the keep-set stands. After FR-021 the four
+  `--omit-lines` patterns of the count arm and the `cpus.empty()` line
+  match no line of code, and the comment of `cmake/coverage.cmake`
+  states it; the allowance of 19 stands re-counted on the coverage run
+  of the pushed head, and the pull-request comment asks before any
+  removal.
+- T065, T066 (FR-053, FR-054): all 13 commits carry the footer
+  `Refs: specs/032-fix-merged-features` then `Approved-by: OmO`, one
+  each, and no subject passes 50 characters and no body line passes
+  72.
+- T067 (FR-055): each fix ships with its test in the same commit
+  (`b5889bc`, `a153910`, `d70bf0d`, `c792e94`, `c957677`, `6b7930a`),
+  and the red run of the precedence fix stands on the PC-10
+  measurement the option-file override carried before it.
+- T068 (FR-056 to FR-058): the `setenv|GCOV_PREFIX|sgcov` scan over
+  `test/source` returns nothing; no lambda stands inside an `SG_*`
+  macro in `source/` or `include/`; the quoting test proves text from
+  a user makes no contract fail.
+- T069 (FR-059, SC-006): the branch touches `cmake/coverage.cmake`
+  and `CMakeLists.txt` only as the request mandates (the comment
+  rewrite of FR-025 and the version lane of FR-001), and neither
+  changes a gate's behavior; no workflow, preset, lint, spell, dbc,
+  prose or drift file moved.
