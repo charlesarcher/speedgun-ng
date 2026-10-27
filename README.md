@@ -664,7 +664,29 @@ SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
 
 auto main(int argc, char** argv) -> int
 {
-  sg::runJitterProbe({.mode = sg::JitterProbeMode::PRECHECK});
+  sg::runJitterProbe({.mode = sg::JitterProbeMode::PRECHECK,
+                      .precheckSerial = true});
+  return sg::speedgunMain(argc, argv);
+}
+```
+
+### Host noise pre-check
+The pre-check measures the host noise on the planned cpus before the batch runs: it prints one block per measured cpu with the gap figures, the attribution deltas each naming its `/proc` source and the host settings, then one warning line per noisy planned cpu and the pinning-candidate line ranked by gap rate. `strict` refuses a run whose planned cpu stands noisy with status 2, and `precheck=serial` runs the pre-check windows one cpu at a time. See [jitter probe in detail](docs/pages/harness.md#jitter-probe) for the keys and the record.
+<!-- sg-example: example/docs/jitter_probe.cpp#jitter-probe -->
+```cpp
+auto bmMeasured(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.iterations());
+  }
+}
+
+SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
+
+auto main(int argc, char** argv) -> int
+{
+  sg::runJitterProbe({.mode = sg::JitterProbeMode::PRECHECK,
+                      .precheckSerial = true});
   return sg::speedgunMain(argc, argv);
 }
 ```
@@ -786,6 +808,8 @@ One line on stderr naming the value ends the run with status 2 for a value outsi
 | `State::threadIndex` | State | Numbers the context running the loop | [threads](#threads) |
 | `State::threads` | State | Gives the context count the instance was run with | [threads](#threads) |
 | `ContextDisclosure` | type | The wait mode and placement one context disclosed | [reading the report](#reading-the-report) |
+| `JitterProbeOptions::precheckSerial` | field | Runs the pre-check windows one cpu at a time | [host noise pre-check](#host-noise-pre-check) |
+| `PrecheckRecord` | type | The pre-check record one run carries, one entry per measured cpu | [host noise pre-check](#host-noise-pre-check) |
 | `BenchmarkResult::contexts` | BenchmarkResult | The disclosures one run recorded for its contexts | [reading the report](#reading-the-report) |
 
 | Option | What it does |
@@ -800,7 +824,7 @@ One line on stderr naming the value ends the run with status 2 for a value outsi
 | `--no-percentiles` | Turns the percentile lines off |
 | `--json` | Writes one JSON report document for the run |
 | `--json-raw` | Selects the chunk columns the document carries |
-| `--jitter-probe` | Runs the jitter probe over the batch by one value |
+| `--jitter-probe` | Runs the jitter probe over the batch by one value; `precheck=<ms>` or `precheck=serial` runs the host noise pre-check |
 | `--dry-run` | Runs one iteration and prints the row shape |
 | `--counter` | Adds one catalog counter to the report columns |
 | `--metric` | Adds one metric of the host's table to the report columns |

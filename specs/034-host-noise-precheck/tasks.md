@@ -93,7 +93,7 @@ story work begins before this phase closes.
   assert the parallel window covers every measured cpu at once and
   the standing 200 ms default stands (FR-008, FR-010, R-01) (depends
   on T006, T007; the tests turn green)
-- [ ] T009 [P] Write the failing serial and mode tests in
+- [X] T009 [P] Write the failing serial and mode tests in
   `test/source/harness_precheck_test.cpp`: `precheck=serial` runs one
   window per measured cpu, ascending cpu order, the planned cpus
   before the candidates, every window the same span, the window
@@ -163,7 +163,7 @@ pinning line, then the benchmark tables, and exits 0
 
 ### Tests for User Story 2 (write first, observe failure)
 
-- [ ] T013 [P] [US2] Write the failing warning and pinning tests in
+- [X] T013 [P] [US2] Write the failing warning and pinning tests in
   `test/source/harness_precheck_test.cpp`: one warning line per
   noisy planned cpu names the cpu and the two figures; the run
   continues with status 0; the pinning line stands after the warnings
@@ -173,7 +173,7 @@ pinning line, then the benchmark tables, and exits 0
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Implement `printPrecheckReport` in
+- [X] T014 [US2] Implement `printPrecheckReport` in
   `source/harness/report.cpp`: the block prints before the benchmark
   tables, one block per measured cpu with the sixteen field names the
   console probe block uses; the warning lines stand after the blocks
@@ -199,7 +199,7 @@ difference and names its source; a deleted source reads the
 
 ### Tests for User Story 3 (write first, observe failure)
 
-- [ ] T015 [P] [US3] Write the failing attribution tests in
+- [X] T015 [P] [US3] Write the failing attribution tests in
   `test/source/harness_precheck_test.cpp` over fake files through the
   seam: the interrupt delta stands the sum of the cpu column over
   every row of `/proc/interrupts`; one delta per softirq kind the
@@ -215,14 +215,14 @@ difference and names its source; a deleted source reads the
 
 ### Implementation for User Story 3
 
-- [ ] T016 [US3] Implement the attribution reader and the
+- [X] T016 [US3] Implement the attribution reader and the
   host-settings reader in `source/harness/jitter_probe.cpp`: the
   snapshots stand read before the window opens and after it closes,
   never inside the loop; each figure carries its source name; the
   re-confirmation of the schedstat mapping against the roadmap 10.1
   row stands recorded, a mismatch goes to the pull request as a
   question (R-03, R-04) (depends on T006, T015; the tests turn green)
-- [ ] T017 [US3] Extend the console block in
+- [X] T017 [US3] Extend the console block in
   `source/harness/report.cpp` with the attribution lines beside the
   gap figures and the host-settings disclosure once per run, the
   `not available` wording of
@@ -247,7 +247,7 @@ master differs in the `schemaVersion` value alone
 
 ### Tests for User Story 4 (write first, observe failure)
 
-- [ ] T018 [P] [US4] Write the failing JSON tests in
+- [X] T018 [P] [US4] Write the failing JSON tests in
   `test/source/harness_precheck_test.cpp` and the loader tests in
   `test/source/harness_json_load_test.cpp`: the `precheck` object
   stands after `jitter` and before `benchmarks` with the keys of
@@ -260,12 +260,12 @@ master differs in the `schemaVersion` value alone
 
 ### Implementation for User Story 4
 
-- [ ] T019 [US4] Extend `docs/schema/report-v1.json`: the `precheck`
+- [X] T019 [US4] Extend `docs/schema/report-v1.json`: the `precheck`
   object's keys with their kinds, the `not available` alternative on
   the optional figures, and the top-level `x-order` moved to carry
   `precheck` after `jitter`; the minor moves to `1.6` in the same
   commit as the writer (FR-006, R-08) (depends on T018)
-- [ ] T020 [US4] Implement the writer in
+- [X] T020 [US4] Implement the writer in
   `source/harness/json_report.cpp` (the `precheck` object after
   `jitter`) and the reader in `source/harness/json_load.cpp`
   (`loadReport` reads the record back through the standing simdjson
@@ -288,21 +288,21 @@ and report-shape gates pass ([spec.md](./spec.md) US5).
 
 ### Implementation for User Story 5
 
-- [ ] T021 [P] [US5] Add the pre-check section to `README.md`, at
+- [X] T021 [P] [US5] Add the pre-check section to `README.md`, at
   most 25 lines, one purpose sentence, one marked snippet from the
   example region, one result sentence, with the quick-reference rows
   for `JitterProbeOptions::precheckSerial` and the `precheck=serial`
   form (FR-026, IV.1, D-9, R-12)
-- [ ] T022 [P] [US5] Add the option and field detail to
+- [X] T022 [P] [US5] Add the option and field detail to
   `docs/pages/harness.md`: the `precheck=serial` grammar row, the
   field reference of the block, the attribution sources and their
   `not available` rule (FR-026, R-12)
-- [ ] T023 [US5] Extend `example/docs/jitter_probe.cpp` with the
+- [X] T023 [US5] Extend `example/docs/jitter_probe.cpp` with the
   pre-check section the page quotes and re-record
   `example/docs/jitter_probe.expected` from the build that carries
   the feature; the rows the page's result sentence names print
   (FR-026, R-12) (depends on T014, T017, T020)
-- [ ] T024 [US5] Run the docs gates and clear every finding:
+- [X] T024 [US5] Run the docs gates and clear every finding:
   `example_drift`, `example_drift_fixtures`, `snippet_compile`,
   `example_run`, `report_shape`, `report_shape_fixtures` (FR-026,
   SC-008) (depends on T021, T022, T023)

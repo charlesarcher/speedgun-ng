@@ -1086,6 +1086,11 @@ auto kernelSettingOfText(const std::string& text, std::string_view key)
 auto cpuListOfText(const std::string& text)
     -> std::optional<std::vector<std::uint32_t>>
 {
+  // A text that names no line spells no cpu list, the absent file the
+  // mask fallback stands for (FR-018).
+  if (text.empty()) {
+    return std::nullopt;
+  }
   std::vector<std::uint32_t> cpus;
   std::size_t scan = 0;
   while (scan < text.size()) {
@@ -1235,10 +1240,15 @@ auto precheckReadHostSettings(const std::vector<std::uint32_t>& cpus)
         continue;
       }
       const auto tail = "proc/irq/" + name;
-      auto named = cpuListOfText(readUnderRoot(tail + "/smp_affinity_list")
+      // The affinity files stand one line, the trailing newline the
+      // file form carries included, so the line reader trims before
+      // the parser reads (FR-018).
+      auto named = cpuListOfText(firstLineOf(readUnderRoot(
+                                       tail + "/smp_affinity_list"))
                                      .value_or(""));
       if (!named.has_value()) {
-        named = cpuMaskOfText(readUnderRoot(tail + "/smp_affinity")
+        named = cpuMaskOfText(firstLineOf(readUnderRoot(
+                                      tail + "/smp_affinity"))
                                   .value_or(""));
       }
       if (!named.has_value()) {
@@ -1294,32 +1304,6 @@ auto precheckAttributionDelta(const PrecheckCpuSnapshot& before,
   delta.switches = subtract(before.switches, after.switches);
   delta.schedules = subtract(before.schedules, after.schedules);
   return delta;
-}
-
-// specs/034 D-3: the pinning-candidate rank of the planned cpus:
-// every planned cpu with its gap rate, the lowest rate first, tied
-// cpus in cpu order (FR-013).
-auto precheckPinningRank(const std::vector<ProbeCpuState>& states,
-                         const std::vector<std::uint32_t>& plannedCpus)
-    -> std::vector<std::uint32_t>
-{
-  std::vector<std::pair<double, std::uint32_t>> ranked;
-  for (const auto cpu : plannedCpus) {
-    const auto found = std::ranges::find_if(
-        states,
-        [cpu](const ProbeCpuState& state) { return state.cpu == cpu; });
-    if (found != states.end()) {
-      const auto fold = gapStatsOf(*found);
-      ranked.emplace_back(fold.gapsPerSecond, cpu);
-    }
-  }
-  std::ranges::sort(ranked);
-  std::vector<std::uint32_t> rank;
-  rank.reserve(ranked.size());
-  for (const auto& [rate, cpu] : ranked) {
-    rank.push_back(cpu);
-  }
-  return rank;
 }
 
 // specs/034 R-05: the noisy planned cpus of one pre-check run: the

@@ -1,0 +1,1 @@
+--jitter-probe: the cpu '1' stands outside the process affinity mask

@@ -704,7 +704,7 @@ auto theRootListAndTheWarningKeyAnswerTheirOwnRules(const std::string& text)
 }
 
 constexpr Mutation kMutations[] = {
-    {"\"schemaVersion\":\"1.5\"", "\"schemaVersion\":1", "/schemaVersion"},
+    {"\"schemaVersion\":\"1.6\"", "\"schemaVersion\":1", "/schemaVersion"},
     {"\"name\":\"bmJsonWindow\"", "\"name\":[]", "/benchmarks/0/name"},
     // The two kinds the naming word has no other caller for: a document
     // that holds null, and one that holds a flag, at a name.
@@ -1270,6 +1270,66 @@ auto pinOverheadFloor(std::string text) -> std::string
 
 }  // namespace
 
+// specs/034 T018, FR-006, FR-024, SC-004, R-08: the pre-check record
+// of the document closes on itself: the key stands after `jitter` and
+// before `benchmarks`, the round trip through the reader answers the
+// record field by field, the absent figures carry their nulls, and a
+// run without the pre-check writes no key at all.
+auto thePrecheckRecordRoundTrips() -> void
+{
+  sg::PrecheckRecord record;
+  record.serial = true;
+  record.windowMs = 200;
+  record.skippedGroups = {1};
+  sg::PrecheckCpuRecord planned;
+  planned.cpu = 3;
+  planned.planned = true;
+  planned.stats.gapCount = 2;
+  planned.stats.gapsPerSecond = 11.5;
+  planned.stats.maxNs = 9000;
+  planned.attribution.interrupts = 42;
+  planned.attribution.softirqs.emplace_back(
+      "TIMER", std::optional<std::uint64_t>(7));
+  planned.attribution.softirqs.emplace_back("NET_RX", std::nullopt);
+  planned.attribution.switches = 5;
+  record.cpus.push_back(planned);
+  sg::PrecheckCpuRecord candidate;
+  candidate.cpu = 4;
+  record.cpus.push_back(candidate);
+  record.host.isolcpus = "2-3";
+  record.host.governors.emplace_back(
+      3U, std::optional<std::string>("performance"));
+  record.host.irqAffinity.emplace_back(
+      3U, std::vector<std::uint32_t> {24U, 25U});
+  sg::ReportData data;
+  data.precheck = record;
+  check(sg::detail::writeReport(kWritten, data, {}, std::nullopt, record),
+        "the writer wrote the document with the record (FR-006)");
+  const std::string text = sg::test::readText(kWritten);
+  const auto precheckAt = text.find("\"precheck\"");
+  const auto benchmarksAt = text.find("\"benchmarks\"");
+  check(precheckAt != std::string::npos && precheckAt < benchmarksAt,
+        "the precheck key stands before benchmarks (D-8); the key order "
+        "the x-order list states the reader checks itself");
+  const auto loaded = sg::loadReport(kWritten);
+  check(loaded.has_value(),
+        "the reader read the document with the record (FR-024)");
+  if (loaded.has_value()) {
+    check(sg::test::sameReport(*loaded, data),
+          "the record reads back field by field (FR-024, SC-004)");
+  }
+
+  sg::ReportData bare;
+  check(sg::detail::writeReport(kAgain, bare),
+        "the writer wrote the record-free document (FR-024)");
+  const auto reloaded = sg::loadReport(kAgain);
+  check(reloaded.has_value() && sg::test::sameReport(*reloaded, bare),
+        "the record-free document loads with no record (FR-024)");
+  check(sg::test::readText(kAgain).find("\"precheck\"")
+            == std::string::npos,
+        "a run without the pre-check writes no key (FR-024)");
+}
+
 auto main() -> int
 {
   roundTripClosesTheFormat();
@@ -1286,6 +1346,7 @@ auto main() -> int
   brokenDocumentsRefuseWithPointers(written);
   brokenSpansRefuseWithPointers(written);
   theContextSpansRefuseWithPointers();
+  thePrecheckRecordRoundTrips();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;

@@ -38,3 +38,4 @@ speedgun-ng-*-specify-prompt.md
 # the fixed names, and the names harness_cli_test suffixes with its pid.
 harness_*_out.txt
 /harness_cli_*
+harness_precheck_fake_root_/

@@ -13,7 +13,8 @@ SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
 
 auto main(int argc, char** argv) -> int
 {
-  sg::runJitterProbe({.mode = sg::JitterProbeMode::PRECHECK});
+  sg::runJitterProbe({.mode = sg::JitterProbeMode::PRECHECK,
+                      .precheckSerial = true});
   return sg::speedgunMain(argc, argv);
 }
 

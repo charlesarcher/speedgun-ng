@@ -56,6 +56,7 @@ SECTIONS = (
     "JSON reports",
     "Regression gate",
     "Jitter probe",
+    "Host noise pre-check",
     "Hunter mode",
 )
 
@@ -89,6 +90,7 @@ SECTION_OWNERS = {
     "JSON reports": ("json_reports.cpp",),
     "Regression gate": ("regression_gate.cpp",),
     "Jitter probe": ("jitter_probe.cpp",),
+    "Host noise pre-check": ("jitter_probe.cpp",),
     "Hunter mode": ("hunt_rank.cpp",),
 }
 
@@ -189,7 +191,7 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # in place. The rows join the Quick reference table, which the
 # per-section budgets do not inspect, so SECTION_LINE_CAP and
 # SECTION_LINE_CAPS keep their values.
-PAGE_LINE_CAP = 835
+PAGE_LINE_CAP = 860
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that

@@ -1,0 +1,31 @@
+speedgun-ng 0.21.0 build=Release
+options from a file or the environment: interleave=2
+bmQuiet                  iterations=         2  real time/iter (ns)= 2000.000  cpu time/iter (ns)= 1000.000  overhead floor (ns)=   10.000  endpoint samples=2
+bmHandFirst/1            iterations=         2  real time/iter (ns)= 2000.000  cpu time/iter (ns)= 1000.000  overhead floor (ns)=  151.000  endpoint samples=2
+bmHandFirst/2            iterations=         2  real time/iter (ns)= 2000.000  cpu time/iter (ns)= 1000.000  overhead floor (ns)=   10.000  endpoint samples=2
+bmHandSecond/1           iterations=         2  real time/iter (ns)= 2000.000  cpu time/iter (ns)= 1000.000  overhead floor (ns)=  160.000  endpoint samples=2
+bmHandSecond/2           iterations=         2  real time/iter (ns)= 2000.000  cpu time/iter (ns)= 1000.000  overhead floor (ns)=   10.000  endpoint samples=2
+jitter probe: cpus 0,0
+gapCount: 0 0
+gapsPerSecond: 0.00 0.00
+minNs: 0 0
+medianNs: 0 0
+meanNs: 0.00 0.00
+p90Ns: 0 0
+p99Ns: 0 0
+p999Ns: 0 0
+p9999Ns: 0 0
+maxNs: 0 0
+totalNs: 0 0
+totalPercent: 0.00 0.00
+runtimeNs: 0 0
+thresholdNs: 65000 65000
+loopPeriodNs: 1 1
+droppedGaps: 0 0
+jitter: probe on cpus 0,0
+jitter: loop period 1 ns, threshold 65000 ns
+jitter: cpu 0 kept 0 dropped 0
+jitter: cpu 0 kept 0 dropped 0
+jitter: split and percentiles use the kept gaps only
+jitter: affinity mask narrowed for 'bmHandFirst/1'
+jitter: affinity mask narrowed for 'bmHandSecond/1'

@@ -81,14 +81,20 @@ def build_tree(root: Path) -> None:
     for stale in ("docs/pages/harness.md", "docs/pages/building.md"):
         (root / stale).unlink(missing_ok=True)
 
+    # One file can own more than one section (specs/034), so every region
+    # a page quotes stands in its owner file.
+    regions: dict[Path, list[str]] = {}
     for title in SECTIONS:
-        leaf = root / owner(title)
+        regions.setdefault(root / owner(title), []).append(title)
+    for leaf, titles in regions.items():
         leaf.parent.mkdir(parents=True, exist_ok=True)
-        leaf.write_text(
-            '//include "speedgun-ng/benchmark.hpp"\n\n'
-            f"// sg-example:begin {slug(title)}\n{snippet(title)}\n"
-            f"// sg-example:end {slug(title)}\n"
-        )
+        body = '//include "speedgun-ng/benchmark.hpp"\n\n'
+        for title in titles:
+            body += (
+                f"// sg-example:begin {slug(title)}\n{snippet(title)}\n"
+                f"// sg-example:end {slug(title)}\n"
+            )
+        leaf.write_text(body)
     (root / "example" / "quickstart.sh").write_text(
         "#!/usr/bin/env bash\n"
         "# sg-example:begin run\n./build/first_benchmark\n"

@@ -1,0 +1,27 @@
+speedgun-ng 0.21.0 build=Release
+topology: packages=1 l3-groups=2 cores=3 threads=3
+bmQuiet                  iterations=      2000  real time/iter (ns)=    2.000  cpu time/iter (ns)=    1.000  overhead floor (ns)=   10.000  endpoint samples=2
+bmFamPlanted/threads:2   iterations=      4000  real time/iter (ns)=    2.000  cpu time/iter (ns)=    1.000  overhead floor (ns)=   20.000  endpoint samples=4
+  contexts=2  ctx0=SPIN/0@0/applied  ctx1=SPIN/1@1/applied
+jitter probe: cpus 2
+gapCount: 0
+gapsPerSecond: 0.00
+minNs: 0
+medianNs: 0
+meanNs: 0.00
+p90Ns: 0
+p99Ns: 0
+p999Ns: 0
+p9999Ns: 0
+maxNs: 0
+totalNs: 0
+totalPercent: 0.00
+runtimeNs: 0
+thresholdNs: 65000
+loopPeriodNs: 1
+droppedGaps: 0
+jitter: probe on cpus 2
+jitter: loop period 1 ns, threshold 65000 ns
+jitter: cpu 2 kept 0 dropped 0
+jitter: split and percentiles use the kept gaps only
+jitter: skipped L3 group(s) 1
