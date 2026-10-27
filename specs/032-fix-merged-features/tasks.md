@@ -118,13 +118,13 @@ records (spec.md, User Story 3).
 
 ### Tests for User Story 3 (written first, seen failing, same commit as the fix, FR-055)
 
-- [ ] T027 [US3] Write the failing ambient-value tests in `test/source/harness_hunt_cli_test.cpp`, one per variable: `SPEEDGUN_COUNTER`, `SPEEDGUN_METRIC`, `SPEEDGUN_PLACEMENT` each stop a hunt with exit 2 and one quoted line that names the source; the child receives the variable through its environment array, not `setenv` (D-07, FR-034, FR-056)
-- [ ] T028 [US3] Write the failing combination test in `test/source/harness_hunt_cli_test.cpp` and the report check in `test/source/harness_hunt_json_test.cpp`: `--hunt` with `--jitter-probe` completes and the report carries both the hunt and the jitter records (D-08, FR-035)
+- [x] T027 [US3] Write the failing ambient-value tests in `test/source/harness_hunt_cli_test.cpp`, one per variable: `SPEEDGUN_COUNTER`, `SPEEDGUN_METRIC`, `SPEEDGUN_PLACEMENT` each stop a hunt with exit 2 and one quoted line that names the source; the child receives the variable through its environment array, not `setenv` (D-07, FR-034, FR-056)
+- [x] T028 [US3] Write the failing combination test in `test/source/harness_hunt_cli_test.cpp` and the report check in `test/source/harness_hunt_json_test.cpp`: `--hunt` with `--jitter-probe` completes and the report carries both the hunt and the jitter records (D-08, FR-035)
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] Make the ambient-value block stand in the hunt parse path `source/harness/hunt_cli.cpp` and `source/harness/options.cpp` own: the run stops on the first ambient variable it reads and the line names that source; more than one stops on the first (D-07, Edge Cases); ship with T027 in one commit
-- [ ] T030 [US3] Support `--hunt` with `--jitter-probe` end to end, add the docs row to `docs/pages/harness.md`, and ship with T028 in one commit (D-08, FR-035)
+- [x] T029 [US3] Make the ambient-value block stand in the hunt parse path `source/harness/hunt_cli.cpp` and `source/harness/options.cpp` own: the run stops on the first ambient variable it reads and the line names that source; more than one stops on the first (D-07, Edge Cases); ship with T027 in one commit
+- [x] T030 [US3] Support `--hunt` with `--jitter-probe` end to end, add the docs row to `docs/pages/harness.md`, and ship with T028 in one commit (D-08, FR-035)
 - [ ] T031 [P] [US3] Confirm the hunt's first pass carries no retry, against master, and record the evidence in `results/record.md` (D-10, FR-037, PC-9)
 - [ ] T032 [P] [US3] Record the seam-publicity evidence in `results/record.md`: the `FakeProvider` open-failure seam stays public in the counters archive and the archive `SOVERSION` stays `4` (D-11, FR-038)
 - [ ] T033 [P] [US3] Confirm internal flag parameters use options structures and contract-only helpers carry `[[maybe_unused]]`, at the sites PR 47 P-5 and P-8 name, and record the evidence (FR-039, FR-040)
@@ -139,7 +139,7 @@ records (spec.md, User Story 3).
 - [ ] T042 [P] [US3] Give the `ABSENT` relabel abort its test (review B 20, FR-048)
 - [ ] T043 [P] [US3] Close the real-PMU test item against the host's catalog (`source/harness/catalog.cpp` and the pmu events it embeds), or name the gap in the pull request (review B 21, FR-049)
 - [ ] T044 [P] [US3] Give the `--hunt-noise` grammar its tests (review B 22, FR-050)
-- [ ] T045 [P] [US3] Give a failing device lookup its test in `test/source/harness_hunt_cli_test.cpp` (review B 23, FR-051)
+- [x] T045 [P] [US3] Give a failing device lookup its test in `test/source/harness_hunt_cli_test.cpp` (review B 23, FR-051)
 - [ ] T046 [US3] Extend the counter refusals to every source with tests in `test/source/harness_hunt_cli_test.cpp` and the counters tests: an unresolvable `--counter` address exits 2 from every source, including a valid PMU path this host lacks, and an uncountable leaf exits 2 (D-05, D-06, FR-032, FR-033)
 
 **Checkpoint**: The hunt refuses ambient interference from every
