@@ -173,3 +173,23 @@ hash the branch cuts from; the local measurements stand in
   command line, the environment (`SPEEDGUN_COUNTER`), and the option
   file beside it, each one line and status 2; a valid PMU path this
   host lacks routes to FR-049's named gap.
+
+## US6: the requirement language (T056 to T058)
+
+- T056: the five named targets stand rewritten: the ruling sentence of
+  `specs/028-full-command-line/spec.md:1127` states the two statuses and
+  how they read together; the Decisions intro of
+  `specs/029-hunter-core/spec.md` names no person and no date; the three
+  lines of `plan-review-2.md` state the rule the finding holds.
+- T057: the scan over the 130 files `git diff --name-only fea69c5
+  4f701ae` names carries no person's name, no host name and no
+  acceptance wording in prose. The owner placeholder of
+  `.github/workflows/ci.yml` and the `HOMEPAGE_URL` of `CMakeLists.txt`
+  are functional values the file boundary keeps: `LICENSE`,
+  `CODEOWNERS` and `CMakeLists.txt` stay untouched (FR-024), and the CI
+  file boundary of FR-059 keeps the workflow.
+- T058: the two comments of `cmake/coverage.cmake` state what the code
+  does: the keep-set patterns name the lines of the replaced count arm,
+  match no line of code today, and stand until the approval that
+  removes them; the `brace` rule names the gcc record and no person, no
+  decision record and no host.
