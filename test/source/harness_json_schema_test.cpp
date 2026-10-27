@@ -115,6 +115,20 @@ auto plantedDisagreementsAreNamedByPointer() -> void
     }
   }
 
+  // FR-017, D-14: a hand-edited document whose root is no object stands
+  // refused beside the duplicate scan: the scan reads the pairs of an
+  // object and answers nothing for an array root, and the kind refusal
+  // names the disagreement the schema states.
+  const auto nonObject =
+      sg::detail::checkReport(SG_SCHEMA_PATH, std::string("[]"));
+  check(!nonObject.has_value(),
+        "a document whose root is an array stands refused (FR-017)");
+  if (!nonObject.has_value()) {
+    check(nonObject.error().find("kind") != std::string::npos
+              || nonObject.error().find("object") != std::string::npos,
+          "the refusal names the kind the root carries (FR-017)");
+  }
+
   // FR-017: the schema document stands beside the report document: a
   // copy of the schema that carries one key twice stands refused, and
   // the schema as it stands names every top-level key once, so the
