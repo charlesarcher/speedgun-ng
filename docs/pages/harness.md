@@ -1517,7 +1517,7 @@ existed.
 
 <!-- sg-sample-output: example/docs/hunt_rank.expected#report -->
 ```text
-speedgun-ng 0.19.0 build=Release
+speedgun-ng 0.20.1 build=Release
 bmHunt/8                 iterations= 262004939  real time/iter (ns)=    2.677  cpu time/iter (ns)=    2.672  overhead floor (ns)=  671.000  endpoint samples=2
 bmHunt/64                iterations=  32779693  real time/iter (ns)=   21.392  cpu time/iter (ns)=   21.357  overhead floor (ns)=  671.000  endpoint samples=2
 hunt: plan events=5 passes=3 method=PASSES estimate=not available budget=none

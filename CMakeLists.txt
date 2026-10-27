@@ -12,7 +12,7 @@ project(
     # these minors takes the next free minor in its place, and no other
     # number in this file moves for it (PD-20). specs/027 took 0.19.0 on
     # master first, so this feature takes 0.20.0.
-    VERSION 0.20.0
+    VERSION 0.20.1
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
