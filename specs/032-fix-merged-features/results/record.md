@@ -298,3 +298,25 @@ hash the branch cuts from; the local measurements stand in
 - T073: the validation guide ran end to end: the daily loop, the
   behavior checks of the probe, the hunt, the compare table and the
   schema, and the coverage gates beside them.
+
+## The coverage proof (T059, T060, T062, T064)
+
+- T060 (FR-052, SC-002): the trace of the coverage build reads 100.0
+  percent lines (11978 of 11978), with no unhit line in any
+  application file: `detail/hunt_selection.hpp` and the glob star arm
+  stand covered through real inputs, no code shaped to move a count.
+- T059 (FR-031, D-13): the branch shortfall stands at 18 rows, within
+  the D-14 recorded allowance of 19, and the trace carries no
+  exception-cleanup side that the compiler the coverage job uses (the
+  host's lcov 2.6 over GCC 16.2.1) proved without a test. The zero
+  list stands: the four `--omit-lines` patterns of the count arm
+  (`const auto count = onlineCpuCount\(\)`, the `reserve`, the `for`
+  and the `push_back`) match no line of code since the affinity-mask
+  fallback replaced the arm, and lcov 2.6 answers the `unused` error
+  class over each of them, so the standing keep-set holds the gate
+  open on this host until the approval D-12 names. The
+  `cpus.empty()` pattern and the `SG_` macro pattern stay live.
+- T062 (SC-004): the suite passes under `taskset -c 0,1` and the
+  standing CI covers the rest.
+- T064 (FR-061): each figure in this record comes from the local run
+  named beside it; the pushed head's run stands owed to the push.
