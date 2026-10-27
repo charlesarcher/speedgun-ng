@@ -982,6 +982,11 @@ auto speedgunMain(int argc, char** argv) -> int
   // probe's own states for a family the handle named, the batch probe's
   // for every other, and none for a fit row.
   std::vector<const std::vector<detail::ProbeCpuState>*> resultProbes;
+  // The record of the hunt each entry answered, beside the buffers
+  // above: the deferred print of a probed run reads it, so the hunt
+  // block the console prints behind the join edge is the block the
+  // immediate print of an unprobed run prints (D-08, FR-035).
+  std::vector<std::optional<hunt::RunHunt>> entryHuntRecords;
   // R-08, R-04: a probed run prints its benchmark tables behind the join
   // edge, so the per-benchmark attribution line reads the folds the
   // split fills after the stop; the printed order keeps the order the
@@ -1060,6 +1065,7 @@ auto speedgunMain(int argc, char** argv) -> int
         report.results.push_back(*fit);
         entryWindows.emplace_back();
         resultProbes.push_back(nullptr);
+        entryHuntRecords.emplace_back();
         // FR-002: a fit stands as its own entry of the document, beside
         // the entries of the runs it summarizes.
         report.rowRaw.emplace_back();
@@ -1205,6 +1211,7 @@ auto speedgunMain(int argc, char** argv) -> int
       if (!consoleDeferred) {
         detail::printResult(report.results.back(), runRecord);
       }
+      entryHuntRecords.push_back(std::move(runRecord));
     }
     // FR-015: the family's probe stops after the family's last
     // instance in the walk, outside the timed windows (FR-006). A
@@ -1275,6 +1282,7 @@ auto speedgunMain(int argc, char** argv) -> int
       report.results.push_back(row->result);
       entryWindows.push_back(std::move(row->windows));
       resultProbes.push_back(row->states);
+      entryHuntRecords.push_back(row->hunt);
       report.rowRaw.push_back(row->raw);
       report.contextRaw.push_back(row->contextRaw);
       if (endsFamily(index)) {
@@ -1288,6 +1296,7 @@ auto speedgunMain(int argc, char** argv) -> int
           // states - the split reads one pointer per entry, and the
           // held rows' pointers stand ahead of it (FR-022, E-06).
           resultProbes.push_back(nullptr);
+          entryHuntRecords.emplace_back();
           report.rowRaw.emplace_back();
           report.contextRaw.emplace_back();
         }
@@ -1305,6 +1314,7 @@ auto speedgunMain(int argc, char** argv) -> int
     report.results.push_back(*fit);
     entryWindows.emplace_back();
     resultProbes.push_back(nullptr);
+    entryHuntRecords.emplace_back();
     report.rowRaw.emplace_back();
     report.contextRaw.emplace_back();
   }
@@ -1344,8 +1354,8 @@ auto speedgunMain(int argc, char** argv) -> int
   // R-08: the benchmark tables print here, behind the join edge, in
   // the order the batch pushed them.
   if (consoleDeferred) {
-    for (const auto& stored : report.results) {
-      detail::printResult(stored);
+    for (std::size_t index = 0; index < report.results.size(); ++index) {
+      detail::printResult(report.results.at(index), entryHuntRecords.at(index));
     }
   }
 
