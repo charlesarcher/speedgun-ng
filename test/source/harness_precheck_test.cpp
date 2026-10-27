@@ -12,8 +12,10 @@
 // come from the fake files (FR-011, VI).
 // ============================================================================
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <sstream>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -23,6 +25,7 @@
 #include <vector>
 
 #include <sched.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "detail/internal.hpp"
@@ -171,12 +174,17 @@ auto scriptedProvider() -> sg::counters::FakeProvider&
   {
     auto owned = std::make_unique<sg::counters::FakeProvider>();
     auto& ref = *owned;
+    ref.addCounter("machine", "monotonic", "nanoseconds", "wall clock");
+    ref.setPoints("machine", "monotonic", {0}, 4000);
+    ref.addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
+    ref.setPoints("machine", "thread_cpu", {0}, 2000);
     ref.addCounter("machine",
                    "tsc",
                    "none",
                    "raw tick counter",
                    sg::counters::Availability::COUNTABLE,
                    sg::counters::ReadMode::FAST_TSC);
+    ref.setPoints("machine", "tsc", {0}, 1);
     const auto registered =
         sg::counters::System::local().registerProvider(std::move(owned));
     check(registered.has_value(), "the scripted provider registers (R-02)");
@@ -207,11 +215,93 @@ auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
   return cpus;
 }
 
+// The benchmark the full-run refusal scenario pins: more than one
+// context and a preset, the planned-cpu rule's own shape (T011, the
+// plannedCpusOf rule of specs/027).
+auto bmPinned(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+
 }  // namespace
 
-auto main() -> int
+// T011: the exec'd child of the full-run refusal scenario: the layout
+// install stands before the child's own first layout read, so the
+// cached read answers the install, and the run's refusal stands the
+// exit status the parent checks (T011, FR-014).
+auto runStrictRefusalChild() -> int
+{
+  cpu_set_t held {};
+  CPU_ZERO(&held);
+  if (sched_getaffinity(0, sizeof(held), &held) != 0) {
+    fail("the process affinity mask is unreadable (FR-021)");
+  }
+  std::vector<std::uint32_t> maskCpus;
+  for (std::size_t index = 0; index < CPU_SETSIZE && maskCpus.size() < 4;
+       ++index)
+  {
+    if (CPU_ISSET(index, &held) != 0) {
+      maskCpus.push_back(static_cast<std::uint32_t>(index));
+    }
+  }
+  check(maskCpus.size() == 4,
+        "the mask holds the four cpus the scenario asks for (FR-021)");
+  sg::detail::MachineLayout machine;
+  machine.readable = true;
+  machine.packages = 1;
+  for (std::uint32_t core = 0; core < 4; ++core) {
+    sg::detail::LayoutCore layoutCore;
+    layoutCore.groupOrdinal = core / 2;
+    sg::detail::LayoutThread thread;
+    thread.cpuIndex = maskCpus.at(core);
+    thread.coreOrdinal = core;
+    thread.groupOrdinal = core / 2;
+    layoutCore.threads.push_back(maskCpus.at(core));
+    machine.threads.push_back(thread);
+    machine.mask.push_back(maskCpus.at(core));
+    machine.cores.push_back(layoutCore);
+  }
+  for (std::uint32_t group = 0; group < 2; ++group) {
+    sg::detail::LayoutGroup layoutGroup;
+    layoutGroup.lowestCpu = maskCpus.at(group * 2);
+    layoutGroup.cores = {group * 2U, group * 2U + 1U};
+    machine.groups.push_back(layoutGroup);
+  }
+  sg::detail::installTestLayout(machine);
+  auto handle = sg::registerBenchmark(&bmPinned, "bmPinned");
+  handle.threads(2).placement("l3");
+  sg::detail::installTestReader(std::make_unique<SerialProbeReader>());
+  if (std::freopen("harness_precheck_refusal_out.txt", "w", stdout) == nullptr
+      || std::freopen("harness_precheck_refusal_err.txt", "w", stderr)
+          == nullptr)
+  {
+    return 1;
+  }
+  const std::vector<std::string> arguments {
+      "--filter=bmPinned",
+      "--repetitions=1",
+      "--iterations=2",
+      "--jitter-probe=idle,mode=precheck,strict"};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_precheck_test"));
+  for (const auto& argument : arguments) {
+    argv.push_back(const_cast<char*>(argument.c_str()));
+  }
+  const int status =
+      sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+  std::fflush(stdout);
+  std::fflush(stderr);
+  return status;
+}
+
+auto main(int argc, char** argv) -> int
 {
   scriptedProvider();
+  if (argc > 1 && std::string(argv[1]) == "strict-refusal") {
+    return runStrictRefusalChild();
+  }
   // T009, FR-009, R-06: the serial shape re-reads the jump as its own
   // baseline, so neither cpu keeps the gap; the parallel shape keeps
   // one gap per cpu (the standing shape, re-pinned beside the serial
@@ -251,7 +341,108 @@ auto main() -> int
     }
   }
 
-  // T007, FR-010, R-01: the measured set carries the planned cpus
+  // T011, FR-014, FR-015, R-05: the noisy rule stands one function
+  // over the joined states and the planned list: a planned cpu stands
+  // noisy when its pre-check window kept at least one above-threshold
+  // gap, and a cpu the planned list does not name never stands in the
+  // answer.
+  {
+    const auto cpus = pickCpus(2);
+    sg::JitterProbeOptions options;
+    options.cpus = cpus;
+    options.mode = sg::JitterProbeMode::PRECHECK;
+    options.precheckMs = 1;
+    sg::detail::installTestReader(std::make_unique<SerialProbeReader>());
+    sg::detail::JitterProbe probe(options);
+    probe.start();
+    sg::detail::installTestReader(nullptr);
+    const auto noisy =
+        sg::detail::precheckNoisyCpus(probe.states(), cpus);
+    check(noisy == cpus,
+          "the parallel window stands both planned cpus noisy (FR-014)");
+    const auto one = sg::detail::precheckNoisyCpus(
+        probe.states(), std::vector<std::uint32_t> {cpus.at(1)});
+    check(one == std::vector<std::uint32_t> {cpus.at(1)},
+          "a cpu the planned list does not name stands no candidate "
+          "noise (FR-015)");
+    const auto none = sg::detail::precheckNoisyCpus(
+        probe.states(), std::vector<std::uint32_t> {});
+    check(none.empty(),
+          "a planned list that names no cpu stands none noisy (FR-014)");
+  }
+  {
+    const auto cpus = pickCpus(2);
+    sg::JitterProbeOptions options;
+    options.cpus = cpus;
+    options.mode = sg::JitterProbeMode::PRECHECK;
+    options.precheckMs = 1;
+    options.precheckSerial = true;
+    sg::detail::installTestReader(std::make_unique<SerialProbeReader>());
+    sg::detail::JitterProbe probe(options);
+    probe.start();
+    sg::detail::installTestReader(nullptr);
+    const auto noisy =
+        sg::detail::precheckNoisyCpus(probe.states(), cpus);
+    check(noisy.empty(),
+          "the serial window stands no planned cpu noisy (FR-014, R-06)");
+  }
+
+  // T011, FR-014: the full-run refusal: a strict run whose planned cpu
+  // stands noisy stops before any benchmark starts, one line on
+  // standard error naming the option and the cpu, the pre-check block
+  // unprinted. The scenario runs on a mask that holds the four cpus
+  // the synthetic layout names, the standing skip the small-mask
+  // hosts take (FR-021).
+  {
+    cpu_set_t held {};
+    CPU_ZERO(&held);
+    check(sched_getaffinity(0, sizeof(held), &held) == 0,
+          "the process affinity mask is readable (FR-021)");
+    if (CPU_COUNT(&held) < 4) {
+      std::printf("the full-run refusal scenario: SKIPPED (the mask "
+                  "holds fewer than four cpus)\n");
+    } else {
+      // The scenario runs in a fresh exec of this binary: layout()
+      // caches the read once per process, and the parent's scenarios
+      // read the host layout before this one stands installed, so the
+      // exec'd child installs its layout before its own first read,
+      // the pattern harness_jitter_cli_test.cpp carries (T011).
+      const std::string outPath = "harness_precheck_refusal_out.txt";
+      const std::string errPath = "harness_precheck_refusal_err.txt";
+      const pid_t pid = fork();
+      check(pid >= 0, "the fork stands (T011)");
+      if (pid == 0) {
+        const auto self = std::filesystem::path("/proc/self/exe");
+        std::vector<char*> childArgv {const_cast<char*>(self.c_str()),
+                                      const_cast<char*>("strict-refusal"),
+                                      nullptr};
+        execv(self.c_str(), childArgv.data());
+        std::_Exit(127);
+      }
+      int childStatus = 0;
+      waitpid(pid, &childStatus, 0);
+      check(WIFEXITED(childStatus) && WEXITSTATUS(childStatus) == 2,
+            "the strict refusal exits 2 before any benchmark (FR-014)");
+      auto read = [](const std::string& path)
+      {
+        std::ifstream file(path);
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        std::remove(path.c_str());
+        return buffer.str();
+      };
+      const auto refusalOut = read(outPath);
+      const auto refusalErr = read(errPath);
+      check(std::count(refusalErr.begin(), refusalErr.end(), '\n') == 1,
+            "the strict refusal stands one line (FR-014)");
+      check(refusalErr.find("--jitter-probe: cpu ") == 0,
+            "the refusal names the option and the cpu (FR-014)");
+      check(refusalOut.find("bmPinned") == std::string::npos,
+            "no benchmark row prints beside the refusal (FR-014)");
+    }
+  }
+
+  // T007, FR-010, R-01: the measured set carries the planned cpus// T007, FR-010, R-01: the measured set carries the planned cpus
   // ascending, then the candidates ascending, the candidates the
   // standing idle resolution takes over the plans; a skipped group
   // stands carried beside (T007, FR-010, R-01).

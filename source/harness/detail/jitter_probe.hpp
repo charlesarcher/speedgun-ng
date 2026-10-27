@@ -176,6 +176,21 @@ struct MachineLayout;
                                        std::vector<std::uint32_t> planned)
     -> PrecheckMeasuredSet;
 
+/// @brief specs/034 R-05: the noisy planned cpus of one pre-check run:
+/// a planned cpu stands noisy when its pre-check window kept at least
+/// one above-threshold gap, the standing threshold rule's own record
+/// (FR-012, FR-014); a cpu the planned list does not name stands a
+/// candidate, and a candidate never stands in the answer (FR-015).
+///
+/// \pre every state of `states` stands joined (R-04)
+/// \post the answer carries the planned cpus ascending, each one a
+///       cpu of `states` whose kept gap count stands above zero, and
+///       no cpu twice
+[[nodiscard]] auto precheckNoisyCpus(
+    const std::vector<ProbeCpuState>& states,
+    const std::vector<std::uint32_t>& plannedCpus)
+    -> std::vector<std::uint32_t>;
+
 }  // namespace sg::detail
 
 #endif

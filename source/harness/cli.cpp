@@ -777,20 +777,27 @@ auto speedgunMain(int argc, char** argv) -> int
       options.jitterProbe.has_value() && familyProbes.empty();
   if (batchProbed) {
     probeCpus = options.jitterProbe->cpus;
+    // specs/034 FR-014: the planned cpus stand beside the probe's own,
+    // the noisy rule's planned list (R-05).
+    std::vector<std::uint32_t> planned;
     if (probeCpus.empty()) {
       // D-4, R-07: the idle resolution runs against the selected
       // instances' plans before the batch starts.
-      std::vector<std::uint32_t> planned =
-          detail::plannedCpusOf(selected, detail::layout());
+      planned = detail::plannedCpusOf(selected, detail::layout());
       if (options.jitterProbe->mode == JitterProbeMode::PRECHECK) {
         // FR-006, R-10: no probe thread runs beside a benchmark in the
         // precheck mode - start() returns only after every pre-check
-        // phase ends - so the planned cpus stand as the probe's own and
-        // no group stands skipped (D-4, R-07).
+        // phase ends - so the planned cpus stand as the probe's own.
+        // specs/034 R-01: the measured set adds the candidates the
+        // idle resolution takes over the plans, and the skipped
+        // groups stand carried beside (FR-010).
         std::ranges::sort(planned);
         planned.erase(std::unique(planned.begin(), planned.end()),
                       planned.end());
-        probeCpus = std::move(planned);
+        const auto measured =
+            detail::precheckMeasuredSet(detail::layout(), planned);
+        probeCpus = measured.cpus;
+        skippedGroups = measured.skippedGroups;
       } else {
         const auto idle = detail::resolveIdleCpus(detail::layout(), planned);
         probeCpus = idle.cpus;
@@ -829,6 +836,32 @@ auto speedgunMain(int argc, char** argv) -> int
       }
       jitterUnavailable = true;
     } else {
+      // specs/034 FR-014, FR-015, R-05: in strict mode a noisy planned
+      // cpu stops the batch before any benchmark starts: one line
+      // naming the cpu and the two figures, exit status 2; a cpu the
+      // planned list does not name stands a candidate, and a candidate
+      // never refuses.
+      if (options.jitterProbe->mode == JitterProbeMode::PRECHECK
+          && options.jitterProbe->strict) {
+        const auto noisy = detail::precheckNoisyCpus(
+            jitterProbe->states(), planned);
+        if (!noisy.empty()) {
+          const auto found = std::ranges::find_if(
+              jitterProbe->states(),
+              [&](const detail::ProbeCpuState& probeState)
+              { return probeState.cpu == noisy.front(); });
+          const auto fold = detail::gapStatsOf(*found);
+          std::fprintf(
+              stderr,
+              "--jitter-probe: cpu %u is noisy: gapsPerSecond %.2f "
+              "maxNs %llu\n",
+              found->cpu,
+              fold.gapsPerSecond,
+              static_cast<unsigned long long>(fold.maxNs));
+          jitterProbe->stopAndJoin();
+          return 2;
+        }
+      }
       // FR-018, D-3, R-10: the overlap check binds the alongside
       // phase; the precheck mode allows every overlap, and in `both`
       // the pre-check phase began with the start, before the stop
