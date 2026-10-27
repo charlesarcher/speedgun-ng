@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <expected>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -1728,6 +1729,27 @@ auto checkNode(const SchemaNode& node,
   return {};
 }
 
+// FR-017: the first key that stands twice in one object, nothing when
+// none does: the parser's lookup keeps the last of a duplicated key, so
+// the count reads the pairs the tape carries, duplicates and all, and a
+// hand-edited document or schema that carries one key twice stands
+// refused before the walk.
+auto firstDuplicateKey(const simdjson::dom::element& root)
+    -> std::optional<std::string>
+{
+  simdjson::dom::object object;
+  if (root.get(object) != simdjson::SUCCESS) {
+    return std::nullopt;
+  }
+  std::set<std::string_view> seen;
+  for (auto [key, value] : object) {
+    if (!seen.insert(key).second) {
+      return std::string(key);
+    }
+  }
+  return std::nullopt;
+}
+
 }  // namespace
 
 namespace detail
@@ -1749,6 +1771,12 @@ auto checkReport(std::string_view schemaPath,
         "the schema file '" + detail::quotedText(std::string(schemaPath))
         + "' holds no JSON the parser reads: " + simdjson::error_message(code));
   }
+  if (const auto duplicate = firstDuplicateKey(schemaRoot);
+      duplicate.has_value())
+  {
+    return std::unexpected("/" + *duplicate
+                           + ": the key stands twice in the schema object");
+  }
   auto root = parseSchema(schemaRoot, "");
   if (!root.has_value()) {
     return std::unexpected(root.error());
@@ -1761,6 +1789,12 @@ auto checkReport(std::string_view schemaPath,
     return std::unexpected(
         std::string("the written document holds no JSON the parser reads: ")
         + simdjson::error_message(code));
+  }
+  if (const auto duplicate = firstDuplicateKey(documentRoot);
+      duplicate.has_value())
+  {
+    return std::unexpected("/" + *duplicate
+                           + ": the key stands twice in the object");
   }
   return checkNode(*root, documentRoot, "");
 }

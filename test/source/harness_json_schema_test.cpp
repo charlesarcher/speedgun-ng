@@ -80,6 +80,11 @@ auto plantedDisagreementsAreNamedByPointer() -> void
   std::string badEnum = text;
   badEnum.replace(
       badEnum.find("\"outcome\":\"MEASURED\"") + 10, 10, "\"measured\"");
+  // FR-017: a hand-edited document that carries one key twice stands
+  // refused: the parser's lookup keeps the last, so the duplicate rides
+  // the pairs the tape carries and the pointer names the key.
+  std::string twice = text;
+  twice.replace(twice.find('{') + 1, 0, "\"schemaVersion\":\"1.5\",");
 
   for (const Plant& plant : {
            Plant {std::move(missing),
@@ -97,6 +102,9 @@ auto plantedDisagreementsAreNamedByPointer() -> void
            Plant {std::move(badEnum),
                   "an enum spelling outside its list",
                   "/benchmarks/0/outcome"},
+           Plant {std::move(twice),
+                  "a key that stands twice in one object",
+                  "/schemaVersion"},
        })
   {
     const auto answer = sg::detail::checkReport(SG_SCHEMA_PATH, plant.text);
@@ -105,6 +113,26 @@ auto plantedDisagreementsAreNamedByPointer() -> void
       check(answer.error().find(plant.pointer) != std::string::npos,
             "the message names the JSON pointer of the disagreement");
     }
+  }
+
+  // FR-017: the schema document stands beside the report document: a
+  // copy of the schema that carries one key twice stands refused, and
+  // the schema as it stands names every top-level key once, so the
+  // x-order list stands read once.
+  const std::string schemaText = sg::test::readText(SG_SCHEMA_PATH);
+  const auto keyAt = schemaText.find("\"x-order\"");
+  check(keyAt != std::string::npos, "the schema states the key order");
+  const auto keyEnd = schemaText.find(']', keyAt) + 1;
+  std::string twiceOrder = schemaText;
+  twiceOrder.insert(keyAt, schemaText.substr(keyAt, keyEnd - keyAt) + ",");
+  sg::test::writeText("harness_json_schema_dup.json", twiceOrder);
+  const auto doubled =
+      sg::detail::checkReport("harness_json_schema_dup.json", text);
+  check(!doubled.has_value(),
+        "a schema that carries one key twice stands refused (FR-017)");
+  if (!doubled.has_value()) {
+    check(doubled.error().find("/x-order") != std::string::npos,
+          "the schema refusal names the duplicated key (FR-017)");
   }
 }
 
