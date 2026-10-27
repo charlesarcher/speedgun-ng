@@ -114,7 +114,7 @@
               <span class="m-doc-wrap-bumper">static <a href="structsg_1_1PlacementSlot.html" class="m-doc">PlacementSlot</a> sg::<wbr />PlacementSlot::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ae03b9c3bb1bedf1f12f467cbe2c3bb67" class="m-doc-self">cpu</a>(</span><span class="m-doc-wrap">std::uint32_t index)</span></span>
             </h3>
             <p>The slot that names cpu <code>index</code> (FR-005).</p>
-<p>The host check for that index belongs to the context that applies the slot, where the online cpu count stands (FR-005, SC-05).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+<p>The host check for that index belongs to the context that applies the slot: the index must stand in the online cpu set, the set the kernel owns, gaps and all (FR-005, SC-05, specs/027 FR-044).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
         </section>
       </div>

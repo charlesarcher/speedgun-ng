@@ -89,6 +89,8 @@
             <dd><span></span></dd>
             <dt>namespace <a href="namespacesg_1_1dbc.html" class="m-doc">dbc</a></dt>
             <dd><span></span></dd>
+            <dt>namespace <a href="namespacesg_1_1hunt.html" class="m-doc">hunt</a></dt>
+            <dd><span></span></dd>
           </dl>
         </section>
         <section id="nested-classes">
@@ -127,9 +129,17 @@
             </dt>
             <dd>The policy disclosure of one context of a threaded run (E-07, FR-025).</dd>
             <dt>
-              struct <a href="structsg_1_1BenchmarkResult.html" class="m-doc">BenchmarkResult</a>
+              struct <a href="structsg_1_1JitterStats.html" class="m-doc">JitterStats</a>
             </dt>
             <dd>The C++ value the harness exposes for one benchmark; the console report formats it and adds nothing to it (FR-036, E-07).</dd>
+            <dt>
+              struct <a href="structsg_1_1JitterEntryFold.html" class="m-doc">JitterEntryFold</a>
+            </dt>
+            <dd>One probe cpu&#x27;s fold over one benchmark&#x27;s timed windows (E-08): the cpu index and the fold the split placed into them. A probe cpu whose kept gaps landed inside no window of the benchmark carries no entry here (E-06, FR-021). The split reads the probe&#x27;s buffers only after the probe contexts are joined (R-04).</dd>
+            <dt>
+              struct <a href="structsg_1_1BenchmarkResult.html" class="m-doc">BenchmarkResult</a>
+            </dt>
+            <dd><span></span></dd>
             <dt>
               struct <a href="structsg_1_1RowRaw.html" class="m-doc">RowRaw</a>
             </dt>
@@ -174,6 +184,10 @@
               class <a href="classsg_1_1ThreadRun.html" class="m-doc">ThreadRun</a>
             </dt>
             <dd>The harness-owned view of one threaded attempt and the contexts it runs on (FR-021, E-08).</dd>
+            <dt>
+              struct <a href="structsg_1_1JitterProbeOptions.html" class="m-doc">JitterProbeOptions</a>
+            </dt>
+            <dd>The one argument of every jitter probe entry point (FR-003, FR-015).</dd>
             <dt>
               class <a href="classsg_1_1BenchmarkHandle.html" class="m-doc">BenchmarkHandle</a>
             </dt>
@@ -279,7 +293,8 @@
             <dd>The curve class a complexity fit tries or keeps (FR-019, FR-020).</dd>
             <dt>
               <span class="m-doc-wrap-bumper">enum class <a href="#ad626a5f80441d08b1733d4e34d0e731c" class="m-doc">RawContent</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#ad626a5f80441d08b1733d4e34d0e731cab50339a10e1de285ac99d4c3990b8693" class="m-doc">NONE</a>,
-              <a href="#ad626a5f80441d08b1733d4e34d0e731cafa1dcd12e09557b24430608a70572218" class="m-doc">CHUNKS</a> }</span>
+              <a href="#ad626a5f80441d08b1733d4e34d0e731cafa1dcd12e09557b24430608a70572218" class="m-doc">CHUNKS</a>,
+              <a href="#ad626a5f80441d08b1733d4e34d0e731cace4aeb5506e613ef645194eb0276c5b9" class="m-doc">GAPS</a> }</span>
             </dt>
             <dd>The chunk content a JSON report carries (specs/023 E-01, FR-029).</dd>
             <dt>
@@ -304,6 +319,12 @@
               <a href="#afb000a3c9ccd12370ccc57aa2a2f0584a93e5b7782f87c5eea64fc5c49f3e6ef6" class="m-doc">HIGHER_IS_BETTER</a> }</span>
             </dt>
             <dd>Which way of moving a value is worse (specs/026 E-05, FR-012).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#ad1de9d92c896b2ce4d1be9aaebc4ef75" class="m-doc">JitterProbeMode</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#ad1de9d92c896b2ce4d1be9aaebc4ef75a7d2a9226f54a4857a73c42fc1f444bcd" class="m-doc">ALONGSIDE</a>,
+              <a href="#ad1de9d92c896b2ce4d1be9aaebc4ef75aeaa329d17698d9b48b4f672bffe215d9" class="m-doc">PRECHECK</a>,
+              <a href="#ad1de9d92c896b2ce4d1be9aaebc4ef75a6328e5e3186c227a021ef2ff77e40197" class="m-doc">BOTH</a> }</span>
+            </dt>
+            <dd><span></span></dd>
             <dt>
               <span class="m-doc-wrap-bumper">enum class <a href="#aa3fb9e24a0f554081c7ed820b9d71565" class="m-doc">WaitMode</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#aa3fb9e24a0f554081c7ed820b9d71565a01518642fd172918ac4e6fa78bbb3164" class="m-doc">SPIN</a>,
               <a href="#aa3fb9e24a0f554081c7ed820b9d71565a18e25ac6cc28c2b91bce1fbe629b682a" class="m-doc">YIELD</a>,
@@ -372,6 +393,10 @@
               <span class="m-doc-wrap-bumper">auto <a href="#ac97304eea56cfacdf135350bf2e0835e" class="m-doc">reportsPerIteration</a>(</span><span class="m-doc-wrap">) -&gt; bool <span class="m-label m-flat m-primary">constexpr</span> <span class="m-label m-flat m-success">noexcept</span></span>
             </dt>
             <dd>True when a metric of dimension <code>D</code> reports per iteration: dimension events^1 or time^1 divides by N, every other dimension keeps its window value (FR-022).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a4824df1841aac05b762f3dd7f8b7e975" class="m-doc">runJitterProbe</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1JitterProbeOptions.html" class="m-doc">JitterProbeOptions</a>&amp; options) -&gt; void -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd><a href="classsg_1_1State.html" class="m-doc">State</a> the jitter probe options of the suite&#x27;s next run (FR-015).</dd>
             <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#ac39aadbb45ee71dc617798585bef459a" class="m-doc">createRange</a>(</span><span class="m-doc-wrap">std::int64_t low,
               std::int64_t high,
@@ -459,6 +484,26 @@
             </dt>
             <dd><span></span></dd>
             <dt>
+              std::uint64_t <a href="#ae099433d9670f3dd324775a85c854643" class="m-doc">kDefaultThresholdNs</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              std::uint32_t <a href="#a31aeb9053cad651432f7ffcf49f62aa4" class="m-doc">kDefaultGapCount</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              std::uint32_t <a href="#a4e8d81ad21296fe1bd9899836ce497a1" class="m-doc">kMinGapCount</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              std::uint32_t <a href="#ac064de62e99227190d9e8889e11dde4f" class="m-doc">kMaxGapCount</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              std::uint32_t <a href="#ab770566c40790960041f90ff72b5089e" class="m-doc">kDefaultPrecheckMs</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
               std::uint32_t <a href="#a9eba5764189804281c74c00259bbcbdc" class="m-doc">kNoPin</a> <span class="m-label m-flat m-primary">constexpr</span>
             </dt>
             <dd><span></span></dd>
@@ -538,7 +583,7 @@
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
             </h3>
             <p>The chunk content a JSON report carries (specs/023 E-01, FR-029).</p>
-<p><code>NONE</code> writes the ranks the run computed and no chunk value; <code>CHUNKS</code> writes the chunk values themselves beside them. <code>CHUNKS</code> also turns the chunk capture on for a run whose percentile output stands off, so the file can hold values the console never ranked (FR-020).</p>
+<p><code>NONE</code> writes the ranks the run computed and no chunk value; <code>CHUNKS</code> writes the chunk values themselves beside them. <code>CHUNKS</code> also turns the chunk capture on for a run whose percentile output stands off, so the file can hold values the console never ranked (FR-020). <code>GAPS</code> writes the kept gap records of the jitter probe beside the stats, and no chunk value (specs/027 FR-028).</p>
           </div></section>
           <section class="m-doc-details" id="aa737363ef961fe09cbb3aa011e11c751"><div>
             <h3>
@@ -562,6 +607,13 @@
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
             </h3>
             <p>Which way of moving a value is worse (specs/026 E-05, FR-012).</p>
+          </div></section>
+          <section class="m-doc-details" id="ad1de9d92c896b2ce4d1be9aaebc4ef75"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#ad1de9d92c896b2ce4d1be9aaebc4ef75" class="m-doc-self">JitterProbeMode</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
           </div></section>
           <section class="m-doc-details" id="aa3fb9e24a0f554081c7ed820b9d71565"><div>
             <h3>
@@ -675,6 +727,14 @@
             </h3>
             <p>True when a metric of dimension <code>D</code> reports per iteration: dimension events^1 or time^1 divides by N, every other dimension keeps its window value (FR-022).</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a4824df1841aac05b762f3dd7f8b7e975"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a4824df1841aac05b762f3dd7f8b7e975" class="m-doc-self">runJitterProbe</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1JitterProbeOptions.html" class="m-doc">JitterProbeOptions</a>&amp; options) -&gt; void</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><a href="classsg_1_1State.html" class="m-doc">State</a> the jitter probe options of the suite&#x27;s next run (FR-015).</p>
+<p>The options bind the suite the way the command-line option does. The availability rule of FR-037 binds the probe the run starts, whatever entry point configured it: the run discloses <code>not available</code> and continues with status 0, and <code>strict</code> stops it with status 2.</p><aside class="m-note m-success"><h4>Precondition</h4><p>the run has not started for any benchmark (E-02, FR-015)</p><p><code>options.cpus</code> carries the probe cpu request: an empty vector names the <code>idle</code> preset, and a non-empty vector names cpus inside the process affinity mask (FR-011, FR-016, D-4)</p><p><code>options</code> carries a <code>thresholdNs</code> value at or above 1 when the field carries one, <code>gapCount</code> inside the <code><a href="#a4e8d81ad21296fe1bd9899836ce497a1" class="m-doc">kMinGapCount</a></code> through <code><a href="#ac064de62e99227190d9e8889e11dde4f" class="m-doc">kMaxGapCount</a></code> range, and <code>precheckMs</code> at or above 1 (FR-008, FR-009, D-13)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the suite&#x27;s next run starts the probe before its first selected instance and stops, drains and joins it after the last, over these options (FR-006, R-01)</p><p>the option sources stand in order: the command line&#x27;s value, then the option file&#x27;s, then the suite call&#x27;s, each answering only where no higher source named the probe (FR-015, R-01)</p></aside>
           </div></section>
           <section class="m-doc-details" id="ac39aadbb45ee71dc617798585bef459a"><div>
             <h3>
@@ -823,6 +883,41 @@
           <section class="m-doc-details" id="a3823e5b619cb7813d3f6436d0040aa50"><div>
             <h3>
               std::size_t sg::<wbr /><a href="#a3823e5b619cb7813d3f6436d0040aa50" class="m-doc-self">kMaxCounterNameBytes</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="ae099433d9670f3dd324775a85c854643"><div>
+            <h3>
+              std::uint64_t sg::<wbr /><a href="#ae099433d9670f3dd324775a85c854643" class="m-doc-self">kDefaultThresholdNs</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="a31aeb9053cad651432f7ffcf49f62aa4"><div>
+            <h3>
+              std::uint32_t sg::<wbr /><a href="#a31aeb9053cad651432f7ffcf49f62aa4" class="m-doc-self">kDefaultGapCount</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="a4e8d81ad21296fe1bd9899836ce497a1"><div>
+            <h3>
+              std::uint32_t sg::<wbr /><a href="#a4e8d81ad21296fe1bd9899836ce497a1" class="m-doc-self">kMinGapCount</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="ac064de62e99227190d9e8889e11dde4f"><div>
+            <h3>
+              std::uint32_t sg::<wbr /><a href="#ac064de62e99227190d9e8889e11dde4f" class="m-doc-self">kMaxGapCount</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="ab770566c40790960041f90ff72b5089e"><div>
+            <h3>
+              std::uint32_t sg::<wbr /><a href="#ab770566c40790960041f90ff72b5089e" class="m-doc-self">kDefaultPrecheckMs</a> <span class="m-label m-primary">constexpr</span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>

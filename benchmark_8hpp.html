@@ -123,9 +123,17 @@
             </dt>
             <dd>The policy disclosure of one context of a threaded run (E-07, FR-025).</dd>
             <dt>
-              struct <a href="structsg_1_1BenchmarkResult.html" class="m-doc">sg::BenchmarkResult</a>
+              struct <a href="structsg_1_1JitterStats.html" class="m-doc">sg::JitterStats</a>
             </dt>
             <dd>The C++ value the harness exposes for one benchmark; the console report formats it and adds nothing to it (FR-036, E-07).</dd>
+            <dt>
+              struct <a href="structsg_1_1JitterEntryFold.html" class="m-doc">sg::JitterEntryFold</a>
+            </dt>
+            <dd>One probe cpu&#x27;s fold over one benchmark&#x27;s timed windows (E-08): the cpu index and the fold the split placed into them. A probe cpu whose kept gaps landed inside no window of the benchmark carries no entry here (E-06, FR-021). The split reads the probe&#x27;s buffers only after the probe contexts are joined (R-04).</dd>
+            <dt>
+              struct <a href="structsg_1_1BenchmarkResult.html" class="m-doc">sg::BenchmarkResult</a>
+            </dt>
+            <dd><span></span></dd>
             <dt>
               struct <a href="structsg_1_1RowRaw.html" class="m-doc">sg::RowRaw</a>
             </dt>
@@ -182,6 +190,10 @@
               class <a href="classsg_1_1ThreadRun.html" class="m-doc">sg::ThreadRun</a>
             </dt>
             <dd>The harness-owned view of one threaded attempt and the contexts it runs on (FR-021, E-08).</dd>
+            <dt>
+              struct <a href="structsg_1_1JitterProbeOptions.html" class="m-doc">sg::JitterProbeOptions</a>
+            </dt>
+            <dd>The one argument of every jitter probe entry point (FR-003, FR-015).</dd>
             <dt>
               class <a href="classsg_1_1BenchmarkHandle.html" class="m-doc">sg::BenchmarkHandle</a>
             </dt>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>sg::hunt::EventCatalog class | speedgun-ng</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
+  <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
+  <link rel="icon" href="favicon-dark.png" type="image/png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#22272e" />
+</head>
+<body>
+<header><nav id="navigation">
+  <div class="m-container">
+    <div class="m-row">
+      <a href="index.html" id="m-navbar-brand" class="m-col-t-8 m-col-m-none m-left-m">speedgun-ng</a>
+      <div class="m-col-t-4 m-hide-m m-text-right m-nopadr">
+        <a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+          <path id="m-doc-search-icon-path" d="m6 0c-3.31 0-6 2.69-6 6 0 3.31 2.69 6 6 6 1.49 0 2.85-0.541 3.89-1.44-0.0164 0.338 0.147 0.759 0.5 1.15l3.22 3.79c0.552 0.614 1.45 0.665 2 0.115 0.55-0.55 0.499-1.45-0.115-2l-3.79-3.22c-0.392-0.353-0.812-0.515-1.15-0.5 0.895-1.05 1.44-2.41 1.44-3.89 0-3.31-2.69-6-6-6zm0 1.56a4.44 4.44 0 0 1 4.44 4.44 4.44 4.44 0 0 1-4.44 4.44 4.44 4.44 0 0 1-4.44-4.44 4.44 4.44 0 0 1 4.44-4.44z"/>
+        </svg></a>
+        <a id="m-navbar-show" href="#navigation" title="Show navigation"></a>
+        <a id="m-navbar-hide" href="#" title="Hide navigation"></a>
+      </div>
+      <div id="m-navbar-collapse" class="m-col-t-12 m-show-m m-col-m-none m-right-m">
+        <div class="m-row">
+          <ol class="m-col-t-6 m-col-m-none">
+            <li>
+              <a href="pages.html">User guide</a>
+              <ol>
+                <li><a href="about.html">About</a></li>
+                <li><a href="md_docs_2pages_2building.html">Building speedgun-ng</a></li>
+                <li><a href="md_docs_2pages_2harness.html">The benchmark harness surface</a></li>
+              </ol>
+            </li>
+            <li>
+              <a href="pages.html">Internals</a>
+              <ol>
+                <li><a href="md_docs_2pages_2barrier-rule.html">The optimization barrier rule (015 FR-029, FR-030)</a></li>
+                <li><a href="md_docs_2pages_2counters-overhead.html">Counters sampling cost (SC-004, SC-010)</a></li>
+                <li><a href="md_docs_2pages_2dbc-migration.html">C++26 Contract Migration Mapping (SC-010)</a></li>
+                <li><a href="md_docs_2pages_2dbc-overhead.html">DBC checked-build overhead (SC-008)</a></li>
+                <li><a href="md_docs_2pages_2identifier-rename-map.html">Rename map</a></li>
+              </ol>
+            </li>
+            <li><a href="namespaces.html">Namespaces</a></li>
+          </ol>
+          <ol class="m-col-t-6 m-col-m-none" start="4">
+            <li><a href="annotated.html">Classes</a></li>
+            <li><a href="files.html">Files</a></li>
+            <li class="m-show-m"><a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+              <use href="#m-doc-search-icon-path" />
+            </svg></a></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav></header>
+<main><article>
+  <div class="m-container m-container-inflatable">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <h1>
+          <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span><span class="m-breadcrumb"><a href="namespacesg_1_1hunt.html">hunt</a>::<wbr/></span>EventCatalog <span class="m-thin">class</span>
+          <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="hunt_8hpp.html">&lt;speedgun-ng/hunt.hpp&gt;</a></div>
+        </h1>
+        <p>The selection of events a hunt run takes, expanded against the catalog (E-01).</p>
+        <nav class="m-block m-default">
+          <h3>Contents</h3>
+          <ul>
+            <li>
+              Reference
+              <ul>
+                <li><a href="#pub-static-methods">Public static functions</a></li>
+                <li><a href="#pub-methods">Public functions</a></li>
+              </ul>
+            </li>
+          </ul>
+        </nav>
+<p>One instance per hunt run. Discovery reads <code>System::local().object(&quot;machine&quot;)</code>, its <code>children()</code> and <code>Object::counters()</code>, the walk <code>catalog.cpp</code> already performs; no clock and no counter read enter this class (FR-003).</p><aside class="m-note m-success"><h4>Invariant</h4><p>the expansion stands empty until <code><a href="#a02227ba6bd040d5b10d0e1a9a599d3f1" class="m-doc">expand</a></code> answers no error, and a refused selection leaves it empty</p></aside>
+        <section id="pub-static-methods">
+          <h2><a href="#pub-static-methods">Public static functions</a></h2>
+          <dl class="m-doc">
+            <dt>
+              <span class="m-doc-wrap-bumper">static auto <a href="#a2fa523146f722b382d2a0aefddb0b5b4" class="m-doc">devicePart</a>(</span><span class="m-doc-wrap">std::string_view address) -&gt; std::string_view</span>
+            </dt>
+            <dd>The device part of one address, the text before the last <code>/</code> (E-01).</dd>
+          </dl>
+        </section>
+        <section id="pub-methods">
+          <h2><a href="#pub-methods">Public functions</a></h2>
+          <dl class="m-doc">
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a02227ba6bd040d5b10d0e1a9a599d3f1" class="m-doc">expand</a>(</span><span class="m-doc-wrap">std::string_view selection) -&gt; std::expected&lt;void, <a href="structsg_1_1counters_1_1Error.html" class="m-doc">counters::<wbr />Error</a>&gt;</span>
+            </dt>
+            <dd>Expands the selection text into the catalog addresses it selects, in catalog order.</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#aea333fc0aec28f9dc32410cdc39413e0" class="m-doc">addresses</a>(</span><span class="m-doc-wrap">) const -&gt; const std::vector&lt;std::string&gt;&amp;</span>
+            </dt>
+            <dd>The deduplicated selection in catalog order (E-01).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#aab6bea132cd533688a45517ccc34c754" class="m-doc">split</a>(</span><span class="m-doc-wrap">std::uint64_t seed) const -&gt; std::pair&lt;std::vector&lt;<a href="structsg_1_1hunt_1_1CatalogAddress.html" class="m-doc">CatalogAddress</a>&gt;, std::vector&lt;<a href="structsg_1_1hunt_1_1SkippedEvent.html" class="m-doc">SkippedEvent</a>&gt;&gt;</span>
+            </dt>
+            <dd>Splits the selection into the columns the plan seats and the entries discovery refused, under the seed shuffle of <code>--hunt-seed</code> (E-01, FR-002, FR-010, FR-014).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a905c8ad154d9e52a02c59bb029d942c1" class="m-doc">isCoreDevice</a>(</span><span class="m-doc-wrap">std::string_view address) const -&gt; bool</span>
+            </dt>
+            <dd>True when the device of one address is a core device (E-01, D-1).</dd>
+          </dl>
+        </section>
+        <section>
+          <h2>Function documentation</h2>
+          <section class="m-doc-details" id="a2fa523146f722b382d2a0aefddb0b5b4"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">static std::string_view sg::<wbr />hunt::<wbr />EventCatalog::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a2fa523146f722b382d2a0aefddb0b5b4" class="m-doc-self">devicePart</a>(</span><span class="m-doc-wrap">std::string_view address)</span></span>
+            </h3>
+            <p>The device part of one address, the text before the last <code>/</code> (E-01).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the answer is the text before the last <code>/</code>, or the whole address when it holds no <code>/</code>; <code>splitAddress</code> at <code>runner.cpp:39-47</code> answers the same way for the same spelling</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a02227ba6bd040d5b10d0e1a9a599d3f1"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">std::expected&lt;void, <a href="structsg_1_1counters_1_1Error.html" class="m-doc">counters::<wbr />Error</a>&gt; sg::<wbr />hunt::<wbr />EventCatalog::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a02227ba6bd040d5b10d0e1a9a599d3f1" class="m-doc-self">expand</a>(</span><span class="m-doc-wrap">std::string_view selection)</span></span>
+            </h3>
+            <p>Expands the selection text into the catalog addresses it selects, in catalog order.</p>
+<p>The text is what the option carried: <code>all</code>, one glob pattern, or a catalog address list whose entries are separated by commas, newlines or both; the text of an <code>@file</code> arrives as its address lines under the same separator rule. No shape of that text is a precondition, because a text outside the three answers a recoverable error naming the value (FR-004 to FR-006).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>on success <code><a href="#aea333fc0aec28f9dc32410cdc39413e0" class="m-doc">addresses()</a></code> holds the selected catalog addresses in catalog order, deduplicated by address, for <code>all</code> and the pattern in catalog-scan order and for a list in the order of the text; an unknown address, a pattern that matches nothing, an empty address line and a raw event code shaped <code>r[0-9a-fA-F]+</code> are recoverable errors naming the value (D-10, D-11); no raw code resolves on any host (spec PC-6)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="aea333fc0aec28f9dc32410cdc39413e0"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">const std::vector&lt;std::string&gt;&amp; sg::<wbr />hunt::<wbr />EventCatalog::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aea333fc0aec28f9dc32410cdc39413e0" class="m-doc-self">addresses</a>(</span><span class="m-doc-wrap">) const</span></span>
+            </h3>
+            <p>The deduplicated selection in catalog order (E-01).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p><code><a href="#a02227ba6bd040d5b10d0e1a9a599d3f1" class="m-doc">expand</a></code> returned no error</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>no address repeats, and every address has the spelling <code>Object::path() + &quot;/&quot; + entry.name</code> the catalog composes (spec PC-1, PC-8)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="aab6bea132cd533688a45517ccc34c754"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">std::pair&lt;std::vector&lt;<a href="structsg_1_1hunt_1_1CatalogAddress.html" class="m-doc">CatalogAddress</a>&gt;, std::vector&lt;<a href="structsg_1_1hunt_1_1SkippedEvent.html" class="m-doc">SkippedEvent</a>&gt;&gt; sg::<wbr />hunt::<wbr />EventCatalog::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aab6bea132cd533688a45517ccc34c754" class="m-doc-self">split</a>(</span><span class="m-doc-wrap">std::uint64_t seed) const</span></span>
+            </h3>
+            <p>Splits the selection into the columns the plan seats and the entries discovery refused, under the seed shuffle of <code>--hunt-seed</code> (E-01, FR-002, FR-010, FR-014).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p><code><a href="#a02227ba6bd040d5b10d0e1a9a599d3f1" class="m-doc">expand</a></code> returned no error</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the first member holds one entry per address whose <code>Availability</code> is <code>COUNTABLE</code> in the order the seed shuffle of <code>--hunt-seed</code> gave, and the second member holds one <code><a href="structsg_1_1hunt_1_1SkippedEvent.html" class="m-doc">SkippedEvent</a></code> per refused entry carrying that entry&#x27;s <code>Availability</code> as its kind; no address stands in both members, because the discovery answer decides membership uniquely</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a905c8ad154d9e52a02c59bb029d942c1"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">bool sg::<wbr />hunt::<wbr />EventCatalog::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a905c8ad154d9e52a02c59bb029d942c1" class="m-doc-self">isCoreDevice</a>(</span><span class="m-doc-wrap">std::string_view address) const</span></span>
+            </h3>
+            <p>True when the device of one address is a core device (E-01, D-1).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>true for the device part <code>cpu</code>, <code>cpu_core</code> and <code>cpu_atom</code> and for a device part that starts with <code>armv8_</code> (the prefix rule of D-1, new hunt-side code with no library helper); false for every other device, uncore included (D-1)</p></aside>
+          </div></section>
+        </section>
+      </div>
+    </div>
+  </div>
+</article></main>
+<div class="m-doc-search" id="search">
+  <a href="#!" onclick="return hideSearch()"></a>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-m-8 m-push-m-2">
+        <div class="m-doc-search-header m-text m-small">
+          <div><span class="m-label m-default">Tab</span> / <span class="m-label m-default">T</span> to search, <span class="m-label m-default">Esc</span> to close</div>
+          <div id="search-symbolcount">&hellip;</div>
+        </div>
+        <div class="m-doc-search-content">
+          <form>
+            <input type="search" name="q" id="search-input" placeholder="Loading &hellip;" disabled="disabled" autofocus="autofocus" autocomplete="off" spellcheck="false" />
+          </form>
+          <noscript class="m-text m-danger m-text-center">Unlike everything else in the docs, the search functionality <em>requires</em> JavaScript.</noscript>
+          <div id="search-help" class="m-text m-dim m-text-center">
+            <p class="m-noindent">Search for symbols, directories, files, pages or
+            modules. You can omit any prefix from the symbol or file path; adding a
+            <code>:</code> or <code>/</code> suffix lists all members of given symbol or
+            directory.</p>
+            <p class="m-noindent">Use <span class="m-label m-dim">&darr;</span>
+            / <span class="m-label m-dim">&uarr;</span> to navigate through the list,
+            <span class="m-label m-dim">Enter</span> to go.
+            <span class="m-label m-dim">Tab</span> autocompletes common prefix, you can
+            copy a link to the result using <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">L</span> while <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">M</span> produces a Markdown link.</p>
+          </div>
+          <div id="search-notfound" class="m-text m-warning m-text-center">Sorry, nothing was found.</div>
+          <ul id="search-results"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="search-v2.js"></script>
+<script src="searchdata-v2.js" async="async"></script>
+<footer><nav>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <p>speedgun-ng. Created with <a href="https://doxygen.org/">Doxygen</a> 1.15.0 and <a href="https://mcss.mosra.cz/">m.css</a>.</p>
+      </div>
+    </div>
+  </div>
+</nav></footer>
+</body>
+</html>

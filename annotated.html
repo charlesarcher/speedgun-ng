@@ -150,8 +150,27 @@
                   <li>struct <a href="structsg_1_1detail_1_1WorkNodeBase.html" class="m-doc">WorkNodeBase</a> <span class="m-doc">The erased shape one typed work node stands upon (E-03, FR-003, FR-009, D-02).</span></li>
                 </ul>
               </li>
+              <li class="m-doc-collapsible collapsed">
+                <a href="#" onclick="return toggle(this)">namespace</a> <a href="namespacesg_1_1hunt.html" class="m-doc">hunt</a> <span class="m-doc"><span></span></span>
+                <ul class="m-doc">
+                  <li>struct <a href="structsg_1_1hunt_1_1CatalogAddress.html" class="m-doc">CatalogAddress</a> <span class="m-doc">One catalog address with the device that owns it and the index of that device in the limit list (E-01).</span></li>
+                  <li>struct <a href="structsg_1_1hunt_1_1EntryHunt.html" class="m-doc">EntryHunt</a> <span class="m-doc">The published per-benchmark hunt result (E-06).</span></li>
+                  <li>class <a href="classsg_1_1hunt_1_1EventCatalog.html" class="m-doc">EventCatalog</a> <span class="m-doc">The selection of events a hunt run takes, expanded against the catalog (E-01).</span></li>
+                  <li>struct <a href="structsg_1_1hunt_1_1EventSamples.html" class="m-doc">EventSamples</a> <span class="m-doc">The collected rows of one event address, the input of the rank table (E-05).</span></li>
+                  <li>struct <a href="structsg_1_1hunt_1_1HuntBudget.html" class="m-doc">HuntBudget</a> <span class="m-doc">The bound one hunt run collects under, in the unit the caller named (E-03, FR-012).</span></li>
+                  <li>struct <a href="structsg_1_1hunt_1_1HuntColumn.html" class="m-doc">HuntColumn</a> <span class="m-doc">The plan&#x27;s one column: one event and the two anchor addresses of its own device (E-04, I-1).</span></li>
+                  <li>struct <a href="structsg_1_1hunt_1_1HuntOptions.html" class="m-doc">HuntOptions</a> <span class="m-doc">The settled values of one hunt run (E-03, D-1, D-3, D-6 to D-9).</span></li>
+                  <li>struct <a href="structsg_1_1hunt_1_1HuntPlan.html" class="m-doc">HuntPlan</a> <span class="m-doc">The plan one hunt run executes (E-04).</span></li>
+                  <li>struct <a href="structsg_1_1hunt_1_1HuntSample.html" class="m-doc">HuntSample</a> <span class="m-doc">One measured repetition of one column of one pass, with the anchor readings of its own window (E-05).</span></li>
+                  <li>struct <a href="structsg_1_1hunt_1_1HuntStage.html" class="m-doc">HuntStage</a> <span class="m-doc">One stage of the plan: the column indices it measures and the repeats each column gets (E-04, D-2).</span></li>
+                  <li>struct <a href="structsg_1_1hunt_1_1HuntStageRange.html" class="m-doc">HuntStageRange</a> <span class="m-doc">The range of planned addresses one stage measured (E-08).</span></li>
+                  <li>struct <a href="structsg_1_1hunt_1_1RankedEvent.html" class="m-doc">RankedEvent</a> <span class="m-doc">One row of the ranked table, with the marks the console tail prints (E-06).</span></li>
+                  <li>struct <a href="structsg_1_1hunt_1_1RunHunt.html" class="m-doc">RunHunt</a> <span class="m-doc">The run-level hunt record on <code><a href="structsg_1_1ReportData.html#ab73754bf1b613128a69c6bfbf79011a6" class="m-doc">ReportData::<wbr />hunt</a></code> (E-08, PD-10).</span></li>
+                  <li>struct <a href="structsg_1_1hunt_1_1SkippedEvent.html" class="m-doc">SkippedEvent</a> <span class="m-doc">One event the run will not measure, with the kind of the refusal (E-06, D-10).</span></li>
+                </ul>
+              </li>
               <li>class <a href="classsg_1_1BenchmarkHandle.html" class="m-doc">BenchmarkHandle</a> <span class="m-doc">The registration result: the caller&#x27;s view of one registry entry (E-02).</span></li>
-              <li>struct <a href="structsg_1_1BenchmarkResult.html" class="m-doc">BenchmarkResult</a> <span class="m-doc">The C++ value the harness exposes for one benchmark; the console report formats it and adds nothing to it (FR-036, E-07).</span></li>
+              <li>struct <a href="structsg_1_1BenchmarkResult.html" class="m-doc">BenchmarkResult</a> <span class="m-doc"><span></span></span></li>
               <li>struct <a href="structsg_1_1CompareEntry.html" class="m-doc">CompareEntry</a> <span class="m-doc">One benchmark under one comparison rule (specs/026 E-02, FR-002, FR-044, FR-054).</span></li>
               <li>struct <a href="structsg_1_1CompareOptions.html" class="m-doc">CompareOptions</a> <span class="m-doc">The settings one comparison applies (specs/026 FR-045, FR-064).</span></li>
               <li>struct <a href="structsg_1_1CompareResult.html" class="m-doc">CompareResult</a> <span class="m-doc">The comparison table and its verdict (specs/026 E-03, FR-002, FR-044, FR-045).</span></li>
@@ -164,6 +183,9 @@
               <li>class <a href="classsg_1_1ExecutionContext.html" class="m-doc">ExecutionContext</a> <span class="m-doc">One context: one thread, its event loop, its inbox, and its policy (E-01, FR-001).</span></li>
               <li>struct <a href="structsg_1_1FitRow.html" class="m-doc">FitRow</a> <span class="m-doc">One row of a family&#x27;s complexity fit (FR-022, FR-023).</span></li>
               <li>class <a href="classsg_1_1Fixture.html" class="m-doc">Fixture</a> <span class="m-doc">The base of a fixture: the <code><a href="classsg_1_1Fixture.html#aae6cacc771f9db0ad29d245cab760dae" class="m-doc">setUp</a></code> and <code><a href="classsg_1_1Fixture.html#a3023d0249454a5afd76b3e28b8126161" class="m-doc">tearDown</a></code> pair around each run (E-06, FR-015).</span></li>
+              <li>struct <a href="structsg_1_1JitterEntryFold.html" class="m-doc">JitterEntryFold</a> <span class="m-doc">One probe cpu&#x27;s fold over one benchmark&#x27;s timed windows (E-08): the cpu index and the fold the split placed into them. A probe cpu whose kept gaps landed inside no window of the benchmark carries no entry here (E-06, FR-021). The split reads the probe&#x27;s buffers only after the probe contexts are joined (R-04).</span></li>
+              <li>struct <a href="structsg_1_1JitterProbeOptions.html" class="m-doc">JitterProbeOptions</a> <span class="m-doc">The one argument of every jitter probe entry point (FR-003, FR-015).</span></li>
+              <li>struct <a href="structsg_1_1JitterStats.html" class="m-doc">JitterStats</a> <span class="m-doc">The C++ value the harness exposes for one benchmark; the console report formats it and adds nothing to it (FR-036, E-07).</span></li>
               <li>struct <a href="structsg_1_1MetricValue.html" class="m-doc">MetricValue</a> <span class="m-doc">One metric of one row, with the disclosure beside the value (FR-024).</span></li>
               <li>struct <a href="structsg_1_1NoiseWarning.html" class="m-doc">NoiseWarning</a> <span class="m-doc">The noise warning of one result, in the form the document carries (specs/023 E-10, specs/026 E-06, FR-070, D-05).</span></li>
               <li>struct <a href="structsg_1_1PercentileValue.html" class="m-doc">PercentileValue</a> <span class="m-doc">One reported percentile of one column (specs/021 E-04, FR-013).</span></li>

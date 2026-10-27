@@ -139,6 +139,11 @@
             </dt>
             <dd>Scripts the programmable-counter limit one object answers (FR-006).</dd>
             <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ad82acbba3a63d12ebe66d4087e4b2fff" class="m-doc">setGroupLeafLimit</a>(</span><span class="m-doc-wrap">std::string_view objectPath,
+              std::size_t leaves) -&gt; <a href="#a27d6d26b674883a1f2b6e49860b2b940" class="m-doc">FakeProvider</a>&amp;</span>
+            </dt>
+            <dd>Scripts the widest leaf set one object&#x27;s <code><a href="#a9a006e2f04cb692a3568a7b7be642070" class="m-doc">open</a></code> accepts (D-18, PD-09).</dd>
+            <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#a7363bb846601ee98a1450913cfa648d0" class="m-doc">addCounter</a>(</span><span class="m-doc-wrap">std::string_view objectPath,
               std::string_view name,
               std::string_view unit,
@@ -160,6 +165,14 @@
               <span class="m-doc-wrap-bumper">auto <a href="#aba6178f2da470f28d7073e3bc51cf050" class="m-doc">readActions</a>(</span><span class="m-doc-wrap">) const -&gt; std::uint64_t <span class="m-label m-flat m-success">noexcept</span></span>
             </dt>
             <dd>The number of <code>readPoints</code> actions performed by readers this provider opened (US1 scenario 5).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a473c74556f50408cfe59700cbbf169ed" class="m-doc">windowOpens</a>(</span><span class="m-doc-wrap">) const -&gt; std::uint64_t <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>The number of windows this provider has opened, refusals aside (US1 threads scenario).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#af0dc844f2c198cc3bd635be329e1324b" class="m-doc">lastRefusalMessage</a>(</span><span class="m-doc-wrap">) const -&gt; std::string</span>
+            </dt>
+            <dd>The message of the last <code><a href="#a9a006e2f04cb692a3568a7b7be642070" class="m-doc">open</a></code> this provider refused for a scripted leaf count (PD-09).</dd>
             <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#a48d6f95ffa9dc4b7e20e6a19424a0ed8" class="m-doc">setGapActions</a>(</span><span class="m-doc-wrap">std::string_view objectPath,
               std::string_view name,
@@ -220,6 +233,14 @@
             <p>Scripts the programmable-counter limit one object answers (FR-006).</p>
 <p>The limit is how many programmable counters one context can hold open at once on this object&#x27;s event source, which the catalog cursor <code><a href="classsg_1_1counters_1_1Object.html#aa720877667c569699160d3dea8697fdc" class="m-doc">Object::<wbr />programmableCounters</a></code> answers once the system has opened. An object nobody scripts answers nothing, the way a source that cannot answer does. The scripted limit reaches the pass planner and nothing else: the fake still opens any leaf set it is asked to, because splitting is the planner&#x27;s job.</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>limit &gt; 0</code> and <code>objectPath</code> names an object this fake owns, and the call precedes <code>System::open</code> as every scripted fake fact does. A path the fake owns no object for traps: a script that names nothing would silently test nothing.</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>Enumeration publishes that limit for the named object.</p></aside>
           </div></section>
+          <section class="m-doc-details" id="ad82acbba3a63d12ebe66d4087e4b2fff"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"><a href="#a27d6d26b674883a1f2b6e49860b2b940" class="m-doc">FakeProvider</a>&amp; sg::<wbr />counters::<wbr />FakeProvider::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ad82acbba3a63d12ebe66d4087e4b2fff" class="m-doc-self">setGroupLeafLimit</a>(</span><span class="m-doc-wrap">std::string_view objectPath,
+              std::size_t leaves)</span></span>
+            </h3>
+            <p>Scripts the widest leaf set one object&#x27;s <code><a href="#a9a006e2f04cb692a3568a7b7be642070" class="m-doc">open</a></code> accepts (D-18, PD-09).</p>
+<p>The count is how many leaves of this object one window may carry: a leaf set carrying more leaves of it than <code>leaves</code> opens no window, which is the group-open failure a pass loop retries one event at a time (D-18). No catalog fact produces it on its own, because the plan compiler refuses an unknown or non-countable leaf before it ever calls <code><a href="#a9a006e2f04cb692a3568a7b7be642070" class="m-doc">open</a></code>, so an over-wide set never reaches a provider on its own. An object nobody scripts keeps the present behaviour of <code><a href="#a9a006e2f04cb692a3568a7b7be642070" class="m-doc">open</a></code>, which refuses an undeclared object or counter only.</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>objectPath</code> names an object the script declares, and the call precedes <code>System::open</code> as every scripted fake fact does. A path the script declares no object for traps: a script that names nothing would silently test nothing.</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p><code><a href="#a9a006e2f04cb692a3568a7b7be642070" class="m-doc">open</a></code> refuses a leaf set carrying more leaves of that object than <code>leaves</code>, with the object path and the leaf count in the message <code><a href="#af0dc844f2c198cc3bd635be329e1324b" class="m-doc">lastRefusalMessage</a></code> answers; an object with no scripted limit behaves as it does today; the setter is fluent, and the last call for an object wins.</p></aside>
+          </div></section>
           <section class="m-doc-details" id="a7363bb846601ee98a1450913cfa648d0"><div>
             <h3>
               <span class="m-doc-wrap-bumper"><a href="#a27d6d26b674883a1f2b6e49860b2b940" class="m-doc">FakeProvider</a>&amp; sg::<wbr />counters::<wbr />FakeProvider::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a7363bb846601ee98a1450913cfa648d0" class="m-doc-self">addCounter</a>(</span><span class="m-doc-wrap">std::string_view objectPath,
@@ -250,6 +271,20 @@
             </h3>
             <p>The number of <code>readPoints</code> actions performed by readers this provider opened (US1 scenario 5).</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a473c74556f50408cfe59700cbbf169ed"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">std::uint64_t sg::<wbr />counters::<wbr />FakeProvider::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a473c74556f50408cfe59700cbbf169ed" class="m-doc-self">windowOpens</a>(</span><span class="m-doc-wrap">) const <span class="m-label m-success">noexcept</span></span></span>
+            </h3>
+            <p>The number of windows this provider has opened, refusals aside (US1 threads scenario).</p>
+<p>A threaded run opens one window per context per pass, so a caller can read that count off the scripted provider.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="af0dc844f2c198cc3bd635be329e1324b"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">std::string sg::<wbr />counters::<wbr />FakeProvider::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#af0dc844f2c198cc3bd635be329e1324b" class="m-doc-self">lastRefusalMessage</a>(</span><span class="m-doc-wrap">) const</span></span>
+            </h3>
+            <p>The message of the last <code><a href="#a9a006e2f04cb692a3568a7b7be642070" class="m-doc">open</a></code> this provider refused for a scripted leaf count (PD-09).</p>
+<p>The refusal is the scripted group refusal of <code><a href="#ad82acbba3a63d12ebe66d4087e4b2fff" class="m-doc">setGroupLeafLimit</a></code>, and the message names the object path and the leaf count it refused. A granted open, or one refused for an undeclared object or counter, leaves the message where it stood, so a caller reads it after the refusal it asks about. An empty message says no open was ever refused for a scripted leaf count.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
           <section class="m-doc-details" id="a48d6f95ffa9dc4b7e20e6a19424a0ed8"><div>
             <h3>

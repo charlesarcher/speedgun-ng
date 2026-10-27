@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>sg::JitterProbeOptions struct | speedgun-ng</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
+  <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
+  <link rel="icon" href="favicon-dark.png" type="image/png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#22272e" />
+</head>
+<body>
+<header><nav id="navigation">
+  <div class="m-container">
+    <div class="m-row">
+      <a href="index.html" id="m-navbar-brand" class="m-col-t-8 m-col-m-none m-left-m">speedgun-ng</a>
+      <div class="m-col-t-4 m-hide-m m-text-right m-nopadr">
+        <a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+          <path id="m-doc-search-icon-path" d="m6 0c-3.31 0-6 2.69-6 6 0 3.31 2.69 6 6 6 1.49 0 2.85-0.541 3.89-1.44-0.0164 0.338 0.147 0.759 0.5 1.15l3.22 3.79c0.552 0.614 1.45 0.665 2 0.115 0.55-0.55 0.499-1.45-0.115-2l-3.79-3.22c-0.392-0.353-0.812-0.515-1.15-0.5 0.895-1.05 1.44-2.41 1.44-3.89 0-3.31-2.69-6-6-6zm0 1.56a4.44 4.44 0 0 1 4.44 4.44 4.44 4.44 0 0 1-4.44 4.44 4.44 4.44 0 0 1-4.44-4.44 4.44 4.44 0 0 1 4.44-4.44z"/>
+        </svg></a>
+        <a id="m-navbar-show" href="#navigation" title="Show navigation"></a>
+        <a id="m-navbar-hide" href="#" title="Hide navigation"></a>
+      </div>
+      <div id="m-navbar-collapse" class="m-col-t-12 m-show-m m-col-m-none m-right-m">
+        <div class="m-row">
+          <ol class="m-col-t-6 m-col-m-none">
+            <li>
+              <a href="pages.html">User guide</a>
+              <ol>
+                <li><a href="about.html">About</a></li>
+                <li><a href="md_docs_2pages_2building.html">Building speedgun-ng</a></li>
+                <li><a href="md_docs_2pages_2harness.html">The benchmark harness surface</a></li>
+              </ol>
+            </li>
+            <li>
+              <a href="pages.html">Internals</a>
+              <ol>
+                <li><a href="md_docs_2pages_2barrier-rule.html">The optimization barrier rule (015 FR-029, FR-030)</a></li>
+                <li><a href="md_docs_2pages_2counters-overhead.html">Counters sampling cost (SC-004, SC-010)</a></li>
+                <li><a href="md_docs_2pages_2dbc-migration.html">C++26 Contract Migration Mapping (SC-010)</a></li>
+                <li><a href="md_docs_2pages_2dbc-overhead.html">DBC checked-build overhead (SC-008)</a></li>
+                <li><a href="md_docs_2pages_2identifier-rename-map.html">Rename map</a></li>
+              </ol>
+            </li>
+            <li><a href="namespaces.html">Namespaces</a></li>
+          </ol>
+          <ol class="m-col-t-6 m-col-m-none" start="4">
+            <li><a href="annotated.html">Classes</a></li>
+            <li><a href="files.html">Files</a></li>
+            <li class="m-show-m"><a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+              <use href="#m-doc-search-icon-path" />
+            </svg></a></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav></header>
+<main><article>
+  <div class="m-container m-container-inflatable">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <h1>
+          <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span>JitterProbeOptions <span class="m-thin">struct</span>
+          <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+        </h1>
+        <p>The one argument of every jitter probe entry point (FR-003, FR-015).</p>
+        <nav class="m-block m-default">
+          <h3>Contents</h3>
+          <ul>
+            <li>
+              Reference
+              <ul>
+                <li><a href="#pub-attribs">Public variables</a></li>
+              </ul>
+            </li>
+          </ul>
+        </nav>
+<p><code><a href="#ab1e18542c6d692598fea10344ce459d7" class="m-doc">cpus</a></code> carries the probe cpu request: an empty vector names the <code>idle</code> preset, and a non-empty vector names the probe cpus in the order given (FR-016, D-4). <code><a href="#aa4f2d832457209fb5cc5f45bf7dc73ac" class="m-doc">thresholdNs</a></code> carries the gap threshold in ns as <code>std::optional&lt;std::uint64_t&gt;</code>: a field with no value names the default rule, the 200 ns default rising to 10 times the measured loop period when that stands larger, and a value stands as given, an explicit <code>threshold=200</code> staying exactly 200 ns (FR-007, FR-008, D-2). <code><a href="#a404d829c26152debc8d0877d209ed007" class="m-doc">mode</a></code> carries the default when the option names no mode value (FR-012, D-1). <code><a href="#af5c2f3ce2a0ffc04044ff7e92b480dd2" class="m-doc">gapCount</a></code> carries the per-cpu buffer size in records (FR-009). <code><a href="#a3738080ce97490657d17016abc390526" class="m-doc">precheckMs</a></code> carries the pre-check duration in ms (FR-014, D-13). <code><a href="#adf190796f848d3bc023f1e74e6ff0494" class="m-doc">strict</a></code> stops the run with status 2 when the time-stamp counter stands unavailable; a non-strict run discloses and continues with status 0 (FR-037, D-10). The entry points that take the options require a <code><a href="#aa4f2d832457209fb5cc5f45bf7dc73ac" class="m-doc">thresholdNs</a></code> value at or above 1 when the field carries one, <code><a href="#af5c2f3ce2a0ffc04044ff7e92b480dd2" class="m-doc">gapCount</a></code> inside the <code><a href="namespacesg.html#a4e8d81ad21296fe1bd9899836ce497a1" class="m-doc">kMinGapCount</a></code> through <code><a href="namespacesg.html#ac064de62e99227190d9e8889e11dde4f" class="m-doc">kMaxGapCount</a></code> range, and <code><a href="#a3738080ce97490657d17016abc390526" class="m-doc">precheckMs</a></code> at or above 1, and enforce the bounds where they parse and bind (FR-008, FR-009, D-13).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+        <section id="pub-attribs">
+          <h2><a href="#pub-attribs">Public variables</a></h2>
+          <dl class="m-doc">
+            <dt id="ab1e18542c6d692598fea10344ce459d7">
+              std::vector&lt;std::uint32_t&gt; <a href="#ab1e18542c6d692598fea10344ce459d7" class="m-doc-self">cpus</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="aa4f2d832457209fb5cc5f45bf7dc73ac">
+              std::optional&lt;std::uint64_t&gt; <a href="#aa4f2d832457209fb5cc5f45bf7dc73ac" class="m-doc-self">thresholdNs</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a404d829c26152debc8d0877d209ed007">
+              <a href="namespacesg.html#ad1de9d92c896b2ce4d1be9aaebc4ef75" class="m-doc">JitterProbeMode</a> <a href="#a404d829c26152debc8d0877d209ed007" class="m-doc-self">mode</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="af5c2f3ce2a0ffc04044ff7e92b480dd2">
+              std::uint32_t <a href="#af5c2f3ce2a0ffc04044ff7e92b480dd2" class="m-doc-self">gapCount</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a3738080ce97490657d17016abc390526">
+              std::uint32_t <a href="#a3738080ce97490657d17016abc390526" class="m-doc-self">precheckMs</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="adf190796f848d3bc023f1e74e6ff0494">
+              bool <a href="#adf190796f848d3bc023f1e74e6ff0494" class="m-doc-self">strict</a>
+            </dt>
+            <dd><span></span></dd>
+          </dl>
+        </section>
+      </div>
+    </div>
+  </div>
+</article></main>
+<div class="m-doc-search" id="search">
+  <a href="#!" onclick="return hideSearch()"></a>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-m-8 m-push-m-2">
+        <div class="m-doc-search-header m-text m-small">
+          <div><span class="m-label m-default">Tab</span> / <span class="m-label m-default">T</span> to search, <span class="m-label m-default">Esc</span> to close</div>
+          <div id="search-symbolcount">&hellip;</div>
+        </div>
+        <div class="m-doc-search-content">
+          <form>
+            <input type="search" name="q" id="search-input" placeholder="Loading &hellip;" disabled="disabled" autofocus="autofocus" autocomplete="off" spellcheck="false" />
+          </form>
+          <noscript class="m-text m-danger m-text-center">Unlike everything else in the docs, the search functionality <em>requires</em> JavaScript.</noscript>
+          <div id="search-help" class="m-text m-dim m-text-center">
+            <p class="m-noindent">Search for symbols, directories, files, pages or
+            modules. You can omit any prefix from the symbol or file path; adding a
+            <code>:</code> or <code>/</code> suffix lists all members of given symbol or
+            directory.</p>
+            <p class="m-noindent">Use <span class="m-label m-dim">&darr;</span>
+            / <span class="m-label m-dim">&uarr;</span> to navigate through the list,
+            <span class="m-label m-dim">Enter</span> to go.
+            <span class="m-label m-dim">Tab</span> autocompletes common prefix, you can
+            copy a link to the result using <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">L</span> while <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">M</span> produces a Markdown link.</p>
+          </div>
+          <div id="search-notfound" class="m-text m-warning m-text-center">Sorry, nothing was found.</div>
+          <ul id="search-results"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="search-v2.js"></script>
+<script src="searchdata-v2.js" async="async"></script>
+<footer><nav>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <p>speedgun-ng. Created with <a href="https://doxygen.org/">Doxygen</a> 1.15.0 and <a href="https://mcss.mosra.cz/">m.css</a>.</p>
+      </div>
+    </div>
+  </div>
+</nav></footer>
+</body>
+</html>
