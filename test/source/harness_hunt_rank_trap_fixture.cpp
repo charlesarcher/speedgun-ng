@@ -20,8 +20,8 @@ namespace
 
 // One window of the trap address: an event value the rank reads, and neither
 // anchor, so `rateOf` gives no rate and the column stands unrated.
-auto window(const std::uint64_t eventValue, const std::uint64_t iterations)
-    -> sg::hunt::HuntSample
+auto window(const std::uint64_t eventValue,
+            const std::uint64_t iterations) -> sg::hunt::HuntSample
 {
   auto row = sg::hunt::HuntSample {};
   row.pass = 0;
