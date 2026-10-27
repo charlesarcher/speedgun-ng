@@ -1313,6 +1313,24 @@ auto aFullDeviceRefusesTheWrittenDocument(const std::string& data) -> void
         "(FR-074)");
 }
 
+// FR-030: the name cell and the rule-text cell stand quoted once at the
+// print site, so a name that carries a byte the row grammar uses cannot
+// break the row: the newline stands escaped and the backslash stands
+// doubled, the row one line, and the reason cell stays unquoted beside
+// them (the NOISY scenario reads it).
+auto aNameThatCarriesRowBytesPrintsEscaped(const std::string& data) -> void
+{
+  const std::string baseline = data + "/gate_quoted_base.json";
+  const std::string contender = data + "/gate_quoted_contender.json";
+  const ModeRun run = runMode({"--compare=" + baseline + "," + contender});
+
+  check(run.status == 0, "the quoted-name pair answers status 0 (FR-030)");
+  check(linesOf(run.out).size() == 4,
+        "the row that carries the quoted name stays one line (FR-030)");
+  check(run.out.find("bm\\\\Gate\\nTail") != std::string::npos,
+        "the name cell stands quoted once (FR-030)");
+}
+
 auto bmNeverRuns(sg::State& state) -> void
 {
   for (auto _ : state) {
@@ -1346,6 +1364,7 @@ auto main(const int argc, char** argv) -> int
   aForeignSchemaMajorAnswersTheLoadFault(data);
   aMissingDocumentAnswersTheLoadFault(data);
   aRelativeRuleOverAZeroBaselineAnswersTheZeroFault(data);
+  aNameThatCarriesRowBytesPrintsEscaped(data);
   aRefusedComparisonDocumentAnswersTheWriteFault(data);
   theWrittenDocumentPassesTheComparisonSchema(data);
   twoRunsWriteByteIdenticalDocuments(data);

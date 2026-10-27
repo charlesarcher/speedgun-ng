@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "1.0",
+  "speedgun": {
+    "version": "0.14.0",
+    "buildType": "Release"
+  },
+  "benchmarks": [
+    {
+      "name": "bm\\Gate\nTail",
+      "suite": "bm\\Gate\nTail",
+      "case": "bm\\Gate\nTail",
+      "outcome": "MEASURED",
+      "reason": null,
+      "hideRepetitionRows": false,
+      "timeUnit": "NANOSECONDS",
+      "primaryIsCpu": true,
+      "pauseSamplesFolded": false,
+      "percentilePoints": [
+        50.0,
+        90.0,
+        99.0,
+        99.9
+      ],
+      "contexts": [],
+      "noiseWarning": null,
+      "rows": [
+        {
+          "kind": "REPETITION",
+          "label": null,
+          "iterations": 4,
+          "timePerIterationNs": 1050.0,
+          "cpuTimePerIterationNs": 1000.0,
+          "endpointSamples": 5,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": null,
+          "overheadFloorNs": 100.0,
+          "percentiles": [
+            [
+              {
+                "available": true,
+                "value": 1000.0
+              },
+              {
+                "available": true,
+                "value": 1050.0
+              },
+              {
+                "available": true,
+                "value": 1200.0
+              },
+              {
+                "available": false,
+                "value": null
+              }
+            ],
+            [
+              {
+                "available": true,
+                "value": 1050.0
+              },
+              {
+                "available": true,
+                "value": 1100.0
+              },
+              {
+                "available": true,
+                "value": 1250.0
+              },
+              {
+                "available": false,
+                "value": null
+              }
+            ]
+          ],
+          "chunkCount": 4,
+          "chunkIterations": 1,
+          "timeStats": null,
+          "metricStats": [],
+          "raw": {
+            "columns": [
+              [
+                980.0,
+                1000.0,
+                1010.0,
+                1100.0
+              ],
+              [
+                1030.0,
+                1050.0,
+                1060.0,
+                1150.0
+              ]
+            ]
+          }
+        }
+      ],
+      "metricLabels": [],
+      "counterLabels": [],
+      "counterStats": [],
+      "statisticValues": []
+    }
+  ]
+}

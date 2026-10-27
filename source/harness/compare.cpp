@@ -1902,9 +1902,12 @@ auto printCompareTable(const CompareResult& result,
       std::snprintf(text, sizeof text, "%+.3f%%", *entry.changePercent);
       percentCell = text;
     }
+    // FR-030: the name and the rule text stand quoted once, at the
+    // print site, so a cell that carries a separator or a quote reads
+    // back as one cell; the reason cell stands unquoted.
     std::printf("%-24s %-32s %15s %15s %11s %15s  %s",
-                entry.name.c_str(),
-                entry.ruleText.c_str(),
+                detail::quotedText(entry.name).c_str(),
+                detail::quotedText(entry.ruleText).c_str(),
                 baselineCell.c_str(),
                 contenderCell.c_str(),
                 percentCell.c_str(),
