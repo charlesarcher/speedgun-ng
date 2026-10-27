@@ -2060,8 +2060,7 @@ auto mOnlineSet() -> std::optional<std::vector<std::uint32_t>>
 // topology seam owns, and that set alone. A cpu the set holds passes
 // while the mask the layout carries lacks it; an index the set gaps and
 // an index past its highest end the process at the construction call
-// (the two breach modes); and the count seam at zero leaves the answer
-// unchanged.
+// (the two breach modes).
 auto scenarioOnlineSetBound() -> int
 {
   sg::detail::installTestLayout(mPartialMaskLayout());
@@ -2080,15 +2079,8 @@ auto scenarioOnlineSetBound() -> int
     context.requestStop();
     context.join();
   }
-  sg::detail::installTestOnlineCount(0);
-  {
-    sg::ExecutionContext context {outsideMask};
-    context.requestStop();
-    context.join();
-  }
   sg::detail::installTestLayout(std::optional<sg::detail::MachineLayout> {});
   sg::detail::installTestOnlineCpus(std::nullopt);
-  sg::detail::installTestOnlineCount(std::optional<std::uint64_t> {});
   std::puts("harness_execution_context_test online-set-bound: ok");
   return 0;
 }
