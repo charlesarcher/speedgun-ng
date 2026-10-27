@@ -54,8 +54,7 @@ auto main(int argc, char** argv) -> int
   const std::string out =
       "/tmp/harness_hunt_rank_trap_" + std::to_string(getpid()) + ".txt";
   std::remove(out.c_str());
-  const std::string command =
-      "\"" + fixture + "\" > \"" + out + "\" 2>&1";
+  const std::string command = "\"" + fixture + "\" > \"" + out + "\" 2>&1";
   const int status = std::system(command.c_str());
   std::string content;
   {
@@ -70,8 +69,8 @@ auto main(int argc, char** argv) -> int
 
   const bool printedMarker =
       content.find("hunt-rank-trap-survived") != std::string::npos;
-  const bool reportedViolation = content.find("(predicate: ")
-      != std::string::npos;
+  const bool reportedViolation =
+      content.find("(predicate: ") != std::string::npos;
   const bool exitedClean = WIFEXITED(status) && WEXITSTATUS(status) == 0;
 
 #if SG_CONTRACTS_SEMANTIC == 0 || SG_CONTRACTS_SEMANTIC == 1
