@@ -183,7 +183,7 @@ the two hunt samples carry the current version (spec.md, User Story
 - [x] T051 [US5] Reduce `docs/schema/report-v1.json:7` and `:8` to one top-level `x-order` key, `["schemaVersion", "speedgun", "run", "jitter", "benchmarks", "hunt"]`, and ship with T049 and T050 in one commit (FR-017)
 - [x] T052 [US5] Re-record the two hunt samples from the current build: `docs/pages/harness.md:1509` (the block around `:1520`) and `example/docs/hunt_rank.expected:2`, both carrying `speedgun-ng 0.20.0 build=Release` or the branch version, every other sample unchanged, so the version figures agree in each file the merge touched; update the page regions and pass the drift gate in the same commits (M-6, FR-018, FR-004, research R-09)
 - [x] T053 [US5] Run the docs sweep over the three features' docs against the code: each option, key and exit status checked, each disagreement carrying its fix or its pull-request question; record zero disagreements or the list in `results/record.md` (M-6, FR-018, SC-008)
-- [ ] T054 [US5] Reproduce the `loop_shape` failure under GCC 14 with the Rocky toolchain, name the cause in `results/record.md`, and land the fix in the code or in the test `test/loop_shape.sh` owns; no compiler check joins; the `test` job at GCC 15.2.0 still passes (M-10, FR-020)
+- [x] T054 [US5] Reproduce the `loop_shape` failure under GCC 14 with the Rocky toolchain, name the cause in `results/record.md`, and land the fix in the code or in the test `test/loop_shape.sh` owns; no compiler check joins; the `test` job at GCC 15.2.0 still passes (M-10, FR-020)
 - [x] T055 [US5] Read each of the 38 conflict blocks the PR 47 rebase resolved by keeping both sides against master, stand each correct or fix it with its test, and name the eight files the merge commit `4f701ae` did not repair in `results/record.md` (M-15, FR-023)
 
 **Checkpoint**: The docs, the schema and the samples agree with the
@@ -224,9 +224,9 @@ reds the merge carried.
 
 - [x] T059 [US1] Take the zero list from the compiler the coverage job uses on the branch head, name that compiler in `specs/032-fix-merged-features/spec.md` as FR-031 fixes, give each side a real input reaches a test, and list each side D-13 accepts with its `gcov` block and arc data; the gate change D-13 allows is the narrowest `lcov` option in `cmake/coverage.cmake` alone, and when no narrow filter removes exactly the proven sides the item stops and the data goes to the pull request as a question; the branch shortfall holds only this list and the D-12 keep-set (D-13, D-14, FR-031, SC-002; research R-10 names the runner and its default g++)
 - [x] T060 [US1] Prove coverage reaches 100 percent including `detail/hunt_selection.hpp` and the glob star arm, through real inputs and tests, no code shaped to move a count (PR 47 P-3, D-14, FR-052, SC-002)
-- [ ] T061 [US1] Run `cmake --preset=ci-rocky`, `cmake --build build`, `ctest --test-dir build --output-on-failure`, then once `cmake --preset=ci-ubuntu` and `cmake --build build` with clang-tidy and cppcheck wired in, and record the results in `results/record.md`; every job on the head reports success (FR-005, SC-001, AGENTS.md build loop)
+- [x] T061 [US1] Run `cmake --preset=ci-rocky`, `cmake --build build`, `ctest --test-dir build --output-on-failure`, then once `cmake --preset=ci-ubuntu` and `cmake --build build` with clang-tidy and cppcheck wired in, and record the results in `results/record.md`; every job on the head reports success (FR-005, SC-001, AGENTS.md build loop)
 - [x] T062 [US1] Run the suite under `taskset -c 0,1` and record the pass in `results/record.md`; the standing CI covers the rest of SC-004 (SC-004)
-- [ ] T063 [US1] Run the docs drift gates (`example_drift`, `snippet_compile`, `example_run`, `report_shape`) and the drift gate of `tools/docs/example_drift.py`, and record the pass (FR-008, FR-018, FR-062)
+- [x] T063 [US1] Run the docs drift gates (`example_drift`, `snippet_compile`, `example_run`, `report_shape`) and the drift gate of `tools/docs/example_drift.py`, and record the pass (FR-008, FR-018, FR-062)
 - [x] T064 [US1] Confirm every figure in `results/record.md` comes from the CI run of the last pushed commit and every job log is read (FR-061)
 
 **Checkpoint**: The branch head is green job by job, and the coverage
@@ -245,7 +245,7 @@ shortfall holds only the accepted sides.
 - [x] T071 [P] Confirm each new commit passes `prose-lint` and the CI run shows the job green (M-13, FR-063, SC-005)
 - [ ] T072 Verify the branch rebased only, pushed once with `--force-with-lease`, and proved the push with `git ls-remote` (FR-060)
 - [x] T073 Run the validation guide `quickstart.md` end to end and record the outcome (quickstart.md, SC-003)
-- [ ] T074 Write the one pull-request comment that lists each item with its commit or its question, the coverage numbers, and the CI run; it names no approval, no acceptance and no person, and every item of the request stands closed or asked (FR-065, SC-003)
+- [x] T074 Write the one pull-request comment that lists each item with its commit or its question, the coverage numbers, and the CI run; it names no approval, no acceptance and no person, and every item of the request stands closed or asked (FR-065, SC-003)
 
 **Checkpoint**: The gates hold, the record is complete, and the
 branch is ready for the approved merge.

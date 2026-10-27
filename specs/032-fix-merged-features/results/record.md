@@ -320,3 +320,20 @@ hash the branch cuts from; the local measurements stand in
   standing CI covers the rest.
 - T064 (FR-061): each figure in this record comes from the local run
   named beside it; the pushed head's run stands owed to the push.
+
+## The closing gates (T061, T063, T054, T074)
+
+- T061 (FR-005): the daily loop ran green at the branch head: the
+  `ci-rocky` build and its 140-test suite, and the once-per-feature
+  `ci-ubuntu` analyzer build.
+- T063 (FR-062, FR-018): the drift gates ran green on the stamped page
+  and the expected file (`example_drift`, `example_run`,
+  `snippet_compile`, `report_shape`, and the `example_drift.py` gate).
+- T054 (FR-020): routed. This host carries no GCC 14, so the Rocky
+  reproduction stands owed to the lane that carries it; the gate
+  passes on GCC 16.2.1 and on the test job's GCC 15.2.0, and the
+  pull-request comment carries the question.
+- T074 (FR-065): the pull-request comment stands drafted at
+  `results/pr-comment.md`, carrying each item with its commit or its
+  question, the coverage figures, and the CI-run reference; it names
+  no approval, no acceptance and no person. It posts beside the push.
