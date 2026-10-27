@@ -116,7 +116,7 @@ minor bump for the ABI change).
 ## R-07: the scans, and one re-measurement that disagrees
 
 **Decision**: treat the `online count` comment matches as part of
-FR-021's commit, not as a reopened scan item.
+FR-021's commit; no scan item reopens.
 
 **Rationale**: the `setenv|GCOV_PREFIX|sgcov` scan over `test/source`
 returns nothing today, which confirms FR-012. The scan
@@ -200,8 +200,8 @@ already has; no new row, no new value (FR-003).
 **Rationale**: spec 027's contract fixes the parse points: the
 command-line value parses in `speedgunMain` before the expansion, the
 option-file value parses where it settles, and the family call carries
-its own probe. The defect is the precedence combination, not a missing
-parse, so the fix is the comparison order plus one test per source
+its own probe. The defect is the precedence combination; the
+parse stands present, so the fix is the comparison order plus one test per source
 (FR-028). `specs/027-jitter-probe/contracts/cli-options.md` documents
 the standing grammar the fix keeps.
 

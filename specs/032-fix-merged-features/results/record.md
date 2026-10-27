@@ -181,8 +181,8 @@ hash the branch cuts from; the local measurements stand in
   how they read together; the Decisions intro of
   `specs/029-hunter-core/spec.md` names no person and no date; the three
   lines of `plan-review-2.md` state the rule the finding holds.
-- T057: the scan over the 130 files `git diff --name-only fea69c5
-  4f701ae` names carries no person's name, no host name and no
+- T057: the scan over the 130 files the diff between `fea69c5` and
+  `4f701ae` names carries no person's name, no host name and no
   acceptance wording in prose. The owner placeholder of
   `.github/workflows/ci.yml` and the `HOMEPAGE_URL` of `CMakeLists.txt`
   are functional values the file boundary keeps: `LICENSE`,
@@ -264,3 +264,37 @@ hash the branch cuts from; the local measurements stand in
   rewrite of FR-025 and the version lane of FR-001), and neither
   changes a gate's behavior; no workflow, preset, lint, spell, dbc,
   prose or drift file moved.
+
+## The branch-head confirmations and the gate runs (T005 to T013, T070 to T073)
+
+- T005 (FR-005): both CI presets build at the branch head: `ci-rocky`
+  drives the daily loop green (140 of 140 tests), and `ci-ubuntu`
+  builds once with clang-tidy and cppcheck wired in, the analyzer run
+  carrying no finding on the touched files.
+- T006 (FR-006): the mutation anchor reads the version once at `1.5`
+  (`json_report.cpp:36`), and no `1.4` figure stands in the test.
+- T007 (FR-007): the hunt rows and the CLI table test pass at the
+  branch head, and `clang-format 18.1.8` reports no change.
+- T008 (FR-008): `README.md` holds 835 lines, `PAGE_LINE_CAP = 835`
+  stands once at `tools/docs/example_drift.py:192`, and the drift gate
+  passes.
+- T009 (FR-009): the affinity scenario passes under `taskset -c 0,1`,
+  `taskset -c 0-3` and the full mask at the branch head; no
+  `SKIP_RETURN_CODE` stands on the entry, and `test/tier_labels.sh`
+  holds the eight rules.
+- T011 (FR-011): each of the twelve reverts of PC-6 resolves by
+  `git log --grep` on its hash at the branch head, and the suite runs
+  green on master as it stands.
+- T013 (FR-013): the rank mark stands outside the macro
+  (`hunt_plan.cpp:97`), no lambda stands inside an `SG_*` macro in
+  `source/` or `include/`, and the coverage target reports no
+  `inconsistent` error.
+- T070 (FR-062, D-16): `README.md` holds 835 lines, the section caps
+  hold by the drift gate, and each behavior change shipped with its
+  docs row and example.
+- T071 (FR-063, SC-005): the commit gate reads 0 findings over the 15
+  branch commits after the section tokens took the configured
+  spellings, and the prose gate reads 0 findings over the tree.
+- T073: the validation guide ran end to end: the daily loop, the
+  behavior checks of the probe, the hunt, the compare table and the
+  schema, and the coverage gates beside them.
