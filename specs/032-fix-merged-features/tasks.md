@@ -47,7 +47,7 @@ the fact checks SC-007 records. No behavior arrives in this phase.
 **CRITICAL**: T001 precedes every check item: FR-064 binds the full
 run read before the work starts.
 
-- [ ] T001 Request a `gh` token for the session, read the full run `40438223916` job by job, and record each job's state in `specs/032-fix-merged-features/results/record.md` beside the request's standing record (PC-11, FR-064); each check item of Phase 2 confirms against this run before it closes
+- [x] T001 Request a `gh` token for the session, read the full run `40438223916` job by job, and record each job's state in `specs/032-fix-merged-features/results/record.md` beside the request's standing record (PC-11, FR-064); each check item of Phase 2 confirms against this run before it closes
 - [x] T002 Record the version reservation in the task note and carry it into the first commit that needs it: `CMakeLists.txt:15` holds `0.20.0`, `:298` holds harness `SOVERSION 12`, `:80` holds archive `SOVERSION 4`; with no public-header edit the branch moves to `0.20.1`, with the `SkippedKind` value of T036 it moves to `0.21.0` with harness `SOVERSION 13`, and the ABI check is recorded beside the move in that commit (FR-001, FR-002); the versions agree in each file the merge touched (FR-004); the archive `SOVERSION` stays `4` in every case (D-11); the report schema stays `1.5` (`json_report.cpp:36`)
 - [x] T003 [P] Record the option-lane confirmation in `specs/032-fix-merged-features/results/record.md`: `source/harness/detail/options.hpp` adds no row and moves no value; the lanes hold `260` to `269` the jitter-probe family, `270` to `279` the hunter family, `290` to `319` the command-line family (FR-003)
 - [x] T004 [P] Record the SC-007 fact checks in `specs/032-fix-merged-features/results/record.md` with the file:line evidence: `SPEEDGUN_JSON` matches no environment row (`options.hpp:109` to `:115` derives the name from a flagged row and no row is named `json`; the unmatched-name rule at `options.cpp:1310` to `:1325` leaves it unread), and the idle preset exits 2 with one line when no cpu is free (`cli.cpp:805` to `:818`)
@@ -67,7 +67,7 @@ its story's ground.
 - [ ] T007 [P] [US1] Confirm the hunt-block rows and the CLI table test stand: `1c47e66` and `d7e22c2` resolve, `harness_cli_table_test.cpp` passes, and `clang-format 18.1.8` reports no change over `test/source` (FR-007, PC-3)
 - [ ] T008 [P] [US1] Confirm the trim stands: `cd2f2f1` and `f507b8f` resolve, `README.md` holds 835 lines, `PAGE_LINE_CAP = 835` stands once at `tools/docs/example_drift.py:192`, and the drift gate passes (FR-008, PC-4)
 - [ ] T009 [P] [US1] Confirm the affinity-cpu scenario stands: `502d42b` resolves, the owning test passes under `taskset -c 0,1`, `taskset -c 0-3` and the full mask, no `SKIP_RETURN_CODE` stands on the entry, and `test/tier_labels.sh` holds master's eight rules (FR-009, PC-5)
-- [ ] T010 [P] [US1] Confirm the lint job of run `40438223916` passed with the spell step included, on the full run T001 read, and record that the spell gate needs no CI change (FR-010)
+- [x] T010 [P] [US1] Confirm the lint job of run `40438223916` passed with the spell step included, on the full run T001 read, and record that the spell gate needs no CI change (FR-010)
 - [ ] T011 [P] [US1] Confirm each of the twelve reverts of PC-6 is on master by `git log --grep` on its reverted hash (the twelve pairs stand in spec.md PC-6) and record each found commit in `results/record.md`; the suite passes on master as it stands (FR-011)
 - [x] T012 [P] [US1] Confirm the `setenv|GCOV_PREFIX|sgcov` scan over `test/source` returns nothing and no test calls `setenv` (FR-012; research R-07 measured it clean 2026-10-27)
 - [ ] T013 [P] [US1] Confirm the rank mark stands outside the macro: `42ba692` resolves, the helper stands at `source/harness/hunt_plan.cpp:97`, no lambda stands inside an `SG_*` macro in `source/` or `include/`, and the coverage target reports no `inconsistent` error (FR-013, PC-7)
@@ -92,7 +92,7 @@ overrides both other sources (spec.md, User Story 2).
 
 - [x] T017 [US2] Write the failing precedence test in `test/source/harness_jitter_cli_test.cpp`: an option file that carries `jitter-probe=` stands as a command-line value would; a family's own probe wins over an option-file value; the command-line value stands when the command line and the option file both carry one (D-01, FR-028); observe the red run that shows an option-file value overriding a family's own probe today (PC-10)
 - [x] T018 [US2] Write the failing duplicate-cpu tests in `test/source/harness_jitter_cli_test.cpp`: `--jitter-probe=0,0` and `--jitter-probe=0-1,1` each print one line quoting the value and exit 2 (D-04, FR-029); skip the shape the standing suite already covers
-- [ ] T019 [US2] Write the failing fallback tests through the seam in `test/source/harness_topology_test.cpp` and the owning jitter test: install an online set with a gap, for example `0-3` and `8-11`, make the online line unreadable, and check both bounds (`execution_context.cpp:655`, `jitter_probe.cpp:711`) take membership from the gap; no count fills the set (D-02, D-03, FR-021); observe the red run that shows the count fallback (`topology.cpp:358` to `:365`) answering indexes the mask does not carry
+- [x] T019 [US2] Write the failing fallback tests through the seam in `test/source/harness_topology_test.cpp` and the owning jitter test: install an online set with a gap, for example `0-3` and `8-11`, make the online line unreadable, and check both bounds (`execution_context.cpp:655`, `jitter_probe.cpp:711`) take membership from the gap; no count fills the set (D-02, D-03, FR-021); observe the red run that shows the count fallback (`topology.cpp:358` to `:365`) answering indexes the mask does not carry
 
 ### Implementation for User Story 2
 
@@ -157,8 +157,8 @@ stays unquoted (spec.md, User Story 4).
 
 ### Tests and implementation for User Story 4 (test first, same commit, FR-055)
 
-- [ ] T047 [US4] Write the failing quoting tests in `test/source/harness_compare_test.cpp`: a baseline name that carries a quote character prints the name cell quoted once, and a rule text with the same shape prints the rule-text cell quoted once with the reason cell unchanged (User Story 4, FR-030)
-- [ ] T048 [US4] Quote the name cell and the rule-text cell with `detail::quotedText`, once, at the print site `source/harness/compare.cpp:1906` to `:1907`; the reason cell stays unquoted; ship with T047 in one commit (FR-030)
+- [x] T047 [US4] Write the failing quoting tests in `test/source/harness_compare_test.cpp`: a baseline name that carries a quote character prints the name cell quoted once, and a rule text with the same shape prints the rule-text cell quoted once with the reason cell unchanged (User Story 4, FR-030)
+- [x] T048 [US4] Quote the name cell and the rule-text cell with `detail::quotedText`, once, at the print site `source/harness/compare.cpp:1906` to `:1907`; the reason cell stays unquoted; ship with T047 in one commit (FR-030)
 
 **Checkpoint**: The table stays parseable for every row that follows
 a quoted cell.
@@ -175,12 +175,12 @@ the two hunt samples carry the current version (spec.md, User Story
 
 ### Tests for User Story 5 (written first, seen failing, same commit as the fix, FR-055)
 
-- [ ] T049 [US5] Write the failing schema tests in `test/source/harness_json_schema_test.cpp`: a document with a duplicate top-level key fails, and the one top-level `x-order` key equals `["schemaVersion", "speedgun", "run", "jitter", "benchmarks", "hunt"]` (FR-017; the two keys at `docs/schema/report-v1.json:7` and `:8` stand today, research R-01)
-- [ ] T050 [P] [US5] Write the failing writer-order check in `test/source/harness_json_report_test.cpp`: the writer emits `jitter` (`json_report.cpp:590`) before `benchmarks` and before `hunt` (`:676`), matching the `x-order` key of T049 (FR-017)
+- [x] T049 [US5] Write the failing schema tests in `test/source/harness_json_schema_test.cpp`: a document with a duplicate top-level key fails, and the one top-level `x-order` key equals `["schemaVersion", "speedgun", "run", "jitter", "benchmarks", "hunt"]` (FR-017; the two keys at `docs/schema/report-v1.json:7` and `:8` stand today, research R-01)
+- [x] T050 [P] [US5] Write the failing writer-order check in `test/source/harness_json_report_test.cpp`: the writer emits `jitter` (`json_report.cpp:590`) before `benchmarks` and before `hunt` (`:676`), matching the `x-order` key of T049 (FR-017)
 
 ### Implementation for User Story 5
 
-- [ ] T051 [US5] Reduce `docs/schema/report-v1.json:7` and `:8` to one top-level `x-order` key, `["schemaVersion", "speedgun", "run", "jitter", "benchmarks", "hunt"]`, and ship with T049 and T050 in one commit (FR-017)
+- [x] T051 [US5] Reduce `docs/schema/report-v1.json:7` and `:8` to one top-level `x-order` key, `["schemaVersion", "speedgun", "run", "jitter", "benchmarks", "hunt"]`, and ship with T049 and T050 in one commit (FR-017)
 - [ ] T052 [US5] Re-record the two hunt samples from the current build: `docs/pages/harness.md:1509` (the block around `:1520`) and `example/docs/hunt_rank.expected:2`, both carrying `speedgun-ng 0.20.0 build=Release` or the branch version, every other sample unchanged, so the version figures agree in each file the merge touched; update the page regions and pass the drift gate in the same commits (M-6, FR-018, FR-004, research R-09)
 - [ ] T053 [US5] Run the docs sweep over the three features' docs against the code: each option, key and exit status checked, each disagreement carrying its fix or its pull-request question; record zero disagreements or the list in `results/record.md` (M-6, FR-018, SC-008)
 - [ ] T054 [US5] Reproduce the `loop_shape` failure under GCC 14 with the Rocky toolchain, name the cause in `results/record.md`, and land the fix in the code or in the test `test/loop_shape.sh` owns; no compiler check joins; the `test` job at GCC 15.2.0 still passes (M-10, FR-020)
