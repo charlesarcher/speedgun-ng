@@ -363,7 +363,7 @@ hash the branch cuts from; the local measurements stand in
 
 The head `d2889fd` ran three times: the run `40464069553` read
 success on every job; the run `40467467702` failed two jobs the same
-code had passed — the calibration window case, whose per-iteration
+code had passed: the calibration window case, whose per-iteration
 bound the sanitizer's own instrumentation walks near, and the
 `example_run` pairing, which read a row the same example printed in
 the run before it. The rerun of those two jobs on the same head read
