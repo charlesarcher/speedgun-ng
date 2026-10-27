@@ -516,8 +516,6 @@ auto speedgunMain(int argc, char** argv) -> int
   // point came from the option file: no environment row names this
   // option. The flag records that fact, and the family-probe build
   // reads it (FR-015, R-06).
-  const bool jitterProbeFromOptionFile = options.jitterProbe.has_value();
-
   // specs/028 FR-063, spec D-23: the compare mode reads the settled list,
   // which the highest source that names rules sets in the order spec D-23
   // states, so a rule of the words or of a file can stand here (FR-061).
@@ -732,30 +730,32 @@ auto speedgunMain(int argc, char** argv) -> int
     std::size_t last = 0;
   };
 
+  // D-01, FR-028: the family build reads every family, whatever the
+  // batch's own value's source, so a family's own probe wins over the
+  // command line's and the option file's alike, and the batch's stands
+  // only where no family carries one (FR-015, R-01).
   std::vector<FamilyProbe> familyProbes;
-  if (!jitterProbeFromOptionFile) {
-    for (std::size_t position = 0; position < selected.size(); ++position) {
-      auto* entry = selected[position];
-      if (!entry->family->jitterProbeOptions.has_value()) {
-        continue;
-      }
-      auto found = std::find_if(familyProbes.begin(),
-                                familyProbes.end(),
-                                [&](const FamilyProbe& probe)
-                                { return probe.family == entry->family; });
-      if (found == familyProbes.end()) {
-        familyProbes.push_back(FamilyProbe {entry->family,
-                                            *entry->family->jitterProbeOptions,
-                                            {},
-                                            {},
-                                            false,
-                                            false,
-                                            false,
-                                            position,
-                                            position});
-      } else {
-        found->last = position;
-      }
+  for (std::size_t position = 0; position < selected.size(); ++position) {
+    auto* entry = selected[position];
+    if (!entry->family->jitterProbeOptions.has_value()) {
+      continue;
+    }
+    auto found = std::find_if(familyProbes.begin(),
+                              familyProbes.end(),
+                              [&](const FamilyProbe& probe)
+                              { return probe.family == entry->family; });
+    if (found == familyProbes.end()) {
+      familyProbes.push_back(FamilyProbe {entry->family,
+                                          *entry->family->jitterProbeOptions,
+                                          {},
+                                          {},
+                                          false,
+                                          false,
+                                          false,
+                                          position,
+                                          position});
+    } else {
+      found->last = position;
     }
   }
   // The probe holder rides the batch state: the lifecycle starts before
