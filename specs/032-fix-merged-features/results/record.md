@@ -6,11 +6,18 @@ measurement named beside it.
 
 ## T001: the CI run read (FR-064, PC-11)
 
-`gh` carries no token in this session. The token request stands owed:
-the full job-by-job read of run `40438223916` records here when the
-token stands. The request's job-state record (lint, prose-lint,
-dbc-gate, shared-audit, downstream-consumer passed on the base head)
-stands until then.
+Run `40438223916` read 2026-10-27 with a supplied token: status
+completed, conclusion success, head `500704bb757c1bb14a1457b792608deecc505266`
+(master, the hash the branch cuts from). Every job reports success:
+lint, sanitize, coverage, tsan, consumer-release, downstream-consumer,
+prose-lint, shared-audit, dbc-gate, test, static-analysis (tests,
+library, examples), test-rocky, docs.
+
+## T010: the lint job's spell step (FR-010)
+
+The lint job's steps read 2026-10-27: the spell step ran and succeeded
+("Spell check", success) beside the drift, lint and time-source steps,
+so the spell gate needs no CI change.
 
 ## T003: the option-lane confirmation (FR-003)
 
@@ -85,3 +92,23 @@ hash the branch cuts from; the local measurements stand in
   `installTestLayout` does, and the empty installed line stands for
   the unreadable case. The three comments research R-07 names carry
   the mask wording.
+
+
+## Fixes landed on the branch (continued)
+
+- FR-030 (T047, T048): the compare row quotes the name and rule-text
+  cells once with `detail::quotedText` at the print site
+  (`compare.cpp:1905` to `:1912`), the reason cell unquoted; the
+  fixture pair `test/data/gate_quoted_base.json` and
+  `gate_quoted_contender.json` carries a name with a backslash and a
+  newline, and the row stands one line under the escaped spelling.
+- FR-017 (T049 to T051): the report schema carries one top-level
+  `x-order` key, the merged writer order; `checkReport` refuses a
+  schema or a document copy that carries one key twice, reading the
+  pairs the parser's tape carries, and names `/x-order` beside it.
+- FR-022, removal half: the `e781eda` segment print left the family
+  fold check. The intermittent failure's root cause stands owed to the
+  CI observation FR-061 records once the branch pushes.
+- T001, T010: run `40438223916` read with a supplied token; all 15
+  jobs succeeded on the base head, and the lint job's spell step ran
+  and succeeded.
