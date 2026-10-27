@@ -68,25 +68,25 @@ feature with no new option row and no lane move.
 **Purpose**: the blocking prerequisites every story stands on. No
 story work begins before this phase closes.
 
-- [ ] T005 [P] Write the failing seam tests in a new
+- [X] T005 [P] Write the failing seam tests in a new
   `test/source/harness_precheck_test.cpp`, registered in
   `test/CMakeLists.txt`: `installTestProcRoot()` installs a temporary
   directory as the process-global root, `procRoot()` answers it, and
   the default stands restored at scope exit; a `/proc` path read
   under the installed root resolves inside it (FR-019, FR-020, R-02)
-- [ ] T006 Implement the file-root seam in
+- [X] T006 Implement the file-root seam in
   `source/harness/detail/proc_root.hpp`: `procRoot()` answers the
   process-global root (`/` by default) and
   `installTestProcRoot(const std::filesystem::path&)` installs a root
   for the test's life, the contract comments of the standing seams
   (R-02) (depends on T005; the tests turn green)
-- [ ] T007 [P] Write the failing measured-set tests in
+- [X] T007 [P] Write the failing measured-set tests in
   `test/source/harness_precheck_test.cpp`: the set carries the
   planned cpus from the execution-context plans and the candidates
   from the `idle` preset resolution, computed once before the window
   opens; an empty candidate set stands disclosed and the run
   continues (FR-010, R-01, R-10)
-- [ ] T008 Extend the measured set in
+- [X] T008 Extend the measured set in
   `source/harness/jitter_probe.cpp`: the pre-check phase measures the
   planned cpus and the candidates, the candidates taken by the
   standing `idle` resolution reused unchanged; the tests of T007
@@ -103,7 +103,7 @@ story work begins before this phase closes.
   pre-check and then the alongside phase, `mode=alongside` alone runs
   no pre-check, and no option runs none (FR-007, FR-009, FR-011,
   R-06, R-8 of research.md)
-- [ ] T010 Implement the serial sequencer in
+- [X] T010 Implement the serial sequencer in
   `source/harness/jitter_probe.cpp`: the measurement pass of every
   item stands first, then one `ContextBarrier` round per window, the
   item whose turn it is spins for the span, the others wait; the

@@ -887,6 +887,13 @@ add_test(NAME harness_jitter_window_test
 # (FR-013, SC-003). The uniqueness scan reads the parser's source
 # through the path the registration hands the binary, the way the
 # schema tests read their schema path.
+add_executable(harness_precheck_test source/harness_precheck_test.cpp)
+target_link_libraries(harness_precheck_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_precheck_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_precheck_test PRIVATE cxx_std_23)
+add_test(NAME harness_precheck_test COMMAND harness_precheck_test)
+
 add_executable(harness_jitter_cli_test source/harness_jitter_cli_test.cpp)
 target_link_libraries(harness_jitter_cli_test PRIVATE speedgun-ng::harness)
 target_include_directories(harness_jitter_cli_test

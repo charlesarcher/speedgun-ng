@@ -151,6 +151,31 @@ auto installTestReader(std::unique_ptr<counters::WindowReader> reader) -> void;
                                          JitterProbeOptions& parsed,
                                          std::string& message) -> bool;
 
+/// @brief specs/034 R-01: the measured set of one pre-check run: the
+/// planned cpus ascending, then the candidates ascending, the
+/// candidates the standing `idle` resolution takes over the plans
+/// (specs/027 D-4), one candidate per L3 group the plans touch and no
+/// candidate a planned cpu or an SMT sibling of one names.
+///
+/// \pre `machine` stands readable (specs/027 FR-020)
+/// \post `cpus` carries `planned` ascending and deduplicated, then
+///       the resolution's cpus ascending, and no cpu stands twice in
+///       the list (FR-010, R-01)
+/// \post `skippedGroups` carries the touched groups that name no free
+///       cpu, ascending (specs/027 FR-017)
+/// \post a `planned` list that names no cpu answers an empty list,
+///       the caller's status-2 condition (FR-010)
+struct PrecheckMeasuredSet
+{
+  std::vector<std::uint32_t> cpus;
+  std::vector<std::uint32_t> skippedGroups;
+};
+
+struct MachineLayout;
+[[nodiscard]] auto precheckMeasuredSet(const MachineLayout& machine,
+                                       std::vector<std::uint32_t> planned)
+    -> PrecheckMeasuredSet;
+
 }  // namespace sg::detail
 
 #endif
