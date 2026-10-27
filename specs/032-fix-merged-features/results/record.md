@@ -309,13 +309,13 @@ hash the branch cuts from; the local measurements stand in
   the D-14 recorded allowance of 19, and the trace carries no
   exception-cleanup side that the compiler the coverage job uses (the
   host's lcov 2.6 over GCC 16.2.1) proved without a test. The zero
-  list stands: the four `--omit-lines` patterns of the count arm
-  (`const auto count = onlineCpuCount\(\)`, the `reserve`, the `for`
-  and the `push_back`) match no line of code since the affinity-mask
-  fallback replaced the arm, and lcov 2.6 answers the `unused` error
-  class over each of them, so the standing keep-set holds the gate
-  open on this host until the approval D-12 names. The
-  `cpus.empty()` pattern and the `SG_` macro pattern stay live.
+  list stood materialized: the four `--omit-lines` patterns of the
+  count arm matched no line of code after the affinity-mask fallback
+  replaced the arm, and lcov 2.6 answers its `unused` error class
+  over each of them, so the gate held red until the four left the
+  set. The `cpus.empty()` pattern and the `SG_` macro pattern stay
+  live, the set stands at two patterns, and the gate reads green
+  (lines 100.0 percent, 11977 of 11977).
 - T062 (SC-004): the suite passes under `taskset -c 0,1` and the
   standing CI covers the rest.
 - T064 (FR-061): each figure in this record comes from the local run
