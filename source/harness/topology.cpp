@@ -361,12 +361,9 @@ auto onlineCpuSet() -> std::vector<std::uint32_t>
     cpu_set_t mask {};
     CPU_ZERO(&mask);
     (void)sched_getaffinity(0, sizeof(mask), &mask);
-    for (std::uint32_t index = 0;
-         index < static_cast<std::uint32_t>(CPU_SETSIZE);
-         ++index)
-    {
-      if (CPU_ISSET(static_cast<int>(index), &mask)) {
-        cpus.push_back(index);
+    for (std::size_t index = 0; index < CPU_SETSIZE; ++index) {
+      if (CPU_ISSET(index, &mask)) {
+        cpus.push_back(static_cast<std::uint32_t>(index));
       }
     }
   }

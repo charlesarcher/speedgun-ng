@@ -478,16 +478,15 @@ auto childOnlineSeams() -> int
   // line, and the fallback answers the process affinity mask, so the
   // set the cleared line seam reads names every index the child's mask
   // holds, the mask the test mirrors beside the call.
+  sg::detail::installTestOnlineCpus(std::nullopt);
   sg::detail::installTestOnlineLine(std::string {});
   cpu_set_t mask {};
   CPU_ZERO(&mask);
   (void)sched_getaffinity(0, sizeof(mask), &mask);
   auto maskSet = std::vector<std::uint32_t> {};
-  for (std::uint32_t index = 0; index < static_cast<std::uint32_t>(CPU_SETSIZE);
-       ++index)
-  {
-    if (CPU_ISSET(static_cast<int>(index), &mask)) {
-      maskSet.push_back(index);
+  for (std::size_t index = 0; index < CPU_SETSIZE; ++index) {
+    if (CPU_ISSET(index, &mask)) {
+      maskSet.push_back(static_cast<std::uint32_t>(index));
     }
   }
   if (sg::detail::onlineCpuSet() != maskSet) {
