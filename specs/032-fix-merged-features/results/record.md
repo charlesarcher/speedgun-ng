@@ -112,3 +112,15 @@ hash the branch cuts from; the local measurements stand in
 - T001, T010: run `40438223916` read with a supplied token; all 15
   jobs succeeded on the base head, and the lint job's spell step ran
   and succeeded.
+
+- FR-034, FR-045, D-07 (T027, T029): the ambient-value refusals stand
+  on master and carry their tests: `SPEEDGUN_COUNTER`, `SPEEDGUN_METRIC`
+  and `SPEEDGUN_PLACEMENT` each stop the hunt with the one line naming
+  the option, from the environment and from the option file beside the
+  command line's (`scenarioAmbientCombinationRefusals`).
+- FR-035, D-08 (T028, T030): the hunt and the probe run together, and
+  the fix landed: the deferred print of a probed run read no run
+  record, so the console dropped the hunt block the document carried;
+  the deferred pass now reads the record each entry answered, and the
+  scenario runs the hunt beside the probe on a host that scripts the
+  probe's leaves (`scenarioHuntWithProbe`).
