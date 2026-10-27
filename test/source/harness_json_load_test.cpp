@@ -1311,6 +1311,7 @@ auto thePrecheckRecordRoundTrips() -> void
   check(precheckAt != std::string::npos && precheckAt < benchmarksAt,
         "the precheck key stands before benchmarks (D-8); the key order "
         "the x-order list states the reader checks itself");
+  sg::test::writeText("harness_json_load_precheck.json", text);
   const auto loaded = sg::loadReport(kWritten);
   check(loaded.has_value(),
         "the reader read the document with the record (FR-024)");
@@ -1330,6 +1331,89 @@ auto thePrecheckRecordRoundTrips() -> void
         "a run without the pre-check writes no key (FR-024)");
 }
 
+// specs/034 T018, FR-024, FR-029: every key of the pre-check record
+// refuses its own wrong kind, its own missing presence, and its own
+// container kind, and every refusal names the pointer of the key it
+// answers, the way the standing records refuse (FR-029).
+auto thePrecheckRefusalsNameTheirFields() -> void
+{
+  struct Plant
+  {
+    const char* find;
+    const char* instead;
+    const char* pointer;
+  };
+  const std::string text = sg::test::readText("harness_json_load_precheck.json");
+  const Mutation plants[] = {
+      {"\"serial\":true,", "", "/precheck"},
+      {"\"serial\":true", "\"serial\":1", "/precheck/serial"},
+      {"\"windowMs\":200,", "", "/precheck"},
+      {"\"windowMs\":200", "\"windowMs\":\"x\"", "/precheck/windowMs"},
+      {"\"cpus\":[{\"cpu\":3,\"role\":\"planned\",\"stats\":{\"gapCount\":2,\"gapsPerSecond\":11.5,\"minNs\":0,\"medianNs\":0,\"meanNs\":0.0,\"p90Ns\":0,\"p99Ns\":0,\"p999Ns\":0,\"p9999Ns\":0,\"maxNs\":9000,\"totalNs\":0,\"totalPercent\":0.0,\"runtimeNs\":0,\"thresholdNs\":0,\"loopPeriodNs\":0,\"droppedGaps\":0},\"attribution\":{\"interrupts\":42,\"softirqs\":{\"TIMER\":7,\"NET_RX\":null},\"switchDelta\":5,\"scheduleDelta\":null}},{\"cpu\":4,\"role\":\"candidate\",\"stats\":{\"gapCount\":0,\"gapsPerSecond\":0.0,\"minNs\":0,\"medianNs\":0,\"meanNs\":0.0,\"p90Ns\":0,\"p99Ns\":0,\"p999Ns\":0,\"p9999Ns\":0,\"maxNs\":0,\"totalNs\":0,\"totalPercent\":0.0,\"runtimeNs\":0,\"thresholdNs\":0,\"loopPeriodNs\":0,\"droppedGaps\":0},\"attribution\":{\"interrupts\":null,\"softirqs\":{},\"switchDelta\":null,\"scheduleDelta\":null}}]", "\"cpus\":{}", "/precheck"},
+      {"\"cpus\":[{\"cpu\":3,\"role\":\"planned\",\"stats\":{\"gapCount\":2,\"gapsPerSecond\":11.5,\"minNs\":0,\"medianNs\":0,\"meanNs\":0.0,\"p90Ns\":0,\"p99Ns\":0,\"p999Ns\":0,\"p9999Ns\":0,\"maxNs\":9000,\"totalNs\":0,\"totalPercent\":0.0,\"runtimeNs\":0,\"thresholdNs\":0,\"loopPeriodNs\":0,\"droppedGaps\":0},\"attribution\":{\"interrupts\":42,\"softirqs\":{\"TIMER\":7,\"NET_RX\":null},\"switchDelta\":5,\"scheduleDelta\":null}},{\"cpu\":4,\"role\":\"candidate\",\"stats\":{\"gapCount\":0,\"gapsPerSecond\":0.0,\"minNs\":0,\"medianNs\":0,\"meanNs\":0.0,\"p90Ns\":0,\"p99Ns\":0,\"p999Ns\":0,\"p9999Ns\":0,\"maxNs\":0,\"totalNs\":0,\"totalPercent\":0.0,\"runtimeNs\":0,\"thresholdNs\":0,\"loopPeriodNs\":0,\"droppedGaps\":0},\"attribution\":{\"interrupts\":null,\"softirqs\":{},\"switchDelta\":null,\"scheduleDelta\":null}}],", "", "/precheck"},
+      {"\"cpu\":3", "\"cpu\":\"x\"", "/precheck/cpus/0/cpu"},
+      {"\"cpu\":3,", "", "/precheck/cpus/0"},
+      {"\"role\":\"planned\"", "\"role\":1", "/precheck/cpus/0/role"},
+      {"\"role\":\"planned\"", "\"role\":\"bogus\"", "/precheck/cpus/0/role"},
+      {"\"role\":\"planned\",", "", "/precheck/cpus/0"},
+      {"\"stats\":{\"gapCount\":2,\"gapsPerSecond\":11.5,\"minNs\":0,\"medianNs\":0,\"meanNs\":0.0,\"p90Ns\":0,\"p99Ns\":0,\"p999Ns\":0,\"p9999Ns\":0,\"maxNs\":9000,\"totalNs\":0,\"totalPercent\":0.0,\"runtimeNs\":0,\"thresholdNs\":0,\"loopPeriodNs\":0,\"droppedGaps\":0}", "\"stats\":[]", "/precheck/cpus/0/stats"},
+      {"\"stats\":{\"gapCount\":2,\"gapsPerSecond\":11.5,\"minNs\":0,\"medianNs\":0,\"meanNs\":0.0,\"p90Ns\":0,\"p99Ns\":0,\"p999Ns\":0,\"p9999Ns\":0,\"maxNs\":9000,\"totalNs\":0,\"totalPercent\":0.0,\"runtimeNs\":0,\"thresholdNs\":0,\"loopPeriodNs\":0,\"droppedGaps\":0},", "", "/precheck/cpus/0"},
+      {"\"gapCount\":2", "\"gapCount\":\"x\"", "/precheck/cpus/0/stats/gapCount"},
+      {"\"gapCount\":2,", "", "/precheck/cpus/0/stats"},
+      {"\"gapsPerSecond\":11.5", "\"gapsPerSecond\":\"x\"", "/precheck/cpus/0/stats/gapsPerSecond"},
+      {"\"attribution\":{\"interrupts\":42,\"softirqs\":{\"TIMER\":7,\"NET_RX\":null},\"switchDelta\":5,\"scheduleDelta\":null}", "\"attribution\":[]", "/precheck/cpus/0/attribution"},
+      {",\"attribution\":{\"interrupts\":42,\"softirqs\":{\"TIMER\":7,\"NET_RX\":null},\"switchDelta\":5,\"scheduleDelta\":null}", "", "/precheck/cpus/0"},
+      {"\"interrupts\":42", "\"interrupts\":\"x\"", "/precheck/cpus/0/attribution/interrupts"},
+      {"\"interrupts\":42,", "", "/precheck/cpus/0/attribution"},
+      {"\"softirqs\":{\"TIMER\":7,\"NET_RX\":null}", "\"softirqs\":1", "/precheck/cpus/0/attribution/softirqs"},
+      {"\"softirqs\":{\"TIMER\":7,\"NET_RX\":null},", "", "/precheck/cpus/0/attribution"},
+      {"\"TIMER\":7", "\"TIMER\":\"x\"", "/precheck/cpus/0/attribution/softirqs/TIMER"},
+      {"\"switchDelta\":5", "\"switchDelta\":true", "/precheck/cpus/0/attribution/switchDelta"},
+      {"\"switchDelta\":5,\"scheduleDelta\":null", "\"switchDelta\":5,\"scheduleDelta\":\"x\"", "/precheck/cpus/0/attribution/scheduleDelta"},
+      {"\"hostSettings\":{\"isolcpus\":\"2-3\",\"nohz_full\":null,\"rcu_nocbs\":null,\"governors\":{\"3\":\"performance\"},\"irqAffinity\":{\"3\":\"24,25\"}}", "\"hostSettings\":[]", "/precheck/hostSettings"},
+      {"\"hostSettings\":{\"isolcpus\":\"2-3\",\"nohz_full\":null,\"rcu_nocbs\":null,\"governors\":{\"3\":\"performance\"},\"irqAffinity\":{\"3\":\"24,25\"}},", "", "/precheck"},
+      {"\"isolcpus\":\"2-3\"", "\"isolcpus\":1", "/precheck/hostSettings/isolcpus"},
+      {"\"isolcpus\":\"2-3\",", "", "/precheck/hostSettings"},
+      {"\"governors\":{\"3\":\"performance\"}", "\"governors\":[]", "/precheck/hostSettings/governors"},
+      {"\"governors\":{\"3\":\"performance\"}", "\"governors\":{\"x\":\"performance\"}", "/precheck/hostSettings/governors/x"},
+      {"\"governors\":{\"3\":\"performance\"},", "", "/precheck/hostSettings"},
+      {"\"3\":\"performance\"", "\"3\":1", "/precheck/hostSettings/governors/3"},
+      {"\"irqAffinity\":{\"3\":\"24,25\"}", "\"irqAffinity\":1", "/precheck/hostSettings/irqAffinity"},
+      {"\"irqAffinity\":{\"3\":\"24,25\"}", "\"irqAffinity\":{\"x\":\"24,25\"}", "/precheck/hostSettings/irqAffinity/x"},
+      {",\"irqAffinity\":{\"3\":\"24,25\"}", "", "/precheck/hostSettings"},
+      {"\"irqAffinity\":{\"3\":\"24,25\"}", "\"irqAffinity\":{\"3\":1}", "/precheck/hostSettings/irqAffinity/3"},
+      {"\"24,25\"", "\"a\"", "/precheck/hostSettings/irqAffinity/3"},
+      {"\"skippedGroups\":[1]", "\"skippedGroups\":1", "/precheck/skippedGroups"},
+      {",\"skippedGroups\":[1]", "", "/precheck"},
+      {"\"skippedGroups\":[1]", "\"skippedGroups\":[\"x\"]", "/precheck/skippedGroups/0"},
+  };
+  for (const Mutation& plant : plants) {
+    const std::size_t at = text.find(plant.find);
+    if (at == std::string::npos) {
+      std::printf("  no '%s' in the written document\n", plant.find);
+      sg::test::fail("the planted field has no place to stand");
+      continue;
+    }
+    std::string broken = text;
+    broken.replace(at, std::strlen(plant.find), plant.replace);
+    sg::test::writeText(kAgain, broken);
+    const auto refused = sg::loadReport(kAgain);
+    if (refused.has_value()) {
+      std::printf("  '%s' loaded\n", plant.find);
+      sg::test::fail("the planted field loads anyway (FR-024)");
+      continue;
+    }
+    if (refused.error().find(plant.pointer) == std::string::npos) {
+      std::printf("  '%s' refused without '%s': %s\n",
+                  plant.find,
+                  plant.pointer,
+                  refused.error().c_str());
+      sg::test::fail("the refusal names no pointer for the field "
+                     "(FR-024, FR-029)");
+    }
+  }
+}
+
 auto main() -> int
 {
   roundTripClosesTheFormat();
@@ -1347,6 +1431,7 @@ auto main() -> int
   brokenSpansRefuseWithPointers(written);
   theContextSpansRefuseWithPointers();
   thePrecheckRecordRoundTrips();
+  thePrecheckRefusalsNameTheirFields();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;
