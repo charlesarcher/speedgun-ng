@@ -236,15 +236,15 @@ auto installedLoadFailureSlot() -> std::optional<int>&
   return slot;
 }
 
-auto installedOnlineCountSlot() -> std::optional<std::uint64_t>&
-{
-  static std::optional<std::uint64_t> slot;
-  return slot;
-}
-
 auto installedOnlineCpusSlot() -> std::optional<std::vector<std::uint32_t>>&
 {
   static std::optional<std::vector<std::uint32_t>> slot;
+  return slot;
+}
+
+auto installedOnlineLineSlot() -> std::optional<std::string>&
+{
+  static std::optional<std::string> slot;
   return slot;
 }
 
@@ -319,29 +319,25 @@ auto installTestLoadFailure(std::optional<int> answer) -> void
   installedLoadFailureSlot() = answer;
 }
 
-auto installTestOnlineCount(std::optional<std::uint64_t> count) -> void
-{
-  installedOnlineCountSlot() = std::move(count);
-}
-
 auto installTestOnlineCpus(std::optional<std::vector<std::uint32_t>> cpus)
     -> void
 {
   installedOnlineCpusSlot() = std::move(cpus);
 }
 
-auto onlineCpuCount() -> std::uint64_t
+auto installTestOnlineLine(std::optional<std::string> line) -> void
 {
-  return installedOnlineCountSlot().value_or(
-      std::thread::hardware_concurrency());
+  installedOnlineLineSlot() = std::move(line);
 }
 
 // FR-005, FR-041: the online cpu set the placement bound and the option
 // value grammar read. The set is consulted at each call, never cached,
 // so an installed set decides the call that follows it (Q-5). The host
-// read is the line the kernel owns; a host whose line cannot be read
-// answers the indices the online count counts, the count the seam
-// installs too (FR-005, FR-041).
+// read is the line the kernel owns; a host whose line stands unread, as
+// an empty line stands unread, answers the process affinity mask, gaps
+// and all, and a count never stands as the fallback source (D-02,
+// FR-021). A mask read that fails leaves the zeroed mask, so the set
+// stands empty and both bounds refuse every index.
 auto onlineCpuSet() -> std::vector<std::uint32_t>
 {
   if (const auto& installed = installedOnlineCpusSlot(); installed.has_value())
@@ -349,17 +345,29 @@ auto onlineCpuSet() -> std::vector<std::uint32_t>
     return *installed;
   }
   auto text = std::string {};
-  auto stream = std::ifstream("/sys/devices/system/cpu/online");
-  if (stream.good()) {
+  if (const auto& installed = installedOnlineLineSlot(); installed.has_value())
+  {
+    text = *installed;
+  } else {
+    auto stream = std::ifstream("/sys/devices/system/cpu/online");
+    // A stream that opened no file reads as an empty line: getline
+    // answers nothing and leaves the text empty, so the fallback below
+    // owns the unreadable host beside the empty line (D-02, FR-021).
     std::getline(stream, text);
   }
   auto cpus = std::vector<std::uint32_t> {};
   appendOnlineCpuList(cpus, text);
   if (cpus.empty()) {
-    const auto count = onlineCpuCount();
-    cpus.reserve(static_cast<std::size_t>(count));
-    for (auto index = std::uint64_t {0}; index < count; ++index) {
-      cpus.push_back(static_cast<std::uint32_t>(index));
+    cpu_set_t mask {};
+    CPU_ZERO(&mask);
+    (void)sched_getaffinity(0, sizeof(mask), &mask);
+    for (std::uint32_t index = 0;
+         index < static_cast<std::uint32_t>(CPU_SETSIZE);
+         ++index)
+    {
+      if (CPU_ISSET(static_cast<int>(index), &mask)) {
+        cpus.push_back(index);
+      }
     }
   }
   return cpus;

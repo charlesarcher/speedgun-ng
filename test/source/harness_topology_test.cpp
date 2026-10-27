@@ -463,27 +463,38 @@ auto childReadOnce() -> int
   return 0;
 }
 
-// FR-005, FR-041: the online count and set seams answer what an install
-// states, and a cleared seam answers the host: the count the kernel
-// publishes and the set the /sys online line parses to (Q-5).
+// FR-005, FR-041: the set and line seams answer what an install states,
+// and a cleared seam answers the host: the set the /sys online line
+// parses to, and the process affinity mask where the line stands unread
+// (D-02, FR-021).
 auto childOnlineSeams() -> int
 {
-  sg::detail::installTestOnlineCount(7);
-  if (sg::detail::onlineCpuCount() != 7) {
-    std::fprintf(stderr, "an installed count did not answer\n");
-    return 1;
-  }
-  sg::detail::installTestOnlineCount(std::optional<std::uint64_t> {});
-  if (sg::detail::onlineCpuCount() != std::thread::hardware_concurrency()) {
-    std::fprintf(stderr, "the cleared count did not answer the host\n");
-    return 1;
-  }
   sg::detail::installTestOnlineCpus(std::vector<std::uint32_t> {9U, 3U});
   if (sg::detail::onlineCpuSet() != (std::vector<std::uint32_t> {9U, 3U})) {
     std::fprintf(stderr, "an installed set did not answer\n");
     return 1;
   }
-  sg::detail::installTestOnlineCpus(std::nullopt);
+  // D-02, FR-021: the unreadable line stands as an empty installed
+  // line, and the fallback answers the process affinity mask, so the
+  // set the cleared line seam reads names every index the child's mask
+  // holds, the mask the test mirrors beside the call.
+  sg::detail::installTestOnlineLine(std::string {});
+  cpu_set_t mask {};
+  CPU_ZERO(&mask);
+  (void)sched_getaffinity(0, sizeof(mask), &mask);
+  auto maskSet = std::vector<std::uint32_t> {};
+  for (std::uint32_t index = 0; index < static_cast<std::uint32_t>(CPU_SETSIZE);
+       ++index)
+  {
+    if (CPU_ISSET(static_cast<int>(index), &mask)) {
+      maskSet.push_back(index);
+    }
+  }
+  if (sg::detail::onlineCpuSet() != maskSet) {
+    std::fprintf(stderr, "the unreadable line did not answer the mask\n");
+    return 1;
+  }
+  sg::detail::installTestOnlineLine(std::nullopt);
   auto hostSet = std::vector<std::uint32_t> {};
   if (auto stream = std::ifstream("/sys/devices/system/cpu/online");
       stream.good())
@@ -491,13 +502,6 @@ auto childOnlineSeams() -> int
     auto text = std::string {};
     std::getline(stream, text);
     sg::detail::appendOnlineCpuList(hostSet, text);
-  }
-  if (hostSet.empty()) {
-    const auto count = sg::detail::onlineCpuCount();
-    hostSet.reserve(static_cast<std::size_t>(count));
-    for (auto index = std::uint64_t {0}; index < count; ++index) {
-      hostSet.push_back(static_cast<std::uint32_t>(index));
-    }
   }
   if (sg::detail::onlineCpuSet() != hostSet) {
     std::fprintf(stderr, "the cleared set did not answer the host\n");
