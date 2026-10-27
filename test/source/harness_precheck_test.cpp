@@ -490,7 +490,7 @@ auto main(int argc, char** argv) -> int
             scan, stop == std::string::npos ? std::string::npos
                                             : stop - scan);
         if (!line.empty()
-            && line.find("libgcov profiling error:") != 0)
+            && !line.starts_with("libgcov profiling error:"))
         {
           ++refusalLines;
         }
@@ -766,6 +766,63 @@ auto main(int argc, char** argv) -> int
           "an interrupt column that parses as no number stands absent "
           "(FR-018)");
 
+    // The softirq kind whose column parses as no number stands absent
+    // for that kind alone, and the schedstat line short of the three
+    // figures stands absent beside it (FR-018).
+    write(procDir / "softirqs", " TIMER: 5 zz\n");
+    write(procDir / "schedstat",
+          "cpu" + std::to_string(cpu1) + " 1 2\n");
+    const auto shortShapes = sg::detail::precheckReadSnapshot(cpus);
+    const auto& softState = shortShapes.at(cpu1);
+    check(softState.softirqs.size() == 1
+              && !softState.softirqs.at(0).second.has_value(),
+          "a softirq column that parses as no number stands absent "
+          "(FR-018)");
+    check(!shortShapes.at(cpu1).switches.has_value()
+              && !shortShapes.at(cpu1).schedules.has_value(),
+          "a schedstat line short of the three figures stands absent "
+          "(FR-018)");
+
+    // A counter that stands back: the after figure below the before
+    // figure stands the delta absent, the way a wrapped counter reads
+    // (FR-016, FR-018).
+    write(procDir / "interrupts", " 0: 10 20\n 1: 1 2\n");
+    write(procDir / "softirqs", " TIMER: 5 6\n NET_RX: 1 2\n");
+    write(procDir / "schedstat",
+          "cpu" + std::to_string(cpu1) + " 1 2 3\n");
+    const auto wrappedBefore = sg::detail::precheckReadSnapshot(cpus);
+    // The interrupt counter stands back: the after figure below the
+    // before figure stands the delta absent, the way a wrapped
+    // counter reads (FR-016, FR-018), while the softirq figures stand
+    // their increases beside it.
+    write(procDir / "interrupts", " 0: 5 8\n 1: 1 1\n");
+    write(procDir / "softirqs", " TIMER: 9 9\n NET_RX: 1 2\n"
+          " ICMP: 1 1\n");
+    const auto wrappedAfter = sg::detail::precheckReadSnapshot(cpus);
+    const auto wrapped = sg::detail::precheckAttributionDelta(
+        wrappedBefore.at(cpu1), wrappedAfter.at(cpu1));
+    check(!wrapped.interrupts.has_value(),
+          "a delta below zero stands absent (FR-016, FR-018)");
+    if (wrapped.softirqs.size() != 3
+        || !wrapped.softirqs.at(0).second.has_value()
+        || *wrapped.softirqs.at(0).second != 3
+        || !wrapped.softirqs.at(1).second.has_value()
+        || *wrapped.softirqs.at(1).second != 0
+        || wrapped.softirqs.at(2).second.has_value())
+    {
+      for (const auto& [kind, figure] : wrapped.softirqs) {
+        std::fprintf(stderr, "DBG kind=%s delta=%s\n", kind.c_str(),
+                     figure.has_value() ? std::to_string(*figure).c_str()
+                                        : "(absent)");
+      }
+      std::fprintf(stderr, "DBG interrupts=%d switches=%d schedules=%d\n",
+                   wrapped.interrupts.has_value(),
+                   wrapped.switches.has_value(),
+                   wrapped.schedules.has_value());
+      fail("a kind both snapshots name stands its delta, and a kind the "
+           "after snapshot adds stands absent (FR-016)");
+    }
+
     // The delta stands absent when one side stands absent: the
     // interrupt file stands deleted between the snapshots.
     write(procDir / "interrupts", " 0: 10 20\n 1: 1 2\n");
@@ -785,6 +842,64 @@ auto main(int argc, char** argv) -> int
               && *delta.softirqs.at(0).second == 3,
           "the sources that stand on both sides still carry their "
           "deltas (FR-016)");
+  }
+
+  // T015, FR-018: the empty files and the boundary shapes the readers
+  // answer: an empty command line names no setting, a key that names
+  // no equals sign names no value, an empty value names the empty
+  // text, an empty governor file names no line, an empty softirq file
+  // names no kind, and the single-token affinity list stands the list
+  // the loop reads once.
+  {
+    const auto rootDir = fakeRoot();
+    std::filesystem::remove_all(rootDir);
+    std::filesystem::create_directories(rootDir);
+    const ProcRootGuard guard(rootDir);
+    const auto procDir = rootDir / "proc";
+    const auto sysDir = rootDir / "sys/devices/system/cpu";
+    std::filesystem::create_directories(procDir);
+    const auto write = [](const std::filesystem::path& path,
+                          const std::string& text)
+    {
+      std::filesystem::create_directories(path.parent_path());
+      std::ofstream file(path);
+      check(static_cast<bool>(file), "the fake file opens (T015)");
+      file << text;
+    };
+    const auto cpus = pickCpus(2);
+    const auto cpu0 = cpus.at(0);
+    write(procDir / "cmdline", "");
+    write(procDir / "cmdline2", "isolcpus nohz_full= rcu_nocbs=0-1\n");
+    std::filesystem::rename(procDir / "cmdline2", procDir / "cmdline");
+    write(procDir / "softirqs", "");
+    write(procDir / "schedstat", "");
+    write(procDir / "interrupts", "");
+    write(sysDir / ("cpu" + std::to_string(cpu0) + "/cpufreq/"
+                    "scaling_governor"),
+          "");
+    write(procDir / "irq/5/smp_affinity_list",
+          std::to_string(cpu0) + "\n");
+    const auto snapshot = sg::detail::precheckReadSnapshot(cpus);
+    const auto& state0 = snapshot.at(cpu0);
+    check(state0.interrupts.has_value() && *state0.interrupts == 0
+              && state0.softirqs.empty()
+              && !state0.switches.has_value() && !state0.schedules.has_value(),
+          "an empty file sums to zero, and an empty schedstat line "
+          "names no figure (FR-018)");
+    const auto host = sg::detail::precheckReadHostSettings(cpus);
+    check(!host.isolcpus.has_value()
+              && host.nohzFull.has_value() && host.nohzFull->empty()
+              && host.rcuNocbs.has_value() && *host.rcuNocbs == "0-1",
+          "a key that names no equals sign names no setting, and an "
+          "empty value names the empty text (FR-017)");
+    check(host.governors.size() == 2
+              && !host.governors.at(0).second.has_value(),
+          "an empty governor file names no line (FR-017)");
+    check(host.irqAffinity.size() == 2
+              && host.irqAffinity.at(0).second.size() == 1
+              && host.irqAffinity.at(1).second.empty(),
+          "the single-token affinity list stands the cpu it names "
+          "(FR-017)");
   }
 
   // T015, FR-018: the cpu-list and mask parsers refuse the shapes no
@@ -815,6 +930,12 @@ auto main(int argc, char** argv) -> int
     write(procDir / "irq/9/smp_affinity_list", "0,,1\n");
     write(procDir / "irq/10/smp_affinity_list", "x\n");
     write(procDir / "irq/11/smp_affinity_list", "3-2\n");
+    // The open-ended span and the mask shapes no host spells: the low
+    // bound beside no high bound, the token that names no hex word,
+    // and the leading comma that names no first group (FR-018).
+    write(procDir / "irq/14/smp_affinity_list", "1-\n");
+    write(procDir / "irq/15/smp_affinity", "zzzzzzzz\n");
+    write(procDir / "irq/16/smp_affinity", ",00000003\n");
     // The multi-group mask: the picked cpus' own groups beside the
     // low group's bit zero, so the two-group parse stands on any
     // host (VI).
@@ -854,7 +975,10 @@ auto main(int argc, char** argv) -> int
     check(!namedBy(cpu0, 9U) && !namedBy(cpu1, 9U)
               && !namedBy(cpu0, 10U) && !namedBy(cpu1, 10U)
               && !namedBy(cpu0, 11U) && !namedBy(cpu1, 11U)
-              && !namedBy(cpu0, 13U) && !namedBy(cpu1, 13U),
+              && !namedBy(cpu0, 13U) && !namedBy(cpu1, 13U)
+              && !namedBy(cpu0, 14U) && !namedBy(cpu1, 14U)
+              && !namedBy(cpu0, 15U) && !namedBy(cpu1, 15U)
+              && !namedBy(cpu0, 16U) && !namedBy(cpu1, 16U),
           "the unparsable affinity shapes name no cpu (FR-018)");
     check(namedBy(cpu0, 12U) && namedBy(cpu1, 12U),
           "the multi-group mask names its cpus (FR-018)");

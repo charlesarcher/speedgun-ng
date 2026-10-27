@@ -1329,6 +1329,47 @@ auto thePrecheckRecordRoundTrips() -> void
   check(sg::test::readText(kAgain).find("\"precheck\"")
             == std::string::npos,
         "a run without the pre-check writes no key (FR-024)");
+
+  // The record whose optional shapes stand empty writes and reads
+  // back: the host settings unstated, no governor, no affinity, the
+  // candidate figures absent (FR-024).
+  sg::PrecheckRecord minimal;
+  minimal.serial = false;
+  minimal.windowMs = 1;
+  sg::PrecheckCpuRecord quiet;
+  quiet.cpu = 1;
+  minimal.cpus.push_back(quiet);
+  minimal.host.governors.emplace_back(1U, std::nullopt);
+  minimal.host.irqAffinity.emplace_back(1U, std::vector<std::uint32_t> {});
+  sg::PrecheckRecord sparse;
+  sparse.windowMs = 1;
+  sg::PrecheckCpuRecord sparseCpu;
+  sparseCpu.cpu = 1;
+  sparse.cpus.push_back(sparseCpu);
+  sg::ReportData sparseData;
+  sparseData.precheck = sparse;
+  check(sg::detail::writeReport(kAgain, sparseData, {}, std::nullopt,
+                                sparse),
+        "the writer wrote the governor-free record (FR-006)");
+  const auto sparseLoaded = sg::loadReport(kAgain);
+  check(sparseLoaded.has_value(),
+        "the reader read the governor-free record (FR-024)");
+  if (sparseLoaded.has_value()) {
+    check(sg::test::sameReport(*sparseLoaded, sparseData),
+          "the governor-free record reads back field by field (FR-024)");
+  }
+  sg::ReportData minimalData;
+  minimalData.precheck = minimal;
+  check(sg::detail::writeReport(kAgain, minimalData, {}, std::nullopt,
+                                minimal),
+        "the writer wrote the minimal record (FR-006)");
+  const auto minimalLoaded = sg::loadReport(kAgain);
+  check(minimalLoaded.has_value(),
+        "the reader read the minimal record (FR-024)");
+  if (minimalLoaded.has_value()) {
+    check(sg::test::sameReport(*minimalLoaded, minimalData),
+          "the minimal record reads back field by field (FR-024)");
+  }
 }
 
 // specs/034 T018, FR-024, FR-029: every key of the pre-check record
@@ -1361,6 +1402,20 @@ auto thePrecheckRefusalsNameTheirFields() -> void
       {"\"gapCount\":2", "\"gapCount\":\"x\"", "/precheck/cpus/0/stats/gapCount"},
       {"\"gapCount\":2,", "", "/precheck/cpus/0/stats"},
       {"\"gapsPerSecond\":11.5", "\"gapsPerSecond\":\"x\"", "/precheck/cpus/0/stats/gapsPerSecond"},
+      {"\"minNs\":0", "\"minNs\":\"x\"", "/precheck/cpus/0/stats/minNs"},
+      {"\"medianNs\":0", "\"medianNs\":\"x\"", "/precheck/cpus/0/stats/medianNs"},
+      {"\"meanNs\":0.0", "\"meanNs\":\"x\"", "/precheck/cpus/0/stats/meanNs"},
+      {"\"p90Ns\":0", "\"p90Ns\":\"x\"", "/precheck/cpus/0/stats/p90Ns"},
+      {"\"p99Ns\":0", "\"p99Ns\":\"x\"", "/precheck/cpus/0/stats/p99Ns"},
+      {"\"p999Ns\":0", "\"p999Ns\":\"x\"", "/precheck/cpus/0/stats/p999Ns"},
+      {"\"p9999Ns\":0", "\"p9999Ns\":\"x\"", "/precheck/cpus/0/stats/p9999Ns"},
+      {"\"maxNs\":9000", "\"maxNs\":\"x\"", "/precheck/cpus/0/stats/maxNs"},
+      {"\"totalNs\":0", "\"totalNs\":\"x\"", "/precheck/cpus/0/stats/totalNs"},
+      {"\"totalPercent\":0.0", "\"totalPercent\":\"x\"", "/precheck/cpus/0/stats/totalPercent"},
+      {"\"runtimeNs\":0", "\"runtimeNs\":\"x\"", "/precheck/cpus/0/stats/runtimeNs"},
+      {"\"thresholdNs\":0", "\"thresholdNs\":\"x\"", "/precheck/cpus/0/stats/thresholdNs"},
+      {"\"loopPeriodNs\":0", "\"loopPeriodNs\":\"x\"", "/precheck/cpus/0/stats/loopPeriodNs"},
+      {"\"droppedGaps\":0", "\"droppedGaps\":\"x\"", "/precheck/cpus/0/stats/droppedGaps"},
       {"\"attribution\":{\"interrupts\":42,\"softirqs\":{\"TIMER\":7,\"NET_RX\":null},\"switchDelta\":5,\"scheduleDelta\":null}", "\"attribution\":[]", "/precheck/cpus/0/attribution"},
       {",\"attribution\":{\"interrupts\":42,\"softirqs\":{\"TIMER\":7,\"NET_RX\":null},\"switchDelta\":5,\"scheduleDelta\":null}", "", "/precheck/cpus/0"},
       {"\"interrupts\":42", "\"interrupts\":\"x\"", "/precheck/cpus/0/attribution/interrupts"},
@@ -1378,11 +1433,15 @@ auto thePrecheckRefusalsNameTheirFields() -> void
       {"\"governors\":{\"3\":\"performance\"}", "\"governors\":{\"x\":\"performance\"}", "/precheck/hostSettings/governors/x"},
       {"\"governors\":{\"3\":\"performance\"},", "", "/precheck/hostSettings"},
       {"\"3\":\"performance\"", "\"3\":1", "/precheck/hostSettings/governors/3"},
+      {"\"nohz_full\":null", "\"nohz_full\":1", "/precheck/hostSettings/nohz_full"},
+      {"\"rcu_nocbs\":null", "\"rcu_nocbs\":1", "/precheck/hostSettings/rcu_nocbs"},
+      {"\"governors\":{\"3\":\"performance\"}", "\"governors\":{\"3x\":\"p\"}", "/precheck/hostSettings/governors/3x"},
       {"\"irqAffinity\":{\"3\":\"24,25\"}", "\"irqAffinity\":1", "/precheck/hostSettings/irqAffinity"},
       {"\"irqAffinity\":{\"3\":\"24,25\"}", "\"irqAffinity\":{\"x\":\"24,25\"}", "/precheck/hostSettings/irqAffinity/x"},
       {",\"irqAffinity\":{\"3\":\"24,25\"}", "", "/precheck/hostSettings"},
       {"\"irqAffinity\":{\"3\":\"24,25\"}", "\"irqAffinity\":{\"3\":1}", "/precheck/hostSettings/irqAffinity/3"},
       {"\"24,25\"", "\"a\"", "/precheck/hostSettings/irqAffinity/3"},
+      {"\"24,25\"", "\"2x5\"", "/precheck/hostSettings/irqAffinity/3"},
       {"\"skippedGroups\":[1]", "\"skippedGroups\":1", "/precheck/skippedGroups"},
       {",\"skippedGroups\":[1]", "", "/precheck"},
       {"\"skippedGroups\":[1]", "\"skippedGroups\":[\"x\"]", "/precheck/skippedGroups/0"},
