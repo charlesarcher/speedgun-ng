@@ -358,3 +358,19 @@ hash the branch cuts from; the local measurements stand in
   shape its conditional states. The coverage job reads 100.0 percent
   lines with the branch shortfall at 18 rows, within the recorded
   allowance (SC-001, SC-002).
+
+## The flake class and the closing run (FR-061)
+
+The head `d2889fd` ran three times: the run `40464069553` read
+success on every job; the run `40467467702` failed two jobs the same
+code had passed — the calibration window case, whose per-iteration
+bound the sanitizer's own instrumentation walks near, and the
+`example_run` pairing, which read a row the same example printed in
+the run before it. The rerun of those two jobs on the same head read
+success (`40469946629`, every job success), so both failures stand
+in the load-sensitive class the runner's own load drives, with no
+code change between the runs. The bound of the window case moved to
+the contamination scale's hundredth (`test: Widen the window bound
+to the load scale`), which keeps the discrimination and leaves the
+load spikes outside it. The run of the pushed record commit stands
+beside the PR.
