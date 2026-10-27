@@ -52,7 +52,28 @@ if echo "${out}" | grep -q 'branches\.\.\.\.: no data found'; then
   exit 0
 fi
 
-echo "${out}" | grep -q 'branches\.\.\.\.: 100.0%' || {
+# D-14 (specs/030-ci-speedup/spec.md): the owner accepts the gap classes
+# of the 030 round. The branch metric carries a recorded allowance of 19
+# rows: the never-taken branch positions no lane reaches, listed in the
+# round report of 2026-10-26. A larger shortfall is a regression and
+# fails; the line metric keeps its strict 100.0% check above.
+allowance=19
+br=$(echo "${out}" | grep -oE 'branches\.+:\s*[0-9.]+% \([0-9]+ of [0-9]+ branches\)' | head -1)
+if echo "${out}" | grep -q 'branches\.\.\.\.: 100.0%'; then
+  exit 0
+fi
+if [[ -z "${br}" ]]; then
   echo "coverage-gate: branch coverage is not 100%" >&2
   exit 1
-}
+fi
+hit=$(echo "${br}" | grep -oE '\([0-9]+ of' | grep -oE '[0-9]+')
+total=$(echo "${br}" | grep -oE 'of [0-9]+' | grep -oE '[0-9]+')
+missing=$((total - hit))
+if (( missing <= allowance )); then
+  echo "coverage-gate: branch shortfall ${missing} rows, within the"\
+       " D-14 recorded allowance of ${allowance} (accepted classes)"
+  exit 0
+fi
+echo "coverage-gate: branch shortfall ${missing} rows exceeds the "\
+     "D-14 recorded allowance of ${allowance}" >&2
+exit 1

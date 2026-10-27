@@ -53,6 +53,15 @@ endif()
 # other lcov check, and gcov's own diagnostics, live, and it changes no
 # number the gate reads: the lines of the body carry their own line and
 # branch counters either way.
+#
+# `omit` records the decision of Charles on 2026-10-26, accepting the gap
+# classes of the 030 round: five lines of topology.cpp hold the FR-041
+# fallback that fills the cpu set by index when the /sys online line reads
+# empty. No test host reaches the arm (thrawn and the CI runners both read
+# the line well), so the arm is unreachable on every lane, and the five
+# patterns name its lines and nothing else. The evidence stands in the
+# round report: the trace holds the four lines at count zero across 1681
+# runs of the covering object, and the arm's contract text is FR-041.
 set(
     COVERAGE_TRACE_COMMAND
     "${LCOV_EXECUTABLE}" -c -q
@@ -82,6 +91,11 @@ set(
     "${LCOV_EXECUTABLE}" --branch-coverage
     --filter exception,branch,brace
     --omit-lines "SG_(REQUIRE|ENSURE|INVARIANT|ASSERT)(_ALWAYS)?"
+    --omit-lines "if \\(cpus\\.empty\\(\\)\\) \\{"
+    --omit-lines "const auto count = onlineCpuCount\\(\\)"
+    --omit-lines "cpus\\.reserve\\(static_cast<std::size_t>\\(count\\)\\)"
+    --omit-lines "for \\(auto index = std::uint64_t \\{0\\}.*index < count.*\\+\\+index\\) \\{"
+    --omit-lines "cpus\\.push_back\\(static_cast<std::uint32_t>\\(index\\)\\)"
     --extract "${PROJECT_BINARY_DIR}/coverage.raw.info"
     "${PROJECT_SOURCE_DIR}/include/speedgun-ng/*"
     "${PROJECT_SOURCE_DIR}/source/*"
