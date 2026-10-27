@@ -224,6 +224,66 @@ def golden_pairs() -> None:
     check("a renamed noise warning token folds different",
           mask(WARNING) != mask(renamed_warning), "both folded to the same shape")
 
+    # specs/034 FR-017, FR-018: the pre-check block's host-owned words fold
+    # beside the run-owned values: the float edge words an unlucky window
+    # prints, the governor a host runs, the kernel setting values and the irq
+    # affinity list the host states, each beside the source token that keeps
+    # its bytes.
+    quiet = "gapsPerSecond: 259.19"
+    unlucky = "gapsPerSecond: inf"
+    check("a float edge word a kept-single-gap window prints folds equal",
+          mask(quiet) == mask(unlucky),
+          f"{mask(quiet)!r} against {mask(unlucky)!r}")
+
+    check("a nan figure folds equal beside a figure",
+          mask("totalPercent: 0.22") == mask("totalPercent: nan"),
+          f"{mask('totalPercent: 0.22')!r} against {mask('totalPercent: nan')!r}")
+
+    governor = ("governor: cpu 24 powersave "
+                "(source: /sys devices system cpu scaling_governor)")
+    other_governor = governor.replace("powersave", "performance")
+    check("another governor a host runs folds equal",
+          mask(governor) == mask(other_governor),
+          f"{mask(governor)!r} against {mask(other_governor)!r}")
+
+    absent_governor = governor.replace("powersave", "not available")
+    check("an absent governor folds equal beside a stated one",
+          mask(governor) == mask(absent_governor),
+          f"{mask(governor)!r} against {mask(absent_governor)!r}")
+
+    renamed_governor_source = governor.replace("scaling_governor", "scaling_driver")
+    check("a renamed governor source folds different",
+          mask(governor) != mask(renamed_governor_source),
+          "both folded to the same shape")
+
+    settings = ("host settings: isolcpus=not available nohz_full=not available "
+                "rcu_nocbs=not available")
+    stated = "host settings: isolcpus=2-3 nohz_full=1 rcu_nocbs=0-1"
+    check("the kernel settings a host states fold equal beside absent ones",
+          mask(settings) == mask(stated),
+          f"{mask(settings)!r} against {mask(stated)!r}")
+
+    renamed_setting = stated.replace("isolcpus", "isolcpus-set")
+    check("a renamed kernel setting folds different",
+          mask(stated) != mask(renamed_setting), "both folded to the same shape")
+
+    affinity = ("irq affinity: cpu 24 " + ",".join(str(n) for n in range(1, 40))
+                + " (source: /proc/irq)")
+    short_affinity = "irq affinity: cpu 24 not available (source: /proc/irq)"
+    check("an irq affinity list folds equal beside an absent one",
+          mask(affinity) == mask(short_affinity),
+          f"{mask(affinity)!r} against {mask(short_affinity)!r}")
+
+    renamed_affinity_source = affinity.replace("/proc/irq", "/proc/irqs")
+    check("a renamed affinity source folds different",
+          mask(affinity) != mask(renamed_affinity_source),
+          "both folded to the same shape")
+
+    renamed_kind = "softirq TIMER delta: 3 (source: /proc/softirqs)"
+    other_kind = "softirq TIMERS delta: 3 (source: /proc/softirqs)"
+    check("a renamed softirq kind folds different",
+          mask(renamed_kind) != mask(other_kind), "both folded to the same shape")
+
     check("a disclosure line classifies as a disclosure line",
           "disclosure line differs" in " ".join(compare([DISCLOSURE], [WARNING])),
           " ".join(compare([DISCLOSURE], [WARNING]))[:1])

@@ -691,11 +691,178 @@ auto main(int argc, char** argv) -> int
           "(FR-017)");
   }
 
+  // T015, FR-018: every unparsable shape stands the figure absent for
+  // the source alone: an interrupt row that names fewer columns than
+  // the cpu asks for, a column that parses as no number, a softirq
+  // kind row beside a blank kind line and a kind whose column stands
+  // short, a schedstat line whose figure parses as no number, a cpu
+  // list that names an empty token, a lone token no number, a span
+  // that stands reversed, a mask token past eight digits, and the
+  // delta that stands absent when one side stands absent.
+  {
+    const auto rootDir = fakeRoot();
+    const ProcRootGuard guard(rootDir);
+    const auto procDir = rootDir / "proc";
+    std::filesystem::create_directories(procDir);
+    const auto write = [](const std::filesystem::path& path,
+                          const std::string& text)
+    {
+      std::ofstream file(path);
+      check(static_cast<bool>(file), "the fake file opens (T015)");
+      file << text;
+    };
+    const auto cpus = pickCpus(2);
+    const auto cpu1 = cpus.at(1);
+    write(procDir / "interrupts", " 0: 10 20\n 1: 1\n");
+    // The blank kind line the file carries between kind rows, and the
+    // kind row short of the cpu's column, stand absent for that kind
+    // alone (FR-018).
+    write(procDir / "softirqs", ": 1 2\n   : 3 4\n TIMER: 5\n");
+    write(procDir / "schedstat",
+          "cpu" + std::to_string(cpu1) + " 1 2 x\n");
+    const auto shortRead = sg::detail::precheckReadSnapshot(cpus);
+    const auto& state1 = shortRead.at(cpu1);
+    check(!state1.interrupts.has_value(),
+          "an interrupt row short of the cpu's column stands absent "
+          "(FR-018)");
+    check(std::any_of(state1.softirqs.begin(),
+                      state1.softirqs.end(),
+                      [](const auto& kind) { return kind.second.has_value(); })
+              == false,
+          "a short softirq kind stands absent for that kind alone "
+          "(FR-018)");
+    check(!state1.switches.has_value() && !state1.schedules.has_value(),
+          "a schedstat line that parses as no figure stands absent "
+          "(FR-018)");
+    write(procDir / "interrupts", " 0: 10 20\n 1: 1 xx\n");
+    const auto unparsable = sg::detail::precheckReadSnapshot(cpus);
+    check(!unparsable.at(cpu1).interrupts.has_value(),
+          "an interrupt column that parses as no number stands absent "
+          "(FR-018)");
+
+    // The delta stands absent when one side stands absent: the
+    // interrupt file stands deleted between the snapshots.
+    write(procDir / "interrupts", " 0: 10 20\n 1: 1 2\n");
+    write(procDir / "softirqs", " TIMER: 5 6\n");
+    write(procDir / "schedstat",
+          "cpu" + std::to_string(cpu1) + " 1 2 3\n");
+    const auto before = sg::detail::precheckReadSnapshot(cpus);
+    std::filesystem::remove(procDir / "interrupts");
+    write(procDir / "softirqs", " TIMER: 5 9\n");
+    const auto after = sg::detail::precheckReadSnapshot(cpus);
+    const auto delta = sg::detail::precheckAttributionDelta(
+        before.at(cpu1), after.at(cpu1));
+    check(!delta.interrupts.has_value(),
+          "a delta with one side absent stands absent (FR-016, FR-018)");
+    check(delta.softirqs.size() == 1
+              && delta.softirqs.at(0).second.has_value()
+              && *delta.softirqs.at(0).second == 3,
+          "the sources that stand on both sides still carry their "
+          "deltas (FR-016)");
+  }
+
+  // T015, FR-018: the cpu-list and mask parsers refuse the shapes no
+  // affinity file spells: the empty token, the lone token no number,
+  // the reversed span, the mask token past eight digits; the
+  // multi-group mask names its cpus; a blank line names no governor;
+  // an irq directory entry whose name parses as no number stands out.
+  {
+    const auto rootDir = fakeRoot();
+    const ProcRootGuard guard(rootDir);
+    const auto procDir = rootDir / "proc";
+    const auto sysDir = rootDir / "sys/devices/system/cpu";
+    std::filesystem::create_directories(procDir);
+    const auto write = [](const std::filesystem::path& path,
+                          const std::string& text)
+    {
+      std::filesystem::create_directories(path.parent_path());
+      std::ofstream file(path);
+      check(static_cast<bool>(file), "the fake file opens (T015)");
+      file << text;
+    };
+    const auto cpus = pickCpus(2);
+    const auto cpu0 = cpus.at(0);
+    const auto cpu1 = cpus.at(1);
+    // The list form carries the unparsable shapes beside the mask
+    // form: the empty token, the lone token no number, the reversed
+    // span (FR-018).
+    write(procDir / "irq/9/smp_affinity_list", "0,,1\n");
+    write(procDir / "irq/10/smp_affinity_list", "x\n");
+    write(procDir / "irq/11/smp_affinity_list", "3-2\n");
+    // The multi-group mask: the picked cpus' own groups beside the
+    // low group's bit zero, so the two-group parse stands on any
+    // host (VI).
+    std::map<std::uint32_t, std::uint64_t> words;
+    words[cpu0 / 32U] |= std::uint64_t {1} << (cpu0 % 32U);
+    words[cpu1 / 32U] |= std::uint64_t {1} << (cpu1 % 32U);
+    words[1U] |= std::uint64_t {1};
+    std::string mask;
+    for (auto it = words.rbegin(); it != words.rend(); ++it) {
+      if (!mask.empty()) {
+        mask += ',';
+      }
+      char group[9] = {};
+      std::snprintf(group, sizeof(group), "%08llx",
+                    static_cast<unsigned long long>(it->second));
+      mask += group;
+    }
+    write(procDir / "irq/12/smp_affinity", mask + "\n");
+    write(procDir / "irq/13/smp_affinity", "000000000\n");
+    write(procDir / "irq/README", "nothing\n");
+    // An empty governor file names no line, the blank text the
+    // `not available` reading stands for (FR-017, FR-018).
+    write(sysDir / ("cpu" + std::to_string(cpu0) + "/cpufreq/"
+                    "scaling_governor"),
+          "\n");
+    const auto host = sg::detail::precheckReadHostSettings(cpus);
+    const auto namedBy = [&host](std::uint32_t cpu, std::uint32_t irq)
+    {
+      for (const auto& [named, irqs] : host.irqAffinity) {
+        if (named != cpu) {
+          continue;
+        }
+        return std::find(irqs.begin(), irqs.end(), irq) != irqs.end();
+      }
+      return false;
+    };
+    check(!namedBy(cpu0, 9U) && !namedBy(cpu1, 9U)
+              && !namedBy(cpu0, 10U) && !namedBy(cpu1, 10U)
+              && !namedBy(cpu0, 11U) && !namedBy(cpu1, 11U)
+              && !namedBy(cpu0, 13U) && !namedBy(cpu1, 13U),
+          "the unparsable affinity shapes name no cpu (FR-018)");
+    check(namedBy(cpu0, 12U) && namedBy(cpu1, 12U),
+          "the multi-group mask names its cpus (FR-018)");
+    check(host.governors.size() == 2
+              && !host.governors.at(0).second.has_value(),
+          "a blank governor line reads `not available` (FR-017)");
+  }
+
+  // T015, FR-015: a planned cpu the states do not name stands out of
+  // the noisy answer, the way a candidate does: the state list names
+  // the measured cpus alone, and a plan that reaches past it finds no
+  // gap record to read.
+  {
+    const auto cpus = pickCpus(2);
+    std::vector<sg::detail::ProbeCpuState> states(1);
+    states.front().cpu = cpus.at(0);
+    const std::vector<std::uint32_t> planned {cpus.at(0), cpus.at(1) + 9U};
+    const auto noisy = sg::detail::precheckNoisyCpus(states, planned);
+    check(noisy.empty(),
+          "a planned cpu the states do not name stands no noise "
+          "(FR-015)");
+  }
+
   // T015, FR-017, R-04: the host settings over fake files: the kernel
   // command line's three settings, the governor file per cpu, the IRQ
   // affinity list form with the mask fallback.
   {
+    // The root stands cleared before the read: the fake root names
+    // the pid, so the scenarios of one process share the directory,
+    // and this scenario's figures stand the files it writes alone
+    // (T005).
     const auto rootDir = fakeRoot();
+    std::filesystem::remove_all(rootDir);
+    std::filesystem::create_directories(rootDir);
     const ProcRootGuard guard(rootDir);
     const auto procDir = rootDir / "proc";
     const auto sysDir = rootDir / "sys/devices/system/cpu";

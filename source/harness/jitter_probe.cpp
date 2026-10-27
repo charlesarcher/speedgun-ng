@@ -1150,12 +1150,24 @@ auto cpuMaskOfText(const std::string& text)
     }
     scan = stop + 1;
   }
-  for (std::size_t at = groups.size(); at-- > 0;) {
-    const auto word =
-        static_cast<std::uint64_t>(std::stoull(groups.at(at), nullptr, 16));
+  // The leftmost group names the highest cpus, the way the kernel's
+  // mask text spells them (R-6 of research.md): the base counts the
+  // groups from the right.
+  for (std::size_t at = 0; at < groups.size(); ++at) {
+    const auto base = static_cast<std::uint32_t>(groups.size() - 1 - at);
+    // The strict parse the count reader carries: a token that names
+    // no hex word, or one it does not end at, stands unparsable, and
+    // no exception leaves the reader (FR-018).
+    std::uint64_t word = 0;
+    const auto* begin = groups.at(at).data();
+    const auto* const end = begin + groups.at(at).size();
+    const auto parsed = std::from_chars(begin, end, word, 16);
+    if (parsed.ec != std::errc {} || parsed.ptr != end) {
+      return std::nullopt;
+    }
     for (std::uint32_t bit = 0; bit < 32; ++bit) {
       if ((word >> bit) & 1U) {
-        cpus.push_back(static_cast<std::uint32_t>(at * 32U + bit));
+        cpus.push_back(base * 32U + bit);
       }
     }
   }
