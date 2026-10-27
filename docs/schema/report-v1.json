@@ -4,8 +4,7 @@
   "title": "speedgun-ng benchmark report",
   "description": "The document the harness writes for one batch (specs/023 FR-008). Key order is normative and stands in x-order; the harness checker reads this file and compares the key set, the key order and the value kinds of every written document against it.",
   "type": "object",
-  "x-order": ["schemaVersion", "speedgun", "run", "jitter", "benchmarks"],
-  "x-order": ["schemaVersion", "speedgun", "run", "benchmarks", "hunt"],
+  "x-order": ["schemaVersion", "speedgun", "run", "jitter", "benchmarks", "hunt"],
   "required": ["schemaVersion", "speedgun", "benchmarks"],
   "additionalProperties": true,
   "properties": {
