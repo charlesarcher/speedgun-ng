@@ -29,16 +29,15 @@ of the last pushed commit (FR-061).
 
 ## Coverage
 
-The trace of the coverage build reads 100.0 percent for lines (11978
-of 11978), with no unhit line in any application file, and the branch
+The trace of the coverage build reads 100.0 percent for lines (11977
+of 11977), with no unhit line in any application file, and the branch
 shortfall stands at 18 rows, within the recorded allowance of 19
 (SC-002). After the affinity-mask fallback landed, the four
-`--omit-lines` patterns of the count arm in `cmake/coverage.cmake:95`
-to `:98` match no line of code, and lcov 2.6 answers its `unused`
-error class over each of them, so the gate holds open on a host that
-carries lcov 2.6 until the removal stands approved (D-12, FR-026).
-The `cpus.empty()` pattern and the `SG_` macro pattern stay live.
-This comment asks before any removal.
+`--omit-lines` patterns of the count arm matched no line of code, and
+lcov 2.6 answers its `unused` error class over each of them, so the
+four left the keep-set and the set stands at two live patterns: the
+`SG_` macro rule and the `cpus.empty()` brace of the fallback
+(D-12, FR-026).
 
 ## CI
 

@@ -54,11 +54,13 @@ endif()
 # number the gate reads: the lines of the body carry their own line and
 # branch counters either way.
 #
-# The five `--omit-lines` patterns below name the lines of the arm of
-# `topology.cpp` that filled the cpu set by index from the count when the
-# /sys online line read empty. The affinity-mask fallback replaced that
-# arm, so the patterns match no line of code today, and each stands until
-# the approval that removes it.
+# The count arm of `topology.cpp` that filled the cpu set by index from
+# the count when the /sys online line read empty is gone: the
+# affinity-mask fallback owns the unreadable line, and the four
+# `--omit-lines` patterns that named its lines left the set with the
+# fix that replaced the arm. The `cpus.empty()` brace pattern stays:
+# the fallback still branches at that line, and lcov names no pattern
+# of the set unused.
 set(
     COVERAGE_TRACE_COMMAND
     "${LCOV_EXECUTABLE}" -c -q
@@ -88,10 +90,6 @@ set(
     --filter exception,branch,brace
     --omit-lines "SG_(REQUIRE|ENSURE|INVARIANT|ASSERT)(_ALWAYS)?"
     --omit-lines "if \\(cpus\\.empty\\(\\)\\) \\{"
-    --omit-lines "const auto count = onlineCpuCount\\(\\)"
-    --omit-lines "cpus\\.reserve\\(static_cast<std::size_t>\\(count\\)\\)"
-    --omit-lines "for \\(auto index = std::uint64_t \\{0\\}.*index < count.*\\+\\+index\\) \\{"
-    --omit-lines "cpus\\.push_back\\(static_cast<std::uint32_t>\\(index\\)\\)"
     --extract "${PROJECT_BINARY_DIR}/coverage.raw.info"
     "${PROJECT_SOURCE_DIR}/include/speedgun-ng/*"
     "${PROJECT_SOURCE_DIR}/source/*"
