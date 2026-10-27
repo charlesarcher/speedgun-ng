@@ -506,6 +506,71 @@ struct JitterStats
 };
 
 /**
+ * @brief The attribution figures one pre-check measured cpu discloses,
+ * beside its gap figures: the window delta of the interrupt count, one
+ * delta per softirq kind the host states, and the context-switch and
+ * schedule counts (specs/034 FR-016, D-5). A figure the host does not
+ * state, states unreadable, or states unparsable stands `not
+ * available`, carried as an absent optional, and the run never fails
+ * on it (FR-018).
+ */
+struct PrecheckAttribution
+{
+  std::optional<std::uint64_t> interrupts;
+  std::vector<std::pair<std::string, std::optional<std::uint64_t>>> softirqs;
+  std::optional<std::uint64_t> switches;
+  std::optional<std::uint64_t> schedules;
+};
+
+/**
+ * @brief The host facts one run discloses once (specs/034 FR-017,
+ * D-6): the kernel command line's `isolcpus`, `nohz_full` and
+ * `rcu_nocbs` values, the cpufreq governor of each measured cpu, and
+ * the IRQ numbers whose affinity names each measured cpu. A figure
+ * the host does not state stands `not available`.
+ */
+struct PrecheckHostSettings
+{
+  std::optional<std::string> isolcpus;
+  std::optional<std::string> nohzFull;
+  std::optional<std::string> rcuNocbs;
+  std::vector<std::pair<std::uint32_t, std::optional<std::string>>> governors;
+  std::vector<std::pair<std::uint32_t, std::vector<std::uint32_t>>> irqAffinity;
+};
+
+/**
+ * @brief One measured cpu of the pre-check: its index, whether the
+ * run plans it (the planned cpus stand the run's own; the candidates
+ * stand the cpus the `idle` preset would take), the sixteen-field
+ * stats of its pre-check window, and its attribution deltas
+ * (specs/034 FR-010, FR-012).
+ */
+struct PrecheckCpuRecord
+{
+  std::uint32_t cpu = 0;
+  bool planned = false;
+  JitterStats stats {};
+  PrecheckAttribution attribution;
+};
+
+/**
+ * @brief The pre-check record one run carries: the window shape, one
+ * entry per measured cpu ascending, the host settings, and the
+ * skipped groups the candidate resolution left (specs/034 FR-012,
+ * FR-016, FR-017, D-8). The document carries it under the top-level
+ * `precheck` key, and `loadReport` reads it back (FR-024).
+ */
+struct PrecheckRecord
+{
+  bool serial = false;
+  std::uint32_t windowMs = 0;
+  std::vector<PrecheckCpuRecord> cpus;
+  PrecheckHostSettings host;
+  std::vector<std::uint32_t> skippedGroups;
+};
+
+
+/**
  * @brief One probe cpu's fold over one benchmark's timed windows
  * (E-08): the cpu index and the fold the split placed into them. A
  * probe cpu whose kept gaps landed inside no window of the benchmark
@@ -713,6 +778,13 @@ struct ReportData
   // It stands empty when no benchmark of the document carried a hunt, the
   // reading a run with no `--hunt` leaves behind (I-8).
   std::optional<hunt::RunHunt> hunt;
+  // specs/034 FR-024: the pre-check record the document carried, one
+  // entry per measured cpu with its role, its stats and its
+  // attribution deltas. The load call fills it when the document
+  // carried the root `precheck` object; absent stands for a document
+  // that carries no pre-check, the reading a run without the
+  // pre-check leaves behind.
+  std::optional<PrecheckRecord> precheck;
 };
 
 /**

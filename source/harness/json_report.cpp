@@ -33,7 +33,7 @@ using Builder = simdjson::builder::string_builder;
 // the root `hunt` object and the per-benchmark `hunt` object, the move
 // specs/023/contracts/schema-file.md states for a key added inside major 1
 // (specs/027 FR-026, specs/028 FR-086, PC-6).
-constexpr std::string_view kSchemaVersion = "1.5";
+constexpr std::string_view kSchemaVersion = "1.6";
 
 // The `source` word of one disclosed use, spelled as the enum of
 // `docs/schema/report-v1.json` states it (specs/028 E-04, FR-040). The
@@ -189,6 +189,24 @@ auto put(Builder& builder,
 {
   object.key(key);
   builder.append(value);
+}
+
+// One attribution figure: the delta when it stands, `null` when the
+// host does not state the source or the delta stands unparsable, the
+// spelling the reader answers back as an empty optional and the file
+// form of the console's `not available` (FR-016, FR-018).
+auto putAttributionFigure(Builder& builder,
+                          JsonObjectWriter& object,
+                          std::string_view key,
+                          const std::optional<std::uint64_t>& value)
+    noexcept -> void
+{
+  object.key(key);
+  if (!value.has_value()) {
+    builder.append_null();
+    return;
+  }
+  builder.append(*value);
 }
 
 // A text the run may leave unset stands `null`, the one spelling the
@@ -834,7 +852,8 @@ auto writeRunObject(Builder& builder, const RunDisclosure& disclosure) -> void
 auto writeReport(const std::string& path,
                  const ReportData& data,
                  const RunDisclosure& disclosure,
-                 const std::optional<JitterReportRecord>& jitter) -> bool
+                 const std::optional<JitterReportRecord>& jitter,
+                 const std::optional<PrecheckRecord>& precheck) -> bool
 {
   SG_REQUIRE(!path.empty(),
              "writeReport takes the path the option scanner settled "
@@ -893,6 +912,127 @@ auto writeReport(const std::string& path,
       }
       put(builder, probe, "droppedGaps", jitter->droppedGaps);
       put(builder, probe, "disclosure", jitter->disclosure);
+    }
+    if (precheck.has_value()) {
+      // specs/034 FR-024, D-8: the pre-check object stands after
+      // `jitter` and before `benchmarks`; a run without the pre-check
+      // writes no key, so its document keeps the bytes it wrote before
+      // the feature existed (FR-024).
+      root.key("precheck");
+      JsonObjectWriter precheckWriter(builder);
+      put(builder, precheckWriter, "serial", precheck->serial);
+      put(builder,
+          precheckWriter,
+          "windowMs",
+          static_cast<std::uint64_t>(precheck->windowMs));
+      precheckWriter.key("cpus");
+      {
+        JsonArrayWriter cpus(builder);
+        for (const auto& entry : precheck->cpus) {
+          cpus.item();
+          JsonObjectWriter cpuWriter(builder);
+          put(builder, cpuWriter, "cpu", std::uint64_t {entry.cpu});
+          put(builder,
+              cpuWriter,
+              "role",
+              entry.planned ? "planned" : "candidate");
+          cpuWriter.key("stats");
+          {
+            JsonObjectWriter statsWriter(builder);
+            const auto& fields = entry.stats;
+            put(builder, statsWriter, "gapCount", fields.gapCount);
+            put(builder, statsWriter, "gapsPerSecond", fields.gapsPerSecond);
+            put(builder, statsWriter, "minNs", fields.minNs);
+            put(builder, statsWriter, "medianNs", fields.medianNs);
+            put(builder, statsWriter, "meanNs", fields.meanNs);
+            put(builder, statsWriter, "p90Ns", fields.p90Ns);
+            put(builder, statsWriter, "p99Ns", fields.p99Ns);
+            put(builder, statsWriter, "p999Ns", fields.p999Ns);
+            put(builder, statsWriter, "p9999Ns", fields.p9999Ns);
+            put(builder, statsWriter, "maxNs", fields.maxNs);
+            put(builder, statsWriter, "totalNs", fields.totalNs);
+            put(builder, statsWriter, "totalPercent", fields.totalPercent);
+            put(builder, statsWriter, "runtimeNs", fields.runtimeNs);
+            put(builder, statsWriter, "thresholdNs", fields.thresholdNs);
+            put(builder, statsWriter, "loopPeriodNs", fields.loopPeriodNs);
+            put(builder, statsWriter, "droppedGaps", fields.droppedGaps);
+          }
+          cpuWriter.key("attribution");
+          {
+            JsonObjectWriter attribution(builder);
+            const auto& deltas = entry.attribution;
+            putAttributionFigure(builder,
+                                 attribution,
+                                 "interrupts",
+                                 deltas.interrupts);
+            attribution.key("softirqs");
+            {
+              JsonObjectWriter softirqs(builder);
+              for (const auto& [kind, figure] : deltas.softirqs) {
+                putAttributionFigure(builder, softirqs, kind, figure);
+              }
+            }
+            putAttributionFigure(builder,
+                                 attribution,
+                                 "switchDelta",
+                                 deltas.switches);
+            putAttributionFigure(builder,
+                                 attribution,
+                                 "scheduleDelta",
+                                 deltas.schedules);
+          }
+        }
+      }
+      precheckWriter.key("hostSettings");
+      {
+        JsonObjectWriter host(builder);
+        // A setting the host does not state stands `null`, the file form
+        // of the console's `not available` (FR-017, FR-018).
+        putOrNull(builder,
+                  host,
+                  "isolcpus",
+                  precheck->host.isolcpus.value_or(""));
+        putOrNull(builder,
+                  host,
+                  "nohz_full",
+                  precheck->host.nohzFull.value_or(""));
+        putOrNull(builder,
+                  host,
+                  "rcu_nocbs",
+                  precheck->host.rcuNocbs.value_or(""));
+        host.key("governors");
+        {
+          JsonObjectWriter governors(builder);
+          for (const auto& [cpu, governor] : precheck->host.governors) {
+            putOrNull(builder,
+                      governors,
+                      std::to_string(cpu),
+                      governor.value_or(""));
+          }
+        }
+        host.key("irqAffinity");
+        {
+          JsonObjectWriter affinity(builder);
+          for (const auto& [cpu, irqs] : precheck->host.irqAffinity) {
+            std::string list;
+            for (const auto irq : irqs) {
+              if (!list.empty()) {
+                list += ',';
+              }
+              list += std::to_string(irq);
+            }
+            putOrNull(builder, affinity, std::to_string(cpu), list);
+          }
+        }
+      }
+      precheckWriter.key("skippedGroups");
+      {
+        JsonArrayWriter skipped(builder);
+        for (const auto group : precheck->skippedGroups) {
+          skipped.item();
+          builder.append(std::uint64_t {group});
+        }
+      }
     }
     root.key("benchmarks");
     {

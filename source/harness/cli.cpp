@@ -764,6 +764,10 @@ auto speedgunMain(int argc, char** argv) -> int
   // so the batch's stands down while one runs (FR-015, R-01).
   std::optional<detail::JitterProbe> jitterProbe;
   bool jitterUnavailable = false;
+  // specs/034 D-8: the pre-check record the block prints and the
+  // document carries; an empty optional stands a run without the
+  // pre-check (FR-024).
+  std::optional<PrecheckRecord> precheckRecord;
   // specs/027 E-09: the disclosure facts the placement safety gathers
   // before and during the batch (FR-017, FR-036, D-5, D-12, R-08).
   std::vector<std::uint32_t> probeCpus;
@@ -777,13 +781,16 @@ auto speedgunMain(int argc, char** argv) -> int
       options.jitterProbe.has_value() && familyProbes.empty();
   if (batchProbed) {
     probeCpus = options.jitterProbe->cpus;
-    // specs/034 FR-014: the planned cpus stand beside the probe's own,
-    // the noisy rule's planned list (R-05).
-    std::vector<std::uint32_t> planned;
+    // specs/034 FR-014, R-01: the planned cpus stand beside the
+    // probe's own, the noisy rule's planned list and the pre-check's
+    // measured set (FR-010).
+    auto planned = detail::plannedCpusOf(selected, detail::layout());
+    std::ranges::sort(planned);
+    planned.erase(std::unique(planned.begin(), planned.end()),
+                  planned.end());
     if (probeCpus.empty()) {
       // D-4, R-07: the idle resolution runs against the selected
       // instances' plans before the batch starts.
-      planned = detail::plannedCpusOf(selected, detail::layout());
       if (options.jitterProbe->mode == JitterProbeMode::PRECHECK) {
         // FR-006, R-10: no probe thread runs beside a benchmark in the
         // precheck mode - start() returns only after every pre-check
@@ -791,9 +798,6 @@ auto speedgunMain(int argc, char** argv) -> int
         // specs/034 R-01: the measured set adds the candidates the
         // idle resolution takes over the plans, and the skipped
         // groups stand carried beside (FR-010).
-        std::ranges::sort(planned);
-        planned.erase(std::unique(planned.begin(), planned.end()),
-                      planned.end());
         const auto measured =
             detail::precheckMeasuredSet(detail::layout(), planned);
         probeCpus = measured.cpus;
@@ -819,9 +823,32 @@ auto speedgunMain(int argc, char** argv) -> int
         }
         return 2;
       }
+    } else if (options.jitterProbe->mode == JitterProbeMode::PRECHECK) {
+      // specs/034 R-01: the pre-check measures the planned cpus and
+      // the candidates beside the probe's own list (FR-010).
+      const auto set =
+          detail::precheckMeasuredSet(detail::layout(), planned);
+      std::vector<std::uint32_t> measured = set.cpus;
+      measured.insert(measured.end(), probeCpus.begin(), probeCpus.end());
+      std::ranges::sort(measured);
+      measured.erase(std::unique(measured.begin(), measured.end()),
+                     measured.end());
+      skippedGroups = set.skippedGroups;
+      probeCpus = std::move(measured);
     }
     sg::JitterProbeOptions probeOptions = *options.jitterProbe;
     probeOptions.cpus = probeCpus;
+    // specs/034 R-03: the attribution snapshot stands read before the
+    // window opens (FR-016); the after snapshot follows the start's
+    // latch, and the deltas stand the window's own.
+    const bool precheckRuns =
+        (options.jitterProbe->mode == JitterProbeMode::PRECHECK
+         || options.jitterProbe->mode == JitterProbeMode::BOTH)
+        && !probeCpus.empty();
+    const auto beforeSnapshot =
+        precheckRuns ? detail::precheckReadSnapshot(probeCpus)
+                     : std::map<std::uint32_t,
+                                detail::PrecheckCpuSnapshot> {};
     jitterProbe.emplace(probeOptions);
     jitterProbe->start();
     if (jitterProbe->states().empty()) {
@@ -876,6 +903,32 @@ auto speedgunMain(int argc, char** argv) -> int
                      overlap->benchmark.c_str());
         jitterProbe->stopAndJoin();
         return 2;
+      }
+      // specs/034 FR-023, D-8: the pre-check record the block and the
+      // document carry, built once after the pre-check closes, the
+      // deltas standing the window's own (R-03, R-04). The block
+      // prints before the benchmark tables (FR-023); the strict
+      // refusal returned above, so a block here stands a run that
+      // continues (FR-014).
+      if (precheckRuns) {
+        const auto afterSnapshot = detail::precheckReadSnapshot(probeCpus);
+        PrecheckRecord built;
+        built.serial = probeOptions.precheckSerial;
+        built.windowMs = probeOptions.precheckMs;
+        built.skippedGroups = skippedGroups;
+        built.host = detail::precheckReadHostSettings(probeCpus);
+        for (const auto& state : jitterProbe->states()) {
+          PrecheckCpuRecord entry;
+          entry.cpu = state.cpu;
+          entry.planned = std::find(planned.begin(), planned.end(), state.cpu)
+              != planned.end();
+          entry.stats = detail::gapStatsOf(state);
+          entry.attribution = detail::precheckAttributionDelta(
+              beforeSnapshot.at(state.cpu), afterSnapshot.at(state.cpu));
+          built.cpus.push_back(std::move(entry));
+        }
+        precheckRecord = std::move(built);
+        detail::printPrecheckReport(*precheckRecord);
       }
     }
   }
@@ -1484,7 +1537,8 @@ auto speedgunMain(int argc, char** argv) -> int
     }
     const detail::RunDisclosure disclosure {resolved->uses, seed};
     if (!detail::writeReport(
-            options.jsonPath, report, disclosure, jitterRecord))
+            options.jsonPath, report, disclosure, jitterRecord,
+            precheckRecord))
     {
       reportFailed = true;
       status = 2;

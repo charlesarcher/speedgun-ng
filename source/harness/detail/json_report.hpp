@@ -274,12 +274,18 @@ struct JitterReportRecord
  *       (FR-026, FR-027, E-08); an empty one writes neither, so a
  *       probe-free run keeps the fields and the shape master's document
  *       carries (FR-013, D-1)
+ * @post a filled `precheck` writes the root `precheck` object after
+ *       `jitter` and before `benchmarks` (specs/034 FR-024, D-8); an
+ *       empty one writes no such key, so a run without the pre-check
+ *       writes the same bytes apart from the `schemaVersion` value
+ *       (specs/034 FR-024)
  */
 [[nodiscard]] auto writeReport(
     const std::string& path,
     const ReportData& data,
     const RunDisclosure& disclosure = {},
-    const std::optional<JitterReportRecord>& jitter = std::nullopt) -> bool;
+    const std::optional<JitterReportRecord>& jitter = std::nullopt,
+    const std::optional<PrecheckRecord>& precheck = std::nullopt) -> bool;
 
 /**
  * @brief Check one written document against the schema file at

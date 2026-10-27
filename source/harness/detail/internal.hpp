@@ -968,6 +968,12 @@ auto printResult(const BenchmarkResult& result,
 /// not-available disclosure only.
 auto printJitterReport(bool available,
                        const std::vector<const ProbeCpuState*>& states) -> void;
+
+/// @brief specs/034 FR-023, D-8: the pre-check block, printed before the
+/// benchmark tables: one block per measured cpu, the host settings
+/// once, the warning lines, and the pinning-candidate line. The strict
+/// refusal never reaches this printer (FR-014).
+auto printPrecheckReport(const PrecheckRecord& record) -> void;
 /// @brief specs/029 T035, FR-012, FR-013, data-model E-07: the plan line of
 /// one hunt run, and the one line a cut plan adds below it.
 ///

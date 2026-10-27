@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <limits>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <thread>
 #include <utility>
@@ -972,6 +973,130 @@ auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
               run.passes);
   std::printf(" budget=");
   printHuntBudget(run.options.budget);
+  std::printf("\n");
+}
+
+// specs/034 FR-023, D-8: the pre-check block, printed before the
+// benchmark tables: one block per measured cpu, the sixteen field
+// names the console probe block uses, the attribution deltas beside
+// the gap figures each naming its source, then the host settings
+// once, then the warning lines and the pinning-candidate line
+// (FR-012, FR-013, the clarify answers). The strict refusal never
+// reaches this printer: the run stops at the error surface (FR-014).
+auto printPrecheckReport(const PrecheckRecord& record) -> void
+{
+  const auto figureText =
+      [](const std::optional<std::uint64_t>& value) -> std::string
+  {
+    return value.has_value() ? std::to_string(*value)
+                             : std::string(kUnavailableFigure);
+  };
+  for (const auto& entry : record.cpus) {
+    std::printf("precheck cpu %u (%s)\n",
+                static_cast<unsigned>(entry.cpu),
+                entry.planned ? "planned" : "candidate");
+    const auto& stats = entry.stats;
+    std::printf("gapCount: %llu\n",
+                static_cast<unsigned long long>(stats.gapCount));
+    std::printf("gapsPerSecond: %.2f\n", stats.gapsPerSecond);
+    std::printf("minNs: %llu\n",
+                static_cast<unsigned long long>(stats.minNs));
+    std::printf("medianNs: %llu\n",
+                static_cast<unsigned long long>(stats.medianNs));
+    std::printf("meanNs: %.2f\n", stats.meanNs);
+    std::printf("p90Ns: %llu\n",
+                static_cast<unsigned long long>(stats.p90Ns));
+    std::printf("p99Ns: %llu\n",
+                static_cast<unsigned long long>(stats.p99Ns));
+    std::printf("p999Ns: %llu\n",
+                static_cast<unsigned long long>(stats.p999Ns));
+    std::printf("p9999Ns: %llu\n",
+                static_cast<unsigned long long>(stats.p9999Ns));
+    std::printf("maxNs: %llu\n",
+                static_cast<unsigned long long>(stats.maxNs));
+    std::printf("totalNs: %llu\n",
+                static_cast<unsigned long long>(stats.totalNs));
+    std::printf("totalPercent: %.2f\n", stats.totalPercent);
+    std::printf("runtimeNs: %llu\n",
+                static_cast<unsigned long long>(stats.runtimeNs));
+    std::printf("thresholdNs: %llu\n",
+                static_cast<unsigned long long>(stats.thresholdNs));
+    std::printf("loopPeriodNs: %llu\n",
+                static_cast<unsigned long long>(stats.loopPeriodNs));
+    std::printf("droppedGaps: %llu\n",
+                static_cast<unsigned long long>(stats.droppedGaps));
+    const auto& attribution = entry.attribution;
+    std::printf("interrupts delta: %s (source: /proc/interrupts)\n",
+                figureText(attribution.interrupts).c_str());
+    for (const auto& [kind, delta] : attribution.softirqs) {
+      std::printf("softirq %s delta: %s (source: /proc/softirqs)\n",
+                  kind.c_str(),
+                  figureText(delta).c_str());
+    }
+    std::printf(
+        "switch delta: %s, schedule delta: %s (source: /proc/schedstat)\n",
+        figureText(attribution.switches).c_str(),
+        figureText(attribution.schedules).c_str());
+  }
+  const auto& host = record.host;
+  const auto settingText = [](const std::optional<std::string>& value)
+  {
+    return value.has_value() ? value->c_str() : kUnavailableFigure;
+  };
+  std::printf("host settings: isolcpus=%s nohz_full=%s rcu_nocbs=%s\n",
+              settingText(host.isolcpus),
+              settingText(host.nohzFull),
+              settingText(host.rcuNocbs));
+  for (const auto& [cpu, governor] : host.governors) {
+    std::printf(
+        "governor: cpu %u %s (source: /sys devices system cpu scaling_governor)\n",
+        static_cast<unsigned>(cpu),
+        settingText(governor));
+  }
+  for (const auto& [cpu, irqs] : host.irqAffinity) {
+    std::string list;
+    for (const auto irq : irqs) {
+      if (!list.empty()) {
+        list += ',';
+      }
+      list += std::to_string(irq);
+    }
+    std::printf("irq affinity: cpu %u %s (source: /proc/irq)\n",
+                static_cast<unsigned>(cpu),
+                list.empty() ? kUnavailableFigure : list.c_str());
+  }
+  bool candidatesStand = false;
+  for (const auto& entry : record.cpus) {
+    if (!entry.planned) {
+      candidatesStand = true;
+    }
+  }
+  if (!candidatesStand) {
+    std::printf("precheck candidates: none\n");
+  }
+  std::vector<const PrecheckCpuRecord*> noisy;
+  for (const auto& entry : record.cpus) {
+    if (entry.planned && entry.stats.gapCount > 0) {
+      noisy.push_back(&entry);
+    }
+  }
+  for (const auto* entry : noisy) {
+    std::printf("warning: cpu %u gapsPerSecond %.2f maxNs %llu\n",
+                static_cast<unsigned>(entry->cpu),
+                entry->stats.gapsPerSecond,
+                static_cast<unsigned long long>(entry->stats.maxNs));
+  }
+  std::vector<std::pair<double, std::uint32_t>> ranked;
+  for (const auto& entry : record.cpus) {
+    if (entry.planned) {
+      ranked.emplace_back(entry.stats.gapsPerSecond, entry.cpu);
+    }
+  }
+  std::ranges::sort(ranked);
+  std::printf("pinning candidates:");
+  for (const auto& [rate, cpu] : ranked) {
+    std::printf(" cpu %u %.2f", static_cast<unsigned>(cpu), rate);
+  }
   std::printf("\n");
 }
 
