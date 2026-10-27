@@ -20,7 +20,7 @@ value in the option table is unique (FR-011).
 ## Value grammar
 
 ```text
---jitter-probe=<cpu-list|idle>[,threshold=<ns>][,mode=alongside|precheck|both][,precheck=<ms>][,gaps=<n>][,strict]
+--jitter-probe=<cpu-list|idle>[,threshold=<ns>][,mode=alongside|precheck|both][,precheck=<ms>|serial][,gaps=<n>][,strict]
 ```
 
 | Part | Meaning | Default | Requirement |
@@ -29,6 +29,7 @@ value in the option table is unique (FR-011).
 | `threshold=<ns>` | the gap threshold in nanoseconds, at or above 1; a negative value is a grammar rule of the value, where the string carries the sign (the field is `std::optional<std::uint64_t>`); a value stands as given, an explicit `threshold=200` staying exactly 200 ns | when the option names no threshold value: 200 ns, or 10 times the measured loop period when that stands larger | FR-007, FR-008, R-05 |
 | `mode=` | `alongside`, `precheck`, or `both` | `alongside` | FR-012, FR-014, D-1 |
 | `precheck=<ms>` | the pre-check duration in milliseconds, at or above 1 and below 2³² | 200 ms | FR-014, D-13 |
+| `precheck=serial` | the word `serial`: the pre-check runs one measured cpu per window, ascending cpu order, the planned cpus before the candidates (specs/034 FR-002, D-2) | absent: all measured cpus run in one window | specs/034 FR-009 |
 | `gaps=<n>` | the gap buffer size per probe cpu, 1 to 16,777,216 | 65,536 | FR-009 |
 | `strict` | a flag: an unavailable TSC stops the run | absent: an unavailable TSC is disclosed and the run continues | FR-037 |
 
@@ -74,7 +75,7 @@ and exits with status 2, before the first run starts (FR-038, SC-002):
 | `threshold=0`, a negative value, a value that is not a number | the value | 2 |
 | A mode word outside the three | the word | 2 |
 | `gaps=0`, a value above 16,777,216, a value that is not a number | the value | 2 |
-| `precheck=0`, a value that is not a number, or a value at or above 2³² | the value | 2 |
+| `precheck=0`, a value that is neither a number nor the word `serial`, or a value at or above 2³² | the value | 2 |
 | A key repeated in one value | the key | 2 |
 | A cpu that stands twice in one value, in any form the tokens name | the index and the whole value | 2 |
 | An invalid value from an option file line | the path, the line, and the token | 2 |
