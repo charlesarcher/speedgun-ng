@@ -127,7 +127,7 @@ line, and no benchmark row prints ([spec.md](./spec.md) US1).
 
 ### Tests for User Story 1 (write first, observe failure)
 
-- [ ] T011 [P] [US1] Write the failing refusal tests in
+- [X] T011 [P] [US1] Write the failing refusal tests in
   `test/source/harness_precheck_test.cpp`: the pre-check completes
   its full window (every window in serial mode), one refusal line
   names the first noisy planned cpu in cpu order with the gap rate
@@ -138,7 +138,7 @@ line, and no benchmark row prints ([spec.md](./spec.md) US1).
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] Implement the noisy rule and the strict refusal in
+- [X] T012 [US1] Implement the noisy rule and the strict refusal in
   `source/harness/jitter_probe.cpp`: a planned cpu stands noisy when
   its window recorded at least one above-threshold gap (`maxNs` and
   `gapsPerSecond` stand above the threshold together, R-05); in

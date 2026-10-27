@@ -909,6 +909,29 @@ auto parseJitterProbeValue(const std::string& value,
   return true;
 }
 
+// specs/034 R-05: the noisy planned cpus of one pre-check run: the
+// planned cpus whose state kept at least one above-threshold gap, the
+// candidates the planned list does not name standing out of the
+// answer (FR-012, FR-014, FR-015).
+auto precheckNoisyCpus(const std::vector<ProbeCpuState>& states,
+                       const std::vector<std::uint32_t>& plannedCpus)
+    -> std::vector<std::uint32_t>
+{
+  std::vector<std::uint32_t> noisy;
+  for (const auto cpu : plannedCpus) {
+    const auto found = std::ranges::find_if(
+        states,
+        [cpu](const ProbeCpuState& state) { return state.cpu == cpu; });
+    if (found == states.end()) {
+      continue;
+    }
+    if (found->kept > 0) {
+      noisy.push_back(cpu);
+    }
+  }
+  return noisy;
+}
+
 // specs/034 R-01: the measured set of one pre-check run, the planned
 // cpus ascending and deduplicated, then the candidates ascending, the
 // candidates the standing idle resolution takes over the plans
