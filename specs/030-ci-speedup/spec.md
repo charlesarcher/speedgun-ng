@@ -366,6 +366,18 @@ the route a live need takes inside the approved scope.
   that list also names the vendored units, and its cppcheck configuration
   differs from the preset launcher's. PC-4 names the two clearing sites
   that define today's scope (FR-049).
+- **D-14: the coverage gate records the accepted gap classes.** The
+  FR-041 fallback in `source/harness/topology.cpp` fills the cpu set by
+  index when the `/sys` online line reads empty. No lane reaches the
+  arm: thrawn and every CI runner read the line well, so the trace held
+  the arm's five lines at count zero across 1681 runs of the covering
+  object. The extract step therefore omits the arm's five lines by
+  exact text; the patterns name those lines and nothing else, and no
+  `LCOV_EXCL` marker enters the source (FR-041). The branch metric
+  keeps its rows and gains a recorded allowance of 19 in the gate
+  script: the never-taken branch positions of the accepted classes,
+  listed in the round report of 2026-10-26. A larger shortfall fails. The evidence and the gcov reading stand in the
+  round report.
 
 ## Out of scope
 
