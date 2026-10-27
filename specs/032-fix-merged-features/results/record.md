@@ -337,3 +337,24 @@ hash the branch cuts from; the local measurements stand in
   `results/pr-comment.md`, carrying each item with its commit or its
   question, the coverage figures, and the CI-run reference; it names
   no approval, no acceptance and no person. It posts beside the push.
+
+## The pushed head's run (T072, T074, FR-060, FR-061)
+
+- T072 (FR-060): the branch pushed with `--force-with-lease`, and the
+  push stands proven with `git ls-remote`: the remote head reads
+  `6d31c950c2c212a8c9aaa530e60fa41b102c6e44`, the local head's own
+  hash. The branch carried no merge commit, rebase only.
+- T074 (FR-065): the pull request stands open at
+  `https://github.com/charlesarcher/speedgun-ng/pull/53`, its body the
+  record comment the task drafted, and the run reference below stands
+  beside it.
+- FR-061: the run of the pushed head is `40464069553`, conclusion
+  success, head `6d31c950c2c212a8c9aaa530e60fa41b102c6e44`. Every job
+  the branch runs reports success: lint, test, test-rocky, sanitize,
+  tsan, static-analysis (library, tests, examples), coverage,
+  dbc-gate, prose-lint, shared-audit, downstream-consumer,
+  consumer-release. The `docs` job stands skipped by its own
+  master-only condition (`github.ref == 'refs/heads/master'`), the
+  shape its conditional states. The coverage job reads 100.0 percent
+  lines with the branch shortfall at 18 rows, within the recorded
+  allowance (SC-001, SC-002).
