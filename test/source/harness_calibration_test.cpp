@@ -54,9 +54,15 @@ constexpr std::uint64_t kFivefoldMonotonicStep = 5000;
 constexpr std::uint64_t kFivefoldThreadCpuStep = 100;
 // PR-2 (PR #32): the setup and the teardown of bmWindow each burn a
 // dependent chain of this length, far past one pass of its loop, and
-// the reported per-iteration time must show the loop alone.
+// the reported per-iteration time must show the loop alone. The bound
+// stands at the contamination scale's hundredth: the setup's chain
+// reports tens of thousands of nanoseconds per iteration when a
+// window reaches it, the loop reports single digits unbuilt and
+// hundreds under the sanitizer's own instrumentation, so five
+// thousand nanoseconds keep the discrimination the case owns and
+// leave the runner's load spikes outside it.
 constexpr std::uint64_t kWindowBurn = 1'000'000;
-constexpr double kWindowBoundNs = 1000.0;
+constexpr double kWindowBoundNs = 5000.0;
 
 sg::counters::FakeProvider* fake = nullptr;
 
