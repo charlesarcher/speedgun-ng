@@ -1407,7 +1407,7 @@ the two. The split, the merge and the disclosure run in
 `test/source/harness_pass_report_test.cpp`, on the fake provider with a set
 counter limit.
 ## Jitter probe
-The `--jitter-probe` option and the `runJitterProbe` call state the probe options of the run: a spinning context per touched L3 group counts the gaps the host inserts above a threshold while the batch runs, and the report prints one block of the folds after the benchmark tables. An empty `cpus` field names the `idle` preset: in `precheck` mode the probe runs on the planned cpus, and in the other modes on one cpu of each L3 group the plans leave free. The block opens with `jitter probe: cpus`, carries one field line per stats field from `gapCount:` to `droppedGaps:`, one value per probe cpu, and closes with the disclosure lines.
+The `--jitter-probe` option and the `runJitterProbe` call state the probe options of the run: a spinning context per touched L3 group counts the gaps the host inserts above a threshold while the batch runs, and the report prints one block of the folds after the benchmark tables. An empty `cpus` field names the `idle` preset: in `precheck` mode the probe runs on the planned cpus, and in the other modes on one cpu of each L3 group the plans leave free. In `precheck` and `both` modes the run prints the pre-check block before the benchmark tables: one block per measured cpu carrying the sixteen field lines, the attribution deltas each naming its source, then the host settings once, then one warning line per noisy planned cpu and the pinning-candidate line ranked by gap rate. The fold block opens with `jitter probe: cpus`, carries one field line per stats field from `gapCount:` to `droppedGaps:`, one value per probe cpu, and closes with the disclosure lines.
 <!-- sg-example: example/docs/jitter_probe.cpp#jitter-probe -->
 ```cpp
 auto bmMeasured(sg::State& state) -> void
@@ -1421,38 +1421,137 @@ SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
 
 auto main(int argc, char** argv) -> int
 {
-  sg::runJitterProbe({.mode = sg::JitterProbeMode::PRECHECK});
+  sg::runJitterProbe({.mode = sg::JitterProbeMode::PRECHECK,
+                      .precheckSerial = true});
   return sg::speedgunMain(argc, argv);
 }
 ```
 
 <!-- sg-sample-output: example/docs/jitter_probe.expected#report -->
 ```text
-speedgun-ng 0.17.0 build=Release
+speedgun-ng 0.21.0 build=Release
 topology: packages=1 l3-groups=4 cores=24 threads=48
-bmMeasured/threads:2     iterations=  26039366  real time/iter (ns)=    0.529  cpu time/iter (ns)=    0.528  overhead floor (ns)=  219.000  endpoint samples=4
+precheck cpu 0 (planned)
+gapCount: 58
+gapsPerSecond: 294.28
+minNs: 210
+medianNs: 7686
+meanNs: 9289.22
+p90Ns: 14322
+p99Ns: 64764
+p999Ns: 64764
+p9999Ns: 64764
+maxNs: 64764
+totalNs: 538775
+totalPercent: 0.27
+runtimeNs: 197091300
+thresholdNs: 200
+loopPeriodNs: 1
+droppedGaps: 0
+interrupts delta: 153 (source: /proc/interrupts)
+softirq HI delta: 0 (source: /proc/softirqs)
+softirq TIMER delta: 8 (source: /proc/softirqs)
+softirq NET_TX delta: 0 (source: /proc/softirqs)
+softirq NET_RX delta: 0 (source: /proc/softirqs)
+softirq BLOCK delta: 0 (source: /proc/softirqs)
+softirq IRQ_POLL delta: 0 (source: /proc/softirqs)
+softirq TASKLET delta: 0 (source: /proc/softirqs)
+softirq SCHED delta: 38 (source: /proc/softirqs)
+softirq HRTIMER delta: 0 (source: /proc/softirqs)
+softirq RCU delta: 24 (source: /proc/softirqs)
+switch delta: 0, schedule delta: 0 (source: /proc/schedstat)
+precheck cpu 24 (planned)
+gapCount: 50
+gapsPerSecond: 259.19
+minNs: 420
+medianNs: 7434
+meanNs: 8420.16
+p90Ns: 9240
+p99Ns: 57876
+p999Ns: 57876
+p9999Ns: 57876
+maxNs: 57876
+totalNs: 421008
+totalPercent: 0.22
+runtimeNs: 192910662
+thresholdNs: 420
+loopPeriodNs: 42
+droppedGaps: 0
+interrupts delta: 145 (source: /proc/interrupts)
+softirq HI delta: 0 (source: /proc/softirqs)
+softirq TIMER delta: 2 (source: /proc/softirqs)
+softirq NET_TX delta: 0 (source: /proc/softirqs)
+softirq NET_RX delta: 0 (source: /proc/softirqs)
+softirq BLOCK delta: 0 (source: /proc/softirqs)
+softirq IRQ_POLL delta: 0 (source: /proc/softirqs)
+softirq TASKLET delta: 0 (source: /proc/softirqs)
+softirq SCHED delta: 43 (source: /proc/softirqs)
+softirq HRTIMER delta: 0 (source: /proc/softirqs)
+softirq RCU delta: 21 (source: /proc/softirqs)
+switch delta: 0, schedule delta: 0 (source: /proc/schedstat)
+precheck cpu 1 (candidate)
+gapCount: 67
+gapsPerSecond: 339.05
+minNs: 210
+medianNs: 6090
+meanNs: 5705.51
+p90Ns: 9701
+p99Ns: 27384
+p999Ns: 27384
+p9999Ns: 27384
+maxNs: 27384
+totalNs: 382269
+totalPercent: 0.19
+runtimeNs: 197611470
+thresholdNs: 200
+loopPeriodNs: 1
+droppedGaps: 0
+interrupts delta: 149 (source: /proc/interrupts)
+softirq HI delta: 0 (source: /proc/softirqs)
+softirq TIMER delta: 2 (source: /proc/softirqs)
+softirq NET_TX delta: 0 (source: /proc/softirqs)
+softirq NET_RX delta: 0 (source: /proc/softirqs)
+softirq BLOCK delta: 0 (source: /proc/softirqs)
+softirq IRQ_POLL delta: 0 (source: /proc/softirqs)
+softirq TASKLET delta: 0 (source: /proc/softirqs)
+softirq SCHED delta: 44 (source: /proc/softirqs)
+softirq HRTIMER delta: 0 (source: /proc/softirqs)
+softirq RCU delta: 23 (source: /proc/softirqs)
+switch delta: 0, schedule delta: 0 (source: /proc/schedstat)
+host settings: isolcpus=not available nohz_full=not available rcu_nocbs=not available
+governor: cpu 0 powersave (source: /sys devices system cpu scaling_governor)
+governor: cpu 24 powersave (source: /sys devices system cpu scaling_governor)
+governor: cpu 1 powersave (source: /sys devices system cpu scaling_governor)
+irq affinity: cpu 0 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,22,23,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,51,53,54,55,56,57,58,59,61,63,65,67,69,71,80,88,96,105,106,107,108,109,110,111,112,114,115,131,133,134,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166 (source: /proc/irq)
+irq affinity: cpu 24 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,22,23,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,51,53,54,55,56,57,58,59,61,63,65,67,69,71,80,88,96,105,106,107,108,109,110,111,112,114,115,131,133,134,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166 (source: /proc/irq)
+irq affinity: cpu 1 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,22,23,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,51,53,54,55,56,57,58,59,61,63,65,67,69,71,80,88,96,105,106,107,108,109,110,111,112,114,115,131,133,134,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166 (source: /proc/irq)
+warning: cpu 0 gapsPerSecond 294.28 maxNs 64764
+warning: cpu 24 gapsPerSecond 259.19 maxNs 57876
+pinning candidates: cpu 24 259.19 cpu 0 294.28
+bmMeasured/threads:2     iterations=1896860462  real time/iter (ns)=    0.370  cpu time/iter (ns)=    0.370  overhead floor (ns)=  100.000  endpoint samples=4
   contexts=2  ctx0=SPIN/0@0/applied  ctx1=SPIN/24@0/applied
-jitter probe: cpus 0,24
-gapCount: 54 65
-gapsPerSecond: 272.44 327.94
-minNs: 420 252
-medianNs: 5670 4662
-meanNs: 8494.89 5272.62
-p90Ns: 10542 9534
-p99Ns: 93072 27048
-p999Ns: 93072 27048
-p9999Ns: 93072 27048
-maxNs: 93072 27048
-totalNs: 458724 342720
-totalPercent: 0.23 0.17
-runtimeNs: 198208038 198206316
-thresholdNs: 420 200
-loopPeriodNs: 42 1
-droppedGaps: 0 0
-jitter: probe on cpus 0,24
-jitter: loop period 42 ns, threshold 420 ns
-jitter: cpu 0 kept 54 dropped 0
-jitter: cpu 24 kept 65 dropped 0
+jitter probe: cpus 0,24,1
+gapCount: 58 50 67
+gapsPerSecond: 294.28 259.19 339.05
+minNs: 210 420 210
+medianNs: 7686 7434 6090
+meanNs: 9289.22 8420.16 5705.51
+p90Ns: 14322 9240 9701
+p99Ns: 64764 57876 27384
+p999Ns: 64764 57876 27384
+p9999Ns: 64764 57876 27384
+maxNs: 64764 57876 27384
+totalNs: 538775 421008 382269
+totalPercent: 0.27 0.22 0.19
+runtimeNs: 197091300 192910662 197611470
+thresholdNs: 200 420 200
+loopPeriodNs: 1 42 1
+droppedGaps: 0 0 0
+jitter: probe on cpus 0,24,1
+jitter: loop period 1 ns, threshold 200 ns
+jitter: cpu 0 kept 58 dropped 0
+jitter: cpu 24 kept 50 dropped 0
+jitter: cpu 1 kept 67 dropped 0
 jitter: split and percentiles use the kept gaps only
 ```
 

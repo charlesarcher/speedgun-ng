@@ -231,17 +231,6 @@ struct PrecheckCpuSnapshot
     const PrecheckCpuSnapshot& before, const PrecheckCpuSnapshot& after)
     -> PrecheckAttribution;
 
-/// @brief specs/034 D-3: the pinning-candidate rank of the planned
-/// cpus: every planned cpu with its gap rate, the lowest rate first,
-/// tied cpus in cpu order (FR-013, the clarify answer).
-///
-/// \pre every state of `states` stands joined (R-04)
-/// \post the answer carries every planned cpu exactly once
-[[nodiscard]] auto precheckPinningRank(
-    const std::vector<ProbeCpuState>& states,
-    const std::vector<std::uint32_t>& plannedCpus)
-    -> std::vector<std::uint32_t>;
-
 /// @brief specs/034 R-05: the noisy planned cpus of one pre-check run:
 /// a planned cpu stands noisy when its pre-check window kept at least
 /// one above-threshold gap, the standing threshold rule's own record

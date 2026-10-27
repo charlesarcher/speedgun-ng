@@ -1,0 +1,4 @@
+speedgun-ng 0.21.0 build=Release
+bmQuiet                  iterations=         2  real time/iter (ns)= 2000.000  cpu time/iter (ns)= 1000.000  overhead floor (ns)=   10.000  endpoint samples=2
+bmFamQuiet               iterations=         2  real time/iter (ns)= 2000.000  cpu time/iter (ns)= 1000.000  overhead floor (ns)=   10.000  endpoint samples=2
+jitter: not available

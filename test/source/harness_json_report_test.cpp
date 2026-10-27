@@ -543,9 +543,9 @@ auto aValueOutsideTheTableWritesTheGuardWord() -> void
 auto theDocumentStampsTheMinorThisFeatureRequires() -> void
 {
   const std::string text = sg::test::readText("harness_json_report.json");
-  check(text.starts_with("{\"schemaVersion\":\"1.5\""),
-        "the written document stamps schema minor 1.5, the minor specs/029 "
-        "takes past the 1.4 of specs/027 (FR-086, FR-043)");
+  check(text.starts_with("{\"schemaVersion\":\"1.6\""),
+        "the written document stamps schema minor 1.6, the minor specs/034 "
+        "takes past the 1.5 of specs/029 (FR-086, FR-043)");
 }
 
 // FR-041, FR-043: the run that names no option file and no environment

@@ -543,6 +543,400 @@ auto readJitterCpu(Element value, const std::string& where)
   return read;
 }
 
+// One count the document may stand `null`: an attribution figure the
+// pre-check could not read, the file form of the console's
+// `not available` (specs/034 FR-017, FR-024).
+auto readNullableCount(Element value, const std::string& where)
+    -> std::expected<std::optional<std::uint64_t>, std::string>
+{
+  if (value.is_null()) {
+    return std::optional<std::uint64_t> {};
+  }
+  auto number = asUnsigned(value, where);
+  if (!number.has_value()) {
+    return std::unexpected(number.error());
+  }
+  return std::optional<std::uint64_t> {*number};
+}
+
+// One text the document may stand `null`: a host setting the host does
+// not state (specs/034 FR-017, FR-024). A null answers an empty optional,
+// the reading of a setting the run disclosed as unavailable.
+auto readNullableText(Element value, const std::string& where)
+    -> std::expected<std::optional<std::string>, std::string>
+{
+  if (value.is_null()) {
+    return std::optional<std::string> {};
+  }
+  auto text = asString(value, where);
+  if (!text.has_value()) {
+    return std::unexpected(text.error());
+  }
+  return std::optional<std::string> {std::move(*text)};
+}
+
+// One per-cpu attribution object of a pre-check record: the interrupt and
+// softirq deltas and the scheduler deltas, each an absent-figure `null`
+// or a count (specs/034 FR-018, E-04). The softirq kinds are the
+// document's own, so the reader carries them in the order the document
+// states them (FR-029).
+auto readPrecheckAttribution(Element value, const std::string& where)
+    -> std::expected<sg::PrecheckAttribution, std::string>
+{
+  sg::PrecheckAttribution read {};
+  const auto readFigure =
+      [&](std::string_view key,
+          std::optional<std::uint64_t>* into) -> std::expected<void, std::string>
+  {
+    auto found = field(value, where, key);
+    if (!found.has_value()) {
+      return std::unexpected(found.error());
+    }
+    auto figure = readNullableCount(*found, where + "/" + std::string(key));
+    if (!figure.has_value()) {
+      return std::unexpected(figure.error());
+    }
+    *into = std::move(*figure);
+    return {};
+  };
+  auto settledValues =
+      allSettled(readFigure("interrupts", &read.interrupts),
+                 readFigure("switchDelta", &read.switches),
+                 readFigure("scheduleDelta", &read.schedules));
+  if (!settledValues.has_value()) {
+    return std::unexpected(settledValues.error());
+  }
+  auto softirqs = field(value, where, "softirqs");
+  if (!softirqs.has_value()) {
+    return std::unexpected(softirqs.error());
+  }
+  if (!softirqs->is_object()) {
+    return std::unexpected(wrongKind(where + "/softirqs", *softirqs, "an object"));
+  }
+  for (const auto pair : softirqs->get_object()) {
+    const std::string here = where + "/softirqs/" + std::string(pair.key);
+    auto figure = readNullableCount(pair.value, here);
+    if (!figure.has_value()) {
+      return std::unexpected(figure.error());
+    }
+    read.softirqs.emplace_back(std::string(pair.key), *figure);
+  }
+  return read;
+}
+
+// One per-cpu stats object of a pre-check record: the sixteen fields in
+// the E-03 order, no cpu of its own and no kept gap records, the shape
+// the pre-check writes (specs/034 FR-021, E-03).
+auto readPrecheckStats(Element value, const std::string& where)
+    -> std::expected<sg::JitterStats, std::string>
+{
+  sg::JitterStats read {};
+  const auto readUnsignedKey =
+      [&](std::string_view key,
+          std::uint64_t* into) -> std::expected<void, std::string>
+  {
+    auto found = field(value, where, key);
+    if (!found.has_value()) {
+      return std::unexpected(found.error());
+    }
+    auto number = asUnsigned(*found, where + "/" + std::string(key));
+    if (!number.has_value()) {
+      return std::unexpected(number.error());
+    }
+    *into = *number;
+    return {};
+  };
+  const auto readRealKey = [&](std::string_view key,
+                               double* into) -> std::expected<void, std::string>
+  {
+    auto found = field(value, where, key);
+    if (!found.has_value()) {
+      return std::unexpected(found.error());
+    }
+    auto number = asDouble(*found, where + "/" + std::string(key));
+    if (!number.has_value()) {
+      return std::unexpected(number.error());
+    }
+    *into = *number;
+    return {};
+  };
+  auto settledValues =
+      allSettled(readUnsignedKey("gapCount", &read.gapCount),
+                 readRealKey("gapsPerSecond", &read.gapsPerSecond),
+                 readUnsignedKey("minNs", &read.minNs),
+                 readUnsignedKey("medianNs", &read.medianNs),
+                 readRealKey("meanNs", &read.meanNs),
+                 readUnsignedKey("p90Ns", &read.p90Ns),
+                 readUnsignedKey("p99Ns", &read.p99Ns),
+                 readUnsignedKey("p999Ns", &read.p999Ns),
+                 readUnsignedKey("p9999Ns", &read.p9999Ns),
+                 readUnsignedKey("maxNs", &read.maxNs),
+                 readUnsignedKey("totalNs", &read.totalNs),
+                 readRealKey("totalPercent", &read.totalPercent),
+                 readUnsignedKey("runtimeNs", &read.runtimeNs),
+                 readUnsignedKey("thresholdNs", &read.thresholdNs),
+                 readUnsignedKey("loopPeriodNs", &read.loopPeriodNs),
+                 readUnsignedKey("droppedGaps", &read.droppedGaps));
+  if (!settledValues.has_value()) {
+    return std::unexpected(settledValues.error());
+  }
+  return read;
+}
+
+// One per-cpu entry of a pre-check record: the cpu, its role, its stats
+// and its attribution deltas (specs/034 FR-021, E-04). The role names the
+// planned set, so a text no role states refuses.
+auto readPrecheckCpu(Element value, const std::string& where)
+    -> std::expected<sg::PrecheckCpuRecord, std::string>
+{
+  sg::PrecheckCpuRecord read {};
+  auto cpu = field(value, where, "cpu");
+  if (!cpu.has_value()) {
+    return std::unexpected(cpu.error());
+  }
+  auto cpuValue = asUnsigned(*cpu, where + "/cpu");
+  if (!cpuValue.has_value()) {
+    return std::unexpected(cpuValue.error());
+  }
+  auto role = field(value, where, "role");
+  if (!role.has_value()) {
+    return std::unexpected(role.error());
+  }
+  auto roleText = asString(*role, where + "/role");
+  if (!roleText.has_value()) {
+    return std::unexpected(roleText.error());
+  }
+  if (*roleText == "planned") {
+    read.planned = true;
+  } else if (*roleText != "candidate") {
+    return std::unexpected(where + "/role: '"
+                           + detail::quotedText(*roleText)
+                           + "' names no pre-check role");
+  }
+  auto stats = field(value, where, "stats");
+  if (!stats.has_value()) {
+    return std::unexpected(stats.error());
+  }
+  auto statsRead = readPrecheckStats(*stats, where + "/stats");
+  if (!statsRead.has_value()) {
+    return std::unexpected(statsRead.error());
+  }
+  read.stats = *statsRead;
+  auto attribution = field(value, where, "attribution");
+  if (!attribution.has_value()) {
+    return std::unexpected(attribution.error());
+  }
+  auto deltas = readPrecheckAttribution(*attribution, where + "/attribution");
+  if (!deltas.has_value()) {
+    return std::unexpected(deltas.error());
+  }
+  read.attribution = *deltas;
+  read.cpu = static_cast<std::uint32_t>(*cpuValue);
+  return read;
+}
+
+// One host settings object of a pre-check record: the three kernel
+// settings, the per-cpu governors and the per-cpu irq affinity lists,
+// each a text the host states or a `null` it does not (specs/034 FR-018).
+// A governor key names its cpu, and an affinity text names its list, so
+// the reader parses the list it carries.
+auto readPrecheckHost(Element value, const std::string& where)
+    -> std::expected<sg::PrecheckHostSettings, std::string>
+{
+  sg::PrecheckHostSettings read {};
+  const auto readTextKey =
+      [&](std::string_view key,
+          std::optional<std::string>* into) -> std::expected<void, std::string>
+  {
+    auto found = field(value, where, key);
+    if (!found.has_value()) {
+      return std::unexpected(found.error());
+    }
+    auto text = readNullableText(*found, where + "/" + std::string(key));
+    if (!text.has_value()) {
+      return std::unexpected(text.error());
+    }
+    *into = std::move(*text);
+    return {};
+  };
+  auto settledValues =
+      allSettled(readTextKey("isolcpus", &read.isolcpus),
+                 readTextKey("nohz_full", &read.nohzFull),
+                 readTextKey("rcu_nocbs", &read.rcuNocbs));
+  if (!settledValues.has_value()) {
+    return std::unexpected(settledValues.error());
+  }
+  // A key of either per-cpu object names its cpu, so the reader parses
+  // the key text and refuses a key no cpu states (FR-029).
+  const auto readCpuKey = [](std::string_view key,
+                             const std::string& here)
+      -> std::expected<std::uint32_t, std::string>
+  {
+    std::uint32_t cpu = 0;
+    const auto* const end = key.data() + key.size();
+    const auto [stop, code] = std::from_chars(key.data(), end, cpu);
+    if (code != std::errc {} || stop != end) {
+      return std::unexpected(here + ": a key names no cpu");
+    }
+    return cpu;
+  };
+  const auto readGovernors = [&]() -> std::expected<void, std::string>
+  {
+    auto object = field(value, where, "governors");
+    if (!object.has_value()) {
+      return std::unexpected(object.error());
+    }
+    if (!object->is_object()) {
+      return std::unexpected(
+          wrongKind(where + "/governors", *object, "an object"));
+    }
+    for (const auto pair : object->get_object()) {
+      const std::string here = where + "/governors/" + std::string(pair.key);
+      auto cpu = readCpuKey(pair.key, here);
+      if (!cpu.has_value()) {
+        return std::unexpected(cpu.error());
+      }
+      auto governor = readNullableText(pair.value, here);
+      if (!governor.has_value()) {
+        return std::unexpected(governor.error());
+      }
+      read.governors.emplace_back(*cpu, std::move(*governor));
+    }
+    return {};
+  };
+  auto governors = readGovernors();
+  if (!governors.has_value()) {
+    return std::unexpected(governors.error());
+  }
+  const auto readAffinity = [&]() -> std::expected<void, std::string>
+  {
+    auto object = field(value, where, "irqAffinity");
+    if (!object.has_value()) {
+      return std::unexpected(object.error());
+    }
+    if (!object->is_object()) {
+      return std::unexpected(
+          wrongKind(where + "/irqAffinity", *object, "an object"));
+    }
+    for (const auto pair : object->get_object()) {
+      const std::string here = where + "/irqAffinity/" + std::string(pair.key);
+      auto cpu = readCpuKey(pair.key, here);
+      if (!cpu.has_value()) {
+        return std::unexpected(cpu.error());
+      }
+      auto text = readNullableText(pair.value, here);
+      if (!text.has_value()) {
+        return std::unexpected(text.error());
+      }
+      std::vector<std::uint32_t> irqs;
+      if (text->has_value()) {
+        const std::string& list = **text;
+        std::size_t start = 0;
+        while (start <= list.size()) {
+          const std::size_t stop = list.find(',', start);
+          const std::string_view item = std::string_view(list)
+              .substr(start, stop == std::string::npos
+                                  ? std::string::npos
+                                  : stop - start);
+          std::uint32_t irq = 0;
+          const auto* const itemEnd = item.data() + item.size();
+          const auto [itemStop, itemCode] =
+              std::from_chars(item.data(), itemEnd, irq);
+          if (itemCode != std::errc {} || itemStop != itemEnd) {
+            return std::unexpected(here + ": '" + std::string(item)
+                                   + "' names no irq");
+          }
+          irqs.push_back(irq);
+          if (stop == std::string::npos) {
+            break;
+          }
+          start = stop + 1;
+        }
+      }
+      read.irqAffinity.emplace_back(*cpu, std::move(irqs));
+    }
+    return {};
+  };
+  auto affinity = readAffinity();
+  if (!affinity.has_value()) {
+    return std::unexpected(affinity.error());
+  }
+  return read;
+}
+
+// The run-level pre-check record: the five keys the writer stands in
+// order, one entry per measured cpu with its role and figures, the host
+// settings, and the skipped groups (specs/034 FR-021, FR-024). Each key
+// is read and kind-checked in order, so a wrong kind names itself before
+// a later key's absence does (FR-029).
+auto readPrecheckRecord(Element value, const std::string& where)
+    -> std::expected<sg::PrecheckRecord, std::string>
+{
+  sg::PrecheckRecord read {};
+  auto serial = field(value, where, "serial");
+  if (!serial.has_value()) {
+    return std::unexpected(serial.error());
+  }
+  auto serialFlag = asBool(*serial, where + "/serial");
+  if (!serialFlag.has_value()) {
+    return std::unexpected(serialFlag.error());
+  }
+  read.serial = *serialFlag;
+  auto window = field(value, where, "windowMs");
+  if (!window.has_value()) {
+    return std::unexpected(window.error());
+  }
+  auto windowValue = asUnsigned(*window, where + "/windowMs");
+  if (!windowValue.has_value()) {
+    return std::unexpected(windowValue.error());
+  }
+  read.windowMs = static_cast<std::uint32_t>(*windowValue);
+  auto cpus = field(value, where, "cpus");
+  if (!cpus.has_value()) {
+    return std::unexpected(cpus.error());
+  }
+  auto cpuItems = asArray(*cpus, where + "/cpus");
+  if (!cpuItems.has_value()) {
+    return std::unexpected(cpuItems.error());
+  }
+  std::size_t index = 0;
+  for (const auto item : *cpuItems) {
+    auto readEntry = readPrecheckCpu(item, where + "/cpus/" + std::to_string(index));
+    if (!readEntry.has_value()) {
+      return std::unexpected(readEntry.error());
+    }
+    read.cpus.push_back(std::move(*readEntry));
+    ++index;
+  }
+  auto host = field(value, where, "hostSettings");
+  if (!host.has_value()) {
+    return std::unexpected(host.error());
+  }
+  auto hostRead = readPrecheckHost(*host, where + "/hostSettings");
+  if (!hostRead.has_value()) {
+    return std::unexpected(hostRead.error());
+  }
+  read.host = *hostRead;
+  auto skipped = field(value, where, "skippedGroups");
+  if (!skipped.has_value()) {
+    return std::unexpected(skipped.error());
+  }
+  auto skippedItems = asArray(*skipped, where + "/skippedGroups");
+  if (!skippedItems.has_value()) {
+    return std::unexpected(skippedItems.error());
+  }
+  index = 0;
+  for (const auto item : *skippedItems) {
+    auto group = asUnsigned(item, where + "/skippedGroups/" + std::to_string(index));
+    if (!group.has_value()) {
+      return std::unexpected(group.error());
+    }
+    read.skippedGroups.push_back(static_cast<std::uint32_t>(*group));
+    ++index;
+  }
+  return read;
+}
+
 // The run-level jitter record: the seven keys of E-07 in the kinds the
 // schema states. The reader checks the record and lets the values go,
 // the shape the noise warning read uses (E-07, E-08, FR-029); each key
@@ -1857,6 +2251,22 @@ auto loadReport(const std::string& path)
       return std::unexpected(record.error());
     }
     data.hunt = *record;
+  }
+  // specs/034 FR-024, D-8: the root pre-check object, the key the writer
+  // stands after `jitter` and before `benchmarks`. A run without the
+  // pre-check, and every document the builds before specs/034 wrote,
+  // carries no key: the member stays empty, which is the reading of a run
+  // that measured no pre-check, and the rest of the document reads as it
+  // did (I-8). A key that stands present keeps its own kind and its own
+  // refusal, so a malformed record names itself before the benchmarks
+  // array reads.
+  if (const auto precheck = optionalField(root, "precheck");
+      precheck.has_value()) {
+    auto record = readPrecheckRecord(*precheck, "/precheck");
+    if (!record.has_value()) {
+      return std::unexpected(record.error());
+    }
+    data.precheck = std::move(*record);
   }
   auto entries = field(root, "", "benchmarks");
   if (!entries.has_value()) {

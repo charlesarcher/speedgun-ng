@@ -22,13 +22,11 @@ order with the new member in place.
 
 | Key | Kind | Meaning |
 | --- | --- | --- |
-| `mode` | string | `precheck` or `both`, the standing mode words |
-| `windowMs` | integer | the window length, at or above 1 (the `precheck=` value or the 200 ms default) |
 | `serial` | boolean | the `precheck=serial` flag |
-| `thresholdNs` | integer | the threshold the rule applied (the standing threshold rule) |
+| `windowMs` | integer | the window length, at or above 1 (the `precheck=` value or the 200 ms default) |
 | `cpus` | array | one entry per measured cpu, ascending, planned cpus before candidates |
 | `hostSettings` | object | the once-per-run disclosure |
-| `disclosure` | string | the disclosure text the console block prints, `not available` cases included |
+| `skippedGroups` | array | the group indexes the candidate resolution left, ascending |
 
 ## A `cpus` entry
 
@@ -43,22 +41,22 @@ order with the new member in place.
 
 | Key | Kind | Meaning |
 | --- | --- | --- |
-| `interrupts` | integer or `"not available"` | the window delta of the cpu's interrupt count; source `/proc/interrupts` |
-| `softirqs` | object | one entry per kind the file states, integer or `"not available"` per kind; source `/proc/softirqs` |
-| `switchDelta` | integer or `"not available"` | the run-queue delay figure; source `/proc/schedstat` |
-| `scheduleDelta` | integer or `"not available"` | the timeslices figure; source `/proc/schedstat` |
+| `interrupts` | integer or `null` | the window delta of the cpu's interrupt count; source `/proc/interrupts` |
+| `softirqs` | object | one entry per kind the file states, integer or `null` per kind; source `/proc/softirqs` |
+| `switchDelta` | integer or `null` | the run-queue delay figure; source `/proc/schedstat` |
+| `scheduleDelta` | integer or `null` | the timeslices figure; source `/proc/schedstat` |
 
-A delta of zero is a figure like any other; `not available` stands
-only for a source that is missing, unreadable or unparsable (spec
-FR-018).
+A delta of zero is a figure like any other; `null` stands only for a
+source that is missing, unreadable or unparsable, the file form of
+the console's `not available` (spec FR-018).
 
 ## The `hostSettings` object
 
 | Key | Kind | Meaning |
 | --- | --- | --- |
-| `isolcpus`, `nohz_full`, `rcu_nocbs` | string or `"not available"` | the kernel command line's settings, `not available` where the host does not state them |
-| `governors` | object | one entry per measured cpu, string or `"not available"`; source the `scaling_governor` file |
-| `irqAffinity` | object | one entry per measured cpu, the IRQ list that names it or `"not available"`; source `/proc/irq` |
+| `isolcpus`, `nohz_full`, `rcu_nocbs` | string or `null` | the kernel command line's settings, `null` where the host does not state them |
+| `governors` | object | one entry per measured cpu, its key the cpu index; string or `null`; source the `scaling_governor` file |
+| `irqAffinity` | object | one entry per measured cpu, its key the cpu index; the comma-joined IRQ list or `null`; source `/proc/irq` |
 
 ## Rules
 

@@ -1,0 +1,27 @@
+speedgun-ng 0.21.0 build=Release
+options from a file or the environment: --jitter-probe=1
+bmQuiet                  iterations=         2  real time/iter (ns)= 2000.000  cpu time/iter (ns)= 1000.000  overhead floor (ns)=   10.000  endpoint samples=2
+bmProbed                 iterations=         2  real time/iter (ns)= 2000.000  cpu time/iter (ns)= 1000.000  overhead floor (ns)=   20.000  endpoint samples=2
+jitter: worst cpu 0 gaps=107897 max=65535 total=1.63
+jitter probe: cpus 0
+gapCount: 107925
+gapsPerSecond: 249.65
+minNs: 65000
+medianNs: 65267
+meanNs: 65267.50
+p90Ns: 65482
+p99Ns: 65530
+p999Ns: 65535
+p9999Ns: 65535
+maxNs: 65535
+totalNs: 7043994502
+totalPercent: 1.63
+runtimeNs: 432308545702
+thresholdNs: 65000
+loopPeriodNs: 269
+droppedGaps: 0
+jitter: probe on cpus 0
+jitter: loop period 269 ns, threshold 65000 ns
+jitter: cpu 0 kept 107925 dropped 0
+jitter: split and percentiles use the kept gaps only
+jitter: affinity mask narrowed for 'bmProbed'

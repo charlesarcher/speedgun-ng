@@ -1,0 +1,2 @@
+speedgun-ng 0.21.0 build=Release
+topology: packages=1 l3-groups=1 cores=2 threads=2

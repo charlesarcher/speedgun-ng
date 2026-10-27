@@ -478,13 +478,80 @@ auto sameResult(const sg::BenchmarkResult& actual,
   return true;
 }
 
+// One pre-check record against the record the run built, field by
+// field (specs/034 FR-024, SC-004). The figures carry the absent
+// optionals beside the counts, and the softirq kinds carry their own
+// order.
+auto samePrecheckRecord(const sg::PrecheckRecord& got,
+                        const sg::PrecheckRecord& asked) -> bool
+{
+  const auto sameAttribution = [](const sg::PrecheckAttribution& actual,
+                                  const sg::PrecheckAttribution& want)
+  {
+    return actual.interrupts == want.interrupts
+        && actual.switches == want.switches
+        && actual.schedules == want.schedules
+        && actual.softirqs.size() == want.softirqs.size()
+        && std::equal(actual.softirqs.begin(),
+                      actual.softirqs.end(),
+                      want.softirqs.begin(),
+                      [](const auto& left, const auto& right) {
+                        return left.first == right.first
+                            && left.second == right.second;
+                      });
+  };
+  const auto sameCpu = [&sameAttribution](const sg::PrecheckCpuRecord& actual,
+                                          const sg::PrecheckCpuRecord& want)
+  {
+    return actual.cpu == want.cpu && actual.planned == want.planned
+        && actual.stats.gapCount == want.stats.gapCount
+        && sameValue(actual.stats.gapsPerSecond, want.stats.gapsPerSecond)
+        && actual.stats.minNs == want.stats.minNs
+        && actual.stats.medianNs == want.stats.medianNs
+        && sameValue(actual.stats.meanNs, want.stats.meanNs)
+        && actual.stats.p90Ns == want.stats.p90Ns
+        && actual.stats.p99Ns == want.stats.p99Ns
+        && actual.stats.p999Ns == want.stats.p999Ns
+        && actual.stats.p9999Ns == want.stats.p9999Ns
+        && actual.stats.maxNs == want.stats.maxNs
+        && actual.stats.totalNs == want.stats.totalNs
+        && sameValue(actual.stats.totalPercent, want.stats.totalPercent)
+        && actual.stats.runtimeNs == want.stats.runtimeNs
+        && actual.stats.thresholdNs == want.stats.thresholdNs
+        && actual.stats.loopPeriodNs == want.stats.loopPeriodNs
+        && actual.stats.droppedGaps == want.stats.droppedGaps
+        && sameAttribution(actual.attribution, want.attribution);
+  };
+  const auto sameHost = [](const sg::PrecheckHostSettings& actual,
+                           const sg::PrecheckHostSettings& want)
+  {
+    return actual.isolcpus == want.isolcpus && actual.nohzFull == want.nohzFull
+        && actual.rcuNocbs == want.rcuNocbs
+        && actual.governors.size() == want.governors.size()
+        && std::equal(actual.governors.begin(),
+                      actual.governors.end(),
+                      want.governors.begin())
+        && actual.irqAffinity.size() == want.irqAffinity.size()
+        && std::equal(actual.irqAffinity.begin(),
+                      actual.irqAffinity.end(),
+                      want.irqAffinity.begin());
+  };
+  return got.serial == asked.serial && got.windowMs == asked.windowMs
+      && got.cpus.size() == asked.cpus.size()
+      && std::equal(got.cpus.begin(), got.cpus.end(), asked.cpus.begin(), sameCpu)
+      && sameHost(got.host, asked.host) && got.skippedGroups == asked.skippedGroups;
+}
+
 auto sameReport(const sg::ReportData& actual,
                 const sg::ReportData& want) -> bool
 {
+  const bool precheck = actual.precheck.has_value() == want.precheck.has_value()
+      && (!actual.precheck.has_value()
+          || samePrecheckRecord(*actual.precheck, *want.precheck));
   if (actual.results.size() != want.results.size()
       || actual.rowRaw.size() != want.rowRaw.size()
       || actual.contextRaw.size() != want.contextRaw.size()
-      || !sameRunHunt(actual.hunt, want.hunt))
+      || !sameRunHunt(actual.hunt, want.hunt) || !precheck)
   {
     return false;
   }

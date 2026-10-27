@@ -1,0 +1,24 @@
+speedgun-ng 0.21.0 build=Release
+bmJitSingle              iterations=         2  real time/iter (ns)= 2000.000  cpu time/iter (ns)= 1000.000  overhead floor (ns)=   20.000  endpoint samples=2
+jitter probe: cpus 0
+gapCount: 0
+gapsPerSecond: 0.00
+minNs: 0
+medianNs: 0
+meanNs: 0.00
+p90Ns: 0
+p99Ns: 0
+p999Ns: 0
+p9999Ns: 0
+maxNs: 0
+totalNs: 0
+totalPercent: 0.00
+runtimeNs: 0
+thresholdNs: 200
+loopPeriodNs: 1
+droppedGaps: 0
+jitter: probe on cpus 0
+jitter: loop period 1 ns, threshold 200 ns
+jitter: cpu 0 kept 0 dropped 0
+jitter: split and percentiles use the kept gaps only
+jitter: affinity mask narrowed for 'bmJitSingle'
