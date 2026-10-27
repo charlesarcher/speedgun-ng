@@ -25,6 +25,7 @@
 
 #include <sched.h>
 
+#include "detail/internal.hpp"
 #include "detail/options.hpp"
 #include "detail/percentiles.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
@@ -43,6 +44,25 @@ inline constexpr std::uint64_t kPassReads = 1024;
 // The rise the default threshold takes at ten times the measured minimum
 // loop period (FR-007, D-2).
 inline constexpr std::uint64_t kRiseFactor = 10;
+
+// The turn wait's pause hint: the same documented shape the shipped
+// pause helper of execution_context.cpp carries (specs/034 R-06), with
+// the same P2 justification at its site: the operand is absent, so
+// nothing is aliased, and the `memory` clobber stands the compiler
+// barrier. The AArch64 spelling matches the shipped helper and is
+// inert on x86-64, the only CI architecture this file is verified on.
+inline auto pauseHint() -> void
+{
+#if defined(__x86_64__) || defined(__i386__)
+  asm volatile(
+      "pause" ::
+          : "memory");  // NOLINT(hicpp-no-assembler, portability-no-assembler)
+#elifdef __aarch64__
+  asm volatile(
+      "yield" ::
+          : "memory");  // NOLINT(hicpp-no-assembler, portability-no-assembler)
+#endif
+}
 
 // The reader-install seam's storage: the reader a scenario installs
 // stands in place of the one the work item opens over the machine/tsc
@@ -134,6 +154,10 @@ struct ProbeItem
   ProbeCpuState* state = nullptr;
   const JitterProbeOptions* options = nullptr;
   ProbeSession* session = nullptr;
+  // specs/034 R-06: the item's index in the states order, the order
+  // the serial windows run in (the planned cpus ascending, then the
+  // candidates ascending, the order the runner builds the options in).
+  std::size_t index = 0;
 
   auto operator()(sg::WorkContext& /*work*/) noexcept -> void;
 };
@@ -153,6 +177,11 @@ struct ProbeSession
   // the holder reaches before start() returns, so the batch's first
   // benchmark begins behind them (FR-006, FR-009, FR-014, R-04).
   std::optional<ContextBarrier> latch;
+  // specs/034 R-06: the serial windows' turn word. The item whose
+  // index the turn names runs its window, and the release stands the
+  // next item's start; the wait spins on the pause hint, outside every
+  // timed window and outside every record (FR-009, R-06).
+  std::atomic<std::uint64_t> serialTurn {0};
   std::vector<std::unique_ptr<sg::WorkNode<ProbeItem>>> nodes;
   std::vector<std::unique_ptr<sg::ExecutionContext>> contexts;
 };
@@ -222,12 +251,22 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
   // The pre-check phase: the cpus stand lined at the start barrier,
   // so all of them spin together for the precheck duration, measured
   // through the same reader in the leaf's one time base (FR-014, R-10,
-  // R-04).
+  // R-04). The serial shape runs one measured cpu per window: the item
+  // spins on the turn word until its index, then re-reads its baseline
+  // stamp, so the wait names no gap, and the release stands the next
+  // item's start (specs/034 FR-009, R-06).
   if (options->mode == JitterProbeMode::PRECHECK
       || options->mode == JitterProbeMode::BOTH)
   {
     const std::uint64_t span =
         static_cast<std::uint64_t>(options->precheckMs) * 1000000ULL;
+    if (options->precheckSerial) {
+      while (session->serialTurn.load(std::memory_order_acquire)
+             != static_cast<std::uint64_t>(index)) {
+        pauseHint();
+      }
+      last = readStamp();
+    }
     const std::uint64_t phaseStart = last;
     while (true) {
       const std::uint64_t stamp = readStamp();
@@ -239,6 +278,13 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
       if (stamp - phaseStart >= span) {
         break;
       }
+    }
+    if (options->precheckSerial) {
+      // The release stands the next item's start; the store happens
+      // once, before the latch line, so the windows stand one at a
+      // time (FR-009, R-06).
+      session->serialTurn.store(static_cast<std::uint64_t>(index) + 1,
+                                std::memory_order_release);
     }
   }
 
@@ -386,7 +432,8 @@ auto JitterProbe::start() -> void
     session->nodes.push_back(std::make_unique<sg::WorkNode<ProbeItem>>(
         ProbeItem {.state = &m_states.at(index),
                    .options = &m_options,
-                   .session = session.get()}));
+                   .session = session.get(),
+                   .index = index}));
   }
   for (std::size_t index = 0; index < session->contexts.size(); ++index) {
     sg::dispatch(*session->contexts.at(index), *session->nodes.at(index));
@@ -860,6 +907,31 @@ auto parseJitterProbeValue(const std::string& value,
     }
   }
   return true;
+}
+
+// specs/034 R-01: the measured set of one pre-check run, the planned
+// cpus ascending and deduplicated, then the candidates ascending, the
+// candidates the standing idle resolution takes over the plans
+// (specs/027 D-4).
+auto precheckMeasuredSet(const MachineLayout& machine,
+                         std::vector<std::uint32_t> planned)
+    -> PrecheckMeasuredSet
+{
+  PrecheckMeasuredSet set;
+  std::ranges::sort(planned);
+  planned.erase(std::unique(planned.begin(), planned.end()), planned.end());
+  set.cpus = planned;
+  if (planned.empty()) {
+    // A batch with no pinned instance plans no cpu; the caller refuses
+    // the run with the standing status-2 line (FR-010).
+    return set;
+  }
+  const IdleResolution idle = resolveIdleCpus(machine, planned);
+  auto candidates = idle.cpus;
+  std::ranges::sort(candidates);
+  set.cpus.insert(set.cpus.end(), candidates.begin(), candidates.end());
+  set.skippedGroups = idle.skippedGroups;
+  return set;
 }
 
 }  // namespace sg::detail
