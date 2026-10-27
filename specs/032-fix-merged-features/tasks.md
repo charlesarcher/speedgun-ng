@@ -200,9 +200,9 @@ fea69c5 4f701ae` names finds no person's name and no acceptance
 wording in the rewritten targets, and the two `cmake/coverage.cmake`
 comments name no person (spec.md, User Story 6).
 
-- [ ] T056 [US6] Rewrite the named targets of Baseline B as requirement text: the requirement-language sites at `specs/028-full-command-line/spec.md:1127`, `specs/029-hunter-core/spec.md:62`, and `specs/029-hunter-core/plan-review-2.md:12`, `:39` and `:80`; each rewritten line states the requirement and names no person and no host (M-17, FR-024)
-- [ ] T057 [US6] Scan the files `git diff --name-only fea69c5 4f701ae` names for a person's name, acceptance wording and a host name; rewrite each hit as requirement text; `LICENSE`, `CODEOWNERS` and `CMakeLists.txt` stay untouched (PR 47 P-4, review B 24 and 25, FR-024)
-- [ ] T058 [US6] Rewrite the two comments at `cmake/coverage.cmake:57` and `:85` to `:86` as what the code does, with no name and no decision record; no other change in that file rides the commit (M-19, FR-025; the person and the `D-16 in specs/022-metric-formulas/plan.md` record stand there today, research R-05)
+- [x] T056 [US6] Rewrite the named targets of Baseline B as requirement text: the requirement-language sites at `specs/028-full-command-line/spec.md:1127`, `specs/029-hunter-core/spec.md:62`, and `specs/029-hunter-core/plan-review-2.md:12`, `:39` and `:80`; each rewritten line states the requirement and names no person and no host (M-17, FR-024)
+- [x] T057 [US6] Scan the files `git diff --name-only fea69c5 4f701ae` names for a person's name, acceptance wording and a host name; rewrite each hit as requirement text; `LICENSE`, `CODEOWNERS` and `CMakeLists.txt` stay untouched (PR 47 P-4, review B 24 and 25, FR-024)
+- [x] T058 [US6] Rewrite the two comments at `cmake/coverage.cmake:57` and `:85` to `:86` as what the code does, with no name and no decision record; no other change in that file rides the commit (M-19, FR-025; the person and the `D-16 in specs/022-metric-formulas/plan.md` record stand there today, research R-05)
 
 **Checkpoint**: The specs, the comments and the PR 46/47/49 trees
 carry requirements only.
