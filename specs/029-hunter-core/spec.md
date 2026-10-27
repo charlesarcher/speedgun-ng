@@ -59,9 +59,9 @@ not copied.
 
 ## Decisions
 
-Charles accepted these as recommendations for this prompt on 2026-10-22.
-They are recorded here per X.1 so that no implementer reopens them, and
-each one names the reading it settles.
+These stand as the recommendations of this prompt. They are recorded
+here per X.1 so that no implementer reopens them, and each one names
+the reading it settles.
 
 - **D-1 `--hunt` with no value means `--hunt=all`.** All catalog events
   of the core PMU devices, with no uncore device. A core device is

@@ -1124,9 +1124,9 @@ and run the example through `example_run`.
   shall answer before the addresses are read, and an address that a higher
   source dropped shall answer its own line behind the source that named it.
 
-This requirement is a ruling, and it is recorded here because it moves a
-status spec 015 sets. For a counter that a user names, an address this host
-does not find exits 2 (FR-087). FR-023 of spec 015 stays for internal leaves:
+The status this requirement sets stands beside the status spec 015 sets
+for internal leaves, and the two read together. For a counter that a user
+names, an address this host does not find exits 2 (FR-087). FR-023 of spec 015 stays for internal leaves:
 a caller that hands addresses to the runner keeps the absent column it
 answers today, and a leaf a metric needs keeps its refusal kind with the run
 going on. The status table of
