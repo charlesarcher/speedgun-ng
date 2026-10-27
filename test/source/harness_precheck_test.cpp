@@ -477,8 +477,34 @@ auto main(int argc, char** argv) -> int
       };
       const auto refusalOut = read(outPath);
       const auto refusalErr = read(errPath);
-      check(std::count(refusalErr.begin(), refusalErr.end(), '\n') == 1,
-            "the strict refusal stands one line (FR-014)");
+      // The coverage build's profiler prints one bookkeeping line of
+      // its own into the exec'd child's standard error; the run's own
+      // refusal stands the one line the contract counts, so the
+      // profiler's lines stand out of the count (FR-014, the exec-self
+      // pattern the CLI tests carry).
+      std::size_t refusalLines = 0;
+      std::size_t scan = 0;
+      while (scan <= refusalErr.size()) {
+        const auto stop = refusalErr.find('\n', scan);
+        const auto line = refusalErr.substr(
+            scan, stop == std::string::npos ? std::string::npos
+                                            : stop - scan);
+        if (!line.empty()
+            && line.find("libgcov profiling error:") != 0)
+        {
+          ++refusalLines;
+        }
+        if (stop == std::string::npos) {
+          break;
+        }
+        scan = stop + 1;
+      }
+      if (refusalLines != 1) {
+        std::fprintf(stderr,
+                     "the refusal's standard error stands <%s>\n",
+                     refusalErr.c_str());
+        fail("the strict refusal stands one line (FR-014)");
+      }
       check(refusalErr.find("--jitter-probe: cpu ") == 0,
             "the refusal names the option and the cpu (FR-014)");
       check(refusalOut.find("bmPinned") == std::string::npos,
