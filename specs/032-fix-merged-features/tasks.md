@@ -222,12 +222,12 @@ other five stories deliver; its tasks run after their fixes land. The
 check items of Phase 2 carry the [US1] label because they close the
 reds the merge carried.
 
-- [ ] T059 [US1] Take the zero list from the compiler the coverage job uses on the branch head, name that compiler in `specs/032-fix-merged-features/spec.md` as FR-031 fixes, give each side a real input reaches a test, and list each side D-13 accepts with its `gcov` block and arc data; the gate change D-13 allows is the narrowest `lcov` option in `cmake/coverage.cmake` alone, and when no narrow filter removes exactly the proven sides the item stops and the data goes to the pull request as a question; the branch shortfall holds only this list and the D-12 keep-set (D-13, D-14, FR-031, SC-002; research R-10 names the runner and its default g++)
-- [ ] T060 [US1] Prove coverage reaches 100 percent including `detail/hunt_selection.hpp` and the glob star arm, through real inputs and tests, no code shaped to move a count (PR 47 P-3, D-14, FR-052, SC-002)
+- [x] T059 [US1] Take the zero list from the compiler the coverage job uses on the branch head, name that compiler in `specs/032-fix-merged-features/spec.md` as FR-031 fixes, give each side a real input reaches a test, and list each side D-13 accepts with its `gcov` block and arc data; the gate change D-13 allows is the narrowest `lcov` option in `cmake/coverage.cmake` alone, and when no narrow filter removes exactly the proven sides the item stops and the data goes to the pull request as a question; the branch shortfall holds only this list and the D-12 keep-set (D-13, D-14, FR-031, SC-002; research R-10 names the runner and its default g++)
+- [x] T060 [US1] Prove coverage reaches 100 percent including `detail/hunt_selection.hpp` and the glob star arm, through real inputs and tests, no code shaped to move a count (PR 47 P-3, D-14, FR-052, SC-002)
 - [ ] T061 [US1] Run `cmake --preset=ci-rocky`, `cmake --build build`, `ctest --test-dir build --output-on-failure`, then once `cmake --preset=ci-ubuntu` and `cmake --build build` with clang-tidy and cppcheck wired in, and record the results in `results/record.md`; every job on the head reports success (FR-005, SC-001, AGENTS.md build loop)
-- [ ] T062 [US1] Run the suite under `taskset -c 0,1` and record the pass in `results/record.md`; the standing CI covers the rest of SC-004 (SC-004)
+- [x] T062 [US1] Run the suite under `taskset -c 0,1` and record the pass in `results/record.md`; the standing CI covers the rest of SC-004 (SC-004)
 - [ ] T063 [US1] Run the docs drift gates (`example_drift`, `snippet_compile`, `example_run`, `report_shape`) and the drift gate of `tools/docs/example_drift.py`, and record the pass (FR-008, FR-018, FR-062)
-- [ ] T064 [US1] Confirm every figure in `results/record.md` comes from the CI run of the last pushed commit and every job log is read (FR-061)
+- [x] T064 [US1] Confirm every figure in `results/record.md` comes from the CI run of the last pushed commit and every job log is read (FR-061)
 
 **Checkpoint**: The branch head is green job by job, and the coverage
 shortfall holds only the accepted sides.
