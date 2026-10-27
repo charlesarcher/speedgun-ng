@@ -124,3 +124,52 @@ hash the branch cuts from; the local measurements stand in
   the deferred pass now reads the record each entry answered, and the
   scenario runs the hunt beside the probe on a host that scripts the
   probe's leaves (`scenarioHuntWithProbe`).
+
+## The hunt review items (T031 to T044, T046)
+
+- T031 (FR-037, D-10): the hunt's first pass carries no retry on master;
+  the collect test pins the pass count the plan runs, and the rank
+  fixture's record keeps `EntryHunt::passCount` equal to the plan's
+  passes, the passes a retry appended included, of which none stands.
+- T032 (FR-038, D-11): the `FakeProvider` open-failure seam stays
+  public in the counters archive, and the archive `SOVERSION` stays `4`
+  (`CMakeLists.txt:80`).
+- T033 (FR-039, FR-040): the flag parameters ride the options
+  structures (`RunOptions`, `HeldRow`), and the contract-only helper at
+  `execution_context.cpp:656` carries `[[maybe_unused]]`.
+- T034 (FR-041): the hunter acceptance rows move to the host-validation
+  feature (spec 031); this feature closes the item with the move.
+- T035 (FR-042): the PR 47 items P-10 to P-18 carried their detail in
+  the fixes-1 prompt, which is absent from this host; each is confirmed
+  against master through the standing tests of the hunt suites, and an
+  item the tree does not settle goes to the pull request as a question.
+- T036 (FR-036, D-09): no item needed a new `SkippedKind` value, so no
+  value joins and the version lane stays `0.20.1` (FR-001); the enum
+  stands at `hunt.hpp:158` with five values.
+- T037 (FR-043): the hunt parsers' process exit stands: every refusal
+  row of the hunt suites exits 2 with one line (`checkRefusals`).
+- T038 (FR-044): `--hunt=none` behaves exactly like a run with no hunt
+  (`hunt-none-like-no-hunt`), and the source order rule stands
+  (`option-order-settles`).
+- T039 (FR-045): the refused combination stands from every source
+  (`scenarioAmbientCombinationRefusals`).
+- T040 (FR-046): the hunt beside `--threads` and `--interleave` stands
+  with tests (`hunt-with-threads-and-interleave`), and beside
+  `--jitter-probe` with `hunt-with-probe`.
+- T041 (FR-047): the raw-code rule with globs stands: the trailing glob
+  strips before the shape read (`cpu/r4a03*`, and the bare `r4*` row).
+- T042 (FR-048): the `ABSENT` relabel abort stands with its trap
+  fixture: `harness_hunt_rank_trap_fixture` feeds `rankEvents` an
+  address whose every window carries no anchor and no refusal kind, and
+  `harness_hunt_rank_trap_test` asserts the abort before the marker in
+  a checked build and the survival with the marker in an ignore build.
+- T043 (FR-049): this host carries no real PMU, so the real-PMU test
+  item routes to the pull request as a named gap, the catalog the host
+  carries being the fixture's own.
+- T044 (FR-050): the `--hunt-noise` grammar stands with its tests (the
+  hunt CLI suite carries fifteen `hunt-noise` cases).
+- T046 (FR-032, FR-033, D-05, D-06): the counter-address refusal stands
+  from every source with its tests in `harness_cli_test.cpp`: the
+  command line, the environment (`SPEEDGUN_COUNTER`), and the option
+  file beside it, each one line and status 2; a valid PMU path this
+  host lacks routes to FR-049's named gap.

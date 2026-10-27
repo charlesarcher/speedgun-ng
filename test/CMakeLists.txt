@@ -1384,6 +1384,26 @@ target_include_directories(harness_hunt_rank_test PRIVATE ${CMAKE_SOURCE_DIR}/so
 target_compile_features(harness_hunt_rank_test PRIVATE cxx_std_23)
 add_test(NAME harness_hunt_rank_test COMMAND harness_hunt_rank_test)
 
+# The ranker's invariant trap fixture is NOT a test (it aborts); it is a
+# driven executable the trap checker below runs (specs/032 FR-048), the
+# shape `counters_trap_fixture.cpp` stands in for the recorder.
+add_executable(harness_hunt_rank_trap_fixture
+               source/harness_hunt_rank_trap_fixture.cpp)
+target_link_libraries(harness_hunt_rank_trap_fixture
+                      PRIVATE speedgun-ng::harness)
+target_include_directories(harness_hunt_rank_trap_fixture
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_hunt_rank_trap_fixture PRIVATE cxx_std_23)
+add_executable(harness_hunt_rank_trap_test
+               source/harness_hunt_rank_trap_test.cpp)
+target_link_libraries(harness_hunt_rank_trap_test PRIVATE speedgun-ng::harness)
+target_compile_features(harness_hunt_rank_trap_test PRIVATE cxx_std_23)
+add_test(
+  NAME harness_hunt_rank_trap_test
+  COMMAND
+    harness_hunt_rank_trap_test
+    $<TARGET_FILE:harness_hunt_rank_trap_fixture>)
+
 # The collection walk, the skipped kinds and the retry route
 # (T017; US1, FR-021, FR-022, AC-3, AC-4, SC-02, SC-04).
 add_executable(harness_hunt_collect_test source/harness_hunt_collect_test.cpp)

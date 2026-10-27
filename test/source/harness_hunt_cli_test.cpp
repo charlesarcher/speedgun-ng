@@ -495,6 +495,10 @@ auto scenarioSelectionRefusals() -> void
                  {"full", {"--hunt=cpu/r4a03"}, raw},
                  {"full", {"--hunt=" + address(0) + ",r4a03"}, raw},
                  {"full", {"--hunt=cpu/r4a03*"}, raw},
+                 // The bare form with its trailing glob: the glob strips
+                 // before the shape read, so the raw code stands named
+                 // without it (FR-047).
+                 {"full", {"--hunt=r4*"}, rawCodeLine("r4")},
                  {"full", {"--hunt=cpu/r4A03"}, rawCodeLine("r4A03")},
                  {"full",
                   {"--hunt=cpu/r4g03"},
@@ -761,6 +765,35 @@ auto scenarioPlacementConflictRefusal() -> void
                   {"--placement=core", "--hunt"},
                   "--hunt cannot combine with --placement"}});
   std::printf("placement-conflict-refusal: ok\n");
+}
+
+// FR-046: the hunt runs beside the run-shape options: the threaded arm
+// runs two contexts, the interleaved arm holds the walk's own order,
+// and both print the rank lines the hunt carried alone.
+auto scenarioHuntWithThreadsAndInterleave() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+  // The threaded arm carries no end anchor: a thread suffix rides the
+  // instance name the filter reads, so the anchor the exact spelling
+  // needs would match nothing (FR-046).
+  const std::vector<std::string> threaded {"--filter",
+                                           "^bmHuntCli",
+                                           "--iterations=1",
+                                           "--hunt=" + address(0),
+                                           "--threads=2"};
+  const auto threadedRun = captureRun(threaded);
+  check(!huntLines(threadedRun, "hunt: rank ").empty(),
+        "the threaded hunt prints its rank lines (FR-046)");
+  const std::vector<std::string> interleaved {"--filter",
+                                              "^bmHuntCli",
+                                              "--iterations=1",
+                                              "--hunt=" + address(0),
+                                              "--interleave"};
+  const auto interleavedRun = captureRun(interleaved);
+  check(!huntLines(interleavedRun, "hunt: rank ").empty(),
+        "the interleaved hunt prints its rank lines (FR-046)");
+  std::printf("hunt-with-threads-and-interleave: ok\n");
 }
 
 // D-08, FR-035: the hunt and the probe run together. The child carries
@@ -1693,6 +1726,8 @@ auto scenarioFilterSelectsTwoHuntedInstances() -> void
       Scenario {"ambient-combination-refusals",
                 &scenarioAmbientCombinationRefusals},
       Scenario {"hunt-with-probe", &scenarioHuntWithProbe},
+      Scenario {"hunt-with-threads-and-interleave",
+                &scenarioHuntWithThreadsAndInterleave},
   };
   return kList;
 }
