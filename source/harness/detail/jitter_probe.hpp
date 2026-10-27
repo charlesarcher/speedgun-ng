@@ -4,8 +4,12 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <memory>
+#include <optional>
 #include <span>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "speedgun-ng/benchmark.hpp"
@@ -175,6 +179,68 @@ struct MachineLayout;
 [[nodiscard]] auto precheckMeasuredSet(const MachineLayout& machine,
                                        std::vector<std::uint32_t> planned)
     -> PrecheckMeasuredSet;
+
+/// @brief specs/034 E-12: the raw counts one attribution source
+/// carries for one measured cpu, read before and after the window
+/// (R-03); the deltas the record carries are the after-before
+/// differences of these figures.
+struct PrecheckCpuSnapshot
+{
+  std::optional<std::uint64_t> interrupts;
+  std::vector<std::pair<std::string, std::optional<std::uint64_t>>> softirqs;
+  std::optional<std::uint64_t> switches;
+  std::optional<std::uint64_t> schedules;
+};
+
+/// @brief specs/034 R-03: the raw counts the attribution sources
+/// carry for the measured cpus, read through the file-root seam
+/// (FR-019): the interrupt count of each cpu (the sum of its column
+/// over the rows of `/proc/interrupts`), a count per softirq kind the
+/// file states (`/proc/softirqs`), and the context-switch and schedule
+/// counts (`/proc/schedstat`, the run-queue delay figure and the
+/// timeslices figure). A source that is missing, unreadable or
+/// unparsable stands absent for that cpu, and the run never fails on
+/// it (FR-018, AC-b2).
+///
+/// \pre `cpus` names no cpu twice
+/// \post the answer carries one entry per named cpu
+[[nodiscard]] auto precheckReadSnapshot(
+    const std::vector<std::uint32_t>& cpus)
+    -> std::map<std::uint32_t, PrecheckCpuSnapshot>;
+
+/// @brief specs/034 R-04: the host settings the run discloses once,
+/// read through the file-root seam (FR-019): the kernel command
+/// line's `isolcpus`, `nohz_full` and `rcu_nocbs` values, the cpufreq
+/// governor of each measured cpu, and the IRQ numbers whose affinity
+/// names each measured cpu, the list form of
+/// `/proc/irq/<n>/smp_affinity_list` with the mask form
+/// `smp_affinity` as the fallback. A figure the host does not state
+/// stands `not available` (FR-017).
+///
+/// \post the answer carries one governor entry and one affinity
+///       entry per named cpu, ascending
+[[nodiscard]] auto precheckReadHostSettings(
+    const std::vector<std::uint32_t>& cpus) -> PrecheckHostSettings;
+
+/// @brief specs/034 R-03: the window deltas of one cpu's attribution:
+/// the after-before difference of each figure, and a figure stands
+/// absent when either side stands absent (FR-016, FR-018).
+///
+/// \post a delta stands at or above zero when both sides stand
+[[nodiscard]] auto precheckAttributionDelta(
+    const PrecheckCpuSnapshot& before, const PrecheckCpuSnapshot& after)
+    -> PrecheckAttribution;
+
+/// @brief specs/034 D-3: the pinning-candidate rank of the planned
+/// cpus: every planned cpu with its gap rate, the lowest rate first,
+/// tied cpus in cpu order (FR-013, the clarify answer).
+///
+/// \pre every state of `states` stands joined (R-04)
+/// \post the answer carries every planned cpu exactly once
+[[nodiscard]] auto precheckPinningRank(
+    const std::vector<ProbeCpuState>& states,
+    const std::vector<std::uint32_t>& plannedCpus)
+    -> std::vector<std::uint32_t>;
 
 /// @brief specs/034 R-05: the noisy planned cpus of one pre-check run:
 /// a planned cpu stands noisy when its pre-check window kept at least

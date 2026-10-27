@@ -10,14 +10,21 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <charconv>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <limits>
+#include <map>
 #include <memory>
 #include <optional>
 #include <set>
+#include <sstream>
 #include <stdexcept>
+#include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -27,6 +34,7 @@
 
 #include "detail/internal.hpp"
 #include "detail/options.hpp"
+#include "detail/proc_root.hpp"
 #include "detail/percentiles.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_system.hpp"
@@ -907,6 +915,411 @@ auto parseJitterProbeValue(const std::string& value,
     }
   }
   return true;
+}
+
+// specs/034 R-03, R-04: the attribution readers. Every read resolves
+// under the file-root seam (FR-019), and a source that is missing,
+// unreadable or unparsable stands absent for the figure it carries,
+// the run never failing on it (FR-018, AC-b2).
+auto readUnderRoot(const std::string& relative) -> std::optional<std::string>
+{
+  std::ifstream file(procRootPath(relative));
+  if (!file) {
+    return std::nullopt;
+  }
+  std::string text;
+  std::string line;
+  while (std::getline(file, line)) {
+    text += line;
+    text += '\n';
+  }
+  return text;
+}
+
+// One unsigned figure off one token; a token that parses as no number
+// answers nothing (FR-018).
+auto parseCountToken(const std::string& token) -> std::optional<std::uint64_t>
+{
+  std::uint64_t figure = 0;
+  const auto* begin = token.data();
+  const auto* end = begin + token.size();
+  const auto result = std::from_chars(begin, end, figure);
+  if (result.ec != std::errc {} || result.ptr != end) {
+    return std::nullopt;
+  }
+  return figure;
+}
+
+// The interrupt count of one cpu: the sum of the cpu's column over
+// every row of /proc/interrupts, the rows' per-cpu counts standing
+// after the colon (R-4 of research.md). A needed column that parses as
+// no number stands the source unparsable (FR-018).
+auto interruptsOfText(const std::string& text, std::uint32_t cpu)
+    -> std::optional<std::uint64_t>
+{
+  std::uint64_t sum = 0;
+  std::istringstream stream(text);
+  std::string line;
+  while (std::getline(stream, line)) {
+    const auto colon = line.find(':');
+    if (colon == std::string::npos) {
+      continue;
+    }
+    const auto tail = line.substr(colon + 1);
+    auto tokens = std::istringstream(tail);
+    std::vector<std::string> fields;
+    std::string token;
+    while (tokens >> token) {
+      fields.push_back(token);
+    }
+    if (fields.size() <= cpu) {
+      return std::nullopt;
+    }
+    const auto figure = parseCountToken(fields.at(cpu));
+    if (!figure.has_value()) {
+      return std::nullopt;
+    }
+    sum += *figure;
+  }
+  return sum;
+}
+
+// The per-kind softirq counts of one cpu: one figure per kind row the
+// file states, the kind named as the file states it (R-5 of
+// research.md). A kind whose needed column parses as no number stands
+// absent for that kind alone (FR-018).
+auto softirqsOfText(const std::string& text, std::uint32_t cpu)
+    -> std::vector<std::pair<std::string, std::optional<std::uint64_t>>>
+{
+  std::vector<std::pair<std::string, std::optional<std::uint64_t>>> kinds;
+  std::istringstream stream(text);
+  std::string line;
+  while (std::getline(stream, line)) {
+    const auto colon = line.find(':');
+    if (colon == std::string::npos || colon == 0) {
+      continue;
+    }
+    auto kind = line.substr(0, colon);
+    const auto trimEnd = kind.find_last_not_of(" \t");
+    if (trimEnd == std::string::npos) {
+      continue;
+    }
+    kind = kind.substr(0, trimEnd + 1);
+    const auto trimStart = kind.find_first_not_of(" \t");
+    kind = kind.substr(trimStart);
+    const auto tail = line.substr(colon + 1);
+    auto tokens = std::istringstream(tail);
+    std::vector<std::string> fields;
+    std::string token;
+    while (tokens >> token) {
+      fields.push_back(token);
+    }
+    if (fields.size() <= cpu) {
+      kinds.emplace_back(kind, std::nullopt);
+      continue;
+    }
+    kinds.emplace_back(kind, parseCountToken(fields.at(cpu)));
+  }
+  return kinds;
+}
+
+// The context-switch and schedule counts of one cpu: the run-queue
+// delay figure and the timeslices figure of the cpu's own line of
+// /proc/schedstat (R-3 of research.md). A line that names no figure
+// for the cpu, or carries fewer than the three the file states, stands
+// the source absent for that cpu (FR-018).
+auto schedstatOfText(const std::string& text, std::uint32_t cpu)
+    -> std::pair<std::optional<std::uint64_t>, std::optional<std::uint64_t>>
+{
+  std::pair<std::optional<std::uint64_t>, std::optional<std::uint64_t>>
+      answer;
+  const auto prefix = "cpu" + std::to_string(cpu) + " ";
+  std::istringstream stream(text);
+  std::string line;
+  while (std::getline(stream, line)) {
+    if (line.rfind(prefix, 0) != 0) {
+      continue;
+    }
+    auto tokens = std::istringstream(line.substr(prefix.size()));
+    std::vector<std::uint64_t> figures;
+    std::string token;
+    while (tokens >> token) {
+      const auto figure = parseCountToken(token);
+      if (!figure.has_value()) {
+        return answer;
+      }
+      figures.push_back(*figure);
+    }
+    if (figures.size() < 3) {
+      return answer;
+    }
+    // The run-queue delay figure names the context-switch figure, the
+    // timeslices figure the schedule count (R-3 of research.md).
+    answer.first = figures.at(1);
+    answer.second = figures.at(2);
+    return answer;
+  }
+  return answer;
+}
+
+// The kernel command line's value of one setting: the token that names
+// the key, the value after the equals sign; a line that names no such
+// token stands the setting unstated (FR-017).
+auto kernelSettingOfText(const std::string& text, std::string_view key)
+    -> std::optional<std::string>
+{
+  std::istringstream stream(text);
+  std::string token;
+  while (stream >> token) {
+    if (token.rfind(key, 0) == 0 && token.size() > key.size()
+        && token.at(key.size()) == '=')
+    {
+      return token.substr(key.size() + 1);
+    }
+  }
+  return std::nullopt;
+}
+
+// The cpus one kernel cpu-list line spells: comma-separated lone
+// indices and `low-high` spans, a token that parses as no number or a
+// span that stands reversed standing unparsable (R-6 of research.md).
+auto cpuListOfText(const std::string& text)
+    -> std::optional<std::vector<std::uint32_t>>
+{
+  std::vector<std::uint32_t> cpus;
+  std::size_t scan = 0;
+  while (scan < text.size()) {
+    const auto stop = text.find(',', scan);
+    const auto end = stop == std::string::npos ? text.size() : stop;
+    const auto token = text.substr(scan, end - scan);
+    if (token.empty()) {
+      return std::nullopt;
+    }
+    const auto dash = token.find('-');
+    if (dash == std::string::npos) {
+      const auto cpu = parseCountToken(token);
+      if (!cpu.has_value()) {
+        return std::nullopt;
+      }
+      cpus.push_back(static_cast<std::uint32_t>(*cpu));
+    } else {
+      const auto low = parseCountToken(token.substr(0, dash));
+      const auto high = parseCountToken(token.substr(dash + 1));
+      if (!low.has_value() || !high.has_value() || *low > *high) {
+        return std::nullopt;
+      }
+      for (auto cpu = static_cast<std::uint64_t>(*low);
+           cpu <= static_cast<std::uint64_t>(*high);
+           ++cpu)
+      {
+        cpus.push_back(static_cast<std::uint32_t>(cpu));
+      }
+    }
+    if (stop == std::string::npos) {
+      break;
+    }
+    scan = stop + 1;
+  }
+  return cpus;
+}
+
+// The cpus one kernel affinity mask line spells: comma-separated
+// 8-hex-digit groups, the leftmost group naming the highest cpus, bit
+// i of group g naming cpu g * 32 + i (R-6 of research.md).
+auto cpuMaskOfText(const std::string& text)
+    -> std::optional<std::vector<std::uint32_t>>
+{
+  std::vector<std::uint32_t> cpus;
+  std::vector<std::string> groups;
+  std::size_t scan = 0;
+  while (scan <= text.size()) {
+    const auto stop = text.find(',', scan);
+    const auto end = stop == std::string::npos ? text.size() : stop;
+    const auto token = text.substr(scan, end - scan);
+    if (token.empty() || token.size() > 8) {
+      return std::nullopt;
+    }
+    groups.push_back(token);
+    if (stop == std::string::npos) {
+      break;
+    }
+    scan = stop + 1;
+  }
+  for (std::size_t at = groups.size(); at-- > 0;) {
+    const auto word =
+        static_cast<std::uint64_t>(std::stoull(groups.at(at), nullptr, 16));
+    for (std::uint32_t bit = 0; bit < 32; ++bit) {
+      if ((word >> bit) & 1U) {
+        cpus.push_back(static_cast<std::uint32_t>(at * 32U + bit));
+      }
+    }
+  }
+  return cpus;
+}
+
+// The trimmed first line of one text, or nothing when the text names
+// no line.
+auto firstLineOf(std::optional<std::string> text)
+    -> std::optional<std::string>
+{
+  if (!text.has_value()) {
+    return std::nullopt;
+  }
+  auto line = std::move(*text);
+  const auto stop = line.find('\n');
+  if (stop != std::string::npos) {
+    line = line.substr(0, stop);
+  }
+  const auto trimEnd = line.find_last_not_of(" \t\r");
+  if (trimEnd == std::string::npos) {
+    return std::nullopt;
+  }
+  return line.substr(0, trimEnd + 1);
+}
+
+// specs/034 R-03: the attribution snapshot of the measured cpus, every
+// read resolving under the file-root seam (FR-019).
+auto precheckReadSnapshot(const std::vector<std::uint32_t>& cpus)
+    -> std::map<std::uint32_t, PrecheckCpuSnapshot>
+{
+  std::map<std::uint32_t, PrecheckCpuSnapshot> snapshot;
+  const auto interruptsText = readUnderRoot("proc/interrupts");
+  const auto softirqsText = readUnderRoot("proc/softirqs");
+  const auto schedstatText = readUnderRoot("proc/schedstat");
+  for (const auto cpu : cpus) {
+    PrecheckCpuSnapshot state;
+    if (interruptsText.has_value()) {
+      state.interrupts = interruptsOfText(*interruptsText, cpu);
+    }
+    if (softirqsText.has_value()) {
+      state.softirqs = softirqsOfText(*softirqsText, cpu);
+    }
+    if (schedstatText.has_value()) {
+      const auto figures = schedstatOfText(*schedstatText, cpu);
+      state.switches = figures.first;
+      state.schedules = figures.second;
+    }
+    snapshot.emplace(cpu, std::move(state));
+  }
+  return snapshot;
+}
+
+// specs/034 R-04: the host settings the run discloses once, every read
+// resolving under the file-root seam (FR-019).
+auto precheckReadHostSettings(const std::vector<std::uint32_t>& cpus)
+    -> PrecheckHostSettings
+{
+  PrecheckHostSettings host;
+  const auto commandLine = readUnderRoot("proc/cmdline");
+  if (commandLine.has_value()) {
+    host.isolcpus = kernelSettingOfText(*commandLine, "isolcpus");
+    host.nohzFull = kernelSettingOfText(*commandLine, "nohz_full");
+    host.rcuNocbs = kernelSettingOfText(*commandLine, "rcu_nocbs");
+  }
+  for (const auto cpu : cpus) {
+    const auto governor =
+        firstLineOf(readUnderRoot("sys/devices/system/cpu/cpu"
+                                  + std::to_string(cpu)
+                                  + "/cpufreq/scaling_governor"));
+    host.governors.emplace_back(cpu, std::move(governor));
+  }
+  std::map<std::uint32_t, std::vector<std::uint32_t>> affinity;
+  std::error_code walkError;
+  const auto irqRoot = procRootPath("proc/irq");
+  auto entry = std::filesystem::directory_iterator(irqRoot, walkError);
+  if (!walkError) {
+    for (const auto& item : entry) {
+      const auto name = item.path().filename().string();
+      const auto irq = parseCountToken(name);
+      if (!irq.has_value()) {
+        continue;
+      }
+      const auto tail = "proc/irq/" + name;
+      auto named = cpuListOfText(readUnderRoot(tail + "/smp_affinity_list")
+                                     .value_or(""));
+      if (!named.has_value()) {
+        named = cpuMaskOfText(readUnderRoot(tail + "/smp_affinity")
+                                  .value_or(""));
+      }
+      if (!named.has_value()) {
+        continue;
+      }
+      for (const auto cpu : cpus) {
+        if (std::find(named->begin(), named->end(), cpu) != named->end())
+        {
+          affinity[cpu].push_back(static_cast<std::uint32_t>(*irq));
+        }
+      }
+    }
+  }
+  for (const auto cpu : cpus) {
+    const auto found = affinity.find(cpu);
+    host.irqAffinity.emplace_back(cpu,
+                                  found != affinity.end()
+                                      ? found->second
+                                      : std::vector<std::uint32_t> {});
+  }
+  return host;
+}
+
+// specs/034 R-03: the window deltas of one cpu's attribution: the
+// after-before difference of each figure, a figure standing absent
+// when either side stands absent (FR-016, FR-018).
+auto precheckAttributionDelta(const PrecheckCpuSnapshot& before,
+                              const PrecheckCpuSnapshot& after)
+    -> PrecheckAttribution
+{
+  const auto subtract =
+      [](const std::optional<std::uint64_t>& low,
+         const std::optional<std::uint64_t>& high)
+      -> std::optional<std::uint64_t>
+  {
+    if (!low.has_value() || !high.has_value() || *high < *low) {
+      return std::nullopt;
+    }
+    return *high - *low;
+  };
+  PrecheckAttribution delta;
+  delta.interrupts = subtract(before.interrupts, after.interrupts);
+  for (const auto& [kind, afterCount] : after.softirqs) {
+    std::optional<std::uint64_t> beforeCount;
+    for (const auto& [beforeKind, beforeFigure] : before.softirqs) {
+      if (beforeKind == kind) {
+        beforeCount = beforeFigure;
+        break;
+      }
+    }
+    delta.softirqs.emplace_back(kind, subtract(beforeCount, afterCount));
+  }
+  delta.switches = subtract(before.switches, after.switches);
+  delta.schedules = subtract(before.schedules, after.schedules);
+  return delta;
+}
+
+// specs/034 D-3: the pinning-candidate rank of the planned cpus:
+// every planned cpu with its gap rate, the lowest rate first, tied
+// cpus in cpu order (FR-013).
+auto precheckPinningRank(const std::vector<ProbeCpuState>& states,
+                         const std::vector<std::uint32_t>& plannedCpus)
+    -> std::vector<std::uint32_t>
+{
+  std::vector<std::pair<double, std::uint32_t>> ranked;
+  for (const auto cpu : plannedCpus) {
+    const auto found = std::ranges::find_if(
+        states,
+        [cpu](const ProbeCpuState& state) { return state.cpu == cpu; });
+    if (found != states.end()) {
+      const auto fold = gapStatsOf(*found);
+      ranked.emplace_back(fold.gapsPerSecond, cpu);
+    }
+  }
+  std::ranges::sort(ranked);
+  std::vector<std::uint32_t> rank;
+  rank.reserve(ranked.size());
+  for (const auto& [rate, cpu] : ranked) {
+    rank.push_back(cpu);
+  }
+  return rank;
 }
 
 // specs/034 R-05: the noisy planned cpus of one pre-check run: the
