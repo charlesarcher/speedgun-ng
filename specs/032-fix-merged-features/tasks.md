@@ -243,7 +243,7 @@ shortfall holds only the accepted sides.
 - [x] T069 [P] Audit the CI-file boundary: `.github/workflows/ci.yml`, `CMakePresets.json`, `cmake/coverage.cmake`, `cmake/lint.cmake`, `cmake/spell.cmake`, `tools/dbc/`, `tools/prose/`, `tools/docs/example_drift.py`, `.codespellrc` carry no change without approval, except the narrow `lcov` option D-13 proves and a missing revert, which stops and reports first (FR-059, SC-006)
 - [x] T070 [P] Check each behavior change shipped with docs and an example, each README section holds 25 lines or fewer, and `README.md` holds 835 lines (D-16, FR-062)
 - [x] T071 [P] Confirm each new commit passes `prose-lint` and the CI run shows the job green (M-13, FR-063, SC-005)
-- [ ] T072 Verify the branch rebased only, pushed once with `--force-with-lease`, and proved the push with `git ls-remote` (FR-060)
+- [x] T072 Verify the branch rebased only, pushed once with `--force-with-lease`, and proved the push with `git ls-remote` (FR-060)
 - [x] T073 Run the validation guide `quickstart.md` end to end and record the outcome (quickstart.md, SC-003)
 - [x] T074 Write the one pull-request comment that lists each item with its commit or its question, the coverage numbers, and the CI run; it names no approval, no acceptance and no person, and every item of the request stands closed or asked (FR-065, SC-003)
 
