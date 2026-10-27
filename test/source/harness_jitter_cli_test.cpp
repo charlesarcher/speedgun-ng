@@ -2720,6 +2720,26 @@ auto main(int argc, char** argv) -> int
                  "a bad precheck value stands rejected (FR-014, FR-038)");
   }
 
+  // specs/034 T001: the `serial` word of the `precheck` key (FR-002,
+  // FR-003): the word stands accepted beside the standing number, the
+  // run continuing the way the precheck=1 run continues, and a
+  // misspelled or mixed token stands the standing one-line refusal.
+  {
+    auto accepted = quickRun;
+    accepted.push_back("--jitter-probe=" + cpu
+                       + ",mode=precheck,precheck=serial");
+    check(captureRun(accepted).find("bmQuiet") != std::string::npos,
+          "a serial pre-check run continues (FR-002)");
+  }
+  for (const auto* value : {"searial", "12serial"}) {
+    auto arguments = quickRun;
+    arguments.push_back(std::string("--jitter-probe=") + cpu
+                        + ",precheck=" + value);
+    checkOneLine(
+        captureError(arguments, 2),
+        "a misspelled or mixed serial token stands rejected (FR-003)");
+  }
+
   // The option-file surface of the same grammar (FR-027, FR-033): the
   // value parses where it settles, so a file line's refusal names the
   // path and the line the file faults name, the command line's keeps

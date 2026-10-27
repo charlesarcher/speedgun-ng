@@ -1924,7 +1924,10 @@ inline constexpr std::uint32_t kDefaultPrecheckMs = 200;
  * buffer size in records (FR-009). `precheckMs` carries the pre-check
  * duration in ms (FR-014, D-13). `strict` stops the run with status 2
  * when the time-stamp counter stands unavailable; a non-strict run
- * discloses and continues with status 0 (FR-037, D-10). The entry
+ * discloses and continues with status 0 (FR-037, D-10).
+ * `precheckSerial` runs the pre-check one measured cpu per window,
+ * ascending cpu order, the planned cpus before the candidates; the
+ * parallel shape stands the default (FR-009, D-2). The entry
  * points that take the options require a `thresholdNs` value at or
  * above 1 when the field carries one, `gapCount` inside the
  * `kMinGapCount` through `kMaxGapCount` range,
@@ -1942,6 +1945,7 @@ struct JitterProbeOptions
   std::uint32_t gapCount = kDefaultGapCount;
   std::uint32_t precheckMs = kDefaultPrecheckMs;
   bool strict = false;
+  bool precheckSerial = false;
 };
 
 /**

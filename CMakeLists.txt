@@ -12,7 +12,7 @@ project(
     # these minors takes the next free minor in its place, and no other
     # number in this file moves for it (PD-20). specs/027 took 0.19.0 on
     # master first, so this feature takes 0.20.0.
-    VERSION 0.20.1
+    VERSION 0.21.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -295,7 +295,7 @@ set_target_properties(
     # BenchmarkResult gains its hunt record and ReportData gains its hunt
     # record, so the exported layouts move again and the hand-kept number
     # goes to 12 past the 11 of specs/027 (hard rule 12).
-    SOVERSION 12
+    SOVERSION 13
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )

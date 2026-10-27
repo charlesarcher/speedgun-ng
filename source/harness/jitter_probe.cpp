@@ -820,15 +820,22 @@ auto parseJitterProbeValue(const std::string& value,
         return false;
       }
     } else if (key == "precheck") {
-      std::uint64_t number = 0;
-      if (!parseProbeNumber(keyArgument, number, false)
-          || number > std::numeric_limits<std::uint32_t>::max())
-      {
-        message = "the precheck '" + quotedText(keyArgument)
-            + "' is not a positive number";
-        return false;
+      // specs/034 FR-002: the key carries two accepted forms, the
+      // millisecond number and the word `serial`; a token that is
+      // neither stands the standing one-line refusal (FR-003).
+      if (keyArgument == "serial") {
+        parsed.precheckSerial = true;
+      } else {
+        std::uint64_t number = 0;
+        if (!parseProbeNumber(keyArgument, number, false)
+            || number > std::numeric_limits<std::uint32_t>::max())
+        {
+          message = "the precheck '" + quotedText(keyArgument)
+              + "' is not a positive number";
+          return false;
+        }
+        parsed.precheckMs = static_cast<std::uint32_t>(number);
       }
-      parsed.precheckMs = static_cast<std::uint32_t>(number);
     } else if (key == "strict") {
       if (!keyArgument.empty()) {
         message = "the key 'strict' takes no value";
