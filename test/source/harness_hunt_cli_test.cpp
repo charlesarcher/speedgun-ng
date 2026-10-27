@@ -59,6 +59,9 @@ namespace
 // `kHuntRows` the case needs. `narrow` is the device that publishes below the
 // three slots a hunt pass needs.
 constexpr const char* kScriptFull = "full";
+// The full host beside the machine/tsc leaf the jitter probe reads, the
+// host the hunt-and-probe scenario runs (D-08, FR-035).
+constexpr const char* kScriptHuntProbe = "hunt-probe";
 constexpr const char* kScriptNarrow = "narrow";
 constexpr const char* kScriptNoLimit = "nolimit";
 // `nocycles` and `noinstr` refuse one anchor leaf on every core device, the
@@ -212,6 +215,23 @@ auto registerHost(const std::string& script) -> void
   } else if (script == kScriptNoInstr) {
     refuseAnchor(sg::test::huntHost(*provider, kFullLimit),
                  sg::test::kHuntInstr);
+  } else if (script == kScriptHuntProbe) {
+    // The three leaves the probe reads: the wall clock and the thread
+    // clock the disclosure reads beside the tsc leaf the loop spins on,
+    // scripted the way the jitter fixtures script them (D-08, FR-035).
+    sg::test::huntHost(*provider, kFullLimit)
+        .addCounter("machine", "monotonic", "nanoseconds", "fixture wall clock")
+        .setPoints("machine", "monotonic", {0}, 4000)
+        .addCounter(
+            "machine", "thread_cpu", "nanoseconds", "fixture thread cpu")
+        .setPoints("machine", "thread_cpu", {0}, 2000)
+        .addCounter("machine",
+                    "tsc",
+                    "none",
+                    "fixture tick",
+                    sg::counters::Availability::COUNTABLE,
+                    sg::counters::ReadMode::FAST_TSC)
+        .setPoints("machine", "tsc", {}, 0, 1);
   } else if (script == kScriptSeatRefuse) {
     sg::test::huntHost(*provider, kFullLimit)
         .setGroupLeafLimit(sg::test::kHuntCpu, 0);
@@ -302,9 +322,10 @@ auto subprocessOutput(const std::string& command, std::string& output) -> int
 auto childRun(const std::string& self,
               const std::string& mode,
               const std::vector<std::string>& arguments,
-              std::string& output) -> int
+              std::string& output,
+              const std::string& environment = {}) -> int
 {
-  std::string command = "\"" + self + "\" " + mode;
+  std::string command = environment + "\"" + self + "\" " + mode;
   for (const auto& argument : arguments) {
     command += " \"" + argument + "\"";
   }
@@ -318,6 +339,12 @@ struct RefusalRow
   const char* script;
   const std::vector<std::string> arguments;
   std::string line;
+  // The environment the child inherits, spelled as the shell reads an
+  // assignment: `NAME=value ` before the binary. The child receives the
+  // variable through its environment array, so no test calls `setenv`
+  // (FR-056). The default stands empty, so the rows that inherit the
+  // parent's environment name no member.
+  std::string environment = {};
 };
 
 auto rawCodeLine(const std::string& code = "r4a03") -> std::string
@@ -352,7 +379,8 @@ auto checkRefusal(const RefusalRow& row) -> void
     arguments.push_back(argument);
   }
   std::string output;
-  const int status = childRun(selfPath, "hunt", arguments, output);
+  const int status =
+      childRun(selfPath, "hunt", arguments, output, row.environment);
   const std::string expected = row.line + "\nBENCHMARK_NO_RUN\n";
   if (output != expected) {
     std::fprintf(stderr,
@@ -733,6 +761,79 @@ auto scenarioPlacementConflictRefusal() -> void
                   {"--placement=core", "--hunt"},
                   "--hunt cannot combine with --placement"}});
   std::printf("placement-conflict-refusal: ok\n");
+}
+
+// D-08, FR-035: the hunt and the probe run together. The child carries
+// the leaf the probe reads, the run completes, and the report carries
+// both the hunt's records and the block the probe recorded, beside the
+// benchmark the walk ran.
+auto scenarioHuntWithProbe() -> void
+{
+  cpu_set_t mask {};
+  CPU_ZERO(&mask);
+  check(sched_getaffinity(0, sizeof(mask), &mask) == 0,
+        "the parent reads the mask it hands the child (FR-056)");
+  std::uint32_t probeCpu = 0;
+  for (std::size_t index = 0; index < static_cast<std::size_t>(CPU_SETSIZE);
+       ++index)
+  {
+    if (CPU_ISSET(index, &mask) != 0) {
+      probeCpu = static_cast<std::uint32_t>(index);
+      break;
+    }
+  }
+  std::string output;
+  const int status = childRun(selfPath,
+                              "hunt",
+                              {kScriptHuntProbe,
+                               "--hunt=" + address(0),
+                               "--jitter-probe=" + std::to_string(probeCpu),
+                               "--filter=bmHuntCli"},
+                              output);
+  check(WEXITSTATUS(status) == 0,
+        "the hunt beside the probe finishes the run (D-08, FR-035)");
+  check(output.find("hunt: ") != std::string::npos,
+        "the report carries the hunt's records (D-08, FR-035)");
+  check(output.find("jitter") != std::string::npos,
+        "the report carries the block the probe recorded (D-08, FR-035)");
+  check(output.find("BENCHMARK_RAN") != std::string::npos,
+        "the walk ran the benchmark beside the probe (FR-035)");
+  std::printf("hunt-with-probe: ok\n");
+}
+
+// D-07, FR-034, FR-045: the hunt refuses an ambient value from every
+// source. The environment carries `SPEEDGUN_COUNTER`, `SPEEDGUN_METRIC`
+// or `SPEEDGUN_PLACEMENT`, the option file carries the row of the same
+// option, and the run stops on the first it reads with one line naming
+// the source, at status 2, before any benchmark runs. The child
+// receives the variable through its environment array, and the option
+// file stands written before the child runs and removed after, so no
+// test calls `setenv` (FR-056).
+auto scenarioAmbientCombinationRefusals() -> void
+{
+  registerHost(kScriptFull);
+  checkRefusals({
+      {"full",
+       {"--hunt", "--filter=bmHuntCli"},
+       "--hunt cannot combine with --counter",
+       "SPEEDGUN_COUNTER=cycles "},
+      {"full",
+       {"--hunt", "--filter=bmHuntCli"},
+       "--hunt cannot combine with --metric",
+       "SPEEDGUN_METRIC=ipc "},
+      {"full",
+       {"--hunt", "--filter=bmHuntCli"},
+       "--hunt cannot combine with --placement",
+       "SPEEDGUN_PLACEMENT=core "},
+  });
+  const std::string path = "harness_hunt_cli_ambient_options.txt";
+  writeFile(path, "counter=cycles\n");
+  checkRefusals({{"full",
+                  {"--options=" + path, "--hunt", "--filter=bmHuntCli"},
+                  "--hunt cannot combine with --counter"}});
+  std::error_code ignored;
+  std::filesystem::remove(path, ignored);
+  std::printf("ambient-combination-refusals: ok\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -1589,6 +1690,9 @@ auto scenarioFilterSelectsTwoHuntedInstances() -> void
       Scenario {"option-order-refusals", &scenarioOptionOrderRefusals},
       Scenario {"placement-conflict-refusal",
                 &scenarioPlacementConflictRefusal},
+      Scenario {"ambient-combination-refusals",
+                &scenarioAmbientCombinationRefusals},
+      Scenario {"hunt-with-probe", &scenarioHuntWithProbe},
   };
   return kList;
 }
