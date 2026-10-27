@@ -193,3 +193,31 @@ hash the branch cuts from; the local measurements stand in
   match no line of code today, and stand until the approval that
   removes them; the `brace` rule names the gcc record and no person, no
   decision record and no host.
+
+## US5: the docs and the merge residue (T052 to T055)
+
+- T052 (FR-018): the two hunt samples re-record from the current build
+  and name `0.20.1`; every other sample stays unchanged, and the drift
+  gates run green on the stamped page region and the expected file.
+- T053 (FR-018, SC-008): the sweep stands scripted and clean: every
+  `--`-spelled option token of `docs/pages/harness.md` and of the three
+  features' contract files exists in the option table of
+  `options.cpp` (36 rows), and the one `--scope` mention is the
+  disclaimer that names `--placement` as the branch's own spelling;
+  every exit-status claim in those files reads 0, 1 or 2. Zero
+  disagreements.
+- T054 (FR-020): this host carries GCC 16.2.1 and no GCC 14, so the
+  Rocky-toolchain reproduction cannot run here. The gate passes on GCC
+  16.2.1 and on the CI test job's GCC 15.2.0 (run `40438223916`, job
+  `test`, success). The reproduction stands owed to the Rocky lane and
+  routes to the pull request as a question if it reproduces there.
+- T055 (FR-023): the reconcile commit `4f701ae` touched nine files; its
+  diff is the conflict surface the rebase left. Read against master:
+  each duplicated scan case stands exactly once (`kInterleaveOptionValue`,
+  `kHelpOptionValue`, `kVersionOptionValue`, `kHuntOption`, one each in
+  `options.cpp`), the braces the rebase split stand (`json_load.cpp`,
+  `report.cpp`; the build compiles and the json and report suites run
+  green), and the standing suites pin the behavior of every file the
+  surface carries. The 38-block count and the eight unrepaired files
+  stand on the request's record, the fixes-1 prompt being absent from
+  this host, and route to the pull request with the surface named.

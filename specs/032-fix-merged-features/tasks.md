@@ -181,10 +181,10 @@ the two hunt samples carry the current version (spec.md, User Story
 ### Implementation for User Story 5
 
 - [x] T051 [US5] Reduce `docs/schema/report-v1.json:7` and `:8` to one top-level `x-order` key, `["schemaVersion", "speedgun", "run", "jitter", "benchmarks", "hunt"]`, and ship with T049 and T050 in one commit (FR-017)
-- [ ] T052 [US5] Re-record the two hunt samples from the current build: `docs/pages/harness.md:1509` (the block around `:1520`) and `example/docs/hunt_rank.expected:2`, both carrying `speedgun-ng 0.20.0 build=Release` or the branch version, every other sample unchanged, so the version figures agree in each file the merge touched; update the page regions and pass the drift gate in the same commits (M-6, FR-018, FR-004, research R-09)
-- [ ] T053 [US5] Run the docs sweep over the three features' docs against the code: each option, key and exit status checked, each disagreement carrying its fix or its pull-request question; record zero disagreements or the list in `results/record.md` (M-6, FR-018, SC-008)
+- [x] T052 [US5] Re-record the two hunt samples from the current build: `docs/pages/harness.md:1509` (the block around `:1520`) and `example/docs/hunt_rank.expected:2`, both carrying `speedgun-ng 0.20.0 build=Release` or the branch version, every other sample unchanged, so the version figures agree in each file the merge touched; update the page regions and pass the drift gate in the same commits (M-6, FR-018, FR-004, research R-09)
+- [x] T053 [US5] Run the docs sweep over the three features' docs against the code: each option, key and exit status checked, each disagreement carrying its fix or its pull-request question; record zero disagreements or the list in `results/record.md` (M-6, FR-018, SC-008)
 - [ ] T054 [US5] Reproduce the `loop_shape` failure under GCC 14 with the Rocky toolchain, name the cause in `results/record.md`, and land the fix in the code or in the test `test/loop_shape.sh` owns; no compiler check joins; the `test` job at GCC 15.2.0 still passes (M-10, FR-020)
-- [ ] T055 [US5] Read each of the 38 conflict blocks the PR 47 rebase resolved by keeping both sides against master, stand each correct or fix it with its test, and name the eight files the merge commit `4f701ae` did not repair in `results/record.md` (M-15, FR-023)
+- [x] T055 [US5] Read each of the 38 conflict blocks the PR 47 rebase resolved by keeping both sides against master, stand each correct or fix it with its test, and name the eight files the merge commit `4f701ae` did not repair in `results/record.md` (M-15, FR-023)
 
 **Checkpoint**: The docs, the schema and the samples agree with the
 code, and the merge residue is read and settled.
