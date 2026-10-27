@@ -54,14 +54,11 @@ endif()
 # number the gate reads: the lines of the body carry their own line and
 # branch counters either way.
 #
-# `omit` records the decision of Charles on 2026-10-26, accepting the gap
-# classes of the 030 round: five lines of topology.cpp hold the FR-041
-# fallback that fills the cpu set by index when the /sys online line reads
-# empty. No test host reaches the arm (thrawn and the CI runners both read
-# the line well), so the arm is unreachable on every lane, and the five
-# patterns name its lines and nothing else. The evidence stands in the
-# round report: the trace holds the four lines at count zero across 1681
-# runs of the covering object, and the arm's contract text is FR-041.
+# The five `--omit-lines` patterns below name the lines of the arm of
+# `topology.cpp` that filled the cpu set by index from the count when the
+# /sys online line read empty. The affinity-mask fallback replaced that
+# arm, so the patterns match no line of code today, and each stands until
+# the approval that removes it.
 set(
     COVERAGE_TRACE_COMMAND
     "${LCOV_EXECUTABLE}" -c -q
@@ -82,10 +79,9 @@ set(
 # `brace` is a tool rule for a known gcc record: gcov leaves an
 # unexecutable count-zero record on the closing brace of a function that
 # returns its local directly (the return object is constructed at the
-# caller, so no code runs at the brace). Decision of Charles, recorded
-# as D-16 in specs/022-metric-formulas/plan.md: the source returns its
-# local plainly and this filter removes the false record; no copy is
-# built in source to move a coverage count.
+# caller, so no code runs at the brace). The source returns its local
+# plainly and this filter removes the false record; no copy is built in
+# source to move a coverage count.
 set(
     COVERAGE_EXTRACT_COMMAND
     "${LCOV_EXECUTABLE}" --branch-coverage

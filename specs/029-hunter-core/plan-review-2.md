@@ -9,8 +9,8 @@ as the round-one ledger (37 findings), and the eight artifacts: [plan.md](plan.m
 [contracts/report-schema-key.md](contracts/report-schema-key.md).
 **Method**: every artifact re-read whole; every code citation opened at the cited
 line in this tree; every bare `D-n`, `FR-0nn`, `PC-n`, `AC-n` and `SC-0nn`
-re-mapped against the spec headings; the orchestrator rulings supplied with this
-round checked as binding overrides, one by one: the repeats default of 3, the
+re-mapped against the spec headings; the overrides this round supplied
+checked as binding, one by one: the repeats default of 3, the
 one-stage shape of an un-budgeted plan, the whole-stage drop with no invented
 reduction, the `armv8_` device-part rule, `runHunt` public in `hunt.hpp`, the
 five skipped kinds with their errno mapping, the eight option constants inside
@@ -36,7 +36,7 @@ of which (N-1) makes the CLI refuse the host class the whole test suite runs on.
    stands, hunt-api.md:184-186 states it in the `\post`, and data-model.md:343
    states it in the lifecycle table; no artifact keeps "stage 1 at one repeat"
    for a plan without a budget.
-3. FIXED. hunt-api.md:208-212 and data-model.md:106-108 hold the ruling verbatim:
+3. hunt-api.md:208-212 and data-model.md:106-108 hold the rule verbatim:
    stage 2 drops whole with one printed cut line, stage 1 never shrinks, no
    repeat count is reduced; the surviving bare `D-21` (plan.md:235) names the
    spec's CLI-table-file decision, which is what that decision is.
@@ -77,7 +77,7 @@ of which (N-1) makes the CLI refuse the host class the whole test suite runs on.
     with different content. Note 1 below gives the fix.
 14. FIXED. `SkippedKind` holds the five Availability values and nothing else
     (data-model.md:176-184, hunt-api.md:217-223), with the errno mapping the
-    ruling names (`EINVAL`/`EOPNOTSUPP` to `NOT_ENCODABLE`, `EACCES`/`EPERM` to
+    rule names (`EINVAL`/`EOPNOTSUPP` to `NOT_ENCODABLE`, `EACCES`/`EPERM` to
     `PERMISSION_BLOCKED`); `GROUP_REFUSED` is absent from the directory.
 15. FIXED. research.md:57-61 cites `counter_limits.cpp:284-295` and
     `provider.cpp:352,447-448` and states plainly that no core-device name table
