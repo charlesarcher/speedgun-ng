@@ -1316,9 +1316,10 @@ auto scenarioUnavailableStrict() -> int
 // at one tick, so the measurement pass reads the small minDelta the
 // adaptive threshold rises from. The buffer holds every read, so no
 // kept gap stands dropped. The handle names the probe on the first
-// cpu the mask holds; the command line's value, when the caller names
-// one, stands on the second (FR-015).
-auto childFamilyProbe(const bool withCommandLineProbe) -> int
+// cpu the mask holds; the higher source's value, when the caller names
+// one, stands on the second: the command line's in `family-vs-cli`, the
+// option file's in `family-vs-file` (FR-015, D-01).
+auto childFamilyProbe(const int probeSource) -> int
 {
   auto owned = std::make_unique<sg::counters::FakeProvider>();
   auto& provider = *owned;
@@ -1391,14 +1392,27 @@ auto childFamilyProbe(const bool withCommandLineProbe) -> int
   // scenarios read stand the run's own (FR-010, D-6).
   probeOptions.gapCount = 2000000;
   handle.jitterProbe(probeOptions);
+  const char* tag = "family-probe";
+  if (probeSource == 1) {
+    tag = "family-vs-cli";
+  } else if (probeSource == 2) {
+    tag = "family-vs-file";
+  }
   std::vector<std::string> arguments {
       "--repetitions=1",
       "--iterations=2",
-      "--json=harness_jitter_cli_"
-          + std::string(withCommandLineProbe ? "family-vs-cli" : "family-probe")
-          + ".json"};
-  if (withCommandLineProbe) {
+      "--json=harness_jitter_cli_" + std::string(tag) + ".json"};
+  if (probeSource == 1) {
     arguments.push_back("--jitter-probe=" + std::to_string(cpus.at(1)));
+  }
+  if (probeSource == 2) {
+    // D-01, FR-028: the option file's value stands where a command-line
+    // value would, so the family's own probe wins over it the same way.
+    const std::string path = "harness_jitter_cli_family-file.opt";
+    std::ofstream file(path);
+    file << "jitter-probe=" << cpus.at(1) << "\n";
+    file.close();
+    arguments.push_back("--options=" + path);
   }
   std::vector<char*> argv;
   argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
@@ -1566,7 +1580,6 @@ auto childIdleHighIndex() -> int
   }
   installed.groups.push_back(layoutGroup);
   sg::detail::installTestLayout(installed);
-  sg::detail::installTestOnlineCount(probeCpu);
   auto pinned = sg::registerBenchmark(
       [](sg::State& state)
       {
@@ -2251,11 +2264,8 @@ auto scenarioFamilyVersusCommandLine() -> int
   const std::string plain = entrySegment(document, "bmQuiet");
   check(!probed.empty() && !plain.empty(),
         "the document carries both families' entries (FR-015)");
-  check(
-      probed.find("\"cpu\":" + familyCpu + ",") != std::string::npos,
-      ("the family's folds carry the handle's cpu (FR-015); probed " "segment: "
-       + probed.substr(0, 400))
-          .c_str());
+  check(probed.find("\"cpu\":" + familyCpu + ",") != std::string::npos,
+        "the family's folds carry the handle's cpu (FR-015)");
   check(probed.find("\"cpu\":" + cliCpu + ",") == std::string::npos,
         "the family's folds carry no command-line cpu (FR-015)");
   check(plain.find("\"jitter\":null") != std::string::npos,
@@ -2266,6 +2276,29 @@ auto scenarioFamilyVersusCommandLine() -> int
         "the family's fold keeps every gap the run made (FR-010)");
   check(document.find("\"gapCount\":0") == std::string::npos,
         "the family's own probe kept a gap the entries could fold " "(FR-015)");
+  return 0;
+}
+
+// D-01, FR-028: the family's own probe wins over the option file's
+// value the way it wins over the command line's: the report carries the
+// handle's cpu and no file cpu.
+auto scenarioFamilyVersusOptionFile() -> int
+{
+  const Captured run =
+      runExecChild("--jitter-cli-child=family-vs-file", "family-vs-file");
+  check(run.status == 0, "the two-probe run stands status 0 (D-01, FR-028)");
+  const auto document = readDocument("harness_jitter_cli_family-vs-file.json");
+  const auto cpus = pickCpus(2);
+  const std::string familyCpu = std::to_string(cpus.at(0));
+  const std::string fileCpu = std::to_string(cpus.at(1));
+  const std::string probed = entrySegment(document, "bmProbed");
+  check(!probed.empty(), "the document carries the probed entry (FR-015)");
+  check(probed.find("\"cpu\":" + familyCpu + ",") != std::string::npos,
+        "the family's folds carry the handle's cpu (D-01, FR-028)");
+  check(probed.find("\"cpu\":" + fileCpu + ",") == std::string::npos,
+        "the family's folds carry no option-file cpu (D-01, FR-028)");
+  check(document.find("\"cpus\":[" + familyCpu + "]") != std::string::npos,
+        "the run-level record names the handle's cpus (D-01, FR-028)");
   return 0;
 }
 
@@ -2348,11 +2381,16 @@ auto main(int argc, char** argv) -> int
       return childIdleHighIndex();
     }
     if (mode == "--jitter-cli-child=family-probe" && redirect("family-probe")) {
-      return childFamilyProbe(false);
+      return childFamilyProbe(0);
     }
     if (mode == "--jitter-cli-child=family-vs-cli" && redirect("family-vs-cli"))
     {
-      return childFamilyProbe(true);
+      return childFamilyProbe(1);
+    }
+    if (mode == "--jitter-cli-child=family-vs-file"
+        && redirect("family-vs-file"))
+    {
+      return childFamilyProbe(2);
     }
     if (mode == "--jitter-cli-child=family-idle" && redirect("family-idle")) {
       return childFamilyIdle();
@@ -2485,6 +2523,7 @@ auto main(int argc, char** argv) -> int
   check(scenarioFamilyPrecheckIdle() == 0, "familyPrecheckIdle");
   check(scenarioFamilyPlantedProbe() == 0, "familyPlantedProbe");
   check(scenarioFamilyVersusCommandLine() == 0, "familyVersusCommandLine");
+  check(scenarioFamilyVersusOptionFile() == 0, "familyVersusOptionFile");
   check(scenarioEmptyMaskBeforeWalk() == 0, "emptyMaskBeforeWalk");
   check(scenarioIdleHighIndex() == 0, "idleHighIndex");
 
@@ -2584,11 +2623,9 @@ auto main(int argc, char** argv) -> int
     // The online-set bound reads the seam, the way the test layout
     // installs: the installed set holds the mask's first cpu and lacks
     // its second, so the bound refuses the second on the line of its
-    // own. The count seam stands at zero beside it and leaves the answer
-    // of the cpu the set holds unchanged; the seams clear after, so the
-    // cases below read the list the kernel owns (FR-041, FR-011, R-11).
+    // own and accepts the first; the seam clears after, so the cases
+    // below read the list the kernel owns (FR-041, FR-011, R-11).
     sg::detail::installTestOnlineCpus(std::vector<std::uint32_t> {cpus.at(0)});
-    sg::detail::installTestOnlineCount(0);
     auto pastSet = quickRun;
     pastSet.push_back("--jitter-probe=" + second);
     checkOneLine(captureError(pastSet, 2),
@@ -2596,13 +2633,11 @@ auto main(int argc, char** argv) -> int
     check(captureError(pastSet, 2).find("stands outside the online cpu set")
               != std::string::npos,
           "the set bound names the online cpu set (FR-041)");
-    auto countSeamRun = quickRun;
-    countSeamRun.push_back("--jitter-probe=" + cpu);
-    const auto countSeam = captureRun(countSeamRun);
-    check(countSeam.find("bmQuiet") != std::string::npos,
-          "the count seam at zero leaves a cpu the set holds accepted "
-          "(FR-041, R-11)");
-    sg::detail::installTestOnlineCount({});
+    auto setRun = quickRun;
+    setRun.push_back("--jitter-probe=" + cpu);
+    const auto setRunOutput = captureRun(setRun);
+    check(setRunOutput.find("bmQuiet") != std::string::npos,
+          "a cpu the set holds stands accepted (FR-041, R-11)");
     sg::detail::installTestOnlineCpus(std::nullopt);
     auto rangeBeyond = quickRun;
     rangeBeyond.push_back("--jitter-probe=" + cpu + "-" + pickCpuOutsideMask());
