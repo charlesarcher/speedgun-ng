@@ -118,7 +118,7 @@ transition each fix owns.
 
 - The seam serves both readers: the execution-context bound and the
   option-value parse bound read one `onlineCpuSet()`; the fix changes
-  the seam, not the readers (D-02, D-03).
+  the seam, and the readers stand unchanged (D-02, D-03).
 - The keep-set protects the seam's fallback patterns; the fallback fix
   is what lets FR-026 ask for their removal (research R-03).
 - The schema key order, the writer order and the drift test stand in

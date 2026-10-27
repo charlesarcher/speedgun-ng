@@ -62,15 +62,15 @@ A check that does not hold reopens a fix under the story that owns the
 file; the confirmations gate the stories because a reopened fix moves
 its story's ground.
 
-- [ ] T005 [P] [US1] Confirm the shadow rename stands and the build of each CI preset passes: `git log --oneline -1 7d8dfdd` resolves, `cmake --preset=ci-rocky` and `cmake --build build` succeed, and the evidence goes to `results/record.md` (FR-005, PC-1)
-- [ ] T006 [P] [US1] Confirm the mutation test anchors at schema `1.5`: `658af81` resolves, the mutation test reads the version once, and no `1.4` figure remains in the test file that owns the anchor (FR-006, PC-2)
-- [ ] T007 [P] [US1] Confirm the hunt-block rows and the CLI table test stand: `1c47e66` and `d7e22c2` resolve, `harness_cli_table_test.cpp` passes, and `clang-format 18.1.8` reports no change over `test/source` (FR-007, PC-3)
-- [ ] T008 [P] [US1] Confirm the trim stands: `cd2f2f1` and `f507b8f` resolve, `README.md` holds 835 lines, `PAGE_LINE_CAP = 835` stands once at `tools/docs/example_drift.py:192`, and the drift gate passes (FR-008, PC-4)
-- [ ] T009 [P] [US1] Confirm the affinity-cpu scenario stands: `502d42b` resolves, the owning test passes under `taskset -c 0,1`, `taskset -c 0-3` and the full mask, no `SKIP_RETURN_CODE` stands on the entry, and `test/tier_labels.sh` holds master's eight rules (FR-009, PC-5)
+- [x] T005 [P] [US1] Confirm the shadow rename stands and the build of each CI preset passes: `git log --oneline -1 7d8dfdd` resolves, `cmake --preset=ci-rocky` and `cmake --build build` succeed, and the evidence goes to `results/record.md` (FR-005, PC-1)
+- [x] T006 [P] [US1] Confirm the mutation test anchors at schema `1.5`: `658af81` resolves, the mutation test reads the version once, and no `1.4` figure remains in the test file that owns the anchor (FR-006, PC-2)
+- [x] T007 [P] [US1] Confirm the hunt-block rows and the CLI table test stand: `1c47e66` and `d7e22c2` resolve, `harness_cli_table_test.cpp` passes, and `clang-format 18.1.8` reports no change over `test/source` (FR-007, PC-3)
+- [x] T008 [P] [US1] Confirm the trim stands: `cd2f2f1` and `f507b8f` resolve, `README.md` holds 835 lines, `PAGE_LINE_CAP = 835` stands once at `tools/docs/example_drift.py:192`, and the drift gate passes (FR-008, PC-4)
+- [x] T009 [P] [US1] Confirm the affinity-cpu scenario stands: `502d42b` resolves, the owning test passes under `taskset -c 0,1`, `taskset -c 0-3` and the full mask, no `SKIP_RETURN_CODE` stands on the entry, and `test/tier_labels.sh` holds master's eight rules (FR-009, PC-5)
 - [x] T010 [P] [US1] Confirm the lint job of run `40438223916` passed with the spell step included, on the full run T001 read, and record that the spell gate needs no CI change (FR-010)
-- [ ] T011 [P] [US1] Confirm each of the twelve reverts of PC-6 is on master by `git log --grep` on its reverted hash (the twelve pairs stand in spec.md PC-6) and record each found commit in `results/record.md`; the suite passes on master as it stands (FR-011)
+- [x] T011 [P] [US1] Confirm each of the twelve reverts of PC-6 is on master by `git log --grep` on its reverted hash (the twelve pairs stand in spec.md PC-6) and record each found commit in `results/record.md`; the suite passes on master as it stands (FR-011)
 - [x] T012 [P] [US1] Confirm the `setenv|GCOV_PREFIX|sgcov` scan over `test/source` returns nothing and no test calls `setenv` (FR-012; research R-07 measured it clean 2026-10-27)
-- [ ] T013 [P] [US1] Confirm the rank mark stands outside the macro: `42ba692` resolves, the helper stands at `source/harness/hunt_plan.cpp:97`, no lambda stands inside an `SG_*` macro in `source/` or `include/`, and the coverage target reports no `inconsistent` error (FR-013, PC-7)
+- [x] T013 [P] [US1] Confirm the rank mark stands outside the macro: `42ba692` resolves, the helper stands at `source/harness/hunt_plan.cpp:97`, no lambda stands inside an `SG_*` macro in `source/` or `include/`, and the coverage target reports no `inconsistent` error (FR-013, PC-7)
 - [x] T014 [US1] Confirm the online-set seam stands as research R-03 measures (`topology.cpp:327`, the readers at `execution_context.cpp:655` and `jitter_probe.cpp:711`), that tests install a set with a gap and check both bounds, and that the probe-cpu affinity-mask rule at `specs/027-jitter-probe/contracts/cli-options.md:71` stays its own rule; the gap test and the fallback fix themselves belong to US2 (T019 to T021) (FR-014)
 - [x] T015 [P] [US1] Confirm the duplicate-cpu requirement stands with its three records: the spec row at `specs/027-jitter-probe/spec.md:598` to `:601`, the grammar row at `contracts/cli-options.md:28`, and the error-table row at `:79` (FR-015)
 - [x] T016 [P] [US1] Confirm no hunt row carries `fromEnvironment`, with the option table as the evidence (FR-016)
@@ -195,8 +195,8 @@ code, and the merge residue is read and settled.
 stands in the files the three PRs added or changed; the two coverage
 comments say what the code does.
 
-**Independent Test**: a scan over the files `git diff --name-only
-fea69c5 4f701ae` names finds no person's name and no acceptance
+**Independent Test**: a scan over the files the diff from `fea69c5`
+to `4f701ae` names finds no person's name and no acceptance
 wording in the rewritten targets, and the two `cmake/coverage.cmake`
 comments name no person (spec.md, User Story 6).
 
@@ -241,10 +241,10 @@ shortfall holds only the accepted sides.
 - [x] T067 [P] Verify each fix shipped with its test, written first and seen failing, in the same commit, by walking the commit series in `results/record.md` against the test tasks above (FR-055)
 - [x] T068 [P] Run the standing scans: no test calls `setenv` or `clearenv` and no child receives a variable except through its environment array (FR-056); no lambda stands inside an `SG_*` macro in `source/` or `include/` (FR-057); text from a user makes no contract fail (FR-058)
 - [x] T069 [P] Audit the CI-file boundary: `.github/workflows/ci.yml`, `CMakePresets.json`, `cmake/coverage.cmake`, `cmake/lint.cmake`, `cmake/spell.cmake`, `tools/dbc/`, `tools/prose/`, `tools/docs/example_drift.py`, `.codespellrc` carry no change without approval, except the narrow `lcov` option D-13 proves and a missing revert, which stops and reports first (FR-059, SC-006)
-- [ ] T070 [P] Check each behavior change shipped with docs and an example, each README section holds 25 lines or fewer, and `README.md` holds 835 lines (D-16, FR-062)
-- [ ] T071 [P] Confirm each new commit passes `prose-lint` and the CI run shows the job green (M-13, FR-063, SC-005)
+- [x] T070 [P] Check each behavior change shipped with docs and an example, each README section holds 25 lines or fewer, and `README.md` holds 835 lines (D-16, FR-062)
+- [x] T071 [P] Confirm each new commit passes `prose-lint` and the CI run shows the job green (M-13, FR-063, SC-005)
 - [ ] T072 Verify the branch rebased only, pushed once with `--force-with-lease`, and proved the push with `git ls-remote` (FR-060)
-- [ ] T073 Run the validation guide `quickstart.md` end to end and record the outcome (quickstart.md, SC-003)
+- [x] T073 Run the validation guide `quickstart.md` end to end and record the outcome (quickstart.md, SC-003)
 - [ ] T074 Write the one pull-request comment that lists each item with its commit or its question, the coverage numbers, and the CI run; it names no approval, no acceptance and no person, and every item of the request stands closed or asked (FR-065, SC-003)
 
 **Checkpoint**: The gates hold, the record is complete, and the
