@@ -611,8 +611,7 @@ auto setupTwoNodeRun() -> void
   // The disclose verification's bystander names a cpu the synthetic
   // layout carries; the online-set seam states the layout's cpus, so
   // the context start's precondition reads them online on every
-  // host, and a host whose kernel lacks them accounts the pin at the
-  // pinning call (FR-005, FR-041, FR-017).
+  // host (FR-005, FR-017).
   sg::detail::installTestOnlineCpus(std::vector<std::uint32_t> {
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15});
   installFakeBinder();
@@ -764,7 +763,11 @@ auto verifyNodeDisclose() -> void
     std::exit(1);
   }
   // A context the plan does not bind keeps the standing `cpu@group`
-  // bytes beside the installed plan (FR-011, FR-002).
+  // bytes beside the installed plan (FR-011, FR-002). The bystander
+  // stands after the run, so the plan resets ahead of it and its
+  // start binds no node; the slot names cpu 15, a cpu the online-set
+  // seam states, so the start's precondition reads it on every host.
+  sg::detail::resolvedNodePlan() = std::nullopt;
   sg::ExecutionContext bystander {
       sg::ContextPolicy {sg::WaitMode::BLOCK, sg::PlacementSlot::cpu(15U)}};
   bystander.drain();
@@ -789,7 +792,15 @@ auto scenarioNodeDisclose() -> int
                                     "^bmNumaSpin"},
                                    &setupTwoNodeRun,
                                    &verifyNodeDisclose);
-  check(run.status == 0, "the node-planned run exits 0 (FR-009)");
+  if (run.status != 0) {
+    std::fprintf(stderr,
+                 "the node-planned run exited %d; its error file reads:"
+                 "\n%s\nits output file reads:\n%s\n",
+                 run.status,
+                 run.err.c_str(),
+                 run.out.c_str());
+    return 1;
+  }
   // The field names the node beside the group; the flag beside it is
   // the pin's own account, which a host whose mask holds none of the
   // synthetic cpus states as unapplied (FR-017).
