@@ -134,7 +134,7 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   `include/speedgun-ng/hunt.hpp` (doxygen `\pre` none, `\post` the
   answer holds at most `topN` addresses, the ranked entries in
   ascending rank, measures nothing, reads no clock) and define it in
-  `source/harness/hunt_plan.cpp`; the commit moves
+  `source/harness/hunt_plan.cpp`, its `SG_ENSURE` postcondition paired with the `\post` (the dbc-gate); the commit moves
   `CMakeLists.txt:15` to `0.22.0` and `CMakeLists.txt:298` to
   `SOVERSION 14`, and its body records the ABI check with the archive
   `SOVERSION` staying `4` (FR-013, FR-040, R-06, R-15) (depends on
