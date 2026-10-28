@@ -54,7 +54,7 @@
 //                       FR-010, R-05)
 //   runnerNoPreset      a run with no preset calls the replacement with
 //                       noPin() as feature 020 ships (FR-010, FR-019)
-//   parsePreset         the five names parse, and `l2`, `0-3`, `0` and an
+//   parsePreset         the six names parse, and `l2`, `0-3`, `0` and an
 //                       empty text are refused (FR-016, FR-017)
 // ============================================================================
 
@@ -651,7 +651,7 @@ auto childRunnerNoPreset() -> int
   return 0;
 }
 
-// FR-016, FR-017: the five names parse; `l2`, `0-3`, `0` and an empty text
+// FR-016, FR-017: the six names parse; `l2`, `0-3`, `0` and an empty text
 // are refused.
 auto parsePresetScenarios() -> int
 {
@@ -661,12 +661,13 @@ auto parsePresetScenarios() -> int
     sg::detail::Preset preset;
   };
 
-  const std::array<Named, 5> accepted {
+  const std::array<Named, 6> accepted {
       Named {"none", sg::detail::Preset::NONE},
       Named {"core", sg::detail::Preset::CORE},
       Named {"l3", sg::detail::Preset::L3},
       Named {"smt", sg::detail::Preset::SMT},
-      Named {"compact", sg::detail::Preset::COMPACT}};
+      Named {"compact", sg::detail::Preset::COMPACT},
+      Named {"node", sg::detail::Preset::NODE}};
   for (const auto& named : accepted) {
     const auto parsed = sg::detail::parsePreset(named.text);
     check(parsed.has_value() && *parsed == named.preset,
@@ -676,7 +677,7 @@ auto parsePresetScenarios() -> int
       "l2", "0-3", "0", "", " core", "core "};
   for (const char* text : refused) {
     check(!sg::detail::parsePreset(text).has_value(),
-          "a name outside the five is refused");
+          "a name outside the six is refused");
   }
   std::puts("harness_placement_preset_test parsePreset: ok");
   return 0;

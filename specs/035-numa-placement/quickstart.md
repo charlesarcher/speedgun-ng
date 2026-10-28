@@ -54,4 +54,16 @@ board's menu offers, under `specs/035-numa-placement/results/`:
 3. A state the menu cannot produce stands recorded as out of reach,
    with the gap named (FR-019, SC-005).
 
-The records link from this file as the lane lands them.
+The records link from this file as the lane lands them:
+
+- [NPS1](./results/nps1.md) — the state this lane recorded, the
+  listing, the node-planned run, the merged pre-check and the suite.
+- [NPS2](./results/nps2.md) — out of reach: the reboot the state
+  needs stands outside the lane session's reach; the gap stands
+  named.
+- [NPS4](./results/nps4.md) — out of reach: the reboot the state
+  needs stands outside the lane session's reach; the gap stands
+  named.
+
+The state list and the command set each record follows stand in
+[results/plan.md](./results/plan.md).
