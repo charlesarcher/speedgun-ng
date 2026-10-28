@@ -10,6 +10,7 @@ auto bmSharded(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmSharded).threads(2).placement("node");
+
 // sg-example:end numa-placement
 
 auto main(int argc, char** argv) -> int

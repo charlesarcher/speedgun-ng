@@ -31,7 +31,48 @@ The listing and the node-planned run of the `NPS1` boot stand in
 beside it, [nps2.md](./nps2.md) and [nps4.md](./nps4.md) out of reach
 with the gap named.
 
+## The hard gates at the head
+
+The sanitizer, tsan and coverage suites ran at the head the branch
+carries (T024):
+
+```
+$ ctest --test-dir build/sanitize -j 1    # 100% tests passed out of 138
+$ ctest --test-dir build/tsan -j 1        # 100% tests passed out of 139
+$ ctest --test-dir build/coverage -j 1    # 100% tests passed out of 138
+```
+
+The coverage contract read:
+
+```
+lines.......: 100.0% (12934 of 12934 lines)
+coverage-gate: branch shortfall 19 rows, within the D-14 recorded
+              allowance of 19 (accepted classes)
+```
+
+No `LCOV_EXCL` marker stands in the tree, and the branch carries no
+new `--ignore-errors` entry.
+
+Under `taskset -c 0,1` (T025, FR-017) the suite reads 142 of 143:
+the one failure is the `report_shape_jitter_sample` fold, whose
+recorded block names the two L3 groups the full host carries, so a
+run held to two cpus prints one candidate section fewer — the host
+dependence the `034-host-noise-precheck` shape gate owns, present on
+master, untouched by this branch. The feature's own tests stand green
+under the same constraint:
+
+```
+$ taskset -c 0,1 ctest --test-dir build -R 'numa_placement|placement_preset|report_shape_numa'
+exit 0, 100% tests passed out of 3
+$ taskset -c 0,1 ctest --test-dir build -R 'harness_cli_placement_test|execution_context'
+exit 0, 100% tests passed out of 2
+```
+
+The 2-cpu single-node host stands out of reach like the `NPS2` and
+`NPS4` boots, with the gap named in [nps2.md](./nps2.md).
+
 ## The CI run
 
-The run reference lands here when the pushed head's CI completes
-(SC-001 to SC-006).
+The lane host pushes nothing: the pushed head's CI run stands owed to
+the push, the way the `032-lane-merge` record lands it (T027). The run
+reference lands in the pull request's body when the push happens.

@@ -467,13 +467,12 @@ auto applyPlacement(detail::ContextControl& control) -> void
                                    nodePlan->cpu.end(),
                                    control.policy.placement.cpuIndex);
     if (planned != nodePlan->cpu.end()
-        && !detail::memoryBinder().bind(
-            nodePlan->node[static_cast<std::size_t>(planned
-                                - nodePlan->cpu.begin())]))
+        && !detail::memoryBinder().bind(nodePlan->node[static_cast<std::size_t>(
+            planned - nodePlan->cpu.begin())]))
     {
       control.bindRefusal =
-          nodePlan->node[static_cast<std::size_t>(planned
-                              - nodePlan->cpu.begin())];
+          nodePlan
+              ->node[static_cast<std::size_t>(planned - nodePlan->cpu.begin())];
     }
   }
 }

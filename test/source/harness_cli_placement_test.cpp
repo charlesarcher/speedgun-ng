@@ -214,6 +214,12 @@ auto bmCliTopoNodeNoMemory(sg::State& state) -> void
   }
 }
 
+auto bmCliTopoNodeStraddle(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
 // Each child registers exactly the benchmark its scenario filters for, so
 // a stop line can only come from the input that scenario names (FR-015,
 // FR-016).
@@ -430,6 +436,37 @@ auto setupTopoNodeNoMemory() -> void
   installFourGroupShape();
   (void)sg::registerBenchmark(&bmCliTopoNodeNoMemory,
                               "bmCliTopoNodeNoMemory");
+}
+
+// One node holding cpus on both sides of a mask that names no
+// contiguous range: the line names the node's cpus inside the mask
+// alone, and a cpu the mask skips without leaving its span stands off
+// the line (specs/035 FR-006).
+auto setupTopoNodeStraddle() -> void
+{
+  sg::detail::MachineLayout installed;
+  installed.readable = true;
+  installed.memoryReadable = true;
+  installed.packages = 1;
+  for (const auto cpu : {0U, 2U}) {
+    sg::detail::LayoutThread thread;
+    thread.cpuIndex = cpu;
+    thread.coreOrdinal = cpu;
+    thread.groupOrdinal = 0;
+    installed.threads.push_back(thread);
+    installed.mask.push_back(cpu);
+  }
+  sg::detail::LayoutGroup layoutGroup;
+  layoutGroup.lowestCpu = 0;
+  layoutGroup.cores = {0, 2};
+  installed.groups.push_back(layoutGroup);
+  sg::detail::LayoutNode layoutNode;
+  layoutNode.number = 0;
+  layoutNode.cpus = {0, 1, 2, 3};
+  installed.nodes.push_back(layoutNode);
+  sg::detail::installTestLayout(installed);
+  (void)sg::registerBenchmark(&bmCliTopoNodeStraddle,
+                              "bmCliTopoNodeStraddle");
 }
 
 auto readFile(const std::string& path) -> std::string
@@ -835,6 +872,22 @@ auto scenarioTopoNodeExcluded() -> int
   return 0;
 }
 
+// specs/035 T013, FR-006: a node whose cpus straddle a mask that
+// names no contiguous range names the cpus inside the mask alone.
+auto scenarioTopoNodeStraddle() -> int
+{
+  const Captured run = runChild("topoNodeStraddle",
+                                {"--topology", "--filter",
+                                 "^bmCliTopoNodeStraddle$"},
+                                &setupTopoNodeStraddle);
+  check(run.status == 0, "the straddling listing exits 0 (FR-006)");
+  check(run.out.find("node 0: 0,2") != std::string::npos,
+        "the node line names the cpus inside the mask (FR-006)");
+  check(run.out.find("0,1,2,3") == std::string::npos,
+        "the cpus outside the mask stand off the line (FR-006)");
+  return 0;
+}
+
 // specs/035 T013, FR-007, R-02, R-09: a read with no memory information
 // prints the not-available line in the node family's place and keeps
 // the rest of the listing, exit status 0.
@@ -863,7 +916,7 @@ auto main() -> int
     int (*run)();
   };
 
-  const std::array<Scenario, 20> scenarios {
+  const std::array<Scenario, 21> scenarios {
       Scenario {"badName", &scenarioBadName},
       Scenario {"cpuList", &scenarioCpuList},
       Scenario {"noArgument", &scenarioNoArgument},
@@ -883,7 +936,8 @@ auto main() -> int
       Scenario {"nodeHandle", &scenarioNodeHandle},
       Scenario {"topoNodes", &scenarioTopoNodes},
       Scenario {"topoNodeExcluded", &scenarioTopoNodeExcluded},
-      Scenario {"topoNodeNoMemory", &scenarioTopoNodeNoMemory}};
+      Scenario {"topoNodeNoMemory", &scenarioTopoNodeNoMemory},
+      Scenario {"topoNodeStraddle", &scenarioTopoNodeStraddle}};
   for (const auto& scenario : scenarios) {
     check(scenario.run() == 0, scenario.name);
   }

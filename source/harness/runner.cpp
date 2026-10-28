@@ -1576,9 +1576,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         ? std::optional<detail::PlacementPlan>(detail::resolvePreset(
               instance.placement, detail::layout(), instance.threadCount))
         : std::nullopt;
-    if (placePlan.has_value()
-        && instance.placement == detail::Preset::NODE)
-    {
+    if (placePlan.has_value() && instance.placement == detail::Preset::NODE) {
       detail::resolvedNodePlan() = *placePlan;
     }
     for (int position = 0; position < instance.threadCount; ++position) {
@@ -1952,8 +1950,8 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       if (refused.has_value()) {
         const std::string line =
             std::string("--placement: the memory bind of ctx")
-            + std::to_string(position) + " to node "
-            + std::to_string(*refused) + " was denied";
+            + std::to_string(position) + " to node " + std::to_string(*refused)
+            + " was denied";
         std::fprintf(stderr, "%s\n", line.c_str());
         detail::bindRefusalFlag().store(true);
         return line;
