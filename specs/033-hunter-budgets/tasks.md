@@ -400,7 +400,7 @@ section within 25 lines, and the extended example matches its
   (`contracts/budget-grammar.md` table), the `--counter=@<file>`
   rows, and the four JSON fields
   (`contracts/hunt-json.md` rows) (FR-030, IV.1, R-14)
-- [ ] T027 [US4] Extend `example/docs/hunt_rank.cpp` inside its
+- [X] T027 [US4] Extend `example/docs/hunt_rank.cpp` inside its
   scripted host-independent shape: a ranked record built through the
   pure `rankEvents` over scripted samples answers `toCounterSet`, the
   program prints the promoted addresses, and the result sentence
@@ -412,7 +412,7 @@ section within 25 lines, and the extended example matches its
   (`example/CMakeLists.txt:77`) and `example_run` pass on this
   machine and on a CI runner (FR-031, R-14, research D-9)
   (after T026: the same file)
-- [ ] T028 [US4] Run the drift gates (`example_drift`,
+- [X] T028 [US4] Run the drift gates (`example_drift`,
   `example_run`, `report_shape`) and measure the README length: the
   861-line page stands three lines under `PAGE_LINE_CAP` 864, so a
   cap move joins `tools/docs/example_drift.py:194` only through a

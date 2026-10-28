@@ -207,5 +207,15 @@ auto main(int argc, char** argv) -> int
   sg::detail::printHuntRanking(
       hunt, record.options.norm.value_or(sg::hunt::HuntNorm::INSTR));
   sg::detail::printHuntSkips(hunt, record);
+  // FR-013, FR-015: the ranked set the run hands the next run. `toCounterSet`
+  // reads the ranks the record carries, at most `--hunt-top` addresses, and a
+  // later run reads the same lines back as report columns through
+  // `--counter=@culprits.txt`.
+  const auto promoted = hunt.toCounterSet(options.top);
+  for (const auto& address : promoted) {
+    std::printf("hunt_rank: promoted %s\n", address.c_str());
+  }
+  std::printf("hunt_rank: %zu addresses for --counter=@culprits.txt\n",
+              promoted.size());
   return status;
 }
