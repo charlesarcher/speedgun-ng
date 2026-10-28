@@ -1742,6 +1742,28 @@ auto sampleComposedWithTwoStageBudget() -> void
         "the seam gives stage 1 its rule and stage 2 its derived count");
 }
 
+// R-03, R-05: a sample budget under one repeat's price bounds both stages of a
+// composed plan. The first stage records the overrun and the second reads the
+// state the first left, so each stage answers the one repeat above the budget
+// and the record states the overrun once (FR-002, R-03, N-03).
+auto sampleOverBudgetBoundsBothStages() -> void
+{
+  const auto events = acSevenColumns(kRowEvents);
+  const auto options = sampleOptions(passBudget(4), 2, 1);
+  const auto plan =
+      planned(events, kAcOneLimit, options, "the overrun row plans");
+
+  check(plan.stages.size() == 2,
+        "the re-priced figure of one repeat a stage hosts both stages");
+  check(plan.stages.front().repeats == 1 && plan.stages[1].repeats == 1,
+        "each stage keeps the one repeat that stands above the budget "
+        "(FR-002, R-03)");
+  check(plan.sample.derivedRepeats == 1 && plan.sample.overBudget
+            && !plan.sample.unpriced,
+        "the record names the one repeat it kept and the overrun it left "
+        "(N-03)");
+}
+
 // FR-002, R-02: a composed plan's plan-level `estimateNs` keeps the stage-1
 // figure. The AC-7 plan at a 60-pass budget stands at 1'920'000 x 50 x 1 =
 // 96'000'000 ns beside a sample budget or without one, because the estimate
@@ -2013,6 +2035,8 @@ auto muxCapComposedWithTwoStageBudget() -> void
       Scenario {"sample-cut-reads-repriced-figure",
                 sampleCutReadsTheRepricedFigure},
       Scenario {"sample-two-stage-composed", sampleComposedWithTwoStageBudget},
+      Scenario {"sample-over-budget-both-stages",
+                sampleOverBudgetBoundsBothStages},
       Scenario {"sample-estimate-stage-one-figure",
                 sampleEstimateKeepsStageOneFigure},
       Scenario {"sample-reads-no-clock", sampleDerivationReadsNoClock},
