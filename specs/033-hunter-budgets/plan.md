@@ -187,7 +187,8 @@ test/source/
 ```
 
 **Structure Decision**: the standing hunt tree absorbs everything;
-no new target, no new file outside `specs/`. The one moved piece is
+no new target, no new file outside `specs/` beyond `source/harness/hunt_selection.cpp`.
+The one moved piece is
 `readSelectionFile`, which becomes the shared
 `detail::readAddressFileLines` so the `--counter=@` arm and the hunt
 selection read one grammar from one place.
@@ -272,11 +273,13 @@ selection read one grammar from one place.
   `detail::readAddressFileLines(path, refusalContext)`; the hunt
   selection delegates, keeping its own refusal sentences. The
   `counter` gather arm (`options.cpp:1537`) intercepts a value that
-  starts with `@` before `sourceItems`: one level, the lines are the
-  addresses, `#` starts a comment, blank lines are skipped; a
-  missing file, an empty address line, and a file holding no address
-  each refuse through the arm's standing `refuse` route (one line,
-  exit 2). Unknown addresses keep the standing `ABSENT` column shape
+  starts with `@` before `sourceItems`: one level, the address
+  elements are the lines cut at `#` and split on commas under spec
+  029's separator rule (a line of `a,b` answers two addresses, the
+  shipped hunt rule standing); a missing file, a comma beside
+  nothing, and a file holding no address each refuse through the
+  arm's standing `refuse` route (one line, exit 2). Unknown
+  addresses keep the standing `ABSENT` column shape
   (`runner.cpp:1239` onward, unchanged). No count cap joins. The
   interception sits in the gather arm, so command line, option file
   and environment carry one grammar.

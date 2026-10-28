@@ -52,14 +52,18 @@ story stands on. No story work begins before this phase closes.
 
 - [ ] T002 [P] Write the failing shared-reader tests in
   `test/source/harness_hunt_cli_test.cpp`: `detail::readAddressFileLines`
-  answers the address lines of a file, cuts `#` comments, skips blank
-  lines, reads one level only (no nested `@`), and answers the
-  three refusals (file does not exist, a line with an empty address,
-  a file holding no address) naming its context; the existing hunt
-  `@file` refusals keep their standing sentences
-  (FR-006-standing, FR-014, R-09)
-- [ ] T003 Move `readSelectionFile` (`source/harness/hunt_cli.cpp:130`)
-  to `detail::readAddressFileLines`: the declaration joins
+  answers address elements under spec 029's separator rule
+  (`source/harness/hunt_cli.cpp:130`, `:171`): each line cuts at the
+  first `#`, blank lines stand ignored, one line of `addr1,addr2`
+  answers two elements, and a comma beside nothing stands as an
+  empty element; an unopenable file refuses in one line naming the
+  path; reads one level only (no nested `@`); the existing hunt
+  `@file` selections and refusal sentences stay byte-identical
+  (029 FR-006 stands, FR-014, R-09)
+- [ ] T003 Move `readSelectionFile` and `splitElements`
+  together (`source/harness/hunt_cli.cpp:130`, `:171`) to
+  `detail::readAddressFileLines`, the separator rule riding with
+  them: the declaration joins
   `source/harness/detail/hunt_selection.hpp`, the implementation
   lands in a new `source/harness/hunt_selection.cpp` (the harness
   `GLOB_RECURSE` at `CMakeLists.txt:224` picks the TU up), and
@@ -109,11 +113,13 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   R-08)
 - [ ] T007 [US1] Write the failing `--counter=@<file>` tests in
   `test/source/harness_hunt_cli_test.cpp`: the file's lines become
-  one counter column each (20 addresses give 20 columns); `#`
-  comments and blank lines are skipped; an unknown address keeps the
-  standing `ABSENT` column with its stderr line and the run
-  continues; a missing file, an empty address line, and a file
-  holding no address each print one line naming the value and exit 2;
+  one counter column each (20 addresses give 20 columns; one
+  line of two comma-separated addresses gives two); `#` comments and
+  blank lines are skipped; an unknown address keeps the standing
+  `ABSENT` column with its stderr line and the run continues; a
+  missing file, a comma beside nothing (the empty address), and a
+  file holding no address each print one line naming the value and
+  exit 2;
   the option-file and environment sources carry the same grammar;
   no count cap binds the file form (FR-014, R-09;
   contracts/counter-file.md) (after T006: the same file)
@@ -137,7 +143,12 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   settles on `RunOptions::huntEmitSet`), and the conflict line in
   `source/harness/cli.cpp` beside the standing hunt conflicts: an
   emit path with no hunt, `--hunt=none` among them, leaves one line
-  naming the value with status 2 (FR-010, FR-012, R-13, R-08)
+  naming the value with status 2. The same commit moves the
+  `--hunt-emit-set` row of the `README.md` Option table and the
+  `docs/pages/harness.md` row carrying the table's help string
+  (`tools/docs/example_drift.py:744` and
+  `test/source/harness_cli_table_test.cpp:1489-1510` read the table
+  in both directions; IV.1) (FR-010, FR-012, FR-030, R-13, R-08)
   (depends on T004, T006)
 - [ ] T010 [US1] Implement `writeHuntEmitSet` in
   `source/harness/hunt_cli.cpp` (per entry `toCounterSet(options.top)`;
@@ -255,7 +266,8 @@ fixtures close SC-002 and SC-005 with no clock.
   (depends on T014, T017)
 - [ ] T019 [US2] Grow `printHuntPlan` in `source/harness/report.cpp`:
   the conditional `sample=<canonical text>` segment after the
-  standing `budget=` and the three disclosure lines; an unset budget
+  standing `budget=` and the two disclosure lines in their three
+  states; an unset budget
   prints the standing bytes; the tests of T016 (report side) turn
   green (FR-023, R-10) (depends on T018)
 - [ ] T020 [US2] Land the JSON half in one commit: `writeHunt` in
@@ -271,10 +283,14 @@ fixtures close SC-002 and SC-005 with no clock.
   `docs/schema/report-v1.json` gains the two properties, the moved
   `x-order`, and `required` keeps the standing sixteen;
   `source/harness/json_report.cpp:36` moves `kSchemaVersion` to
-  `1.7`; writer and reader keep the simdjson builder and error-code
-  forms; the tests of T016 (JSON side) turn green (FR-020 to FR-022
-  incl. FR-021, R-11, R-12,
-  SC-006) (depends on T016, T018)
+  `1.7`, and the standing literals move with it in the same commit:
+  the written-document check in
+  `test/source/harness_json_report_test.cpp:543-549` and the planted
+  mutation anchor of `test/source/harness_json_load_test.cpp:707`;
+  writer and reader keep the simdjson builder and
+  error-code forms; the tests of T016 (JSON side) turn green
+  (FR-020 to FR-022 incl. FR-021, R-11, R-12, SC-006)
+  (depends on T016, T018)
 
 **Checkpoint**: the sample budget bounds, discloses, and round-trips;
 a run without it prints and writes the standing bytes.
@@ -360,12 +376,11 @@ section within 25 lines, and the extended example matches its
 
 - [ ] T026 [P] [US4] Grow the "Hunter mode" section of `README.md`
   within `SECTION_LINE_CAP` (25 lines total, `tools/docs/example_drift.py:195`)
-  with the quick-reference rows, gives the `README.md` Option table
-  its `--hunt-emit-set` row (the drift gate demands a row per long
-  option), and moves the option table and field rows in
-  `docs/pages/harness.md`: the clause grammar
-  (`contracts/budget-grammar.md` table), the `--hunt-emit-set` row,
-  the `--counter=@<file>` rows, and the four JSON fields
+  with the quick-reference rows and moves the field and grammar rows
+  in `docs/pages/harness.md` (the `--hunt-emit-set` option row
+  shipped with T009): the clause grammar
+  (`contracts/budget-grammar.md` table), the `--counter=@<file>`
+  rows, and the four JSON fields
   (`contracts/hunt-json.md` rows) (FR-030, IV.1, R-14)
 - [ ] T027 [US4] Extend `example/docs/hunt_rank.cpp` inside its
   scripted host-independent shape: a ranked record built through the
@@ -459,8 +474,7 @@ public surface of US1 plus the grammar of US2/US3 settled.
 Ship Phase 1, Phase 2, and Phase 3 (US1) first: the round trip
 (criterion 12.7-6) delivers the item's headline with no budget work.
 Then US2 (the bound that closes the time story), then US3 (the bound
-that opens the large catalog), then US4 (docs land with the final
-wave; the IV.1 checklist still binds every shipped wave's commit: the
-README and docs rows move beside the tasks that change user-visible
-behavior, so T026 may split its rows forward into the US2/US3 waves
-when the maintainer prefers). Polish closes the gates and the record.
+that opens the large catalog), then US4 (the guide section, the
+grammar and field rows, and the example; the two option-table gate
+rows IV.1 demands ship inside T009 beside the option row itself).
+Polish closes the gates and the record.

@@ -158,8 +158,10 @@ with the ruling it carries named. The decisions the roadmap and spec
 
 ### PC-2: the `--counter` address path carries no column-count cap. PASS.
 
-- The gather arm of the `counter` row splits its value on commas and
-  keeps every address (`source/harness/options.cpp:1537-1551`).
+- The gather arm of the `counter` row keeps every address it is
+  given: one per command-line word or option-file line, `;` items
+  from the environment, repeated rows accumulating
+  (`source/harness/options.cpp:1537-1551`, `sourceItems` at `:1361`).
 - The run builds one report column per settled address
   (`source/harness/runner.cpp:1225,1239`); no count bound stands on
   that path. `kMaxUserCounters` (`include/speedgun-ng/benchmark.hpp:199`)
@@ -221,7 +223,7 @@ rebuilt from the stored value, or
 - `test/source/harness_cli_table_test.cpp` exists on master and
   asserts the uniqueness of every option name and value (spec 029
   FR-083). The eight hunt rows carry no environment source
-  (`source/harness/options.cpp:587` onward), and the new row follows
+  (`source/harness/options.cpp:719-766`), and the new row follows
   that shape.
 
 ### PC-8: the scripted seam carries the budgets and the round trip. PASS.
@@ -615,10 +617,11 @@ file on a CI runner (SC-008).
   order, with the public contract form and no `detail/` type in the
   signature (D-7, hard rules 5 and 8).
 - **FR-014**: `--counter=@<file>` SHALL read one level, the file's
-  lines being addresses, under the list-file rules: `#` starts a
-  comment, blank lines are ignored, and a missing file, an empty
-  address line, and a file holding no address each print one line
-  naming the value and exit 2. An unresolvable address SHALL keep the
+  address elements standing as the lines under the list-file
+  separator rule: `#` starts a comment, blank lines are ignored, a
+  line may hold comma-separated addresses, and a missing file, a
+  comma beside nothing (the empty address), and a file holding no
+  address each print one line naming the value and exit 2. An unresolvable address SHALL keep the
   standing `ABSENT` column shape. No count cap SHALL bind the file
   form (PC-2). The interception SHALL sit where the value is read, so
   the command line, an option file and the environment carry one

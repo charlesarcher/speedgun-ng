@@ -80,9 +80,12 @@ texts are rebuilt canonically from the stored values (research D-5).
 ## N-07 The shared address-file record
 
 `readAddressFileLines(path, context)` answers the file's address
-lines: `#` starts a comment, blank lines are skipped, one level
-only. Refusals (each one line, exit 2): missing file, empty address
-line, no address in the file. Both callers keep their own sentence:
+elements under spec 029's separator rule: each line cuts at the
+first `#`, blank lines stand ignored, the rest splits on commas, and
+a comma beside nothing stands as an empty element. One level only.
+The reader itself refuses in one line only an unopenable file,
+naming the path; each caller refuses an empty element and a file
+holding no address in its own sentence:
 the hunt route names the selection text, the `--counter` route names
 the option value (FR-014; research D-7).
 

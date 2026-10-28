@@ -34,9 +34,8 @@ reader, the spec 029 grammar):
 
 | Item | Rule |
 | --- | --- |
-| Form | the whole value starts with `@`; one level; the lines are the addresses |
-| Comments | `#` starts a comment; blank lines are skipped |
-| Refusals (one line naming the value, exit 2) | file does not exist; a line with an empty address; the file holds no address |
+| Form | the whole value starts with `@`; one level; the address elements follow spec 029's separator rule (lines cut at `#`, split on commas) |
+| Refusals (one line naming the value, exit 2) | file does not exist; a comma beside nothing (the empty address); the file holds no address |
 | Unknown address | standing `--counter` shape: an `ABSENT` column with its stderr line; the run continues |
 | Count | no cap on the number of addresses (spec 029 PC-2 reading) |
 | Sources | command line, option file, environment carry the same grammar (the interception sits in the gather arm) |
