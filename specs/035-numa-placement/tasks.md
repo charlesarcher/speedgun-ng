@@ -176,6 +176,15 @@ information prints `not available` for the node lines alone.
   with the rest of the bytes standing (FR-006, FR-007, D-3, R-02,
   R-09) (depends on T004, T013; the tests of T013 turn green)
 
+- [ ] T015 [P] [US2] Amend the standing contract
+  `specs/025-topology-placement/contracts/cli-placement.md` in the
+  commit that lands the listing: the rule row `No memory node
+  appears in the listing` stands replaced by the node-family rule of
+  [contracts/cli-placement.md](./contracts/cli-placement.md), and the
+  exit-status table gains the denied-bind and no-memory-information
+  rows (FR-006, FR-013, FR-014, D-3) (depends on T014; the edit rides
+  T014's commit)
+
 **Checkpoint**: User Stories 1 and 2 stand independently functional:
 the plan binds, the listing names, and the unbound paths stand
 byte-identical.
@@ -192,28 +201,29 @@ run refuses one line, exit status 2, with no benchmark output.
 
 ### Tests for User Story 3 (write first, observe failure)
 
-- [ ] T015 [P] [US3] Write the failing refusal tests in
+- [ ] T016 [P] [US3] Write the failing refusal tests in
   `test/source/harness_numa_placement_test.cpp`: the eager validation
-  pass binds and restores each distinct planned node before the
-  contexts spawn, and a denial in that pass refuses one line naming
-  the node ahead of every context; a bind that fails at a context
-  start stands the same refusal; the `node` preset over a read with
+  pass binds and restores each planned context's node in plan order
+  before the contexts spawn, and a denial in that pass refuses one
+  line naming the context and the node ahead of every context; a
+  bind that fails at a context start stands the same refusal; the `node` preset over a read with
   no memory information refuses one line before any context starts;
   the standing unfittable-count refusal covers the node plan
   (FR-013, FR-014, FR-015, D-4, R-07, R-10)
 
 ### Implementation for User Story 3
 
-- [ ] T016 [US3] Wire the refusal paths: the run validates the
+- [ ] T017 [US3] Wire the refusal paths: the run validates the
   binding before the contexts spawn, the main thread binding and
-  restoring each distinct planned node through the seam, a denial
-  printing the one-line status-2 refusal ahead of every context; the
+  restoring each planned context's node in plan order through the
+  seam, a denial printing the one-line status-2 refusal naming the
+  context and the node ahead of every context; the
   context start turns a failed bind beside the standing pin-failure
   account path at `execution_context.cpp:440` into the same refusal;
   the preset resolution refuses the no-memory-information case beside
   the standing unfittable-count refusal at `placement_preset.cpp:498`
-  (FR-013, FR-014, D-4, R-07, R-10) (depends on T012, T014, T015; the
-  tests of T015 turn green)
+  (FR-013, FR-014, D-4, R-07, R-10) (depends on T012, T014, T016; the
+  tests of T016 turn green)
 
 **Checkpoint**: the refusal set stands green: every refused run
 prints one line, exits 2, and stands ahead of the first benchmark.
@@ -231,17 +241,17 @@ the placement runs.
 quickstart links each one, and an unreachable state stands recorded
 as out of reach with the gap named.
 
-- [ ] T017 [US4] Write the NPS evidence plan in
+- [ ] T018 [US4] Write the NPS evidence plan in
   `specs/035-numa-placement/results/plan.md`: the BIOS change and
   reboot procedure, the state list the board's menu offers, the
   command set per state, and the record format the states fill
   (FR-019, D-7, R-11)
-- [ ] T018 [US4] Record the runs on thrawn: one record per NPS state
+- [ ] T019 [US4] Record the runs on thrawn: one record per NPS state
   under `specs/035-numa-placement/results/`, each naming the state,
   the boot, the commands, the exit codes and the listing, with the
   merged pre-check run beside the placement runs; a state the menu
   cannot produce stands recorded as out of reach with the gap named
-  (FR-019, D-7, R-11) (depends on T012, T017)
+  (FR-019, D-7, R-11) (depends on T012, T018)
 
 **Checkpoint**: the evidence stands recorded: every state the menu
 offers carries its record, and the quickstart links them.
@@ -253,22 +263,22 @@ offers carries its record, and the quickstart links them.
 **Goal**: the README, the guide page and the example teach the node
 plans, and the docs gates stand green over them.
 
-- [ ] T019 [P] [US5] Add the README section of at most 25 lines and
+- [ ] T020 [P] [US5] Add the README section of at most 25 lines and
   the quick-reference rows in `README.md`, and the option and field
   detail in `docs/pages/harness.md` beside the placement sections
   spec 025 landed (FR-020, FR-021, R-12)
-- [ ] T020 [US5] Add the runnable example
+- [ ] T021 [US5] Add the runnable example
   `example/docs/numa_placement.cpp` with its `.expected` file, a
   fixed context count of two with the `node` preset; register it in
   `example/CMakeLists.txt` and the example lists, and add the
   `SECTIONS` and `SECTION_OWNERS` rows in
   `tools/docs/example_drift.py` (FR-022, R-12) (depends on T012)
-- [ ] T021 [US5] Record the shape-gate rule and the fixture pair for
+- [ ] T022 [US5] Record the shape-gate rule and the fixture pair for
   the node tail in
   `specs/035-numa-placement/contracts/report-shape.md`'s fixture
   table and in `test/example-drift-fixture/run_report_shape_fixtures.py`:
   `cpu@#` and `cpu@#@#` fold different, checked in both directions
-  (FR-022, D-5) (depends on T020)
+  (FR-022, D-5) (depends on T021)
 
 **Checkpoint**: the docs stand green: the drift, snippet-compile,
 example-run and report-shape gates read no finding.
@@ -279,26 +289,26 @@ example-run and report-shape gates read no finding.
 
 **Purpose**: the hard gates and the records that outlive the branch.
 
-- [ ] T022 [P] Run the format, spell, tidy and cppcheck gates at the
+- [ ] T023 [P] Run the format, spell, tidy and cppcheck gates at the
   head: `cmake -D FORMAT_COMMAND=clang-format -P cmake/lint.cmake`,
   `cmake -P cmake/spell.cmake`, the `ci-ubuntu` build with the
   analyzers wired in; every finding stands fixed
   (constitution V, VIII)
-- [ ] T023 [P] Run the sanitizer, tsan and coverage suites:
+- [ ] T024 [P] Run the sanitizer, tsan and coverage suites:
   `ctest --test-dir build/sanitize`, `ctest --test-dir build/tsan`,
   and the coverage contract `ctest --test-dir build/coverage -j 1`
   with the gate reading 100.0% lines and a branch shortfall inside
   the D-14 recorded allowance, no `LCOV_EXCL` marker and no new
   `--ignore-errors` entry (FR-018, SC-004, constitution VI)
-- [ ] T024 [P] Run the prose, DBC and time-source gates over the
+- [ ] T025 [P] Run the prose, DBC and time-source gates over the
   branch range, and the suite under `taskset -c 0,1` and on a 2-cpu
   single-node host: `ctest --test-dir build -j 1` stands green under
   both (FR-017, constitution VIII, XI)
-- [ ] T025 [US4] Verify the quickstart scenarios of
+- [ ] T026 [US4] Verify the quickstart scenarios of
   [quickstart.md](./quickstart.md) end to end on the lane host, and
   record the commands, the exit codes and the figures under
   `specs/035-numa-placement/results/quickstart.md`
-  (SC-001 to SC-006) (depends on T016, T018, T021)
+  (SC-001 to SC-006) (depends on T017, T019, T022)
 
 **Checkpoint**: every hard gate stands green at the head, and the
 evidence stands recorded.
@@ -309,19 +319,19 @@ evidence stands recorded.
 
 **Purpose**: the closing evidence the lane lands with.
 
-- [ ] T026 Read the CI run of the pushed head end to end: every job
+- [ ] T027 Read the CI run of the pushed head end to end: every job
   green (`lint`, `test`, `test-rocky`, `sanitize`, `tsan`,
   `static-analysis`, `coverage`, `dbc-gate`, `prose-lint`,
   `shared-audit`, `downstream-consumer`), the coverage figures read
   100.0% lines and a branch shortfall inside the D-14 allowance, and
   the run reference stands recorded beside the acceptance evidence in
   `specs/035-numa-placement/results/quickstart.md` (SC-001 to
-  SC-006) (depends on T022 to T025)
-- [ ] T027 Re-check the constitution table of [plan.md](./plan.md)
+  SC-006) (depends on T023 to T026)
+- [ ] T028 Re-check the constitution table of [plan.md](./plan.md)
   against the landed tree: every gate stands as the table states it,
   the Complexity Tracking table stands empty, and the record stands
   in the pull-request body (constitution Governance) (depends on
-  T026)
+  T027)
 
 ---
 
@@ -338,7 +348,7 @@ evidence stands recorded.
 - **User Story 3 (Phase 5)**: depends on User Story 1's bind and
   User Story 2's listing (the refusal paths wire beside them)
 - **User Story 4 (Phase 6)**: depends on User Story 1's runs and the
-  plan task T017
+  plan task T018
 - **User Story 5 (Phase 7)**: the example depends on the disclosure;
   the docs rows stand parallel
 - **Polish (Phase 8)**: depends on every story standing green
@@ -355,7 +365,7 @@ evidence stands recorded.
 
 - T001, T003 and T005 run in parallel (different files)
 - T007 and T008 run in parallel; T013 runs beside Phase 3's tail
-- The docs rows of T019 stand beside the implementation waves
+- The docs rows of T020 stand beside the implementation waves
 
 ---
 

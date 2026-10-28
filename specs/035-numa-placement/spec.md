@@ -186,11 +186,11 @@ stand in Decisions as D-1 to D-7.
   the system denies is a usage error: one line naming the context
   and the node, exit status 2, before any benchmark starts. The run
   validates the binding before the contexts spawn: the main thread
-  binds to each distinct planned node and restores the policy it
-  carried, one pass over the plan, so a denial the host will state
-  stands refused ahead of every context; a bind that fails at a
-  context start despite the validation stands the same refusal
-  path.
+  binds and restores each planned context's node in plan order, one
+  pass over the plan, so a denial the host will state stands refused
+  ahead of every context, and the refusal line names the context and
+  the node; a bind that fails at a context start despite the
+  validation stands the same refusal path.
 - **D-5 The disclosure rides the standing placement field.** The
   placement field of each context carries the node beside the group
   where the plan binds one, console and JSON, with no new key; the
@@ -441,9 +441,11 @@ compiles.
 
 - **FR-013**: A binding the system denies SHALL refuse one line
   naming the context and the node, with exit status 2, before any
-  benchmark starts: the run SHALL validate every distinct planned
-  node's bind before the contexts spawn, and a bind that fails at a
-  context start SHALL stand the same refusal (D-4).
+  benchmark starts: the run SHALL validate the binding before the
+  contexts spawn, binding and restoring each planned context's node
+  in plan order, and the refusal line SHALL name the context and the
+  node; a bind that fails at a context start SHALL stand the same
+  refusal (D-4).
 - **FR-014**: A node preset requested over a topology read that
   states no memory information SHALL refuse one line with exit
   status 2, before any context starts.
