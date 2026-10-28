@@ -25,6 +25,10 @@
 // method, which `harness_hunt_collect_test.cpp` pins end to end from a scripted
 // host that publishes no counter limit.
 //
+// `toCounterSet` shares this file's seam (033 T005, FR-013,
+// contracts/counter-file.md): its cases build the `EntryHunt` record in place,
+// so the call reads the ranks a scenario states and nothing else.
+//
 // The list at the bottom is what CTest runs, so an entry absent from it never
 // runs, and `argv[1]` selects one entry of it. Frameworkless check()/fail()
 // convention, the one `harness_pass_plan_test.cpp` carries.
@@ -69,6 +73,10 @@ constexpr std::uint64_t kOneIteration = 1;
 // The `--hunt-top` of the top-N and entry-order cases: two ranks, so a third
 // clean event is beyond the top and the tail of excluded events is visible.
 constexpr std::size_t kTopLimit = 2;
+
+// The `topN` of the cases that stand above a table's ranked count: nine, so a
+// table of three or four ranks sits below it.
+constexpr std::size_t kWideTop = 9;
 
 [[noreturn]] auto fail(const char* what) -> void
 {
@@ -1045,6 +1053,201 @@ auto pureRepeat() -> void
   }
 }
 
+// ---------------------------------------------------------------------------
+// The emitted set of `toCounterSet` (033 T005; FR-013;
+// contracts/counter-file.md)
+// ---------------------------------------------------------------------------
+
+// One row of a ranked table built in place: the address of fixture event
+// `index` under the rank the scenario states, with the marks I-5 pairs with
+// that rank. The rate and the deviation stay at their defaults, because the
+// emitted set reads the rank and the address.
+[[nodiscard]] auto rankRow(const std::size_t index,
+                           const std::optional<std::size_t> rank)
+    -> sg::hunt::RankedEvent
+{
+  auto entry = sg::hunt::RankedEvent {};
+  entry.address = cpuAddressOf(index);
+  entry.rank = rank;
+  entry.repeated = rank.has_value();
+  return entry;
+}
+
+// The ranked entries come back in ascending rank, each carrying its own
+// address. The four ranks stand scrambled in the record's order, and the
+// address order answers a third table, so neither the vector order nor the
+// address order can match the expectation. `topN` holds the ranked count, which
+// leaves the order as the single fact under test.
+auto counterSetRankOrder() -> void
+{
+  const auto record = []
+  {
+    auto hunt = sg::hunt::EntryHunt {};
+    hunt.entries = {rankRow(14, std::size_t {3}),
+                    rankRow(2, std::size_t {1}),
+                    rankRow(11, std::size_t {4}),
+                    rankRow(9, std::size_t {2})};
+    return hunt;
+  }();
+
+  const std::vector<std::string> kExpected {
+      cpuAddressOf(2),
+      cpuAddressOf(9),
+      cpuAddressOf(14),
+      cpuAddressOf(11),
+  };
+  check(record.toCounterSet(record.entries.size()) == kExpected,
+        "the ranked addresses come back in ascending rank");
+}
+
+// A `topN` below the ranked count answers exactly the leading `topN` addresses
+// of the ascending list, for every cap below that count. The record states the
+// default `--hunt-top` of 20 above its own four ranks, so the argument of the
+// call and no field of the record cuts the answer.
+auto counterSetCap() -> void
+{
+  const auto record = []
+  {
+    auto hunt = sg::hunt::EntryHunt {};
+    hunt.entries = {rankRow(6, std::size_t {4}),
+                    rankRow(2, std::size_t {1}),
+                    rankRow(9, std::size_t {3}),
+                    rankRow(1, std::size_t {2})};
+    return hunt;
+  }();
+
+  const std::vector<std::string> kAll {
+      cpuAddressOf(2),
+      cpuAddressOf(1),
+      cpuAddressOf(9),
+      cpuAddressOf(6),
+  };
+  check(record.top > record.entries.size(),
+        "the record states a --hunt-top above its own ranked count");
+  const auto full = record.toCounterSet(record.entries.size());
+  check(full == kAll, "the whole table answers every ranked address");
+  for (std::size_t cap = 1; cap < full.size(); ++cap) {
+    const auto cut = record.toCounterSet(cap);
+    check(cut.size() == cap, "the answer holds at most topN addresses");
+    check(std::equal(cut.begin(), cut.end(), full.begin()),
+          "a cap below the ranked count answers the leading ranks");
+  }
+}
+
+// An entry whose `rank` stands empty never enters, with `topN` above the ranked
+// count: the table holds one row above the noise threshold, one row the run did
+// not repeat, and one row it also lists as skipped. Each stands between two
+// ranked addresses, so an answer that carried a null rank would show it.
+auto counterSetNullRank() -> void
+{
+  const auto record = []
+  {
+    auto hunt = sg::hunt::EntryHunt {};
+    auto loud = rankRow(3, std::nullopt);
+    loud.noisy = true;
+    loud.repeated = true;
+    auto gap = sg::hunt::SkippedEvent {};
+    gap.address = cpuAddressOf(8);
+    gap.kind = sg::hunt::SkippedKind::GAP;
+    hunt.entries = {rankRow(2, std::size_t {2}),
+                    rankRow(0, std::nullopt),
+                    rankRow(1, std::size_t {1}),
+                    loud,
+                    rankRow(8, std::nullopt)};
+    hunt.skipped.push_back(gap);
+    return hunt;
+  }();
+
+  const std::vector<std::string> kExpected {
+      cpuAddressOf(1),
+      cpuAddressOf(2),
+  };
+  check(record.toCounterSet(record.entries.size() + 2) == kExpected,
+        "an entry with no rank stands out of the answer");
+}
+
+// `topN` zero answers none: a record of three ranks answers an empty list, and
+// the record keeps its rows. The standing table is what makes the empty answer
+// the argument's verdict on a ranked record.
+auto counterSetZeroTop() -> void
+{
+  const auto record = []
+  {
+    auto hunt = sg::hunt::EntryHunt {};
+    hunt.entries = {rankRow(1, std::size_t {1}),
+                    rankRow(6, std::size_t {2}),
+                    rankRow(9, std::size_t {3})};
+    return hunt;
+  }();
+
+  check(record.toCounterSet(0).empty(), "topN zero answers no address");
+  check(record.entries.size() == 3, "the record keeps its three ranked rows");
+}
+
+// `topN` above the ranked count answers them all: the answer carries every
+// ranked address once and stops at the ranked count, so the wide argument pads
+// nothing and repeats nothing.
+auto counterSetAboveCount() -> void
+{
+  const auto record = []
+  {
+    auto hunt = sg::hunt::EntryHunt {};
+    hunt.entries = {rankRow(4, std::size_t {2}),
+                    rankRow(12, std::size_t {3}),
+                    rankRow(1, std::size_t {1})};
+    return hunt;
+  }();
+
+  const std::vector<std::string> kExpected {
+      cpuAddressOf(1),
+      cpuAddressOf(4),
+      cpuAddressOf(12),
+  };
+  const auto answer = record.toCounterSet(kWideTop);
+  check(answer == kExpected, "a topN above the ranked count answers them all");
+  check(answer.size() == record.entries.size(),
+        "the answer stops at the ranked count");
+}
+
+// Two calls over one record answer equal lists, and the record stands as
+// built: its entry order and its ranks keep the figures the scenario laid down,
+// so the second call answers the same list from the same rows and the first
+// call changed nothing to read.
+auto counterSetRepeat() -> void
+{
+  const auto record = []
+  {
+    auto hunt = sg::hunt::EntryHunt {};
+    hunt.entries = {rankRow(9, std::size_t {2}),
+                    rankRow(1, std::size_t {1}),
+                    rankRow(4, std::size_t {3})};
+    return hunt;
+  }();
+
+  const std::vector<std::string> kBuilt {
+      cpuAddressOf(9),
+      cpuAddressOf(1),
+      cpuAddressOf(4),
+  };
+  const std::vector<std::size_t> kBuiltRanks {2, 1, 3};
+  const std::vector<std::string> kExpected {
+      cpuAddressOf(1),
+      cpuAddressOf(9),
+      cpuAddressOf(4),
+  };
+
+  const auto first = record.toCounterSet(kWideTop);
+  const auto second = record.toCounterSet(kWideTop);
+  check(first == kExpected, "the first call answers the ascending ranks");
+  check(second == first, "a second call answers an equal list");
+  check(addressesOf(record) == kBuilt, "the record keeps its entry order");
+  for (std::size_t index = 0; index < record.entries.size(); ++index) {
+    const auto& kept = record.entries[index].rank;
+    check(kept.has_value() && *kept == kBuiltRanks[index],
+          "the record keeps the rank of every row");
+  }
+}
+
 struct Scenario
 {
   std::string_view name;
@@ -1072,6 +1275,12 @@ struct Scenario
       Scenario {"multiplexed-method", multiplexedMethod},
       Scenario {"entry-order", entryOrder},
       Scenario {"pure-repeat", pureRepeat},
+      Scenario {"counter-set-rank-order", counterSetRankOrder},
+      Scenario {"counter-set-cap", counterSetCap},
+      Scenario {"counter-set-null-rank", counterSetNullRank},
+      Scenario {"counter-set-zero-top", counterSetZeroTop},
+      Scenario {"counter-set-above-count", counterSetAboveCount},
+      Scenario {"counter-set-repeat", counterSetRepeat},
   };
   return kList;
 }

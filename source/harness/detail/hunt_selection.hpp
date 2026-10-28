@@ -2,6 +2,7 @@
 #define SG_HARNESS_DETAIL_HUNT_SELECTION_HPP
 
 #include <cstddef>
+#include <expected>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -166,6 +167,48 @@ inline constexpr std::size_t kHuntPassSlots {3};
   }
   return here == pattern.size();
 }
+
+// FR-014, R-09, N-07: the two halves of the one list-file grammar the hunt
+// selection and the `--counter` `@`-form read. `splitElements` cuts a text the
+// way spec 029 FR-006 reads one, and `readAddressFileLines` reads one file and
+// hands its lines to that same splitter, one level deep. Both halves are
+// declared here and defined in `source/harness/hunt_selection.cpp`, so the two
+// routes share the separator rule while each keeps the sentence of its own
+// refusal beside it.
+
+/// @brief FR-006, FR-014 (033): the elements of one selection text.
+///
+/// One line ends at a newline, the line cuts at the first `#` the way FR-006
+/// reads a `@file`, and the rest of the line answers one element per comma. A
+/// line a comment or a blank leaves empty is ignored; a comma that leaves
+/// nothing beside it answers an empty element for the caller to refuse.
+///
+/// \pre none: any text answers its elements, and a text with nothing in it
+///      answers none
+/// \post every element stands trimmed of the blanks around it, no element
+///       carries a `#` or a newline, and an empty element answers a comma that
+///       stood beside nothing
+[[nodiscard]] auto splitElements(const std::string& text)
+    -> std::vector<std::string>;
+
+/// @brief FR-006, FR-014, R-09 (033): the address elements of one `@path`,
+///        read one level deep.
+///
+/// The file's lines are the elements under `splitElements`; a line that names
+/// another `@path` is an element like any other, because one level stands and
+/// no nested read opens (029 D-14, 033 Out of scope). The reader refuses an
+/// unopenable file alone, in one line naming the path as the caller spelled
+/// it; an empty element and a file that holds no address are the callers'
+/// refusals, each in the sentence of its own option (N-07).
+///
+/// \pre none: a path the host cannot open answers the refusal line below
+/// \post on success the answer holds the file's address elements under
+///       `splitElements`, in the order the file carries them, empty file
+///       included; on refusal the answer is the one line
+///       `'<token>' cannot be opened`
+[[nodiscard]] auto readAddressFileLines(const std::string& path,
+                                        std::string_view token)
+    -> std::expected<std::vector<std::string>, std::string>;
 
 /// @brief The walk order of `printObject` of `source/harness/catalog.cpp`:
 /// every descendant of `root`, each object before its own children and

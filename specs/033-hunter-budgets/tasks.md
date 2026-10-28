@@ -30,7 +30,7 @@ acceptance criterion names it.
 **Purpose**: the audit anchors of the plan stand re-read at the
 branch head before any edit.
 
-- [ ] T001 Re-anchor every seam symbol of plan.md "Technical Context"
+- [X] T001 Re-anchor every seam symbol of plan.md "Technical Context"
   at the current branch head and record any moved line in that
   section: `parseHuntBudget` (`source/harness/hunt_cli.cpp:440`), the
   `counter` gather arm (`source/harness/options.cpp:1537`), the
@@ -50,7 +50,7 @@ branch head before any edit.
 **Purpose**: the shared file reader and the option constants every
 story stands on. No story work begins before this phase closes.
 
-- [ ] T002 [P] Write the failing shared-reader tests in
+- [X] T002 [P] Write the failing shared-reader tests in
   `test/source/harness_hunt_cli_test.cpp`: `detail::readAddressFileLines`
   answers address elements under spec 029's separator rule
   (`source/harness/hunt_cli.cpp:130`, `:171`): each line cuts at the
@@ -60,7 +60,7 @@ story stands on. No story work begins before this phase closes.
   path; reads one level only (no nested `@`); the existing hunt
   `@file` selections and refusal sentences stay byte-identical
   (029 FR-006 stands, FR-014, R-09)
-- [ ] T003 Move `readSelectionFile` and `splitElements`
+- [X] T003 Move `readSelectionFile` and `splitElements`
   together (`source/harness/hunt_cli.cpp:130`, `:171`) to
   `detail::readAddressFileLines`, the separator rule riding with
   them: the declaration joins
@@ -72,7 +72,7 @@ story stands on. No story work begins before this phase closes.
   halves, the option's own selection text still running through the
   splitter (`hunt_cli.cpp:514`); the tests of T002 turn green
   (R-09) (depends on T002)
-- [ ] T004 [P] Add `inline constexpr int kHuntEmitSetOption = 280;`
+- [X] T004 [P] Add `inline constexpr int kHuntEmitSetOption = 280;`
   beside the hunt constants in `source/harness/detail/options.hpp`
   and move the block comment (the `280` to `289` note reads: 280
   taken, 281 to 289 stay free); add the settled-path member
@@ -95,7 +95,7 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
 
 ### Tests for User Story 1 ⚠️ (write first, observe failing)
 
-- [ ] T005 [P] [US1] Write the failing `toCounterSet` tests in
+- [X] T005 [P] [US1] Write the failing `toCounterSet` tests in
   `test/source/harness_hunt_rank_test.cpp`: rank ascending; cap at
   `topN`; a null rank never enters; `topN` zero answers none; `topN`
   above the ranked count answers all; a second call answers equal
@@ -130,7 +130,7 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Declare `toCounterSet` on `EntryHunt` in
+- [X] T008 [US1] Declare `toCounterSet` on `EntryHunt` in
   `include/speedgun-ng/hunt.hpp` (doxygen `\pre` none, `\post` the
   answer holds at most `topN` addresses, the ranked entries in
   ascending rank, measures nothing, reads no clock) and define it in

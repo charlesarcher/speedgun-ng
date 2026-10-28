@@ -19,7 +19,11 @@ project(
     # specs/036-osnoise-timerlat-tracers FR-004: this feature takes
     # 0.23.0, the next free minor; the ABI grows, so the harness
     # SOVERSION is 14 and the archive SOVERSION stays 4 (D-6).
-    VERSION 0.23.0
+    # specs/033-hunter-budgets FR-040 (R-15): a rebase onto the tree that
+    # has taken 0.23.0 takes the next free minor, 0.24.0. The hunt
+    # surface moves past specs/036, so the harness SOVERSION is 15 and
+    # the archive SOVERSION stays 4 (D-6, PD-20).
+    VERSION 0.24.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -306,7 +310,12 @@ set_target_properties(
     # gains tracerEngine and tracerCpus, and PrecheckRecord gains the
     # optional tracer record, so the exported layouts move again and the
     # number rises to 14.
-    SOVERSION 14
+    # specs/033 FR-013, FR-040: EntryHunt gains toCounterSet, so the hunt
+    # surface of this target moves past the 14 specs/036 left and the
+    # hand-kept number rises to 15. No record layout moves: the struct
+    # gains one member function and no member, and the counters archive
+    # keeps its SOVERSION 4 (hard rule 12).
+    SOVERSION 15
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )

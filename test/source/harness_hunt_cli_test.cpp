@@ -45,6 +45,7 @@
 #include <unistd.h>
 
 #include "detail/hunt_fixture.hpp"
+#include "detail/hunt_selection.hpp"
 #include "detail/internal.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
@@ -1681,6 +1682,99 @@ auto scenarioFilterSelectsTwoHuntedInstances() -> void
   std::printf("filter-selects-two-hunted: ok\n");
 }
 
+// ---------------------------------------------------------------------------
+// The shared `@`-file reader (specs/033-hunter-budgets T002; FR-014, R-09,
+// data-model N-07). Both routes read one grammar through
+// `detail::readAddressFileLines`: the hunt selection of the rows above, and the
+// `--counter` `@`-form of the round trip below. The scenario calls the reader
+// directly, so spec 029's separator rule stands pinned at the one place it now
+// lives, and the refusal rows above keep pinning the sentence the hunt route
+// prints over it.
+// ---------------------------------------------------------------------------
+
+auto readerFile(const char* kind, const std::string& text)
+    -> std::filesystem::path
+{
+  const auto path = capturePath(kind);
+  writeFile(path, text);
+  return path;
+}
+
+// The elements of one answer, spelled out for the failure line.
+auto elementText(const std::vector<std::string>& elements) -> std::string
+{
+  std::string text;
+  for (const auto& element : elements) {
+    if (!text.empty()) {
+      text += "|";
+    }
+    text += element.empty() ? "<empty>" : element;
+  }
+  return text;
+}
+
+auto scenarioSharedReaderRules() -> void
+{
+  // Spec 029's separator rule, stated once for both routes: each line cuts at
+  // the first `#`, a blank or whitespace-only line answers nothing, one line of
+  // two comma-separated addresses answers two elements, and a comma beside
+  // nothing answers the empty element each caller refuses in its own sentence.
+  const auto rules = readerFile("_rules.txt",
+                                "# a header\n" + address(0) + "\n\n   \n"
+                                    + address(1) + "," + address(2)
+                                    + " # tail\n," + address(3) + "\n");
+  const auto lines = sg::detail::readAddressFileLines(rules, "@rules.txt");
+  check(lines.has_value(), "the shared reader opens the file it is handed");
+  const std::string expected =
+      address(0) + "|" + address(1) + "|" + address(2) + "|<empty>|"
+      + address(3);
+  if (elementText(*lines) != expected) {
+    std::fprintf(
+        stderr, "reader answered (%zu): %s\nexpected: %s\n", lines->size(), elementText(*lines).c_str(), expected.c_str());
+  }
+  check(elementText(*lines) == expected,
+        "the reader answers the file's address elements under the separator "
+        "rule (FR-006, FR-014)");
+
+  // One level stands: a line that names another `@path` is an element, and the
+  // file behind it stays unread.
+  const auto inner = readerFile("_nested_inner.txt", address(9) + "\n");
+  const auto outer =
+      readerFile("_nested_outer.txt", "@" + inner.string() + "\n");
+  const auto nested =
+      sg::detail::readAddressFileLines(outer, "@" + outer.string());
+  check(nested.has_value(), "the shared reader opens the outer file");
+  check(nested->size() == 1 && (*nested)[0] == "@" + inner.string(),
+        "one level stands: a nested `@path` answers its own text, never the "
+        "file behind it (029 D-14, FR-014)");
+
+  // The reader's own refusal names the path in the spelling the caller gave it,
+  // in one line; each route prefixes its own option word.
+  const auto missing =
+      sg::detail::readAddressFileLines("/no/such/counter-set.txt",
+                                       "@/no/such/counter-set.txt");
+  check(!missing.has_value(),
+        "an unopenable file leaves the reader no element list (FR-012)");
+  if (missing.has_value()) {
+    return;
+  }
+  if (missing.error() != "'@/no/such/counter-set.txt' cannot be opened") {
+    std::fprintf(stderr, "the refusal reads: %s\n", missing.error().c_str());
+  }
+  check(missing.error() == "'@/no/such/counter-set.txt' cannot be opened",
+        "the reader refuses in one line naming the path it could not open "
+        "(FR-014, N-07)");
+
+  // A file that holds nothing answers the empty list, the shape the emit row
+  // writes and both routes refuse in their own sentence.
+  const auto blank = readerFile("_empty.txt", "");
+  const auto none = sg::detail::readAddressFileLines(blank, "@empty.txt");
+  check(none.has_value() && none->empty(),
+        "a file that holds no line answers no element (FR-011, FR-014)");
+
+  std::printf("shared-reader-rules: ok\n");
+}
+
 [[nodiscard]] auto scenarios() -> const std::vector<Scenario>&
 {
   static const std::vector<Scenario> kList {
@@ -1718,6 +1812,7 @@ auto scenarioFilterSelectsTwoHuntedInstances() -> void
                 &scenarioThreadedHuntPrintsTheContextTail},
       Scenario {"filter-selects-two-hunted",
                 &scenarioFilterSelectsTwoHuntedInstances},
+      Scenario {"shared-reader-rules", &scenarioSharedReaderRules},
       Scenario {"option-order-settles", &scenarioOptionOrderSettles},
       Scenario {"option-without-hunt", &scenarioOptionWithoutHunt},
       Scenario {"option-order-refusals", &scenarioOptionOrderRefusals},
