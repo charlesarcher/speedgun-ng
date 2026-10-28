@@ -1425,15 +1425,46 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   if (passColumns.empty() && instance.huntPlan.has_value()
       && instance.huntPlan->muxGroups.size() > 1)
   {
-    passColumns = instance.huntPlan->passes;
-    planning = sg::detail::PassPlan {};
-    planning.columns = passColumns;
-    planning.measuringPass.assign(columns.size(), 0);
-    for (std::size_t seat = 0; seat < passColumns.size(); ++seat) {
-      for (const std::size_t column : passColumns[seat]) {
-        planning.measuringPass[column] = seat;
+    const auto& handoff = *instance.huntPlan;
+    // A handoff pass holds positions in the stage's leaf list. The run's
+    // columns start with the metrics the family attached in code (FR-021), so
+    // a position is no column index: the two spaces join at the address each
+    // names, the join the retry route of PD-11 reads.
+    std::vector<std::size_t> measuring(columns.size(), 0);
+    std::vector<bool> measured(columns.size(), false);
+    for (const auto& group : handoff.passes) {
+      std::vector<std::size_t> seats;
+      for (const std::size_t position : group) {
+        const std::string& address = handoff.columns[position].event;
+        const auto found = std::find_if(columns.begin(),
+                                        columns.end(),
+                                        [&address](const MetricColumn& column)
+                                        { return column.label == address; });
+        const std::size_t column =
+            static_cast<std::size_t>(found - columns.begin());
+        SG_ASSERT(column < columns.size(),
+                  "the run carries a column for every address the handoff "
+                  "names, because its counter addresses are the stage's leaf "
+                  "list (D-23)");
+        seats.push_back(column);
+      }
+      const std::size_t seat = passColumns.size();
+      for (const std::size_t column : seats) {
+        measured[column] = true;
+        measuring[column] = seat;
+      }
+      passColumns.push_back(std::move(seats));
+    }
+    // A column no group names - the metric a family attached in code - rides
+    // the first window, the reference pass the merge and the ledger read.
+    for (std::size_t column = 0; column < columns.size(); ++column) {
+      if (!measured[column]) {
+        passColumns.front().push_back(column);
       }
     }
+    planning = sg::detail::PassPlan {};
+    planning.columns = passColumns;
+    planning.measuringPass = std::move(measuring);
   }
   // E-03 rule 7, E-01: when no source the run needs publishes a limit, no
   // plan stands and the run keeps the one kernel-multiplexed plan of the
