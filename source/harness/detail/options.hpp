@@ -260,6 +260,22 @@ struct CommandLineOptions
  */
 [[nodiscard]] auto quotedText(const std::string_view text) -> std::string;
 
+// The one line of the row whose path word stands empty: `--json`,
+// `--compare-rules`, `--options` and `--hunt-emit-set` print one form
+// (FR-030, FR-035; specs/033 FR-012). The scan and the settle function of a
+// row read it, and so does the hunt lane, whose bodies stand in
+// `hunt_cli.cpp`.
+inline constexpr std::string_view kEmptyPathTail =
+    "the path the option names stands empty";
+
+/// @brief The whole empty-path line of one option, quoted nowhere and
+///        standing on one line (FR-030, FR-035).
+[[nodiscard]] inline auto emptyPathFault(const std::string_view option)
+    -> std::string
+{
+  return std::string(option) + ": " + std::string(kEmptyPathTail);
+}
+
 /**
  * @brief The batch filter pattern of FR-024 and FR-050, compiled where the
  * option settles: the expression the row names, no pattern when the settled
@@ -304,6 +320,8 @@ auto parseHuntNoise(const char* text, RunOptions& options) -> void;
 auto parseHuntRepeats(const char* text, RunOptions& options) -> void;
 auto parseHuntBudget(const char* text, RunOptions& options) -> void;
 auto parseHuntSeed(const char* text, RunOptions& options) -> void;
+// specs/033-hunter-budgets FR-010, FR-012: the path `--hunt-emit-set` names.
+auto parseHuntEmitSet(const char* text, RunOptions& options) -> void;
 auto expandHuntSelection(RunOptions& options) -> void;
 auto validateHuntCombination(const RunOptions& options) -> void;
 

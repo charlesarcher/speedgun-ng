@@ -696,6 +696,7 @@ variable.
 | `hunt-repeats` | required |  | Sets how many repeats one hunt event takes |
 | `hunt-budget` | required |  | Sets the hunt budget in seconds or passes |
 | `hunt-seed` | required |  | Sets the seed the hunt repeats draw from |
+| `hunt-emit-set` | required |  | Writes the ranked hunt events to that file |
 
 The highest source that sets an option wins: the command line, then the option
 file, then the environment, then the built-in default. A repeatable option from
@@ -1728,7 +1729,7 @@ device that publishes fewer than three programmable counters cannot carry a
 hunt pass beside its two anchors, and the run is refused before any pass is
 planned.
 
-### The eight options
+### The nine options
 
 | Option | Default | Accepted value |
 | --- | --- | --- |
@@ -1740,6 +1741,7 @@ planned.
 | `--hunt-repeats` | `3` | 1 to 1000 hunt repetitions |
 | `--hunt-budget` | none | `<n>s` seconds or `<n>p` passes, `<n>` above 0 |
 | `--hunt-seed` | `0` | any whole number a 64-bit unsigned holds |
+| `--hunt-emit-set` | none | a file path |
 
 `--hunt-norm` unset ranks by instructions. `--hunt-seed` at `0` keeps the
 catalog order, and any other value shuffles the planned order the same way on
@@ -1772,11 +1774,13 @@ block states the shape of that output.
 --hunt-budget: expected <n>s or <n>p, got '120'
 --hunt-budget: expected a count above 0, got '0p'
 --hunt-seed: expected a whole number, got 'abc'
+--hunt-emit-set: the path the option names stands empty
 hunt: device 'cpu' publishes 2 slots and a hunt pass needs 3
 --hunt cannot combine with --counter
 --hunt cannot combine with --metric
 --hunt cannot combine with --compare
 --hunt cannot combine with --placement
+--hunt-emit-set: 'culprits.txt' needs --hunt
 ```
 
 The placement option is the scope option of this conflict family. This tree

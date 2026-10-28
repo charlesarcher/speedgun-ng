@@ -536,6 +536,24 @@ auto expandRegistry(std::optional<Preset> processPreset = std::nullopt) -> void;
 [[nodiscard]] auto instances() -> std::vector<Instance>&;
 
 /**
+ * @brief Write the promoted counter set of the run to `path`, one catalog
+ * address per line (specs/033-hunter-budgets FR-011, FR-012, R-07).
+ *
+ * The entry point calls this after the batch, beside the report writer, so the
+ * file holds every entry's ranked list. The lines are the deduplicated union of
+ * each result's `toCounterSet(topN)`, in result order and, within a result, in
+ * rank order.
+ *
+ * \pre `topN` is the `--hunt-top` the run hunted under
+ * \post the file holds one address per line and no header, an empty ranking
+ *       writing an empty file; on failure one stderr line names the path and
+ *       the reason the file system gave, and the answer is false
+ */
+auto writeHuntEmitSet(const std::string& path,
+                      std::span<const BenchmarkResult> results,
+                      std::size_t topN) -> bool;
+
+/**
  * @brief One counter address beside the origin of the source that named it
  * (FR-038, FR-087).
  *

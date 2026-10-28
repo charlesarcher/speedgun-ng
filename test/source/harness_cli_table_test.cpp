@@ -11,11 +11,12 @@
 // seven new names take the constants 290 to 296 that spec D-24 reserves.
 // The expected rows stand here as literals, the master name to value
 // mapping of FR-013 among them.
-// The contract fixes 37 rows in one order. The 20 rows master carries keep
+// The contract fixes 38 rows in one order. The 20 rows master carries keep
 // their spelling, their argument kind and their internal value, the seven
 // new names take the constants 290 to 296 that spec D-24 reserves, the
-// noise tracer's name takes 297, and the eight hunt names of
-// specs/029-hunter-core take the block 270 to 279 that lane reserves. The
+// noise tracer's name takes 297, and the nine hunt names take the block
+// 270 to 289 the hunt lane reserves: the eight of specs/029-hunter-core at
+// 270 to 277 and `hunt-emit-set` of specs/033-hunter-budgets at 280. The
 // expected rows stand here as literals, the master name to value mapping
 // of FR-013 among them.
 //
@@ -49,7 +50,7 @@
 //
 // Check map:
 //   theTableAnswersARowList        one source file yields rows
-//   theTableHoldsThirtySevenRows   the row count is the contract's 37
+//   theTableHoldsThirtyEightRows   the row count is the contract's 38
 //                                  (FR-001, FR-004, SC-001)
 //   theNamesStandInTheContractOrder
 //                                  the names in table order equal the
@@ -71,10 +72,10 @@
 //   noNameAndNoValueRepeat         uniqueness over the whole table
 //                                  (FR-004, SC-001)
 //   theHuntNamesTakeTheReservedConstants
-//                                  the eight hunt rows at 270 to 277,
-//                                  the numbers
-//                                  contracts/hunt-cli.md states them with
-//                                  (specs/029 FR-083, D-22)
+//                                  the nine hunt rows at 270 to 277 and
+//                                  at 280, the numbers the two contracts
+//                                  state them with (specs/029 FR-083,
+//                                  D-22; specs/033 FR-010, R-13)
 //   theFixtureTwinReportsItsPlantedDefects
 //                                  the two rules above report the planted
 //                                  duplicate name and the planted value
@@ -205,7 +206,7 @@ constexpr char kRequired = 'r';
 constexpr char kOptional = 'o';
 constexpr char kNoArgument = 'n';
 
-constexpr std::array<ExpectedRow, 37> kContract = {{
+constexpr std::array<ExpectedRow, 38> kContract = {{
     {"filter", kRequired, 'f'},
     {"list", kNoArgument, 'l'},
     {"repetitions", kRequired, 'r'},
@@ -243,32 +244,33 @@ constexpr std::array<ExpectedRow, 37> kContract = {{
     {"hunt-repeats", kRequired, 275},
     {"hunt-budget", kRequired, 276},
     {"hunt-seed", kRequired, 277},
+    {"hunt-emit-set", kRequired, 280},
 }};
 
 // The rows master carries today; the seven rows after them are the ones
-// this feature adds, and the eight hunt rows of specs/029-hunter-core close
-// the table.
+// this feature adds, and the nine hunt rows close the table: the eight of
+// specs/029-hunter-core and `hunt-emit-set` of specs/033-hunter-budgets.
 constexpr std::size_t kMasterRows = 20;
 constexpr std::size_t kRowsBeforeHunt = 29;
 
 // The bounds of the three value blocks: the constants the harness carried
-// before this feature, the constants specs/029-hunter-core reserves for the
-// eight hunt names, the constants spec D-24 reserves for the seven new
-// names, and the noise tracer's own constant, 298 to 319 left free for the
-// lanes that follow (FR-004, FR-079; specs/029 FR-083, D-22).
+// before this feature, the constants the hunt lane reserves for its nine
+// names, the constants spec D-24 reserves for the seven new names, and the
+// noise tracer's own constant, 298 to 319 left free for the lanes that
+// follow (FR-004, FR-079; specs/029 FR-083, D-22; specs/033 FR-010, R-13).
 constexpr int kCarriedLow = 256;
 constexpr int kCarriedHigh = 259;
 constexpr int kHuntLow = 270;
-constexpr int kHuntHigh = 279;
+constexpr int kHuntHigh = 289;
 constexpr int kReservedLow = 290;
 constexpr int kReservedHigh = 296;
 constexpr int kJitterProbeValue = 260;
 constexpr int kOsNoiseValue = 297;
 
-// The eight hunt rows and the numbers
-// `specs/029-hunter-core/contracts/hunt-cli.md` assigns them; the rule binds
-// the number, whichever constant spells it (specs/029 FR-083, D-22).
-constexpr std::array<std::pair<std::string_view, int>, 8> kHuntValues = {{
+// The nine hunt rows and the numbers the two hunt contracts assign them; the
+// rule binds the number, whichever constant spells it (specs/029 FR-083,
+// D-22; specs/033-hunter-budgets FR-010, contracts/counter-file.md).
+constexpr std::array<std::pair<std::string_view, int>, 9> kHuntValues = {{
     {"hunt", 270},
     {"hunt-norm", 271},
     {"hunt-rank", 272},
@@ -277,6 +279,7 @@ constexpr std::array<std::pair<std::string_view, int>, 8> kHuntValues = {{
     {"hunt-repeats", 275},
     {"hunt-budget", 276},
     {"hunt-seed", 277},
+    {"hunt-emit-set", 280},
 }};
 
 // The hunt rows of the fixture twin: the eight of the contract plus the row
@@ -675,13 +678,13 @@ auto theTableAnswersARowList(const std::vector<Row>& rows) -> void
   check(!rows.empty(), "the table source answers a row list (FR-079)");
 }
 
-auto theTableHoldsThirtySevenRows(const std::vector<Row>& rows) -> void
+auto theTableHoldsThirtyEightRows(const std::vector<Row>& rows) -> void
 {
   if (rows.size() == kContract.size()) {
     return;
   }
-  report("the table holds the 37 rows of the contract (FR-001, FR-004, SC-001)",
-         "37 rows",
+  report("the table holds the 38 rows of the contract (FR-001, FR-004, SC-001)",
+         "38 rows",
          std::to_string(rows.size()) + " rows");
 }
 
@@ -844,9 +847,9 @@ auto inNewBlock(const int value) -> bool
       || value == kJitterProbeValue || value == kOsNoiseValue;
 }
 
-// The value block of the 8 hunt rows: the constants 270 to 279 that
-// specs/029-hunter-core reserves, 278 and 279 unused this release
-// (specs/029 FR-083, D-22).
+// The value block of the 9 hunt rows: the constants 270 to 289 the hunt lane
+// reserves, 278, 279 and 281 to 289 unused this release (specs/029 FR-083,
+// D-22; specs/033 FR-010, R-13).
 auto inHuntBlock(const int value) -> bool
 {
   return value >= kHuntLow && value <= kHuntHigh;
@@ -935,7 +938,7 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
   }
 }
 
-// The eight hunt rows of the table, each at the number the contract of
+// The nine hunt rows of the table, each at the number the contract of
 // specs/029-hunter-core states (FR-083, SC-05, D-22).
 auto theHuntNamesTakeTheReservedConstants(const std::vector<Row>& rows) -> void
 {
@@ -1715,7 +1718,7 @@ auto main(int argc, char** argv) -> int
   }
 
   theTableAnswersARowList(rows);
-  theTableHoldsThirtySevenRows(rows);
+  theTableHoldsThirtyEightRows(rows);
   theNamesStandInTheContractOrder(rows);
   eachRowCarriesItsArgumentKind(rows);
   eachRowCarriesItsValue(rows);

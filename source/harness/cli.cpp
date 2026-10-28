@@ -1664,7 +1664,21 @@ auto speedgunMain(int argc, char** argv) -> int
     }
   }
 
-  SG_ENSURE((status != 0) == (anyFailed || anyInterrupted || reportFailed),
+  // specs/033 FR-011, FR-012, R-07: the file the next run reads stands beside
+  // the document, after the batch, so it holds every entry's ranked list. The
+  // conflict check settled that a settled path has a hunt to fill it, and the
+  // hunt settled the `--hunt-top` the same run ranked under.
+  [[maybe_unused]] bool emitFailed = false;
+  if (!options.huntEmitSet.empty()) {
+    emitFailed = !detail::writeHuntEmitSet(
+        options.huntEmitSet, report.results, options.hunt->top);
+    if (emitFailed) {
+      status = 2;
+    }
+  }
+
+  SG_ENSURE((status != 0)
+                == (anyFailed || anyInterrupted || reportFailed || emitFailed),
             "the exit status follows the table of contracts/cli.md (FR-036)");
 
   // specs/035 FR-013, R-07: a bind that failed at a context start
