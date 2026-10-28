@@ -56,9 +56,9 @@ new `--ignore-errors` entry.
 Under `taskset -c 0,1` (T025, FR-017) the suite reads 142 of 143:
 the one failure is the `report_shape_jitter_sample` fold, whose
 recorded block names the two L3 groups the full host carries, so a
-run held to two cpus prints one candidate section fewer — the host
-dependence the `034-host-noise-precheck` shape gate owns, present on
-master, untouched by this branch. The feature's own tests stand green
+run held to two cpus prints one candidate section fewer; the host
+dependence is the `034-host-noise-precheck` shape gate's, present on
+master and untouched by this branch. The feature's own tests stand green
 under the same constraint:
 
 ```

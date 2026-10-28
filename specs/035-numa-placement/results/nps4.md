@@ -4,7 +4,7 @@
 - Boot: none recorded. The BIOS change and the reboot stand outside
   this lane session's reach: the lane runs beside a live session on
   thrawn, and a memory-map reboot ends it, so the state stands
-  unrecorded rather than recorded on a boot that did not run.
+  unrecorded; no boot ran, so no record stands in its place.
 
 ## The runs
 
@@ -16,7 +16,6 @@ names.
 ## The gap
 
 The reboot the state needs stands outside this lane session's reach.
-The gap is the boot, not the commands: the state list and the command
-set stand complete in [plan.md](./plan.md), and the record set of
-this lane names the state here rather than leaving it silent
-(FR-019, SC-005).
+The gap is the boot: the state list and the command set stand
+complete in [plan.md](./plan.md), and this record names the state
+here, so the gap stands named (FR-019, SC-005).
