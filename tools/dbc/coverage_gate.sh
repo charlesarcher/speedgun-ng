@@ -74,6 +74,16 @@ if (( missing <= allowance )); then
        " D-14 recorded allowance of ${allowance} (accepted classes)"
   exit 0
 fi
-echo "coverage-gate: branch shortfall ${missing} rows exceeds the "\
+echo "coverage-gate: branch shortfall ${missing} rows exceeds the " \
      "D-14 recorded allowance of ${allowance}" >&2
+# The reader needs the rows the count names: every branch position the
+# trace holds at taken zero, so the difference against the recorded
+# classes stands on the log the job keeps.
+awk '
+  /^SF:/ { sf = $0; sub(/^SF:/, "", sf) }
+  /^BRDA:/ {
+    split(substr($0, 6), f, ",")
+    if (f[4] == "0") { print sf " line " f[1] " branch " f[3] }
+  }
+' "${info}" | sort -u >&2
 exit 1
