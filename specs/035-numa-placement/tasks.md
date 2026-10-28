@@ -102,14 +102,15 @@ the plan states.
 - [ ] T007 [P] [US1] Write the failing resolver tests in
   `test/source/harness_numa_placement_test.cpp`: two nodes and eight
   contexts cycle the nodes; a count below the node count fills in
-  hwloc's node order; every planned cpu stands inside the mask, on
-  the bound node, and the cpus stand pairwise distinct
+  hwloc's node order; a node whose cpus all stand outside the mask
+  takes no context; every planned cpu stands inside the mask, on the
+  bound node, and the cpus stand pairwise distinct
   (FR-009, FR-012, R-03, R-04)
 - [ ] T008 [P] [US1] Write the failing disclosure tests in
   `test/source/harness_numa_placement_test.cpp`: a bound context's
   field reads `cpu@group@node` in the console row and in the JSON
   context field; a run with no node preset stands byte-identical to
-  master apart from the `schemaVersion` value
+  master apart from the version figures the report carries
   (FR-011, FR-002, FR-004, R-08)
 - [ ] T009 [US1] Write the failing context-start tests in
   `test/source/harness_numa_placement_test.cpp`: the bind stands

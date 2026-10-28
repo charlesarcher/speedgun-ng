@@ -91,7 +91,7 @@ One line per node under the L3 lines:
 | Line | Case |
 | --- | --- |
 | `node <n>: <cpu-list>` | the read states the node and the mask touches its cpus |
-| `not available` | the read states no memory information: the node lines print the wording where the cpu lists would stand, and the rest of the listing keeps its bytes; the exact wording stands in `contracts/cli-placement.md` and the fixture pins it |
+| `node: not available` | the read states no memory information: one line stands in the node family's place, and the rest of the listing keeps its bytes; the fixture pins the line |
 
 ### The refusal set
 

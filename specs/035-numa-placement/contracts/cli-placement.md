@@ -41,11 +41,18 @@ node 0: 0-11,24-35
 node 1: 12-23,36-47
 ```
 
+The no-memory-information listing prints the node family as one
+line:
+
+```text
+node: not available
+```
+
 | Rule | Requirement |
 | --- | --- |
 | One line per memory node the read states, in the read's node order, naming the node number and the cpus of that node inside the process mask. | FR-006 |
 | The node numbers, the cpus and the counts stay the ones the hwloc read states; the listing renames and regroups nothing. | FR-006, D-3 |
-| A read that states no memory information prints `not available` in the node lines' place and keeps the rest of the listing byte-identical. | FR-007 |
+| A read that states no memory information prints one line reading `node: not available` in the node family's place and keeps the rest of the listing byte-identical. | FR-007 |
 | A machine read the harness cannot read refuses one line, exit status 2. | FR-008, standing |
 
 ## Refusal rows

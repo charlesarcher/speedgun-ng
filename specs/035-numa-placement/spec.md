@@ -246,7 +246,8 @@ the node the plan states.
    node beside the group.
 2. **Given** a run with no node preset, **When** the run completes,
    **Then** the console report and the JSON document carry the same
-   bytes as master apart from the `schemaVersion` value.
+   bytes as master apart from the version figures the report
+   carries.
 
 ### User Story 2 - The listing names the memory nodes (Priority: P2)
 
@@ -378,7 +379,8 @@ compiles.
   handle SHALL carry it with no new option row and no option value.
 - **FR-002**: A run with no node preset SHALL produce the same
   console report and the same JSON bytes as master apart from the
-  `schemaVersion` value.
+  version figures the report carries: the report version moves with
+  FR-003, and the schema version stands at `1.6` on both sides.
 - **FR-003**: The version SHALL stand at `0.22.0` with the harness
   `SOVERSION` at `13` and the archive `SOVERSION` at `4`, and the
   commit that moves the version SHALL record the ABI check (D-6).
@@ -398,8 +400,9 @@ compiles.
   numbers and the counts stay the ones the hwloc read states, with
   no abstraction beyond the line shape (D-3).
 - **FR-007**: A topology read that states no memory information
-  SHALL print `not available` for the node lines alone, keep the
-  rest of the listing unchanged, and exit 0.
+  SHALL print one line reading `node: not available` in the node
+  family's place, keep the rest of the listing unchanged, and exit
+  0.
 - **FR-008**: A machine read the harness cannot read SHALL refuse
   one line with exit status 2, the standing rule of spec 025,
   unchanged.
@@ -476,7 +479,7 @@ compiles.
 - **SC-001**: A run with the `node` preset discloses the node of
   every bound context in the console rows and in the JSON context
   fields, and a run without the preset stands byte-identical to
-  master apart from the `schemaVersion` value.
+  master apart from the version figures the report carries.
 - **SC-002**: The `--topology` listing prints one line per memory
   node inside the process mask, and the lines fold stable across
   hosts through the shape gate's mask.
