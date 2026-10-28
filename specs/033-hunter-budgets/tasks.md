@@ -405,9 +405,13 @@ section within 25 lines, and the extended example matches its
   pure `rankEvents` over scripted samples answers `toCounterSet`, the
   program prints the promoted addresses, and the result sentence
   names the `--counter=@<file>` reading they serve; re-record
-  `example/docs/hunt_rank.expected`; the `run_docs_hunt_rank` entry
+  `example/docs/hunt_rank.expected` and move the byte-exact
+  `sg-sample-output` block of `docs/pages/harness.md:1616-1630`
+  in the same commit (`example_drift` and `report_shape` compare
+  that block with the file); the `run_docs_hunt_rank` entry
   (`example/CMakeLists.txt:77`) and `example_run` pass on this
   machine and on a CI runner (FR-031, R-14, research D-9)
+  (after T026: the same file)
 - [ ] T028 [US4] Run the drift gates (`example_drift`,
   `example_run`, `report_shape`) and measure the README length: the
   861-line page stands three lines under `PAGE_LINE_CAP` 864, so a
@@ -469,7 +473,7 @@ Phase 4 (US2):  T014,T015,T016 (parallel, failing)
                 T017 <- T015;  T018 <- T014,T017;  T019 <- T018;  T020 <- T018,T016
 Phase 5 (US3):  T021,T022 (parallel, failing)
                 T023 <- T017,T022;  T024 <- T018,T021,T023;  T025 <- T020,T024,T022
-Phase 6 (US4):  T026,T027 (parallel);  T028 <- T026,T027
+Phase 6 (US4):  T026 -> T027 (same file);  T028 <- T026,T027
 Phase 7:        T029,T030 (parallel) -> T031 -> T032 -> T033
 ```
 
@@ -481,7 +485,7 @@ public surface of US1 plus the grammar of US2/US3 settled.
 
 - Failing-test waves: T005/T006 (T007 follows T006, same
   file); T014/T015/T016; T021/T022;
-  T026/T027; T029/T030 (T031 follows both).
+  T026 then T027 (same file); T029/T030 (T031 follows both).
 - Independent singletons: T002 with T004; T008 with T009 with T011
   (different files: `hunt.hpp`+`hunt_plan.cpp`, `options.cpp`+
   `hunt_cli.cpp`, `options.cpp` gather arm: the two `options.cpp`
