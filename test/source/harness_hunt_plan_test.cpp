@@ -35,6 +35,13 @@
 // of I-3 - so no case here states a host figure, a CPU count or a clock reading
 // (FR-003, FR-020, I-7).
 //
+// The sample-budget tables of specs/033 extend the same two seams.
+// `splitStages` answers the repeats a sample budget derives, the state it
+// records, and the re-priced figure the stage-drop decision reads (FR-001,
+// FR-002, FR-005, R-02, R-03, N-03). Those rows hand the planner the settled
+// clause figure directly: the `e` grammar stands in `hunt_cli.cpp` and
+// `harness_hunt_cli_test.cpp` pins it.
+//
 // The list below is what CTest runs, so an entry absent from it never runs, and
 // `argv[1]` selects one entry of it. Frameworkless check()/fail() convention,
 // the one `harness_pass_plan_test.cpp` and `harness_pass_report_test.cpp`
@@ -1002,7 +1009,8 @@ auto refusesZeroPasses() -> void
 // it: the unit test refuses it before the count is read (FR-012).
 auto refusesNoSuffix() -> void
 {
-  refusesBudget("120", "--hunt-budget: expected <n>s or <n>p, got '120'");
+  refusesBudget("120",
+                "--hunt-budget: expected <n>s, <n>p, <n>e or <n>g, got '120'");
 }
 
 // A negative count has no spelling in a hunt count at all: the unit suffix
@@ -1016,7 +1024,8 @@ auto refusesNegativeCount() -> void
 // contract table are the same row (FR-012, FR-081).
 auto refusesNonNumeric() -> void
 {
-  refusesBudget("abc", "--hunt-budget: expected <n>s or <n>p, got 'abc'");
+  refusesBudget("abc",
+                "--hunt-budget: expected <n>s, <n>p, <n>e or <n>g, got 'abc'");
 }
 
 // ---------------------------------------------------------------------------
@@ -1370,6 +1379,384 @@ auto budgetSecondsOverflow() -> void
         "the overflowed budget carries the reason the cut line prints");
 }
 
+// ---------------------------------------------------------------------------
+// The sample-budget seam (033 US2, FR-001, FR-002, FR-005, R-02, R-03, R-05;
+// data-model N-03; contracts/budget-grammar.md "Derived behavior")
+// ---------------------------------------------------------------------------
+
+// The settled values of one sample-budget row: the record `budgetOptions`
+// settles beside the `e` clause's whole-nanosecond figure. A row hands the
+// figure directly, because the clause parse stands in `hunt_cli.cpp` and
+// `harness_hunt_cli_test.cpp` pins it: the planner reads no text (R-01).
+[[nodiscard]] auto sampleOptions(
+    const std::optional<sg::hunt::HuntBudget>& budget,
+    const std::size_t top,
+    const std::optional<std::uint64_t> sampleBudgetNs) -> sg::hunt::HuntOptions
+{
+  auto options = budgetOptions(budget, top);
+  options.sampleBudgetNs = sampleBudgetNs;
+  return options;
+}
+
+// The whole numbers one sample-budget row states before it plans: the windows
+// the priced stage spans, the repeats that stage's own rule gives, the
+// nanoseconds the budget names, and the derived count the row expects. The
+// price of one repeat is the standing calibration term over the stage's own
+// window count, so no row reads a host figure (R-02).
+struct SampleRow
+{
+  std::uint64_t passCount;
+  std::size_t rule;
+  std::uint64_t budgetNs;
+  std::size_t derived;
+  const char* what;
+};
+
+// The derived count of one row: `min(rule, max(1, floor(budgetNs /
+// (calibration x passCount))))`, the formula of R-02 spelled out so a row reads
+// its expectation off the figures it names.
+[[nodiscard]] auto derivedOf(const SampleRow& row) -> std::size_t
+{
+  const auto price = kCalibrationNsPerPass * row.passCount;
+  const auto fit = static_cast<std::size_t>(row.budgetNs / price);
+  return std::min(row.rule, fit == 0 ? std::size_t {1} : fit);
+}
+
+// The plan order of one seed: the scripted catalog split at `seed`, so a row
+// that compares two seeds reads two orders of the same 200 columns, and the
+// figures it states come from the seed and the calibration figure alone
+// (spec 029 FR-014, SC-07).
+[[nodiscard]] auto columnsAt(const std::uint64_t seed, const std::size_t count)
+    -> std::vector<sg::hunt::CatalogAddress>
+{
+  check(registerHuntHost(), "the scripted hunt host registered");
+  auto catalog = sg::hunt::EventCatalog {};
+  check(catalog.expand("all").has_value(), "the fixed selection expands");
+  const auto split = catalog.split(seed);
+  check(split.second.empty(), "every scripted entry is countable");
+  check(split.first.size() == sg::test::kHuntEvents,
+        "the seed orders the 200 planned columns");
+  check(count <= split.first.size(),
+        "the row asks for columns the order holds");
+  return {split.first.begin(),
+          split.first.begin() + static_cast<std::ptrdiff_t>(count)};
+}
+
+// ---------------------------------------------------------------------------
+// The derived-repeat tables (033 US2, FR-001, FR-002, FR-005, R-02, R-03)
+// ---------------------------------------------------------------------------
+
+// FR-001, R-02: the derived count is the largest count that measures every
+// event of the stage inside the budget, floored at one repeat and capped at the
+// repeats the stage's own rule gives. Each row plans the un-budgeted AC-7 plan,
+// whose one stage spans all 50 passes and whose rule figure is the settled 3
+// repeats, so one repeat of that stage prices 1'920'000 x 50 = 96'000'000 ns.
+auto derivedRepeatRows() -> void
+{
+  const SampleRow rows[] = {
+      SampleRow {50, 3, 96'000'000, 1, "the budget prices exactly one repeat"},
+      SampleRow {50, 3, 192'000'000, 2, "the budget prices two repeats"},
+      SampleRow {50, 3, 200'000'000, 2, "the floor drops the remainder"},
+      SampleRow {50, 3, 287'999'999, 2, "one nanosecond under three prices"},
+      SampleRow {50, 3, 288'000'000, 3, "three prices stand at the rule"},
+      SampleRow {50, 3, 1'000'000'000, 3, "the stage rule caps a wider budget"},
+  };
+  const auto events = acSevenColumns();
+  for (const auto& row : rows) {
+    const auto options = sampleOptions(std::nullopt, kAcSevenTop, row.budgetNs);
+    const auto plan = planned(events, kAcOneLimit, options, row.what);
+
+    check(derivedOf(row) == row.derived,
+          "the figures the row states derive the count the row expects");
+    check(plan.stages.size() == 1, "an un-budgeted plan keeps its one stage");
+    check(plan.stages.front().repeats == row.derived,
+          "the stage measures the derived count (FR-001)");
+    check(plan.sample.derivedRepeats == row.derived,
+          "the plan record carries the derived count (FR-002, N-03)");
+    check(!plan.sample.overBudget && !plan.sample.unpriced,
+          "a priced budget that fits records no state flag (FR-002)");
+
+    const auto split =
+        sg::detail::splitStages(plan, options, kCalibrationNsPerPass);
+    check(split.stages.front().repeats == row.derived,
+          "the seam gives the stage the derived count (R-02)");
+    check(split.sample.derivedRepeats == row.derived && !split.sample.overBudget
+              && !split.sample.unpriced,
+          "the seam records the state the plan record carries");
+  }
+}
+
+// FR-002, R-02: the estimate re-prices from the derived count. The AC-7 plan of
+// one stage answers 1'920'000 x 50 x 3 = 288'000'000 ns with no sample budget
+// and 1'920'000 x 50 x 2 = 192'000'000 ns once a 200'000'000 ns budget derives
+// two repeats, because the derivation replaces the repeat figure the estimate
+// multiplies.
+auto sampleEstimateReprices() -> void
+{
+  const auto events = acSevenColumns();
+  const auto standing =
+      planned(events,
+              kAcOneLimit,
+              sampleOptions(std::nullopt, kAcSevenTop, std::nullopt),
+              "the row without a sample budget plans");
+  check(standing.stages.front().repeats == kDefaultRepeats,
+        "no sample budget leaves the rule repeats standing (FR-002)");
+  check(standing.estimateNs
+            == kCalibrationNsPerPass * kAcSevenPasses * kDefaultRepeats,
+        "the standing estimate is calibration times passes times repeats");
+
+  const auto derived =
+      planned(events,
+              kAcOneLimit,
+              sampleOptions(std::nullopt, kAcSevenTop, 200'000'000),
+              "the priced row plans");
+  check(derived.stages.front().repeats == 2, "the budget derives two repeats");
+  check(derived.estimateNs == kCalibrationNsPerPass * kAcSevenPasses * 2,
+        "the estimate re-prices from the derived count (FR-002)");
+}
+
+// FR-002, R-03: a budget under one repeat's price keeps one repeat and records
+// the overrun, and the plan stands. One repeat of the AC-7 stage prices
+// 96'000'000 ns, so 95'999'999 ns and 1 ns both fall under one price.
+auto sampleOverBudgetKeepsOneRepeat() -> void
+{
+  const std::uint64_t shortBudgets[] = {95'999'999, 1};
+  const auto events = acSevenColumns();
+  for (const auto budgetNs : shortBudgets) {
+    const auto options = sampleOptions(std::nullopt, kAcSevenTop, budgetNs);
+    const auto plan =
+        planned(events, kAcOneLimit, options, "a short sample budget plans");
+
+    check(plan.stages.front().repeats == 1,
+          "one repeat stands above the budget (FR-002, R-03)");
+    check(plan.sample.derivedRepeats == 1,
+          "the record names the one repeat it kept (N-03)");
+    check(plan.sample.overBudget, "the record states the overrun (FR-002)");
+    check(!plan.sample.unpriced, "a calibration figure priced the stage");
+    check(plan.estimateNs == kCalibrationNsPerPass * kAcSevenPasses,
+          "the estimate prices the one repeat the plan kept");
+
+    const auto split =
+        sg::detail::splitStages(plan, options, kCalibrationNsPerPass);
+    check(split.stages.front().repeats == 1 && split.sample.overBudget
+              && split.sample.derivedRepeats == 1,
+          "the seam records the overrun the plan record carries");
+  }
+}
+
+// FR-002, R-03, N-03: a sample budget beside no calibration figure leaves the
+// stage rule repeats standing and records the unpriced state. The AC-7 plan of
+// one stage keeps the settled 3 repeats, because nothing prices the stage.
+auto sampleWithoutCalibrationIsUnpriced() -> void
+{
+  const auto events = acSevenColumns();
+  const auto limits = sg::test::huntLimits(kAcOneLimit);
+  const auto anchors = sg::test::huntAnchors();
+  const auto options = sampleOptions(std::nullopt, kAcSevenTop, 200'000'000);
+
+  const auto open =
+      sg::hunt::planHunt(events, limits, anchors, options, std::nullopt);
+  check(open.has_value(), "an unpriced sample budget plans");
+  check(open.has_value() && open->stages.front().repeats == kDefaultRepeats,
+        "no figure leaves the rule repeats standing (FR-002)");
+  check(open.has_value() && open->sample.unpriced,
+        "the record states the unpriced state (FR-002, N-03)");
+  check(open.has_value() && !open->sample.derivedRepeats.has_value()
+            && !open->sample.overBudget,
+        "an unpriced stage derives no count and records no overrun (N-03)");
+  check(open.has_value() && !open->estimateNs.has_value(),
+        "no calibration figure answers no estimate (FR-012 of spec 029)");
+
+  if (open.has_value()) {
+    const auto split = sg::detail::splitStages(*open, options, std::nullopt);
+    check(split.stages.front().repeats == kDefaultRepeats
+              && split.sample.unpriced
+              && !split.sample.derivedRepeats.has_value(),
+          "the seam leaves the rule repeats standing and says so");
+  }
+}
+
+// FR-002, N-03: with no sample budget the planner answers the standing figures
+// and the record holds its default state, no derived count and no flag. The
+// rows are the standing shapes of this file read again with the new fields in
+// view, so a run that carries no `e` clause keeps the behaviour the standing
+// fixtures pin (R-05).
+auto sampleBudgetUnsetStandsUnchanged() -> void
+{
+  const auto events = acSevenColumns();
+  const auto limits = sg::test::huntLimits(kAcOneLimit);
+  const auto anchors = sg::test::huntAnchors();
+  const auto unset = sampleOptions(std::nullopt, kAcSevenTop, std::nullopt);
+
+  const auto whole =
+      sg::hunt::planHunt(events, limits, anchors, unset, kCalibrationNsPerPass);
+  check(whole.has_value() && whole->stages.size() == 1,
+        "no budget answers one stage");
+  check(whole.has_value() && whole->stages.front().repeats == kDefaultRepeats,
+        "the one stage measures the full repeats");
+  check(whole.has_value() && !whole->sample.derivedRepeats.has_value()
+            && !whole->sample.overBudget && !whole->sample.unpriced,
+        "an unset sample budget records no state (FR-002)");
+
+  const auto splitOptions =
+      sampleOptions(passBudget(kFitPasses), kAcSevenTop, std::nullopt);
+  const auto splitPlan = sg::hunt::planHunt(
+      events, limits, anchors, splitOptions, kCalibrationNsPerPass);
+  check(splitPlan.has_value() && splitPlan->stages.size() == 2,
+        "the 60-pass budget still hosts the 59 runs");
+  check(splitPlan.has_value() && splitPlan->stages.front().repeats == 1
+            && splitPlan->stages[1].repeats == kDefaultRepeats,
+        "both stages keep the rule figures no sample budget moved");
+  check(
+      splitPlan.has_value() && !splitPlan->sample.unpriced
+          && !splitPlan->sample.overBudget
+          && !splitPlan->sample.derivedRepeats.has_value(),
+      "an unset budget beside a standing calibration figure records no state");
+
+  // An unset budget and no calibration figure together: the state belongs to a
+  // budget the caller set, so `unpriced` stands down here too (N-03).
+  const auto unpriced =
+      sg::hunt::planHunt(events, limits, anchors, unset, std::nullopt);
+  check(unpriced.has_value() && !unpriced->sample.unpriced,
+        "no sample budget and no figure record no unpriced state (N-03)");
+}
+
+// FR-005, R-02, R-05: the standing stage-drop decision reads the re-priced
+// figure and keeps its `over-budget` cut line. The capped row of four columns
+// costs 1 + 1 x 3 = 4 pass runs, so a 3-pass budget cuts stage 2. The same
+// budget hosts the plan once a 3'840'000 ns sample budget derives 2 repeats for
+// stage 2, because the re-priced run costs 1 + 1 x 2 = 3. A 2-pass budget stays
+// under the re-priced figure and cuts with the same word.
+auto sampleCutReadsTheRepricedFigure() -> void
+{
+  const auto events = acSevenColumns(kRowEvents);
+  const auto standing = budgetOptions(passBudget(3), 2);
+  const auto standingPlan =
+      planned(events, kAcOneLimit, standing, "the standing tight row plans");
+  const auto standingSplit =
+      sg::detail::splitStages(standingPlan, standing, kCalibrationNsPerPass);
+  check(standingSplit.cutStage2 && standingSplit.cutReason == "over-budget",
+        "the standing price of 4 runs cuts a 3-pass budget (FR-013)");
+
+  const auto options = sampleOptions(passBudget(3), 2, 3'840'000);
+  const auto plan =
+      planned(events, kAcOneLimit, options, "the re-priced row plans");
+  const auto split =
+      sg::detail::splitStages(plan, options, kCalibrationNsPerPass);
+  check(!split.cutStage2,
+        "the re-priced figure hosts the stage the standing price cut (FR-005)");
+  check(split.stages.size() == 2 && split.stages[1].repeats == 2,
+        "the kept stage measures the derived count");
+  check(plan.stages.size() == 2,
+        "the plan record carries the split the re-priced figure decided");
+
+  const auto tight = sampleOptions(passBudget(2), 2, 3'840'000);
+  const auto tightPlan =
+      planned(events, kAcOneLimit, tight, "the re-priced tight row plans");
+  const auto cut =
+      sg::detail::splitStages(tightPlan, tight, kCalibrationNsPerPass);
+  check(cut.stages.size() == 1 && cut.cutStage2
+            && cut.cutReason == "over-budget",
+        "a budget under the re-priced figure still cuts with the standing word "
+        "(FR-005, FR-013)");
+}
+
+// R-05: the two-stage budget and the sample budget compose, and each keeps its
+// own rule. The capped row of four columns at a 4-pass budget splits into two
+// stages; a 3'840'000 ns sample budget prices both stages at 1'920'000 ns a
+// repeat, so stage 1 keeps the one repeat its rule gives and stage 2 takes the
+// derived 2 of its 3.
+auto sampleComposedWithTwoStageBudget() -> void
+{
+  const auto events = acSevenColumns(kRowEvents);
+  const auto options = sampleOptions(passBudget(4), 2, 3'840'000);
+  const auto plan =
+      planned(events, kAcOneLimit, options, "the composed row plans");
+
+  check(plan.stages.size() == 2, "the re-priced figure hosts both stages");
+  check(plan.stages.front().repeats == 1,
+        "stage 1 keeps the one repeat its rule gives (R-02)");
+  check(plan.stages[1].repeats == 2, "stage 2 takes the derived count (R-02)");
+  check(plan.sample.derivedRepeats == 2,
+        "the record names the derived count the priced stage answered (N-03)");
+  check(!plan.sample.overBudget && !plan.sample.unpriced,
+        "both stages priced a count that fits, so no flag stands");
+
+  const auto split =
+      sg::detail::splitStages(plan, options, kCalibrationNsPerPass);
+  check(split.stages.front().repeats == 1 && split.stages[1].repeats == 2,
+        "the seam gives stage 1 its rule and stage 2 its derived count");
+}
+
+// FR-002, R-02: a composed plan's plan-level `estimateNs` keeps the stage-1
+// figure. The AC-7 plan at a 60-pass budget stands at 1'920'000 x 50 x 1 =
+// 96'000'000 ns beside a sample budget or without one, because the estimate
+// multiplies stage 1's repeats and a wider budget leaves stage 2 at the 3
+// repeats its own rule gives.
+auto sampleEstimateKeepsStageOneFigure() -> void
+{
+  const auto events = acSevenColumns();
+  const auto standing =
+      planned(events,
+              kAcOneLimit,
+              sampleOptions(passBudget(kFitPasses), kAcSevenTop, std::nullopt),
+              "the standing split plan plans");
+  const auto priced =
+      planned(events,
+              kAcOneLimit,
+              sampleOptions(passBudget(kFitPasses), kAcSevenTop, 172'800'000),
+              "the priced split plan plans");
+
+  check(standing.stages.size() == 2 && priced.stages.size() == 2,
+        "the 60-pass budget hosts both rows");
+  check(priced.stages[1].repeats == 3,
+        "a wider budget leaves stage 2 at the rule figure (R-02)");
+  check(priced.sample.derivedRepeats == 3,
+        "the priced stage records the count the derivation answered (N-03)");
+  check(standing.estimateNs == kCalibrationNsPerPass * kAcSevenPasses,
+        "the standing split plan states the stage-1 estimate (FR-012 of spec "
+        "029)");
+  check(priced.estimateNs == standing.estimateNs,
+        "a composed plan keeps the stage-1 estimate the standing fixture pins "
+        "(FR-002)");
+}
+
+// FR-001, FR-005: the derivation reads no clock. One fixed seed and one fixed
+// calibration figure answer the figures the row states, the same plan built
+// twice answers them again, and a second seed, which moves the column order,
+// answers the same derived count and the same estimate.
+auto sampleDerivationReadsNoClock() -> void
+{
+  const auto options = sampleOptions(std::nullopt, kAcSevenTop, 200'000'000);
+  const auto first = planned(columnsAt(kFixedSeed, sg::test::kHuntEvents),
+                             kAcOneLimit,
+                             options,
+                             "the fixed seed plans");
+  const auto again = planned(columnsAt(kFixedSeed, sg::test::kHuntEvents),
+                             kAcOneLimit,
+                             options,
+                             "the fixed seed plans again");
+  const auto reseeds = planned(columnsAt(kFixedSeed + 1, sg::test::kHuntEvents),
+                               kAcOneLimit,
+                               options,
+                               "the second seed plans");
+
+  check(first.stages.front().repeats == 2 && first.sample.derivedRepeats == 2,
+        "the fixed figures derive two repeats of the 96'000'000 ns price");
+  check(first.estimateNs == 192'000'000,
+        "the fixed figures price the estimate at 1'920'000 x 50 x 2");
+  check(again.stages.front().repeats == first.stages.front().repeats
+            && again.estimateNs == first.estimateNs
+            && again.sample.derivedRepeats == first.sample.derivedRepeats,
+        "one seed and one estimate answer the same figures twice");
+  check(reseeds.passes.size() == first.passes.size(),
+        "the second seed plans the same number of passes");
+  check(reseeds.stages.front().repeats == first.stages.front().repeats
+            && reseeds.estimateNs == first.estimateNs,
+        "a moved column order moves no derived figure and no estimate "
+        "(FR-001, FR-005)");
+}
+
 // The scenarios of this file: what CTest runs with no argument, and what
 // `argv[1]` selects from.
 [[nodiscard]] auto scenarios() -> const std::vector<Scenario>&
@@ -1405,6 +1792,20 @@ auto budgetSecondsOverflow() -> void
       Scenario {"anchor-zero-window-unrated", anchorZeroWindowUnrated},
       Scenario {"one-sided-anchor-pair", oneSidedAnchorPair},
       Scenario {"budget-seconds-overflow", budgetSecondsOverflow},
+      Scenario {"sample-derived-repeats", derivedRepeatRows},
+      Scenario {"sample-estimate-repriced", sampleEstimateReprices},
+      Scenario {"sample-over-budget-one-repeat",
+                sampleOverBudgetKeepsOneRepeat},
+      Scenario {"sample-unpriced-no-calibration",
+                sampleWithoutCalibrationIsUnpriced},
+      Scenario {"sample-budget-unset-unchanged",
+                sampleBudgetUnsetStandsUnchanged},
+      Scenario {"sample-cut-reads-repriced-figure",
+                sampleCutReadsTheRepricedFigure},
+      Scenario {"sample-two-stage-composed", sampleComposedWithTwoStageBudget},
+      Scenario {"sample-estimate-stage-one-figure",
+                sampleEstimateKeepsStageOneFigure},
+      Scenario {"sample-reads-no-clock", sampleDerivationReadsNoClock},
   };
   return kList;
 }

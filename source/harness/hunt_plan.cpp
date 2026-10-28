@@ -200,6 +200,7 @@ auto planHunt(const std::vector<CatalogAddress>& events,
     // (PD-13, D-2, FR-013).
     auto split = detail::splitStages(plan, options, calibrationNsPerPass);
     plan.stages = std::move(split.stages);
+    plan.sample = split.sample;
 
     if (calibrationNsPerPass.has_value()) {
       plan.estimateNs = *calibrationNsPerPass * plan.passes.size()
@@ -493,6 +494,47 @@ auto splitStages(const sg::hunt::HuntPlan& plan,
   const auto width = std::min(kStageTwoFactor * options.top, count);
   auto second =
       sg::hunt::HuntStage {std::vector<std::size_t> {}, options.repeats};
+
+  // specs/033-hunter-budgets FR-001, FR-002, R-02, R-03, N-03, D-12: the sample
+  // budget bounds one event inside one stage. A stage that repeats costs
+  // `passRuns` runs of the plan per repeat, so the calibration figure prices
+  // one repeat of the stage and the budget answers how many repeats fit. The
+  // derived count never exceeds the stage's own rule and never falls below one,
+  // and the state says which of the two bounds the budget reached. A stage no
+  // figure prices keeps its rule and the record says the budget stands
+  // unpriced.
+  auto sample = sg::hunt::HuntSampleState {};
+  const auto priced = calibrationNsPerPass.has_value()
+      && *calibrationNsPerPass > 0 && options.sampleBudgetNs.has_value();
+  if (options.sampleBudgetNs.has_value() && !priced) {
+    sample.unpriced = true;
+  }
+  auto derivedFirst = first.repeats;
+  auto derivedSecond = second.repeats;
+  if (priced) {
+    const auto bound = *options.sampleBudgetNs / *calibrationNsPerPass;
+    // The two divisions stand apart on purpose: the budget divided by the
+    // nanoseconds of a run cannot overflow, and dividing that count by the runs
+    // of the stage answers the same whole number the product would.
+    const auto derive = [&](const sg::hunt::HuntStage& stage) -> std::size_t
+    {
+      const auto runs = std::max<std::size_t>(passRuns(plan, stage), 1);
+      const auto fit = bound / runs;
+      sample.overBudget = sample.overBudget || fit < 1;
+      return std::min(stage.repeats, std::max<std::size_t>(1, fit));
+    };
+    derivedFirst = derive(first);
+    first.repeats = derivedFirst;
+    if (budgeted) {
+      derivedSecond = derive(second);
+      second.repeats = derivedSecond;
+    }
+    // The plan-level figure is the count of the stage the rule of the run
+    // prices: stage 2 of a split plan, the one stage of a plan the two-stage
+    // budget left whole (N-03, N-06).
+    sample.derivedRepeats = budgeted ? derivedSecond : derivedFirst;
+  }
+
   auto overBudget = false;
   if (budgeted) {
     // FR-013, FR-014: stage 2 measures the leading `3 x top` columns of the
@@ -502,6 +544,9 @@ auto splitStages(const sg::hunt::HuntPlan& plan,
     // list.
     second.columns = hunt::columnIndices(width);
 
+    // The re-priced figure: the repeats the sample budget derived stand in the
+    // runs the budget is weighed against, so a budget that bounds the repeats
+    // also decides whether stage 2 fits (FR-002, R-02).
     const auto runs = (passRuns(plan, first) * first.repeats)
         + (passRuns(plan, second) * second.repeats);
     const auto allowed = allowedPasses(*options.budget, calibrationNsPerPass);
@@ -512,6 +557,7 @@ auto splitStages(const sg::hunt::HuntPlan& plan,
   }
 
   auto split = StageSplit {};
+  split.sample = sample;
   split.stages.push_back(std::move(first));
   if (budgeted && !overBudget) {
     split.stages.push_back(std::move(second));
@@ -527,14 +573,24 @@ auto splitStages(const sg::hunt::HuntPlan& plan,
       split.stages.size()
           == (budgeted && !split.cutStage2 ? std::size_t {2} : std::size_t {1}),
       "one stage stands for an un-budgeted or cut plan, two for a fit one");
+  // specs/033-hunter-budgets D-12 (T018): a stage's guarantee figure is the
+  // count the sample budget derived, which is the stage's rule whenever no
+  // figure priced the stage or the budget left the rule alone.
   SG_ENSURE(split.stages.front().columns.size() == count
-                && split.stages.front().repeats
-                    == (budgeted ? std::size_t {1} : options.repeats),
-            "stage 1 covers every column at the repeats its rule gives");
+                && split.stages.front().repeats == derivedFirst
+                && derivedFirst <= (budgeted ? std::size_t {1}
+                                             : options.repeats)
+                && derivedFirst >= 1,
+            "stage 1 covers every column at the repeats the split settled, the "
+            "derived count under a priced sample budget and its rule elsewhere");
   SG_ENSURE(split.stages.size() == 1
                 || (split.stages[1].columns.size() == width
-                    && split.stages[1].repeats == options.repeats),
-            "stage 2 covers the leading 3 x top columns at the full repeats");
+                    && split.stages[1].repeats == derivedSecond
+                    && derivedSecond <= options.repeats
+                    && derivedSecond >= 1),
+            "stage 2 covers the leading 3 x top columns at the repeats the "
+            "split settled, the derived count under a priced sample budget "
+            "and its rule elsewhere");
   SG_ENSURE(!split.cutStage2 || !split.cutReason.empty(),
             "a cut stage names the reason the plan line prints");
   return split;
