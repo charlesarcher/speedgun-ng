@@ -105,9 +105,9 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   prints one line naming the value and exits 2; an empty value
   prints one line and exits 2; an unwritable destination prints one
   stderr line naming path and reason and leaves status 2 (the
-  standing `writeReport` sentence shape) (FR-010 to FR-012, R-07,
+  standing `writeReport` sentence shape) (FR-010 to FR-012, SC-004, R-07,
   R-08)
-- [ ] T007 [P] [US1] Write the failing `--counter=@<file>` tests in
+- [ ] T007 [US1] Write the failing `--counter=@<file>` tests in
   `test/source/harness_hunt_cli_test.cpp`: the file's lines become
   one counter column each (20 addresses give 20 columns); `#`
   comments and blank lines are skipped; an unknown address keeps the
@@ -159,12 +159,12 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   (`test/source/detail/pass_fixture.hpp`): a hunt with
   `--hunt-emit-set=F` writes `F`; a second scripted run of
   `--counter=@F` reports one counter column per address of `F`,
-  none `ABSENT`; no clock, no sleep, no hardware (FR-015, criterion
+  none `ABSENT`; no clock, no sleep, no hardware (FR-015, SC-001, criterion
   12.7-6)
 - [ ] T013 [US1] Make the round trip of T012 pass with the smallest
   fix at the site the failing test names: emit order in
   `source/harness/hunt_cli.cpp` or the gather interception in
-  `source/harness/options.cpp`; no new abstraction (FR-015) (depends
+  `source/harness/options.cpp`; no new abstraction (FR-015, SC-001) (depends
   on T010, T011, T012)
 
 **Checkpoint**: the round trip stands green in CI; the item's
@@ -259,7 +259,8 @@ fixtures close SC-002 and SC-005 with no clock.
   `source/harness/json_report.cpp:36` moves `kSchemaVersion` to
   `1.7`; writer and reader keep the simdjson builder and error-code
   forms; the tests of T016 (JSON side) turn green (FR-020 to FR-022
-  incl. FR-021, R-11, R-12) (depends on T018)
+  incl. FR-021, R-11, R-12,
+  SC-006) (depends on T016, T018)
 
 **Checkpoint**: the sample budget bounds, discloses, and round-trips;
 a run without it prints and writes the standing bytes.
@@ -323,7 +324,8 @@ no-op check close SC-003.
   `docs/schema/report-v1.json` gains the two properties and the
   `x-order` move in the same commit, the `mux_groups` refusal carrying
   its own test (hard rule 7); the tests of T022 turn green
-  (FR-003, FR-020 to FR-023 incl. FR-021, R-11, R-12) (depends on T020, T024)
+  (FR-003, FR-020 to FR-023 incl. FR-021,
+  R-11, R-12, SC-006) (depends on T020, T022, T024)
 
 **Checkpoint**: a large catalog produces groups the host can open,
 disclosed; an uncapped plan prints the standing bytes.
@@ -372,7 +374,7 @@ section within 25 lines, and the extended example matches its
   again under `taskset -c 0,1`; every test under `test/source/`
   passes both ways, none skips; any timing-bound assertion stands an
   order of magnitude inside the spec 032 contamination signal
-  (FR-042, FR-043)
+  (FR-042, FR-043, SC-007)
 - [ ] T030 [P] Run the `coverage` preset of `CMakePresets.json`: 100%
   line and branch over `source/harness/` with no `LCOV_EXCL` marker
   and no new `--ignore-errors` entry; a gap stops the work and
@@ -387,7 +389,7 @@ section within 25 lines, and the extended example matches its
   `--hunt=all` run, the emitted file, the `--counter=@` read-back,
   and the conflict refusal land in a scenario/command/exit/observation
   table in `specs/033-hunter-budgets/results/` in the spec 034
-  shape; the record states the standing no-Intel fact (FR-045, D-11,
+  shape; the record states the standing no-Intel fact (FR-045, SC-009, R-16, D-11,
   quickstart acceptance table)
 - [ ] T033 Lane mechanics: rebase onto master (re-read
   `CMakeLists.txt` and take the next free minor and schema minor at
@@ -404,7 +406,7 @@ section within 25 lines, and the extended example matches its
 ```text
 Phase 1: T001
 Phase 2: T002 -> T003   T004 (parallel)
-Phase 3 (US1):  T005,T006,T007 (parallel, failing)
+Phase 3 (US1):  T005,T006 (parallel, failing), T007 after T006
                 T008 <- T005;  T009 <- T004,T006;  T010 <- T008,T009
                 T011 <- T003,T007;  T012 (failing);  T013 <- T010,T011,T012
 Phase 4 (US2):  T014,T015,T016 (parallel, failing)
@@ -421,7 +423,7 @@ public surface of US1 plus the grammar of US2/US3 settled.
 
 ## Parallel groups
 
-- Failing-test waves: T005/T006/T007; T014/T015/T016; T021/T022;
+- Failing-test waves: T005/T006 (T007 follows T006, same file); T014/T015/T016; T021/T022;
   T026/T027; T029/T030/T031.
 - Independent singletons: T002 with T004; T008 with T009 with T011
   (different files: `hunt.hpp`+`hunt_plan.cpp`, `options.cpp`+

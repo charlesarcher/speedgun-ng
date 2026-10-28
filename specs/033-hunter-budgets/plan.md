@@ -140,6 +140,8 @@ source/harness/
 ├── detail/internal.hpp       + RunOptions::huntEmitSet path member
 ├── detail/hunt_selection.hpp + readAddressFileLines (the shared
 │                               one-level list-file reader)
+├── hunt_selection.cpp         + the reader body (the harness
+│                               GLOB_RECURSE picks the TU up)
 ├── detail/hunt_plan.hpp      + MuxGroup table type; derived-repeat
 │                               and split declarations (internal)
 ├── hunt_plan.cpp             parse-free planner: derived repeats in
