@@ -1,6 +1,6 @@
 # Tasks: Hunter Budgets and Promotion (033)
 
-**Input**: Design documents from `/specs/033-hunter-budgets/`
+**Input**: Design documents from `specs/033-hunter-budgets/`
 
 **Prerequisites**: [plan.md](./plan.md) (required), [spec.md](./spec.md)
 (required for user stories), [research.md](./research.md),
@@ -68,9 +68,11 @@ story stands on. No story work begins before this phase closes.
   lands in a new `source/harness/hunt_selection.cpp` (the harness
   `GLOB_RECURSE` at `CMakeLists.txt:224` picks the TU up), and
   `expandHuntSelection` (`source/harness/hunt_cli.cpp:502`) delegates
-  keeping its own refusal sentences; the tests of T002 turn green
+  keeping its own refusal sentences; the header exposes both
+  halves, the option's own selection text still running through the
+  splitter (`hunt_cli.cpp:514`); the tests of T002 turn green
   (R-09) (depends on T002)
-- [ ] T004 Add `inline constexpr int kHuntEmitSetOption = 280;`
+- [ ] T004 [P] Add `inline constexpr int kHuntEmitSetOption = 280;`
   beside the hunt constants in `source/harness/detail/options.hpp`
   and move the block comment (the `280` to `289` note reads: 280
   taken, 281 to 289 stay free); add the settled-path member
@@ -120,7 +122,9 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   missing file, a comma beside nothing (the empty address), and a
   file holding no address each print one line naming the value and
   exit 2;
-  the option-file and environment sources carry the same grammar;
+  the option-file and environment sources carry the same grammar
+  per item: `SPEEDGUN_COUNTER=@culprits.txt;cpu/instructions` reads
+  the file and keeps the literal address beside it;
   no count cap binds the file form (FR-014, R-09;
   contracts/counter-file.md) (after T006: the same file)
 
@@ -148,7 +152,11 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   `docs/pages/harness.md` row carrying the table's help string
   (`tools/docs/example_drift.py:744` and
   `test/source/harness_cli_table_test.cpp:1489-1510` read the table
-  in both directions; IV.1) (FR-010, FR-012, FR-030, R-13, R-08)
+  in both directions; IV.1), and its contract in
+  `test/source/harness_cli_table_test.cpp` moves the same way:
+  `kContract` gains the 37th row and the hunt-block bound widens to
+  270 to 289 beside its header comment (FR-044)
+  (FR-010, FR-012, FR-030, R-13, R-08)
   (depends on T004, T006)
 - [ ] T010 [US1] Implement `writeHuntEmitSet` in
   `source/harness/hunt_cli.cpp` (per entry `toCounterSet(options.top)`;
@@ -161,9 +169,10 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   settled path; the tests of T006 turn green (FR-011, FR-012, R-07)
   (depends on T008, T009)
 - [ ] T011 [US1] Intercept the `@` form in the `counter` gather arm
-  of `source/harness/options.cpp:1537`: a value starting with `@`
-  reads one level through `detail::readAddressFileLines` before
-  `sourceItems`, the refusals ride the arm's standing `refuse` route,
+  of `source/harness/options.cpp:1537`: every `sourceItems` item
+  starting with `@` reads one level through
+  `detail::readAddressFileLines`, the other items staying
+  addresses, the refusals ride the arm's standing `refuse` route,
   unresolvable addresses keep the standing `ABSENT` shape
   (`source/harness/runner.cpp:1239` unchanged); the tests of T007
   turn green (FR-014, R-09) (depends on T003, T007)
@@ -202,7 +211,7 @@ fixtures close SC-002 and SC-005 with no clock.
   seed the derived repeats equal
   `min(stageRule, max(1, floor(sampleNs / (calibrationNsPerPass ×
   passRuns(plan, stage)))))` (`stageRule`: the stage's own rule
-  figure, 1 at stage 1 of a budgeted plan, `options.repeats`
+  figure, 1 at stage 1 of a two-stage plan, `options.repeats`
   elsewhere); the estimate re-prices from the derived count;
   the standing stage-drop decision reads the re-priced figure and
   keeps its `over-budget` cut line; a budget below one repeat's
@@ -313,12 +322,13 @@ no-op check close SC-003.
   `test/source/harness_hunt_plan_test.cpp`: 200 events on a no-limit
   device with cap 32 record `muxGroups` sizes 32, 32, 32, 32, 32, 32,
   8 in plan order; a cap at or above the event count records one
-  group; a `PASSES` plan records no groups and the cap binds nothing;
-  composed with the two-stage budget the cap applies inside every
-  stage of the split plan; the run seats one group per multiplex pass
-  through the standing loop and a scripted per-group open refusal
-  reaches the standing single-event retry (D-18 seam) (FR-003,
-  FR-005, R-04, R-05)
+  group; a `PASSES` settlement records no groups and the cap binds
+  nothing, and a forced `--metric-method=multiplex` beside a limit
+  records none either (spec 029 D-16); composed with the two-stage
+  budget the cap applies inside every stage of the split plan; the
+  plan's passes carry the groups and the Runner's loop seats them,
+  with a scripted per-group open refusal reaching the standing
+  single-event retry (D-18 seam) (FR-003, FR-005, R-04, R-05)
 - [ ] T022 [P] [US3] Write the failing grammar, console and JSON
   tests in `test/source/harness_hunt_cli_test.cpp`,
   `test/source/harness_hunt_report_test.cpp` and
@@ -341,11 +351,12 @@ no-op check close SC-003.
 - [ ] T024 [US3] Implement the split: the group table type and
   declaration land in `source/harness/detail/hunt_plan.hpp`,
   `planHunt` in `source/harness/hunt_plan.cpp` records the
-  consecutive groups after the method settles (`MULTIPLEX` with a
-  cap only), and the capped `MULTIPLEX` plan's handoff passes
-  (`buildHandoff`, `source/harness/hunt.cpp:416`) are the groups,
-  seated through the standing loop (`collectStageSamples`,
-  `source/harness/hunt.cpp:502`); the tests of T021 turn green (FR-003,
+  consecutive groups when the settlement is `MULTIPLEX`
+  (`hunt_plan.cpp:171-176`), the window build at
+  `source/harness/hunt_plan.cpp:186-194` seats one group per pass,
+  and the plan's handoff passes (`buildHandoff`,
+  `source/harness/hunt.cpp:416`) carry them to the Runner's loop
+  (`source/harness/hunt.cpp:984-1013`); the tests of T021 turn green (FR-003,
   FR-005, R-04) (depends on T018, T021)
 - [ ] T025 [US3] Land the disclosure half in one commit: the `mux=`
   segment and the groups line in `printHuntPlan`
@@ -414,13 +425,14 @@ section within 25 lines, and the extended example matches its
   line and branch over `source/harness/` with no `LCOV_EXCL` marker
   and no new `--ignore-errors` entry; a gap stops the work and
   reports its cause with `gcov -b` evidence (FR-041)
-- [ ] T031 [P] Build once in the release preset (`cmake --preset=ci-ubuntu`,
+- [ ] T031 Build once in the release preset (`cmake --preset=ci-ubuntu`,
   `cmake --build build`) so clang-tidy and cppcheck report at the
   optimizer; clear every finding; run the `ci-sanitize` and
   `ci-tsan` presets (SC-007); run `format-check`, `spell-check`,
   `prose-lint`, the dbc-gate, `test/time_source_gate.sh`, and the
-  name-check; `harness_cli_table_test` stands green with value 280
-  unique (VIII, FR-044)
+  name-check; `harness_cli_table_test` stands green on the moved
+  contract (VIII, FR-044) (depends on T029, T030: the release
+  configure rewrites the shared `build` cache)
 - [ ] T032 Run the gary acceptance and record it: the budgeted
   `--hunt=all` run on `example/docs_throughput` (one `--filter`ed
   instance, the 029 gary-record form), the emitted file, the `--counter=@` read-back,
@@ -451,7 +463,7 @@ Phase 4 (US2):  T014,T015,T016 (parallel, failing)
 Phase 5 (US3):  T021,T022 (parallel, failing)
                 T023 <- T017,T022;  T024 <- T018,T021;  T025 <- T020,T024,T022
 Phase 6 (US4):  T026,T027 (parallel);  T028 <- T026,T027
-Phase 7:        T029,T030,T031 (parallel) -> T032 -> T033
+Phase 7:        T029,T030 (parallel) -> T031 -> T032 -> T033
 ```
 
 US1 needs no budget work; US2 needs no promotion work; US3 needs the
@@ -462,7 +474,7 @@ public surface of US1 plus the grammar of US2/US3 settled.
 
 - Failing-test waves: T005/T006 (T007 follows T006, same
   file); T014/T015/T016; T021/T022;
-  T026/T027; T029/T030/T031.
+  T026/T027; T029/T030 (T031 follows both).
 - Independent singletons: T002 with T004; T008 with T009 with T011
   (different files: `hunt.hpp`+`hunt_plan.cpp`, `options.cpp`+
   `hunt_cli.cpp`, `options.cpp` gather arm: the two `options.cpp`

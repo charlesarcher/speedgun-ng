@@ -100,10 +100,14 @@ with the ruling it carries named. The decisions the roadmap and spec
   hard rule stand unchanged. This spec amends FR-060's scope line and
   no other standing rule (D-12).
 - `--hunt` with `--metric-method=multiplex` stays legal and discloses
-  the multiplexing (spec 029 edge cases).
-- Spec 028's one option table and three-source gather (command line,
-  option file, environment) bind the new row and the grammar
-  extension. Spec 034's evidence table shape (scenario, command, exit,
+  the multiplexing (spec 029 edge cases); beside a `g` cap on a host
+  that publishes limits it binds nothing, the standing limit-sized
+  passes standing (FR-003).
+- Spec 028's one option table binds the new row and the grammar
+  extension; the hunt family stays command-line only (no environment
+  name, `options.cpp:713-715`), and the three-source gather is the
+  rule of the `--counter` row the `@` form rides. Spec 034's
+evidence table shape (scenario, command, exit,
   observation) binds the acceptance record.
 - Spec 032's record fixes the contamination signal and the margin the
   timing bounds of this spec sit inside.
@@ -125,8 +129,7 @@ with the ruling it carries named. The decisions the roadmap and spec
   leading or trailing blank, and a clause with no suffix are each the
   one-line exit-2 refusal naming the whole value (FR-004; D-4). The
   two candidates the recommendation beat, and why: a repeated option
-  needs a replacement rule for a partly-spelled budget set across the
-  three option sources; colon-positional clauses need a stated empty
+  needs new replacement law for a partly-spelled budget set; colon-positional clauses need a stated empty
   form for an unset middle clause. The comma form has direct house
   precedent in `--jitter-probe`'s value grammar (spec 027 contract)
   and in the hunt selection value's comma splitting. `/speckit-analyze`
@@ -294,8 +297,9 @@ them. The ruling each decision carries is named beside it.
   `--hunt-budget=120s,0.5e,32g`. Rejected spellings, each the
   one-line exit-2 refusal naming the whole value: a repeated kind, an
   empty clause, leading or trailing blank, a clause with no suffix.
-  The three option sources keep the standing whole-row replacement of
-  spec 028: the budget moves as one value with the winning source.
+  The budget arrives on the command line only, as the hunt family
+  always has; one value keeps the grammar whole whatever source a
+  future hunt row might carry.
   X.1 records the candidates behind the recommendation: a repeated
   option with one suffixed budget per occurrence (reuses the
   single-suffix parse, and replacement of a partly-spelled set across
@@ -461,9 +465,8 @@ no clock and no sleep.
 
 ### User Story 3 - Bound one multiplexed pass (Priority: P2)
 
-On a device that publishes no counter limit, or under a forced
-`--metric-method=multiplex`, the standing plan puts every event of a
-pass into one multiplexed group. The multiplex budget caps that group:
+On a device that publishes no counter limit, the standing plan
+puts every event of a pass into one multiplexed group. The multiplex budget caps that group:
 the planner splits a large catalog into consecutive groups of at most
 the capped count, discloses the split, and the run produces passes
 the host can open.
@@ -572,12 +575,14 @@ file on a CI runner (SC-008).
   from them. One repeat above the budget SHALL stand with one repeat
   and a disclosed overage; a budget no figure prices SHALL stand with
   the stage rule repeats and a disclosure (D-2).
-- **FR-003**: A plan that settles on the `MULTIPLEX` method SHALL
-  hold at most the multiplex budget's count of events in one group,
-  SHALL split the planned addresses into consecutive groups of that
-  size in plan order, and SHALL disclose the group count and the
-  group sizes. A `PASSES` plan SHALL bind nothing from the cap
-  (D-3).
+- **FR-003**: A plan whose settlement is `MULTIPLEX`, the answer a
+  host gives when no needed device publishes a counter limit,
+  SHALL hold at most the multiplex budget's count of events in one
+  group, SHALL split the planned addresses into consecutive groups
+  of that size in plan order, and SHALL disclose the group count
+  and the group sizes. A `PASSES` settlement SHALL bind nothing
+  from the cap, and so shall a forced `--metric-method=multiplex`
+  on a host whose settlement is `PASSES` (D-3, spec 029 D-16).
 - **FR-004**: Both budgets SHALL ride the `--hunt-budget=` value
   grammar in comma-separated suffix clauses (Clarifications,
   2026-10-28): `s` and `p` keep their standing meaning and integer
@@ -681,8 +686,9 @@ file on a CI runner (SC-008).
 - **FR-043**: The timing bounds a test asserts SHALL sit an order of
   magnitude inside the contamination signal spec 032's record fixes.
 - **FR-044**: `test/source/harness_cli_table_test.cpp` SHALL keep
-  every option name and value unique as the new row joins (hard rule
-  10).
+  every option name and value unique as the new row joins, its row
+  count and hunt-block bound moving in the row's own commit (hard
+  rule 10).
 - **FR-045**: The commit series SHALL follow the constitution
   template with `Refs: specs/033-hunter-budgets`, and the Zen 5
   acceptance record SHALL stand under
