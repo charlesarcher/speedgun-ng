@@ -2043,6 +2043,68 @@ auto scenarioEmitSetRefusesAnUnwritableDestination() -> void
   std::printf("emit-set-refuses-an-unwritable-destination: ok\n");
 }
 
+// FR-012: the file can open and still refuse the write. `/dev/full` answers
+// every write with ENOSPC, so the second failure line of the writer stands
+// tested beside the open refusal above, in the one shape no path of its own
+// can give.
+auto scenarioEmitSetRefusesAFullDestination() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+  const std::string destination = "/dev/full";
+  std::string output;
+  const int status = childRun(selfPath,
+                              "hunt",
+                              {"full",
+                               "--iterations=1",
+                               "--hunt=" + address(0),
+                               "--hunt-emit-set=" + destination},
+                              output);
+  check(WEXITSTATUS(status) == 2,
+        "an emit the file system refused on the write leaves the usage status "
+        "(FR-012)");
+  const std::string heading = "error: the counter set file '" + destination
+      + "' could not be written: ";
+  const std::string line = lineHolding(output, heading);
+  if (line.rfind(heading, 0) != 0 || line.size() == heading.size()) {
+    std::fprintf(stderr, "the refused write reads: %s\n", output.c_str());
+  }
+  check(line.rfind(heading, 0) == 0 && line.size() > heading.size(),
+        "the refused write names the path and the reason it got, on one line, "
+        "the shape the report file names (FR-012)");
+  std::printf("emit-set-refuses-a-full-destination: ok\n");
+}
+
+// R-07: the union walks every result of the batch, and a result that ran no
+// hunt contributes nothing to the file. A hunt run gives every instance a hunt,
+// so the skip stands tested on the writer's own seam: two results, one carrying
+// a ranked record and one carrying none.
+auto scenarioEmitSetSkipsAResultWithoutAHunt() -> void
+{
+  auto best = sg::hunt::RankedEvent {};
+  best.address = address(1);
+  best.rank = 1;
+  auto next = sg::hunt::RankedEvent {};
+  next.address = address(0);
+  next.rank = 2;
+  auto record = sg::hunt::EntryHunt {};
+  record.entries = {best, next};
+  auto hunted = sg::BenchmarkResult {};
+  hunted.name = "bmCase/8";
+  hunted.hunt = record;
+  auto plain = sg::BenchmarkResult {};
+  plain.name = "bmCase/16";
+  const auto results = std::vector<sg::BenchmarkResult> {hunted, plain};
+
+  check(sg::detail::writeHuntEmitSet(emitPath().string(), results, 2),
+        "the writer answered the file it wrote (FR-011)");
+  const auto written = fileLines(emitPath());
+  check(written == std::vector<std::string> {address(1), address(0)},
+        "the file holds the ranked addresses of the hunted result alone, best "
+        "first (FR-011, R-07)");
+  std::printf("emit-set-skips-a-result-without-a-hunt: ok\n");
+}
+
 // ---------------------------------------------------------------------------
 // The `@`-file form of `--counter` (specs/033-hunter-budgets T007; FR-014,
 // R-09; contracts/counter-file.md). The addresses the file carries reach the
@@ -2281,6 +2343,10 @@ auto scenarioEmitSetRoundTrip() -> void
       Scenario {"emit-set-refusals", &scenarioEmitSetRefusals},
       Scenario {"emit-set-refuses-an-unwritable-destination",
                 &scenarioEmitSetRefusesAnUnwritableDestination},
+      Scenario {"emit-set-refuses-a-full-destination",
+                &scenarioEmitSetRefusesAFullDestination},
+      Scenario {"emit-set-skips-a-result-without-a-hunt",
+                &scenarioEmitSetSkipsAResultWithoutAHunt},
       Scenario {"counter-file-form-reads-addresses",
                 &scenarioCounterFileFormReadsAddresses},
       Scenario {"counter-file-keeps-the-standing-resolution",
