@@ -113,7 +113,7 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   stderr line naming path and reason and leaves status 2 (the
   standing `writeReport` sentence shape) (FR-010 to FR-012, SC-004, R-07,
   R-08)
-- [ ] T007 [US1] Write the failing `--counter=@<file>` tests in
+- [X] T007 [US1] Write the failing `--counter=@<file>` tests in
   `test/source/harness_hunt_cli_test.cpp`: the file's lines become
   one counter column each (20 addresses give 20 columns; one
   line of two comma-separated addresses gives two); `#` comments and
@@ -170,7 +170,7 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   after the batch beside the `writeReport` call, guarded by the
   settled path; the tests of T006 turn green (FR-011, FR-012, R-07)
   (depends on T008, T009)
-- [ ] T011 [US1] Intercept the `@` form in the `counter` gather arm
+- [X] T011 [US1] Intercept the `@` form in the `counter` gather arm
   of `source/harness/options.cpp:1537`: every `sourceItems` item
   starting with `@` reads one level through
   `detail::readAddressFileLines`, the other items staying
@@ -178,14 +178,14 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   unresolvable addresses keep the standing `ABSENT` shape
   (`source/harness/runner.cpp:1239` unchanged); the tests of T007
   turn green (FR-014, R-09) (depends on T003, T007)
-- [ ] T012 [US1] Add the failing full round-trip test in
+- [X] T012 [US1] Add the failing full round-trip test in
   `test/source/harness_hunt_cli_test.cpp` on the scripted host
   (`test/source/detail/pass_fixture.hpp`): a hunt with
   `--hunt-emit-set=F` writes `F`; a second scripted run of
   `--counter=@F` reports one counter column per address of `F`,
   none `ABSENT`; no clock, no sleep, no hardware (FR-015, SC-001, criterion
   12.7-6)
-- [ ] T013 [US1] Make the round trip of T012 pass with the smallest
+- [X] T013 [US1] Make the round trip of T012 pass with the smallest
   fix at the site the failing test names: emit order in
   `source/harness/hunt_cli.cpp` or the gather interception in
   `source/harness/options.cpp`; no new abstraction (FR-015, SC-001) (depends

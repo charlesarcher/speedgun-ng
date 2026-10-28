@@ -1959,6 +1959,195 @@ auto scenarioEmitSetRefusesAnUnwritableDestination() -> void
   std::printf("emit-set-refuses-an-unwritable-destination: ok\n");
 }
 
+// ---------------------------------------------------------------------------
+// The `@`-file form of `--counter` (specs/033-hunter-budgets T007; FR-014,
+// R-09; contracts/counter-file.md). The addresses the file carries reach the
+// same gather the command line feeds, so the columns, the resolution and the
+// refusals of a typed address stand unchanged behind a file name.
+// ---------------------------------------------------------------------------
+
+auto counterSetPath() -> std::filesystem::path
+{
+  return capturePath("_set.txt");
+}
+
+// The counter columns of the run's row, counted by the label each column
+// prints.
+auto columnCount(const std::string& text) -> std::size_t
+{
+  std::size_t found = 0;
+  for (std::size_t index = 0; index < sg::test::kHuntEvents; ++index) {
+    found += countOf(text, address(index) + "=");
+  }
+  return found;
+}
+
+auto scenarioCounterFileFormReadsAddresses() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+
+  // Twenty addresses, one per line, and one line of two comma-separated
+  // addresses: twenty-one columns. A comment and a blank line answer nothing,
+  // the separator rule of spec 029 the shared reader carries.
+  std::string text = "# the set a hunt emitted\n";
+  for (std::size_t index = 0; index < 20; ++index) {
+    text += address(index) + "\n";
+  }
+  text += "\n   \n" + address(20) + "," + address(21) + " # tail\n";
+  writeFile(counterSetPath(), text);
+
+  const auto run =
+      captureRun({"--iterations=1", "--counter=@" + counterSetPath().string()});
+  check(columnCount(run) == 22,
+        "the file's address elements answer one counter column each, with no "
+        "count cap on the file form (FR-014)");
+  check(countOf(run, address(21) + "=") == 1,
+        "the two addresses of one comma-separated line both reach a column "
+        "(FR-014, R-09)");
+  check(countOf(run, "no such leaf") == 0,
+        "no address of the file leaves a column the host cannot resolve "
+        "(FR-014)");
+  std::printf("counter-file-form-reads-addresses: ok\n");
+}
+
+auto scenarioCounterFileKeepsTheStandingResolution() -> void
+{
+  // An address the host has no leaf for keeps the standing `--counter` shape
+  // whether the file or the command line spelled it: the entry point resolves
+  // both lists the same way, so the file form changes nothing about resolution.
+  const std::string unknown = "cpu/nope";
+  writeFile(counterSetPath(), address(0) + "\n" + unknown + "\n");
+  std::string typed;
+  const int typedStatus =
+      childRun(selfPath, "hunt", {"full", "--counter=" + unknown}, typed);
+  std::string read;
+  const int readStatus = childRun(
+      selfPath,
+      "hunt",
+      {"full", "--iterations=1", "--counter=@" + counterSetPath().string()},
+      read);
+  check(WEXITSTATUS(typedStatus) == 2 && WEXITSTATUS(readStatus) == 2,
+        "the unknown address leaves the usage status from either spelling "
+        "(FR-014)");
+  check(lineHolding(read, unknown) == lineHolding(typed, unknown),
+        "the file's unknown address answers the line the typed spelling "
+        "answers (FR-014, R-09)");
+  std::printf("counter-file-keeps-the-standing-resolution: ok\n");
+}
+
+auto scenarioCounterFileRefusals() -> void
+{
+  const std::string emptyAddress = capturePath("_empty_address.txt").string();
+  writeFile(emptyAddress, address(0) + ",\n," + address(1) + "\n");
+  const std::string comments = capturePath("_comments.txt").string();
+  writeFile(comments, "# nothing but a comment\n\n");
+  checkRefusals({
+      {"full",
+       {"--counter=@/no/such/culprits.txt"},
+       "--counter: '@/no/such/culprits.txt' cannot be opened"},
+      {"full",
+       {"--counter=@" + emptyAddress},
+       "--counter: '' is not a counter address"},
+      {"full",
+       {"--counter=@" + comments},
+       "--counter: '@" + comments + "' holds no counter address"},
+  });
+  std::printf("counter-file-refusals: ok\n");
+}
+
+auto scenarioCounterFileFromEnvironmentAndOptionFile() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+
+  // The environment splits its `;` items first, so one variable reads one file
+  // and keeps a literal address beside it, each item carrying the grammar the
+  // command line carries (FR-024, FR-014).
+  writeFile(counterSetPath(), address(0) + "\n");
+  std::string output;
+  const int status = childRun(selfPath,
+                              "hunt",
+                              {"full", "--iterations=1"},
+                              output,
+                              "SPEEDGUN_COUNTER=\"@" + counterSetPath().string()
+                                  + ";" + address(1) + "\" ");
+  check(WEXITSTATUS(status) == 0,
+        "the environment settles the counter row the way the command line "
+        "does (FR-024, FR-014)");
+  check(countOf(output, address(0) + "=") == 1
+            && countOf(output, address(1) + "=") == 1,
+        "one item reads the file and the other keeps its literal address "
+        "(FR-014, FR-024)");
+
+  // The option file source reads the same grammar, and its fault names the
+  // file and the line the way every option-file fault names them (FR-027,
+  // FR-031, FR-035).
+  const auto counterOptions = capturePath("_counter_options.txt");
+  writeFile(counterOptions, "counter=@" + counterSetPath().string() + "\n");
+  std::string read;
+  const int readStatus = childRun(
+      selfPath,
+      "hunt",
+      {"full", "--iterations=1", "--options=" + counterOptions.string()},
+      read);
+  check(WEXITSTATUS(readStatus) == 0
+            && countOf(read, address(0) + "=") == 1,
+        "an option file line reads the `@`-form the command line reads "
+        "(FR-014, FR-035)");
+
+  const auto missing = capturePath("_missing_options.txt");
+  writeFile(missing, "counter=@/no/such/culprits.txt\n");
+  checkRefusals({
+      {"full",
+       {"--options=" + missing.string()},
+       missing.string()
+           + ":1: --counter: '@/no/such/culprits.txt' cannot be opened"},
+  });
+  std::printf("counter-file-from-environment-and-option-file: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// The round trip (specs/033-hunter-budgets T012; FR-015, SC-001, roadmap
+// criterion 12.7-6). One scripted run hunts and emits, the second reads the
+// emitted file back as its counter list. No clock, no sleep, no PMU hardware.
+// ---------------------------------------------------------------------------
+
+auto scenarioEmitSetRoundTrip() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+  std::string selection;
+  for (std::size_t index = 0; index < 6; ++index) {
+    if (index != 0) {
+      selection += ",";
+    }
+    selection += address(index);
+  }
+  const auto run = captureRun({"--iterations=1",
+                               "--hunt=" + selection,
+                               "--hunt-top=6",
+                               "--hunt-emit-set=" + counterSetPath().string()});
+  const auto emitted = fileLines(counterSetPath());
+  check(emitted.size() == 6,
+        "the hunt wrote every ranked address it was asked to emit (FR-011)");
+  check(countOf(run, "no such leaf") == 0,
+        "the hunt itself resolved every address (FR-011)");
+
+  const auto readBack =
+      captureRun({"--iterations=1", "--counter=@" + counterSetPath().string()});
+  check(countOf(readBack, address(5) + "=") == 1,
+        "the second run reads the emitted file back as its counter list "
+        "(FR-015, criterion 12.7-6)");
+  check(columnCount(readBack) == emitted.size(),
+        "the re-read run reports one counter column per emitted address "
+        "(FR-015, SC-001)");
+  check(countOf(readBack, "no such leaf") == 0,
+        "no emitted column stands refused on the host that ranked it "
+        "(FR-015, criterion 12.7-6)");
+  std::printf("emit-set-round-trip: ok\n");
+}
+
 [[nodiscard]] auto scenarios() -> const std::vector<Scenario>&
 {
   static const std::vector<Scenario> kList {
@@ -2006,6 +2195,14 @@ auto scenarioEmitSetRefusesAnUnwritableDestination() -> void
       Scenario {"emit-set-refusals", &scenarioEmitSetRefusals},
       Scenario {"emit-set-refuses-an-unwritable-destination",
                 &scenarioEmitSetRefusesAnUnwritableDestination},
+      Scenario {"counter-file-form-reads-addresses",
+                &scenarioCounterFileFormReadsAddresses},
+      Scenario {"counter-file-keeps-the-standing-resolution",
+                &scenarioCounterFileKeepsTheStandingResolution},
+      Scenario {"counter-file-refusals", &scenarioCounterFileRefusals},
+      Scenario {"counter-file-from-environment-and-option-file",
+                &scenarioCounterFileFromEnvironmentAndOptionFile},
+      Scenario {"emit-set-round-trip", &scenarioEmitSetRoundTrip},
       Scenario {"option-order-settles", &scenarioOptionOrderSettles},
       Scenario {"option-without-hunt", &scenarioOptionWithoutHunt},
       Scenario {"option-order-refusals", &scenarioOptionOrderRefusals},
