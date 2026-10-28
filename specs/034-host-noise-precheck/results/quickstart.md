@@ -1,14 +1,14 @@
-## Recorded run, 2026-10-27, the owner host (24 cores, 4 L3 groups)
+## Recorded run, 2026-10-27, the recording host (24 cores, 4 L3 groups)
 
 | Scenario | Command | Exit | Observation |
 | --- | --- | --- | --- |
-| Feature suite | ctest --test-dir build -R harness_precheck | 0 | 1 test, ok |
+| Feature suite | `ctest --test-dir build -R harness_precheck` | 0 | 1 test, ok |
 | Real-host pre-check | (above) | 0 | 3 measured cpu blocks; pinning: pinning candidates: cpu 0 248.61 cpu 24 283.23 |
 | Serial shape | (above) | 0 | 3 blocks, planned before candidates |
-| Usage error precheck=searial | (above) | 2 | one line: --jitter-probe: the precheck 'searial' is not a positive number |
-| Usage error precheck=0 | (above) | 2 | one line: --jitter-probe: the precheck '0' is not a positive number |
-| Usage error precheck=4294967296 | (above) | 2 | one line: --jitter-probe: the precheck '4294967296' is not a positive number |
-| Strict refusal | (above) | 2 | --jitter-probe: cpu 0 is noisy: gapsPerSecond 14610718.96 maxNs 8778 |
+| Usage error precheck=searial | (above) | 2 | one line: `--jitter-probe: the precheck 'searial' is not a positive number` |
+| Usage error precheck=0 | (above) | 2 | one line: `--jitter-probe: the precheck '0' is not a positive number` |
+| Usage error precheck=4294967296 | (above) | 2 | one line: `--jitter-probe: the precheck '4294967296' is not a positive number` |
+| Strict refusal | (above) | 2 | `--jitter-probe: cpu 0 is noisy: gapsPerSecond 14610718.96 maxNs 8778` |
 | JSON round trip | (above) | 0 | keys: ['schemaVersion', 'speedgun', 'jitter', 'precheck', 'benchmarks'] |
 
 

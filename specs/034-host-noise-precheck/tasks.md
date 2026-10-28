@@ -320,7 +320,7 @@ and the code stand one fact.
   lines and 100% branches, no `LCOV_EXCL` marker, no new
   `--ignore-errors` entry, no code shaped for coverage (FR-027,
   SC-005)
-- [ ] T026 [P] Run the sanitizer and thread-sanitizer builds
+- [X] T026 [P] Run the sanitizer and thread-sanitizer builds
   (`ci-sanitize`, `ci-tsan`) and the naming, format, spell and
   JSON-library gates; every finding stands cleared at lint parity;
   the `sg::NoiseWarning` disclosure lines stand pinned unchanged
@@ -329,7 +329,7 @@ and the code stand one fact.
   result; every timing bound stands an order of magnitude inside the
   contamination signal it discriminates against, the margin recorded
   beside the bound (FR-021, FR-022, SC-006, R-11)
-- [ ] T028 Run `cmake --preset=ci-ubuntu` and
+- [X] T028 Run `cmake --preset=ci-ubuntu` and
   `cmake --build build` once and clear every clang-tidy and cppcheck
   finding (constitution IX, the per-feature release build) (depends
   on T012, T016, T020)
