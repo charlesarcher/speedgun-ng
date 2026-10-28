@@ -451,7 +451,7 @@ section within 25 lines, and the extended example matches its
   table in `specs/033-hunter-budgets/results/` in the spec 034
   shape; the record states the standing no-Intel fact (FR-045, SC-009, R-16, D-11,
   quickstart acceptance table) (depends on T029, T030, T031)
-- [ ] T033 Lane mechanics: rebase onto master (re-read
+- [X] T033 Lane mechanics: rebase onto master (re-read
   `CMakeLists.txt` and take the next free minor and schema minor at
   the rebase, the 029 reservation rule), push once per round with
   `--force-with-lease` and show `git ls-remote origin <branch>`,
