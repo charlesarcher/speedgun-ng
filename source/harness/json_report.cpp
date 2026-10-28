@@ -198,8 +198,8 @@ auto put(Builder& builder,
 auto putAttributionFigure(Builder& builder,
                           JsonObjectWriter& object,
                           std::string_view key,
-                          const std::optional<std::uint64_t>& value)
-    noexcept -> void
+                          const std::optional<std::uint64_t>& value) noexcept
+    -> void
 {
   object.key(key);
   if (!value.has_value()) {
@@ -961,10 +961,8 @@ auto writeReport(const std::string& path,
           {
             JsonObjectWriter attribution(builder);
             const auto& deltas = entry.attribution;
-            putAttributionFigure(builder,
-                                 attribution,
-                                 "interrupts",
-                                 deltas.interrupts);
+            putAttributionFigure(
+                builder, attribution, "interrupts", deltas.interrupts);
             attribution.key("softirqs");
             {
               JsonObjectWriter softirqs(builder);
@@ -972,14 +970,10 @@ auto writeReport(const std::string& path,
                 putAttributionFigure(builder, softirqs, kind, figure);
               }
             }
-            putAttributionFigure(builder,
-                                 attribution,
-                                 "switchDelta",
-                                 deltas.switches);
-            putAttributionFigure(builder,
-                                 attribution,
-                                 "scheduleDelta",
-                                 deltas.schedules);
+            putAttributionFigure(
+                builder, attribution, "switchDelta", deltas.switches);
+            putAttributionFigure(
+                builder, attribution, "scheduleDelta", deltas.schedules);
           }
         }
       }
@@ -988,26 +982,18 @@ auto writeReport(const std::string& path,
         JsonObjectWriter host(builder);
         // A setting the host does not state stands `null`, the file form
         // of the console's `not available` (FR-017, FR-018).
-        putOrNull(builder,
-                  host,
-                  "isolcpus",
-                  precheck->host.isolcpus.value_or(""));
-        putOrNull(builder,
-                  host,
-                  "nohz_full",
-                  precheck->host.nohzFull.value_or(""));
-        putOrNull(builder,
-                  host,
-                  "rcu_nocbs",
-                  precheck->host.rcuNocbs.value_or(""));
+        putOrNull(
+            builder, host, "isolcpus", precheck->host.isolcpus.value_or(""));
+        putOrNull(
+            builder, host, "nohz_full", precheck->host.nohzFull.value_or(""));
+        putOrNull(
+            builder, host, "rcu_nocbs", precheck->host.rcuNocbs.value_or(""));
         host.key("governors");
         {
           JsonObjectWriter governors(builder);
           for (const auto& [cpu, governor] : precheck->host.governors) {
-            putOrNull(builder,
-                      governors,
-                      std::to_string(cpu),
-                      governor.value_or(""));
+            putOrNull(
+                builder, governors, std::to_string(cpu), governor.value_or(""));
           }
         }
         host.key("irqAffinity");

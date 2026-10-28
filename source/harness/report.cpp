@@ -999,21 +999,17 @@ auto printPrecheckReport(const PrecheckRecord& record) -> void
     std::printf("gapCount: %llu\n",
                 static_cast<unsigned long long>(stats.gapCount));
     std::printf("gapsPerSecond: %.2f\n", stats.gapsPerSecond);
-    std::printf("minNs: %llu\n",
-                static_cast<unsigned long long>(stats.minNs));
+    std::printf("minNs: %llu\n", static_cast<unsigned long long>(stats.minNs));
     std::printf("medianNs: %llu\n",
                 static_cast<unsigned long long>(stats.medianNs));
     std::printf("meanNs: %.2f\n", stats.meanNs);
-    std::printf("p90Ns: %llu\n",
-                static_cast<unsigned long long>(stats.p90Ns));
-    std::printf("p99Ns: %llu\n",
-                static_cast<unsigned long long>(stats.p99Ns));
+    std::printf("p90Ns: %llu\n", static_cast<unsigned long long>(stats.p90Ns));
+    std::printf("p99Ns: %llu\n", static_cast<unsigned long long>(stats.p99Ns));
     std::printf("p999Ns: %llu\n",
                 static_cast<unsigned long long>(stats.p999Ns));
     std::printf("p9999Ns: %llu\n",
                 static_cast<unsigned long long>(stats.p9999Ns));
-    std::printf("maxNs: %llu\n",
-                static_cast<unsigned long long>(stats.maxNs));
+    std::printf("maxNs: %llu\n", static_cast<unsigned long long>(stats.maxNs));
     std::printf("totalNs: %llu\n",
                 static_cast<unsigned long long>(stats.totalNs));
     std::printf("totalPercent: %.2f\n", stats.totalPercent);
@@ -1040,16 +1036,15 @@ auto printPrecheckReport(const PrecheckRecord& record) -> void
   }
   const auto& host = record.host;
   const auto settingText = [](const std::optional<std::string>& value)
-  {
-    return value.has_value() ? value->c_str() : kUnavailableFigure;
-  };
+  { return value.has_value() ? value->c_str() : kUnavailableFigure; };
   std::printf("host settings: isolcpus=%s nohz_full=%s rcu_nocbs=%s\n",
               settingText(host.isolcpus),
               settingText(host.nohzFull),
               settingText(host.rcuNocbs));
   for (const auto& [cpu, governor] : host.governors) {
     std::printf(
-        "governor: cpu %u %s (source: /sys devices system cpu scaling_governor)\n",
+        "governor: cpu %u %s (source: /sys devices system cpu "
+        "scaling_governor)\n",
         static_cast<unsigned>(cpu),
         settingText(governor));
   }

@@ -786,8 +786,7 @@ auto speedgunMain(int argc, char** argv) -> int
     // measured set (FR-010).
     auto planned = detail::plannedCpusOf(selected, detail::layout());
     std::ranges::sort(planned);
-    planned.erase(std::unique(planned.begin(), planned.end()),
-                  planned.end());
+    planned.erase(std::unique(planned.begin(), planned.end()), planned.end());
     if (probeCpus.empty()) {
       // D-4, R-07: the idle resolution runs against the selected
       // instances' plans before the batch starts.
@@ -826,8 +825,7 @@ auto speedgunMain(int argc, char** argv) -> int
     } else if (options.jitterProbe->mode == JitterProbeMode::PRECHECK) {
       // specs/034 R-01: the pre-check measures the planned cpus and
       // the candidates beside the probe's own list (FR-010).
-      const auto set =
-          detail::precheckMeasuredSet(detail::layout(), planned);
+      const auto set = detail::precheckMeasuredSet(detail::layout(), planned);
       std::vector<std::uint32_t> measured = set.cpus;
       measured.insert(measured.end(), probeCpus.begin(), probeCpus.end());
       std::ranges::sort(measured);
@@ -842,12 +840,11 @@ auto speedgunMain(int argc, char** argv) -> int
     // window opens (FR-016); the after snapshot follows the start's
     // latch, and the deltas stand the window's own.
     const bool precheckRuns =
-(options.jitterProbe->mode == JitterProbeMode::PRECHECK
- || options.jitterProbe->mode == JitterProbeMode::BOTH);
-    const auto beforeSnapshot =
-        precheckRuns ? detail::precheckReadSnapshot(probeCpus)
-                     : std::map<std::uint32_t,
-                                detail::PrecheckCpuSnapshot> {};
+        (options.jitterProbe->mode == JitterProbeMode::PRECHECK
+         || options.jitterProbe->mode == JitterProbeMode::BOTH);
+    const auto beforeSnapshot = precheckRuns
+        ? detail::precheckReadSnapshot(probeCpus)
+        : std::map<std::uint32_t, detail::PrecheckCpuSnapshot> {};
     jitterProbe.emplace(probeOptions);
     jitterProbe->start();
     if (jitterProbe->states().empty()) {
@@ -868,14 +865,15 @@ auto speedgunMain(int argc, char** argv) -> int
       // planned list does not name stands a candidate, and a candidate
       // never refuses.
       if (options.jitterProbe->mode == JitterProbeMode::PRECHECK
-          && options.jitterProbe->strict) {
-        const auto noisy = detail::precheckNoisyCpus(
-            jitterProbe->states(), planned);
+          && options.jitterProbe->strict)
+      {
+        const auto noisy =
+            detail::precheckNoisyCpus(jitterProbe->states(), planned);
         if (!noisy.empty()) {
-          const auto found = std::ranges::find_if(
-              jitterProbe->states(),
-              [&](const detail::ProbeCpuState& probeState)
-              { return probeState.cpu == noisy.front(); });
+          const auto found =
+              std::ranges::find_if(jitterProbe->states(),
+                                   [&](const detail::ProbeCpuState& probeState)
+                                   { return probeState.cpu == noisy.front(); });
           const auto fold = detail::gapStatsOf(*found);
           std::fprintf(
               stderr,
@@ -1536,8 +1534,7 @@ auto speedgunMain(int argc, char** argv) -> int
     }
     const detail::RunDisclosure disclosure {resolved->uses, seed};
     if (!detail::writeReport(
-            options.jsonPath, report, disclosure, jitterRecord,
-            precheckRecord))
+            options.jsonPath, report, disclosure, jitterRecord, precheckRecord))
     {
       reportFailed = true;
       status = 2;

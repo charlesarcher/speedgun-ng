@@ -15,13 +15,13 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
-#include <sstream>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -61,7 +61,9 @@ public:
   {
     sg::detail::installTestProcRoot(root);
   }
+
   ~ProcRootGuard() { sg::detail::installTestProcRoot(std::nullopt); }
+
   ProcRootGuard(const ProcRootGuard&) = delete;
   auto operator=(const ProcRootGuard&) -> ProcRootGuard& = delete;
 };
@@ -71,7 +73,7 @@ public:
 auto fakeRoot() -> std::filesystem::path
 {
   const auto path = std::filesystem::path("harness_precheck_fake_root_")
-    / ("pid" + std::to_string(::getpid()));
+      / ("pid" + std::to_string(::getpid()));
   const bool created = std::filesystem::create_directories(path);
   check(created || std::filesystem::is_directory(path),
         "the fake root stands created (T005)");
@@ -159,6 +161,7 @@ private:
     std::uint64_t reads = 0;
     std::uint64_t stamp = 1000000ULL;
   };
+
   [[nodiscard]] static auto threadState() -> ThreadState&
   {
     thread_local ThreadState state;
@@ -206,7 +209,8 @@ auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
   }
   std::vector<std::uint32_t> cpus;
   for (std::size_t index = 0; index < CPU_SETSIZE && cpus.size() < count;
-       ++index) {
+       ++index)
+  {
     if (CPU_ISSET(index, &mask)) {
       cpus.push_back(static_cast<std::uint32_t>(index));
     }
@@ -225,16 +229,13 @@ auto bmPinned(sg::State& state) -> void
   }
 }
 
-
 // T013: the console capture the block tests read: the printer's own
 // bytes, taken through the redirect the standing capture carries.
 auto capturePrecheck(const sg::PrecheckRecord& record) -> std::string
 {
   const char* const path = "harness_precheck_block.txt";
   const int saved = dup(STDOUT_FILENO);
-  if (saved < 0
-      || std::freopen(path, "w", stdout) == nullptr)
-  {
+  if (saved < 0 || std::freopen(path, "w", stdout) == nullptr) {
     fail("cannot redirect the pre-check block");
   }
   sg::detail::printPrecheckReport(record);
@@ -253,8 +254,7 @@ auto capturePrecheck(const sg::PrecheckRecord& record) -> std::string
 // T013: one record the block tests read: two planned cpus, the gap
 // rates standing apart so the rank stands unambiguous, and one
 // candidate cpu.
-auto noisyRecord(std::vector<std::uint32_t> cpus)
-    -> sg::PrecheckRecord
+auto noisyRecord(std::vector<std::uint32_t> cpus) -> sg::PrecheckRecord
 {
   sg::PrecheckRecord record;
   for (const auto cpu : cpus) {
@@ -400,8 +400,7 @@ auto main(int argc, char** argv) -> int
     sg::detail::JitterProbe probe(options);
     probe.start();
     sg::detail::installTestReader(nullptr);
-    const auto noisy =
-        sg::detail::precheckNoisyCpus(probe.states(), cpus);
+    const auto noisy = sg::detail::precheckNoisyCpus(probe.states(), cpus);
     check(noisy == cpus,
           "the parallel window stands both planned cpus noisy (FR-014)");
     const auto one = sg::detail::precheckNoisyCpus(
@@ -425,8 +424,7 @@ auto main(int argc, char** argv) -> int
     sg::detail::JitterProbe probe(options);
     probe.start();
     sg::detail::installTestReader(nullptr);
-    const auto noisy =
-        sg::detail::precheckNoisyCpus(probe.states(), cpus);
+    const auto noisy = sg::detail::precheckNoisyCpus(probe.states(), cpus);
     check(noisy.empty(),
           "the serial window stands no planned cpu noisy (FR-014, R-06)");
   }
@@ -487,11 +485,8 @@ auto main(int argc, char** argv) -> int
       while (scan <= refusalErr.size()) {
         const auto stop = refusalErr.find('\n', scan);
         const auto line = refusalErr.substr(
-            scan, stop == std::string::npos ? std::string::npos
-                                            : stop - scan);
-        if (!line.empty()
-            && !line.starts_with("libgcov profiling error:"))
-        {
+            scan, stop == std::string::npos ? std::string::npos : stop - scan);
+        if (!line.empty() && !line.starts_with("libgcov profiling error:")) {
           ++refusalLines;
         }
         if (stop == std::string::npos) {
@@ -546,8 +541,7 @@ auto main(int argc, char** argv) -> int
     const auto set = sg::detail::precheckMeasuredSet(
         twoGroupLayout(), std::vector<std::uint32_t> {});
     check(set.cpus.empty(),
-          "a plan-free set stands empty for the caller's refusal "
-          "(FR-010)");
+          "a plan-free set stands empty for the caller's refusal " "(FR-010)");
   }
 
   // T005, FR-019, R-02: the seam installs a root, `procRootPath`
@@ -556,8 +550,7 @@ auto main(int argc, char** argv) -> int
   {
     const auto root = fakeRoot();
     const ProcRootGuard guard(root);
-    const auto resolved =
-        sg::detail::procRootPath("proc/interrupts");
+    const auto resolved = sg::detail::procRootPath("proc/interrupts");
     check(resolved == root / "proc" / "interrupts",
           "the installed root resolves the pre-check reads (FR-019)");
   }
@@ -588,9 +581,9 @@ auto main(int argc, char** argv) -> int
           "figures (FR-012)");
     check(firstWarning < secondWarning,
           "the warnings stand in cpu order (FR-012)");
-    const auto pinning = block.find(
-        "pinning candidates: cpu " + std::to_string(cpus.at(1))
-        + " 3.25 cpu " + std::to_string(cpus.at(0)) + " 12.50");
+    const auto pinning =
+        block.find("pinning candidates: cpu " + std::to_string(cpus.at(1))
+                   + " 3.25 cpu " + std::to_string(cpus.at(0)) + " 12.50");
     check(pinning != std::string::npos,
           "the pinning line names every planned cpu lowest rate first "
           "(FR-013)");
@@ -603,8 +596,7 @@ auto main(int argc, char** argv) -> int
     candidate.cpu = cpus.at(0) + 7;
     record.cpus.push_back(candidate);
     const auto withCandidate = capturePrecheck(record);
-    check(withCandidate.find("warning: cpu "
-                             + std::to_string(candidate.cpu))
+    check(withCandidate.find("warning: cpu " + std::to_string(candidate.cpu))
               == std::string::npos,
           "a candidate never stands a warning line (FR-015)");
     check(withCandidate.find("pinning candidates: cpu "
@@ -640,8 +632,8 @@ auto main(int argc, char** argv) -> int
     const ProcRootGuard guard(rootDir);
     const auto procDir = rootDir / "proc";
     std::filesystem::create_directories(procDir);
-    const auto write = [](const std::filesystem::path& path,
-                          const std::string& text)
+    const auto write =
+        [](const std::filesystem::path& path, const std::string& text)
     {
       std::ofstream file(path);
       check(static_cast<bool>(file), "the fake file opens (T015)");
@@ -653,29 +645,25 @@ auto main(int argc, char** argv) -> int
     write(procDir / "interrupts",
           " 0: " + std::to_string(10) + " " + std::to_string(20)
               + "\n 1: 1 2\nNMI: 3 4\n");
-    write(procDir / "softirqs",
-          "  TIMER: 5 6\n  NET_RX: 7 8\n");
+    write(procDir / "softirqs", "  TIMER: 5 6\n  NET_RX: 7 8\n");
     write(procDir / "schedstat",
-          "cpu" + std::to_string(cpu0) + " 1 2 3\ncpu"
-              + std::to_string(cpu1) + " 4 5 6\n");
+          "cpu" + std::to_string(cpu0) + " 1 2 3\ncpu" + std::to_string(cpu1)
+              + " 4 5 6\n");
     const auto before = sg::detail::precheckReadSnapshot(cpus);
-    write(procDir / "interrupts",
-          " 0: 15 30\n 1: 1 2\nNMI: 3 6\n");
-    write(procDir / "softirqs",
-          "  TIMER: 8 11\n  NET_RX: 7 8\n");
+    write(procDir / "interrupts", " 0: 15 30\n 1: 1 2\nNMI: 3 6\n");
+    write(procDir / "softirqs", "  TIMER: 8 11\n  NET_RX: 7 8\n");
     write(procDir / "schedstat",
-          "cpu" + std::to_string(cpu0) + " 1 4 7\ncpu"
-              + std::to_string(cpu1) + " 4 5 9\n");
+          "cpu" + std::to_string(cpu0) + " 1 4 7\ncpu" + std::to_string(cpu1)
+              + " 4 5 9\n");
     const auto after = sg::detail::precheckReadSnapshot(cpus);
-    const auto delta0 = sg::detail::precheckAttributionDelta(
-        before.at(cpu0), after.at(cpu0));
+    const auto delta0 =
+        sg::detail::precheckAttributionDelta(before.at(cpu0), after.at(cpu0));
     check(delta0.interrupts.has_value() && *delta0.interrupts == 5,
           "the interrupt delta stands the cpu column sum (FR-016)");
-    const auto delta1 = sg::detail::precheckAttributionDelta(
-        before.at(cpu1), after.at(cpu1));
+    const auto delta1 =
+        sg::detail::precheckAttributionDelta(before.at(cpu1), after.at(cpu1));
     check(delta1.interrupts.has_value() && *delta1.interrupts == 12,
-          "the second cpu's interrupt delta stands its own column "
-          "(FR-016)");
+          "the second cpu's interrupt delta stands its own column " "(FR-016)");
     check(delta0.softirqs.size() == 2
               && delta0.softirqs.at(0).first == "TIMER"
               && delta0.softirqs.at(0).second.has_value()
@@ -706,15 +694,13 @@ auto main(int argc, char** argv) -> int
     const auto cpus = pickCpus(1);
     const auto before = sg::detail::precheckReadSnapshot(cpus);
     const auto& state = before.at(cpus.at(0));
-    check(!state.interrupts.has_value()
-              && !state.switches.has_value()
+    check(!state.interrupts.has_value() && !state.switches.has_value()
               && !state.schedules.has_value(),
           "a missing source stands the figure absent (FR-018)");
     const auto host = sg::detail::precheckReadHostSettings(cpus);
     check(!host.isolcpus.has_value() && !host.nohzFull.has_value()
               && !host.rcuNocbs.has_value(),
-          "a missing command line stands the settings unstated "
-          "(FR-017)");
+          "a missing command line stands the settings unstated " "(FR-017)");
   }
 
   // T015, FR-018: every unparsable shape stands the figure absent for
@@ -730,8 +716,8 @@ auto main(int argc, char** argv) -> int
     const ProcRootGuard guard(rootDir);
     const auto procDir = rootDir / "proc";
     std::filesystem::create_directories(procDir);
-    const auto write = [](const std::filesystem::path& path,
-                          const std::string& text)
+    const auto write =
+        [](const std::filesystem::path& path, const std::string& text)
     {
       std::ofstream file(path);
       check(static_cast<bool>(file), "the fake file opens (T015)");
@@ -744,22 +730,20 @@ auto main(int argc, char** argv) -> int
     // kind row short of the cpu's column, stand absent for that kind
     // alone (FR-018).
     write(procDir / "softirqs", ": 1 2\n   : 3 4\n TIMER: 5\n");
-    write(procDir / "schedstat",
-          "cpu" + std::to_string(cpu1) + " 1 2 x\n");
+    write(procDir / "schedstat", "cpu" + std::to_string(cpu1) + " 1 2 x\n");
     const auto shortRead = sg::detail::precheckReadSnapshot(cpus);
     const auto& state1 = shortRead.at(cpu1);
-    check(!state1.interrupts.has_value(),
-          "an interrupt row short of the cpu's column stands absent "
-          "(FR-018)");
+    check(
+        !state1.interrupts.has_value(),
+        "an interrupt row short of the cpu's column stands absent " "(FR-018)");
     check(std::any_of(state1.softirqs.begin(),
                       state1.softirqs.end(),
                       [](const auto& kind) { return kind.second.has_value(); })
               == false,
-          "a short softirq kind stands absent for that kind alone "
-          "(FR-018)");
-    check(!state1.switches.has_value() && !state1.schedules.has_value(),
-          "a schedstat line that parses as no figure stands absent "
-          "(FR-018)");
+          "a short softirq kind stands absent for that kind alone " "(FR-018)");
+    check(
+        !state1.switches.has_value() && !state1.schedules.has_value(),
+        "a schedstat line that parses as no figure stands absent " "(FR-018)");
     write(procDir / "interrupts", " 0: 10 20\n 1: 1 xx\n");
     const auto unparsable = sg::detail::precheckReadSnapshot(cpus);
     check(!unparsable.at(cpu1).interrupts.has_value(),
@@ -770,34 +754,32 @@ auto main(int argc, char** argv) -> int
     // for that kind alone, and the schedstat line short of the three
     // figures stands absent beside it (FR-018).
     write(procDir / "softirqs", " TIMER: 5 3x\n");
-    write(procDir / "schedstat",
-          "cpu" + std::to_string(cpu1) + " 1 2\n");
+    write(procDir / "schedstat", "cpu" + std::to_string(cpu1) + " 1 2\n");
     const auto shortShapes = sg::detail::precheckReadSnapshot(cpus);
     const auto& softState = shortShapes.at(cpu1);
-    check(softState.softirqs.size() == 1
-              && !softState.softirqs.at(0).second.has_value(),
-          "a softirq column that parses as no number stands absent "
-          "(FR-018)");
-    check(!shortShapes.at(cpu1).switches.has_value()
-              && !shortShapes.at(cpu1).schedules.has_value(),
-          "a schedstat line short of the three figures stands absent "
-          "(FR-018)");
+    check(
+        softState.softirqs.size() == 1
+            && !softState.softirqs.at(0).second.has_value(),
+        "a softirq column that parses as no number stands absent " "(FR-018)");
+    check(
+        !shortShapes.at(cpu1).switches.has_value()
+            && !shortShapes.at(cpu1).schedules.has_value(),
+        "a schedstat line short of the three figures stands absent " "(FR-"
+                                                                     "018)");
 
     // A counter that stands back: the after figure below the before
     // figure stands the delta absent, the way a wrapped counter reads
     // (FR-016, FR-018).
     write(procDir / "interrupts", " 0: 10 20\n 1: 1 2\n");
     write(procDir / "softirqs", " TIMER: 5 6\n NET_RX: 1 2\n");
-    write(procDir / "schedstat",
-          "cpu" + std::to_string(cpu1) + " 1 2 3\n");
+    write(procDir / "schedstat", "cpu" + std::to_string(cpu1) + " 1 2 3\n");
     const auto wrappedBefore = sg::detail::precheckReadSnapshot(cpus);
     // The interrupt counter stands back: the after figure below the
     // before figure stands the delta absent, the way a wrapped
     // counter reads (FR-016, FR-018), while the softirq figures stand
     // their increases beside it.
     write(procDir / "interrupts", " 0: 5 8\n 1: 1 1\n");
-    write(procDir / "softirqs", " TIMER: 9 9\n NET_RX: 1 2\n"
-          " ICMP: 1 1\n");
+    write(procDir / "softirqs", " TIMER: 9 9\n NET_RX: 1 2\n" " ICMP: 1 1\n");
     const auto wrappedAfter = sg::detail::precheckReadSnapshot(cpus);
     const auto wrapped = sg::detail::precheckAttributionDelta(
         wrappedBefore.at(cpu1), wrappedAfter.at(cpu1));
@@ -811,11 +793,14 @@ auto main(int argc, char** argv) -> int
         || wrapped.softirqs.at(2).second.has_value())
     {
       for (const auto& [kind, figure] : wrapped.softirqs) {
-        std::fprintf(stderr, "DBG kind=%s delta=%s\n", kind.c_str(),
-                     figure.has_value() ? std::to_string(*figure).c_str()
-                                        : "(absent)");
+        std::fprintf(
+            stderr,
+            "DBG kind=%s delta=%s\n",
+            kind.c_str(),
+            figure.has_value() ? std::to_string(*figure).c_str() : "(absent)");
       }
-      std::fprintf(stderr, "DBG interrupts=%d switches=%d schedules=%d\n",
+      std::fprintf(stderr,
+                   "DBG interrupts=%d switches=%d schedules=%d\n",
                    wrapped.interrupts.has_value(),
                    wrapped.switches.has_value(),
                    wrapped.schedules.has_value());
@@ -827,14 +812,13 @@ auto main(int argc, char** argv) -> int
     // interrupt file stands deleted between the snapshots.
     write(procDir / "interrupts", " 0: 10 20\n 1: 1 2\n");
     write(procDir / "softirqs", " TIMER: 5 6\n");
-    write(procDir / "schedstat",
-          "cpu" + std::to_string(cpu1) + " 1 2 3\n");
+    write(procDir / "schedstat", "cpu" + std::to_string(cpu1) + " 1 2 3\n");
     const auto before = sg::detail::precheckReadSnapshot(cpus);
     std::filesystem::remove(procDir / "interrupts");
     write(procDir / "softirqs", " TIMER: 5 9\n");
     const auto after = sg::detail::precheckReadSnapshot(cpus);
-    const auto delta = sg::detail::precheckAttributionDelta(
-        before.at(cpu1), after.at(cpu1));
+    const auto delta =
+        sg::detail::precheckAttributionDelta(before.at(cpu1), after.at(cpu1));
     check(!delta.interrupts.has_value(),
           "a delta with one side absent stands absent (FR-016, FR-018)");
     check(delta.softirqs.size() == 1
@@ -858,8 +842,8 @@ auto main(int argc, char** argv) -> int
     const auto procDir = rootDir / "proc";
     const auto sysDir = rootDir / "sys/devices/system/cpu";
     std::filesystem::create_directories(procDir);
-    const auto write = [](const std::filesystem::path& path,
-                          const std::string& text)
+    const auto write =
+        [](const std::filesystem::path& path, const std::string& text)
     {
       std::filesystem::create_directories(path.parent_path());
       std::ofstream file(path);
@@ -880,8 +864,8 @@ auto main(int argc, char** argv) -> int
     write(procDir / "softirqs", "");
     write(procDir / "schedstat", "");
     write(procDir / "interrupts", "");
-    write(sysDir / ("cpu" + std::to_string(cpu0) + "/cpufreq/"
-                    "scaling_governor"),
+    write(sysDir
+              / ("cpu" + std::to_string(cpu0) + "/cpufreq/" "scaling_governor"),
           "");
     write(procDir / "irq/5/smp_affinity_list",
           std::to_string(cpu0) + "," + std::to_string(cpu1) + "\n");
@@ -898,14 +882,13 @@ auto main(int argc, char** argv) -> int
               && host.rcuNocbs.has_value() && *host.rcuNocbs == "0-1",
           "a key that names no equals sign names no setting, and an "
           "empty value names the empty text (FR-017)");
-    check(host.governors.size() == 2
-              && !host.governors.at(0).second.has_value(),
-          "an empty governor file names no line (FR-017)");
+    check(
+        host.governors.size() == 2 && !host.governors.at(0).second.has_value(),
+        "an empty governor file names no line (FR-017)");
     check(host.irqAffinity.size() == 2
               && host.irqAffinity.at(0).second.size() == 1
               && host.irqAffinity.at(1).second.size() == 1,
-          "the two-token affinity list stands both cpus it names "
-          "(FR-017)");
+          "the two-token affinity list stands both cpus it names " "(FR-017)");
   }
 
   // T015, FR-018: the cpu-list and mask parsers refuse the shapes no
@@ -919,8 +902,8 @@ auto main(int argc, char** argv) -> int
     const auto procDir = rootDir / "proc";
     const auto sysDir = rootDir / "sys/devices/system/cpu";
     std::filesystem::create_directories(procDir);
-    const auto write = [](const std::filesystem::path& path,
-                          const std::string& text)
+    const auto write =
+        [](const std::filesystem::path& path, const std::string& text)
     {
       std::filesystem::create_directories(path.parent_path());
       std::ofstream file(path);
@@ -948,8 +931,7 @@ auto main(int argc, char** argv) -> int
     // groups before it spell (FR-018, R-6 of research.md).
     write(procDir / "irq/19/smp_affinity_list",
           std::to_string(cpu0) + "," + std::to_string(cpu1) + ",\n");
-    write(procDir / "irq/20/smp_affinity",
-          "00000003,00000003,\n");
+    write(procDir / "irq/20/smp_affinity", "00000003,00000003,\n");
     write(procDir / "irq/15/smp_affinity", "zzzzzzzz\n");
     write(procDir / "irq/16/smp_affinity", ",00000003\n");
     // The multi-group mask: the picked cpus' own groups beside the
@@ -965,7 +947,9 @@ auto main(int argc, char** argv) -> int
         mask += ',';
       }
       char group[9] = {};
-      std::snprintf(group, sizeof(group), "%08llx",
+      std::snprintf(group,
+                    sizeof(group),
+                    "%08llx",
                     static_cast<unsigned long long>(it->second));
       mask += group;
     }
@@ -974,8 +958,8 @@ auto main(int argc, char** argv) -> int
     write(procDir / "irq/README", "nothing\n");
     // An empty governor file names no line, the blank text the
     // `not available` reading stands for (FR-017, FR-018).
-    write(sysDir / ("cpu" + std::to_string(cpu0) + "/cpufreq/"
-                    "scaling_governor"),
+    write(sysDir
+              / ("cpu" + std::to_string(cpu0) + "/cpufreq/" "scaling_governor"),
           "\n");
     const auto host = sg::detail::precheckReadHostSettings(cpus);
     const auto namedBy = [&host](std::uint32_t cpu, std::uint32_t irq)
@@ -988,25 +972,24 @@ auto main(int argc, char** argv) -> int
       }
       return false;
     };
-    check(!namedBy(cpu0, 9U) && !namedBy(cpu1, 9U)
-              && !namedBy(cpu0, 10U) && !namedBy(cpu1, 10U)
-              && !namedBy(cpu0, 11U) && !namedBy(cpu1, 11U)
-              && !namedBy(cpu0, 13U) && !namedBy(cpu1, 13U)
-              && !namedBy(cpu0, 14U) && !namedBy(cpu1, 14U)
-              && !namedBy(cpu0, 15U) && !namedBy(cpu1, 15U)
-              && !namedBy(cpu0, 16U) && !namedBy(cpu1, 16U)
-              && !namedBy(cpu0, 17U) && !namedBy(cpu1, 17U)
-              && !namedBy(cpu0, 18U) && !namedBy(cpu1, 18U),
-          "the unparsable affinity shapes name no cpu (FR-018)");
+    check(
+        !namedBy(cpu0, 9U) && !namedBy(cpu1, 9U) && !namedBy(cpu0, 10U)
+            && !namedBy(cpu1, 10U) && !namedBy(cpu0, 11U) && !namedBy(cpu1, 11U)
+            && !namedBy(cpu0, 13U) && !namedBy(cpu1, 13U) && !namedBy(cpu0, 14U)
+            && !namedBy(cpu1, 14U) && !namedBy(cpu0, 15U) && !namedBy(cpu1, 15U)
+            && !namedBy(cpu0, 16U) && !namedBy(cpu1, 16U) && !namedBy(cpu0, 17U)
+            && !namedBy(cpu1, 17U) && !namedBy(cpu0, 18U)
+            && !namedBy(cpu1, 18U),
+        "the unparsable affinity shapes name no cpu (FR-018)");
     check(namedBy(cpu0, 12U) && namedBy(cpu1, 12U),
           "the multi-group mask names its cpus (FR-018)");
     check(namedBy(cpu0, 19U) && namedBy(cpu1, 19U)
               && namedBy(cpu0, 20U) && namedBy(cpu1, 20U),
           "the lists and masks that end with their comma name the "
           "cpus before it (FR-018)");
-    check(host.governors.size() == 2
-              && !host.governors.at(0).second.has_value(),
-          "a blank governor line reads `not available` (FR-017)");
+    check(
+        host.governors.size() == 2 && !host.governors.at(0).second.has_value(),
+        "a blank governor line reads `not available` (FR-017)");
   }
 
   // T015, FR-015: a planned cpu the states do not name stands out of
@@ -1020,8 +1003,7 @@ auto main(int argc, char** argv) -> int
     const std::vector<std::uint32_t> planned {cpus.at(0), cpus.at(1) + 9U};
     const auto noisy = sg::detail::precheckNoisyCpus(states, planned);
     check(noisy.empty(),
-          "a planned cpu the states do not name stands no noise "
-          "(FR-015)");
+          "a planned cpu the states do not name stands no noise " "(FR-015)");
   }
 
   // T015, FR-017, R-04: the host settings over fake files: the kernel
@@ -1039,8 +1021,8 @@ auto main(int argc, char** argv) -> int
     const auto procDir = rootDir / "proc";
     const auto sysDir = rootDir / "sys/devices/system/cpu";
     std::filesystem::create_directories(procDir);
-    const auto write = [](const std::filesystem::path& path,
-                          const std::string& text)
+    const auto write =
+        [](const std::filesystem::path& path, const std::string& text)
     {
       std::filesystem::create_directories(path.parent_path());
       std::ofstream file(path);
@@ -1050,11 +1032,12 @@ auto main(int argc, char** argv) -> int
     const auto cpus = pickCpus(2);
     const auto cpu0 = cpus.at(0);
     const auto cpu1 = cpus.at(1);
-    write(procDir / "cmdline",
-          "BOOT_IMAGE=/vmlinuz isolcpus=2-3 nohz_full=1 rcu_nocbs=0-1 "
-          "quiet\n");
-    write(sysDir / ("cpu" + std::to_string(cpu1) + "/cpufreq/"
-                    "scaling_governor"),
+    write(
+        procDir / "cmdline",
+        "BOOT_IMAGE=/vmlinuz isolcpus=2-3 nohz_full=1 rcu_nocbs=0-1 " "quiet"
+                                                                      "\n");
+    write(sysDir
+              / ("cpu" + std::to_string(cpu1) + "/cpufreq/" "scaling_governor"),
           "performance\n");
     // The fake files name the cpus the process picked, so the scenario
     // stands on any mask, the small-mask hosts included (VI).
@@ -1069,7 +1052,9 @@ auto main(int argc, char** argv) -> int
           text += ',';
         }
         char group[9] = {};
-        std::snprintf(group, sizeof(group), "%08llx",
+        std::snprintf(group,
+                      sizeof(group),
+                      "%08llx",
                       static_cast<unsigned long long>(it->second));
         text += group;
       }
@@ -1125,24 +1110,30 @@ auto main(int argc, char** argv) -> int
                    "/proc/interrupts)") != std::string::npos,
         "the absent interrupt delta prints `not available` beside its "
         "source (FR-018)");
-    check(block.find("switch delta: not available, schedule delta: not "
-                     "available (source: /proc/schedstat)")
+    check(block.find(
+              "switch delta: not available, schedule delta: not " "available "
+                                                                  "(source: "
+                                                                  "/proc/"
+                                                                  "schedstat)")
               != std::string::npos,
           "the absent schedstat deltas print `not available` (FR-018)");
-    check(block.find("host settings: isolcpus=not available "
-                     "nohz_full=not available rcu_nocbs=not available")
-              != std::string::npos,
-          "the unstated settings print `not available` (FR-018)");
-    check(block.find("governor: cpu "
-                     + std::to_string(cpus.at(0)) + " not available")
+    check(
+        block.find(
+            "host settings: isolcpus=not available " "nohz_full=not available "
+                                                     "rcu_nocbs=not available")
+            != std::string::npos,
+        "the unstated settings print `not available` (FR-018)");
+    check(block.find("governor: cpu " + std::to_string(cpus.at(0))
+                     + " not available")
               != std::string::npos,
           "the absent governor prints `not available` (FR-018)");
-    check(block.find("irq affinity: cpu "
-                     + std::to_string(cpus.at(0)) + " not available")
+    check(block.find("irq affinity: cpu " + std::to_string(cpus.at(0))
+                     + " not available")
               != std::string::npos,
           "the absent affinity list prints `not available` (FR-018)");
   }
 
-  check(std::fprintf(stdout, "harness_precheck_test: ok\n") > 0, "the run prints");
+  check(std::fprintf(stdout, "harness_precheck_test: ok\n") > 0,
+        "the run prints");
   return 0;
 }
