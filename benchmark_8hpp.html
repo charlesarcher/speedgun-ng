@@ -127,6 +127,22 @@
             </dt>
             <dd>The C++ value the harness exposes for one benchmark; the console report formats it and adds nothing to it (FR-036, E-07).</dd>
             <dt>
+              struct <a href="structsg_1_1PrecheckAttribution.html" class="m-doc">sg::PrecheckAttribution</a>
+            </dt>
+            <dd>The attribution figures one pre-check measured cpu discloses, beside its gap figures: the window delta of the interrupt count, one delta per softirq kind the host states, and the context-switch and schedule counts (specs/034 FR-016, D-5). A figure the host does not state, states unreadable, or states unparsable stands <code>not available</code>, carried as an absent optional, and the run never fails on it (FR-018).</dd>
+            <dt>
+              struct <a href="structsg_1_1PrecheckHostSettings.html" class="m-doc">sg::PrecheckHostSettings</a>
+            </dt>
+            <dd>The host facts one run discloses once (specs/034 FR-017, D-6): the kernel command line&#x27;s <code><a href="structsg_1_1PrecheckHostSettings.html#a18461658dfc1bee48604f46f1d64b15b" class="m-doc">isolcpus</a></code>, <code>nohz_full</code> and <code>rcu_nocbs</code> values, the cpufreq governor of each measured cpu, and the IRQ numbers whose affinity names each measured cpu. A figure the host does not state stands <code>not available</code>.</dd>
+            <dt>
+              struct <a href="structsg_1_1PrecheckCpuRecord.html" class="m-doc">sg::PrecheckCpuRecord</a>
+            </dt>
+            <dd>One measured cpu of the pre-check: its index, whether the run plans it (the planned cpus stand the run&#x27;s own; the candidates stand the cpus the <code>idle</code> preset would take), the sixteen-field stats of its pre-check window, and its attribution deltas (specs/034 FR-010, FR-012).</dd>
+            <dt>
+              struct <a href="structsg_1_1PrecheckRecord.html" class="m-doc">sg::PrecheckRecord</a>
+            </dt>
+            <dd>The pre-check record one run carries: the window shape, one entry per measured cpu ascending, the host settings, and the skipped groups the candidate resolution left (specs/034 FR-012, FR-016, FR-017, D-8). The document carries it under the top-level <code>precheck</code> key, and <code><a href="namespacesg.html#a59d2ce0d2cfd165637238e77ee452a4c" class="m-doc">loadReport</a></code> reads it back (FR-024).</dd>
+            <dt>
               struct <a href="structsg_1_1JitterEntryFold.html" class="m-doc">sg::JitterEntryFold</a>
             </dt>
             <dd>One probe cpu&#x27;s fold over one benchmark&#x27;s timed windows (E-08): the cpu index and the fold the split placed into them. A probe cpu whose kept gaps landed inside no window of the benchmark carries no entry here (E-06, FR-021). The split reads the probe&#x27;s buffers only after the probe contexts are joined (R-04).</dd>
