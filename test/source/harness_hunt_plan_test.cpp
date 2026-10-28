@@ -35,12 +35,13 @@
 // of I-3 - so no case here states a host figure, a CPU count or a clock reading
 // (FR-003, FR-020, I-7).
 //
-// The sample-budget tables of specs/033 extend the same two seams.
-// `splitStages` answers the repeats a sample budget derives, the state it
-// records, and the re-priced figure the stage-drop decision reads (FR-001,
-// FR-002, FR-005, R-02, R-03, N-03). Those rows hand the planner the settled
-// clause figure directly: the `e` grammar stands in `hunt_cli.cpp` and
-// `harness_hunt_cli_test.cpp` pins it.
+// The sample-budget and multiplex-cap tables of specs/033 extend the same two
+// seams. `splitStages` answers the repeats a sample budget derives, the state
+// it records, and the re-priced figure the stage-drop decision reads, and
+// `planHunt` answers the consecutive groups a multiplex cap splits a
+// `MULTIPLEX` plan into (FR-001 to FR-005, R-02 to R-04, N-03, N-04). Those
+// rows hand the planner the settled clause figures directly: the `e` and `g`
+// grammar stands in `hunt_cli.cpp` and `harness_hunt_cli_test.cpp` pins it.
 //
 // The list below is what CTest runs, so an entry absent from it never runs, and
 // `argv[1]` selects one entry of it. Frameworkless check()/fail() convention,
@@ -1380,8 +1381,9 @@ auto budgetSecondsOverflow() -> void
 }
 
 // ---------------------------------------------------------------------------
-// The sample-budget seam (033 US2, FR-001, FR-002, FR-005, R-02, R-03, R-05;
-// data-model N-03; contracts/budget-grammar.md "Derived behavior")
+// The sample-budget and multiplex-cap seams (033 US2 and US3, FR-001 to FR-005,
+// R-02 to R-05; data-model N-03, N-04; contracts/budget-grammar.md "Derived
+// behavior")
 // ---------------------------------------------------------------------------
 
 // The settled values of one sample-budget row: the record `budgetOptions`
@@ -1395,6 +1397,18 @@ auto budgetSecondsOverflow() -> void
 {
   auto options = budgetOptions(budget, top);
   options.sampleBudgetNs = sampleBudgetNs;
+  return options;
+}
+
+// The settled values of one multiplex-cap row: the record `budgetOptions`
+// settles beside the `g` clause's whole count.
+[[nodiscard]] auto cappedOptions(
+    const std::optional<sg::hunt::HuntBudget>& budget,
+    const std::size_t top,
+    const std::optional<std::size_t> multiplexCap) -> sg::hunt::HuntOptions
+{
+  auto options = budgetOptions(budget, top);
+  options.multiplexCap = multiplexCap;
   return options;
 }
 
@@ -1420,6 +1434,44 @@ struct SampleRow
   const auto price = kCalibrationNsPerPass * row.passCount;
   const auto fit = static_cast<std::size_t>(row.budgetNs / price);
   return std::min(row.rule, fit == 0 ? std::size_t {1} : fit);
+}
+
+// The group sizes a cap answers for `count` planned addresses: consecutive
+// groups of at most the cap in plan order, the table N-04 states.
+[[nodiscard]] auto expectedGroups(
+    const std::size_t count, const std::size_t cap) -> std::vector<std::size_t>
+{
+  std::vector<std::size_t> groups;
+  for (std::size_t first = 0; first < count; first += cap) {
+    groups.push_back(std::min(count - first, cap));
+  }
+  return groups;
+}
+
+// The sizes of the plan's passes, the seat the group table takes: one group per
+// pass, so a row compares the two tables element by element.
+[[nodiscard]] auto passWidths(const sg::hunt::HuntPlan& plan)
+    -> std::vector<std::size_t>
+{
+  std::vector<std::size_t> widths;
+  widths.reserve(plan.passes.size());
+  for (const auto& pass : plan.passes) {
+    widths.push_back(pass.size());
+  }
+  return widths;
+}
+
+// The column indices of a plan in plan order, the order a capped plan's groups
+// run through.
+[[nodiscard]] auto planOrder(const std::size_t count)
+    -> std::vector<std::size_t>
+{
+  std::vector<std::size_t> order;
+  order.reserve(count);
+  for (std::size_t index = 0; index < count; ++index) {
+    order.push_back(index);
+  }
+  return order;
 }
 
 // The plan order of one seed: the scripted catalog split at `seed`, so a row
@@ -1597,6 +1649,8 @@ auto sampleBudgetUnsetStandsUnchanged() -> void
   check(whole.has_value() && !whole->sample.derivedRepeats.has_value()
             && !whole->sample.overBudget && !whole->sample.unpriced,
         "an unset sample budget records no state (FR-002)");
+  check(whole.has_value() && whole->muxGroups.empty(),
+        "an unset cap records no group (FR-003)");
 
   const auto splitOptions =
       sampleOptions(passBudget(kFitPasses), kAcSevenTop, std::nullopt);
@@ -1757,6 +1811,144 @@ auto sampleDerivationReadsNoClock() -> void
         "(FR-001, FR-005)");
 }
 
+// ---------------------------------------------------------------------------
+// The multiplex-cap tables (033 US3, FR-003, R-04, R-05; data-model N-04)
+// ---------------------------------------------------------------------------
+
+// FR-003, R-04, N-04: a `MULTIPLEX` plan under a cap splits its planned
+// addresses into consecutive groups of at most the cap in plan order. The 200
+// scripted events on a host that publishes no limit settle `MULTIPLEX`, so a
+// cap of 32 answers 32, 32, 32, 32, 32, 32, 8, and the plan's passes carry
+// those groups, one group to a pass.
+auto muxGroupsSplitThePlan() -> void
+{
+  const std::vector<std::size_t> kExpected {32, 32, 32, 32, 32, 32, 8};
+  const auto events = acSevenColumns();
+  const auto plan = planned(events,
+                            std::nullopt,
+                            cappedOptions(std::nullopt, kAcSevenTop, 32),
+                            "the capped multiplex row plans");
+
+  check(plan.method == sg::MetricMethod::MULTIPLEX,
+        "no needed device publishes a limit, so the settlement groups");
+  check(plan.muxGroups == kExpected,
+        "200 events at cap 32 answer 32 six times and 8 (FR-003, N-04)");
+  auto summed = std::size_t {0};
+  for (const auto width : plan.muxGroups) {
+    summed += width;
+  }
+  check(summed == sg::test::kHuntEvents,
+        "the group sizes sum to the planned count (N-04)");
+  checkPassesCoverColumnsOnce(plan);
+  check(passWidths(plan) == kExpected,
+        "the plan seats one group per pass in plan order (R-04)");
+
+  auto seated = std::vector<std::size_t> {};
+  for (const auto& pass : plan.passes) {
+    for (const auto column : pass) {
+      seated.push_back(column);
+    }
+  }
+  check(seated == planOrder(sg::test::kHuntEvents),
+        "the groups run through the plan order in consecutive runs (R-04)");
+}
+
+// FR-003, N-04: a cap at or above the planned count splits nothing. The same
+// 200-event `MULTIPLEX` plan answers one group holding every address, and a
+// wider cap answers the same table, because the cap bounds a group and adds
+// none.
+auto muxCapAtOrAboveThePlanAnswersOneGroup() -> void
+{
+  const std::vector<std::size_t> kOneGroup {sg::test::kHuntEvents};
+  const std::size_t caps[] = {sg::test::kHuntEvents,
+                              sg::test::kHuntEvents + 99};
+  const auto events = acSevenColumns();
+  for (const auto cap : caps) {
+    const auto plan = planned(events,
+                              std::nullopt,
+                              cappedOptions(std::nullopt, kAcSevenTop, cap),
+                              "a wide cap plans");
+    check(plan.muxGroups == kOneGroup,
+          "a cap at or above the event count answers one group (FR-003)");
+    check(plan.passes.size() == 1
+              && plan.passes.front().size() == sg::test::kHuntEvents,
+          "the one group is the one pass that holds every column");
+  }
+}
+
+// FR-003, R-04, spec 029 D-16: a `PASSES` settlement records no groups and the
+// cap binds nothing. The AC-7 plan at limit 6 settles `PASSES` and keeps its 50
+// passes of four columns beside a cap of 32. The forced
+// `--metric-method=multiplex` word lands in `runHuntNamed` after the plan and
+// never re-settles, so the empty table the planner answers is the table that
+// run discloses.
+auto muxCapBindsNothingOnPasses() -> void
+{
+  const auto events = acSevenColumns();
+  const auto plan = planned(events,
+                            kAcOneLimit,
+                            cappedOptions(std::nullopt, kAcSevenTop, 32),
+                            "the capped passes row plans");
+
+  check(plan.method == sg::MetricMethod::PASSES,
+        "a needed device publishes a limit, so the settlement groups nothing");
+  check(plan.muxGroups.empty(),
+        "a PASSES settlement records no groups (FR-003, N-04)");
+  check(plan.passes.size() == kAcSevenPasses
+            && std::ranges::all_of(plan.passes,
+                                   [](const std::vector<std::size_t>& pass)
+                                   { return pass.size() == kAcOneCapacity; }),
+        "the cap leaves the limit-sized passes of the plan untouched "
+        "(FR-003, spec 029 D-16)");
+  checkPassesCoverColumnsOnce(plan);
+}
+
+// R-05, N-04: composed with the two-stage budget the cap applies inside every
+// stage of the split plan. The cap moves the price the budget weighs: the 200
+// scripted events on a host that publishes no limit stand in 40 groups of 5, so
+// stage 1 costs 40 pass runs and stage 2, the leading 12 columns seated on the
+// first 3 groups, costs 3 x 3. A 49-pass budget hosts both stages, the table
+// still sums to the planned count, and each stage stands in the consecutive
+// groups that span its columns.
+auto muxCapComposedWithTwoStageBudget() -> void
+{
+  constexpr std::size_t kCap = 5;
+  const auto events = acSevenColumns();
+  const auto plan = planned(events,
+                            std::nullopt,
+                            cappedOptions(passBudget(49), kAcSevenTop, kCap),
+                            "the capped split row plans");
+
+  check(plan.stages.size() == 2, "the 49-pass budget hosts both stages");
+  check(plan.stages[1].columns.size() == kStageTwoWidth,
+        "stage 2 spans three times the top");
+  check(plan.muxGroups == expectedGroups(sg::test::kHuntEvents, kCap),
+        "the cap splits the plan order into 40 groups of 5 (FR-003, N-04)");
+  check(passWidths(plan) == plan.muxGroups,
+        "the plan seats each of those groups on its own pass (R-04)");
+
+  // The groups one stage stands in: the leading run of the table that spans its
+  // highest column. Stage 1 covers every column and stands in all 40; stage 2
+  // covers the leading 12 and stands in the first 3.
+  for (const auto& stage : plan.stages) {
+    auto highest = std::size_t {0};
+    for (const auto column : stage.columns) {
+      highest = std::max(highest, column);
+    }
+    auto covering = std::size_t {0};
+    auto spanned = std::size_t {0};
+    for (const auto width : plan.muxGroups) {
+      spanned += width;
+      ++covering;
+      if (spanned > highest) {
+        break;
+      }
+    }
+    check(covering == (highest / kCap) + 1,
+          "the cap bounds the groups of every stage of the split plan (R-05)");
+  }
+}
+
 // The scenarios of this file: what CTest runs with no argument, and what
 // `argv[1]` selects from.
 [[nodiscard]] auto scenarios() -> const std::vector<Scenario>&
@@ -1806,6 +1998,10 @@ auto sampleDerivationReadsNoClock() -> void
       Scenario {"sample-estimate-stage-one-figure",
                 sampleEstimateKeepsStageOneFigure},
       Scenario {"sample-reads-no-clock", sampleDerivationReadsNoClock},
+      Scenario {"mux-group-sizes", muxGroupsSplitThePlan},
+      Scenario {"mux-cap-one-group", muxCapAtOrAboveThePlanAnswersOneGroup},
+      Scenario {"mux-passes-no-groups", muxCapBindsNothingOnPasses},
+      Scenario {"mux-cap-two-stage-composed", muxCapComposedWithTwoStageBudget},
   };
   return kList;
 }
