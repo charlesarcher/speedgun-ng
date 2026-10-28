@@ -338,10 +338,12 @@ them. The ruling each decision carries is named beside it.
   grammar.
 - **D-9 (P-3) The disclosure.** The plan and the report disclose the
   budgets the run used, console and JSON beside the fields spec 029
-  prints. The JSON follows the standing budget text shape (PC-4):
-  each new budget field holds the text the option carried, or stands
-  null; the derived plan figures (the sample budget's derived repeats,
-  the multiplex group cap and group count) stand as numbers.
+  prints. The JSON follows the standing budget text shape (PC-4) with one
+  amendment the byte rule needs (FR-022): a field whose budget
+  stands holds the text the option carried, and a field whose budget
+  does not stand writes no key; the derived plan figures (the sample
+  budget's derived repeats, the multiplex group cap and group count)
+  stand as numbers when they stand.
   `loadReport` reads every new key back with equal values, with a
   test per refusal code. A run without the budgets gives the same
   console report and the same JSON bytes apart from the
@@ -363,7 +365,12 @@ them. The ruling each decision carries is named beside it.
   the sample and multiplex budgets belong to N14a-2. This spec brings
   the sample and multiplex budgets into scope; the amended scope line
   names spec 033 as their new home and leaves the two-stage rule
-  standing. No other standing rule moves.
+  standing. The full-repeats clause of spec 029 FR-013 and the
+  `splitStages` stage guarantees amend in the same move: under a
+  sample budget a stage's rule figure is the derived count, the
+  guarantees read that figure as they read the requested one, and
+  the stage postconditions with the stage record's documentation
+  move to it. No other standing rule moves.
 
 ## Out of scope
 
@@ -620,7 +627,8 @@ file on a CI runner (SC-008).
 ### Report and schema (C)
 
 - **FR-020**: The top-level `hunt` JSON object SHALL gain the two new
-  budget fields in the standing text-or-null shape, beside the
+  budget fields in the conditional text shape (a field is written
+  when its budget stands, absent when it does not), beside the
   derived numeric plan figures of FR-002 and FR-003. The closed schema
   objects SHALL gain every new key in `properties` and in `x-order`
   in the same commit; the schema minor takes `1.7` or the next free
@@ -759,9 +767,10 @@ restated where they bind here:
 
 - The budget clause grammar stands as the answer recorded at the
   clarify pass of 2026-10-28 (Clarifications, D-4) and chosen by the
-  lane owner the same day; the branch number no longer waits on it. A later clarify or analyze pass may
-  revise it with a new recorded answer; the text-or-null JSON shape
-  and the one-line exit-2 refusal hold any revision.
+  lane owner the same day; the branch number no longer waits on it.
+  A later clarify or analyze pass may revise it with a new recorded
+  answer; the conditional JSON presence and the one-line exit-2
+  refusal hold any revision.
 - The multi-entry union default (D-6) reads the common single-benchmark
   hunt unambiguously; a batch hunt hands every entry's culprits to the
   next run.

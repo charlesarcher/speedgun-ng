@@ -37,9 +37,11 @@ XI.7's one-term rule).
 (calibrationNsPerPass × passesOfStage))))`; the result re-prices the
 estimate and feeds the standing stage-drop decision.
 
-**Rationale**: the divisor is exactly the product
-`hunt_plan.cpp:204` computes for the estimate today, so the
-derivation reads no new data and no clock (spec 029 D-2's rule,
+**Rationale**: the divisor is the standing calibration
+term against the stage's own window count (`passRuns`,
+`hunt_plan.cpp:404`), the same figure family the estimate at
+`hunt_plan.cpp:204` computes, so the derivation reads no new data
+and no clock (spec 029 D-2's rule,
 FR-001). The clamp at 1 is the floor a plan cannot go under; the
 clamp at the requested count keeps a budget a bound only.
 
@@ -63,7 +65,8 @@ group in a test if the table ever miscounts.
 
 **Alternatives considered**: capping inside `planPasses` (rejected:
 `planPasses` returns the empty plan on a no-limit device and settles
-`MULTIPLEX` elsewhere; the cap is a hunt rule and the planner's own rules stay as shipped);
+`MULTIPLEX` elsewhere; the cap is a hunt rule and the
+planner's own rules stay as shipped);
 letting the kernel rotate one over-wide group unchanged (rejected:
 that is the status the budget exists to escape).
 

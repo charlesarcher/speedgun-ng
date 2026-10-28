@@ -1,10 +1,10 @@
 # Data Model: Hunter Budgets and Promotion (033)
 
 Date: 2026-10-28. Extends `specs/029-hunter-core/data-model.md`; the
-029 entities (E-01 to E-08) stand unchanged. Validation rules cite
+029 entities (N-01 to N-08) stand unchanged. Validation rules cite
 the 033 FRs.
 
-## E-01 Sample budget
+## N-01 Sample budget
 
 The bound on one event's measurement inside a stage.
 
@@ -13,9 +13,9 @@ The bound on one event's measurement inside a stage.
 | `sampleBudgetNs` | `std::optional<std::uint64_t>` | whole nanoseconds; parsed from the `e` clause (fractional seconds admitted, FR-004); absent means no bound |
 
 State: absent → the requested repeats stand; present → the derived
-count of E-03 applies.
+count of N-03 applies.
 
-## E-02 Multiplex cap
+## N-02 Multiplex cap
 
 The bound on the events one multiplexed group holds.
 
@@ -23,7 +23,7 @@ The bound on the events one multiplexed group holds.
 | --- | --- | --- |
 | `multiplexCap` | `std::optional<std::size_t>` | whole count 1 to 10000 from the `g` clause (FR-004); absent means no cap |
 
-## E-03 Derived repeats
+## N-03 Derived repeats
 
 The repeat count the planner derives under the sample budget.
 
@@ -40,7 +40,7 @@ sample budget, fit >= 1 .................. derived repeats, record: derived d of
 sample budget, fit < 1 ..................... one repeat, record: overrun
 ```
 
-## E-04 Multiplex group
+## N-04 Multiplex group
 
 One consecutive block of planned addresses one group opens.
 
@@ -48,7 +48,7 @@ One consecutive block of planned addresses one group opens.
 | --- | --- | --- |
 | `muxGroups` | `std::vector<std::size_t>` | group sizes in plan order; every entry at or below the cap; sum equals the planned count; empty when the method is not `MULTIPLEX` or no cap stands (FR-003) |
 
-## E-05 Promoted counter set
+## N-05 Promoted counter set
 
 The list one entry's ranking answers, and the file the run writes.
 
@@ -61,7 +61,7 @@ Invariants: no address stands twice in the file; an event with a
 null rank never enters; the file reads again through
 `--counter=@<file>` to one report column per line (FR-015).
 
-## E-06 Budget disclosure
+## N-06 Budget disclosure
 
 The figures the run publishes.
 
@@ -76,7 +76,7 @@ The figures the run publishes.
 Rule: an unset budget writes and prints nothing new (FR-022); the
 texts are rebuilt canonically from the stored values (research D-5).
 
-## E-07 The shared address-file record
+## N-07 The shared address-file record
 
 `readAddressFileLines(path, context)` answers the file's address
 lines: `#` starts a comment, blank lines are skipped, one level
@@ -85,7 +85,7 @@ line, no address in the file. Both callers keep their own sentence:
 the hunt route names the selection text, the `--counter` route names
 the option value (FR-014; research D-7).
 
-## E-08 The option row
+## N-08 The option row
 
 | Field | Value |
 | --- | --- |

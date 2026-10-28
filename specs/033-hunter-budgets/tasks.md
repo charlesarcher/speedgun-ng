@@ -83,7 +83,7 @@ story stands on. No story work begins before this phase closes.
 **Goal**: `--hunt-emit-set=<file>` writes the ranked events and
 `--counter=@<file>` reads them again; the round trip runs in CI.
 
-**Independent Test**: the scripted pair of T013 (hunt with emit,
+**Independent Test**: the scripted pair of T012 (hunt with emit,
 re-read run, one column per emitted address, none `ABSENT`) closes
 roadmap criterion 12.7-6 with no PMU hardware (spec US1).
 
@@ -116,7 +116,7 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   holding no address each print one line naming the value and exit 2;
   the option-file and environment sources carry the same grammar;
   no count cap binds the file form (FR-014, R-09;
-  contracts/counter-file.md)
+  contracts/counter-file.md) (after T006: the same file)
 
 ### Implementation for User Story 1
 
@@ -188,14 +188,14 @@ fixtures close SC-002 and SC-005 with no clock.
   `test/source/harness_hunt_plan_test.cpp`: with a fixed estimate and
   seed the derived repeats equal
   `min(requested, max(1, floor(sampleNs / (calibrationNsPerPass ×
-  passesOfStage))))`; the estimate re-prices from the derived count;
+  passRuns(plan, stage)))))`; the estimate re-prices from the derived count;
   the standing stage-drop decision reads the re-priced figure and
   keeps its `over-budget` cut line; a budget below one repeat's
   estimate keeps one repeat and records the overrun; no calibration
   figure keeps the requested repeats and records the unpriced state;
   composed with the two-stage budget: stage 1 stays one repeat, stage
   2 takes the derived count; the derivation reads no clock (FR-001,
-  FR-002, FR-005, R-02, R-03, R-05; data-model E-03 state table)
+  FR-002, FR-005, R-02, R-03, R-05; data-model N-03 state table)
 - [ ] T015 [P] [US2] Write the failing grammar tests in
   `test/source/harness_hunt_cli_test.cpp`, the rows of
   contracts/budget-grammar.md verbatim: `0.5e` and `1e` settle whole
@@ -239,6 +239,11 @@ fixtures close SC-002 and SC-005 with no clock.
   `source/harness/hunt_plan.cpp` derives the stage repeats, re-prices
   the estimate, and records derived/overrun/unpriced; `runHuntNamed`
   in `source/harness/hunt.cpp` carries the state onto `RunHunt`; the
+  two `SG_ENSURE` stage postconditions
+  (`source/harness/hunt_plan.cpp:503-510`) and the `HuntStage`
+  doc (`include/speedgun-ng/hunt.hpp:314-317`) move to the rule
+  that a stage's guarantee figure is the derived count (spec
+  D-12); the
   tests of T014 turn green (FR-001, FR-002, FR-005, R-02, R-03)
   (depends on T014, T017)
 - [ ] T019 [US2] Grow `printHuntPlan` in `source/harness/report.cpp`:
@@ -312,9 +317,10 @@ no-op check close SC-003.
   declaration land in `source/harness/detail/hunt_plan.hpp`,
   `planHunt` in `source/harness/hunt_plan.cpp` records the
   consecutive groups after the method settles (`MULTIPLEX` with a
-  cap only), and `runHuntNamed` in `source/harness/hunt.cpp` seats
-  one group per multiplex pass through the standing pass loop
-  (`collectStageSamples`); the tests of T021 turn green (FR-003,
+  cap only), and the capped `MULTIPLEX` plan's handoff passes
+  (`buildHandoff`, `source/harness/hunt.cpp:416`) are the groups,
+  seated through the standing loop (`collectStageSamples`,
+  `source/harness/hunt.cpp:502`); the tests of T021 turn green (FR-003,
   FR-005, R-04) (depends on T018, T021)
 - [ ] T025 [US3] Land the disclosure half in one commit: the `mux=`
   segment and the groups line in `printHuntPlan`
@@ -322,7 +328,9 @@ no-op check close SC-003.
   `multiplex_cap` and `mux_groups` (conditional presence,
   absent-by-default, the non-integer refusal);
   `docs/schema/report-v1.json` gains the two properties and the
-  `x-order` move in the same commit, the `mux_groups` refusal carrying
+  `x-order` insert in the same commit (`multiplex_cap` after
+  `sample_budget`, `mux_groups` after `derived_repeats`, the final
+  order per the contract), the `mux_groups` refusal carrying
   its own test (hard rule 7); the tests of T022 turn green
   (FR-003, FR-020 to FR-023 incl. FR-021,
   R-11, R-12, SC-006) (depends on T020, T022, T024)
@@ -375,13 +383,15 @@ section within 25 lines, and the extended example matches its
   passes both ways, none skips; any timing-bound assertion stands an
   order of magnitude inside the spec 032 contamination signal
   (FR-042, FR-043, SC-007)
-- [ ] T030 [P] Run the `coverage` preset of `CMakePresets.json`: 100%
+- [ ] T030 [P] Run the `ci-coverage` preset of `CMakePresets.json` (the
+  `coverage-linux` base CI runs): 100%
   line and branch over `source/harness/` with no `LCOV_EXCL` marker
   and no new `--ignore-errors` entry; a gap stops the work and
   reports its cause with `gcov -b` evidence (FR-041)
 - [ ] T031 [P] Build once in the release preset (`cmake --preset=ci-ubuntu`,
   `cmake --build build`) so clang-tidy and cppcheck report at the
-  optimizer; clear every finding; run `format-check`, `spell-check`,
+  optimizer; clear every finding; run the `ci-sanitize` and
+  `ci-tsan` presets (SC-007); run `format-check`, `spell-check`,
   `prose-lint`, the dbc-gate, `test/time_source_gate.sh`, and the
   name-check; `harness_cli_table_test` stands green with value 280
   unique (VIII, FR-044)
@@ -390,14 +400,14 @@ section within 25 lines, and the extended example matches its
   and the conflict refusal land in a scenario/command/exit/observation
   table in `specs/033-hunter-budgets/results/` in the spec 034
   shape; the record states the standing no-Intel fact (FR-045, SC-009, R-16, D-11,
-  quickstart acceptance table)
+  quickstart acceptance table) (depends on T029, T030, T031)
 - [ ] T033 Lane mechanics: rebase onto master (re-read
   `CMakeLists.txt` and take the next free minor and schema minor at
   the rebase, the 029 reservation rule), push once per round with
   `--force-with-lease` and show `git ls-remote origin <branch>`,
   open the pull request, read every CI job after each push including
   the coverage artifact; this work never merges the PR (029 FR-094
-  shape, plan "Rebase and lane rules")
+  shape, plan "Rebase and lane rules") (depends on T032)
 
 ---
 
@@ -423,7 +433,8 @@ public surface of US1 plus the grammar of US2/US3 settled.
 
 ## Parallel groups
 
-- Failing-test waves: T005/T006 (T007 follows T006, same file); T014/T015/T016; T021/T022;
+- Failing-test waves: T005/T006 (T007 follows T006, same
+  file); T014/T015/T016; T021/T022;
   T026/T027; T029/T030/T031.
 - Independent singletons: T002 with T004; T008 with T009 with T011
   (different files: `hunt.hpp`+`hunt_plan.cpp`, `options.cpp`+
