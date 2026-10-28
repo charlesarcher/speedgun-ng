@@ -221,8 +221,12 @@ selection read one grammar from one place.
   estimate's term, `hunt_plan.cpp:204`) times `passRuns(plan,
   stage)` (`hunt_plan.cpp:404`). No clock read; pure data. The
   stage guarantees read the derived count as their rule figure
-  (spec D-12). The derived count re-prices `estimateNs` and feeds
-  the standing stage-drop decision (FR-005).
+  (spec D-12). The derived count re-prices
+  the priced figure the standing stage-drop decision reads (FR-005);
+  `estimateNs` re-prices when the derived count moves the
+  estimate's first stage, and a composed two-stage plan keeps its
+  stage-1 figure (`hunt_plan.cpp:204`, whose standing test stays
+  green).
 - **R-03 Overrun and unpriced (FR-002).** One repeat above the
   budget keeps one repeat and records the overrun on the plan record;
   no calibration figure keeps the requested count and records the
