@@ -571,7 +571,14 @@ jobs:
   test-rocky:
     needs: [lint]
     runs-on: ubuntu-26.04
-    container: rockylinux/rockylinux:10
+    # The memory bind the node preset makes stands a set_mempolicy
+    # call the container's default seccomp profile gates behind
+    # CAP_SYS_NICE; without the capability every real bind answers
+    # EPERM and the node-planned example refuses the run the recorded
+    # block folds (specs/035 FR-013, FR-022).
+    container:
+      image: rockylinux/rockylinux:10
+      options: --cap-add SYS_NICE
 
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
