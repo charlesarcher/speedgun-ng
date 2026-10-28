@@ -62,7 +62,6 @@ const std::array<PresetName, 6> kPresetNames {{{"none", Preset::NONE},
   return std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end();
 }
 
-
 }  // namespace
 
 auto parsePreset(const std::string_view text) -> std::optional<Preset>
@@ -161,11 +160,11 @@ auto resolvePreset(const Preset preset,
       for (const auto cpu : node.cpus) {
         const auto found = std::ranges::lower_bound(layout.mask, cpu);
         if (found != layout.mask.end() && *found == cpu) {
-          masked.push_back(
-              {cpu,
-               layout.threads[static_cast<std::size_t>(
-                                  found - layout.mask.begin())]
-                   .groupOrdinal});
+          masked.push_back({cpu,
+                            layout
+                                .threads[static_cast<std::size_t>(
+                                    found - layout.mask.begin())]
+                                .groupOrdinal});
         }
       }
       if (!masked.empty()) {

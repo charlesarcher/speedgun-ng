@@ -753,14 +753,15 @@ auto verifyNodeDisclose() -> void
   }
   // A context the plan does not bind keeps the standing `cpu@group`
   // bytes beside the installed plan (FR-011, FR-002).
-  sg::ExecutionContext bystander {sg::ContextPolicy {
-      sg::WaitMode::BLOCK, sg::PlacementSlot::cpu(15U)}};
+  sg::ExecutionContext bystander {
+      sg::ContextPolicy {sg::WaitMode::BLOCK, sg::PlacementSlot::cpu(15U)}};
   bystander.drain();
   const sg::PlacementResult record = sg::detail::placementRecordOf(bystander);
   bystander.requestStop();
   bystander.join();
   if (record.description != "15@3") {
-    std::fprintf(stderr, "the bystander field read '%.*s'\n",
+    std::fprintf(stderr,
+                 "the bystander field read '%.*s'\n",
                  static_cast<int>(record.description.size()),
                  record.description.data());
     std::exit(1);

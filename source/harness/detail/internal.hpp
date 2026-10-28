@@ -955,9 +955,8 @@ struct MaskNarrowing
 /// predicate, read only inside the SG_ENSURE contract of the resolver:
 /// every planned cpu stands inside the mask and stands on the node the
 /// context binds to, and the cpus stand pairwise distinct.
-[[maybe_unused]] [[nodiscard]] auto planNodesBind(const MachineLayout& layout,
-                                                  const PlacementPlan& plan)
-    -> bool;
+[[maybe_unused]] [[nodiscard]] auto planNodesBind(
+    const MachineLayout& layout, const PlacementPlan& plan) -> bool;
 
 /// @brief The overlap answer's postcondition predicate, read only
 /// inside the SG_ENSURE contract of the overlap check: the answer
