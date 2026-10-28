@@ -716,8 +716,9 @@ auto runCaptured(const char* mode,
   if (!WIFEXITED(waitStatus)) {
     std::fprintf(stderr,
                  "the child of %s did not exit normally; its error file "
-                 "stands beside the test\n",
-                 mode);
+                 "reads:\n%s\n",
+                 mode,
+                 readFile(errPath).c_str());
     std::exit(1);
   }
   return Captured {
