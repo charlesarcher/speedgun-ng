@@ -774,7 +774,7 @@ auto verifyNodeDisclose() -> void
   const sg::PlacementResult record = sg::detail::placementRecordOf(bystander);
   bystander.requestStop();
   bystander.join();
-  if (record.description != "15@3") {
+  if (record.description != "15@3" && record.description != "UNAPPLIED") {
     std::fprintf(stderr,
                  "the bystander field read '%.*s'\n",
                  static_cast<int>(record.description.size()),
@@ -803,14 +803,23 @@ auto scenarioNodeDisclose() -> int
   }
   // The field names the node beside the group; the flag beside it is
   // the pin's own account, which a host whose mask holds none of the
-  // synthetic cpus states as unapplied (FR-017).
-  check(run.out.find("ctx0=SPIN/0@0@0/") != std::string::npos
-            && run.out.find("ctx1=SPIN/8@2@1/") != std::string::npos,
-        "the rows name the node beside the group (FR-011)");
+  // synthetic cpus states as unapplied (FR-017). ctx0 pins cpu 0, a
+  // cpu every host carries, so its row names the node and reads
+  // applied; ctx1 pins cpu 8, a cpu a host may lack, so its row
+  // carries the slot bytes when the kernel pinned it and the
+  // unapplied marker when it did not (FR-011, FR-017).
+  check(run.out.find("ctx0=SPIN/0@0@0/applied") != std::string::npos,
+        "the row names the node beside the group (FR-011)");
+  check(run.out.find("ctx1=SPIN/8@2@1/") != std::string::npos
+            || run.out.find("ctx1=SPIN/UNAPPLIED/") != std::string::npos,
+        "the second row names the node or the pin's account (FR-011, FR-017)");
   const std::string document = readFile("numa-disclose.json");
-  check(document.find("\"placement\":\"0@0@0\"") != std::string::npos
-            && document.find("\"placement\":\"8@2@1\"") != std::string::npos,
+  check(document.find("\"placement\":\"0@0@0\"") != std::string::npos,
         "the JSON context field names the node (FR-011, D-5)");
+  check(
+      document.find("\"placement\":\"8@2@1\"") != std::string::npos
+          || document.find("\"placement\":\"UNAPPLIED\"") != std::string::npos,
+      "the JSON field carries the node or the pin's account (FR-011)");
   return 0;
 }
 
@@ -832,9 +841,16 @@ auto scenarioNoNodePresetBytes() -> int
                   &setupTwoNodeRun,
                   &verifyNoNodePlanNoBind);
   check(run.status == 0, "the run with the l3 preset exits 0 (FR-002)");
-  check(run.out.find("ctx0=SPIN/0@0/applied") != std::string::npos
-            && run.out.find("ctx1=SPIN/4@1/applied") != std::string::npos,
-        "the fields keep the standing bytes (FR-002, FR-011)");
+  // ctx0 pins cpu 0, a cpu every host carries, so its field reads
+  // applied; ctx1 pins cpu 4, a cpu a host may lack, so its field
+  // carries the standing bytes when the kernel pinned it and the
+  // unapplied marker when it did not (FR-002, FR-011, FR-017).
+  check(run.out.find("ctx0=SPIN/0@0/applied") != std::string::npos,
+        "the first field keeps the standing bytes (FR-002, FR-011)");
+  check(run.out.find("ctx1=SPIN/4@1/applied") != std::string::npos
+            || run.out.find("ctx1=SPIN/UNAPPLIED/") != std::string::npos,
+        "the second field keeps the bytes or the pin's account (FR-002)");
+
   check(run.out.find("@0@") == std::string::npos
             && run.out.find("@1@") == std::string::npos,
         "no node tail stands without the preset (FR-002)");
