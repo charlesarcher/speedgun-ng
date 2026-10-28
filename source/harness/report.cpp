@@ -822,6 +822,48 @@ auto printHuntBudget(const std::optional<sg::hunt::HuntBudget>& budget) -> void
               budget->kind == sg::hunt::HuntBudget::Kind::SECONDS ? 's' : 'p');
 }
 
+// specs/033 FR-001, FR-002, FR-023, R-10, N-03, N-06: the one sample-budget
+// disclosure line. The stage split recorded the state the budget settled, so
+// the line reads that state and answers one of its three words: the one repeat
+// a budget that fitted below one repeat leaves, the word `unpriced` for a stage
+// no calibration figure priced, and the derived count weighed against the stage
+// rule that capped it. A derived count the rule already gave moved nothing, so
+// the record leaves no line.
+auto printHuntSampleLine(const sg::hunt::RunHunt& run) -> void
+{
+  if (run.sample.overBudget) {
+    std::printf("hunt: plan sample repeats=1 over-budget\n");
+    return;
+  }
+  if (run.sample.unpriced) {
+    std::printf("hunt: plan sample unpriced\n");
+    return;
+  }
+  if (run.sample.derivedRepeats.has_value()
+      && *run.sample.derivedRepeats != run.options.repeats)
+  {
+    std::printf("hunt: plan sample repeats=%zu of %zu\n",
+                *run.sample.derivedRepeats,
+                run.options.repeats);
+  }
+}
+
+// specs/033 FR-003, FR-023, R-10, N-04, N-06: the one multiplex-cap disclosure
+// line, the groups the cap split out of the plan in plan order, joined by
+// commas. A `PASSES` settlement and a plan the cap left whole hold no group, so
+// neither prints a line.
+auto printHuntMuxLine(const sg::hunt::RunHunt& run) -> void
+{
+  if (run.muxGroups.empty()) {
+    return;
+  }
+  std::printf("hunt: plan mux groups=%zu sizes=", run.muxGroups.size());
+  for (std::size_t index = 0; index < run.muxGroups.size(); ++index) {
+    std::printf("%s%zu", index == 0 ? "" : ",", run.muxGroups[index]);
+  }
+  std::printf("\n");
+}
+
 // specs/029 D-7, D-8, PD-14: the word that names why an event stands out of
 // the top N. One sample carries no deviation, so an event that repeated and
 // stayed under `--hunt-noise` left the table on the size of the table alone.
@@ -906,6 +948,17 @@ auto printHuntPlan(const sg::hunt::RunHunt& run) -> void
   }
   std::printf(" budget=");
   printHuntBudget(run.options.budget);
+  // specs/033 FR-004, FR-020, FR-023, R-10, N-06: the two budgets of 033 join
+  // the line in the canonical clause texts the document writes, each only while
+  // its budget stands.
+  if (run.options.sampleBudgetNs.has_value()) {
+    std::printf(" sample=%s",
+                huntSampleClauseText(*run.options.sampleBudgetNs).c_str());
+  }
+  if (run.options.multiplexCap.has_value()) {
+    std::printf(" mux=%s",
+                huntCapClauseText(*run.options.multiplexCap).c_str());
+  }
   // specs/029 T035, FR-013: the stages the run measured, named in order with
   // the event count each carries. A record that holds one stage - the
   // un-budgeted plan, and the budgeted plan whose stage 2 was cut - names
@@ -928,6 +981,12 @@ auto printHuntPlan(const sg::hunt::RunHunt& run) -> void
     std::printf("hunt: plan budget cut stage=2 reason=%s\n",
                 run.cutReason.c_str());
   }
+  // specs/033 FR-001 to FR-003, FR-023, N-06: the two disclosure lines stand
+  // under the lines that spell the budgets. A run that stands under no sample
+  // budget prints no sample line, and a plan that holds no group prints no
+  // groups line.
+  printHuntSampleLine(run);
+  printHuntMuxLine(run);
 }
 
 // specs/029 T027, FR-040, FR-042, PD-14, PD-15, data-model E-07: the ranked

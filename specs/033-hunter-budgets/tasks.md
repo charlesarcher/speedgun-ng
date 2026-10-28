@@ -278,7 +278,7 @@ fixtures close SC-002 and SC-005 with no clock.
   D-12); the
   tests of T014 turn green (FR-001, FR-002, FR-005, R-02, R-03)
   (depends on T014, T017)
-- [ ] T019 [US2] Grow `printHuntPlan` in `source/harness/report.cpp`:
+- [X] T019 [US2] Grow `printHuntPlan` in `source/harness/report.cpp`:
   the conditional `sample=<canonical text>` segment after the
   standing `budget=` and the two disclosure lines in their three
   states; an unset budget

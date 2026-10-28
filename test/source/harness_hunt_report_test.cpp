@@ -41,7 +41,10 @@
 // figure (T119); and the walkthrough row of the AC-7 plan, whose 96'000'000 ns
 // is the walkthrough's own 1'920'000 ns calibration over 50 passes, a figure no
 // run of this host carries (D-2, FR-012, FR-013). Each states its reason where
-// it is pinned.
+// it is pinned. The budget scenarios of specs/033 stand on a built record the
+// same way: a clause text, a derived count and a group size are figures the
+// planner answers, so each of them hands over the record whose bytes it
+// compares (FR-020 to FR-023).
 //
 // The list below is what CTest runs, so an entry absent from it never runs, and
 // `argv[1]` selects one entry of it. Each entry runs in a re-exec of this
@@ -425,11 +428,18 @@ template<typename Print>
 // The plan figures of the contract example of contracts/hunt-cli.md: 14 passes
 // under a 120-second budget. The caller names the planned addresses and the
 // estimate, so a scenario that pins a field no run can answer hands over the
-// record the contract states for it.
+// record the contract states for it. The two budgets of specs/033, the state
+// the sample budget left on the plan and the groups the cap split are figures
+// of that kind: the scenario that pins a budget line names them, and the
+// scenario that pins the standing bytes leaves the defaults.
 [[nodiscard]] auto contractRecord(
     const std::optional<std::uint64_t>& estimateNs,
     const std::vector<std::string>& plannedAddresses,
-    const std::size_t ranEvents) -> sg::hunt::RunHunt
+    const std::size_t ranEvents,
+    const std::optional<std::uint64_t>& sampleBudgetNs = std::nullopt,
+    const std::optional<std::size_t>& multiplexCap = std::nullopt,
+    const sg::hunt::HuntSampleState& sample = {},
+    const std::vector<std::size_t>& muxGroups = {}) -> sg::hunt::RunHunt
 {
   return sg::hunt::RunHunt {
       .selection = "all",
@@ -447,6 +457,8 @@ template<typename Print>
                       .kind = sg::hunt::HuntBudget::Kind::SECONDS,
                       .amount = 120,
                   },
+              .sampleBudgetNs = sampleBudgetNs,
+              .multiplexCap = multiplexCap,
           },
       .passes = 14,
       .method = sg::MetricMethod::PASSES,
@@ -456,6 +468,8 @@ template<typename Print>
       .ranEvents = ranEvents,
       .stageTwoEvents = 0,
       .cutReason = "over-budget",
+      .sample = sample,
+      .muxGroups = muxGroups,
   };
 }
 
@@ -672,6 +686,250 @@ auto scenarioPlanLineBudgetCut() -> void
         "budget dropped and the reason the planner recorded, and the plan "
         "line above it prints no stage field (FR-013, E-07)");
   std::printf("plan-line-budget-cut: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// The plan line of a run that stands under no 033 budget (FR-022, FR-023)
+// ---------------------------------------------------------------------------
+
+// The estimate every scenario of the block below hands over: the nanoseconds
+// of one pass, a figure of the record the scenario builds, so the digits of the
+// printed field are the scenario's own.
+constexpr std::uint64_t kRecordEstimateNs = 1'260'000;
+
+// An unset budget prints nothing new. A record that stands under no sample
+// budget and no multiplex cap prints the bytes it printed before 033. Both
+// arms of the standing cut rule stand compared: the record whose budget dropped
+// stage 2 prints the cut line under its plan line, and the record of a plan
+// that split nothing prints the plan line alone.
+auto scenarioPlanLineStandingBytes() -> void
+{
+  auto cut = contractRecord(kRecordEstimateNs, {address(0), address(1)}, 2);
+  cut.stages = {sg::hunt::HuntStageRange {
+      .first = 0,
+      .count = 2,
+      .repeats = 1,
+  }};
+  check(capturePrint([&cut] { sg::detail::printHuntPlan(cut); })
+            == "hunt: plan events=2 passes=14 method=PASSES "
+               "estimate=1260000ns budget=120s\n"
+               "hunt: plan budget cut stage=2 reason=over-budget\n",
+        "the record of a budgeted plan that holds one stage prints the standing "
+        "plan line and the standing cut line, with no clause segment and no "
+        "disclosure line beside either (FR-022, FR-023)");
+
+  const auto standing =
+      contractRecord(kRecordEstimateNs, {address(0), address(1)}, 2);
+  check(capturePrint([&standing] { sg::detail::printHuntPlan(standing); })
+            == "hunt: plan events=2 passes=14 method=PASSES "
+               "estimate=1260000ns budget=120s\n",
+        "a record that holds no sample budget and no multiplex cap prints one "
+        "line, the standing plan line, byte for byte (FR-022, FR-023)");
+  std::printf("plan-line-standing-bytes: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// The two budget clauses of the plan line (specs/033 FR-003, FR-004, FR-020,
+// FR-023, R-10, N-06)
+// ---------------------------------------------------------------------------
+
+// The sample budget joins the plan line as the canonical `e` text the stored
+// nanoseconds rebuild, and it joins alone while no cap stands. The derived
+// count of this record equals the stage rule of three, so the count moved
+// nowhere and no disclosure line follows the plan line.
+auto scenarioPlanLineSampleClause() -> void
+{
+  const auto record = contractRecord(kRecordEstimateNs,
+                                     {address(0)},
+                                     1,
+                                     500'000'000ULL,
+                                     std::nullopt,
+                                     sg::hunt::HuntSampleState {
+                                         .derivedRepeats = 3,
+                                     });
+  check(capturePrint([&record] { sg::detail::printHuntPlan(record); })
+            == "hunt: plan events=1 passes=14 method=PASSES "
+               "estimate=1260000ns budget=120s sample=0.5e\n",
+        "the plan line spells the sample budget in the canonical `e` text the "
+        "stored nanoseconds answer, with no cap clause beside it (FR-004, "
+        "FR-020, FR-023, N-06)");
+  std::printf("plan-line-sample-clause: ok\n");
+}
+
+// The cap joins the plan line as the canonical `g` text, and it joins alone
+// while no sample budget stands. The cap of 4 over the 4 planned columns of
+// the multiplexed plan splits one group of 4, which the line below spells
+// (FR-003, FR-020, FR-023, N-06).
+auto scenarioPlanLineMuxClause() -> void
+{
+  auto record = contractRecord(kRecordEstimateNs,
+                               {address(0), address(1), address(2), address(3)},
+                               4,
+                               std::nullopt,
+                               4,
+                               sg::hunt::HuntSampleState {},
+                               std::vector<std::size_t> {4});
+  record.method = sg::MetricMethod::MULTIPLEX;
+  check(capturePrint([&record] { sg::detail::printHuntPlan(record); })
+            == "hunt: plan events=4 passes=14 method=MULTIPLEX "
+               "estimate=1260000ns budget=120s mux=4g\n"
+               "hunt: plan mux groups=1 sizes=4\n",
+        "the plan line spells the cap in the canonical `g` text with no sample "
+        "clause beside it, and the group the cap drew prints below it "
+        "(FR-003, FR-020, FR-023, N-06)");
+  std::printf("plan-line-mux-clause: ok\n");
+}
+
+// Both clauses stand between the standing `budget=` segment and the standing
+// stage and normalization segments, the cap after the sample budget. The sample
+// budget of 2 whole seconds rebuilds with no fraction (FR-004, FR-020, FR-023,
+// R-10).
+auto scenarioPlanLineBudgetClauseOrder() -> void
+{
+  auto record = contractRecord(kRecordEstimateNs,
+                               {address(0), address(1), address(2), address(3)},
+                               4,
+                               2'000'000'000ULL,
+                               32);
+  record.options.norm = sg::hunt::HuntNorm::ITER;
+  record.stages = {
+      sg::hunt::HuntStageRange {.first = 0, .count = 4, .repeats = 1},
+      sg::hunt::HuntStageRange {.first = 0, .count = 3, .repeats = 3},
+  };
+  check(capturePrint([&record] { sg::detail::printHuntPlan(record); })
+            == "hunt: plan events=4 passes=14 method=PASSES "
+               "estimate=1260000ns budget=120s sample=2e mux=32g stage1=4 "
+               "stage2=3 normalized=iter\n",
+        "the two clauses print in their fixed order after the budget and "
+        "before the stages and the norm, and a whole second carries no "
+        "fraction (FR-004, FR-020, FR-023, R-10)");
+  std::printf("plan-line-budget-clause-order: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// The sample-budget disclosure line (specs/033 FR-001, FR-002, FR-023, N-03,
+// N-06)
+// ---------------------------------------------------------------------------
+
+// The sample budget leaves one line in one of its three states, below the plan
+// line and below the cut line. A derived count reads against the stage rule it
+// came under, an overrun reads the one repeat the plan kept, and a stage no
+// calibration figure priced reads the word `unpriced`.
+auto scenarioPlanLineSampleDisclosure() -> void
+{
+  const auto derived = contractRecord(kRecordEstimateNs,
+                                      {address(0)},
+                                      1,
+                                      500'000'000ULL,
+                                      std::nullopt,
+                                      sg::hunt::HuntSampleState {
+                                          .derivedRepeats = 2,
+                                      });
+  check(capturePrint([&derived] { sg::detail::printHuntPlan(derived); })
+            == "hunt: plan events=1 passes=14 method=PASSES "
+               "estimate=1260000ns budget=120s sample=0.5e\n"
+               "hunt: plan sample repeats=2 of 3\n",
+        "a derived count below the stage rule prints the count it derived and "
+        "the rule that capped it (FR-001, FR-023, N-03)");
+
+  auto cut = derived;
+  cut.stages = {sg::hunt::HuntStageRange {
+      .first = 0,
+      .count = 1,
+      .repeats = 1,
+  }};
+  check(capturePrint([&cut] { sg::detail::printHuntPlan(cut); })
+            == "hunt: plan events=1 passes=14 method=PASSES "
+               "estimate=1260000ns budget=120s sample=0.5e\n"
+               "hunt: plan budget cut stage=2 reason=over-budget\n"
+               "hunt: plan sample repeats=2 of 3\n",
+        "the disclosure line stands below the cut line, so both lines that "
+        "spell the run's budgets come first (FR-013, FR-023)");
+
+  const auto overrun = contractRecord(kRecordEstimateNs,
+                                      {address(0)},
+                                      1,
+                                      500'000'000ULL,
+                                      std::nullopt,
+                                      sg::hunt::HuntSampleState {
+                                          .derivedRepeats = 1,
+                                          .overBudget = true,
+                                      });
+  check(capturePrint([&overrun] { sg::detail::printHuntPlan(overrun); })
+            == "hunt: plan events=1 passes=14 method=PASSES "
+               "estimate=1260000ns budget=120s sample=0.5e\n"
+               "hunt: plan sample repeats=1 over-budget\n",
+        "a budget that fitted below one repeat prints the one repeat the plan "
+        "kept, and the word names the state the record holds (FR-001, FR-023, "
+        "N-03)");
+
+  const auto unpriced = contractRecord(kRecordEstimateNs,
+                                       {address(0)},
+                                       1,
+                                       500'000'000ULL,
+                                       std::nullopt,
+                                       sg::hunt::HuntSampleState {
+                                           .unpriced = true,
+                                       });
+  check(capturePrint([&unpriced] { sg::detail::printHuntPlan(unpriced); })
+            == "hunt: plan events=1 passes=14 method=PASSES "
+               "estimate=1260000ns budget=120s sample=0.5e\n"
+               "hunt: plan sample unpriced\n",
+        "a stage no calibration figure priced prints the word the contract "
+        "states for it, beside the clause of the budget that stood (FR-002, "
+        "FR-023, N-03)");
+  std::printf("plan-line-sample-disclosure: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// The multiplex-cap disclosure line (specs/033 FR-003, FR-023, N-04, N-06)
+// ---------------------------------------------------------------------------
+
+// The cap of 32 over the 200 catalog columns splits 6 full groups and one
+// group of the 8 that remain. The line under the plan line spells the count of
+// the groups and every size in plan order, comma-joined with no space between
+// two sizes. The multiplexed plan runs the one pass that opened them.
+auto scenarioPlanLineMuxGroups() -> void
+{
+  auto sizes = std::vector<std::size_t>(6, 32);
+  sizes.push_back(8);
+  auto record = contractRecord(kRecordEstimateNs,
+                               sg::test::huntCatalog(),
+                               sg::test::kHuntEvents,
+                               std::nullopt,
+                               32,
+                               sg::hunt::HuntSampleState {},
+                               sizes);
+  record.method = sg::MetricMethod::MULTIPLEX;
+  record.passes = 1;
+  check(capturePrint([&record] { sg::detail::printHuntPlan(record); })
+            == "hunt: plan events=200 passes=1 method=MULTIPLEX "
+               "estimate=1260000ns budget=120s mux=32g\n"
+               "hunt: plan mux groups=7 sizes=32,32,32,32,32,32,8\n",
+        "the groups line prints the count of the groups the cap drew and every "
+        "size in plan order, comma-joined with no space between them "
+        "(FR-003, FR-023, N-04, N-06)");
+  std::printf("plan-line-mux-groups: ok\n");
+}
+
+// A plan the run settled on `PASSES` opens no group, so a standing cap prints
+// its clause on the plan line and prints no groups line at all (FR-003, FR-023,
+// US3 scenario 3).
+auto scenarioPlanLineMuxPassesNoGroups() -> void
+{
+  const auto record =
+      contractRecord(kRecordEstimateNs,
+                     {address(0), address(1), address(2), address(3)},
+                     4,
+                     std::nullopt,
+                     32);
+  check(capturePrint([&record] { sg::detail::printHuntPlan(record); })
+            == "hunt: plan events=4 passes=14 method=PASSES "
+               "estimate=1260000ns budget=120s mux=32g\n",
+        "a PASSES settlement under a standing cap prints the cap clause and "
+        "no groups line, because the run grouped nothing (FR-003, FR-023, "
+        "US3 scenario 3)");
+  std::printf("plan-line-mux-passes-no-groups: ok\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -961,6 +1219,16 @@ auto scenarioPlanLineAbsentRun() -> void
       Scenario {"plan-line-multiplex", &scenarioPlanLineMultiplex},
       Scenario {"plan-line-no-limit-host", &scenarioPlanLineNoLimitHost},
       Scenario {"plan-line-budget-cut", &scenarioPlanLineBudgetCut},
+      Scenario {"plan-line-standing-bytes", &scenarioPlanLineStandingBytes},
+      Scenario {"plan-line-sample-clause", &scenarioPlanLineSampleClause},
+      Scenario {"plan-line-mux-clause", &scenarioPlanLineMuxClause},
+      Scenario {"plan-line-budget-clause-order",
+                &scenarioPlanLineBudgetClauseOrder},
+      Scenario {"plan-line-sample-disclosure",
+                &scenarioPlanLineSampleDisclosure},
+      Scenario {"plan-line-mux-groups", &scenarioPlanLineMuxGroups},
+      Scenario {"plan-line-mux-passes-no-groups",
+                &scenarioPlanLineMuxPassesNoGroups},
       Scenario {"quickstart-plan-cut", &scenarioQuickstartPlanCut},
       Scenario {"hunt-block-order", &scenarioHuntBlockOrder},
       Scenario {"stage-one-only-row", &scenarioStageOneOnlyRow},
