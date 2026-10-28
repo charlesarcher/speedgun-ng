@@ -356,9 +356,34 @@ auto parseHuntRepeats(const char* text, RunOptions& options) -> void
   huntValues(options).repeats = static_cast<std::size_t>(repeats);
 }
 
+// The clause words `--hunt-budget=` answers: the two-stage pair spec 029
+// shipped, the sample budget 033 adds, and the multiplex cap US3 joins. One
+// walk of the value reads the clauses, each kind at most once and in any order
+// (contracts/budget-grammar.md, FR-004, R-01).
+constexpr std::string_view kBudgetShape = "expected <n>s, <n>p, <n>e or <n>g";
+
+// The bound of the `e` clause in the words the seconds rule prints: the same
+// sentence `--min-time` answers, because both read `detail::parseSeconds`
+// (specs/033-hunter-budgets FR-004, R-01).
+[[nodiscard]] auto budgetSecondsExpected() -> std::string
+{
+  return "expected a finite positive number of seconds at most "
+      + std::to_string(detail::kMaxWholeSeconds);
+}
+
 // \pre `text` is the value getopt_long read for a required-argument row.
-// \post the budget is the count named in the unit the suffix spelled, above
-//       zero; a text with no suffix names no unit and is refused (FR-012).
+// \post the two-stage budget holds the count the `s` or `p` clause named, above
+//       zero, in the unit its suffix spelled, and stands unset when the value
+//       carries neither clause; the sample budget holds the whole nanoseconds
+//       of the `e` clause (FR-001, FR-004, FR-012). A value that carries one
+//       `s` or `p` clause settles exactly as spec 029 shipped it, and the last
+//       value of the scan stands as the value of the run (R-01).
+// \post every refusal quotes the whole value the option carried: an empty
+//       clause, a kind spelled twice, a clause whose suffix is missing or
+//       unknown, a count that is no number, an `e` word below one nanosecond or
+//       above the seconds bound, and a value that opens or ends with a blank
+//       each leave one line naming the value (FR-081,
+//       contracts/budget-grammar.md).
 auto parseHuntBudget(const char* text, RunOptions& options) -> void
 {
   SG_ASSERT(text != nullptr,
@@ -366,22 +391,74 @@ auto parseHuntBudget(const char* text, RunOptions& options) -> void
             "a value for it (FR-082)");
   const std::string_view value {text};
   hunt::HuntBudget budget;
-  if (value.ends_with("s")) {
-    budget.kind = hunt::HuntBudget::Kind::SECONDS;
-  } else if (value.ends_with("p")) {
-    budget.kind = hunt::HuntBudget::Kind::PASSES;
-  } else {
-    rejectHuntValue("--hunt-budget", "expected <n>s or <n>p", text);
+  bool twoStage = false;
+  std::optional<std::uint64_t> sample;
+  std::size_t seen = 0;
+  std::size_t at = 0;
+  while (true) {
+    const std::size_t comma = value.find(',', at);
+    const std::string_view clause = value.substr(
+        at, (comma == std::string_view::npos ? value.size() : comma) - at);
+    if (clause.empty()) {
+      rejectHuntValue("--hunt-budget", kBudgetShape.data(), text);
+    }
+    // The kind bit stands for the clause letter, so a kind spelled twice is one
+    // refusal and a new kind joins the switch below with one arm
+    // (contracts/budget-grammar.md).
+    const char letter = clause.back();
+    const std::size_t kind = letter >= 'a' && letter <= 'z'
+        ? std::size_t {1} << static_cast<unsigned>(letter - 'a')
+        : 0;
+    if (kind == 0 || (seen & kind) != 0) {
+      rejectHuntValue("--hunt-budget", kBudgetShape.data(), text);
+    }
+    seen |= kind;
+    const std::string body(clause.substr(0, clause.size() - 1));
+    switch (letter) {
+      case 's':
+      case 'p': {
+        std::uint64_t amount = 0;
+        if (detail::opensWithBlank(body.c_str())) {
+          // A blank stands where the digits belong, which is the shape refusal:
+          // the value names no count of any unit (contracts/budget-grammar.md).
+          rejectHuntValue("--hunt-budget", kBudgetShape.data(), text);
+        }
+        if (!scanHuntNumber(body.c_str(), amount) || amount == 0) {
+          // The refusal quotes the whole value the option carried, suffix and
+          // all, so the line names what the caller typed (FR-081). A count that
+          // is no number and a count of zero share the standing sentence, as
+          // they did before the clause loop (R-01).
+          rejectHuntValue("--hunt-budget", "expected a count above 0", text);
+        }
+        budget.kind = letter == 's' ? hunt::HuntBudget::Kind::SECONDS
+                                    : hunt::HuntBudget::Kind::PASSES;
+        budget.amount = amount;
+        twoStage = true;
+      } break;
+      case 'e': {
+        // The shared seconds rule: finite, above zero, a fraction admitted,
+        // nothing below one nanosecond and nothing above the bound the run
+        // control carries (FR-004).
+        const auto seconds = detail::parseSeconds(
+            body.c_str(), "--hunt-budget", detail::kZeroRefused);
+        if (!seconds.has_value()) {
+          rejectHuntValue(
+              "--hunt-budget", budgetSecondsExpected().c_str(), text);
+        }
+        sample = static_cast<std::uint64_t>(*seconds);
+      } break;
+      default:
+        rejectHuntValue("--hunt-budget", kBudgetShape.data(), text);
+    }
+    if (comma == std::string_view::npos) {
+      break;
+    }
+    at = comma + 1;
   }
-  const std::string count(value.substr(0, value.size() - 1));
-  std::uint64_t amount = 0;
-  if (!scanHuntNumber(count.c_str(), amount) || amount == 0) {
-    // The refusal quotes the whole value the option carried, suffix and
-    // all, so the line names what the caller typed (FR-081).
-    rejectHuntValue("--hunt-budget", "expected a count above 0", text);
-  }
-  budget.amount = amount;
-  huntValues(options).budget = budget;
+  auto& settled = huntValues(options);
+  settled.budget = twoStage ? std::optional<hunt::HuntBudget> {budget}
+                            : std::optional<hunt::HuntBudget> {};
+  settled.sampleBudgetNs = sample;
 }
 
 // \pre `text` is the value getopt_long read for a required-argument row.

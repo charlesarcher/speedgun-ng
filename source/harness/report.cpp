@@ -864,6 +864,32 @@ static_assert(kHuntMethodWords.size()
 // normalized by iterations, which the line states openly (D-13). The line
 // carries no measurement: every figure is a field of the record the caller
 // handed over.
+// specs/033-hunter-budgets FR-020, FR-023, R-10, R-11, N-06: the canonical
+// `e` clause text. The plan line and the document both spell the sample budget
+// from the stored nanoseconds, so the shortest decimal word of the seconds is
+// answered here once: a whole second carries no fraction, and a fraction keeps
+// no trailing zero (`0.50e` reads back as `0.5e`). The letters divide the count
+// exactly once, so no floating-point rounding enters the text.
+auto huntSampleClauseText(std::uint64_t budgetNs) -> std::string
+{
+  constexpr std::uint64_t kNsPerSecond = 1'000'000'000ULL;
+  const std::uint64_t whole = budgetNs / kNsPerSecond;
+  const std::uint64_t fraction = budgetNs % kNsPerSecond;
+  if (fraction == 0) {
+    return std::to_string(whole) + "e";
+  }
+  auto digits = std::to_string(fraction + kNsPerSecond).substr(1);
+  while (digits.back() == '0') {
+    digits.pop_back();
+  }
+  return std::to_string(whole) + "." + digits + "e";
+}
+
+auto huntCapClauseText(std::size_t cap) -> std::string
+{
+  return std::to_string(cap) + "g";
+}
+
 auto printHuntPlan(const sg::hunt::RunHunt& run) -> void
 {
   std::printf("hunt: plan events=%zu passes=%zu method=%s",

@@ -1771,8 +1771,9 @@ block states the shape of that output.
 --hunt-top: expected 1 to 10000, got '0'
 --hunt-noise: expected a percentage above 0, got '0'
 --hunt-repeats: expected 1 to 1000, got '1001'
---hunt-budget: expected <n>s or <n>p, got '120'
+--hunt-budget: expected <n>s, <n>p, <n>e or <n>g, got '120'
 --hunt-budget: expected a count above 0, got '0p'
+--hunt-budget: expected a finite positive number of seconds at most 9223372036, got '0.0000000001e'
 --hunt-seed: expected a whole number, got 'abc'
 --hunt-emit-set: the path the option names stands empty
 hunt: device 'cpu' publishes 2 slots and a hunt pass needs 3

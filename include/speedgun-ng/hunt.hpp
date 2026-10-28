@@ -133,6 +133,17 @@ struct HuntOptions
   std::size_t repeats = 3;
   std::uint64_t seed = 0;
   std::optional<HuntBudget> budget = std::nullopt;
+  // specs/033-hunter-budgets FR-001, FR-004, N-01: the `e` clause, whole
+  // nanoseconds that bound one event inside one stage. The CLI refuses a value
+  // below one nanosecond and a value above the seconds bound before this record
+  // exists, so the figure stands ready to divide an estimate. Nothing bounds a
+  // run whose sample budget stands empty.
+  std::optional<std::uint64_t> sampleBudgetNs = std::nullopt;
+  // specs/033-hunter-budgets FR-003, FR-004, N-02: the `g` clause, the most
+  // events one multiplexed group opens with. The CLI refuses a count outside 1
+  // to 10000, so a plan may split on this figure directly. Nothing caps a run
+  // whose multiplex budget stands empty.
+  std::optional<std::size_t> multiplexCap = std::nullopt;
 };
 
 // E-06's refusal kinds stand ahead of E-01 because
@@ -308,6 +319,30 @@ struct HuntColumn
 };
 
 /**
+ * @brief The state one sample budget leaves on a plan (033 N-03, N-06,
+ * D-2, D-12).
+ *
+ * A sample budget prices a stage's repeats from the calibration figure
+ * and the stage's own rule; this record is what the planner keeps of
+ * that decision. `derivedRepeats` holds the count a figure derived, and
+ * it stands empty exactly when no figure priced the stage. `overBudget`
+ * states that the budget fitted below one repeat, so the plan kept one
+ * repeat and the budget is over. `unpriced` states that no calibration
+ * figure priced the stage, so the stage rule repeats stood (FR-002).
+ *
+ * The record is data: the plan line, the disclosure line and the
+ * document spell exactly what it holds, and no state in it refuses a
+ * run (R-03). A default-constructed record is the state of a run no
+ * sample budget bounded.
+ */
+struct SPEEDGUN_NG_EXPORT HuntSampleState
+{
+  std::optional<std::size_t> derivedRepeats = std::nullopt;
+  bool overBudget = false;
+  bool unpriced = false;
+};
+
+/**
  * @brief One stage of the plan: the column indices it measures and
  * the repeats each column gets (E-04, D-2).
  *
@@ -342,6 +377,11 @@ struct HuntPlan
   std::optional<std::uint64_t> estimateNs;
   std::size_t anchorsPerPass = 0;
   bool normalized = true;
+  // specs/033-hunter-budgets FR-002, FR-003, N-03, N-04: what the sample
+  // budget derived and what the multiplex cap split. A plan no budget bounds
+  // holds the standing defaults: no derived figure and no group.
+  HuntSampleState sample;
+  std::vector<std::size_t> muxGroups;
 };
 
 /**
@@ -484,6 +524,15 @@ struct RunHunt
   // verdict, so the E-07 word stands as the default of a record the run
   // filled; upgrade when the run copies the split's reason onto the record.
   std::string cutReason = "over-budget";
+  // specs/033-hunter-budgets FR-002, FR-021, N-03, N-06, E-08: the state the
+  // sample budget left on the plan this run measured. An unset budget leaves
+  // the standing default, which prints and writes nothing new.
+  HuntSampleState sample;
+  // specs/033-hunter-budgets FR-003, FR-021, N-04: the events each multiplexed
+  // group opens with, in plan order, for the plan a cap split. Every entry
+  // stands at or below the cap and the entries sum to the planned count. A plan
+  // that settles on `PASSES`, and a plan no cap binds, hold no group.
+  std::vector<std::size_t> muxGroups;
 };
 
 /**

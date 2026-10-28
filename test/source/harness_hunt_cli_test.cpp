@@ -557,10 +557,10 @@ auto scenarioOptionValueRefusals() -> void
         "--hunt-repeats: expected 1 to 1000, got '1001'"},
        {"full",
         {"--hunt-budget=120"},
-        "--hunt-budget: expected <n>s or <n>p, got '120'"},
+        "--hunt-budget: expected <n>s, <n>p, <n>e or <n>g, got '120'"},
        {"full",
         {"--hunt-budget=abc"},
-        "--hunt-budget: expected <n>s or <n>p, got 'abc'"},
+        "--hunt-budget: expected <n>s, <n>p, <n>e or <n>g, got 'abc'"},
        {"full",
         {"--hunt-budget=0s"},
         "--hunt-budget: expected a count above 0, got '0s'"},
@@ -598,6 +598,75 @@ auto scenarioOptionValueRefusals() -> void
         {"--hunt-noise=nan"},
         "--hunt-noise: expected a percentage above 0, got 'nan'"}});
   std::printf("option-value-refusals: ok\n");
+}
+
+// The clause grammar of `--hunt-budget=` (specs/033-hunter-budgets T015,
+// FR-004, R-01; contracts/budget-grammar.md). Each row is a row of that
+// contract: a kind spelled twice, an empty clause, a suffix that names no kind,
+// a value that opens or ends with a blank, an `e` word below one nanosecond and
+// an `e` word above the seconds bound each answer one line that quotes the
+// whole value and end the run at status 2.
+auto scenarioBudgetClauseRefusals() -> void
+{
+  const std::string shape =
+      "--hunt-budget: expected <n>s, <n>p, <n>e or <n>g, got '";
+  const std::
+      string
+          seconds =
+              "--hunt-budget: expected a finite positive number of seconds at "
+              "most " "9223372036, got '";
+  const auto quoted = [](const std::string& lead,
+                         const std::string& value) -> std::string
+  { return lead + value + "'"; };
+
+  checkRefusals({
+      {"full", {"--hunt-budget=0.5e,2e"}, quoted(shape, "0.5e,2e")},
+      {"full", {"--hunt-budget=8p,2p"}, quoted(shape, "8p,2p")},
+      {"full", {"--hunt-budget=120s,,1e"}, quoted(shape, "120s,,1e")},
+      {"full", {"--hunt-budget=120x"}, quoted(shape, "120x")},
+      {"full", {"--hunt-budget= 120s"}, quoted(shape, " 120s")},
+      {"full", {"--hunt-budget=120s "}, quoted(shape, "120s ")},
+      {"full",
+       {"--hunt-budget=0.0000000001e"},
+       quoted(seconds, "0.0000000001e")},
+      {"full", {"--hunt-budget=9223372037e"}, quoted(seconds, "9223372037e")},
+      {"full", {"--hunt-budget=xe"}, quoted(seconds, "xe")},
+      {"full", {"--hunt-budget=0e"}, quoted(seconds, "0e")},
+  });
+  std::printf("budget-clause-refusals: ok\n");
+}
+
+// The accepted forms of the same grammar (T015, FR-004): the standing pair
+// parses exactly as spec 029 shipped it, the `e` clause settles on its own, and
+// a value that carries both clauses in either order reaches the run.
+auto scenarioBudgetClauseAccepted() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+
+  struct Form
+  {
+    std::string_view value;
+    std::string_view budget;
+  };
+
+  for (const Form form : {Form {"120s", "budget=120s"},
+                          Form {"8p", "budget=8p"},
+                          Form {"0.5e", "budget=none"},
+                          Form {"1e", "budget=none"},
+                          Form {"1e,120s", "budget=120s"},
+                          Form {"120s,1e", "budget=120s"},
+                          Form {"9223372036e", "budget=none"}})
+  {
+    const std::string run = captureRun(
+        withFilter({"--hunt=all", "--hunt-budget=" + std::string(form.value)}));
+    check(run.find("hunt: plan events=") != std::string::npos,
+          "an accepted budget clause value reaches the plan line (FR-004)");
+    check(run.find(std::string(form.budget)) != std::string::npos,
+          "the plan line carries the two-stage budget the value named and no "
+          "other (FR-012)");
+  }
+  std::printf("budget-clause-accepted: ok\n");
 }
 
 auto scenarioLimitRefusal() -> void
@@ -1473,6 +1542,8 @@ auto scenarioCutLinePrintsTheRecordedReason() -> void
       .ranEvents = 4,
       .stageTwoEvents = 0,
       .cutReason = "planner-recorded",
+      .sample = {},
+      .muxGroups = {},
   };
 
   const std::string lines =
@@ -2154,6 +2225,8 @@ auto scenarioEmitSetRoundTrip() -> void
       Scenario {"selection-refusals", &scenarioSelectionRefusals},
       Scenario {"empty-attached-value", &scenarioEmptyAttachedValue},
       Scenario {"option-value-refusals", &scenarioOptionValueRefusals},
+      Scenario {"budget-clause-refusals", &scenarioBudgetClauseRefusals},
+      Scenario {"budget-clause-accepted", &scenarioBudgetClauseAccepted},
       Scenario {"limit-refusal", &scenarioLimitRefusal},
       Scenario {"anchor-leaf-needs-no-slot", &scenarioAnchorLeafNeedsNoSlot},
       Scenario {"nested-device-limit-refusal",

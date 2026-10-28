@@ -1090,6 +1090,27 @@ auto printPrecheckReport(
 ///       `RunHunt::cutReason`
 auto printHuntPlan(const hunt::RunHunt& run) -> void;
 
+/// @brief specs/033-hunter-budgets FR-020, FR-023, R-10, R-11, N-06: the
+/// canonical clause text of the two budgets, rebuilt from the stored figures.
+///
+/// The plan line prints these texts and the document writes them, so one
+/// builder answers both and the two never state the same budget two ways. The
+/// `e` text is the shortest decimal word of the seconds the nanoseconds hold
+/// (`500000000` answers `0.5e`); the `g` text is the whole count (`32g`).
+///
+/// \pre none
+/// \post the answer ends in its clause letter, holds no leading zero and no
+///       trailing zero in its fraction, and reads again through
+///       `parseHuntBudget` to the figure it came from
+[[nodiscard]] auto huntSampleClauseText(std::uint64_t budgetNs) -> std::string;
+
+/// @brief specs/033-hunter-budgets FR-020, FR-023, R-10, R-11: the canonical
+/// `g` clause text of a multiplex cap.
+///
+/// \pre none
+/// \post the answer is the count and the letter `g`
+[[nodiscard]] auto huntCapClauseText(std::size_t cap) -> std::string;
+
 /// @brief Print the catalog listing; false when the listing failed
 /// (FR-037).
 auto printCatalog() -> void;
