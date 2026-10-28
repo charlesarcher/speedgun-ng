@@ -842,9 +842,8 @@ auto speedgunMain(int argc, char** argv) -> int
     // window opens (FR-016); the after snapshot follows the start's
     // latch, and the deltas stand the window's own.
     const bool precheckRuns =
-        (options.jitterProbe->mode == JitterProbeMode::PRECHECK
-         || options.jitterProbe->mode == JitterProbeMode::BOTH)
-        && !probeCpus.empty();
+(options.jitterProbe->mode == JitterProbeMode::PRECHECK
+ || options.jitterProbe->mode == JitterProbeMode::BOTH);
     const auto beforeSnapshot =
         precheckRuns ? detail::precheckReadSnapshot(probeCpus)
                      : std::map<std::uint32_t,

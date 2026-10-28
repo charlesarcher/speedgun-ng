@@ -940,6 +940,16 @@ auto main(int argc, char** argv) -> int
     // bound beside no high bound, the token that names no hex word,
     // and the leading comma that names no first group (FR-018).
     write(procDir / "irq/14/smp_affinity_list", "1-\n");
+    // The span whose low bound names no number, and the mask token
+    // whose hex word ends early (FR-018).
+    write(procDir / "irq/17/smp_affinity_list", "-1\n");
+    write(procDir / "irq/18/smp_affinity", "003x\n");
+    // The lists and masks that end with their comma name the cpus the
+    // groups before it spell (FR-018, R-6 of research.md).
+    write(procDir / "irq/19/smp_affinity_list",
+          std::to_string(cpu0) + "," + std::to_string(cpu1) + ",\n");
+    write(procDir / "irq/20/smp_affinity",
+          "00000003,00000003,\n");
     write(procDir / "irq/15/smp_affinity", "zzzzzzzz\n");
     write(procDir / "irq/16/smp_affinity", ",00000003\n");
     // The multi-group mask: the picked cpus' own groups beside the
@@ -984,10 +994,16 @@ auto main(int argc, char** argv) -> int
               && !namedBy(cpu0, 13U) && !namedBy(cpu1, 13U)
               && !namedBy(cpu0, 14U) && !namedBy(cpu1, 14U)
               && !namedBy(cpu0, 15U) && !namedBy(cpu1, 15U)
-              && !namedBy(cpu0, 16U) && !namedBy(cpu1, 16U),
+              && !namedBy(cpu0, 16U) && !namedBy(cpu1, 16U)
+              && !namedBy(cpu0, 17U) && !namedBy(cpu1, 17U)
+              && !namedBy(cpu0, 18U) && !namedBy(cpu1, 18U),
           "the unparsable affinity shapes name no cpu (FR-018)");
     check(namedBy(cpu0, 12U) && namedBy(cpu1, 12U),
           "the multi-group mask names its cpus (FR-018)");
+    check(namedBy(cpu0, 19U) && namedBy(cpu1, 19U)
+              && namedBy(cpu0, 20U) && namedBy(cpu1, 20U),
+          "the lists and masks that end with their comma name the "
+          "cpus before it (FR-018)");
     check(host.governors.size() == 2
               && !host.governors.at(0).second.has_value(),
           "a blank governor line reads `not available` (FR-017)");
