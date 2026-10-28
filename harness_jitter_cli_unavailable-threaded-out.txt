@@ -1,4 +1,0 @@
-speedgun-ng 0.21.0 build=Release
-bmThreaded/threads:2     iterations=         4  real time/iter (ns)= 2000.000  cpu time/iter (ns)= 1000.000  overhead floor (ns)=   10.000  endpoint samples=4
-  contexts=2  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN
-jitter: not available
