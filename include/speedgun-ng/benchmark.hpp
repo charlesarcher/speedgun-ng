@@ -2550,10 +2550,10 @@ public:
    * @brief State the placement preset of this family's threaded runs
    * (FR-015).
    *
-   * The name is one of the five placement presets `none`, `core`, `l3`,
-   * `smt` and `compact`; the last call wins the slot, the way the
-   * thread calls replace an earlier set. Each instance of this family
-   * then runs its contexts on the cpus the preset plans for the
+   * The name is one of the six placement presets `none`, `core`, `l3`,
+   * `smt`, `compact` and `node`; the last call wins the slot, the way
+   * the thread calls replace an earlier set. Each instance of this
+   * family then runs its contexts on the cpus the preset plans for the
    * machine, and the run discloses the placement of each context
    * (FR-008, FR-021).
    *

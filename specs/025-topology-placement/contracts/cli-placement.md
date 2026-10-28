@@ -41,21 +41,24 @@ l3 0: 0-5,24-29
 l3 1: 6-11,30-35
 l3 2: 12-17,36-41
 l3 3: 18-23,42-47
+node 0: 0-11,24-35
+node 1: 12-23,36-47
 ```
 
 | Rule | Requirement |
 | --- | --- |
 | The counts equal the topology line of a preset run on the same host. | FR-036, SC-12 |
 | One line per L3 group names the cpus of that group inside the process mask. | FR-036 |
-| No memory node appears in the listing. | spec Scope, N12 |
+| One line per memory node the process mask touches stands under the L3 lines, in the L3 lines' shape, naming the node number and the cpus of that node inside the mask; a node the mask excludes prints no line (specs/035 FR-006, D-3). | specs/035 FR-006 |
+| A read that states no memory information prints one line reading `node: not available` in the node family's place and keeps the rest of the listing byte-identical (specs/035 FR-007). | specs/035 FR-007 |
 | A layout the harness cannot read makes the listing print one line and exit with status 2. | plan decision R-07 |
 
 ## Exit statuses
 
 | Status | Case |
 | --- | --- |
-| 0 | a normal run, and the listing on a readable layout |
-| 2 | an unknown preset name, a cpu list, a missing argument, an unfittable context count, an unknown flag, a preset run over a layout the harness cannot read, and the listing on an unreadable layout |
+| 0 | a normal run, and the listing on a readable layout, with or without node plans (specs/035 FR-006) |
+| 2 | an unknown preset name, a cpu list, a missing argument, an unfittable context count, an unknown flag, a preset run over a layout the harness cannot read, and the listing on an unreadable layout; plus the specs/035 refusals: a denied bind on a planned context, and a node preset over a read with no memory information (specs/035 FR-013, FR-014) |
 | 1 | the standing run failure statuses of feature 015, unchanged |
 
 ## Consumers

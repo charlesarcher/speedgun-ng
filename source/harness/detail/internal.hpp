@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "jitter_probe.hpp"
+#include "memory_bind.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
@@ -80,6 +81,17 @@ struct LayoutGroup
   std::vector<std::uint32_t> cores;
 };
 
+/// @brief specs/035 data-model.md: one memory node the machine read
+/// states (FR-005, R-01). The cpus stand in ascending order and stand
+/// unfiltered; the process mask filters at plan and listing time. A
+/// node with an empty cpu set stands in the vector and the plan gives
+/// it no context (FR-005, data-model.md).
+struct LayoutNode
+{
+  std::uint32_t number = 0;
+  std::vector<std::uint32_t> cpus;
+};
+
 /**
  * @brief specs/025 data-model.md E-01: the layout of one process, read
  * once and reused (FR-001, FR-002, FR-005).
@@ -99,10 +111,16 @@ struct MachineLayout
   std::uint32_t packages = 0;
   std::vector<std::uint32_t> mask;
   bool readable = false;
+  // specs/035 FR-005, R-01: the memory nodes the read states, in the
+  // read's order, beside the groups; empty when the read states no
+  // memory information, which `memoryReadable` states beside them.
+  std::vector<LayoutNode> nodes;
+  bool memoryReadable = false;
 };
 
-/// @brief specs/025 data-model.md E-05: the five placement presets,
-/// parsed from text that equals one name in full (FR-007, FR-016).
+/// @brief specs/025 data-model.md E-05: the six placement presets,
+/// parsed from text that equals one name in full (FR-007, FR-016;
+/// specs/035 FR-001).
 enum class Preset
 {
   NONE,
@@ -110,6 +128,7 @@ enum class Preset
   L3,
   SMT,
   COMPACT,
+  NODE,
 };
 
 /**
@@ -125,6 +144,10 @@ struct PlacementPlan
 {
   std::vector<std::uint32_t> cpu;
   std::vector<std::uint32_t> group;
+  // specs/035 data-model.md: the node each context binds to, parallel
+  // to `cpu` and filled by the `node` plan alone; empty for every other
+  // plan (FR-009, D-2).
+  std::vector<std::uint32_t> node;
   std::uint32_t places = 0;
 };
 
@@ -771,6 +794,36 @@ auto installTestTopologyDescription(std::optional<std::string>) -> void;
 /// answer; an empty optional restores the real call (review decision
 /// D-1, FR-005).
 auto installTestLoadFailure(std::optional<int>) -> void;
+
+/// @brief specs/035 FR-016, R-06: install (or clear, with an empty
+/// optional) the memory bind seam the run binds memory through, in
+/// place of the production binder the one hwloc translation unit
+/// carries, the way `installTestLayout` stands in for the layout read.
+auto installTestMemoryBinder(std::optional<MemoryBindOps>) -> void;
+
+/// @brief specs/035 FR-016, R-06: the binder the run binds memory
+/// through: the installed one when one stands, the production binder
+/// otherwise. Consulted at each call, so an install decides the call
+/// that follows it (Q-5).
+[[nodiscard]] auto memoryBinder() -> const MemoryBindOps&;
+
+/// @brief specs/035 FR-011, R-08: the resolved node plan of the run in
+/// flight, the runner installs ahead of the contexts it spawns and
+/// clears for every other run. The bind at the context start reads the
+/// node it names for the context's cpu, and the disclosure composes the
+/// node tail beside it (R-05, R-08).
+[[nodiscard]] auto resolvedNodePlan() -> std::optional<PlacementPlan>&;
+
+/// @brief specs/035 FR-013: the one flag a denied start bind sets; the
+/// entry point answers it with the status-2 refusal the fit walk
+/// prints, and no benchmark row stands ahead of the line.
+[[nodiscard]] auto bindRefusalFlag() -> std::atomic<bool>&;
+
+/// @brief specs/035 FR-013, R-07: the node whose bind this context's
+/// start recorded as denied, empty when the bind landed or no node
+/// plan stood.
+[[nodiscard]] auto bindRefusalOf(const ExecutionContext& context) noexcept
+    -> std::optional<std::uint32_t>;
 
 /// @brief The preset one text names: the five names match in full and
 /// nothing else (FR-007, FR-016, FR-017).

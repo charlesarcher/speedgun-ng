@@ -17,7 +17,7 @@ fixes.
 | `--dry-run` | none | one iteration, one repetition, no warm-up | FR-014 |
 | `--counter` | catalog address, repeatable | attaches the leaf to every selected benchmark | FR-021 |
 | `--catalog` | none | prints the catalog listing, then exits without running a benchmark | FR-037 |
-| `--placement` | preset name: `none`, `core`, `l3`, `smt` or `compact` | runs the selected threaded benchmarks on the cpus the preset plans; the name is parsed once before the first run, and a name outside the five is a recoverable error that runs no benchmark (specs/025 FR-015, FR-016) | specs/025 FR-015, FR-016 |
+| `--placement` | preset name: `none`, `core`, `l3`, `smt`, `compact` or `node` | runs the selected threaded benchmarks on the cpus the preset plans; the name is parsed once before the first run, and a name outside the six is a recoverable error that runs no benchmark (specs/025 FR-015, FR-016; specs/035 FR-001) | specs/025 FR-015, FR-016 |
 | `--topology` | none | prints the layout listing of data-model.md E-10, then exits without running a benchmark; the listing stands ahead of selection, the way the catalog listing does | specs/025 FR-036 |
 | `--compare` | `<baseline>,<contender>` | loads the two report documents, split at the first comma, answers the comparison table and the verdict, and runs no benchmark; a text with no comma, or an empty path on either side, prints one line naming the option and the text read (specs/026 FR-047, FR-048) | specs/026 FR-047, FR-048 |
 | `--compare-rule` | one rule text, repeatable | adds one rule in the order given; a text the parse call rejects prints one line naming the option and the fault the parse call named (specs/026 FR-049, FR-051) | specs/026 FR-049 |
@@ -107,8 +107,8 @@ FR-034, FR-036, FR-046, FR-054, FR-064, FR-065, FR-082).
 | the filter matched no benchmark | zero, with a message |
 | list mode | zero |
 | measured or skipped benchmarks | zero |
-| `--placement` names a preset outside the five | 2, with one line naming the rejected text (specs/025 FR-016) |
-| a family's handle `placement` names a preset outside the five | 2, with one line naming the family and the rejected text, before any instance runs (specs/025 FR-015) |
+| `--placement` names a preset outside the six | 2, with one line naming the rejected text (specs/025 FR-016; specs/035 FR-015) |
+| a family's handle `placement` names a preset outside the six | 2, with one line naming the family and the rejected text, before any instance runs (specs/025 FR-015; specs/035 FR-001) |
 | a selected instance's preset cannot place its contexts | 2, with one line naming the preset, the place count and the requested count, before any run (specs/025 FR-018, Q-4) |
 | a preset run meets a machine layout the harness cannot read | 2, with one line, whatever the context count (specs/025 FR-005, Q-6) |
 | the `--topology` listing meets a machine layout the harness cannot read | 2, with one line (specs/025 FR-036, plan R-07) |

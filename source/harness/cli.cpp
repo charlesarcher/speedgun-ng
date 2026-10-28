@@ -1544,6 +1544,13 @@ auto speedgunMain(int argc, char** argv) -> int
   SG_ENSURE((status != 0) == (anyFailed || anyInterrupted || reportFailed),
             "the exit status follows the table of contracts/cli.md (FR-036)");
 
+  // specs/035 FR-013, R-07: a bind that failed at a context start
+  // answers the usage status, the refusal the fit walk prints for a
+  // denial the validation pass found.
+  if (detail::bindRefusalFlag().load()) {
+    return 2;
+  }
+
   return status;
 }
 
