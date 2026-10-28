@@ -99,11 +99,15 @@ head. The block comes from `cf4a0230` (`Docs: Record the quiet host the
 example stands on`), and no commit in this lane touches the jitter
 example, its recorded output, or the gate.
 
-Two coverage-lane runs on a machine that was busy with other builds
-named `harness_jitter_cli_test` and `harness_hunt_json_test` as
-failures. Each passes on its own, and the lane re-run on an idle machine
-with the tree stable passed 136 of 136, so the record states them as the
-load of the machine rather than a defect.
+Two coverage-lane runs named `harness_jitter_cli_test` and
+`harness_hunt_json_test` as failures, and the second was a real one. The
+byte row asked the fixture for a scripted run of its own per document,
+and the fake provider hands its point sequence to whoever reads it, so
+the second document carried other figures than the first: the row stood
+in the optimized build and failed in the instrumented ones, where CI
+caught it. The row now takes one scripted run and writes both documents
+from it. The jitter row passed on an idle machine and in the lane that
+followed it, so the record states it as the load of that machine.
 
 ## No Intel run
 
