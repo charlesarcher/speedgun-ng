@@ -122,8 +122,10 @@ the plan states.
 - [ ] T009 [US1] Write the failing context-start tests in
   `test/source/harness_numa_placement_test.cpp`: the bind stands
   beside the pin at the context start, the binder receives the node
-  the planned cpu belongs to, and a user-installed `PlacementFn`
-  cannot bypass the bind (FR-010, R-05)
+  the planned cpu belongs to, a user-installed `PlacementFn`
+  cannot bypass the bind, and the fake binder records no call during
+  the jitter probe's measurement windows when a node preset stands
+  (FR-010, R-05)
 
 ### Implementation for User Story 1
 
@@ -185,7 +187,7 @@ information prints `not available` for the node lines alone.
   with the rest of the bytes standing (FR-006, FR-007, D-3, R-02,
   R-09) (depends on T004, T013; the tests of T013 turn green)
 
-- [ ] T015 [P] [US2] Amend the standing contract
+- [ ] T015 [US2] Amend the standing contract
   `specs/025-topology-placement/contracts/cli-placement.md` in the
   commit that lands the listing: the rule row `No memory node
   appears in the listing` stands replaced by the node-family rule of
