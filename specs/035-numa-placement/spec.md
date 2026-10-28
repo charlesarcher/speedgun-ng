@@ -88,7 +88,7 @@ stand in Decisions as D-1 to D-7.
 - The machine read stands at `source/harness/topology.cpp`: the
   listing header at `:419` (the `topology: packages=...` line),
   one line per L3 group at `:434`,
-  and the online-set test seam `installTestOnlineCpus` at `:333`.
+  and the online-set test seam `installTestOnlineCpus` at `:322`.
   The unit is the one harness translation unit that includes
   `<hwloc.h>` (spec 025 FR-004, R-01), against the vendored hwloc
   pinned at `2.14.0` (`source/hwloc/hwloc_gate.cpp:13`), covered by
@@ -104,7 +104,8 @@ stand in Decisions as D-1 to D-7.
   `specs/025-topology-placement/spec.md:722` (memory-node presets and
   the NPS tests are N12) and
   `specs/025-topology-placement/contracts/cli-placement.md:50` (the
-  row that names no memory node in the listing). This spec amends
+  row that names no memory node in the listing, amended to the
+  touched-node rule of FR-006). This spec amends
   the listing contract line, the standing exit-status table beside
   it, the standing `--placement` row's name list in
   `specs/015-benchmark-harness-core/contracts/cli.md`, and no other
@@ -183,13 +184,15 @@ stand in Decisions as D-1 to D-7.
   option row, no option value, no argument form: the bare name is
   the whole grammar this feature adds.
 - **D-3 The listing gains the node lines.** Under the L3 lines the
-  listing prints one line per memory node in the L3 lines' shape,
-  naming the node number and the cpus of that node inside the
-  process mask. The node set, the numbers and the counts stay the
-  ones the hwloc read states: the listing renames and regroups
-  nothing. A host whose read states no memory information prints
-  `not available` for the node lines alone and keeps the rest of the
-  listing byte-identical to today.
+  listing prints one line per memory node the process mask touches,
+  in the L3 lines' shape, naming the node number and the cpus of
+  that node inside the process mask; a node whose cpus all stand
+  outside the mask prints no line, the way the plan gives it no
+  context. The node numbers and the counts stay the ones the hwloc
+  read states: the listing renames and regroups nothing. A host
+  whose read states no memory information prints `not available`
+  for the node lines alone and keeps the rest of the listing
+  byte-identical to today.
 - **D-4 The binding policy.** The binding applies at context start,
   on the context thread, beside the cpu pin the placement applies.
   The plan binds each context to the node its cpu belongs to. The
@@ -414,11 +417,11 @@ compiles.
   process mask, with the node number and the cpus of each node, read
   one time per run through the standing topology read.
 - **FR-006**: The `--topology` listing SHALL print one line per
-  memory node under the L3 lines in the L3 lines' shape,
-  `node <n>: <cpu-list>`, naming the node number hwloc states and
-  the cpus of that node inside the process mask; the node set, the
-  numbers and the counts stay the ones the hwloc read states, with
-  no abstraction beyond the line shape (D-3).
+  memory node the process mask touches, under the L3 lines, in the
+  L3 lines' shape, `node <n>: <cpu-list>`, naming the node number
+  hwloc states and the cpus of that node inside the process mask;
+  the node numbers and the counts stay the ones the hwloc read
+  states, with no abstraction beyond the line shape (D-3).
 - **FR-007**: A topology read that states no memory information
   SHALL print one line reading `node: not available` in the node
   family's place, keep the rest of the listing unchanged, and exit
@@ -506,8 +509,9 @@ compiles.
   fields, and a run without the preset stands byte-identical to
   master apart from the version figures the report carries.
 - **SC-002**: The `--topology` listing prints one line per memory
-  node inside the process mask, and the lines fold stable across
-  hosts through the shape gate's mask.
+  node the process mask touches and no line for a node the mask
+  excludes, and the lines fold stable across hosts through the
+  shape gate's mask.
 - **SC-003**: Every refusal of D prints one line and exits with
   status 2, and no benchmark output stands ahead of the refusal.
 - **SC-004**: The coverage gate reads 100.0% lines and a branch

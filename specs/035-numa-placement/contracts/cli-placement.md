@@ -50,7 +50,7 @@ node: not available
 
 | Rule | Requirement |
 | --- | --- |
-| One line per memory node the read states, in the read's node order, naming the node number and the cpus of that node inside the process mask. | FR-006 |
+| One line per memory node the process mask touches, in the read's node order, naming the node number and the cpus of that node inside the process mask; a node the mask excludes prints no line. | FR-006 |
 | The node numbers, the cpus and the counts stay the ones the hwloc read states; the listing renames and regroups nothing. | FR-006, D-3 |
 | A read that states no memory information prints one line reading `node: not available` in the node family's place and keeps the rest of the listing byte-identical. | FR-007 |
 | A machine read the harness cannot read refuses one line, exit status 2. | FR-008, standing |

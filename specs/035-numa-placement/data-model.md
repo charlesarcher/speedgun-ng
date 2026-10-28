@@ -93,7 +93,7 @@ One line per node under the L3 lines:
 
 | Line | Case |
 | --- | --- |
-| `node <n>: <cpu-list>` | the read states the node and the mask touches its cpus |
+| `node <n>: <cpu-list>` | the read states the node and the mask touches its cpus; a node the mask excludes prints no line |
 | `node: not available` | the read states no memory information: one line stands in the node family's place, and the rest of the listing keeps its bytes; the fixture pins the line |
 
 ### The refusal set

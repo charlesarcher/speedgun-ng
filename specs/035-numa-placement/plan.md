@@ -37,7 +37,7 @@ constitution pins the language)
 (`source/harness/topology.cpp`, `source/harness/placement_preset.cpp`,
 `source/harness/execution_context.cpp`) and their seams: the layout
 seam (`installTestLayout`, `topology.cpp:306`), the online-set seam
-(`installTestOnlineCpus`, `topology.cpp:333`), and the placement
+(`installTestOnlineCpus`, `topology.cpp:322`), and the placement
 function seam (`setPlacementFunction`,
 `include/speedgun-ng/execution_context.hpp:202`); the vendored hwloc
 `2.14.0` (`external/hwloc`, the `sg_hwloc` archive, the pin assertion
@@ -190,10 +190,11 @@ exported-layout check of the harness `SOVERSION` stays untouched.
   `LayoutNode` beside the standing `LayoutGroup` vector, inside the
   one-time read the run performs.
 - **R-02 (FR-006, D-3)**: the listing prints the node lines under the
-  L3 lines in the L3 lines' shape. The line composes from the layout
-  the run already read, with the node number and the cpus the read
-  states; the mask filters the cpus the way the L3 lines filter
-  theirs. Nothing renames or regroups.
+  L3 lines in the L3 lines' shape, one line per node the mask
+  touches. The line composes from the layout the run already read,
+  with the node number and the cpus the read states; the mask
+  filters the cpus the way the L3 lines filter theirs, and a node
+  the mask excludes prints no line. Nothing renames or regroups.
 - **R-03 (FR-001, D-2)**: the preset table grows by one row,
   `{"node", Preset::NODE}`, parsed in full and nothing else beside the
   five standing rows of `placement_preset.cpp:46`. The resolver gains

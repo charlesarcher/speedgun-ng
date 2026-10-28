@@ -173,7 +173,8 @@ information prints `not available` for the node lines alone.
 - [ ] T013 [P] [US2] Write the failing listing tests in
   `test/source/harness_cli_placement_test.cpp`: the node lines stand
   under the L3 lines in the `node <n>: <cpu-list>` shape, in the
-  read's node order, mask-filtered the way the L3 lines filter; a
+  read's node order, mask-filtered the way the L3 lines filter, and
+  a node whose cpus all stand outside the mask prints no line; a
   read with no memory information prints `not available` and keeps
   the rest of the listing byte-identical, exit status 0
   (FR-006, FR-007, FR-008, D-3, R-02)
@@ -182,7 +183,8 @@ information prints `not available` for the node lines alone.
 
 - [ ] T014 [US2] Extend the listing in `source/harness/topology.cpp`
   beside the L3 lines at `topology.cpp:434`: the node family prints
-  from the layout's nodes, mask-filtered, and the
+  from the layout's mask-touched nodes, mask-filtered, a node the
+  mask excludes printing no line, and the
   `memoryReadable`-false branch prints the `not available` wording
   with the rest of the bytes standing (FR-006, FR-007, D-3, R-02,
   R-09) (depends on T004, T013; the tests of T013 turn green)
