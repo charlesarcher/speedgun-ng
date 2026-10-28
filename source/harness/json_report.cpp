@@ -29,12 +29,14 @@ using Builder = simdjson::builder::string_builder;
 
 // The schema the writer emits and the checker reads (FR-007). The minor
 // stands at 1.3 since specs/028 added the `run` object, at 1.4 since
-// specs/027 added the `jitter` object, at 1.5 since specs/029 added
-// the root `hunt` object and the per-benchmark `hunt` object, and at 1.7
+specs/027 added the `jitter` object, at 1.5 since specs/029 added
+// the root `hunt` object and the per-benchmark `hunt` object, at 1.7
 // since specs/036 added the optional `tracer` object of the `precheck`
-// record, the move specs/023/contracts/schema-file.md states for a key
-// added inside major 1 (specs/027 FR-026, specs/028 FR-086, PC-6).
-constexpr std::string_view kSchemaVersion = "1.7";
+// record, and at 1.8 since specs/033 added the budget keys inside the
+// root `hunt` object, the move specs/023/contracts/schema-file.md
+// states for a key added inside major 1 (specs/027 FR-026,
+// specs/028 FR-086, specs/033 FR-022, PC-6).
+constexpr std::string_view kSchemaVersion = "1.8";
 
 // The `source` word of one disclosed use, spelled as the enum of
 // `docs/schema/report-v1.json` states it (specs/028 E-04, FR-040). The
@@ -762,6 +764,18 @@ void writeHunt(Builder& builder, const hunt::RunHunt& record)
   put(builder, object, "planned_events", record.plannedAddresses.size());
   put(builder, object, "ran_events", record.ranEvents);
   put(builder, object, "stage_two_events", record.stageTwoEvents);
+  // specs/033-hunter-budgets FR-020 to FR-022, N-06: the sample budget and the
+  // repeat count it derived. Each key stands only where its figure stands, so a
+  // run no budget bounds writes the bytes it wrote at 1.6 and no null key. The
+  // text comes back from the stored figure through the builder the plan line
+  // reads, so console and document state one text.
+  if (options.sampleBudgetNs.has_value()) {
+    const auto sample = detail::huntSampleClauseText(*options.sampleBudgetNs);
+    put(builder, object, "sample_budget", sample);
+  }
+  if (record.sample.derivedRepeats.has_value()) {
+    put(builder, object, "derived_repeats", *record.sample.derivedRepeats);
+  }
 }
 
 // The count of cpus the noise condition compares the spinning contexts

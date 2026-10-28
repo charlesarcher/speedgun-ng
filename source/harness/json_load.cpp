@@ -1363,6 +1363,55 @@ auto asBudget(Element value, const std::string& where)
   };
 }
 
+// specs/033-hunter-budgets FR-001, FR-021, N-01: the `e` clause text of the
+// sample budget, in the spelling the document carries. The record holds whole
+// nanoseconds, so the reader splits the seconds at the point and moves each
+// fraction digit into the count, the split `detail::huntSampleClauseText`
+// makes in the other direction. A text that names no unit, states no amount,
+// or states a figure outside the bound the option carries is a document the
+// reader refuses by its pointer, the way `asBudget` refuses the two-stage
+// bound.
+auto asSampleBudget(Element value, const std::string& where)
+    -> std::expected<std::uint64_t, std::string>
+{
+  constexpr std::uint64_t kNsPerSecond = 1'000'000'000ULL;
+  auto text = asString(value, where);
+  if (!text.has_value()) {
+    return std::unexpected(text.error());
+  }
+  if (text->empty() || text->back() != 'e') {
+    return std::unexpected(where + ": '" + *text
+                           + "' states no sample budget unit");
+  }
+  const std::string_view amount {text->data(), text->size() - 1};
+  const auto point = amount.find('.');
+  const auto* const digits = amount.data();
+  const auto* const wholeEnd =
+      digits + (point == std::string_view::npos ? amount.size() : point);
+  auto seconds = std::uint64_t {0};
+  const auto [stop, code] = std::from_chars(digits, wholeEnd, seconds);
+  if (code != std::errc {} || stop != wholeEnd
+      || seconds > static_cast<std::uint64_t>(detail::kMaxWholeSeconds))
+  {
+    return std::unexpected(where + ": '" + *text
+                           + "' states no sample budget amount");
+  }
+  auto budgetNs = seconds * kNsPerSecond;
+  auto scale = kNsPerSecond;
+  const auto fraction =
+      point == std::string_view::npos ? amount.size() : point + 1;
+  for (std::size_t at = fraction; at < amount.size(); ++at) {
+    const char digit = amount[at];
+    if (digit < '0' || digit > '9' || scale == 1) {
+      return std::unexpected(where + ": '" + *text
+                             + "' states no sample budget amount");
+    }
+    scale /= 10;
+    budgetNs += static_cast<std::uint64_t>(digit - '0') * scale;
+  }
+  return budgetNs;
+}
+
 // One object of the closed `hunt.stages` node: the range of planned
 // addresses one stage measured, and the repeats it gave them (E-08, FR-050).
 auto readStageRange(Element value, const std::string& where)
@@ -1670,6 +1719,25 @@ auto readHunt(Element value, const std::string& where)
     }
     record.stages.push_back(*stage);
     ++index;
+  }
+  // specs/033-hunter-budgets FR-020 to FR-022: the two keys the sample budget
+  // adds stand optional, so a document written before schema 1.7 carries
+  // neither of them and the two fields stay unset (FR-021). A key that stands
+  // present keeps its own kind and its own refusal.
+  if (const auto key = optionalField(value, "sample_budget"); key.has_value()) {
+    auto sample = asSampleBudget(*key, where + "/sample_budget");
+    if (!sample.has_value()) {
+      return std::unexpected(sample.error());
+    }
+    record.options.sampleBudgetNs = *sample;
+  }
+  if (const auto key = optionalField(value, "derived_repeats"); key.has_value())
+  {
+    auto derived = asUnsigned(*key, where + "/derived_repeats");
+    if (!derived.has_value()) {
+      return std::unexpected(derived.error());
+    }
+    record.sample.derivedRepeats = static_cast<std::size_t>(*derived);
   }
   return record;
 }

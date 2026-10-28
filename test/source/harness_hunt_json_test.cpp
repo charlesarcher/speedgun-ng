@@ -834,6 +834,65 @@ const auto kRunKeys = std::vector<std::string> {"selection",
 const auto kEntryKeys = std::vector<std::string> {
     "method", "pass_count", "top", "retried_passes", "entries", "skipped"};
 
+// ---------------------------------------------------------------------------
+// The budgets of specs/033
+// ---------------------------------------------------------------------------
+
+// The figure the `e` clause settles and the figure the plan hands it: half a
+// second bounding one event, and four repeats one calibration figure priced
+// (033 N-01, N-03).
+constexpr std::uint64_t kSampleBudgetNs = 500'000'000;
+constexpr std::size_t kDerivedRepeats = 4;
+
+// The two keys as the written bytes must carry them. The `e` text is the
+// shortest decimal word of the seconds (033 N-06, contracts/hunt-json.md).
+constexpr std::string_view kSampleBudgetKey = "\"sample_budget\":\"0.5e\"";
+constexpr std::string_view kDerivedRepeatsKey = "\"derived_repeats\":4";
+
+// The run node's keys once the two budget keys stand: the standing sixteen,
+// then the two after `stage_two_events`, in the order the contract fixes.
+[[nodiscard]] auto budgetedRunKeys() -> std::vector<std::string>
+{
+  auto keys = kRunKeys;
+  keys.insert(keys.end(), {"sample_budget", "derived_repeats"});
+  return keys;
+}
+
+// The record of a run the sample budget bounds: the scripted single-stage
+// record with the two figures set. `planHunt` derives the repeat count from the
+// clause, the stage rule and the calibration figure (033 N-03). The writer and
+// the reader see one record at a time, so this case states the figures and
+// leaves the derivation to the planner's own tests.
+[[nodiscard]] auto budgetedHunt() -> Hunted
+{
+  auto hunted = singleStageHunt();
+  hunted.run.options.sampleBudgetNs = kSampleBudgetNs;
+  hunted.run.sample.derivedRepeats = kDerivedRepeats;
+  return hunted;
+}
+
+// The written bytes with the two budget keys taken out of the run node: the
+// document a writer left before schema 1.7, every standing key in its place
+// (033 FR-021).
+[[nodiscard]] auto budgetLessRun(std::string_view text) -> std::string
+{
+  auto standing = std::string(text);
+  for (const auto* key : {"derived_repeats", "sample_budget"})
+  {
+    standing = planted(standing,
+                       Plant {
+                           .what = "",
+                           .node = "run",
+                           .key = key,
+                           .body = "",
+                           .remove = true,
+                           .pointer = "",
+                           .message = "",
+                       });
+  }
+  return standing;
+}
+
 // Every key of both tables of contracts/hunt-json.md, in the `x-order` the
 // schema states, with `hunt` appended last in the root and in the entry node
 // alike (contracts/report-schema-key.md, FR-053).
@@ -1528,6 +1587,188 @@ auto noHuntBytesMatchCapture() -> void
         "must");
 }
 
+// The two keys of specs/033 in the `x-order` the schema states, beside the
+// schema's reading of a document that carries them: each key joined
+// `properties` and `x-order` in the commit that wrote it (033 FR-020 to
+// FR-022, SC-006).
+auto budgetKeysInOrder() -> void
+{
+  const auto text = huntDocumentText(budgetedHunt());
+  checkOrder(text, nodeOpen(text, true), budgetedRunKeys(), "/hunt");
+  for (const std::string_view key : {kSampleBudgetKey, kDerivedRepeatsKey})
+  {
+    checked(occurrences(text, key) == 1,
+            "a bounded run writes the key once: " + std::string(key));
+  }
+
+  const auto conforming = sg::detail::checkReport(SG_SCHEMA_PATH, text);
+  if (!conforming.has_value()) {
+    failed("the document of a bounded hunt disagrees with the schema: "
+           + conforming.error());
+  }
+}
+
+// The bound and the count it derived ride the document and read back. The
+// writer rebuilds the text from the stored nanoseconds, so a document that
+// spells the same bound `0.50e` reads back the same figure and writes again as
+// `0.5e` (033 FR-020, FR-021, R-11).
+auto budgetRoundTrip() -> void
+{
+  const auto bounded = budgetedHunt();
+  const auto written = writeReportDocument(&bounded);
+  const auto text = documentText();
+  checked(occurrences(text, kSampleBudgetKey) == 1,
+          "the sample budget stands as the canonical `e` text");
+  checked(occurrences(text, kDerivedRepeatsKey) == 1,
+          "the derived count stands as an integer");
+
+  const auto loaded = sg::loadReport(scratchDocument);
+  if (!loaded.has_value()) {
+    failed("the document of a bounded hunt refuses to load: " + loaded.error());
+  }
+  const auto& run = *loaded->hunt;
+  checked(run.options.sampleBudgetNs == kSampleBudgetNs,
+          "the sample budget reads back its nanoseconds");
+  checked(run.sample.derivedRepeats == kDerivedRepeats,
+          "the derived count reads back");
+  check(sg::test::sameReport(written, *loaded),
+        "every standing field of the bounded record survives the round trip");
+
+  // The same bound with a trailing zero stands in the document a caller hand
+  // writes. The record holds the figure, so the writer answers the shortest
+  // word.
+  const auto at = keyStart(text, nodeOpen(text, true), "sample_budget");
+  const auto value = at + std::string_view("\"sample_budget\":").size();
+  sg::test::writeText(scratchDocument,
+                      std::string(text.substr(0, value)) + "\"0.50e\""
+                          + std::string(text.substr(valueEnd(text, value))));
+  const auto padded = sg::loadReport(scratchDocument);
+  if (!padded.has_value()) {
+    failed("the document whose sample budget reads 0.50e refuses to load: "
+           + padded.error());
+  }
+  checked(padded->hunt->options.sampleBudgetNs == kSampleBudgetNs,
+          "a sample budget spelled 0.50e reads back the same nanoseconds");
+
+  auto rewritten = bounded;
+  rewritten.run = *padded->hunt;
+  rewritten.entry = *padded->results.front().hunt;
+  static_cast<void>(writeReportDocument(&rewritten));
+  const auto again = documentText();
+  checked(occurrences(again, kSampleBudgetKey) == 1
+              && occurrences(again, "\"sample_budget\":\"0.50e\"") == 0,
+          "the record a document handed back writes the canonical text again");
+}
+
+// The two keys are the whole difference the sample budget makes in the written
+// bytes. Remove them from the document of a bounded run and the bytes that stand
+// are the bytes an unbounded run of the same record writes. A run that named no
+// budget therefore writes the standing bytes and no null key (033 FR-022,
+// SC-006).
+auto budgetBytesStand() -> void
+{
+  const auto bounded = budgetedHunt();
+  const auto unbounded = singleStageHunt();
+  static_cast<void>(writeReportDocument(&bounded));
+  const auto boundedText = documentText();
+  static_cast<void>(writeReportDocument(&unbounded));
+  const auto standing = documentText();
+
+  checkOrder(standing, nodeOpen(standing, true), kRunKeys, "/hunt");
+  for (const std::string_view key : {"\"sample_budget\"",
+                                     "\"derived_repeats\""})
+  {
+    checked(standing.find(key) == std::string::npos,
+            "a run that named no budget writes no key: " + std::string(key));
+  }
+  const auto stripped = budgetLessRun(boundedText);
+  if (stripped != standing) {
+    failed("the bytes of a bounded run minus the two keys are not the bytes "
+           "of a run that named no budget: got " + stripped.substr(0, 240)
+           + " want " + standing.substr(0, 240));
+  }
+}
+
+// A document written before schema 1.7 carries neither of the two keys: it
+// passes the schema, which keeps the standing sixteen in `required`, and it
+// loads with the two fields unset and every standing field equal (033 FR-021).
+auto preBudgetDocument() -> void
+{
+  const auto bounded = budgetedHunt();
+  const auto written = writeReportDocument(&bounded);
+  const auto standing = budgetLessRun(documentText());
+
+  const auto conforming = sg::detail::checkReport(SG_SCHEMA_PATH, standing);
+  if (!conforming.has_value()) {
+    failed("a document without the two keys disagrees with the schema: "
+           + conforming.error());
+  }
+
+  sg::test::writeText(scratchDocument, standing);
+  const auto loaded = sg::loadReport(scratchDocument);
+  if (!loaded.has_value()) {
+    failed("a document written before schema 1.7 refuses to load: "
+           + loaded.error());
+  }
+  const auto& run = *loaded->hunt;
+  checked(!run.options.sampleBudgetNs.has_value()
+              && !run.sample.derivedRepeats.has_value(),
+          "a document without the two keys leaves the two fields unset");
+  check(sg::test::sameReport(written, *loaded),
+        "the standing fields of a pre-1.7 document read back equal");
+}
+
+// The rows the two keys add to contracts/hunt-json.md's reader table, each in
+// the one form no record can express it (033 FR-021, hard rule 7).
+const auto kBudgetPlants = std::vector<Plant> {
+    Plant {.what = "a number where the sample budget stands",
+           .node = "run",
+           .key = "sample_budget",
+           .body = "7",
+           .pointer = "/hunt/sample_budget",
+           .message = "expected a string, found number"},
+    Plant {.what = "a sample budget text with no unit",
+           .node = "run",
+           .key = "sample_budget",
+           .body = "\"0.5\"",
+           .pointer = "/hunt/sample_budget",
+           .message = "states no sample budget unit"},
+    Plant {.what = "a sample budget text with no amount",
+           .node = "run",
+           .key = "sample_budget",
+           .body = "\"e\"",
+           .pointer = "/hunt/sample_budget",
+           .message = "states no sample budget amount"},
+    Plant {.what = "a string where the derived repeat count stands",
+           .node = "run",
+           .key = "derived_repeats",
+           .body = "\"four\"",
+           .pointer = "/hunt/derived_repeats",
+           .message = "expected an integer, found string"},
+};
+
+// One case per refused reader code of the two new keys, each naming the
+// pointer of its position (033 hard rule 7, FR-021).
+auto budgetRefusals() -> void
+{
+  const auto bounded = budgetedHunt();
+  static_cast<void>(writeReportDocument(&bounded));
+  const auto text = documentText();
+  for (const auto& plant : kBudgetPlants) {
+    sg::test::writeText(scratchDocument, planted(text, plant));
+    const auto answer = sg::loadReport(scratchDocument);
+    if (answer.has_value()) {
+      failed("the reader accepted " + std::string(plant.what));
+    }
+    checked(answer.error().find(plant.pointer) != std::string::npos,
+            "the refusal of " + std::string(plant.what) + " names "
+                + std::string(plant.pointer) + ": " + answer.error());
+    checked(answer.error().find(plant.message) != std::string::npos,
+            "the refusal of " + std::string(plant.what) + " says '"
+                + std::string(plant.message) + "': " + answer.error());
+  }
+}
+
 struct Scenario
 {
   std::string_view name;
@@ -1546,6 +1787,11 @@ struct Scenario
       Scenario {.name = "two-stage", .body = &twoStageDocument},
       Scenario {.name = "schema", .body = &schemaConformance},
       Scenario {.name = "no-hunt-bytes", .body = &noHuntBytesMatchCapture},
+      Scenario {.name = "budget-keys", .body = &budgetKeysInOrder},
+      Scenario {.name = "budget-round-trip", .body = &budgetRoundTrip},
+      Scenario {.name = "budget-bytes", .body = &budgetBytesStand},
+      Scenario {.name = "pre-1.7", .body = &preBudgetDocument},
+      Scenario {.name = "budget-refusals", .body = &budgetRefusals},
   };
   return kList;
 }
