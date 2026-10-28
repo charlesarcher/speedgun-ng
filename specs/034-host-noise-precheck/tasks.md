@@ -325,7 +325,7 @@ and the code stand one fact.
   JSON-library gates; every finding stands cleared at lint parity;
   the `sg::NoiseWarning` disclosure lines stand pinned unchanged
   against the standing tests (FR-025, FR-028, SC-008)
-- [ ] T027 [P] Run the suite under `taskset -c 0,1` and record the
+- [X] T027 [P] Run the suite under `taskset -c 0,1` and record the
   result; every timing bound stands an order of magnitude inside the
   contamination signal it discriminates against, the margin recorded
   beside the bound (FR-021, FR-022, SC-006, R-11)
@@ -333,7 +333,7 @@ and the code stand one fact.
   `cmake --build build` once and clear every clang-tidy and cppcheck
   finding (constitution IX, the per-feature release build) (depends
   on T012, T016, T020)
-- [ ] T029 Run every scenario of [quickstart.md](./quickstart.md) and
+- [X] T029 Run every scenario of [quickstart.md](./quickstart.md) and
   record the commands, the exit codes and the figures under
   `specs/034-host-noise-precheck/results/` (X.4, SC-001 to SC-007)
   (depends on T024, T025, T026, T027, T028)
