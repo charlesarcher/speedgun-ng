@@ -1105,31 +1105,28 @@ auto main(int argc, char** argv) -> int
     record.host.irqAffinity.emplace_back(cpus.at(0),
                                          std::vector<std::uint32_t> {});
     const auto block = capturePrecheck(record);
-    check(
-        block.find("interrupts delta: not available (source: "
-                   "/proc/interrupts)") != std::string::npos,
-        "the absent interrupt delta prints `not available` beside its "
-        "source (FR-018)");
-    check(block.find(
-              "switch delta: not available, schedule delta: not " "available "
-                                                                  "(source: "
-                                                                  "/proc/"
-                                                                  "schedstat)")
-              != std::string::npos,
+    const std::string interruptLine =
+        "interrupts delta: not available (source: /proc/interrupts)";
+    check(block.find(interruptLine) != std::string::npos,
+          "the absent interrupt delta prints `not available` beside its "
+          "source (FR-018)");
+    const std::string schedstatLine =
+        "switch delta: not available, schedule delta: not available "
+        "(source: /proc/schedstat)";
+    check(block.find(schedstatLine) != std::string::npos,
           "the absent schedstat deltas print `not available` (FR-018)");
-    check(
-        block.find(
-            "host settings: isolcpus=not available " "nohz_full=not available "
-                                                     "rcu_nocbs=not available")
-            != std::string::npos,
-        "the unstated settings print `not available` (FR-018)");
-    check(block.find("governor: cpu " + std::to_string(cpus.at(0))
-                     + " not available")
-              != std::string::npos,
+    const std::string settingsLine =
+        "host settings: isolcpus=not available nohz_full=not available "
+        "rcu_nocbs=not available";
+    check(block.find(settingsLine) != std::string::npos,
+          "the unstated settings print `not available` (FR-018)");
+    const std::string governorLine =
+        "governor: cpu " + std::to_string(cpus.at(0)) + " not available";
+    check(block.find(governorLine) != std::string::npos,
           "the absent governor prints `not available` (FR-018)");
-    check(block.find("irq affinity: cpu " + std::to_string(cpus.at(0))
-                     + " not available")
-              != std::string::npos,
+    const std::string affinityLine =
+        "irq affinity: cpu " + std::to_string(cpus.at(0)) + " not available";
+    check(block.find(affinityLine) != std::string::npos,
           "the absent affinity list prints `not available` (FR-018)");
   }
 

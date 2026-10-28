@@ -1386,60 +1386,33 @@ auto thePrecheckRefusalsNameTheirFields() -> void
 
   const std::string text =
       sg::test::readText("harness_json_load_precheck.json");
+  const std::string plannedStats =
+      R"json("stats":{"gapCount":2,"gapsPerSecond":11.5,"minNs":0,"medianNs":0,"meanNs":0.0,"p90Ns":0,"p99Ns":0,"p999Ns":0,"p9999Ns":0,"maxNs":9000,"totalNs":0,"totalPercent":0.0,"runtimeNs":0,"thresholdNs":0,"loopPeriodNs":0,"droppedGaps":0})json";
+  const std::string fullAttr =
+      R"json("attribution":{"interrupts":42,"softirqs":{"TIMER":7,"NET_RX":null},"switchDelta":5,"scheduleDelta":null})json";
+  const std::string fullHost =
+      R"json("hostSettings":{"isolcpus":"2-3","nohz_full":null,"rcu_nocbs":null,"governors":{"3":"performance"},"irqAffinity":{"3":"24,25"}})json";
+  const std::string cpusFull =
+      R"json("cpus":[{"cpu":3,"role":"planned","stats":{"gapCount":2,"gapsPerSecond":11.5,"minNs":0,"medianNs":0,"meanNs":0.0,"p90Ns":0,"p99Ns":0,"p999Ns":0,"p9999Ns":0,"maxNs":9000,"totalNs":0,"totalPercent":0.0,"runtimeNs":0,"thresholdNs":0,"loopPeriodNs":0,"droppedGaps":0},"attribution":{"interrupts":42,"softirqs":{"TIMER":7,"NET_RX":null},"switchDelta":5,"scheduleDelta":null}},{"cpu":4,"role":"candidate","stats":{"gapCount":0,"gapsPerSecond":0.0,"minNs":0,"medianNs":0,"meanNs":0.0,"p90Ns":0,"p99Ns":0,"p999Ns":0,"p9999Ns":0,"maxNs":0,"totalNs":0,"totalPercent":0.0,"runtimeNs":0,"thresholdNs":0,"loopPeriodNs":0,"droppedGaps":0},"attribution":{"interrupts":null,"softirqs":{},"switchDelta":null,"scheduleDelta":null}}])json";
+  const std::string plannedStatsComma = plannedStats + ",";
+  const std::string cpusFullComma = cpusFull + ",";
+  const std::string fullHostComma = fullHost + ",";
+  const std::string fullAttrLead = "," + fullAttr;
+  const std::string irqAffinityLead = ",\"irqAffinity\":{\"3\":\"24,25\"}";
   const Mutation plants[] = {
       {"\"serial\":true,", "", "/precheck"},
       {"\"serial\":true", "\"serial\":1", "/precheck/serial"},
       {"\"windowMs\":200,", "", "/precheck"},
       {"\"windowMs\":200", "\"windowMs\":\"x\"", "/precheck/windowMs"},
-      {"\"cpus\":[{\"cpu\":3,\"role\":\"planned\",\"stats\":{\"gapCount\":2,"
-       "\"gapsPerSecond\":11.5,\"minNs\":0,\"medianNs\":0,\"meanNs\":0.0,"
-       "\"p90Ns\":0,\"p99Ns\":0,\"p999Ns\":0,\"p9999Ns\":0,\"maxNs\":9000,"
-       "\"totalNs\":0,\"totalPercent\":0.0,\"runtimeNs\":0,\"thresholdNs\":0,"
-       "\"loopPeriodNs\":0,\"droppedGaps\":0},\"attribution\":{\"interrupts\":"
-       "42,\"softirqs\":{\"TIMER\":7,\"NET_RX\":null},\"switchDelta\":5,"
-       "\"scheduleDelta\":null}},{\"cpu\":4,\"role\":\"candidate\",\"stats\":{"
-       "\"gapCount\":0,\"gapsPerSecond\":0.0,\"minNs\":0,\"medianNs\":0,"
-       "\"meanNs\":0.0,\"p90Ns\":0,\"p99Ns\":0,\"p999Ns\":0,\"p9999Ns\":0,"
-       "\"maxNs\":0,\"totalNs\":0,\"totalPercent\":0.0,\"runtimeNs\":0,"
-       "\"thresholdNs\":0,\"loopPeriodNs\":0,\"droppedGaps\":0},"
-       "\"attribution\":{\"interrupts\":null,\"softirqs\":{},\"switchDelta\":"
-       "null,\"scheduleDelta\":null}}]",
-       "\"cpus\":{}",
-       "/precheck"},
-      {"\"cpus\":[{\"cpu\":3,\"role\":\"planned\",\"stats\":{\"gapCount\":2,"
-       "\"gapsPerSecond\":11.5,\"minNs\":0,\"medianNs\":0,\"meanNs\":0.0,"
-       "\"p90Ns\":0,\"p99Ns\":0,\"p999Ns\":0,\"p9999Ns\":0,\"maxNs\":9000,"
-       "\"totalNs\":0,\"totalPercent\":0.0,\"runtimeNs\":0,\"thresholdNs\":0,"
-       "\"loopPeriodNs\":0,\"droppedGaps\":0},\"attribution\":{\"interrupts\":"
-       "42,\"softirqs\":{\"TIMER\":7,\"NET_RX\":null},\"switchDelta\":5,"
-       "\"scheduleDelta\":null}},{\"cpu\":4,\"role\":\"candidate\",\"stats\":{"
-       "\"gapCount\":0,\"gapsPerSecond\":0.0,\"minNs\":0,\"medianNs\":0,"
-       "\"meanNs\":0.0,\"p90Ns\":0,\"p99Ns\":0,\"p999Ns\":0,\"p9999Ns\":0,"
-       "\"maxNs\":0,\"totalNs\":0,\"totalPercent\":0.0,\"runtimeNs\":0,"
-       "\"thresholdNs\":0,\"loopPeriodNs\":0,\"droppedGaps\":0},"
-       "\"attribution\":{\"interrupts\":null,\"softirqs\":{},\"switchDelta\":"
-       "null,\"scheduleDelta\":null}}],",
-       "",
-       "/precheck"},
+      {cpusFull.c_str(), "\"cpus\":{}", "/precheck"},
+      {cpusFullComma.c_str(), "", "/precheck"},
       {"\"cpu\":3", "\"cpu\":\"x\"", "/precheck/cpus/0/cpu"},
       {"\"cpu\":3,", "", "/precheck/cpus/0"},
       {"\"role\":\"planned\"", "\"role\":1", "/precheck/cpus/0/role"},
       {"\"role\":\"planned\"", "\"role\":\"bogus\"", "/precheck/cpus/0/role"},
       {"\"role\":\"planned\",", "", "/precheck/cpus/0"},
-      {"\"stats\":{\"gapCount\":2,\"gapsPerSecond\":11.5,\"minNs\":0,"
-       "\"medianNs\":0,\"meanNs\":0.0,\"p90Ns\":0,\"p99Ns\":0,\"p999Ns\":0,"
-       "\"p9999Ns\":0,\"maxNs\":9000,\"totalNs\":0,\"totalPercent\":0.0,"
-       "\"runtimeNs\":0,\"thresholdNs\":0,\"loopPeriodNs\":0,\"droppedGaps\":"
-       "0}",
-       "\"stats\":[]",
-       "/precheck/cpus/0/stats"},
-      {"\"stats\":{\"gapCount\":2,\"gapsPerSecond\":11.5,\"minNs\":0,"
-       "\"medianNs\":0,\"meanNs\":0.0,\"p90Ns\":0,\"p99Ns\":0,\"p999Ns\":0,"
-       "\"p9999Ns\":0,\"maxNs\":9000,\"totalNs\":0,\"totalPercent\":0.0,"
-       "\"runtimeNs\":0,\"thresholdNs\":0,\"loopPeriodNs\":0,\"droppedGaps\":0}"
-       ",",
-       "",
-       "/precheck/cpus/0"},
+      {plannedStats.c_str(), "\"stats\":[]", "/precheck/cpus/0/stats"},
+      {plannedStatsComma.c_str(), "", "/precheck/cpus/0"},
       {"\"gapCount\":2",
        "\"gapCount\":\"x\"",
        "/precheck/cpus/0/stats/gapCount"},
@@ -1473,14 +1446,8 @@ auto thePrecheckRefusalsNameTheirFields() -> void
       {"\"droppedGaps\":0",
        "\"droppedGaps\":\"x\"",
        "/precheck/cpus/0/stats/droppedGaps"},
-      {"\"attribution\":{\"interrupts\":42,\"softirqs\":{\"TIMER\":7,\"NET_"
-       "RX\":null},\"switchDelta\":5,\"scheduleDelta\":null}",
-       "\"attribution\":[]",
-       "/precheck/cpus/0/attribution"},
-      {",\"attribution\":{\"interrupts\":42,\"softirqs\":{\"TIMER\":7,\"NET_"
-       "RX\":null},\"switchDelta\":5,\"scheduleDelta\":null}",
-       "",
-       "/precheck/cpus/0"},
+      {fullAttr.c_str(), "\"attribution\":[]", "/precheck/cpus/0/attribution"},
+      {fullAttrLead.c_str(), "", "/precheck/cpus/0"},
       {"\"interrupts\":42",
        "\"interrupts\":\"x\"",
        "/precheck/cpus/0/attribution/interrupts"},
@@ -1500,16 +1467,8 @@ auto thePrecheckRefusalsNameTheirFields() -> void
       {"\"switchDelta\":5,\"scheduleDelta\":null",
        "\"switchDelta\":5,\"scheduleDelta\":\"x\"",
        "/precheck/cpus/0/attribution/scheduleDelta"},
-      {"\"hostSettings\":{\"isolcpus\":\"2-3\",\"nohz_full\":null,\"rcu_"
-       "nocbs\":null,\"governors\":{\"3\":\"performance\"},\"irqAffinity\":{"
-       "\"3\":\"24,25\"}}",
-       "\"hostSettings\":[]",
-       "/precheck/hostSettings"},
-      {"\"hostSettings\":{\"isolcpus\":\"2-3\",\"nohz_full\":null,\"rcu_"
-       "nocbs\":null,\"governors\":{\"3\":\"performance\"},\"irqAffinity\":{"
-       "\"3\":\"24,25\"}},",
-       "",
-       "/precheck"},
+      {fullHost.c_str(), "\"hostSettings\":[]", "/precheck/hostSettings"},
+      {fullHostComma.c_str(), "", "/precheck"},
       {"\"isolcpus\":\"2-3\"",
        "\"isolcpus\":1",
        "/precheck/hostSettings/isolcpus"},
@@ -1539,7 +1498,7 @@ auto thePrecheckRefusalsNameTheirFields() -> void
       {"\"irqAffinity\":{\"3\":\"24,25\"}",
        "\"irqAffinity\":{\"x\":\"24,25\"}",
        "/precheck/hostSettings/irqAffinity/x"},
-      {",\"irqAffinity\":{\"3\":\"24,25\"}", "", "/precheck/hostSettings"},
+      {irqAffinityLead.c_str(), "", "/precheck/hostSettings"},
       {"\"irqAffinity\":{\"3\":\"24,25\"}",
        "\"irqAffinity\":{\"3\":1}",
        "/precheck/hostSettings/irqAffinity/3"},
