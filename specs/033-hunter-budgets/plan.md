@@ -157,7 +157,9 @@ source/harness/
 │                               shared reader
 ├── options.cpp               + {"hunt-emit-set"} row and case arm;
 │                               case 'c' intercepts the '@' form
-├── cli.cpp                   conflict check grows the emit row;
+├── cli.cpp                   call site of the grown guard
+│                               (validateHuntCombination, in
+│                               hunt_cli.cpp);
 │                               emit write after the batch beside
 │                               the writeReport call; status wiring
 ├── report.cpp                plan line grows sample=/mux= segments
@@ -269,8 +271,10 @@ selection read one grammar from one place.
   ranks nothing writes an empty file. It joins cli.cpp after the
   batch, beside the `writeReport` call, guarded by the settled
   `huntEmitSet` path.
-- **R-08 Emit refusals (FR-012).** The conflict check
-  (`cli.cpp:524`) grows: an emit path with no hunt (including
+- **R-08 Emit refusals (FR-012).** The standing validator
+  `validateHuntCombination` (`hunt_cli.cpp:660`, called at
+  `cli.cpp:528`) grows ahead of its early unset-hunt return, its
+  `\post` line moving with it: an emit path with no hunt (including
   `--hunt=none`) leaves one line naming the value with exit 2. An
   unwritable destination prints the standing report-file sentence
   (`json_report.cpp:1042` shape: path, reason from `errno`) and raises

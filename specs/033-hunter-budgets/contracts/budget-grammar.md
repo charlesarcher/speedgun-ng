@@ -2,7 +2,7 @@
 
 Extends the standing row of `source/harness/hunt_cli.cpp`
 (`parseHuntBudget`, FR-004, R-01). The row stays one; no short
-letter; the the hunt family, command-line only, carries one whole value.
+letter; the hunt family, command-line only, carries one whole value.
 
 ## Value grammar
 

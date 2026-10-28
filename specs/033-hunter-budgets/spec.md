@@ -489,8 +489,9 @@ cap of 32 and check the seven groups and their disclosure (SC-003).
 2. **Given** a cap at or above the event count, **When** the plan
    builds, **Then** one group stands and the disclosure says so.
 3. **Given** a plan that settles on the `PASSES` method, **When** the
-   run carries a multiplex cap, **Then** the cap binds nothing and
-   the standing plan prints.
+   run carries a multiplex cap, **Then** the cap binds nothing, no groups
+   line prints, and the plan line carries the `mux=` clause text
+   with the budget (FR-023).
 
 ---
 
@@ -738,8 +739,10 @@ stored value (for example
   (FR-001, FR-002, FR-005).
 - **SC-003**: 200 scripted events with no device limit and a cap of
   32 give seven groups of 32, 32, 32, 32, 32, 32 and 8 in plan order,
-  disclosed; a cap of at least 200 gives one group; a `PASSES` plan
-  prints unchanged (FR-003; US3 scenario 1).
+  disclosed; a cap of at least 200 gives one group; a `PASSES`
+  settlement splits nothing, prints no groups line, and carries the
+  `mux=` clause text because the budget stands (FR-003, FR-023;
+  US3 scenario 3).
 - **SC-004**: Each of these prints one line naming the value and exits
   2: a malformed budget clause; `--hunt-emit-set` without `--hunt`;
   an empty emit value; `--counter=@` with a missing file, an empty
