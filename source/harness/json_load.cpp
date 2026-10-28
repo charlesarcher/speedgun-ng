@@ -1412,6 +1412,31 @@ auto asSampleBudget(Element value, const std::string& where)
   return budgetNs;
 }
 
+// specs/033-hunter-budgets FR-003, FR-021, N-02: the `g` clause text of the
+// multiplex cap, the whole count and the letter `g` (`32g`). A text that names
+// no unit or states no whole count is a document the reader refuses by its
+// pointer.
+auto asMultiplexCap(Element value, const std::string& where)
+    -> std::expected<std::size_t, std::string>
+{
+  auto text = asString(value, where);
+  if (!text.has_value()) {
+    return std::unexpected(text.error());
+  }
+  if (text->empty() || text->back() != 'g') {
+    return std::unexpected(where + ": '" + *text
+                           + "' states no multiplex cap unit");
+  }
+  std::uint64_t count = 0;
+  const auto* const end = text->data() + text->size() - 1;
+  const auto [stop, code] = std::from_chars(text->data(), end, count);
+  if (code != std::errc {} || stop != end) {
+    return std::unexpected(where + ": '" + *text
+                           + "' states no whole multiplex cap count");
+  }
+  return static_cast<std::size_t>(count);
+}
+
 // One object of the closed `hunt.stages` node: the range of planned
 // addresses one stage measured, and the repeats it gave them (E-08, FR-050).
 auto readStageRange(Element value, const std::string& where)
@@ -1720,16 +1745,23 @@ auto readHunt(Element value, const std::string& where)
     record.stages.push_back(*stage);
     ++index;
   }
-  // specs/033-hunter-budgets FR-020 to FR-022: the two keys the sample budget
-  // adds stand optional, so a document written before schema 1.7 carries
-  // neither of them and the two fields stay unset (FR-021). A key that stands
-  // present keeps its own kind and its own refusal.
+  // specs/033-hunter-budgets FR-020 to FR-022: the four keys the budgets add
+  // stand optional, so a document written before schema 1.7 carries none of
+  // them and the four fields stay unset (FR-021). A key that stands present
+  // keeps its own kind and its own refusal.
   if (const auto key = optionalField(value, "sample_budget"); key.has_value()) {
     auto sample = asSampleBudget(*key, where + "/sample_budget");
     if (!sample.has_value()) {
       return std::unexpected(sample.error());
     }
     record.options.sampleBudgetNs = *sample;
+  }
+  if (const auto key = optionalField(value, "multiplex_cap"); key.has_value()) {
+    auto cap = asMultiplexCap(*key, where + "/multiplex_cap");
+    if (!cap.has_value()) {
+      return std::unexpected(cap.error());
+    }
+    record.options.multiplexCap = *cap;
   }
   if (const auto key = optionalField(value, "derived_repeats"); key.has_value())
   {
@@ -1738,6 +1770,22 @@ auto readHunt(Element value, const std::string& where)
       return std::unexpected(derived.error());
     }
     record.sample.derivedRepeats = static_cast<std::size_t>(*derived);
+  }
+  if (const auto key = optionalField(value, "mux_groups"); key.has_value()) {
+    auto sizes = asArray(*key, where + "/mux_groups");
+    if (!sizes.has_value()) {
+      return std::unexpected(sizes.error());
+    }
+    std::size_t group = 0;
+    for (const auto item : *sizes) {
+      auto size =
+          asUnsigned(item, where + "/mux_groups/" + std::to_string(group));
+      if (!size.has_value()) {
+        return std::unexpected(size.error());
+      }
+      record.muxGroups.push_back(static_cast<std::size_t>(*size));
+      ++group;
+    }
   }
   return record;
 }

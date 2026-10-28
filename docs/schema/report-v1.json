@@ -852,7 +852,9 @@
         "ran_events",
         "stage_two_events",
         "sample_budget",
-        "derived_repeats"
+        "multiplex_cap",
+        "derived_repeats",
+        "mux_groups"
       ],
       "required": [
         "selection",
@@ -907,7 +909,12 @@
         "ran_events": { "type": "integer" },
         "stage_two_events": { "type": "integer" },
         "sample_budget": { "type": "string" },
-        "derived_repeats": { "type": "integer" }
+        "multiplex_cap": { "type": "string" },
+        "derived_repeats": { "type": "integer" },
+        "mux_groups": {
+          "type": "array",
+          "items": { "type": "integer" }
+        }
       }
     }
   }

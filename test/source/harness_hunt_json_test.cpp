@@ -838,46 +838,58 @@ const auto kEntryKeys = std::vector<std::string> {
 // The budgets of specs/033
 // ---------------------------------------------------------------------------
 
-// The figure the `e` clause settles and the figure the plan hands it: half a
-// second bounding one event, and four repeats one calibration figure priced
-// (033 N-01, N-03).
+// The two figures the `e` and `g` clauses settle and the two figures the plan
+// hands them: half a second bounding one event, a group of thirty-two events at
+// most, four repeats one calibration figure priced, and the sizes one capped
+// plan splits into (033 N-01 to N-04).
 constexpr std::uint64_t kSampleBudgetNs = 500'000'000;
+constexpr std::size_t kMultiplexCap = 32;
 constexpr std::size_t kDerivedRepeats = 4;
 
-// The two keys as the written bytes must carry them. The `e` text is the
-// shortest decimal word of the seconds (033 N-06, contracts/hunt-json.md).
+// The four keys as the written bytes must carry them. The `e` text is the
+// shortest decimal word of the seconds, the `g` text is the whole count with
+// its letter (033 N-06, contracts/hunt-json.md).
 constexpr std::string_view kSampleBudgetKey = "\"sample_budget\":\"0.5e\"";
+constexpr std::string_view kMultiplexCapKey = "\"multiplex_cap\":\"32g\"";
 constexpr std::string_view kDerivedRepeatsKey = "\"derived_repeats\":4";
+constexpr std::string_view kMuxGroupsKey = "\"mux_groups\":[32,32,8]";
 
-// The run node's keys once the two budget keys stand: the standing sixteen,
-// then the two after `stage_two_events`, in the order the contract fixes.
+// The run node's keys once the four budgets stand: the standing sixteen, then
+// the four after `stage_two_events`, in the order the contract fixes.
 [[nodiscard]] auto budgetedRunKeys() -> std::vector<std::string>
 {
   auto keys = kRunKeys;
-  keys.insert(keys.end(), {"sample_budget", "derived_repeats"});
+  keys.insert(
+      keys.end(),
+      {"sample_budget", "multiplex_cap", "derived_repeats", "mux_groups"});
   return keys;
 }
 
-// The record of a run the sample budget bounds: the scripted single-stage
-// record with the two figures set. `planHunt` derives the repeat count from the
-// clause, the stage rule and the calibration figure (033 N-03). The writer and
-// the reader see one record at a time, so this case states the figures and
-// leaves the derivation to the planner's own tests.
+// The record of a run the two budgets bound: the scripted single-stage record
+// with the four figures set. `planHunt` derives the repeat count and the group
+// sizes from the clauses, the stage rule and the calibration figure (033 N-03,
+// N-04). The writer and the reader see one record at a time, so this case
+// states the four figures and leaves the derivation to the planner's own tests.
+// The sizes exceed the scripted six columns, the shape a large catalog
+// answers.
 [[nodiscard]] auto budgetedHunt() -> Hunted
 {
   auto hunted = singleStageHunt();
   hunted.run.options.sampleBudgetNs = kSampleBudgetNs;
+  hunted.run.options.multiplexCap = kMultiplexCap;
   hunted.run.sample.derivedRepeats = kDerivedRepeats;
+  hunted.run.muxGroups = {kMultiplexCap, kMultiplexCap, 8};
   return hunted;
 }
 
-// The written bytes with the two budget keys taken out of the run node: the
+// The written bytes with the four budget keys taken out of the run node: the
 // document a writer left before schema 1.7, every standing key in its place
 // (033 FR-021).
 [[nodiscard]] auto budgetLessRun(std::string_view text) -> std::string
 {
   auto standing = std::string(text);
-  for (const auto* key : {"derived_repeats", "sample_budget"})
+  for (const auto* key :
+       {"mux_groups", "derived_repeats", "multiplex_cap", "sample_budget"})
   {
     standing = planted(standing,
                        Plant {
@@ -1587,7 +1599,7 @@ auto noHuntBytesMatchCapture() -> void
         "must");
 }
 
-// The two keys of specs/033 in the `x-order` the schema states, beside the
+// The four keys of specs/033 in the `x-order` the schema states, beside the
 // schema's reading of a document that carries them: each key joined
 // `properties` and `x-order` in the commit that wrote it (033 FR-020 to
 // FR-022, SC-006).
@@ -1595,7 +1607,8 @@ auto budgetKeysInOrder() -> void
 {
   const auto text = huntDocumentText(budgetedHunt());
   checkOrder(text, nodeOpen(text, true), budgetedRunKeys(), "/hunt");
-  for (const std::string_view key : {kSampleBudgetKey, kDerivedRepeatsKey})
+  for (const std::string_view key :
+       {kSampleBudgetKey, kMultiplexCapKey, kDerivedRepeatsKey, kMuxGroupsKey})
   {
     checked(occurrences(text, key) == 1,
             "a bounded run writes the key once: " + std::string(key));
@@ -1660,9 +1673,35 @@ auto budgetRoundTrip() -> void
           "the record a document handed back writes the canonical text again");
 }
 
-// The two keys are the whole difference the sample budget makes in the written
-// bytes. Remove them from the document of a bounded run and the bytes that stand
-// are the bytes an unbounded run of the same record writes. A run that named no
+// The cap and the sizes a capped plan splits into read back equal: the text
+// carries the whole count, the array carries the sizes in plan order (033
+// FR-003, FR-020, FR-021).
+auto capRoundTrip() -> void
+{
+  const auto bounded = budgetedHunt();
+  const auto written = writeReportDocument(&bounded);
+  const auto text = documentText();
+  checked(occurrences(text, kMultiplexCapKey) == 1,
+          "the cap stands as the canonical `g` text");
+  checked(occurrences(text, kMuxGroupsKey) == 1,
+          "the group sizes stand as an integer array");
+
+  const auto loaded = sg::loadReport(scratchDocument);
+  if (!loaded.has_value()) {
+    failed("the document of a capped hunt refuses to load: " + loaded.error());
+  }
+  const auto& run = *loaded->hunt;
+  checked(run.options.multiplexCap == kMultiplexCap,
+          "the cap reads back its count");
+  checked(run.muxGroups == bounded.run.muxGroups,
+          "the group sizes read back in plan order");
+  check(sg::test::sameReport(written, *loaded),
+        "the standing fields of the capped record survive the round trip");
+}
+
+// The four keys are the whole difference the budgets make in the written bytes.
+// Remove them from the document of a bounded run and the bytes that stand are
+// the bytes an unbounded run of the same record writes. A run that named no
 // budget therefore writes the standing bytes and no null key (033 FR-022,
 // SC-006).
 auto budgetBytesStand() -> void
@@ -1676,22 +1715,24 @@ auto budgetBytesStand() -> void
 
   checkOrder(standing, nodeOpen(standing, true), kRunKeys, "/hunt");
   for (const std::string_view key : {"\"sample_budget\"",
-                                     "\"derived_repeats\""})
+                                     "\"multiplex_cap\"",
+                                     "\"derived_repeats\"",
+                                     "\"mux_groups\""})
   {
     checked(standing.find(key) == std::string::npos,
             "a run that named no budget writes no key: " + std::string(key));
   }
   const auto stripped = budgetLessRun(boundedText);
   if (stripped != standing) {
-    failed("the bytes of a bounded run minus the two keys are not the bytes "
+    failed("the bytes of a bounded run minus the four keys are not the bytes "
            "of a run that named no budget: got " + stripped.substr(0, 240)
            + " want " + standing.substr(0, 240));
   }
 }
 
-// A document written before schema 1.7 carries neither of the two keys: it
-// passes the schema, which keeps the standing sixteen in `required`, and it
-// loads with the two fields unset and every standing field equal (033 FR-021).
+// A document written before schema 1.7 carries none of the four keys: it passes
+// the schema, which keeps the standing sixteen in `required`, and it loads with
+// the four fields unset and every standing field equal (033 FR-021).
 auto preBudgetDocument() -> void
 {
   const auto bounded = budgetedHunt();
@@ -1700,7 +1741,7 @@ auto preBudgetDocument() -> void
 
   const auto conforming = sg::detail::checkReport(SG_SCHEMA_PATH, standing);
   if (!conforming.has_value()) {
-    failed("a document without the two keys disagrees with the schema: "
+    failed("a document without the four keys disagrees with the schema: "
            + conforming.error());
   }
 
@@ -1712,13 +1753,15 @@ auto preBudgetDocument() -> void
   }
   const auto& run = *loaded->hunt;
   checked(!run.options.sampleBudgetNs.has_value()
-              && !run.sample.derivedRepeats.has_value(),
-          "a document without the two keys leaves the two fields unset");
+              && !run.options.multiplexCap.has_value()
+              && !run.sample.derivedRepeats.has_value()
+              && run.muxGroups.empty(),
+          "a document without the four keys leaves the four fields unset");
   check(sg::test::sameReport(written, *loaded),
         "the standing fields of a pre-1.7 document read back equal");
 }
 
-// The rows the two keys add to contracts/hunt-json.md's reader table, each in
+// The rows the four keys add to contracts/hunt-json.md's reader table, each in
 // the one form no record can express it (033 FR-021, hard rule 7).
 const auto kBudgetPlants = std::vector<Plant> {
     Plant {.what = "a number where the sample budget stands",
@@ -1739,15 +1782,51 @@ const auto kBudgetPlants = std::vector<Plant> {
            .body = "\"e\"",
            .pointer = "/hunt/sample_budget",
            .message = "states no sample budget amount"},
+    Plant {.what = "a number where the multiplex cap stands",
+           .node = "run",
+           .key = "multiplex_cap",
+           .body = "7",
+           .pointer = "/hunt/multiplex_cap",
+           .message = "expected a string, found number"},
+    Plant {.what = "a cap text with no unit",
+           .node = "run",
+           .key = "multiplex_cap",
+           .body = "\"32\"",
+           .pointer = "/hunt/multiplex_cap",
+           .message = "states no multiplex cap unit"},
+    Plant {.what = "a negative cap count",
+           .node = "run",
+           .key = "multiplex_cap",
+           .body = "\"-1g\"",
+           .pointer = "/hunt/multiplex_cap",
+           .message = "states no whole multiplex cap count"},
+    Plant {.what = "a fractional cap count",
+           .node = "run",
+           .key = "multiplex_cap",
+           .body = "\"1.5g\"",
+           .pointer = "/hunt/multiplex_cap",
+           .message = "states no whole multiplex cap count"},
     Plant {.what = "a string where the derived repeat count stands",
            .node = "run",
            .key = "derived_repeats",
            .body = "\"four\"",
            .pointer = "/hunt/derived_repeats",
            .message = "expected an integer, found string"},
+    Plant {.what = "a string where the group array stands",
+           .node = "run",
+           .key = "mux_groups",
+           .body = "\"none\"",
+           .pointer = "/hunt/mux_groups",
+           .message = "expected an array, found string"},
+    Plant {.what = "a string among the group sizes",
+           .node = "run",
+           .key = "mux_groups",
+           .body = "[32,\"wide\"]",
+           .pointer = "/hunt/mux_groups/1",
+           .message = "expected an integer, found string"},
 };
 
-// One case per refused reader code of the two new keys, each naming the
+// One case per refused reader code of the four new keys, each naming the
 // pointer of its position (033 hard rule 7, FR-021).
 auto budgetRefusals() -> void
 {
@@ -1789,6 +1868,7 @@ struct Scenario
       Scenario {.name = "no-hunt-bytes", .body = &noHuntBytesMatchCapture},
       Scenario {.name = "budget-keys", .body = &budgetKeysInOrder},
       Scenario {.name = "budget-round-trip", .body = &budgetRoundTrip},
+      Scenario {.name = "cap-round-trip", .body = &capRoundTrip},
       Scenario {.name = "budget-bytes", .body = &budgetBytesStand},
       Scenario {.name = "pre-1.7", .body = &preBudgetDocument},
       Scenario {.name = "budget-refusals", .body = &budgetRefusals},
