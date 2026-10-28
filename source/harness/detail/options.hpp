@@ -1,9 +1,12 @@
 #ifndef SG_HARNESS_DETAIL_OPTIONS_HPP
 #define SG_HARNESS_DETAIL_OPTIONS_HPP
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <expected>
+#include <limits>
 #include <optional>
 #include <regex>
 #include <span>
@@ -274,6 +277,82 @@ inline constexpr std::string_view kEmptyPathTail =
     -> std::string
 {
   return std::string(option) + ": " + std::string(kEmptyPathTail);
+}
+
+// The seconds rule the option scan and the hunt clause parser share.
+// specs/033-hunter-budgets FR-004 asks the `e` clause of `--hunt-budget=` to
+// hold the bound `--min-time` and `--warmup-time` hold, and one bound cannot
+// stand in two files (R-01).
+
+// The largest whole number of seconds whose nanoseconds fit the signed
+// count the run control carries.
+inline constexpr std::int64_t kMaxWholeSeconds =
+    std::numeric_limits<std::int64_t>::max() / 1'000'000'000;
+
+// The blanks a C number reader steps over. The option file trims a line at
+// its ends alone, so a blank that opens a value reaches the reader beside
+// the digits and the whole text stands refused (FR-035, FR-054).
+inline constexpr std::string_view kOpeningBlanks = " \t\n\v\f\r";
+
+/// @brief Whether one option value opens with one of those blanks, which is a
+///        refusal whoever reads the value (FR-035, FR-054).
+[[nodiscard]] inline auto opensWithBlank(const char* text) -> bool
+{
+  return kOpeningBlanks.find(text[0]) != std::string_view::npos;
+}
+
+// The two duration options share one reader of the seconds kind. The
+// argument names whether zero stands: FR-034 with the option table of
+// contracts/cli.md gives `--min-time` a positive count of seconds, where
+// `--warmup-time` admits zero. The words the fault line carries follow the
+// same argument, so each option keeps the line the base prints. The argument
+// is a two-word enumeration, so a call names its shape and no reader takes
+// a second bool (FR-034).
+enum class ZeroWord
+{
+  ADMITTED,
+  REFUSED
+};
+inline constexpr auto kZeroAdmitted = ZeroWord::ADMITTED;
+inline constexpr auto kZeroRefused = ZeroWord::REFUSED;
+
+// specs/033-hunter-budgets FR-004, R-01: the hunt lane's `e` clause is the
+// third caller of this rule, so the bound the duration rows hold is the bound
+// the budget clause holds.
+
+[[nodiscard]] inline auto parseSeconds(const char* text,
+                                       const char* option,
+                                       const ZeroWord zeroWord)
+    -> std::expected<std::int64_t, std::string>
+{
+  errno = 0;
+  char* end = nullptr;
+  const double seconds = std::strtod(text, &end);
+  const bool zeroAdmitted = zeroWord == kZeroAdmitted;
+  // The sign the option asks for: `--warmup-time` admits zero, `--min-time`
+  // asks above it. A reading that is no number at all fails the finite test
+  // below.
+  const bool signHolds = zeroAdmitted ? seconds >= 0.0 : seconds > 0.0;
+  if (errno != 0 || end == text || *end != '\0' || !std::isfinite(seconds)
+      || seconds > static_cast<double>(kMaxWholeSeconds)
+      || !signHolds
+      // A word below one whole nanosecond leaves `--min-time` no minimum for
+      // the run to hold, so the row refuses it the way it refuses zero, where
+      // `--warmup-time` keeps its answer for the same word (FR-046). The test
+      // stands after the finite test and the range test, because the cast it
+      // needs is defined only for a value those two admitted.
+      || (!zeroAdmitted
+          && static_cast<std::int64_t>(seconds * 1'000'000'000.0) == 0)
+      || opensWithBlank(text))
+  {
+    const std::string_view qualifier =
+        zeroAdmitted ? "number" : "positive number";
+    return std::unexpected(std::string(option) + ": expected a finite "
+                           + std::string(qualifier) + " of seconds at most "
+                           + std::to_string(kMaxWholeSeconds) + ", got '"
+                           + quotedText(text) + "'");
+  }
+  return static_cast<std::int64_t>(seconds * 1'000'000'000.0);
 }
 
 /**

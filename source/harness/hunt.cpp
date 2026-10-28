@@ -428,6 +428,8 @@ auto joinLeaf(std::vector<std::size_t>& pass, std::size_t position) -> void
       .estimateNs = plan.estimateNs,
       .anchorsPerPass = plan.anchorsPerPass,
       .normalized = plan.normalized,
+      .sample = plan.sample,
+      .muxGroups = plan.muxGroups,
   };
   handoff.columns.reserve(leaves.leaves.size());
   for (const auto& leaf : leaves.leaves) {
@@ -961,6 +963,8 @@ auto runHuntNamed(std::string_view name,
       .stages = {},
       .ranEvents = 0,
       .stageTwoEvents = 0,
+      .sample = plan.sample,
+      .muxGroups = plan.muxGroups,
   };
   if (!plan.normalized && !plan.columns.empty()
       && !runRecord.options.norm.has_value())

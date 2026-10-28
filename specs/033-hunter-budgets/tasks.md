@@ -225,7 +225,7 @@ fixtures close SC-002 and SC-005 with no clock.
   composed with the two-stage budget: stage 1 stays one repeat, stage
   2 takes the derived count; the derivation reads no clock (FR-001,
   FR-002, FR-005, R-02, R-03, R-05; data-model N-03 state table)
-- [ ] T015 [P] [US2] Write the failing grammar tests in
+- [X] T015 [P] [US2] Write the failing grammar tests in
   `test/source/harness_hunt_cli_test.cpp`, the rows of
   contracts/budget-grammar.md verbatim: `0.5e` and `1e` settle whole
   nanoseconds (`0.5e` keeps `500000000ns`); `0.0000000001e` and an
@@ -251,7 +251,7 @@ fixtures close SC-002 and SC-005 with no clock.
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] Add `std::optional<std::uint64_t> sampleBudgetNs` to
+- [X] T017 [US2] Add `std::optional<std::uint64_t> sampleBudgetNs` to
   `HuntOptions` in `include/speedgun-ng/hunt.hpp` with its contract
   line, and grow `parseHuntBudget` in `source/harness/hunt_cli.cpp`
   to the clause loop: split on `,`, each kind at most once, any

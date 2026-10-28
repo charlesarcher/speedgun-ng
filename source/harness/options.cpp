@@ -137,11 +137,6 @@ auto getoptOptionArray() -> const std::vector<option>&
   return kEntries;
 }
 
-// The largest whole number of seconds whose nanoseconds fit the signed
-// count the run control carries.
-constexpr std::int64_t kMaxWholeSeconds =
-    std::numeric_limits<std::int64_t>::max() / 1'000'000'000;
-
 // FR-034: an invalid value is a usage fault the scan answers, and the
 // entry point ends the run without running anything. The signed read is
 // deliberate: `strtoull` wraps `-5` to a huge count, so a negative count
@@ -202,16 +197,6 @@ auto parsePercentileList(const char* text,
   return {};
 }
 
-// The blanks a C number reader steps over. The option file trims a line at
-// its ends alone, so a blank that opens a value reaches the reader beside
-// the digits and the whole text stands refused (FR-035, FR-054).
-constexpr std::string_view kOpeningBlanks = " \t\n\v\f\r";
-
-auto opensWithBlank(const char* text) -> bool
-{
-  return kOpeningBlanks.find(text[0]) != std::string_view::npos;
-}
-
 auto parseCount(const char* text,
                 const char* option) -> std::expected<std::uint64_t, std::string>
 {
@@ -226,54 +211,6 @@ auto parseCount(const char* text,
                            + quotedText(text) + "'");
   }
   return static_cast<std::uint64_t>(value);
-}
-
-// The two duration options share one reader of the seconds kind. The
-// argument names whether zero stands: FR-034 with the option table of
-// contracts/cli.md gives `--min-time` a positive count of seconds, where
-// `--warmup-time` admits zero. The words the fault line carries follow the
-// same argument, so each option keeps the line the base prints. The argument
-// is a two-word enumeration, so a call names its shape and no reader takes
-// a second bool (FR-034).
-enum class ZeroWord
-{
-  ADMITTED,
-  REFUSED
-};
-constexpr auto kZeroAdmitted = ZeroWord::ADMITTED;
-constexpr auto kZeroRefused = ZeroWord::REFUSED;
-
-auto parseSeconds(const char* text, const char* option, const ZeroWord zeroWord)
-    -> std::expected<std::int64_t, std::string>
-{
-  errno = 0;
-  char* end = nullptr;
-  const double seconds = std::strtod(text, &end);
-  const bool zeroAdmitted = zeroWord == kZeroAdmitted;
-  // The sign the option asks for: `--warmup-time` admits zero, `--min-time`
-  // asks above it. A reading that is no number at all fails the finite test
-  // below.
-  const bool signHolds = zeroAdmitted ? seconds >= 0.0 : seconds > 0.0;
-  if (errno != 0 || end == text || *end != '\0' || !std::isfinite(seconds)
-      || seconds > static_cast<double>(kMaxWholeSeconds)
-      || !signHolds
-      // A word below one whole nanosecond leaves `--min-time` no minimum for
-      // the run to hold, so the row refuses it the way it refuses zero, where
-      // `--warmup-time` keeps its answer for the same word (FR-046). The test
-      // stands after the finite test and the range test, because the cast it
-      // needs is defined only for a value those two admitted.
-      || (!zeroAdmitted
-          && static_cast<std::int64_t>(seconds * 1'000'000'000.0) == 0)
-      || opensWithBlank(text))
-  {
-    const std::string_view qualifier =
-        zeroAdmitted ? "number" : "positive number";
-    return std::unexpected(std::string(option) + ": expected a finite "
-                           + std::string(qualifier) + " of seconds at most "
-                           + std::to_string(kMaxWholeSeconds) + ", got '"
-                           + quotedText(text) + "'");
-  }
-  return static_cast<std::int64_t>(seconds * 1'000'000'000.0);
 }
 
 // specs/024 FR-023, FR-026, research D-09: the word of `--metric-method`, read

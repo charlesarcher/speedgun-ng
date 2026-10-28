@@ -39,6 +39,11 @@ struct StageSplit
   std::vector<hunt::HuntStage> stages;
   bool cutStage2 = false;
   std::string cutReason;
+  // specs/033-hunter-budgets FR-001, FR-002, R-02, R-03, N-03: what the sample
+  // budget decided about the repeats of the stages it priced. The split derives
+  // the count, re-prices the estimate it compares against the budget, and keeps
+  // the state here for the plan record and the two printers (D-12).
+  hunt::HuntSampleState sample;
 };
 
 // specs/029 D-18, PD-12: one pass whose group open refused and whose events
