@@ -52,6 +52,7 @@ SECTIONS = (
     "Execution contexts",
     "Threads",
     "Topology placement",
+    "Memory nodes",
     "Percentiles",
     "JSON reports",
     "Regression gate",
@@ -86,6 +87,7 @@ SECTION_OWNERS = {
     "Execution contexts": ("execution_contexts.cpp",),
     "Threads": ("threads.cpp",),
     "Topology placement": ("topology_placement.cpp",),
+    "Memory nodes": ("numa_placement.cpp",),
     "Percentiles": ("percentiles.cpp",),
     "JSON reports": ("json_reports.cpp",),
     "Regression gate": ("regression_gate.cpp",),
@@ -173,6 +175,10 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # rows add 15, so 21 lines move the cap from 786 to 807, the measured length
 # of the page as the feature lands. The section sits under the per-section
 # budget of FR-024, so no entry joins SECTION_LINE_CAPS.
+# specs/035 FR-020 measures its own move: the "Memory nodes" section runs 17
+# lines, so 17 lines move the cap to the measured length of the page as the
+# feature lands. The section sits under the per-section budget of FR-024, so
+# no entry joins SECTION_LINE_CAPS.
 # The marked block of IV.1 measures its own move on top: the
 # `example/docs/hunt_rank.cpp#hunt-rank` region runs 16 lines and its marker
 # comment and two fences add 3, so 19 lines move the cap from 807 to 826, the
@@ -191,7 +197,7 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # in place. The rows join the Quick reference table, which the
 # per-section budgets do not inspect, so SECTION_LINE_CAP and
 # SECTION_LINE_CAPS keep their values.
-PAGE_LINE_CAP = 864
+PAGE_LINE_CAP = 880
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that

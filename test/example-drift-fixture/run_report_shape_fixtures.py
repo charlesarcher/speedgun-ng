@@ -315,6 +315,19 @@ def golden_pairs() -> None:
           mask(schedstat) != mask(renamed_schedstat_source),
           "both folded to the same shape")
 
+    # specs/035 FR-011, D-5: the placement field's node tail folds by the
+    # standing digit rule with no fold of its own, so the bound and the
+    # unbound shapes fold different, checked in both directions.
+    bound = "  contexts=2  ctx0=SPIN/3@1@0/applied  ctx1=SPIN/7@1@0/applied"
+    check("a bound context's node tail folds different from the standing pair",
+          mask(PINNED) != mask(bound), "both folded to the same shape")
+    check("the node tail fails a block that omits it, in both directions",
+          "disclosure line differs"
+          in " ".join(compare([bound], [PINNED]))
+          and "disclosure line differs"
+          in " ".join(compare([PINNED], [bound])),
+          " ".join(compare([bound], [PINNED]))[:1])
+
     check("a disclosure line classifies as a disclosure line",
           "disclosure line differs" in " ".join(compare([DISCLOSURE], [WARNING])),
           " ".join(compare([DISCLOSURE], [WARNING]))[:1])

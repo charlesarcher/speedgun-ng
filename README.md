@@ -589,6 +589,25 @@ auto bmPair(sg::State& state) -> void
 SG_BENCHMARK(bmPair).threads(2);
 ```
 
+### Memory nodes
+<!-- sg-example: example/docs/numa_placement.cpp#numa-placement -->
+```cpp
+auto bmSharded(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.iterations());
+  }
+}
+
+SG_BENCHMARK(bmSharded).threads(2).placement("node");
+```
+The `node` preset deals one cpu per context over the memory nodes the
+process mask touches, in the order the machine read states them, and
+binds each context's memory to its node at the context start; the
+report names the node beside the group, `ctx0=SPIN/0@0@0/applied`, and
+`--topology` prints one line per node under the L3 lines. See [topology
+placement in detail](docs/pages/harness.md#topology-placement).
+
 ### Percentiles
 <!-- sg-example: example/docs/percentiles.cpp#percentiles -->
 ```cpp

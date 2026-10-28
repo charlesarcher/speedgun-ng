@@ -1607,6 +1607,22 @@ if(TARGET docs_jitter_probe)
   set_tests_properties(report_shape_jitter_sample PROPERTIES TIMEOUT 120)
 endif()
 
+if(TARGET docs_numa_placement)
+  # The guide page carries the recorded node-planned run of the numa
+  # example, so the fold checks the recorded file against a real run of
+  # the example, which is what keeps a quoted node-planned report from
+  # drifting away from what the harness prints (specs/035 FR-022, SC-006).
+  add_test(
+      NAME report_shape_numa_sample
+      COMMAND
+        python3 ${CMAKE_SOURCE_DIR}/tools/docs/report_shape.py
+        --binary $<TARGET_FILE:docs_numa_placement>
+        --readme ${CMAKE_SOURCE_DIR}/docs/pages/harness.md
+        --example numa_placement
+  )
+  set_tests_properties(report_shape_numa_sample PROPERTIES TIMEOUT 120)
+endif()
+
 if(TARGET docs_hunt_rank)
   # The guide page carries the recorded run of the hunter example, so the selector
   # names the golden that owns this invocation's block. The fold checks the

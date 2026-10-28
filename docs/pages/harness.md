@@ -920,7 +920,7 @@ the row names the policy of each context that contributed.
 
 `--placement` plans the cpus of every threaded run of the process from
 the machine layout the harness reads once, at the first need, through
-the vendored hwloc. Five presets name the plans:
+the vendored hwloc. Six presets name the plans:
 
 | Preset | Places |
 | --- | --- |
@@ -929,6 +929,7 @@ the vendored hwloc. Five presets name the plans:
 | `l3` | one cpu per L3 group, the group's lowest cpu |
 | `smt` | the sibling threads of one core, in core order |
 | `compact` | every thread of each L3 group, in group order |
+| `node` | one cpu per memory node, cycling the nodes in the read's order |
 
 A handle states its family's preset with `placement("l3")`, and the
 handle wins over the command line. The process option is parsed once,
@@ -941,18 +942,44 @@ count and the requested count, and the process exits 2. A layout the
 harness cannot read stops a preset run the same way, whatever the
 context count.
 
+The `node` plan deals one cpu at a time over the memory nodes the
+process mask touches, in the order the read states them: a count
+above the node count walks the nodes again, and a count below the
+node count fills the first nodes, one context each. Each context
+binds its memory to the node its planned cpu belongs to at the
+context start, beside the pin, and the allocations the context
+thread makes after the bind follow that node; the memory another
+thread allocates follows its own policy. A bind the system denies
+refuses one line naming the context and the node, exit status 2,
+before any benchmark starts, the same refusal a node preset over a
+read with no memory information prints. The probe windows keep the
+standing memory policy.
+
 The report of a run with a preset carries a topology line below the
 version line, `topology: packages=1 l3-groups=4 cores=24 threads=48`,
 and each context of a threaded run discloses its planned pair,
 `ctx0=SPIN/0@0/applied`: the cpu it ran on, `@`, and the ordinal of
-its L3 group. A pair longer than the field meets the standing cut
-mark.
+its L3 group. A context the node plan binds names the node beside
+the group, `ctx0=SPIN/0@0@0/applied`. A pair longer than the field
+meets the standing cut mark.
+
+<!-- sg-sample-output: example/docs/numa_placement.expected#report -->
+```text
+speedgun-ng 0.22.0 build=Release
+topology: packages=1 l3-groups=4 cores=24 threads=48
+bmSharded/threads:2      iterations=2469929012  real time/iter (ns)=    0.212  cpu time/iter (ns)=    0.211  overhead floor (ns)=  100.000  endpoint samples=4
+  contexts=2  ctx0=SPIN/0@0@0/applied  ctx1=SPIN/1@0@0/applied
+```
 
 `--topology` prints the layout the plans come from and exits: the
 counts line above, the process mask the layout was built from, and
 one line per L3 group naming that group's cpus inside the mask in the
-range spelling `0-5,24-29`. An unreadable layout prints one line and
-exits 2.
+range spelling `0-5,24-29`. Under the L3 lines it prints one line per
+memory node the mask touches, `node 0: 0-11,24-35`, in the read's
+node order; a node the mask excludes prints no line, and a read that
+states no memory information prints `node: not available` in the
+node family's place. An unreadable layout prints one line and exits
+2.
 
 ## Percentiles
 
