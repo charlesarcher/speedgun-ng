@@ -538,8 +538,10 @@ auto samePrecheckRecord(const sg::PrecheckRecord& got,
   };
   return got.serial == asked.serial && got.windowMs == asked.windowMs
       && got.cpus.size() == asked.cpus.size()
-      && std::equal(got.cpus.begin(), got.cpus.end(), asked.cpus.begin(), sameCpu)
-      && sameHost(got.host, asked.host) && got.skippedGroups == asked.skippedGroups;
+      && std::equal(
+             got.cpus.begin(), got.cpus.end(), asked.cpus.begin(), sameCpu)
+      && sameHost(got.host, asked.host)
+      && got.skippedGroups == asked.skippedGroups;
 }
 
 auto sameReport(const sg::ReportData& actual,

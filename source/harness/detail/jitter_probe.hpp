@@ -204,8 +204,7 @@ struct PrecheckCpuSnapshot
 ///
 /// \pre `cpus` names no cpu twice
 /// \post the answer carries one entry per named cpu
-[[nodiscard]] auto precheckReadSnapshot(
-    const std::vector<std::uint32_t>& cpus)
+[[nodiscard]] auto precheckReadSnapshot(const std::vector<std::uint32_t>& cpus)
     -> std::map<std::uint32_t, PrecheckCpuSnapshot>;
 
 /// @brief specs/034 R-04: the host settings the run discloses once,
@@ -227,8 +226,8 @@ struct PrecheckCpuSnapshot
 /// absent when either side stands absent (FR-016, FR-018).
 ///
 /// \post a delta stands at or above zero when both sides stand
-[[nodiscard]] auto precheckAttributionDelta(
-    const PrecheckCpuSnapshot& before, const PrecheckCpuSnapshot& after)
+[[nodiscard]] auto precheckAttributionDelta(const PrecheckCpuSnapshot& before,
+                                            const PrecheckCpuSnapshot& after)
     -> PrecheckAttribution;
 
 /// @brief specs/034 R-05: the noisy planned cpus of one pre-check run:

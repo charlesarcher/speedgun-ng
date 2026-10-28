@@ -2735,9 +2735,8 @@ auto main(int argc, char** argv) -> int
     auto arguments = quickRun;
     arguments.push_back(std::string("--jitter-probe=") + cpu
                         + ",precheck=" + value);
-    checkOneLine(
-        captureError(arguments, 2),
-        "a misspelled or mixed serial token stands rejected (FR-003)");
+    checkOneLine(captureError(arguments, 2),
+                 "a misspelled or mixed serial token stands rejected (FR-003)");
   }
 
   // The option-file surface of the same grammar (FR-027, FR-033): the

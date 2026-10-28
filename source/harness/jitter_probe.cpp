@@ -34,8 +34,8 @@
 
 #include "detail/internal.hpp"
 #include "detail/options.hpp"
-#include "detail/proc_root.hpp"
 #include "detail/percentiles.hpp"
+#include "detail/proc_root.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_system.hpp"
 #include "speedgun-ng/execution_context.hpp"
@@ -270,7 +270,8 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
         static_cast<std::uint64_t>(options->precheckMs) * 1000000ULL;
     if (options->precheckSerial) {
       while (session->serialTurn.load(std::memory_order_acquire)
-             != static_cast<std::uint64_t>(index)) {
+             != static_cast<std::uint64_t>(index))
+      {
         pauseHint();
       }
       last = readStamp();
@@ -954,8 +955,8 @@ auto parseCountToken(const std::string& token) -> std::optional<std::uint64_t>
 // every row of /proc/interrupts, the rows' per-cpu counts standing
 // after the colon (R-4 of research.md). A needed column that parses as
 // no number stands the source unparsable (FR-018).
-auto interruptsOfText(const std::string& text, std::uint32_t cpu)
-    -> std::optional<std::uint64_t>
+auto interruptsOfText(const std::string& text,
+                      std::uint32_t cpu) -> std::optional<std::uint64_t>
 {
   std::uint64_t sum = 0;
   std::istringstream stream(text);
@@ -1031,8 +1032,7 @@ auto softirqsOfText(const std::string& text, std::uint32_t cpu)
 auto schedstatOfText(const std::string& text, std::uint32_t cpu)
     -> std::pair<std::optional<std::uint64_t>, std::optional<std::uint64_t>>
 {
-  std::pair<std::optional<std::uint64_t>, std::optional<std::uint64_t>>
-      answer;
+  std::pair<std::optional<std::uint64_t>, std::optional<std::uint64_t>> answer;
   const auto prefix = "cpu" + std::to_string(cpu) + " ";
   std::istringstream stream(text);
   std::string line;
@@ -1065,8 +1065,8 @@ auto schedstatOfText(const std::string& text, std::uint32_t cpu)
 // The kernel command line's value of one setting: the token that names
 // the key, the value after the equals sign; a line that names no such
 // token stands the setting unstated (FR-017).
-auto kernelSettingOfText(const std::string& text, std::string_view key)
-    -> std::optional<std::string>
+auto kernelSettingOfText(const std::string& text,
+                         std::string_view key) -> std::optional<std::string>
 {
   std::istringstream stream(text);
   std::string token;
@@ -1176,8 +1176,7 @@ auto cpuMaskOfText(const std::string& text)
 
 // The trimmed first line of one text, or nothing when the text names
 // no line.
-auto firstLineOf(std::optional<std::string> text)
-    -> std::optional<std::string>
+auto firstLineOf(std::optional<std::string> text) -> std::optional<std::string>
 {
   if (!text.has_value()) {
     return std::nullopt;
@@ -1234,10 +1233,9 @@ auto precheckReadHostSettings(const std::vector<std::uint32_t>& cpus)
     host.rcuNocbs = kernelSettingOfText(*commandLine, "rcu_nocbs");
   }
   for (const auto cpu : cpus) {
-    const auto governor =
-        firstLineOf(readUnderRoot("sys/devices/system/cpu/cpu"
-                                  + std::to_string(cpu)
-                                  + "/cpufreq/scaling_governor"));
+    const auto governor = firstLineOf(
+        readUnderRoot("sys/devices/system/cpu/cpu" + std::to_string(cpu)
+                      + "/cpufreq/scaling_governor"));
     host.governors.emplace_back(cpu, std::move(governor));
   }
   std::map<std::uint32_t, std::vector<std::uint32_t>> affinity;
@@ -1255,20 +1253,17 @@ auto precheckReadHostSettings(const std::vector<std::uint32_t>& cpus)
       // The affinity files stand one line, the trailing newline the
       // file form carries included, so the line reader trims before
       // the parser reads (FR-018).
-      auto named = cpuListOfText(firstLineOf(readUnderRoot(
-                                       tail + "/smp_affinity_list"))
-                                     .value_or(""));
+      auto named = cpuListOfText(
+          firstLineOf(readUnderRoot(tail + "/smp_affinity_list")).value_or(""));
       if (!named.has_value()) {
-        named = cpuMaskOfText(firstLineOf(readUnderRoot(
-                                      tail + "/smp_affinity"))
-                                  .value_or(""));
+        named = cpuMaskOfText(
+            firstLineOf(readUnderRoot(tail + "/smp_affinity")).value_or(""));
       }
       if (!named.has_value()) {
         continue;
       }
       for (const auto cpu : cpus) {
-        if (std::find(named->begin(), named->end(), cpu) != named->end())
-        {
+        if (std::find(named->begin(), named->end(), cpu) != named->end()) {
           affinity[cpu].push_back(static_cast<std::uint32_t>(*irq));
         }
       }
@@ -1291,9 +1286,8 @@ auto precheckAttributionDelta(const PrecheckCpuSnapshot& before,
                               const PrecheckCpuSnapshot& after)
     -> PrecheckAttribution
 {
-  const auto subtract =
-      [](const std::optional<std::uint64_t>& low,
-         const std::optional<std::uint64_t>& high)
+  const auto subtract = [](const std::optional<std::uint64_t>& low,
+                           const std::optional<std::uint64_t>& high)
       -> std::optional<std::uint64_t>
   {
     if (!low.has_value() || !high.has_value() || *high < *low) {
@@ -1329,8 +1323,7 @@ auto precheckNoisyCpus(const std::vector<ProbeCpuState>& states,
   std::vector<std::uint32_t> noisy;
   for (const auto cpu : plannedCpus) {
     const auto found = std::ranges::find_if(
-        states,
-        [cpu](const ProbeCpuState& state) { return state.cpu == cpu; });
+        states, [cpu](const ProbeCpuState& state) { return state.cpu == cpu; });
     if (found == states.end()) {
       continue;
     }

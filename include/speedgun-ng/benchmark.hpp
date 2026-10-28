@@ -569,7 +569,6 @@ struct PrecheckRecord
   std::vector<std::uint32_t> skippedGroups;
 };
 
-
 /**
  * @brief One probe cpu's fold over one benchmark's timed windows
  * (E-08): the cpu index and the fold the split placed into them. A

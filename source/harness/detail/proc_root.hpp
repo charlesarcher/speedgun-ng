@@ -36,8 +36,7 @@ inline auto storage() -> std::optional<std::filesystem::path>&
     -> std::filesystem::path
 {
   const auto& root = proc_root_detail::storage();
-  const auto& base = root.has_value() ? *root
-                                      : std::filesystem::path("/");
+  const auto& base = root.has_value() ? *root : std::filesystem::path("/");
   return base / std::filesystem::path(relative);
 }
 

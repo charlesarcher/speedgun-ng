@@ -584,9 +584,9 @@ auto readPrecheckAttribution(Element value, const std::string& where)
     -> std::expected<sg::PrecheckAttribution, std::string>
 {
   sg::PrecheckAttribution read {};
-  const auto readFigure =
-      [&](std::string_view key,
-          std::optional<std::uint64_t>* into) -> std::expected<void, std::string>
+  const auto readFigure = [&](std::string_view key,
+                              std::optional<std::uint64_t>* into)
+      -> std::expected<void, std::string>
   {
     auto found = field(value, where, key);
     if (!found.has_value()) {
@@ -599,10 +599,9 @@ auto readPrecheckAttribution(Element value, const std::string& where)
     *into = std::move(*figure);
     return {};
   };
-  auto settledValues =
-      allSettled(readFigure("interrupts", &read.interrupts),
-                 readFigure("switchDelta", &read.switches),
-                 readFigure("scheduleDelta", &read.schedules));
+  auto settledValues = allSettled(readFigure("interrupts", &read.interrupts),
+                                  readFigure("switchDelta", &read.switches),
+                                  readFigure("scheduleDelta", &read.schedules));
   if (!settledValues.has_value()) {
     return std::unexpected(settledValues.error());
   }
@@ -611,7 +610,8 @@ auto readPrecheckAttribution(Element value, const std::string& where)
     return std::unexpected(softirqs.error());
   }
   if (!softirqs->is_object()) {
-    return std::unexpected(wrongKind(where + "/softirqs", *softirqs, "an object"));
+    return std::unexpected(
+        wrongKind(where + "/softirqs", *softirqs, "an object"));
   }
   for (const auto pair : softirqs->get_object()) {
     const std::string here = where + "/softirqs/" + std::string(pair.key);
@@ -709,8 +709,7 @@ auto readPrecheckCpu(Element value, const std::string& where)
   if (*roleText == "planned") {
     read.planned = true;
   } else if (*roleText != "candidate") {
-    return std::unexpected(where + "/role: '"
-                           + detail::quotedText(*roleText)
+    return std::unexpected(where + "/role: '" + detail::quotedText(*roleText)
                            + "' names no pre-check role");
   }
   auto stats = field(value, where, "stats");
@@ -759,18 +758,17 @@ auto readPrecheckHost(Element value, const std::string& where)
     *into = std::move(*text);
     return {};
   };
-  auto settledValues =
-      allSettled(readTextKey("isolcpus", &read.isolcpus),
-                 readTextKey("nohz_full", &read.nohzFull),
-                 readTextKey("rcu_nocbs", &read.rcuNocbs));
+  auto settledValues = allSettled(readTextKey("isolcpus", &read.isolcpus),
+                                  readTextKey("nohz_full", &read.nohzFull),
+                                  readTextKey("rcu_nocbs", &read.rcuNocbs));
   if (!settledValues.has_value()) {
     return std::unexpected(settledValues.error());
   }
   // A key of either per-cpu object names its cpu, so the reader parses
   // the key text and refuses a key no cpu states (FR-029).
-  const auto readCpuKey = [](std::string_view key,
-                             const std::string& here)
-      -> std::expected<std::uint32_t, std::string>
+  const auto readCpuKey =
+      [](std::string_view key,
+         const std::string& here) -> std::expected<std::uint32_t, std::string>
   {
     std::uint32_t cpu = 0;
     const auto* const end = key.data() + key.size();
@@ -834,10 +832,9 @@ auto readPrecheckHost(Element value, const std::string& where)
         std::size_t start = 0;
         while (start < list.size()) {
           const std::size_t stop = list.find(',', start);
-          const std::string_view item = std::string_view(list)
-              .substr(start, stop == std::string::npos
-                                  ? std::string::npos
-                                  : stop - start);
+          const std::string_view item = std::string_view(list).substr(
+              start,
+              stop == std::string::npos ? std::string::npos : stop - start);
           std::uint32_t irq = 0;
           const auto* const itemEnd = item.data() + item.size();
           const auto [itemStop, itemCode] =
@@ -901,7 +898,8 @@ auto readPrecheckRecord(Element value, const std::string& where)
   }
   std::size_t index = 0;
   for (const auto item : *cpuItems) {
-    auto readEntry = readPrecheckCpu(item, where + "/cpus/" + std::to_string(index));
+    auto readEntry =
+        readPrecheckCpu(item, where + "/cpus/" + std::to_string(index));
     if (!readEntry.has_value()) {
       return std::unexpected(readEntry.error());
     }
@@ -927,7 +925,8 @@ auto readPrecheckRecord(Element value, const std::string& where)
   }
   index = 0;
   for (const auto item : *skippedItems) {
-    auto group = asUnsigned(item, where + "/skippedGroups/" + std::to_string(index));
+    auto group =
+        asUnsigned(item, where + "/skippedGroups/" + std::to_string(index));
     if (!group.has_value()) {
       return std::unexpected(group.error());
     }
@@ -2261,7 +2260,8 @@ auto loadReport(const std::string& path)
   // refusal, so a malformed record names itself before the benchmarks
   // array reads.
   if (const auto precheck = optionalField(root, "precheck");
-      precheck.has_value()) {
+      precheck.has_value())
+  {
     auto record = readPrecheckRecord(*precheck, "/precheck");
     if (!record.has_value()) {
       return std::unexpected(record.error());
