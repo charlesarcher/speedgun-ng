@@ -608,6 +608,13 @@ auto bmNumaSpin(sg::State& state) -> void
 auto setupTwoNodeRun() -> void
 {
   installNodeLayout(4, 4, 2);
+  // The run's contexts pin the cpus the synthetic layout carries;
+  // the online-set seam states those cpus, so the context start's
+  // precondition reads them online on every host, and a host whose
+  // kernel lacks them accounts the pin at the pinning call (FR-005,
+  // FR-041, FR-017).
+  sg::detail::installTestOnlineCpus(std::vector<std::uint32_t> {
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15});
   installFakeBinder();
   auto handle = sg::registerBenchmark(&bmNumaSpin, "bmNumaSpin");
   handle.threads(2);
