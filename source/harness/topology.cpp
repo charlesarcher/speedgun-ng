@@ -216,8 +216,8 @@ auto readLayout(const hwloc_topology_t topology,
   // states; the mask filters at plan and listing time (data-model.md).
   // A read that states no memory information leaves the vector empty
   // and `memoryReadable` false beside it (FR-007, R-09).
-  for (hwloc_obj_t node = hwloc_get_next_obj_by_type(
-             topology, HWLOC_OBJ_NUMANODE, nullptr);
+  for (hwloc_obj_t node =
+           hwloc_get_next_obj_by_type(topology, HWLOC_OBJ_NUMANODE, nullptr);
        node != nullptr;
        node = hwloc_get_next_obj_by_type(topology, HWLOC_OBJ_NUMANODE, node))
   {
@@ -448,16 +448,19 @@ namespace
 {
 
 // specs/035 R-06: the policy one bind saved for its restore, the bind
-// and the restore standing in sequence on one thread (FR-013).
+// and the restore standing in sequence on one thread (FR-013). The
+// saved state stands in thread storage, for the binds of the context
+// threads that run beside each other: each thread saves the policy it
+// found, and the restore reads the one its own binds saved (FR-013).
 auto savedBindSet() -> hwloc_bitmap_t
 {
-  static BitmapHolder saved;
+  thread_local BitmapHolder saved;
   return saved.get();
 }
 
 auto savedBindPolicy() -> hwloc_membind_policy_t&
 {
-  static hwloc_membind_policy_t policy = HWLOC_MEMBIND_DEFAULT;
+  thread_local hwloc_membind_policy_t policy = HWLOC_MEMBIND_DEFAULT;
   return policy;
 }
 
@@ -478,23 +481,23 @@ auto productionMemoryBind(const std::uint32_t node) -> bool
   hwloc_bitmap_only(nodeset.get(), node);
   BitmapHolder previous;
   hwloc_membind_policy_t policy = HWLOC_MEMBIND_DEFAULT;
-  const int got = hwloc_get_membind(topology,
-                                    previous.get(),
-                                    &policy,
-                                    HWLOC_MEMBIND_BYNODESET
-                                        | HWLOC_MEMBIND_THREAD);
-  const int set = hwloc_set_membind(topology,
-                                    nodeset.get(),
-                                    HWLOC_MEMBIND_BIND,
-                                    HWLOC_MEMBIND_BYNODESET
-                                        | HWLOC_MEMBIND_THREAD);
+  // A read that fails leaves the default policy and the empty set it
+  // started with, so the restore answers the default the run carried
+  // when the host states no policy to save (FR-013).
+  (void)hwloc_get_membind(topology,
+                          previous.get(),
+                          &policy,
+                          HWLOC_MEMBIND_BYNODESET | HWLOC_MEMBIND_THREAD);
+  const int set =
+      hwloc_set_membind(topology,
+                        nodeset.get(),
+                        HWLOC_MEMBIND_BIND,
+                        HWLOC_MEMBIND_BYNODESET | HWLOC_MEMBIND_THREAD);
   if (set != 0) {
     return false;
   }
-  if (got == 0) {
-    hwloc_bitmap_copy(savedBindSet(), previous.get());
-    savedBindPolicy() = policy;
-  }
+  hwloc_bitmap_copy(savedBindSet(), previous.get());
+  savedBindPolicy() = policy;
   return true;
 }
 

@@ -62,49 +62,6 @@ const std::array<PresetName, 6> kPresetNames {{{"none", Preset::NONE},
   return std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end();
 }
 
-// specs/035 FR-009, FR-012, R-04: the node plan's postcondition
-// predicate, the planCpusDistinct precedent: every planned cpu stands
-// inside the mask and stands on the node the context binds to, and the
-// cpus stand pairwise distinct. The predicate is consulted only inside
-// SG_ENSURE, which expands to nothing in a Release build, so the
-// attribute keeps it compiling in every build type.
-[[maybe_unused]] auto planNodesBind(const MachineLayout& layout,
-                                    const PlacementPlan& plan) -> bool
-{
-  for (std::size_t index = 0; index < plan.cpu.size(); ++index) {
-    const auto found =
-        std::ranges::lower_bound(layout.mask, plan.cpu[index]);
-    if (found == layout.mask.end() || *found != plan.cpu[index]) {
-      return false;
-    }
-    const auto node = std::ranges::find_if(
-        layout.nodes,
-        [&plan, index](const LayoutNode& candidate)
-        { return candidate.number == plan.node[index]; });
-    if (node == layout.nodes.end()) {
-      return false;
-    }
-    if (std::find(node->cpus.begin(), node->cpus.end(), plan.cpu[index])
-        == node->cpus.end())
-    {
-      return false;
-    }
-  }
-  return planCpusDistinct(plan.cpu);
-}
-
-// specs/035: the group ordinal one mask cpu names, out of the threads
-// the layout read built (data-model.md).
-auto groupOrdinalOf(const MachineLayout& layout, std::uint32_t cpu)
-    -> std::uint32_t
-{
-  const auto found = std::ranges::lower_bound(layout.mask, cpu);
-  if (found == layout.mask.end() || *found != cpu) {
-    return kNoGroup;
-  }
-  return layout.threads[static_cast<std::size_t>(found - layout.mask.begin())]
-      .groupOrdinal;
-}
 
 }  // namespace
 
@@ -194,15 +151,21 @@ auto resolvePreset(const Preset preset,
     // a count above the node count walks the nodes again, and a count
     // below the node count fills the first nodes in node order. A node
     // the mask excludes takes no place, the way the `l3` plan skips a
-    // group the mask does not touch (R-03).
+    // group the mask does not touch (R-03). Each dealt cpu carries the
+    // group ordinal of the thread the mask names it by (data-model.md).
     std::vector<std::uint32_t> numbers;
-    std::vector<std::vector<std::uint32_t>> cpusOfNode;
+    std::vector<std::vector<std::pair<std::uint32_t, std::uint32_t>>>
+        cpusOfNode;
     for (const auto& node : layout.nodes) {
-      std::vector<std::uint32_t> masked;
+      std::vector<std::pair<std::uint32_t, std::uint32_t>> masked;
       for (const auto cpu : node.cpus) {
         const auto found = std::ranges::lower_bound(layout.mask, cpu);
         if (found != layout.mask.end() && *found == cpu) {
-          masked.push_back(cpu);
+          masked.push_back(
+              {cpu,
+               layout.threads[static_cast<std::size_t>(
+                                  found - layout.mask.begin())]
+                   .groupOrdinal});
         }
       }
       if (!masked.empty()) {
@@ -216,10 +179,10 @@ auto resolvePreset(const Preset preset,
       dealt = false;
       for (std::size_t index = 0; index < numbers.size(); ++index) {
         if (next[index] < cpusOfNode[index].size()) {
-          const std::uint32_t cpu = cpusOfNode[index][next[index]++];
-          plan.cpu.push_back(cpu);
+          const auto& place = cpusOfNode[index][next[index]++];
+          plan.cpu.push_back(place.first);
           plan.node.push_back(numbers[index]);
-          plan.group.push_back(groupOrdinalOf(layout, cpu));
+          plan.group.push_back(place.second);
           dealt = true;
         }
       }
@@ -247,6 +210,36 @@ auto resolvePreset(const Preset preset,
   SG_ENSURE(planCpusDistinct(plan.cpu),
             "the plan's cpus stand pairwise distinct (FR-008)");
   return plan;
+}
+
+// specs/035 FR-009, FR-012, R-04: the node plan's postcondition
+// predicate, the planCpusDistinct precedent: every planned cpu stands
+// inside the mask and stands on the node the context binds to, and the
+// cpus stand pairwise distinct. The predicate is consulted only inside
+// SG_ENSURE, which expands to nothing in a Release build, so the
+// attribute keeps it compiling in every build type.
+[[maybe_unused]] auto planNodesBind(const MachineLayout& layout,
+                                    const PlacementPlan& plan) -> bool
+{
+  for (std::size_t index = 0; index < plan.cpu.size(); ++index) {
+    const auto found = std::ranges::lower_bound(layout.mask, plan.cpu[index]);
+    if (found == layout.mask.end() || *found != plan.cpu[index]) {
+      return false;
+    }
+    const auto node =
+        std::ranges::find_if(layout.nodes,
+                             [&plan, index](const LayoutNode& candidate)
+                             { return candidate.number == plan.node[index]; });
+    if (node == layout.nodes.end()) {
+      return false;
+    }
+    if (std::find(node->cpus.begin(), node->cpus.end(), plan.cpu[index])
+        == node->cpus.end())
+    {
+      return false;
+    }
+  }
+  return planCpusDistinct(plan.cpu);
 }
 
 // specs/027 D-4: the planned cpus of one layout stand resolved to their
@@ -618,12 +611,11 @@ auto placementText(const PlacementSlot& slot) -> std::string_view
         std::find(nodePlan->cpu.begin(), nodePlan->cpu.end(), slot.cpuIndex);
     if (planned != nodePlan->cpu.end()) {
       *end++ = '@';
-      end = std::to_chars(
-               end,
-               buffer.end(),
-               nodePlan->node[static_cast<std::size_t>(planned
-                                  - nodePlan->cpu.begin())])
-          .ptr;
+      end = std::to_chars(end,
+                          buffer.end(),
+                          nodePlan->node[static_cast<std::size_t>(
+                              planned - nodePlan->cpu.begin())])
+                .ptr;
     }
   }
   return std::string_view(buffer.data(),
@@ -683,8 +675,7 @@ auto placementFitStatus(const std::vector<Instance*>& selected)
       // naming the context and the node, ahead of every context.
       if (instance->placement == Preset::NODE) {
         const auto& binder = memoryBinder();
-        for (std::size_t position = 0; position < plan.node.size();
-             ++position)
+        for (std::size_t position = 0; position < plan.node.size(); ++position)
         {
           if (!binder.bind(plan.node[position])) {
             std::fprintf(stderr,

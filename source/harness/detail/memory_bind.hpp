@@ -23,7 +23,9 @@ struct MemoryBindOps
    * names (FR-010).
    *
    * \pre `node` names a node the run's resolved plan bound a context to
-   * \post a true answer leaves the calling thread's memory policy the one the node's cpus carry, and a false answer leaves it the one the call found (FR-013)
+   * \post a true answer leaves the calling thread's memory policy the one the
+   * node's cpus carry, and a false answer leaves it the one the call found
+   * (FR-013)
    */
   auto (*bind)(std::uint32_t node) -> bool = nullptr;
 
@@ -32,7 +34,8 @@ struct MemoryBindOps
    * (FR-013).
    *
    * \pre a bind of this seam answered before the call
-   * \post the calling thread's memory policy is the one the last bind found (FR-013)
+   * \post the calling thread's memory policy is the one the last bind found
+   * (FR-013)
    */
   auto (*restore)() -> void = nullptr;
 };

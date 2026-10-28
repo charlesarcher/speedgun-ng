@@ -312,22 +312,22 @@ example-run and report-shape gates read no finding.
 
 **Purpose**: the hard gates and the records that outlive the branch.
 
-- [ ] T023 [P] Run the format, spell, tidy and cppcheck gates at the
+- [x] T023 [P] Run the format, spell, tidy and cppcheck gates at the
   head: `cmake -D FORMAT_COMMAND=clang-format -P cmake/lint.cmake`,
   `cmake -P cmake/spell.cmake`, the `ci-ubuntu` build with the
   analyzers wired in; every finding stands fixed
   (constitution V, VIII)
-- [ ] T024 [P] Run the sanitizer, tsan and coverage suites:
+- [x] T024 [P] Run the sanitizer, tsan and coverage suites:
   `ctest --test-dir build/sanitize`, `ctest --test-dir build/tsan`,
   and the coverage contract `ctest --test-dir build/coverage -j 1`
   with the gate reading 100.0% lines and a branch shortfall inside
   the D-14 recorded allowance, no `LCOV_EXCL` marker and no new
   `--ignore-errors` entry (FR-018, SC-004, constitution VI)
-- [ ] T025 [P] Run the prose, DBC and time-source gates over the
+- [x] T025 [P] Run the prose, DBC and time-source gates over the
   branch range, and the suite under `taskset -c 0,1` and on a 2-cpu
   single-node host: `ctest --test-dir build -j 1` stands green under
   both (FR-017, constitution VIII, XI)
-- [ ] T026 [US4] Verify the quickstart scenarios of
+- [x] T026 [US4] Verify the quickstart scenarios of
   [quickstart.md](./quickstart.md) end to end on the lane host, and
   record the commands, the exit codes and the figures under
   `specs/035-numa-placement/results/quickstart.md`

@@ -33,6 +33,11 @@
 //   binderClear      a null installer restores the production binder,
 //                    the clear-on-null shape `installTestLayout` uses
 //                    (FR-016, R-06)
+//   binderProductionNoTopology the production binder over an installed
+//                    layout refuses and changes nothing (FR-013, R-06)
+//   binderProductionUnknownNode the production binder over the host
+//                    read refuses a node the topology states not
+//                    (FR-013, R-06)
 //   nodeCycles       eight contexts over two nodes cycle the nodes,
 //                    one cpu at a time (FR-009, R-03)
 //   nodeFills        a count below the node count fills the nodes in
@@ -44,6 +49,9 @@
 //                    (FR-009, D-2)
 //   nodeOneNode      a one-node host plans every context onto the one
 //                    node (FR-009)
+//   nodePredicate    the plan's postcondition predicate answers true
+//                    for a valid plan and false for each invalid one
+//                    (FR-012, R-04)
 //   nodeDisclose     the rows and the JSON field read `cpu@group@node`,
 //                    and the binder records validation, then the starts
 //                    (T008, T009, FR-010, FR-011, R-05)
@@ -149,7 +157,8 @@ auto installNodeLayout(const std::uint32_t groups,
   }
   for (std::uint32_t node = 0;
        groupsPerNode > 0 && node * groupsPerNode < groups;
-       ++node) {
+       ++node)
+  {
     sg::detail::LayoutNode layoutNode;
     layoutNode.number = node;
     for (std::uint32_t group = node * groupsPerNode;
@@ -165,12 +174,12 @@ auto installNodeLayout(const std::uint32_t groups,
   sg::detail::installTestLayout(installed);
 }
 
-// The fake binder of R-06: the statics record the nodes the calls name
-// and the restores they follow, and deny the call on demand, so a
-// scenario reads the record after the run it drove. The record stands
-// behind one mutex, for the binds of the context threads that run
-// beside each other (FR-010); the scenario reads it after the run
-// joined them.
+// The fake binder of R-06: the static state records the nodes the
+// calls name and the restores they follow, and denies the call on
+// demand, so a scenario reads the record after the run it drove. The
+// record stands behind one mutex, for the binds of the context
+// threads that run beside each other (FR-010); the scenario reads it
+// after the run joined them.
 auto binderMutex() -> std::mutex&
 {
   static std::mutex mutex;
@@ -283,9 +292,8 @@ auto childWalkFourNodes() -> int
     return 1;
   }
   for (std::uint32_t index = 0; index < 4; ++index) {
-    const std::vector<std::uint32_t> expected {index * 2,
-                                               static_cast<std::uint32_t>(
-                                                   index * 2 + 1)};
+    const std::vector<std::uint32_t> expected {
+        index * 2, static_cast<std::uint32_t>(index * 2 + 1)};
     if (machine.nodes[index].number != index
         || machine.nodes[index].cpus != expected)
     {
@@ -340,6 +348,37 @@ auto childBinderDenies() -> int
     std::fprintf(stderr, "the fake did not deny the node of the denial\n");
     return 1;
   }
+  return 0;
+}
+
+// T005, FR-016, R-06: the production binder with no topology behind it
+// answers the refusal the fit walk prints: a run whose layout stands
+// installed binds through no topology, and the bind and the restore
+// change nothing (FR-013).
+auto childBinderProductionNoTopology() -> int
+{
+  installNodeLayout(2, 4, 2);
+  sg::detail::installTestMemoryBinder(std::nullopt);
+  const auto& binder = sg::detail::memoryBinder();
+  if (binder.bind(0U)) {
+    std::fprintf(stderr, "the production binder bound with no topology\n");
+    return 1;
+  }
+  binder.restore();
+  return 0;
+}
+
+// T005, FR-016, R-06: the production binder over the host read refuses
+// a node the topology does not state, and binds nothing (FR-013).
+auto childBinderProductionUnknownNode() -> int
+{
+  sg::detail::installTestMemoryBinder(std::nullopt);
+  const auto& binder = sg::detail::memoryBinder();
+  if (binder.bind(7777U)) {
+    std::fprintf(stderr, "the production binder bound an unknown node\n");
+    return 1;
+  }
+  binder.restore();
   return 0;
 }
 
@@ -440,11 +479,12 @@ auto childNodeSkipsExcluded() -> int
     layoutGroup.cores = {group * 4, group * 4 + 1};
     installed.groups.push_back(layoutGroup);
   }
-  const std::array<std::vector<std::uint32_t>, 3> nodeCpus {
+  const std::array<std::vector<std::uint32_t>, 4> nodeCpus {
       std::vector<std::uint32_t> {0, 1},
       std::vector<std::uint32_t> {2, 3},
-      std::vector<std::uint32_t> {4, 5}};
-  for (std::uint32_t number = 0; number < 3; ++number) {
+      std::vector<std::uint32_t> {4, 5},
+      std::vector<std::uint32_t> {6, 7}};
+  for (std::uint32_t number = 0; number < 4; ++number) {
     sg::detail::LayoutNode layoutNode;
     layoutNode.number = number;
     layoutNode.cpus = nodeCpus[number];
@@ -457,8 +497,20 @@ auto childNodeSkipsExcluded() -> int
   const std::vector<std::uint32_t> cpus {0, 4, 1, 5};
   const std::vector<std::uint32_t> nodes {0, 2, 0, 2};
   if (plan.places != 4 || plan.cpu != cpus || plan.node != nodes) {
-    std::fprintf(stderr,
-                 "the excluded node did not stand without a context\n");
+    std::fprintf(stderr, "the excluded node did not stand without a context\n");
+    return 1;
+  }
+  // The postcondition predicate refuses a cpu that stands inside the
+  // mask's span the read states and outside the mask itself, and one
+  // that stands past the mask's end (FR-012, R-04).
+  auto inSpan = plan;
+  inSpan.cpu[0] = 2;
+  auto beyond = plan;
+  beyond.cpu[0] = 6;
+  if (sg::detail::planNodesBind(layout, inSpan)
+      || sg::detail::planNodesBind(layout, beyond))
+  {
+    std::fprintf(stderr, "the predicate accepted a cpu off the mask\n");
     return 1;
   }
   return 0;
@@ -498,6 +550,47 @@ auto childNodeOneNode() -> int
   std::vector<std::uint32_t> nodes(8, 0);
   if (plan.places != 8 || plan.cpu != cpus || plan.node != nodes) {
     std::fprintf(stderr, "the one-node plan did not fill the node\n");
+    return 1;
+  }
+  return 0;
+}
+
+// T007, FR-012, R-04: the plan's postcondition predicate answers true
+// for a valid node plan and false for a cpu outside the mask, a node
+// the read does not state, a cpu off its node, and a plan that
+// repeats a cpu.
+auto childNodePredicate() -> int
+{
+  installNodeLayout(4, 4, 2);
+  const auto& layout = sg::detail::layout();
+  const auto plan =
+      sg::detail::resolvePreset(sg::detail::Preset::NODE, layout, 4);
+  if (!sg::detail::planNodesBind(layout, plan)) {
+    std::fprintf(stderr, "the predicate refused a valid plan\n");
+    return 1;
+  }
+  auto outside = plan;
+  outside.cpu[0] = 99;
+  if (sg::detail::planNodesBind(layout, outside)) {
+    std::fprintf(stderr, "the predicate accepted a cpu outside the mask\n");
+    return 1;
+  }
+  auto absent = plan;
+  absent.node[0] = 42;
+  if (sg::detail::planNodesBind(layout, absent)) {
+    std::fprintf(stderr, "the predicate accepted a node the read states not\n");
+    return 1;
+  }
+  auto offNode = plan;
+  offNode.cpu[0] = 8;
+  if (sg::detail::planNodesBind(layout, offNode)) {
+    std::fprintf(stderr, "the predicate accepted a cpu off its node\n");
+    return 1;
+  }
+  auto repeated = plan;
+  repeated.cpu[1] = repeated.cpu[0];
+  if (sg::detail::planNodesBind(layout, repeated)) {
+    std::fprintf(stderr, "the predicate accepted a repeated cpu\n");
     return 1;
   }
   return 0;
@@ -548,8 +641,7 @@ auto userPlacementText() -> std::string_view
 }
 
 auto userPlacement([[maybe_unused]] const sg::PlacementSlot& slot,
-                   std::thread::native_handle_type)
-    -> sg::PlacementResult
+                   std::thread::native_handle_type) -> sg::PlacementResult
 {
   return {.applied = true, .description = userPlacementText()};
 }
@@ -659,24 +751,41 @@ auto verifyNodeDisclose() -> void
     std::fprintf(stderr, "the validation pass restored wrong\n");
     std::exit(1);
   }
+  // A context the plan does not bind keeps the standing `cpu@group`
+  // bytes beside the installed plan (FR-011, FR-002).
+  sg::ExecutionContext bystander {sg::ContextPolicy {
+      sg::WaitMode::BLOCK, sg::PlacementSlot::cpu(15U)}};
+  bystander.drain();
+  const sg::PlacementResult record = sg::detail::placementRecordOf(bystander);
+  bystander.requestStop();
+  bystander.join();
+  if (record.description != "15@3") {
+    std::fprintf(stderr, "the bystander field read '%.*s'\n",
+                 static_cast<int>(record.description.size()),
+                 record.description.data());
+    std::exit(1);
+  }
 }
 
 auto scenarioNodeDisclose() -> int
 {
-  const Captured run = runCaptured(
-      "disclose",
-      {"--placement=node", "--json=numa-disclose.json", "--filter",
-       "^bmNumaSpin"},
-      &setupTwoNodeRun,
-      &verifyNodeDisclose);
+  const Captured run = runCaptured("disclose",
+                                   {"--placement=node",
+                                    "--json=numa-disclose.json",
+                                    "--filter",
+                                    "^bmNumaSpin"},
+                                   &setupTwoNodeRun,
+                                   &verifyNodeDisclose);
   check(run.status == 0, "the node-planned run exits 0 (FR-009)");
-  check(run.out.find("ctx0=SPIN/0@0@0/applied") != std::string::npos
-            && run.out.find("ctx1=SPIN/8@2@1/applied") != std::string::npos,
+  // The field names the node beside the group; the flag beside it is
+  // the pin's own account, which a host whose mask holds none of the
+  // synthetic cpus states as unapplied (FR-017).
+  check(run.out.find("ctx0=SPIN/0@0@0/") != std::string::npos
+            && run.out.find("ctx1=SPIN/8@2@1/") != std::string::npos,
         "the rows name the node beside the group (FR-011)");
   const std::string document = readFile("numa-disclose.json");
   check(document.find("\"placement\":\"0@0@0\"") != std::string::npos
-            && document.find("\"placement\":\"8@2@1\"")
-                != std::string::npos,
+            && document.find("\"placement\":\"8@2@1\"") != std::string::npos,
         "the JSON context field names the node (FR-011, D-5)");
   return 0;
 }
@@ -693,11 +802,11 @@ auto verifyNoNodePlanNoBind() -> void
 
 auto scenarioNoNodePresetBytes() -> int
 {
-  const Captured run = runCaptured("noNodePreset",
-                                   {"--placement=l3", "--filter",
-                                    "^bmNumaSpin"},
-                                   &setupTwoNodeRun,
-                                   &verifyNoNodePlanNoBind);
+  const Captured run =
+      runCaptured("noNodePreset",
+                  {"--placement=l3", "--filter", "^bmNumaSpin"},
+                  &setupTwoNodeRun,
+                  &verifyNoNodePlanNoBind);
   check(run.status == 0, "the run with the l3 preset exits 0 (FR-002)");
   check(run.out.find("ctx0=SPIN/0@0/applied") != std::string::npos
             && run.out.find("ctx1=SPIN/4@1/applied") != std::string::npos,
@@ -722,11 +831,11 @@ auto verifyBindBypass() -> void
 
 auto scenarioBindBypass() -> int
 {
-  const Captured run = runCaptured("bypass",
-                                   {"--placement=node", "--filter",
-                                    "^bmNumaSpin"},
-                                   &setupTwoNodeBypass,
-                                   &verifyBindBypass);
+  const Captured run =
+      runCaptured("bypass",
+                  {"--placement=node", "--filter", "^bmNumaSpin"},
+                  &setupTwoNodeBypass,
+                  &verifyBindBypass);
   check(run.status == 0, "the run with a user placement function exits 0");
   check(run.out.find("ctx0=SPIN/USER/applied") != std::string::npos,
         "the user function's text stands (FR-010, R-05)");
@@ -750,14 +859,14 @@ auto verifyOneNodeBinds() -> void
 
 auto scenarioOneNode() -> int
 {
-  const Captured run = runCaptured("oneNode",
-                                   {"--placement=node", "--filter",
-                                    "^bmNumaSpin"},
-                                   &setupOneNodeRun,
-                                   &verifyOneNodeBinds);
+  const Captured run =
+      runCaptured("oneNode",
+                  {"--placement=node", "--filter", "^bmNumaSpin"},
+                  &setupOneNodeRun,
+                  &verifyOneNodeBinds);
   check(run.status == 0, "the one-node run exits 0 (FR-009)");
-  check(run.out.find("ctx0=SPIN/0@0@0/applied") != std::string::npos
-            && run.out.find("ctx1=SPIN/1@0@0/applied") != std::string::npos,
+  check(run.out.find("ctx0=SPIN/0@0@0/") != std::string::npos
+            && run.out.find("ctx1=SPIN/1@0@0/") != std::string::npos,
         "the one-node rows name the one node (FR-011)");
   return 0;
 }
@@ -772,11 +881,11 @@ auto scenarioRefuseValidation() -> int
     setupTwoNodeRun();
     binderDenyNodeFrom() = 1;
   };
-  const Captured run = runCaptured("refuseValidation",
-                                   {"--placement=node", "--filter",
-                                    "^bmNumaSpin"},
-                                   denyNodeOne,
-                                   nullptr);
+  const Captured run =
+      runCaptured("refuseValidation",
+                  {"--placement=node", "--filter", "^bmNumaSpin"},
+                  denyNodeOne,
+                  nullptr);
   check(run.status == 2, "the denied validation bind exits 2 (FR-013)");
   check(countLines(run.err) == 1, "the refusal prints one line (FR-013)");
   check(run.err.find("ctx1") != std::string::npos
@@ -798,11 +907,11 @@ auto scenarioRefuseStart() -> int
     setupTwoNodeRun();
     binderDenyCallFrom() = 2;
   };
-  const Captured run = runCaptured("refuseStart",
-                                   {"--placement=node", "--filter",
-                                    "^bmNumaSpin"},
-                                   denyStartBinds,
-                                   nullptr);
+  const Captured run =
+      runCaptured("refuseStart",
+                  {"--placement=node", "--filter", "^bmNumaSpin"},
+                  denyStartBinds,
+                  nullptr);
   check(run.status == 2, "the denied start bind exits 2 (FR-013)");
   check(countLines(run.err) == 1, "the refusal prints one line (FR-013)");
   check(run.err.find("ctx0") != std::string::npos
@@ -817,13 +926,13 @@ auto scenarioRefuseStart() -> int
 // information refuses one line before any context starts.
 auto scenarioRefuseNoMemory() -> int
 {
-  const Captured run = runCaptured("refuseNoMemory",
-                                   {"--placement=node", "--filter",
-                                    "^bmNumaSpin"},
-                                   &setupNoMemoryRun,
-                                   nullptr);
-  check(run.status == 2, "the node preset over no memory information "
-        "exits 2 (FR-014)");
+  const Captured run =
+      runCaptured("refuseNoMemory",
+                  {"--placement=node", "--filter", "^bmNumaSpin"},
+                  &setupNoMemoryRun,
+                  nullptr);
+  check(run.status == 2,
+        "the node preset over no memory information " "exits 2 (FR-014)");
   check(countLines(run.err) == 1, "the refusal prints one line (FR-014)");
   check(run.err.find("node") != std::string::npos,
         "the line names the preset (FR-014)");
@@ -844,11 +953,11 @@ auto setupSeventeenThreads() -> void
 
 auto scenarioRefuseUnfittable() -> int
 {
-  const Captured run = runCaptured("refuseUnfittable",
-                                   {"--placement=node", "--filter",
-                                    "^bmNumaSpin"},
-                                   &setupSeventeenThreads,
-                                   nullptr);
+  const Captured run =
+      runCaptured("refuseUnfittable",
+                  {"--placement=node", "--filter", "^bmNumaSpin"},
+                  &setupSeventeenThreads,
+                  nullptr);
   check(run.status == 2, "the unfittable count exits 2 (FR-013)");
   check(countLines(run.err) == 1, "the stop prints one line (FR-013)");
   check(run.err.find("node") != std::string::npos
@@ -868,7 +977,7 @@ auto main(int argc, char** argv) -> int
     int (*run)();
   };
 
-  const std::array<Scenario, 12> children {
+  const std::array<Scenario, 15> children {
       Scenario {"walkOneNode", &childWalkOneNode},
       Scenario {"walkTwoNodes", &childWalkTwoNodes},
       Scenario {"walkFourNodes", &childWalkFourNodes},
@@ -876,11 +985,15 @@ auto main(int argc, char** argv) -> int
       Scenario {"binderRecords", &childBinderRecords},
       Scenario {"binderDenies", &childBinderDenies},
       Scenario {"binderClear", &childBinderClear},
+      Scenario {"binderProductionNoTopology", &childBinderProductionNoTopology},
+      Scenario {"binderProductionUnknownNode",
+                &childBinderProductionUnknownNode},
       Scenario {"nodeCycles", &childNodeCycles},
       Scenario {"nodeFills", &childNodeFills},
       Scenario {"nodeSkipsExcluded", &childNodeSkipsExcluded},
       Scenario {"nodeUnfittable", &childNodeUnfittable},
-      Scenario {"nodeOneNode", &childNodeOneNode}};
+      Scenario {"nodeOneNode", &childNodeOneNode},
+      Scenario {"nodePredicate", &childNodePredicate}};
 
   if (argc > 1) {
     for (const auto& scenario : children) {
