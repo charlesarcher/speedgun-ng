@@ -129,8 +129,9 @@ evidence table shape (scenario, command, exit,
   leading or trailing blank, and a clause with no suffix are each the
   one-line exit-2 refusal naming the whole value (FR-004; D-4). The
   two candidates the recommendation beat, and why: a repeated option
-  needs new replacement law for a partly-spelled budget set; colon-positional clauses need a stated empty
-  form for an unset middle clause. The comma form has direct house
+  needs new replacement law for a partly-spelled budget set;
+  colon-positional clauses need a stated empty form for an unset
+  middle clause. The comma form has direct house
   precedent in `--jitter-probe`'s value grammar (spec 027 contract)
   and in the hunt selection value's comma splitting. `/speckit-analyze`
   or a later clarify pass may revise this with a new recorded answer.
@@ -571,8 +572,11 @@ file on a CI runner (SC-008).
   the stage's own rule gives (one at stage 1 of a two-stage plan,
   `--hunt-repeats` elsewhere), and SHALL read no clock (D-2).
 - **FR-002**: The plan line and the report SHALL disclose the sample
-  budget and its derived repeats; the time estimate SHALL re-price
-  from them. One repeat above the budget SHALL stand with one repeat
+  budget and its derived repeats; the priced figure the stage-drop
+  decision reads SHALL re-price from them, and the plan's time
+  estimate SHALL re-price when the derived count moves the
+  estimate's first stage; a composed two-stage plan keeps its
+  stage-1 estimate. One repeat above the budget SHALL stand with one repeat
   and a disclosed overage; a budget no figure prices SHALL stand with
   the stage rule repeats and a disclosure (D-2).
 - **FR-003**: A plan whose settlement is `MULTIPLEX`, the answer a
