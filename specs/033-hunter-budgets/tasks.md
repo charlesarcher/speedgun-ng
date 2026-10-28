@@ -425,18 +425,18 @@ section within 25 lines, and the extended example matches its
 
 ## Phase 7: Polish and cross-cutting
 
-- [ ] T029 [P] Run the full suite at the feature head
+- [X] T029 [P] Run the full suite at the feature head
   (`ctest --test-dir build --output-on-failure`) and the whole suite
   again under `taskset -c 0,1`; every test under `test/source/`
   passes both ways, none skips; any timing-bound assertion stands an
   order of magnitude inside the spec 032 contamination signal
   (FR-042, FR-043, SC-007)
-- [ ] T030 [P] Run the `ci-coverage` preset of `CMakePresets.json` (the
+- [X] T030 [P] Run the `ci-coverage` preset of `CMakePresets.json` (the
   `coverage-linux` base CI runs): 100%
   line and branch over `source/harness/` with no `LCOV_EXCL` marker
   and no new `--ignore-errors` entry; a gap stops the work and
   reports its cause with `gcov -b` evidence (FR-041)
-- [ ] T031 Build once in the release preset (`cmake --preset=ci-ubuntu`,
+- [X] T031 Build once in the release preset (`cmake --preset=ci-ubuntu`,
   `cmake --build build`) so clang-tidy and cppcheck report at the
   optimizer; clear every finding; run the `ci-sanitize` and
   `ci-tsan` presets (SC-007); run `format-check`, `spell-check`,
@@ -444,7 +444,7 @@ section within 25 lines, and the extended example matches its
   name-check; `harness_cli_table_test` stands green on the moved
   contract (VIII, FR-044) (depends on T029, T030: the release
   configure rewrites the shared `build` cache)
-- [ ] T032 Run the gary acceptance and record it: the budgeted
+- [X] T032 Run the gary acceptance and record it: the budgeted
   `--hunt=all` run on `example/docs_throughput` (one `--filter`ed
   instance, the 029 gary-record form), the emitted file, the `--counter=@` read-back,
   and the conflict refusal land in a scenario/command/exit/observation
