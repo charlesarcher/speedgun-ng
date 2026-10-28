@@ -15,6 +15,7 @@ print today keeps its bytes (FR-017, FR-018).
 | the governor a host runs, and the `not available` wording | The value after `governor: cpu <n>` folds; the source token `(source: /sys devices system cpu scaling_governor)` keeps its bytes. | FR-017 |
 | the kernel setting values after `isolcpus=`, `nohz_full=`, `rcu_nocbs=` | Each value folds, the `not available` wording beside a stated one; the keys keep their bytes. | FR-017 |
 | the irq affinity list, and the `not available` wording | The value after `irq affinity: cpu <n>` folds; the source token `(source: /proc/irq)` keeps its bytes. | FR-017 |
+| the attribution delta figures, and the `not available` wording | The figure after `interrupts delta:`, after `softirq <kind> delta:`, and each schedstat delta folds; the kind word and the source tokens `(source: /proc/interrupts)`, `(source: /proc/softirqs)`, `(source: /proc/schedstat)` keep their bytes. | FR-017 |
 
 ## What still fails
 

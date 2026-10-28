@@ -65,6 +65,14 @@ GOVERNOR_VALUE = re.compile(
 IRQ_AFFINITY_VALUE = re.compile(
     r"^(irq affinity: cpu #) .* (\(source: /proc/irq\))$"
 )
+ATTRIBUTION_VALUE = re.compile(
+    r"^((?:interrupts|softirq \S+) delta:) (?:not available|#)"
+    r" (\(source: /proc/(?:interrupts|softirqs)\))$"
+)
+SCHEDSTAT_VALUE = re.compile(
+    r"^(switch delta:) (?:not available|#), (schedule delta:)"
+    r" (?:not available|#) (\(source: /proc/schedstat\))$"
+)
 
 
 def mask(line: str) -> str:
@@ -72,7 +80,8 @@ def mask(line: str) -> str:
     on a line carrying the fit column, the curve the fit chose. The pre-check
     block's host-owned words fold beside them (specs/034 FR-017, FR-018): the
     float edge words an unlucky window prints, the governor a host runs, the
-    kernel setting values and the irq affinity list the host states, each
+    kernel setting values and the irq affinity list the host states, the
+    attribution delta figures and their `not available` wording, each
     beside the source token that keeps its bytes."""
     folded = BUILD_FIELD.sub("build=#", line)
     if FIT_FIELD.search(folded):
@@ -82,6 +91,8 @@ def mask(line: str) -> str:
     folded = SETTING_VALUE.sub(r"\1=#", folded)
     folded = GOVERNOR_VALUE.sub(r"\1 # \2", folded)
     folded = IRQ_AFFINITY_VALUE.sub(r"\1 # \2", folded)
+    folded = ATTRIBUTION_VALUE.sub(r"\1 # \2", folded)
+    folded = SCHEDSTAT_VALUE.sub(r"\1 #, \2 # \3", folded)
     # Two field paddings are dropped rather than collapsed: a value wide enough
     # to consume the padding after an equals sign, or after the open paren of the
     # coefficient field of a fit row, prints without it.

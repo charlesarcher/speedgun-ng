@@ -284,6 +284,37 @@ def golden_pairs() -> None:
     check("a renamed softirq kind folds different",
           mask(renamed_kind) != mask(other_kind), "both folded to the same shape")
 
+    interrupts = "interrupts delta: 156 (source: /proc/interrupts)"
+    absent_interrupts = "interrupts delta: not available (source: /proc/interrupts)"
+    check("an attribution delta figure folds equal beside an absent one",
+          mask(interrupts) == mask(absent_interrupts),
+          f"{mask(interrupts)!r} against {mask(absent_interrupts)!r}")
+
+    renamed_interrupts_source = interrupts.replace("/proc/interrupts",
+                                                   "/proc/misread")
+    check("a renamed attribution source folds different",
+          mask(interrupts) != mask(renamed_interrupts_source),
+          "both folded to the same shape")
+
+    softirq = "softirq TIMER delta: 3 (source: /proc/softirqs)"
+    absent_softirq = "softirq TIMER delta: not available (source: /proc/softirqs)"
+    check("an absent softirq delta folds equal beside a stated one",
+          mask(softirq) == mask(absent_softirq),
+          f"{mask(softirq)!r} against {mask(absent_softirq)!r}")
+
+    schedstat = "switch delta: 5, schedule delta: 40 (source: /proc/schedstat)"
+    absent_schedstat = ("switch delta: not available, schedule delta: 40 "
+                        "(source: /proc/schedstat)")
+    check("a schedstat delta figure folds equal beside an absent one",
+          mask(schedstat) == mask(absent_schedstat),
+          f"{mask(schedstat)!r} against {mask(absent_schedstat)!r}")
+
+    renamed_schedstat_source = schedstat.replace("/proc/schedstat",
+                                                 "/proc/misread")
+    check("a renamed schedstat source folds different",
+          mask(schedstat) != mask(renamed_schedstat_source),
+          "both folded to the same shape")
+
     check("a disclosure line classifies as a disclosure line",
           "disclosure line differs" in " ".join(compare([DISCLOSURE], [WARNING])),
           " ".join(compare([DISCLOSURE], [WARNING]))[:1])
