@@ -350,7 +350,7 @@ evidence stands recorded.
   the run reference stands recorded beside the acceptance evidence in
   `specs/035-numa-placement/results/quickstart.md` (SC-001 to
   SC-006) (depends on T023 to T026)
-- [ ] T028 Re-check the constitution table of [plan.md](./plan.md)
+- [x] T028 Re-check the constitution table of [plan.md](./plan.md)
   against the landed tree: every gate stands as the table states it,
   the Complexity Tracking table stands empty, and the record stands
   in the pull-request body (constitution Governance) (depends on
