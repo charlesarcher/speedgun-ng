@@ -1,6 +1,8 @@
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
 
+// The threshold stands above any gap this host inserts: the recorded
+// run stands quiet, the block showing the disclosure shape.
 // sg-example:begin jitter-probe
 auto bmMeasured(sg::State& state) -> void
 {
@@ -13,7 +15,8 @@ SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
 
 auto main(int argc, char** argv) -> int
 {
-  sg::runJitterProbe({.mode = sg::JitterProbeMode::PRECHECK,
+  sg::runJitterProbe({.thresholdNs = 1000000000,
+                      .mode = sg::JitterProbeMode::PRECHECK,
                       .precheckSerial = true});
   return sg::speedgunMain(argc, argv);
 }

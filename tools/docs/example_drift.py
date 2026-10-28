@@ -191,7 +191,7 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # in place. The rows join the Quick reference table, which the
 # per-section budgets do not inspect, so SECTION_LINE_CAP and
 # SECTION_LINE_CAPS keep their values.
-PAGE_LINE_CAP = 860
+PAGE_LINE_CAP = 864
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that

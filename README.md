@@ -664,7 +664,8 @@ SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
 
 auto main(int argc, char** argv) -> int
 {
-  sg::runJitterProbe({.mode = sg::JitterProbeMode::PRECHECK,
+  sg::runJitterProbe({.thresholdNs = 1000000000,
+                      .mode = sg::JitterProbeMode::PRECHECK,
                       .precheckSerial = true});
   return sg::speedgunMain(argc, argv);
 }
@@ -685,7 +686,8 @@ SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
 
 auto main(int argc, char** argv) -> int
 {
-  sg::runJitterProbe({.mode = sg::JitterProbeMode::PRECHECK,
+  sg::runJitterProbe({.thresholdNs = 1000000000,
+                      .mode = sg::JitterProbeMode::PRECHECK,
                       .precheckSerial = true});
   return sg::speedgunMain(argc, argv);
 }

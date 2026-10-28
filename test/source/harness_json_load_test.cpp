@@ -1346,6 +1346,8 @@ auto thePrecheckRecordRoundTrips() -> void
   sg::PrecheckCpuRecord sparseCpu;
   sparseCpu.cpu = 1;
   sparse.cpus.push_back(sparseCpu);
+  sparse.host.irqAffinity.emplace_back(
+      1U, std::vector<std::uint32_t> {24U, 25U, 26U});
   sg::ReportData sparseData;
   sparseData.precheck = sparse;
   check(sg::detail::writeReport(kAgain, sparseData, {}, std::nullopt,
