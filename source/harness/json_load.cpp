@@ -832,7 +832,7 @@ auto readPrecheckHost(Element value, const std::string& where)
       if (text->has_value()) {
         const std::string& list = **text;
         std::size_t start = 0;
-        while (start <= list.size()) {
+        while (start < list.size()) {
           const std::size_t stop = list.find(',', start);
           const std::string_view item = std::string_view(list)
               .substr(start, stop == std::string::npos

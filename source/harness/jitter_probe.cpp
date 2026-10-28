@@ -1137,7 +1137,7 @@ auto cpuMaskOfText(const std::string& text)
   std::vector<std::uint32_t> cpus;
   std::vector<std::string> groups;
   std::size_t scan = 0;
-  while (scan <= text.size()) {
+  while (scan < text.size()) {
     const auto stop = text.find(',', scan);
     const auto end = stop == std::string::npos ? text.size() : stop;
     const auto token = text.substr(scan, end - scan);
