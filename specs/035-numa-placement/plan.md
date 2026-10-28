@@ -198,8 +198,11 @@ exported-layout check of the harness `SOVERSION` stays untouched.
   `{"node", Preset::NODE}`, parsed in full and nothing else beside the
   five standing rows of `placement_preset.cpp:46`. The resolver gains
   the node plan: the layout's nodes inside the process mask, in the
-  read's node order, one cpu each, cycling when the context count
-  exceeds the node count, filling in node order when it sits below.
+  read's node order, one cpu per context, cycling the nodes; the
+  plan's `places` stands at the distinct-cpu count of those nodes, so
+  the standing fit check passes unchanged and the unfittable refusal
+  stands reachable at cpu exhaustion; a count below the node count
+  fills the nodes in node order.
 - **R-04 (FR-009)**: the plan resolver's postcondition predicate
   extends: every planned cpu stands inside the mask and stands on the
   node the context binds to, beside the standing
@@ -331,9 +334,10 @@ failing before its code lands.
   shape and order, the mask filter, and the `not available` path.
   Gate: the new executable plus the extended placement CLI tests.
 - **Wave 2 (the preset and the plan)**: the `node` row parses in full
-  and nothing else; the resolver's cycle, fill and mask-touch rules;
-  the distinct-and-on-node postcondition; the unfittable and
-  no-memory-information refusals. Gate: the placement CLI tests.
+  and nothing else, gated on the placement CLI tests; the resolver's
+  cycle, fill, mask-touch and exhaustion rules and the
+  distinct-and-on-node postcondition, gated on the new executable.
+  The refusal scenarios stand in wave 3 beside T015 and T016.
 - **Wave 3 (the bind and the refusal)**: the fake binder records the
   node the call names and denies on demand; the eager validation pass
   binds and restores each distinct planned node before the contexts

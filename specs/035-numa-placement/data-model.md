@@ -47,11 +47,14 @@ and two contexts of the cycle never share a cpu.
 
 Fill and cycle rules (D-2):
 
-- context count greater than the node count: the nodes cycle in the
-  read's node order, the way the `l3` plan repeats its groups;
-- context count equal to the node count: one context per node;
-- context count below the node count: the nodes `0` to `k-1` of the
-  read's order take one context each, the later nodes take none.
+- the plan's `places` stands at the distinct-cpu count of the
+  mask-touching nodes, so the standing fit check passes unchanged
+  and the unfittable refusal stands reachable at cpu exhaustion;
+- the contexts cycle the nodes in the read's node order, one cpu
+  per context;
+- a context count below the node count: the nodes `0` to `k-1` of
+  the read's order take one context each, the later nodes take
+  none.
 
 ### The binder seam (detail, `source/harness/detail/memory_bind.hpp`)
 

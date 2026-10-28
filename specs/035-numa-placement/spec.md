@@ -46,9 +46,10 @@ stand in Decisions as D-1 to D-7.
 - Option values: no option row is added and no option value moves.
   The node plans ride the standing `--placement` row and the
   `BenchmarkHandle::placement(name)` handle of spec 025
-  (`source/harness/options.cpp:620`, `include/speedgun-ng/
-  benchmark.hpp:2561`), whose five names master carries at
-  `source/harness/placement_preset.cpp:46`.
+  (`source/harness/options.cpp:620`, the
+  `BenchmarkHandle::placement(name)` handle of
+  `include/speedgun-ng/benchmark.hpp:2561`), whose six names this
+  feature lands at `source/harness/placement_preset.cpp:46`.
 
 ## Roadmap position
 
@@ -85,8 +86,8 @@ stand in Decisions as D-1 to D-7.
   public `BenchmarkHandle::placement(name)` contract at
   `include/speedgun-ng/benchmark.hpp:2553`.
 - The machine read stands at `source/harness/topology.cpp`: the
-  listing header at `:419` (`topology: packages=... l3-groups=...
-  cores=... threads=... mask=...`), one line per L3 group at `:434`,
+  listing header at `:419` (the `topology: packages=...` line),
+  one line per L3 group at `:434`,
   and the online-set test seam `installTestOnlineCpus` at `:333`.
   The unit is the one harness translation unit that includes
   `<hwloc.h>` (spec 025 FR-004, R-01), against the vendored hwloc
@@ -102,10 +103,12 @@ stand in Decisions as D-1 to D-7.
 - Spec 025 keeps the memory nodes out of its scope:
   `specs/025-topology-placement/spec.md:722` (memory-node presets and
   the NPS tests are N12) and
-  `specs/025-topology-placement/contracts/cli-placement.md:50` (no
-  memory node appears in the listing). This spec amends the listing
-  contract line, the standing exit-status table beside it, and no
-  other standing rule (D-3, FR-013, FR-014).
+  `specs/025-topology-placement/contracts/cli-placement.md:50` (the
+  row that names no memory node in the listing). This spec amends
+  the listing contract line, the standing exit-status table beside
+  it, the standing `--placement` row's name list in
+  `specs/015-benchmark-harness-core/contracts/cli.md`, and no other
+  standing rule (D-3, FR-013, FR-014).
 - The timing-margin record stands at
   `specs/032-fix-merged-features/results/record.md`: a test bound
   that walks near the sanitizer's own load reads flaky, and a bound
@@ -117,8 +120,10 @@ stand in Decisions as D-1 to D-7.
 - The preset names, the fit check and the listing rules stand in
   `specs/025-topology-placement/contracts/cli-placement.md` and
   `contracts/topology-placement.md`; this spec amends the
-  no-memory-node scope line, the listing rule row beside it, and the
-  exit-status table, and no other standing rule.
+  no-memory-node scope line, the listing rule row beside it, the
+  exit-status table, and the standing `--placement` row's name list
+  in `specs/015-benchmark-harness-core/contracts/cli.md`, and no
+  other standing rule.
 - The pre-check block and the `proc_root` seam of spec 034 stand
   beside the placement disclosure and stay unchanged.
 - The hwloc dependency is vendored and pinned; the lane adds no
@@ -166,12 +171,17 @@ stand in Decisions as D-1 to D-7.
   topology reader.
 - **D-2 The preset grammar carries the node plans.** One new name
   joins the five standing names: `node`, which plans the contexts of
-  a threaded run one per memory node inside the process mask, the
-  way `l3` plans one per L3 group. A context count larger than the
-  node count cycles the nodes again, the way the L3 plan repeats its
-  groups, and a smaller count fills the nodes in hwloc's node order,
-  one context each. No new option row, no option value, no argument
-  form: the bare name is the whole grammar this feature adds.
+  a threaded run one cpu at a time, cycling the mask-touching nodes
+  in the read's node order. The plan's `places` stands at the
+  distinct-cpu count of those nodes, so the standing fit check
+  passes unchanged and the unfittable refusal stands reachable at
+  cpu exhaustion; a context count below the node count fills the
+  nodes in hwloc's node order, one context each, and the later
+  nodes stand without a context. The standing `l3` plan wraps
+  nothing (specs/025 pins the refusal at the place count), and this
+  arm stands beside it with no wrap-around of its own. No new
+  option row, no option value, no argument form: the bare name is
+  the whole grammar this feature adds.
 - **D-3 The listing gains the node lines.** Under the L3 lines the
   listing prints one line per memory node in the L3 lines' shape,
   naming the node number and the cpus of that node inside the
@@ -420,11 +430,12 @@ compiles.
 ### The node plan and the binding (C)
 
 - **FR-009**: The `node` preset SHALL plan the contexts of a
-  threaded run one per memory node inside the process mask, cycling
-  the nodes when the context count exceeds the node count, the way
-  the `l3` plan repeats its groups; a context count smaller than the
-  node count SHALL fill the nodes in hwloc's node order, one context
-  each, and leave the later nodes with none (D-2).
+  threaded run one cpu at a time, cycling the mask-touching nodes in
+  the read's node order; the plan's `places` SHALL stand at the
+  distinct-cpu count of those nodes, so the standing fit check
+  passes unchanged; a context count smaller than the node count
+  SHALL fill the nodes in hwloc's node order, one context each, and
+  leave the later nodes with none (D-2).
 - **FR-010**: The binding SHALL apply at context start, on the
   context thread, beside the cpu pin, and SHALL bind the context to
   the node its planned cpu belongs to; the jitter probe's
@@ -513,8 +524,8 @@ compiles.
 
 - The cycling rule of the node plan (D-2) stands as a stated
   default: the request names memory-node presets without fixing the
-  many-contexts shape, and the `l3` plan's own cycling is the
-  precedent the feature follows.
+  many-contexts shape, and the standing fit check bounds it at the
+  distinct-cpu count of the mask-touching nodes.
 - The binding applies to the allocations the context thread makes
   after the bind; memory another thread allocates follows its own
   policy, and the docs say so beside the binding rules.
