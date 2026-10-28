@@ -25,7 +25,8 @@ taskset -c 0,1 ctest --test-dir build -R harness_precheck --output-on-failure
 ## The pre-check on a real host
 
 ```sh
-./build/example/benchmark_example --filter=bmTouch --jitter-probe=idle,mode=precheck
+./build/example/benchmark_example --filter=bmTouch --threads=2 --placement=compact \
+  --jitter-probe=idle,mode=precheck
 ```
 
 Expected: the pre-check block prints before the benchmark tables,
@@ -37,7 +38,8 @@ planned cpu with its gap rate, lowest first; the exit status is 0
 ## The strict refusal
 
 ```sh
-./build/example/benchmark_example --filter=bmTouch \
+./build/example/benchmark_example --filter=bmTouch --threads=2 \
+  --placement=compact \
   --jitter-probe=idle,mode=precheck,strict,threshold=1
 ```
 
@@ -50,7 +52,8 @@ tables.
 ## The serial shape
 
 ```sh
-./build/example/benchmark_example --filter=bmTouch \
+./build/example/benchmark_example --filter=bmTouch --threads=2 \
+  --placement=compact \
   --jitter-probe=idle,mode=precheck,precheck=serial
 ```
 
@@ -61,9 +64,12 @@ order ([contracts/cli-options.md](./contracts/cli-options.md)).
 ## The usage errors
 
 ```sh
-./build/example/benchmark_example --filter=bmTouch --jitter-probe=idle,mode=precheck,precheck=searial
-./build/example/benchmark_example --filter=bmTouch --jitter-probe=idle,mode=precheck,precheck=0
-./build/example/benchmark_example --filter=bmTouch --jitter-probe=idle,mode=precheck,precheck=4294967296
+./build/example/benchmark_example --filter=bmTouch --threads=2 --placement=compact \
+  --jitter-probe=idle,mode=precheck,precheck=searial
+./build/example/benchmark_example --filter=bmTouch --threads=2 --placement=compact \
+  --jitter-probe=idle,mode=precheck,precheck=0
+./build/example/benchmark_example --filter=bmTouch --threads=2 --placement=compact \
+  --jitter-probe=idle,mode=precheck,precheck=4294967296
 ```
 
 Each prints one line naming the value and exits 2 (spec FR-003).
@@ -71,7 +77,8 @@ Each prints one line naming the value and exits 2 (spec FR-003).
 ## The JSON round trip
 
 ```sh
-./build/example/benchmark_example --filter=bmTouch \
+./build/example/benchmark_example --filter=bmTouch --threads=2 \
+  --placement=compact \
   --jitter-probe=idle,mode=precheck --json=/tmp/precheck.json
 python3 -c 'import json; d=json.load(open("/tmp/precheck.json")); print(list(d))'
 ctest --test-dir build -R 'harness_precheck|harness_json_load' --output-on-failure
