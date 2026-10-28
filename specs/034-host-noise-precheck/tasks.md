@@ -337,7 +337,7 @@ and the code stand one fact.
   record the commands, the exit codes and the figures under
   `specs/034-host-noise-precheck/results/` (X.4, SC-001 to SC-007)
   (depends on T024, T025, T026, T027, T028)
-- [ ] T030 Verify every new commit carries the commit template footer
+- [X] T030 Verify every new commit carries the commit template footer
   (`Refs: specs/034-host-noise-precheck`, then `Approved-by:`), passes
   `prose-lint`, and names no person, no host and no acceptance
   wording in a file (Pull Request Quality, XI, the file-hygiene rule
@@ -349,14 +349,14 @@ and the code stand one fact.
 
 **Purpose**: the closing evidence the lane lands with.
 
-- [ ] T031 Read the CI run of the pushed head end to end: every job
+- [X] T031 Read the CI run of the pushed head end to end: every job
   green (`lint`, `test`, `test-rocky`, `sanitize`, `tsan`,
   `static-analysis`, `coverage`, `dbc-gate`, `prose-lint`,
   `shared-audit`, `downstream-consumer`), the coverage figures read
   100.0% lines and 100.0% branches, and the run reference stands
   recorded beside the acceptance evidence (SC-001 to SC-008) (depends
   on T030)
-- [ ] T032 Re-check the constitution table of [plan.md](./plan.md)
+- [X] T032 Re-check the constitution table of [plan.md](./plan.md)
   against the landed tree: every gate stands as the table states it,
   the Complexity Tracking table stands empty, and the record stands
   in the pull-request body (constitution Governance) (depends on
