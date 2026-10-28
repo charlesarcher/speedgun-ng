@@ -1710,6 +1710,11 @@ hunt_rank: promoted cpu/hunt_loads
 hunt_rank: 2 addresses for --counter=@culprits.txt
 ```
 
+The last three lines are the example's own. It hands its ranked record to
+`toCounterSet`, which answers the ranked addresses, at most `--hunt-top` of them,
+best first. A later run reads such lines back as report columns through
+`--counter=@<file>`.
+
 ### Selecting events
 
 `--hunt` reads its value in the attached form: `--hunt=all`. A space between
@@ -1845,7 +1850,8 @@ gave, `repeats=2 of 3`; the word `unpriced` for a stage no calibration figure
 prices; or `repeats=1 over-budget` for a budget that fits below one repeat. A
 derived count the rule already gave moved nothing, so it prints no line. The
 groups line gives the sizes the cap split out of the plan, in plan order,
-`sizes=32,10`. A plan the cap left whole prints no groups line.
+`sizes=32,10`. A plan that settled `PASSES` opens no group and prints no groups
+line, and a cap that covers the whole plan leaves one group of it.
 
 A host that refuses every event prints the plan line, the skipped list and the
 summary with `events=0/N`, and the run ends with status 0. A group open that
@@ -1919,8 +1925,8 @@ overrun.
 A `g` clause bounds one multiplex group. A plan that settled `MULTIPLEX` splits
 its planned addresses into consecutive groups of at most that count, in plan
 order, and one pass opens one group: 200 events at `32g` give 32 six times and
-8. A `PASSES` plan carries no groups, and a plan the cap leaves whole keeps the
-one window of the standing multiplex shape.
+8. A `PASSES` plan carries no groups, and a cap that covers the whole plan
+leaves one group holding every event.
 
 ### The stated collection method
 
@@ -1982,7 +1988,9 @@ and the anchors, and `rankEvents(collected, options, method)` ranks samples the
 caller already holds under the method it hands. None of the three opens a
 window: every time and count figure in their records comes from an argument.
 `EventCatalog` expands a selection text against the catalog and splits it into
-the events to plan and the events discovery refused.
+the events to plan and the events discovery refused. `EntryHunt::toCounterSet`
+answers the ranked addresses of one entry, best first, at most `topN` of them:
+the set a later run reads back through `--counter=@<file>`.
 
 ### The names
 
