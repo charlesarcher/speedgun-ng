@@ -104,7 +104,8 @@ stand in Decisions as D-1 to D-7.
   the NPS tests are N12) and
   `specs/025-topology-placement/contracts/cli-placement.md:50` (no
   memory node appears in the listing). This spec amends the listing
-  contract line and no other standing rule (D-3).
+  contract line, the standing exit-status table beside it, and no
+  other standing rule (D-3, FR-013, FR-014).
 - The timing-margin record stands at
   `specs/032-fix-merged-features/results/record.md`: a test bound
   that walks near the sanitizer's own load reads flaky, and a bound
@@ -116,7 +117,8 @@ stand in Decisions as D-1 to D-7.
 - The preset names, the fit check and the listing rules stand in
   `specs/025-topology-placement/contracts/cli-placement.md` and
   `contracts/topology-placement.md`; this spec amends the
-  no-memory-node scope line and no other standing rule.
+  no-memory-node scope line, the listing rule row beside it, and the
+  exit-status table, and no other standing rule.
 - The pre-check block and the `proc_root` seam of spec 034 stand
   beside the placement disclosure and stay unchanged.
 - The hwloc dependency is vendored and pinned; the lane adds no

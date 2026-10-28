@@ -18,14 +18,14 @@ prose gate reads none of them. The contract details stand in
 
 | Scenario | Command | Exit | Expected |
 | --- | --- | --- | --- |
-| The listing names the nodes | `./build/speedgun-ng --topology` | 0 | one line per node under the L3 lines, in the read's node order |
-| The node plan binds and discloses | `./build/speedgun-ng --placement=node --benchmark family=threads --benchmark_context=2` | 0 | each context row's placement field reads `cpu@group@node` |
-| The unbound run stands unchanged | the standing run with `--placement=l3` | 0 | the placement fields read `cpu@group`, no node tail |
-| An unknown preset refuses | `./build/speedgun-ng --placement=nodes` | 2 | one line, the standing unknown-preset refusal |
+| The listing names the nodes | `./build/example/docs_topology_placement --topology` | 0 | one line per node under the L3 lines, in the read's node order |
+| The node plan binds and discloses | `./build/example/docs_numa_placement --placement=node` | 0 | each context row's placement field reads `cpu@group@node` |
+| The unbound paths stand unchanged | `ctest --test-dir build -R harness_numa_placement_test` | 0 | the byte-identity and no-node-tail scenarios stand green |
+| An unknown preset refuses | `./build/example/docs_numa_placement --placement=nodes` | 2 | one line, the standing unknown-preset refusal |
 | The node plan over no memory information | in the suite, through the injected read | 2 | one line, exit status 2, no context starts |
 | A denied bind refuses | in the suite, through the fake binder | 2 | one line naming the context and the node, no benchmark output |
 | The round trip holds | `ctest --test-dir build -R harness_json` | 0 | the written and reloaded documents compare equal |
-| The example folds | `ctest --test-dir build -R report_shape_numa` | 0 | the recorded block folds equal against the binary's own run |
+| The example folds | `ctest --test-dir build -R report_shape_numa_sample` | 0 | the recorded block folds equal against the binary's own run |
 
 ## The suite
 
