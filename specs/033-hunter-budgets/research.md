@@ -33,8 +33,10 @@ XI.7's one-term rule).
 
 ## D-2 Sample-budget arithmetic
 
-**Decision**: `stageRepeats = min(requested, max(1, floor(sampleNs /
-(calibrationNsPerPass × passesOfStage))))`; the result re-prices the
+**Decision**: `stageRepeats = min(stageRule, max(1, floor(sampleNs /
+(calibrationNsPerPass × passRuns(plan, stage)))))`; `stageRule`
+is 1 at stage 1 of a budgeted plan and `options.repeats`
+elsewhere. the result re-prices the
 estimate and feeds the standing stage-drop decision.
 
 **Rationale**: the divisor is the standing calibration

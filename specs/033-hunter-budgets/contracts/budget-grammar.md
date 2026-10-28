@@ -12,6 +12,8 @@ letter; the three option sources keep whole-row replacement.
 <count>   := whole number, digits alone, above 0 (s, p: above 0; g: 1 to 10000)
 <seconds> := finite decimal seconds above zero, fraction allowed, at most
              kMaxWholeSeconds whole seconds, nothing below one nanosecond
+             (the parseSeconds rule hoisted into detail/options.hpp and
+             shared by both parsers)
 ```
 
 | Clause | Meaning | Unit kept | Standing rule |
@@ -43,12 +45,13 @@ The refusal keeps the standing sentence family
 
 ## Derived behavior (plan-side, FR-001 to FR-005)
 
-- Stage repeats: `min(requested, max(1, floor(sampleNs /
-  (calibrationNsPerPass × passesOfStage))))` when a figure prices
+- Stage repeats: `min(stageRule, max(1, floor(sampleNs /
+  (calibrationNsPerPass × passRuns(plan, stage)))))`, `stageRule`
+  the stage's own rule count when a figure prices
   the stage.
 - Estimate: re-priced from the derived repeats before the standing
   stage-drop decision.
-- No figure: requested repeats stand; the record says `unpriced`.
+- No figure: the stage rule repeats stand; the record says `unpriced`.
 - Fit below one: one repeat; the record says the overrun.
 - Group split (`MULTIPLEX` only): consecutive groups of at most `g`
   addresses in plan order; `PASSES` plans carry no groups.
