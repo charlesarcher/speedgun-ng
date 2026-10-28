@@ -193,18 +193,23 @@ run refuses one line, exit status 2, with no benchmark output.
 ### Tests for User Story 3 (write first, observe failure)
 
 - [ ] T015 [P] [US3] Write the failing refusal tests in
-  `test/source/harness_numa_placement_test.cpp`: a denied bind on a
-  planned context refuses one line naming the context and the node
-  before any benchmark output; the `node` preset over a read with no
-  memory information refuses one line before any context starts; the
-  standing unfittable-count refusal covers the node plan
+  `test/source/harness_numa_placement_test.cpp`: the eager validation
+  pass binds and restores each distinct planned node before the
+  contexts spawn, and a denial in that pass refuses one line naming
+  the node ahead of every context; a bind that fails at a context
+  start stands the same refusal; the `node` preset over a read with
+  no memory information refuses one line before any context starts;
+  the standing unfittable-count refusal covers the node plan
   (FR-013, FR-014, FR-015, D-4, R-07, R-10)
 
 ### Implementation for User Story 3
 
-- [ ] T016 [US3] Wire the refusal paths: the context start turns a
-  failed bind beside the standing pin-failure account path at
-  `execution_context.cpp:440` into the one-line status-2 refusal, and
+- [ ] T016 [US3] Wire the refusal paths: the run validates the
+  binding before the contexts spawn, the main thread binding and
+  restoring each distinct planned node through the seam, a denial
+  printing the one-line status-2 refusal ahead of every context; the
+  context start turns a failed bind beside the standing pin-failure
+  account path at `execution_context.cpp:440` into the same refusal;
   the preset resolution refuses the no-memory-information case beside
   the standing unfittable-count refusal at `placement_preset.cpp:498`
   (FR-013, FR-014, D-4, R-07, R-10) (depends on T012, T014, T015; the

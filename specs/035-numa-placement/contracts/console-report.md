@@ -19,7 +19,7 @@ The field composes from the layout the run reads
 | --- | --- |
 | The node stands last, joined by the same `@` separator, named by the number the hwloc read states. | FR-011 |
 | The field carries no new key in the JSON context object; the schema minor stays `1.6`. | FR-004, D-5 |
-| A run with no node preset keeps every field byte-identical to master apart from the `schemaVersion` value. | FR-002 |
+| A run with no node preset keeps every field byte-identical to master apart from the version figures the report carries. | FR-002 |
 
 ## Console row
 
@@ -30,9 +30,11 @@ moves.
 ## Example
 
 ```text
-ctx0=SPIN/3/l3@node0
+ctx0=SPIN/3@1@0/applied
 ```
 
-The exact rendering stands beside the standing account words of
-spec 020 (`waitMode`, `applied`); this contract pins the field shape
-alone, and the fixture pairs of the shape gate pin the folded bytes.
+The row reads `ctx<i>=<wait>/<placement field>/<applied flag>`, the
+standing shape of `printContextDisclosure` (`report.cpp:167`), with
+the placement field carrying the node tail; the account words of
+spec 020 stand unchanged, and the fixture pairs of the shape gate pin
+the folded bytes.

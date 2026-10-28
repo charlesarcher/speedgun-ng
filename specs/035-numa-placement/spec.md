@@ -65,7 +65,8 @@ stand in Decisions as D-1 to D-7.
   Threadripper 9960X, 24 cores, 48 threads, one socket, several CCDs
   with one L3 each, 128 GB ECC, and the NPS BIOS setting. The NPS
   runs need a BIOS change and a reboot per setting, so the evidence
-  plan precedes any code (FR-022). The suite itself stays
+  plan stands written before the code tasks that depend on it land
+  (FR-019). The suite itself stays
   host-agnostic: the nodes come from the machine read the placement
   already performs, the binding goes through an injected seam, and
   the suite passes on a 2-cpu single-node host (FR-019). The request
@@ -183,13 +184,20 @@ stand in Decisions as D-1 to D-7.
   jitter probe's measurement windows run before any context starts
   and keep the standing memory policy the process carries. A binding
   the system denies is a usage error: one line naming the context
-  and the node, exit status 2, before any benchmark starts.
+  and the node, exit status 2, before any benchmark starts. The run
+  validates the binding before the contexts spawn: the main thread
+  binds to each distinct planned node and restores the policy it
+  carried, one pass over the plan, so a denial the host will state
+  stands refused ahead of every context; a bind that fails at a
+  context start despite the validation stands the same refusal
+  path.
 - **D-5 The disclosure rides the standing placement field.** The
   placement field of each context carries the node beside the group
   where the plan binds one, console and JSON, with no new key; the
   schema minor stays `1.6`. A run with no node preset gives the same
-  console report and the same JSON bytes apart from the
-  `schemaVersion` value.
+  console report and the same JSON bytes apart from the version
+  figures the report carries: the report version moves with FR-003,
+  and the schema version stands at `1.6` on both sides.
 - **D-6 No public-ABI change.** The preset names ride the standing
   string grammar, the binding seam is a detail seam, and the
   `PlacementFn` contract stands unchanged. The harness `SOVERSION`
@@ -433,7 +441,9 @@ compiles.
 
 - **FR-013**: A binding the system denies SHALL refuse one line
   naming the context and the node, with exit status 2, before any
-  benchmark starts (D-4).
+  benchmark starts: the run SHALL validate every distinct planned
+  node's bind before the contexts spawn, and a bind that fails at a
+  context start SHALL stand the same refusal (D-4).
 - **FR-014**: A node preset requested over a topology read that
   states no memory information SHALL refuse one line with exit
   status 2, before any context starts.
