@@ -216,11 +216,15 @@ exported-layout check of the harness `SOVERSION` stays untouched.
   translation unit; the tests install a fake that records the node
   the call names and can deny the call. A null installer clears, the
   way `installTestLayout` clears (`topology.cpp:306`).
-- **R-07 (FR-013, D-4)**: a denied bind is a usage error. The seam
-  reports the failure; the context start turns a failed bind on a
-  planned context into one line naming the context and the node, and
-  the run refuses with status 2 before any benchmark starts, beside
-  the standing pin-failure account path (`execution_context.cpp:440`).
+- **R-07 (FR-013, D-4)**: a denied bind is a usage error, and the
+  refusal stands ahead of every context: the run validates the
+  binding before the contexts spawn, the main thread binding to each
+  distinct planned node and restoring the policy it carried, one
+  pass over the plan; a denial in that pass prints one line naming
+  the node and exits 2 before any context starts. A bind that fails
+  at a context start despite the validation turns beside the
+  standing pin-failure account path (`execution_context.cpp:440`)
+  into the same one-line status-2 refusal.
 - **R-08 (FR-011, D-5)**: `placementText` composes the node tail. The
   field reads `cpu@group@node` where the plan binds one and the
   standing `cpu@group` bytes where it does not. The compose reads the
@@ -325,10 +329,13 @@ failing before its code lands.
   the distinct-and-on-node postcondition; the unfittable and
   no-memory-information refusals. Gate: the placement CLI tests.
 - **Wave 3 (the bind and the refusal)**: the fake binder records the
-  node the call names and denies on demand; the bind stands at the
-  context start beside the pin; a denied bind refuses one line,
-  status 2, before any benchmark output; a user-installed
-  `PlacementFn` cannot bypass the bind. Gate: the new executable.
+  node the call names and denies on demand; the eager validation pass
+  binds and restores each distinct planned node before the contexts
+  spawn, and a denial in that pass refuses one line, status 2,
+  ahead of every context; the bind stands at the context start beside
+  the pin; a bind that fails at a start stands the same refusal; a
+  user-installed `PlacementFn` cannot bypass the bind. Gate: the new
+  executable.
 - **Wave 4 (the disclosure)**: `placementText` composes
   `cpu@group@node` for a bound context and the standing bytes for the
   rest; the console row and the JSON field carry it; a run with no
