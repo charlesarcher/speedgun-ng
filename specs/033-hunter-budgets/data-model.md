@@ -1,7 +1,8 @@
 # Data Model: Hunter Budgets and Promotion (033)
 
 Date: 2026-10-28. Extends `specs/029-hunter-core/data-model.md`; the
-029 entities (N-01 to N-08) stand unchanged. Validation rules cite
+029 entities (E-01 to E-11) stand unchanged; 033 numbers its
+own entities N-01 to N-08. Validation rules cite
 the 033 FRs.
 
 ## N-01 Sample budget
@@ -12,7 +13,7 @@ The bound on one event's measurement inside a stage.
 | --- | --- | --- |
 | `sampleBudgetNs` | `std::optional<std::uint64_t>` | whole nanoseconds; parsed from the `e` clause (fractional seconds admitted, FR-004); absent means no bound |
 
-State: absent → the requested repeats stand; present → the derived
+State: absent → the stage rule repeats stand; present → the derived
 count of N-03 applies.
 
 ## N-02 Multiplex cap
@@ -29,13 +30,13 @@ The repeat count the planner derives under the sample budget.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `derivedRepeats` | `std::optional<std::size_t>` | `min(requested, max(1, fit))`, R-02; present exactly when a figure priced the stage (FR-001, FR-002) |
+| `derivedRepeats` | `std::optional<std::size_t>` | `min(stageRule, max(1, fit))`, R-02; present exactly when a figure priced the stage (FR-001, FR-002) |
 
 State transitions (per stage):
 
 ```text
-no sample budget ........................ requested repeats stand
-sample budget, no calibration figure ... requested repeats stand, record: unpriced
+no sample budget ........................ stage rule repeats stand
+sample budget, no calibration figure ... stage rule repeats stand, record: unpriced
 sample budget, fit >= 1 .................. derived repeats, record: derived d of m
 sample budget, fit < 1 ..................... one repeat, record: overrun
 ```

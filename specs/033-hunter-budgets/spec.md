@@ -188,7 +188,8 @@ with the ruling it carries named. The decisions the roadmap and spec
 - `parseHuntBudget` (`source/harness/hunt_cli.cpp:440`) takes `<n>s`
   or `<n>p`, refuses a text with no unit and a count that is not
   above zero, and quotes the whole value in its one line.
-- The JSON writes the budget as the text the option carried, or
+- The JSON writes the budget as the canonical clause text
+rebuilt from the stored value, or
   `null` (`source/harness/json_report.cpp:706-732`); the schema holds
   the type `['string', 'null']`; the reader refuses text with no unit
   and text with no amount, each with its own test
@@ -255,15 +256,17 @@ them. The ruling each decision carries is named beside it.
   measurement of one event takes no more than the budget states. The
   plan derives the stage's repeat count from the calibration estimate
   it already takes as data: the largest count that fits, never below
-  one, at most the requested `--hunt-repeats` (a budget bounds; it
-  buys no extra repeats). The plan reads no clock (spec 029 D-2's
+  one, at most the repeats the stage's own rule gives: one at stage
+  1 of a two-stage plan, `--hunt-repeats` elsewhere (a budget
+  bounds; it buys no extra repeats). A composed two-stage plan
+  owns one derived figure, the stage-2 count. The plan reads no clock (spec 029 D-2's
   rule). The plan line and the report disclose the budget and the
   derived repeats, and the time estimate re-prices from the derived
   figure. When even one repeat exceeds the estimate, the stage runs
   one repeat and the plan discloses the overage: a plan that reads no
   clock promises nothing below one repeat, and a refusal there would
   make the budget unusable on a slow host. When no calibration figure
-  prices the stage, the requested repeats stand and the plan
+  prices the stage, the stage rule repeats stand and the plan
   discloses the unpriced budget.
 - **D-3 The multiplex budget caps each multiplex group.** A plan that
   settles on the `MULTIPLEX` method holds at most the capped count of
@@ -340,7 +343,8 @@ them. The ruling each decision carries is named beside it.
   budgets the run used, console and JSON beside the fields spec 029
   prints. The JSON follows the standing budget text shape (PC-4) with one
   amendment the byte rule needs (FR-022): a field whose budget
-  stands holds the text the option carried, and a field whose budget
+  stands holds the canonical clause text rebuilt from the stored
+  value, and a field whose budget
   does not stand writes no key; the derived plan figures (the sample
   budget's derived repeats, the multiplex group cap and group count)
   stand as numbers when they stand.
@@ -537,7 +541,7 @@ file on a CI runner (SC-008).
 - The multiplex cap and the two-stage budget together: the cap applies
   inside every stage of the split plan.
 - A sample budget with no calibration figure to price the stage: the
-  requested repeats stand and the plan discloses the unpriced budget
+  stage rule repeats stand and the plan discloses the unpriced budget
   (D-2).
 - A budget value that spells one kind twice (`0.5e,2e`), holds an
   empty clause (`120s,,32g`), or carries a clause with no suffix
@@ -558,13 +562,14 @@ file on a CI runner (SC-008).
 - **FR-001**: When a sample budget stands set and a calibration
   figure prices the stage, the planner SHALL derive the stage's
   repeat count as the largest count that measures each event of the
-  stage within the budget, never below one and at most the requested
-  repeats, and SHALL read no clock (D-2).
+  stage within the budget, never below one and at most the repeats
+  the stage's own rule gives (one at stage 1 of a two-stage plan,
+  `--hunt-repeats` elsewhere), and SHALL read no clock (D-2).
 - **FR-002**: The plan line and the report SHALL disclose the sample
   budget and its derived repeats; the time estimate SHALL re-price
   from them. One repeat above the budget SHALL stand with one repeat
   and a disclosed overage; a budget no figure prices SHALL stand with
-  the requested repeats and a disclosure (D-2).
+  the stage rule repeats and a disclosure (D-2).
 - **FR-003**: A plan that settles on the `MULTIPLEX` method SHALL
   hold at most the multiplex budget's count of events in one group,
   SHALL split the planned addresses into consecutive groups of that
@@ -684,10 +689,12 @@ file on a CI runner (SC-008).
 ## Key Entities
 
 - **Sample budget**: the bound on one event's measurement inside a
-  stage, held as the `e` clause text the option carried (for example
+  stage, held as the canonical `e` clause text rebuilt from the
+stored value (for example
   `0.5e`).
 - **Multiplex cap**: the bound on the events one multiplexed group
-  holds, held as the `g` clause text the option carried (for example
+  holds, held as the canonical `g` clause text rebuilt from the
+stored value (for example
   `32g`).
 - **Derived repeats**: the repeat count the planner derives from the
   calibration estimate under the sample budget, with its overage or
@@ -774,7 +781,7 @@ restated where they bind here:
 - The multi-entry union default (D-6) reads the common single-benchmark
   hunt unambiguously; a batch hunt hands every entry's culprits to the
   next run.
-- The sample budget bounds: it caps the requested repeats and buys no
+- The sample budget bounds: it caps the stage's own rule repeats and buys no
   extra (D-2).
 - Roadmap 12.5's `HuntResult` re-anchors to master's `EntryHunt`
   (D-7).

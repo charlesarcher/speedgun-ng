@@ -54,9 +54,9 @@ ctest --test-dir build -R hunt_cli_test -V
 On a real host the same pair runs as:
 
 ```sh
-./build/<harness-binary> --hunt=all --hunt-budget=120s,0.5e,32g \
-    --hunt-emit-set=culprits.txt
-./build/<harness-binary> --counter=@culprits.txt
+./build/example/docs_throughput --filter=<one instance> \
+    --hunt=all --hunt-budget=120s,0.5e,32g --hunt-emit-set=culprits.txt
+./build/example/docs_throughput --filter=<one instance> --counter=@culprits.txt
 ```
 
 ## Zen 5 acceptance (gary, FR-045)
@@ -66,10 +66,10 @@ spec 034 shape (scenario, command, exit, observation):
 
 | Scenario | Command | Exit | Observation |
 | --- | --- | --- | --- |
-| Budgeted hunt | `./speedgun --hunt=all --hunt-budget=120s,0.5e,32g ...` | 0 | plan line names `budget= sample= mux=`; disclosure lines print |
+| Budgeted hunt | `./build/example/docs_throughput --filter=<one> --hunt=all --hunt-budget=120s,0.5e,32g ...` | 0 | plan line names `budget= sample= mux=`; disclosure lines print |
 | Emitted set | same run, `--hunt-emit-set=culprits.txt` | 0 | file holds the ranked addresses, best first |
-| Read back | `./speedgun --counter=@culprits.txt ...` | 0 | one counter column per address, none `ABSENT` |
-| Conflict | `./speedgun --hunt-emit-set=x.txt` | 2 | one line naming the value |
+| Read back | `./build/example/docs_throughput --filter=<one> --counter=@culprits.txt ...` | 0 | one counter column per address, none `ABSENT` |
+| Conflict | `./build/example/docs_throughput --hunt-emit-set=x.txt` | 2 | one line naming the value |
 
 No Intel run stands recorded (corsairone down; the record says so).
 

@@ -13,7 +13,7 @@ parse (spec 029 D-2 untouched), `e` names the sample budget in
 seconds with fractions, `g` names the multiplex cap as a whole count
 1 to 10000. The planner derives a stage's repeats from the
 calibration figure it already takes as data (largest fit, floor one,
-cap at the requested repeats) and caps each multiplex group at the
+cap at the stage's rule repeats) and caps each multiplex group at the
 `g` count, splitting a capped `MULTIPLEX` plan into consecutive
 groups in plan order; every derived figure discloses on the plan line
 and in the JSON. `--hunt-emit-set=<file>` (option value 280) writes
@@ -96,7 +96,7 @@ design.*
 | I. Standard-first | C++23 only; no P0 critical-path claim (the planner runs once per stage, outside every timed window); standard parsing and file interfaces, no compiler extension | PASS |
 | II. Design by contract | `toCounterSet` carries `\pre`/`\post` in the house form; `HuntOptions` fields keep the struct's invariant sentence; internal helpers carry `SG_REQUIRE`/`SG_ENSURE` one-for-one with doc lines (dbc-gate); contract refusals stay recoverable errors, the usage refusals stay the CLI's exit-2 route | PASS |
 | III. R-DCUT | FR-001 to FR-045 map to the decisions R-01 to R-16 below and to `tasks.md`; TDD mode recorded above | PASS |
-| IV. Documentation | README `Hunter mode` growth stays within `SECTION_LINE_CAP` (IV.1); `docs/pages/harness.md` carries the clause grammar, the option row and the four JSON fields; the example region and quick-reference rows move in the same change (FR-030, FR-031) | PASS |
+| IV. Documentation | README `Hunter mode` growth stays within `SECTION_LINE_CAP` (IV.1); the README Option table gains the `--hunt-emit-set` row (drift gate); `docs/pages/harness.md` carries the clause grammar, the option row and the four JSON fields; the example region and quick-reference rows move in the same change (FR-030, FR-031) | PASS |
 | V. Style | new names follow V.1: `kHuntEmitSetOption`, `sampleBudgetNs`, `multiplexCap`, `muxGroups`, `readAddressFileLines`, lower_case files; clang-format at the feature head | PASS |
 | VI. Coverage | every clause kind, refusal, derived-repeat branch, group-split size, emit composition case and JSON presence branch runs under scripted data; 100% line and branch, no exclusion (FR-041) | PASS |
 | VII. Performance | the derivation is integer arithmetic on data the plan already holds; the group split is one linear pass over the planned addresses; no benchmark baseline is claimed | PASS |
@@ -169,7 +169,9 @@ source/harness/
 docs/schema/report-v1.json    + sample_budget, multiplex_cap,
                                 derived_repeats, mux_groups;
                                 x-order moves in the same commit
-README.md                     Hunter mode growth (≤ 25-line section)
+README.md                     Hunter mode growth (≤ 25-line
+│                               section); the Option table gains the
+│                               --hunt-emit-set row
 docs/pages/harness.md         clause grammar, option row, field rows
 example/docs/hunt_rank.cpp    extended to print a promoted set from a
                               scripted ranked record; .expected re-recorded
@@ -208,8 +210,10 @@ selection read one grammar from one place.
   clause parses exactly as before. (contracts/budget-grammar.md)
 - **R-02 Derived repeats (FR-001, FR-002).** In `splitStages`, when
   `sampleBudgetNs` and the calibration figure stand, the stage repeat
-  count becomes `min(requested, max(1, sampleBudgetNs /
-  (calibrationNsPerPass × passRuns(plan, stage)))`; the
+  count becomes `min(stageRule, max(1,
+  sampleBudgetNs / (calibrationNsPerPass × passRuns(plan,
+  stage))))`, `stageRule` being the stage's own rule figure (1 at
+  stage 1 of a budgeted plan, `options.repeats` elsewhere); the
   per-repeat, per-stage figure is the standing calibration term
   against the stage's own window count: `calibrationNsPerPass` (the
   estimate's term, `hunt_plan.cpp:204`) times `passRuns(plan,
@@ -258,8 +262,11 @@ selection read one grammar from one place.
   (`cli.cpp:524`) grows: an emit path with no hunt (including
   `--hunt=none`) leaves one line naming the value with exit 2. An
   unwritable destination prints the standing report-file sentence
-  (`json_report.cpp:1042` shape: path, reason from `errno`) and sets
-  status 2 exactly as the report failure does (`cli.cpp:1540`).
+  (`json_report.cpp:1042` shape: path, reason from `errno`) and raises
+  a named emit-failed flag that joins the status postcondition's
+  disjunction at `cli.cpp:1544` (its doc line moves with it);
+  status 2 follows the flag, as `reportFailed` does
+  (`cli.cpp:1540`).
 - **R-09 The counter `@`-form (FR-014).** The list-file reader moves
   from `hunt_cli.cpp` to
   `detail::readAddressFileLines(path, refusalContext)`; the hunt
@@ -293,9 +300,10 @@ selection read one grammar from one place.
   gains the four properties and the moved `x-order` in the same
   commit; `required` keeps the standing sixteen (a pre-1.7 hunt
   document must stay valid and loadable).
-- **R-12 The JSON reader (FR-021).** `readHunt` extends the key list
-  and the `at` indexes; the four new keys read as absent-by-default:
-  missing stands unset, present must match the kind. The `e` reader
+- **R-12 The JSON reader (FR-021).** `readHunt` keeps the standing sixteen
+  in the key list; the four new keys read through `optionalField`
+  (`json_load.cpp:85`): missing stands unset, present must match
+  the kind. The `e` reader
   reuses the `asBudget` refusal shape with the `e` suffix (one test
   per refused code); the `g` reader keeps the whole-count shape.
   Round-trip equality is FR-021's test.

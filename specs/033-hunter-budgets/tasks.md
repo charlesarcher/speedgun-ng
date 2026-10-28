@@ -142,8 +142,10 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
 - [ ] T010 [US1] Implement `writeHuntEmitSet` in
   `source/harness/hunt_cli.cpp` (per entry `toCounterSet(options.top)`;
   the deduplicated union, entry order then rank order; one address
-  per line; the standing report-file failure sentence and status 2 on
-  an unwritable destination) and call it from `source/harness/cli.cpp`
+  per line; on an unwritable destination the standing report-file
+  failure sentence and a named emit-failed flag that joins the
+  `cli.cpp:1544` postcondition's disjunction) and call it from
+  `source/harness/cli.cpp`
   after the batch beside the `writeReport` call, guarded by the
   settled path; the tests of T006 turn green (FR-011, FR-012, R-07)
   (depends on T008, T009)
@@ -187,12 +189,14 @@ fixtures close SC-002 and SC-005 with no clock.
 - [ ] T014 [P] [US2] Write the failing planner tests in
   `test/source/harness_hunt_plan_test.cpp`: with a fixed estimate and
   seed the derived repeats equal
-  `min(requested, max(1, floor(sampleNs / (calibrationNsPerPass ×
-  passRuns(plan, stage)))))`; the estimate re-prices from the derived count;
+  `min(stageRule, max(1, floor(sampleNs / (calibrationNsPerPass ×
+  passRuns(plan, stage)))))` (`stageRule`: the stage's own rule
+  figure, 1 at stage 1 of a budgeted plan, `options.repeats`
+  elsewhere); the estimate re-prices from the derived count;
   the standing stage-drop decision reads the re-priced figure and
   keeps its `over-budget` cut line; a budget below one repeat's
   estimate keeps one repeat and records the overrun; no calibration
-  figure keeps the requested repeats and records the unpriced state;
+  figure keeps the stage rule repeats and records the unpriced state;
   composed with the two-stage budget: stage 1 stays one repeat, stage
   2 takes the derived count; the derivation reads no clock (FR-001,
   FR-002, FR-005, R-02, R-03, R-05; data-model N-03 state table)
@@ -226,10 +230,13 @@ fixtures close SC-002 and SC-005 with no clock.
   `HuntOptions` in `include/speedgun-ng/hunt.hpp` with its contract
   line, and grow `parseHuntBudget` in `source/harness/hunt_cli.cpp`
   to the clause loop: split on `,`, each kind at most once, any
-  order; `s`/`p` keep the standing whole-count rule; `e` reads
-  through the `parseSeconds` shape (finite seconds above zero,
-  fraction allowed, nothing below one nanosecond, at most
-  `kMaxWholeSeconds`) into whole nanoseconds; every refusal quotes
+  order; `s`/`p` keep the standing whole-count rule; `e` reads through the
+  `parseSeconds` rule hoisted, with `kMaxWholeSeconds`, into
+  `source/harness/detail/options.hpp` beside the hunt constants
+  (from `options.cpp:138-141`, `:244-275`), so both parsers share
+  one bound (finite seconds above zero, fraction allowed, nothing
+  below one nanosecond, at most `kMaxWholeSeconds`) into whole
+  nanoseconds; every refusal quotes
   the whole value; structure the loop so the `g` clause joins in US3
   without a rewrite; the tests of T015 turn green (FR-004, R-01)
   (depends on T015)
@@ -255,9 +262,11 @@ fixtures close SC-002 and SC-005 with no clock.
   `source/harness/json_report.cpp` appends `sample_budget` and
   `derived_repeats` after `stage_two_events` with conditional
   presence (written only when set); `readHunt` in
-  `source/harness/json_load.cpp` extends the key list and the `at`
-  indexes, reads the two keys absent-by-default with the `e`-text
-  reader in the `asBudget` refusal family and one test per refusal
+  `source/harness/json_load.cpp` keeps the standing sixteen in
+  the key list and reads the two new keys through `optionalField`
+  (`source/harness/json_load.cpp:85`): missing stands unset, a
+  present key keeps its kind refusal, with the `e`-text reader in
+  the `asBudget` refusal family and one test per refusal
   code (hard rule 7);
   `docs/schema/report-v1.json` gains the two properties, the moved
   `x-order`, and `required` keeps the standing sixteen;
@@ -351,8 +360,10 @@ section within 25 lines, and the extended example matches its
 
 - [ ] T026 [P] [US4] Grow the "Hunter mode" section of `README.md`
   within `SECTION_LINE_CAP` (25 lines total, `tools/docs/example_drift.py:195`)
-  with the quick-reference rows, and move the option table and field
-  rows in `docs/pages/harness.md`: the clause grammar
+  with the quick-reference rows, gives the `README.md` Option table
+  its `--hunt-emit-set` row (the drift gate demands a row per long
+  option), and moves the option table and field rows in
+  `docs/pages/harness.md`: the clause grammar
   (`contracts/budget-grammar.md` table), the `--hunt-emit-set` row,
   the `--counter=@<file>` rows, and the four JSON fields
   (`contracts/hunt-json.md` rows) (FR-030, IV.1, R-14)
@@ -396,7 +407,8 @@ section within 25 lines, and the extended example matches its
   name-check; `harness_cli_table_test` stands green with value 280
   unique (VIII, FR-044)
 - [ ] T032 Run the gary acceptance and record it: the budgeted
-  `--hunt=all` run, the emitted file, the `--counter=@` read-back,
+  `--hunt=all` run on `example/docs_throughput` (one `--filter`ed
+  instance, the 029 gary-record form), the emitted file, the `--counter=@` read-back,
   and the conflict refusal land in a scenario/command/exit/observation
   table in `specs/033-hunter-budgets/results/` in the spec 034
   shape; the record states the standing no-Intel fact (FR-045, SC-009, R-16, D-11,
