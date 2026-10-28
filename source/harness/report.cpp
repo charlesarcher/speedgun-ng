@@ -850,8 +850,8 @@ auto printHuntSampleLine(const sg::hunt::RunHunt& run) -> void
 
 // specs/033 FR-003, FR-023, R-10, N-04, N-06: the one multiplex-cap disclosure
 // line, the groups the cap split out of the plan in plan order, joined by
-// commas. A `PASSES` settlement and a plan the cap left whole hold no group, so
-// neither prints a line.
+// commas. A `PASSES` settlement holds no group and prints no line; a cap that
+// covers the whole plan leaves the one group of it.
 auto printHuntMuxLine(const sg::hunt::RunHunt& run) -> void
 {
   if (run.muxGroups.empty()) {
