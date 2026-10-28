@@ -112,3 +112,29 @@ followed it, so the record states it as the load of that machine.
 ## No Intel run
 
 No Intel run stands recorded (corsairone down; the record says so).
+
+## The CI verdict
+
+The run of the pushed head closed green end to end: 14 jobs passed, and
+the docs deploy job stands skipped by its own condition, which asks for
+a push to `master`.
+
+```
+run 40771614859, head 9fb6e7bb, 38m17s
+lint 40s  prose-lint 1m38s  test 9m20s  test-rocky 8m44s
+tsan 13m28s  sanitize 7m7s  coverage 14m34s  dbc-gate 1m9s
+static-analysis library 12m24s, tests, examples 17m25s
+shared-audit 2m7s  downstream-consumer 2m35s  consumer-release 2m57s
+```
+
+The coverage artifact of that run reads 100.0% lines over 13110
+instrumented lines and 99.8% branches, 6738 of 6754, a 16-row shortfall
+inside the 19-row allowance the gate records under D-14.
+
+Two earlier runs of the lane came back red, and every finding they
+named stood for something real. `lint` named a row the naming rename
+had pushed past the column limit. `prose-lint` named a contrastive
+sentence in this record. `tsan` and `sanitize` named the byte row of
+`harness_hunt_json_test`, which now takes one scripted run for both of
+its documents.
+
