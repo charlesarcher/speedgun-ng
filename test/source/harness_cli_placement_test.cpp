@@ -47,6 +47,20 @@
 //                       description prints one line and exits 2 (Q-6)
 //   topoFilter          `--topology` with a filter matching nothing
 //                       still prints the listing and exits 0 (FR-036)
+//   nodeName            `--placement=node` stands accepted, the
+//                       one-context grammar run (specs/035 FR-001)
+//   nodeUnknown         `nodes`, `NODE` and `node=` stand refused by
+//                       the standing unknown-name refusal (specs/035
+//                       FR-015)
+//   nodeHandle          the handle name `node` stands accepted
+//                       (specs/035 FR-001)
+//   topoNodes           the node lines stand under the L3 lines in the
+//                       read's node order (specs/035 T013, FR-006)
+//   topoNodeExcluded    a node the mask excludes prints no line
+//                       (specs/035 T013, FR-006)
+//   topoNodeNoMemory    a read with no memory information prints
+//                       `node: not available` alone (specs/035 T013,
+//                       FR-007)
 // ============================================================================
 
 #include <algorithm>
@@ -164,6 +178,42 @@ auto bmCliTopoFilter(sg::State& state) -> void
   }
 }
 
+auto bmCliNodeName(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmCliNodeUnknown(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmCliNodeHandle(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmCliTopoNodes(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmCliTopoNodeExcluded(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmCliTopoNodeNoMemory(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
 // Each child registers exactly the benchmark its scenario filters for, so
 // a stop line can only come from the input that scenario names (FR-015,
 // FR-016).
@@ -199,13 +249,13 @@ auto setupUnknownFlag() -> void
   (void)sg::registerBenchmark(&bmCliUnknownFlag, "bmCliUnknownFlag");
 }
 
-// The four-group, 24-core, 48-thread layout of SC-04, installed in the
-// child so the fit check and the listing answer the counts the
-// scenarios read (FR-018, FR-036).
-auto installFourGroupShape() -> void
+// The four-group, 24-core, 48-thread layout of SC-04, so the fit check
+// and the listing answer the counts the scenarios read (FR-018, FR-036).
+auto fourGroupShape(bool withNodes) -> sg::detail::MachineLayout
 {
   sg::detail::MachineLayout installed;
   installed.readable = true;
+  installed.memoryReadable = withNodes;
   installed.packages = 1;
   for (std::uint32_t group = 0; group < 4; ++group) {
     for (std::uint32_t core = 0; core < 6; ++core) {
@@ -230,6 +280,58 @@ auto installFourGroupShape() -> void
       layoutGroup.cores.push_back(group * 6 + core);
     }
     installed.groups.push_back(layoutGroup);
+  }
+  // specs/035 FR-005: node 0 holds groups 0 and 1, node 1 holds groups
+  // 2 and 3, the cpus the read states unfiltered.
+  for (std::uint32_t node = 0; withNodes && node < 2; ++node) {
+    sg::detail::LayoutNode layoutNode;
+    layoutNode.number = node;
+    for (std::uint32_t cpu = node * 24; cpu < (node + 1) * 24; ++cpu) {
+      layoutNode.cpus.push_back(cpu);
+    }
+    installed.nodes.push_back(layoutNode);
+  }
+  return installed;
+}
+
+auto installFourGroupShape() -> void
+{
+  sg::detail::installTestLayout(fourGroupShape(false));
+}
+
+// The same shape with the two memory nodes the node lines read
+// (specs/035 T013, FR-006).
+auto installFourGroupShapeWithNodes() -> void
+{
+  sg::detail::installTestLayout(fourGroupShape(true));
+}
+
+// The two-node shape whose mask holds node 0's cpus alone, so node 1
+// prints no line the way the L3 group it holds prints none (specs/035
+// T013, FR-006).
+auto installTwoNodeShapeNarrowMask() -> void
+{
+  sg::detail::MachineLayout installed;
+  installed.readable = true;
+  installed.memoryReadable = true;
+  installed.packages = 1;
+  for (const auto cpu : {0U, 1U}) {
+    sg::detail::LayoutThread thread;
+    thread.cpuIndex = cpu;
+    thread.coreOrdinal = cpu;
+    thread.groupOrdinal = 0;
+    installed.threads.push_back(thread);
+    installed.mask.push_back(cpu);
+  }
+  sg::detail::LayoutGroup layoutGroup;
+  layoutGroup.lowestCpu = 0;
+  layoutGroup.cores = {0, 1};
+  installed.groups.push_back(layoutGroup);
+  for (std::uint32_t node = 0; node < 2; ++node) {
+    sg::detail::LayoutNode layoutNode;
+    layoutNode.number = node;
+    layoutNode.cpus = {node * 2, static_cast<std::uint32_t>(node * 2 + 1)};
+    installed.nodes.push_back(layoutNode);
   }
   sg::detail::installTestLayout(installed);
 }
@@ -292,6 +394,42 @@ auto setupSingleCtxUnreadable() -> void
 auto setupTopoFilter() -> void
 {
   (void)sg::registerBenchmark(&bmCliTopoFilter, "bmCliTopoFilter");
+}
+
+auto setupNodeName() -> void
+{
+  (void)sg::registerBenchmark(&bmCliNodeName, "bmCliNodeName");
+}
+
+auto setupNodeUnknown() -> void
+{
+  (void)sg::registerBenchmark(&bmCliNodeUnknown, "bmCliNodeUnknown");
+}
+
+auto setupNodeHandle() -> void
+{
+  auto handle = sg::registerBenchmark(&bmCliNodeHandle, "bmCliNodeHandle");
+  handle.threads(1).placement("node");
+}
+
+auto setupTopoNodes() -> void
+{
+  installFourGroupShapeWithNodes();
+  (void)sg::registerBenchmark(&bmCliTopoNodes, "bmCliTopoNodes");
+}
+
+auto setupTopoNodeExcluded() -> void
+{
+  installTwoNodeShapeNarrowMask();
+  (void)sg::registerBenchmark(&bmCliTopoNodeExcluded,
+                              "bmCliTopoNodeExcluded");
+}
+
+auto setupTopoNodeNoMemory() -> void
+{
+  installFourGroupShape();
+  (void)sg::registerBenchmark(&bmCliTopoNodeNoMemory,
+                              "bmCliTopoNodeNoMemory");
 }
 
 auto readFile(const std::string& path) -> std::string
@@ -613,6 +751,108 @@ auto scenarioTopoFilter() -> int
   return 0;
 }
 
+// specs/035 FR-001: the name `node` stands accepted from the command
+// line; a one-context run takes no plan and no bind, so the grammar
+// alone stands here.
+auto scenarioNodeName() -> int
+{
+  const Captured run = runChild("nodeName",
+                                {"--placement=node", "--filter",
+                                 "^bmCliNodeName$"},
+                                &setupNodeName);
+  check(run.status == 0, "the name node exits 0 (FR-001)");
+  check(run.out.find("bmCliNodeName") != std::string::npos,
+        "the benchmark ran (FR-001)");
+  return 0;
+}
+
+// specs/035 FR-015: the standing unknown-name refusal covers the near
+// names the node grammar invites, matched in full and nothing else.
+auto scenarioNodeUnknown() -> int
+{
+  for (const auto* value : {"nodes", "NODE", "node="}) {
+    const std::string mode = std::string("nodeUnknown-") + value;
+    const std::string option = std::string("--placement=") + value;
+    const Captured run = runChild(mode.c_str(),
+                                  {option, "--filter", "^bmCliNodeUnknown$"},
+                                  &setupNodeUnknown);
+    check(run.status == 2, "a near name of node exits 2 (FR-015)");
+    check(run.err.find(value) != std::string::npos,
+          "the line names the rejected value (FR-015)");
+    check(run.out.find("bmCliNodeUnknown") == std::string::npos,
+          "no benchmark ran (FR-015)");
+  }
+  return 0;
+}
+
+// specs/035 FR-001: the handle carries the name `node` beside the five
+// standing names.
+auto scenarioNodeHandle() -> int
+{
+  const Captured run = runChild("nodeHandle",
+                                {"--filter", "^bmCliNodeHandle$"},
+                                &setupNodeHandle);
+  check(run.status == 0, "the handle name node exits 0 (FR-001)");
+  check(run.out.find("bmCliNodeHandle") != std::string::npos,
+        "the benchmark ran (FR-001)");
+  return 0;
+}
+
+// specs/035 T013, FR-006, D-3: the node lines stand under the L3 lines,
+// in the read's node order, in the L3 lines' shape.
+auto scenarioTopoNodes() -> int
+{
+  const Captured run = runChild("topoNodes",
+                                {"--topology", "--filter",
+                                 "^bmCliTopoNodes$"},
+                                &setupTopoNodes);
+  check(run.status == 0, "the listing with nodes exits 0 (FR-006)");
+  const auto l3 = run.out.find("l3 3: 36-47");
+  const auto node0 = run.out.find("node 0: 0-23");
+  const auto node1 = run.out.find("node 1: 24-47");
+  check(l3 != std::string::npos && node0 != std::string::npos
+            && node1 != std::string::npos && l3 < node0 && node0 < node1,
+        "one line per node stands under the L3 lines, in the read's "
+        "node order (FR-006, D-3)");
+  check(run.out.find("bmCliTopoNodes") == std::string::npos,
+        "no benchmark ran (FR-006)");
+  return 0;
+}
+
+// specs/035 T013, FR-006: a node whose cpus all stand outside the mask
+// prints no line, the way the L3 group it holds prints none.
+auto scenarioTopoNodeExcluded() -> int
+{
+  const Captured run = runChild("topoNodeExcluded",
+                                {"--topology", "--filter",
+                                 "^bmCliTopoNodeExcluded$"},
+                                &setupTopoNodeExcluded);
+  check(run.status == 0, "the masked listing exits 0 (FR-006)");
+  check(run.out.find("node 0: 0-1") != std::string::npos,
+        "the mask-touched node prints its cpus (FR-006)");
+  check(run.out.find("node 1") == std::string::npos,
+        "the excluded node prints no line (FR-006)");
+  return 0;
+}
+
+// specs/035 T013, FR-007, R-02, R-09: a read with no memory information
+// prints the not-available line in the node family's place and keeps
+// the rest of the listing, exit status 0.
+auto scenarioTopoNodeNoMemory() -> int
+{
+  const Captured run = runChild("topoNodeNoMemory",
+                                {"--topology", "--filter",
+                                 "^bmCliTopoNodeNoMemory$"},
+                                &setupTopoNodeNoMemory);
+  check(run.status == 0, "the no-memory listing exits 0 (FR-007)");
+  check(run.out.find("node: not available") != std::string::npos,
+        "the node family prints not available (FR-007)");
+  check(run.out.find("l3 0: 0-11") != std::string::npos
+            && run.out.find("l3 3: 36-47") != std::string::npos,
+        "the rest of the listing keeps its bytes (FR-007, R-09)");
+  return 0;
+}
+
 }  // namespace
 
 auto main() -> int
@@ -623,7 +863,7 @@ auto main() -> int
     int (*run)();
   };
 
-  const std::array<Scenario, 14> scenarios {
+  const std::array<Scenario, 20> scenarios {
       Scenario {"badName", &scenarioBadName},
       Scenario {"cpuList", &scenarioCpuList},
       Scenario {"noArgument", &scenarioNoArgument},
@@ -637,7 +877,13 @@ auto main() -> int
       Scenario {"noneSkip", &scenarioNoneSkip},
       Scenario {"singleCtx", &scenarioSingleCtx},
       Scenario {"singleCtxUnreadable", &scenarioSingleCtxUnreadable},
-      Scenario {"topoFilter", &scenarioTopoFilter}};
+      Scenario {"topoFilter", &scenarioTopoFilter},
+      Scenario {"nodeName", &scenarioNodeName},
+      Scenario {"nodeUnknown", &scenarioNodeUnknown},
+      Scenario {"nodeHandle", &scenarioNodeHandle},
+      Scenario {"topoNodes", &scenarioTopoNodes},
+      Scenario {"topoNodeExcluded", &scenarioTopoNodeExcluded},
+      Scenario {"topoNodeNoMemory", &scenarioTopoNodeNoMemory}};
   for (const auto& scenario : scenarios) {
     check(scenario.run() == 0, scenario.name);
   }

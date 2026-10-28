@@ -26,6 +26,7 @@
 #include <cstdio>
 #include <fstream>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -128,12 +129,11 @@ auto ordinalOf(std::vector<hwloc_obj_t>& objects,
 // and packages of the restricted set in ascending cpu order.
 auto installedLoadFailureSlot() -> std::optional<int>&;
 
-auto readLayout(const std::optional<std::string>& description)
+auto readLayout(const hwloc_topology_t topology,
+                const std::optional<std::string>& description)
     -> detail::MachineLayout
 {
   detail::MachineLayout layout;
-  TopologyHolder holder;
-  const hwloc_topology_t topology = holder.get();
 
   // R-04: the readable decision is one rc chain over the description and
   // load answers.
@@ -211,6 +211,30 @@ auto readLayout(const std::optional<std::string>& description)
     }
   }
 
+  // specs/035 FR-005, R-01: the memory nodes the read states, in the
+  // read's order, each with the node number and the cpus the read
+  // states; the mask filters at plan and listing time (data-model.md).
+  // A read that states no memory information leaves the vector empty
+  // and `memoryReadable` false beside it (FR-007, R-09).
+  for (hwloc_obj_t node = hwloc_get_next_obj_by_type(
+             topology, HWLOC_OBJ_NUMANODE, nullptr);
+       node != nullptr;
+       node = hwloc_get_next_obj_by_type(topology, HWLOC_OBJ_NUMANODE, node))
+  {
+    detail::LayoutNode layoutNode;
+    layoutNode.number = static_cast<std::uint32_t>(node->os_index);
+    int nodeCpu = -1;
+    for (;;) {
+      nodeCpu = hwloc_bitmap_next(node->cpuset, nodeCpu);
+      if (nodeCpu == -1) {
+        break;
+      }
+      layoutNode.cpus.push_back(static_cast<std::uint32_t>(nodeCpu));
+    }
+    layout.nodes.push_back(std::move(layoutNode));
+  }
+  layout.memoryReadable = !layout.nodes.empty();
+
   layout.packages = static_cast<std::uint32_t>(packageObjects.size());
   layout.readable = true;
   return layout;
@@ -245,6 +269,12 @@ auto installedOnlineCpusSlot() -> std::optional<std::vector<std::uint32_t>>&
 auto installedOnlineLineSlot() -> std::optional<std::string>&
 {
   static std::optional<std::string> slot;
+  return slot;
+}
+
+auto installedMemoryBinderSlot() -> std::optional<detail::MemoryBindOps>&
+{
+  static std::optional<detail::MemoryBindOps> slot;
   return slot;
 }
 
@@ -330,6 +360,11 @@ auto installTestOnlineLine(std::optional<std::string> line) -> void
   installedOnlineLineSlot() = std::move(line);
 }
 
+auto installTestMemoryBinder(std::optional<MemoryBindOps> binder) -> void
+{
+  installedMemoryBinderSlot() = std::move(binder);
+}
+
 // FR-005, FR-041: the online cpu set the placement bound and the option
 // value grammar read. The set is consulted at each call, never cached,
 // so an installed set decides the call that follows it (Q-5). The host
@@ -370,20 +405,119 @@ auto onlineCpuSet() -> std::vector<std::uint32_t>
   return cpus;
 }
 
-// FR-002, R-04: the one cached read. An installed layout short-circuits
-// the host read; an installed description reaches
-// `hwloc_topology_set_synthetic`.
-auto layout() -> const MachineLayout&
+// specs/035 R-06: the one cached read together with the topology that
+// backs the production binder. An installed layout short-circuits the
+// host read and stands with no topology behind it; the host read keeps
+// the topology it loaded, so the bind call binds by the nodes that read
+// states and the read stays one time per process (FR-002, R-04).
+namespace
 {
-  static const detail::MachineLayout kCached = []
+
+struct MachineRead
+{
+  TopologyHolder holder;
+  hwloc_topology_t topology = nullptr;
+  MachineLayout layout;
+};
+
+auto machineRead() -> const MachineRead&
+{
+  static const std::unique_ptr<const MachineRead> kCached = []
   {
+    auto read = std::make_unique<MachineRead>();
     const auto& installed = installedLayoutSlot();
     if (installed.has_value()) {
-      return *installed;
+      read->layout = *installed;
+      return read;
     }
-    return readLayout(installedDescriptionSlot());
+    read->topology = read->holder.get();
+    read->layout = readLayout(read->holder.get(), installedDescriptionSlot());
+    return read;
   }();
-  return kCached;
+  return *kCached;
+}
+
+}  // namespace
+
+auto layout() -> const MachineLayout&
+{
+  return machineRead().layout;
+}
+
+namespace
+{
+
+// specs/035 R-06: the policy one bind saved for its restore, the bind
+// and the restore standing in sequence on one thread (FR-013).
+auto savedBindSet() -> hwloc_bitmap_t
+{
+  static BitmapHolder saved;
+  return saved.get();
+}
+
+auto savedBindPolicy() -> hwloc_membind_policy_t&
+{
+  static hwloc_membind_policy_t policy = HWLOC_MEMBIND_DEFAULT;
+  return policy;
+}
+
+// specs/035 R-06: the production binder, one hwloc membind call by
+// node, thread scope, on the calling thread, inside the one hwloc
+// translation unit (spec 025 FR-004). The bind saves the policy it
+// found for its restore, so the eager validation pass leaves the
+// process the policy it carried (FR-013). A run whose layout stands
+// installed binds through no topology, and the call answers the
+// refusal the fit walk prints (FR-013).
+auto productionMemoryBind(const std::uint32_t node) -> bool
+{
+  const hwloc_topology_t topology = machineRead().topology;
+  if (topology == nullptr) {
+    return false;
+  }
+  BitmapHolder nodeset;
+  hwloc_bitmap_only(nodeset.get(), node);
+  BitmapHolder previous;
+  hwloc_membind_policy_t policy = HWLOC_MEMBIND_DEFAULT;
+  const int got = hwloc_get_membind(topology,
+                                    previous.get(),
+                                    &policy,
+                                    HWLOC_MEMBIND_BYNODESET
+                                        | HWLOC_MEMBIND_THREAD);
+  const int set = hwloc_set_membind(topology,
+                                    nodeset.get(),
+                                    HWLOC_MEMBIND_BIND,
+                                    HWLOC_MEMBIND_BYNODESET
+                                        | HWLOC_MEMBIND_THREAD);
+  if (set != 0) {
+    return false;
+  }
+  if (got == 0) {
+    hwloc_bitmap_copy(savedBindSet(), previous.get());
+    savedBindPolicy() = policy;
+  }
+  return true;
+}
+
+auto productionMemoryRestore() -> void
+{
+  const hwloc_topology_t topology = machineRead().topology;
+  if (topology == nullptr) {
+    return;
+  }
+  (void)hwloc_set_membind(topology,
+                          savedBindSet(),
+                          savedBindPolicy(),
+                          HWLOC_MEMBIND_BYNODESET | HWLOC_MEMBIND_THREAD);
+}
+
+}  // namespace
+
+auto memoryBinder() -> const MemoryBindOps&
+{
+  static const MemoryBindOps kProduction {&productionMemoryBind,
+                                          &productionMemoryRestore};
+  const auto& installed = installedMemoryBinderSlot();
+  return installed.has_value() ? *installed : kProduction;
 }
 
 // FR-036: the comma-joined range spelling of a cpu set, consecutive
@@ -432,6 +566,31 @@ auto printTopologyListing(const MachineLayout& machine) -> void
     std::string groupText;
     appendRangeText(groupText, std::move(cpus));
     std::printf("l3 %zu: %s\n", group, groupText.c_str());
+  }
+  // specs/035 FR-006, D-3: the node family under the L3 lines, in the
+  // L3 lines' shape, one line per memory node the process mask touches,
+  // in the read's node order; a node the mask excludes prints no line,
+  // the way the plan gives it no context (R-02). A read that states no
+  // memory information prints the not-available line in the family's
+  // place and keeps the rest of the bytes (FR-007, R-09).
+  if (!machine.memoryReadable) {
+    std::printf("node: not available\n");
+    return;
+  }
+  for (const auto& node : machine.nodes) {
+    std::vector<std::uint32_t> cpus;
+    for (const auto cpu : node.cpus) {
+      const auto found = std::ranges::lower_bound(machine.mask, cpu);
+      if (found != machine.mask.end() && *found == cpu) {
+        cpus.push_back(cpu);
+      }
+    }
+    if (cpus.empty()) {
+      continue;
+    }
+    std::string nodeText;
+    appendRangeText(nodeText, std::move(cpus));
+    std::printf("node %u: %s\n", node.number, nodeText.c_str());
   }
 }
 

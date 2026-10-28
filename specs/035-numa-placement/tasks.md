@@ -28,13 +28,13 @@ stand implemented and tested independently.
 **Purpose**: the preset name every story plans through, and the
 version record the lane stands on.
 
-- [ ] T001 [P] Write the failing grammar tests in
+- [X] T001 [P] Write the failing grammar tests in
   `test/source/harness_cli_placement_test.cpp`: `--placement=node`
   stands accepted from the command line and from the handle name;
   the six names stand matched in full and nothing else; the standing
   unknown-name refusal covers `nodes`, `node=` and `NODE`
   (FR-001, FR-015)
-- [ ] T002 Add the `node` row to `kPresetNames` in
+- [X] T002 Add the `node` row to `kPresetNames` in
   `source/harness/placement_preset.cpp:46` and the `NODE` row to the
   `Preset` enum in `source/harness/detail/internal.hpp:106`; amend
   the standing preset-name comment at
@@ -58,7 +58,7 @@ feature with no new option row and no public-header move.
 machine read that states the nodes, and the seam the binding stands
 behind. No user story work can begin before this phase closes.
 
-- [ ] T003 [P] Register the test executable in
+- [X] T003 [P] Register the test executable in
   `test/CMakeLists.txt` beside the standing placement tests
   (`add_executable` and `add_test` with the quick label), then write
   the failing node-walk tests in
@@ -67,19 +67,19 @@ behind. No user story work can begin before this phase closes.
   (`topology.cpp:306`) state the node numbers and the per-node cpu
   sets the read carries; a layout with no memory information states
   none (FR-005, R-01)
-- [ ] T004 Extend the machine read in `source/harness/topology.cpp`:
+- [X] T004 Extend the machine read in `source/harness/topology.cpp`:
   the walk at `topology.cpp:175` adds `HWLOC_OBJ_NUMANODE`, and
   `MachineLayout` (`detail/internal.hpp:94`) gains `LayoutNode`
   beside `LayoutGroup` with the node number, the node's cpu set and
   the `memoryReadable` flag; the read stays one time per run
   (FR-005, D-1, R-01) (depends on T003; the tests of T003 turn
   green)
-- [ ] T005 [P] Write the failing binder-seam tests in
+- [X] T005 [P] Write the failing binder-seam tests in
   `test/source/harness_numa_placement_test.cpp`: the installed fake
   records the node the call names, the fake denies the call on
   demand, and a null installer restores the production binder, the
   clear-on-null shape `installTestLayout` uses (FR-016, R-06)
-- [ ] T006 Add the binder seam: the new
+- [X] T006 Add the binder seam: the new
   `source/harness/detail/memory_bind.hpp` carries the installer
   contract with its `\pre`/`\post`, and the production binder calls
   the hwloc membind entry points by node, thread scope, inside the
@@ -106,20 +106,20 @@ the plan states.
 
 ### Tests for User Story 1 (write first, observe failure)
 
-- [ ] T007 [P] [US1] Write the failing resolver tests in
+- [X] T007 [P] [US1] Write the failing resolver tests in
   `test/source/harness_numa_placement_test.cpp`: two nodes and eight
   contexts cycle the nodes; a count below the node count fills in
   hwloc's node order; a node whose cpus all stand outside the mask
   takes no context; every planned cpu stands inside the mask, on the
   bound node, and the cpus stand pairwise distinct
   (FR-009, FR-012, R-03, R-04)
-- [ ] T008 [P] [US1] Write the failing disclosure tests in
+- [X] T008 [P] [US1] Write the failing disclosure tests in
   `test/source/harness_numa_placement_test.cpp`: a bound context's
   field reads `cpu@group@node` in the console row and in the JSON
   context field; a run with no node preset stands byte-identical to
   master apart from the version figures the report carries
   (FR-011, FR-002, FR-004, R-08)
-- [ ] T009 [US1] Write the failing context-start tests in
+- [X] T009 [US1] Write the failing context-start tests in
   `test/source/harness_numa_placement_test.cpp`: the bind stands
   beside the pin at the context start, the binder receives the node
   the planned cpu belongs to, a user-installed `PlacementFn`
@@ -129,7 +129,7 @@ the plan states.
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Extend the plan resolver in
+- [X] T010 [US1] Extend the plan resolver in
   `source/harness/placement_preset.cpp`: the `node` plan resolves the
   mask-touching nodes in the read's node order, cycles them when the
   context count exceeds the node count, fills them in order when the
@@ -137,7 +137,7 @@ the plan states.
   the standing `planCpusDistinct` at `placement_preset.cpp:56`
   (FR-009, FR-012, D-2, R-03, R-04) (depends on T002, T004, T007;
   the tests of T007 turn green)
-- [ ] T011 [US1] Extend `placementText` in
+- [X] T011 [US1] Extend `placementText` in
   `source/harness/placement_preset.cpp:477`, the unit that composes
   the field beside the layout: the field carries the node tail from
   the layout's cpu-to-node map where the run's resolved plan binds
@@ -152,7 +152,7 @@ the plan states.
   in the same commit, the way the standing rules pin the printer's
   amendments (FR-011, FR-004, D-5, R-08) (depends on T004,
   T008, T010; the tests of T008 turn green)
-- [ ] T012 [US1] Add the bind call at the context start in
+- [X] T012 [US1] Add the bind call at the context start in
   `source/harness/execution_context.cpp:434`: the bind stands after
   the placement call, outside the replaceable function, driven by the
   plan's node assignment for the context, through the seam of T006
@@ -176,7 +176,7 @@ information prints `not available` for the node lines alone.
 
 ### Tests for User Story 2 (write first, observe failure)
 
-- [ ] T013 [P] [US2] Write the failing listing tests in
+- [X] T013 [P] [US2] Write the failing listing tests in
   `test/source/harness_cli_placement_test.cpp`: the node lines stand
   under the L3 lines in the `node <n>: <cpu-list>` shape, in the
   read's node order, mask-filtered the way the L3 lines filter, and
@@ -187,7 +187,7 @@ information prints `not available` for the node lines alone.
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Extend the listing in `source/harness/topology.cpp`
+- [X] T014 [US2] Extend the listing in `source/harness/topology.cpp`
   beside the L3 lines at `topology.cpp:434`: the node family prints
   from the layout's mask-touched nodes, mask-filtered, a node the
   mask excludes printing no line, and the
@@ -195,7 +195,7 @@ information prints `not available` for the node lines alone.
   with the rest of the bytes standing (FR-006, FR-007, D-3, R-02,
   R-09) (depends on T004, T013; the tests of T013 turn green)
 
-- [ ] T015 [US2] Amend the standing contract
+- [X] T015 [US2] Amend the standing contract
   `specs/025-topology-placement/contracts/cli-placement.md` in the
   commit that lands the listing: the standing listing rule row stands
   replaced by the node-family rule of
@@ -220,7 +220,7 @@ run refuses one line, exit status 2, with no benchmark output.
 
 ### Tests for User Story 3 (write first, observe failure)
 
-- [ ] T016 [P] [US3] Write the failing refusal tests in
+- [X] T016 [P] [US3] Write the failing refusal tests in
   `test/source/harness_numa_placement_test.cpp`: the eager validation
   pass binds and restores each planned context's node in plan order
   before the contexts spawn, and a denial in that pass refuses one
@@ -232,7 +232,7 @@ run refuses one line, exit status 2, with no benchmark output.
 
 ### Implementation for User Story 3
 
-- [ ] T017 [US3] Wire the refusal paths: the run validates the
+- [X] T017 [US3] Wire the refusal paths: the run validates the
   binding before the contexts spawn, the main thread binding and
   restoring each planned context's node in plan order through the
   seam, a denial printing the one-line status-2 refusal naming the

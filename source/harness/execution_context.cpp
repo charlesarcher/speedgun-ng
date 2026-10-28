@@ -88,9 +88,10 @@ constexpr std::string_view kUnappliedText = "UNAPPLIED";
 constexpr std::size_t kCpuIndexWidth = 10;
 
 // The width of the widest account the placement record can name: the
-// `cpu@group` pair of a landed pin, the longest text the placement
-// function composes from the layout (FR-021, FR-025, specs/025 E-09).
-constexpr std::size_t kAccountTextWidth = kCpuIndexWidth * 2 + 1;
+// `cpu@group@node` triple of a landed pin under the node plans, the
+// longest text the placement function composes from the layout (FR-021,
+// FR-025, specs/025 E-09, specs/035 FR-011).
+constexpr std::size_t kAccountTextWidth = kCpuIndexWidth * 3 + 2;
 
 // The default placement function: one Linux pin of the started thread
 // to the slot's cpu (FR-005, D-04). The call is the platform call D-04
@@ -192,6 +193,12 @@ struct ContextControl
   // The bytes the field above points at, held in the block so the record
   // reads past the end of the thread that rendered them (FR-025).
   std::array<char, kAccountTextWidth> descriptionText {};
+
+  // specs/035 FR-013, R-07: the node whose start bind the system denied,
+  // empty when the bind landed or no node plan stood. The record stands
+  // beside the placement account, and the runner turns it into the
+  // one-line status-2 refusal (R-07).
+  std::optional<std::uint32_t> bindRefusal {};
 
   // The sentinel of the inbox: the chain anchor both ends walk through,
   // owned by the loop, never run (FR-003, D-01).
@@ -447,6 +454,28 @@ auto applyPlacement(detail::ContextControl& control) -> void
       placement.applied,
       std::string_view {control.descriptionText.data(), width},
   };
+
+  // specs/035 FR-010, D-4, R-05: the bind stands after the placement
+  // call, outside the replaceable function, driven by the run's
+  // resolved node plan: the context binds the node its planned cpu
+  // belongs to, on the context thread, beside the pin. A bind the
+  // system denies stands the refusal the runner prints beside the
+  // placement account (FR-013, R-07).
+  const auto& nodePlan = detail::resolvedNodePlan();
+  if (nodePlan.has_value()) {
+    const auto planned = std::find(nodePlan->cpu.begin(),
+                                   nodePlan->cpu.end(),
+                                   control.policy.placement.cpuIndex);
+    if (planned != nodePlan->cpu.end()
+        && !detail::memoryBinder().bind(
+            nodePlan->node[static_cast<std::size_t>(planned
+                                - nodePlan->cpu.begin())]))
+    {
+      control.bindRefusal =
+          nodePlan->node[static_cast<std::size_t>(planned
+                              - nodePlan->cpu.begin())];
+    }
+  }
 }
 
 // FR-001, FR-005: the one thread the context owns: its placement first,
@@ -567,6 +596,15 @@ auto placementRecordOf(const ExecutionContext& context) noexcept
     -> PlacementResult
 {
   return controlOf(context).placementResult;
+}
+
+// specs/035 FR-013, R-07: the bind refusal the context's start
+// recorded, the runner reads it beside the placement record and turns
+// it into the one-line status-2 refusal (R-07).
+auto bindRefusalOf(const ExecutionContext& context) noexcept
+    -> std::optional<std::uint32_t>
+{
+  return controlOf(context).bindRefusal;
 }
 
 // FR-010, FR-050: the erased body of `dispatch()`, which the header's

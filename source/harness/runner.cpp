@@ -1565,12 +1565,22 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // over the machine layout names each context's cpu by position; the
   // batch fit check has already stopped an unfittable count, so the plan
   // stands full here.
+  // specs/035 FR-010, R-05: the run's resolved node plan stands ahead
+  // of the contexts the run spawns, and a run with no node preset
+  // clears it, so the bind at the context start reads the plan of the
+  // run in flight alone (FR-002, FR-011).
+  detail::resolvedNodePlan().reset();
   if (instance.threadCount > 1) {
     const std::optional<detail::PlacementPlan> placePlan =
         instance.placement != detail::Preset::NONE
         ? std::optional<detail::PlacementPlan>(detail::resolvePreset(
               instance.placement, detail::layout(), instance.threadCount))
         : std::nullopt;
+    if (placePlan.has_value()
+        && instance.placement == detail::Preset::NODE)
+    {
+      detail::resolvedNodePlan() = *placePlan;
+    }
     for (int position = 0; position < instance.threadCount; ++position) {
       const sg::ContextPolicy policy {
           sg::WaitMode::SPIN,
@@ -1931,6 +1941,27 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     return std::nullopt;
   };
 
+  // specs/035 FR-013, R-07: the first context whose start bind the
+  // system denied, with the one-line refusal naming the context and the
+  // node; the flag turns the batch's exit status into the usage status
+  // the fit walk answers with.
+  auto firstBindRefusal = [&]() -> std::optional<std::string>
+  {
+    for (std::size_t position = 0; position < contexts.size(); ++position) {
+      const auto refused = detail::bindRefusalOf(*contexts[position]);
+      if (refused.has_value()) {
+        const std::string line =
+            std::string("--placement: the memory bind of ctx")
+            + std::to_string(position) + " to node "
+            + std::to_string(*refused) + " was denied";
+        std::fprintf(stderr, "%s\n", line.c_str());
+        detail::bindRefusalFlag().store(true);
+        return line;
+      }
+    }
+    return std::nullopt;
+  };
+
   // E-08, FR-051: the history rises to the context that closed the
   // most pause pairs, the same rule the single-context sampler
   // applies.
@@ -2120,6 +2151,13 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
 
     if (const auto failure = firstThreadedError(outcomes)) {
       return std::unexpected(*failure);
+    }
+
+    // specs/035 FR-013, R-07: a bind that failed at a context start
+    // stands the same refusal the validation pass prints, ahead of any
+    // row of the run.
+    if (const auto refusal = firstBindRefusal()) {
+      return std::unexpected(*refusal);
     }
 
     // E-06, FR-020: the merged record; the label is context 0's.

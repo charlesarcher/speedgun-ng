@@ -1430,7 +1430,7 @@ auto main(int argc, char** argv) -> int
 
 <!-- sg-sample-output: example/docs/jitter_probe.expected#report -->
 ```text
-speedgun-ng 0.21.0 build=Release
+speedgun-ng 0.22.0 build=Release
 topology: packages=1 l3-groups=4 cores=24 threads=48
 precheck cpu 0 (planned)
 gapCount: 0

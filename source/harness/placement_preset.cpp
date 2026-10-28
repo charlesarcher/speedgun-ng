@@ -12,10 +12,12 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <limits>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -38,12 +40,14 @@ struct PresetName
   Preset preset;
 };
 
-// FR-007, E-05: the five names, matched in full and nothing else.
-const std::array<PresetName, 5> kPresetNames {{{"none", Preset::NONE},
+// FR-007, E-05: the six names, matched in full and nothing else
+// (specs/035 FR-001).
+const std::array<PresetName, 6> kPresetNames {{{"none", Preset::NONE},
                                                {"core", Preset::CORE},
                                                {"l3", Preset::L3},
                                                {"smt", Preset::SMT},
-                                               {"compact", Preset::COMPACT}}};
+                                               {"compact", Preset::COMPACT},
+                                               {"node", Preset::NODE}}};
 
 // FR-008: the resolver's postcondition predicate, the plan's cpus
 // pairwise distinct. The sorted scan reads it off the finished plan.
@@ -56,6 +60,50 @@ const std::array<PresetName, 5> kPresetNames {{{"none", Preset::NONE},
   std::vector<std::uint32_t> sorted = cpus;
   std::ranges::sort(sorted);
   return std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end();
+}
+
+// specs/035 FR-009, FR-012, R-04: the node plan's postcondition
+// predicate, the planCpusDistinct precedent: every planned cpu stands
+// inside the mask and stands on the node the context binds to, and the
+// cpus stand pairwise distinct. The predicate is consulted only inside
+// SG_ENSURE, which expands to nothing in a Release build, so the
+// attribute keeps it compiling in every build type.
+[[maybe_unused]] auto planNodesBind(const MachineLayout& layout,
+                                    const PlacementPlan& plan) -> bool
+{
+  for (std::size_t index = 0; index < plan.cpu.size(); ++index) {
+    const auto found =
+        std::ranges::lower_bound(layout.mask, plan.cpu[index]);
+    if (found == layout.mask.end() || *found != plan.cpu[index]) {
+      return false;
+    }
+    const auto node = std::ranges::find_if(
+        layout.nodes,
+        [&plan, index](const LayoutNode& candidate)
+        { return candidate.number == plan.node[index]; });
+    if (node == layout.nodes.end()) {
+      return false;
+    }
+    if (std::find(node->cpus.begin(), node->cpus.end(), plan.cpu[index])
+        == node->cpus.end())
+    {
+      return false;
+    }
+  }
+  return planCpusDistinct(plan.cpu);
+}
+
+// specs/035: the group ordinal one mask cpu names, out of the threads
+// the layout read built (data-model.md).
+auto groupOrdinalOf(const MachineLayout& layout, std::uint32_t cpu)
+    -> std::uint32_t
+{
+  const auto found = std::ranges::lower_bound(layout.mask, cpu);
+  if (found == layout.mask.end() || *found != cpu) {
+    return kNoGroup;
+  }
+  return layout.threads[static_cast<std::size_t>(found - layout.mask.begin())]
+      .groupOrdinal;
 }
 
 }  // namespace
@@ -75,6 +123,24 @@ auto parsePreset(const std::string_view text) -> std::optional<Preset>
 auto presetText(const Preset preset) -> std::string_view
 {
   return kPresetNames[static_cast<std::size_t>(preset)].name;
+}
+
+// specs/035 FR-011, R-08: the resolved node plan of the run in flight,
+// the runner installs ahead of the contexts it spawns and clears for
+// every other run (R-05). One function-local slot, the shape the
+// registry and the placement slot carry (R-04).
+auto resolvedNodePlan() -> std::optional<PlacementPlan>&
+{
+  static std::optional<PlacementPlan> slot;
+  return slot;
+}
+
+// specs/035 FR-013: the one flag a denied start bind sets; the entry
+// point answers it with the status-2 refusal the fit walk prints.
+auto bindRefusalFlag() -> std::atomic<bool>&
+{
+  static std::atomic<bool> flag {false};
+  return flag;
 }
 
 // FR-008 to FR-014, FR-018: the ordered walk. Every place list is built
@@ -122,6 +188,42 @@ auto resolvePreset(const Preset preset,
         }
       }
     }
+  } else if (preset == Preset::NODE) {
+    // specs/035 FR-009, D-2: the mask-touching nodes in the read's
+    // order, dealt one cpu at a time: the contexts cycle the nodes, so
+    // a count above the node count walks the nodes again, and a count
+    // below the node count fills the first nodes in node order. A node
+    // the mask excludes takes no place, the way the `l3` plan skips a
+    // group the mask does not touch (R-03).
+    std::vector<std::uint32_t> numbers;
+    std::vector<std::vector<std::uint32_t>> cpusOfNode;
+    for (const auto& node : layout.nodes) {
+      std::vector<std::uint32_t> masked;
+      for (const auto cpu : node.cpus) {
+        const auto found = std::ranges::lower_bound(layout.mask, cpu);
+        if (found != layout.mask.end() && *found == cpu) {
+          masked.push_back(cpu);
+        }
+      }
+      if (!masked.empty()) {
+        numbers.push_back(node.number);
+        cpusOfNode.push_back(std::move(masked));
+      }
+    }
+    std::vector<std::size_t> next(numbers.size(), 0);
+    bool dealt = !numbers.empty();
+    while (dealt) {
+      dealt = false;
+      for (std::size_t index = 0; index < numbers.size(); ++index) {
+        if (next[index] < cpusOfNode[index].size()) {
+          const std::uint32_t cpu = cpusOfNode[index][next[index]++];
+          plan.cpu.push_back(cpu);
+          plan.node.push_back(numbers[index]);
+          plan.group.push_back(groupOrdinalOf(layout, cpu));
+          dealt = true;
+        }
+      }
+    }
   }
 
   plan.places = static_cast<std::uint32_t>(plan.cpu.size());
@@ -129,10 +231,19 @@ auto resolvePreset(const Preset preset,
     // FR-018: the empty plan carries the count the fit message prints.
     plan.cpu.clear();
     plan.group.clear();
+    plan.node.clear();
     return plan;
   }
   plan.cpu.resize(static_cast<std::size_t>(contexts));
   plan.group.resize(static_cast<std::size_t>(contexts));
+  if (preset == Preset::NODE) {
+    plan.node.resize(static_cast<std::size_t>(contexts));
+    SG_ENSURE(planNodesBind(layout, plan),
+              "every planned cpu stands inside the mask, on the node "
+              "the context binds to, and the cpus stand pairwise "
+              "distinct (FR-009, FR-012, R-04)");
+    return plan;
+  }
   SG_ENSURE(planCpusDistinct(plan.cpu),
             "the plan's cpus stand pairwise distinct (FR-008)");
   return plan;
@@ -470,6 +581,13 @@ auto maskNarrowingOf(const std::vector<std::uint32_t>& probeCpus,
   return result;
 }
 
+// specs/035 FR-011: the widest text the compose states, the
+// `cpu@group@node` triple of a bound context: three widest indices and
+// the two separators that join them, the width rule the standing
+// `cpu@group` pair follows (specs/025 FR-021).
+constexpr std::size_t kPlacementTextWidth =
+    3 * (std::numeric_limits<std::uint32_t>::digits10 + 1) + 2;
+
 // FR-021, data-model.md E-09: the disclosure text of one slot, composed
 // from the layout with no pin and no platform call. The buffer stands in
 // thread storage, the way the pin's digits do, and the record that
@@ -479,7 +597,7 @@ auto placementText(const PlacementSlot& slot) -> std::string_view
   if (slot.cpuIndex == kNoPin) {
     return "NO_PIN";
   }
-  thread_local std::array<char, 24> buffer {};
+  thread_local std::array<char, kPlacementTextWidth> buffer {};
   char* end = std::to_chars(buffer.begin(), buffer.end(), slot.cpuIndex).ptr;
   const auto& machine = layout();
   const auto found = std::ranges::lower_bound(machine.mask, slot.cpuIndex);
@@ -489,6 +607,23 @@ auto placementText(const PlacementSlot& slot) -> std::string_view
     if (thread.groupOrdinal != kNoGroup) {
       *end++ = '@';
       end = std::to_chars(end, buffer.end(), thread.groupOrdinal).ptr;
+    }
+  }
+  // specs/035 FR-011, R-08: the node tail where the run's resolved plan
+  // binds the context, and the standing `cpu@group` bytes where it does
+  // not (FR-002).
+  const auto& nodePlan = resolvedNodePlan();
+  if (nodePlan.has_value()) {
+    const auto planned =
+        std::find(nodePlan->cpu.begin(), nodePlan->cpu.end(), slot.cpuIndex);
+    if (planned != nodePlan->cpu.end()) {
+      *end++ = '@';
+      end = std::to_chars(
+               end,
+               buffer.end(),
+               nodePlan->node[static_cast<std::size_t>(planned
+                                  - nodePlan->cpu.begin())])
+          .ptr;
     }
   }
   return std::string_view(buffer.data(),
@@ -517,6 +652,16 @@ auto placementFitStatus(const std::vector<Instance*>& selected)
           "--placement: the harness cannot read the machine " "layout\n");
       return {2, false};
     }
+    // specs/035 FR-014, R-10: a node preset over a read that states no
+    // memory information refuses one line, before any context starts,
+    // whatever the context count, the way the unreadable layout
+    // refuses.
+    if (instance->placement == Preset::NODE && !machine.memoryReadable) {
+      std::fprintf(stderr,
+                   "--placement: 'node' needs memory nodes the machine "
+                   "read does not state\n");
+      return {2, false};
+    }
     if (instance->threadCount > 1) {
       inEffect = true;
       const auto plan =
@@ -531,6 +676,26 @@ auto placementFitStatus(const std::vector<Instance*>& selected)
             plan.places,
             instance->threadCount);
         return {2, false};
+      }
+      // specs/035 FR-013, D-4, R-07: the eager validation pass binds
+      // and restores each planned context's node in plan order, before
+      // the contexts spawn; a denial in that pass refuses one line
+      // naming the context and the node, ahead of every context.
+      if (instance->placement == Preset::NODE) {
+        const auto& binder = memoryBinder();
+        for (std::size_t position = 0; position < plan.node.size();
+             ++position)
+        {
+          if (!binder.bind(plan.node[position])) {
+            std::fprintf(stderr,
+                         "--placement: the memory bind of ctx%zu to node "
+                         "%u was denied\n",
+                         position,
+                         plan.node[position]);
+            return {2, false};
+          }
+          binder.restore();
+        }
       }
     }
   }

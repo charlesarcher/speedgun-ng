@@ -12,7 +12,11 @@ project(
     # these minors takes the next free minor in its place, and no other
     # number in this file moves for it (PD-20). specs/027 took 0.19.0 on
     # master first, so this feature takes 0.20.0.
-    VERSION 0.21.0
+    # specs/035-numa-placement FR-003: this feature takes 0.22.0, the
+    # next free minor on the master line. No public type, function or
+    # struct changes, so the harness SOVERSION stays 13 and the archive
+    # SOVERSION stays 4 (D-6).
+    VERSION 0.22.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX

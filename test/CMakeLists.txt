@@ -942,6 +942,19 @@ target_compile_features(harness_placement_preset_test PRIVATE cxx_std_23)
 add_test(NAME harness_placement_preset_test
          COMMAND harness_placement_preset_test)
 
+# specs/035-numa-placement: the node walk, the binder seam and the node
+# plan over synthetic layouts of one, two and four nodes (T003, T005,
+# T007, T008, T009, T016; FR-005, FR-009 to FR-013, FR-016).
+add_executable(harness_numa_placement_test
+               source/harness_numa_placement_test.cpp)
+target_link_libraries(harness_numa_placement_test
+                      PRIVATE speedgun-ng::harness)
+target_include_directories(harness_numa_placement_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_numa_placement_test PRIVATE cxx_std_23)
+add_test(NAME harness_numa_placement_test
+         COMMAND harness_numa_placement_test)
+
 # The placement option, the handle preset and the stop rule (T019; US3,
 # FR-015, FR-016, FR-017, FR-036, contracts/cli-placement.md. prose-lint: allow reason="verbatim file name"
 add_executable(harness_cli_placement_test
