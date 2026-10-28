@@ -23,3 +23,14 @@ moves: the pre-check windows close through the injected reader
 (FR-011), so the contamination signal never reaches the figures the
 tests read, and the margin between the tests' 1 ms windows and any
 real scheduling signal stands unbounded by construction.
+
+## The CI run of the pushed head
+
+The CI run of the pushed head
+[40621765799](https://github.com/charlesarcher/speedgun-ng/actions/runs/40621765799)
+closed green: `lint`, `test`, `test-rocky`, `sanitize`, `tsan`, the
+three `static-analysis` jobs, `coverage`, `dbc-gate`, `prose-lint`,
+`shared-audit`, `downstream-consumer`, and `consumer-release` all
+passed. The coverage gate read 100.0% lines (12780 of 12780) and a
+branch shortfall of 16 rows, within the D-14 recorded allowance of
+19. The `docs` job skips on a pull request run.
