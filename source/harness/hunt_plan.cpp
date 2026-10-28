@@ -45,6 +45,27 @@ constexpr std::size_t kAnchorLeaves = 2;
   return counters::Error {.message = message, .suggestions = {}};
 }
 
+// specs/033-hunter-budgets FR-003, R-04, N-04: the widths of the consecutive
+// groups a multiplex cap splits `count` planned addresses into, in plan order.
+// Every width stands at or below the cap and the widths sum to `count`. No cap
+// answers no group, because an uncapped plan opens one window over everything;
+// a cap that names no events answers none for the same reason.
+[[nodiscard]] auto groupWidths(std::size_t count,
+                               std::optional<std::size_t> cap)
+    -> std::vector<std::size_t>
+{
+  if (!cap.has_value() || *cap == 0) {
+    return {};
+  }
+  auto widths = std::vector<std::size_t> {};
+  // The walk counts up by the cap, because the last group stands shorter than
+  // the cap: subtracting a wider cap from an unsigned remainder would wrap.
+  for (std::size_t at = 0; at < count; at += *cap) {
+    widths.push_back(std::min(count - at, *cap));
+  }
+  return widths;
+}
+
 // The rate one window contributes under one normalization, and nothing when it
 // contributes none: a window whose divisor reads zero stands out of the rate
 // list, the way a gap repetition stands out of `Statistics::samples` today.
@@ -187,8 +208,25 @@ auto planHunt(const std::vector<CatalogAddress>& events,
     const auto passPlan = detail::planPasses(leaves, sourceLimits);
     if (passPlan.columns.empty()) {
       // No needed device publishes a limit, so the planner answers no plan and
-      // the run measures every column in one multiplexed window (D-19).
-      plan.passes.push_back(columnIndices(plan.columns.size()));
+      // the run measures every column in one multiplexed window (D-19). A cap
+      // bounds that window: the planned addresses split into consecutive groups
+      // of at most the cap in plan order, one group to a pass, and the table of
+      // their sizes is the disclosure of the split (FR-003, R-04, N-04).
+      plan.muxGroups = groupWidths(plan.columns.size(), options.multiplexCap);
+      if (plan.muxGroups.empty()) {
+        plan.passes.push_back(columnIndices(plan.columns.size()));
+      } else {
+        auto at = std::size_t {0};
+        for (const auto width : plan.muxGroups) {
+          auto pass = std::vector<std::size_t> {};
+          pass.reserve(width);
+          for (auto column = at; column < at + width; ++column) {
+            pass.push_back(column);
+          }
+          at += width;
+          plan.passes.push_back(std::move(pass));
+        }
+      }
     } else {
       plan.passes = passPlan.columns;
     }

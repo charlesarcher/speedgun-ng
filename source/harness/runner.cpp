@@ -1412,11 +1412,33 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     wholeRun.push_back(index);
   }
 
+  std::vector<std::vector<std::size_t>> passColumns = planning.columns;
+  // specs/033-hunter-budgets FR-003, R-04: a hunt plan whose multiplex cap
+  // split the planned addresses into groups seats those groups here. The
+  // planner owns the split, because the plan line prints it before the run, and
+  // the handoff carries it in this run's own column space, so the pass loop
+  // opens one window per group and no window over every column. The merge and
+  // the chunk ledger read the same seat, so each column names the pass that
+  // measured it. A plan no cap split keeps the single kernel-multiplexed window
+  // of E-01 and D-19, and a forced `multiplex` word on a host that publishes
+  // limits keeps the passes that host priced (specs/029 D-16).
+  if (passColumns.empty() && instance.huntPlan.has_value()
+      && instance.huntPlan->muxGroups.size() > 1)
+  {
+    passColumns = instance.huntPlan->passes;
+    planning = sg::detail::PassPlan {};
+    planning.columns = passColumns;
+    planning.measuringPass.assign(columns.size(), 0);
+    for (std::size_t seat = 0; seat < passColumns.size(); ++seat) {
+      for (const std::size_t column : passColumns[seat]) {
+        planning.measuringPass[column] = seat;
+      }
+    }
+  }
   // E-03 rule 7, E-01: when no source the run needs publishes a limit, no
   // plan stands and the run keeps the one kernel-multiplexed plan of the
   // audit point, so the pass list holds that single plan over every
   // column.
-  std::vector<std::vector<std::size_t>> passColumns = planning.columns;
   if (passColumns.empty()) {
     passColumns.push_back(wholeRun);
   }

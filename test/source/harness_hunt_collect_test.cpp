@@ -120,6 +120,18 @@ constexpr std::size_t kStageEvents = 4;
 // sets, one short of the events it selects (D-2, FR-013).
 constexpr std::size_t kStageTwoColumns = 3;
 
+// The events the cap arm selects, the width its `g` clause gives each group,
+// and the groups that leaves: four events at a cap of two seat two groups of
+// two (033 FR-003, R-04, N-04).
+constexpr std::size_t kCapEvents = 4;
+constexpr std::size_t kCapWidth = 2;
+constexpr std::size_t kCapGroups = kCapEvents / kCapWidth;
+
+// The widest window the scripted host admits for the cap arm: the two events of
+// one group beside the two anchors of the device, one leaf short of the six the
+// same four events ask for in the one window of an uncapped plan.
+constexpr std::size_t kCapCeiling = kCapWidth + 2;
+
 [[noreturn]] auto fail(const char* what) -> void
 {
   std::fprintf(stderr, "HARNESS HUNT COLLECT TEST FAIL: %s\n", what);
@@ -874,6 +886,102 @@ auto scenarioWidePassRetriesOneAtATime() -> void
         "passes ran after the ceiling was armed, which is the arming moment "
         "this arm reads its refusal from (T071)");
   std::printf("group-leaf-retry: ok\n");
+}
+
+// 033 FR-003, R-04, N-04: the cap reaches the window the run opens, not only
+// the table the plan prints. The no-limit host settles `MULTIPLEX`, so an
+// uncapped plan seats all four events in one window of six leaves while a cap
+// of two seats two groups of two, each carrying its two events beside the two
+// anchors. The scripted ceiling admits four leaves: the capped run opens every
+// group it planned, and the uncapped run asks for the one window the host
+// refuses, whose seat is the run's clean failure (spec 029 PC-9). The cap is
+// what keeps the seat inside the host.
+auto scenarioCappedMultiplexSeatsOneGroupPerWindow() -> void
+{
+  registerHuntHost(std::nullopt);
+  scriptGroupCeiling(kCapCeiling);
+  auto capped = optionsFor(selectionCount(kCapEvents));
+  capped.multiplexCap = kCapWidth;
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntCappedMultiplex");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, capped);
+  check(run.hunt.has_value(),
+        "a capped MULTIPLEX plan opens every group it planned (FR-003, R-04)");
+  const EntryHunt& hunt = *run.hunt;
+
+  check(hunt.method.has_value()
+            && hunt.method.value() == sg::MetricMethod::MULTIPLEX,
+        "the no-limit host still settles MULTIPLEX beside a cap (D-19)");
+  check(run.run->muxGroups == std::vector<std::size_t> {kCapWidth, kCapWidth},
+        "the run record carries the two groups the cap drew (N-04, FR-020)");
+  check(hunt.retriedPasses == 0,
+        "no group outgrew the scripted ceiling, so no pass retried (D-18)");
+  check(hunt.entries.size() == kCapEvents,
+        "every event of the capped plan keeps its rank row (FR-003)");
+  check(hunt.passCount == kCapGroups,
+        "the run seated one pass per group, the seat R-04 states (R-04)");
+  const auto lines =
+      printedLines(*needInstance("bmHuntCappedMultiplex"), hunt, *run.run);
+  check(linesHolding(lines,
+                     "hunt: plan mux groups=" + std::to_string(kCapGroups)
+                         + " sizes=" + std::to_string(kCapWidth) + ","
+                         + std::to_string(kCapWidth))
+                .size()
+            == 1,
+        "the plan line discloses the groups the run seated (FR-023, N-06)");
+
+  // The same host, the same ceiling, no cap: the one window the uncapped plan
+  // asks for is pass 0, so the refusal is the run's one clean failure and it
+  // names the host's own reason (spec 029 PC-9, PD-09).
+  const auto uncapped = optionsFor(selectionCount(kCapEvents));
+  auto plain = sg::registerBenchmark(&bmHuntBody, "bmHuntUncappedMultiplex");
+  sg::detail::expandRegistry();
+  const HuntAccount wide = runHuntMeasured(plain, uncapped);
+  check(!wide.hunt.has_value(),
+        "the uncapped window is the seat the host refuses, and a refused "
+        "first pass ends the hunt (spec 029 PC-9)");
+  const std::string message = host->lastRefusalMessage();
+  check(message.find(std::string(sg::test::kHuntCpu)) != std::string::npos
+            && message.find("scripted count of " + std::to_string(kCapCeiling))
+                   != std::string::npos,
+        "the refusal names the device and the scripted ceiling the uncapped "
+        "window outgrew (PD-09)");
+  std::printf("capped-multiplex-groups: ok\n");
+}
+
+// 033 FR-003, R-04 over the spec 029 D-18 seam: a group the host refuses
+// reaches the standing single-event retry, the route a pass-sized group already
+// takes. The ceiling stands open while the first group seats, then drops to the
+// three leaves a solo retry asks for once that group has measured its attempts,
+// so the second group is the refused one (D-18, FR-021, T071).
+auto scenarioCappedMultiplexGroupRetriesOneAtATime() -> void
+{
+  registerHuntHost(std::nullopt);
+  auto capped = optionsFor(selectionCount(kCapEvents));
+  capped.multiplexCap = kCapWidth;
+  armRetryCeilingAfterPass(capped.repeats, kSoloRetryLeaves);
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntCappedRetry");
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, capped);
+  check(run.hunt.has_value(),
+        "a refused group is a retry and not an error, so the run exits 0 "
+        "(D-18, FR-021)");
+  const EntryHunt& hunt = *run.hunt;
+
+  check(hunt.retriedPasses == 1,
+        "retriedPasses counts the group whose open refused (D-18)");
+  check(hunt.skipped.empty(),
+        "the solo retry measured every event of the refused group (D-18)");
+  check(hunt.entries.size() == kCapEvents,
+        "every event of the capped plan still reaches the record (FR-021)");
+  check(hunt.passCount == kCapGroups + kCapWidth,
+        "the record counts the two planned groups and the two the retry "
+        "appended (PD-12, D-18)");
+  check(bodyAttempts == capped.repeats * (1 + kCapWidth),
+        "the first group ran its own attempts, the refused group ran none, and "
+        "only the two solo retry passes ran after the ceiling was armed, which "
+        "is the arming moment this arm reads its refusal from (T071)");
+  std::printf("capped-multiplex-group-retry: ok\n");
 }
 
 auto scenarioSoloRefusalMapsItsKind() -> void
@@ -1992,6 +2100,10 @@ auto scenarioLibraryRouteAnswersTheEntryRecord() -> void
                 &scenarioUnmeasurableAnchorSkipsEveryEvent},
       Scenario {"multiplex-no-limit", &scenarioNoLimitHostMarksEveryEvent},
       Scenario {"group-leaf-retry", &scenarioWidePassRetriesOneAtATime},
+      Scenario {"capped-multiplex-groups",
+                &scenarioCappedMultiplexSeatsOneGroupPerWindow},
+      Scenario {"capped-multiplex-group-retry",
+                &scenarioCappedMultiplexGroupRetriesOneAtATime},
       Scenario {"solo-refusal-maps-kind", &scenarioSoloRefusalMapsItsKind},
       Scenario {"anchorless-retry-one-leaf",
                 &scenarioAnchorlessRetrySeatsItsEventAlone},
