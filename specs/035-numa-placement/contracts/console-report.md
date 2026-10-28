@@ -1,0 +1,38 @@
+# Contract: the placement disclosure of a bound context
+
+Amendment of `specs/025-topology-placement/contracts/report-topology.md`
+(specs/035). The standing field stands unchanged except where this
+file amends it.
+
+## The placement field
+
+The field composes from the layout the run reads
+(`source/harness/report.cpp:156`, `placementText`):
+
+| Case | Field bytes |
+| --- | --- |
+| no pin | the standing no-pin text, unchanged |
+| pinned, no node plan | `cpu@group`, the standing bytes, unchanged |
+| pinned under the `node` preset | `cpu@group@node` |
+
+| Rule | Requirement |
+| --- | --- |
+| The node stands last, joined by the same `@` separator, named by the number the hwloc read states. | FR-011 |
+| The field carries no new key in the JSON context object; the schema minor stays `1.6`. | FR-004, D-5 |
+| A run with no node preset keeps every field byte-identical to master apart from the `schemaVersion` value. | FR-002 |
+
+## Console row
+
+The context rows print the field in the standing column; a bound
+context's field grows the node tail and no other byte of the row
+moves.
+
+## Example
+
+```text
+ctx0=SPIN/3/l3@node0
+```
+
+The exact rendering stands beside the standing account words of
+spec 020 (`waitMode`, `applied`); this contract pins the field shape
+alone, and the fixture pairs of the shape gate pin the folded bytes.
