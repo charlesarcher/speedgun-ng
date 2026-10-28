@@ -39,3 +39,9 @@ speedgun-ng-*-specify-prompt.md
 harness_*_out.txt
 /harness_cli_*
 harness_precheck_fake_root_/
+
+# The fork-capture and JSON round-trip targets the harness test suites
+# write and read back in the working directory (harness_jitter_cli_test,
+# harness_json_load_test, harness_json_report_test, the run fixtures).
+/harness_jitter_cli_*
+/harness_json_*
