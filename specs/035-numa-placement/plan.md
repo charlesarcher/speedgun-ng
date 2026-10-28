@@ -234,10 +234,12 @@ exported-layout check of the harness `SOVERSION` stays untouched.
 - **R-08 (FR-011, D-5)**: `placementText`
   (`source/harness/placement_preset.cpp:477`, the unit that composes
   the field beside the layout) gains the node tail. The field reads
-  `cpu@group@node` where the plan binds one and the standing
-  `cpu@group` bytes where it does not. The compose reads the layout's
-  cpu-to-node map, so no slot change joins and the public struct
-  stands unchanged; the standing width cut of the field in
+  `cpu@group@node` where the run's resolved plan binds the context,
+  and the standing `cpu@group` bytes where it does not: the compose
+  consults the layout's cpu-to-node map beside the run's resolved
+  preset state in the same unit, so a run with no node preset keeps
+  the standing bytes and no slot change joins the public struct; the
+  standing width cut of the field in
   `source/harness/report.cpp` stands unchanged for the longer
   bytes.
 - **R-09 (FR-007, D-3)**: a read that states no memory information

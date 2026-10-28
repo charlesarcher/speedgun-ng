@@ -140,12 +140,13 @@ the plan states.
 - [ ] T011 [US1] Extend `placementText` in
   `source/harness/placement_preset.cpp:477`, the unit that composes
   the field beside the layout: the field carries the node tail from
-  the layout's cpu-to-node map where the plan binds one, and keeps
-  the standing `cpu@group` bytes where it does not, with no key
-  change in `docs/schema/report-v1.json:350`; the standing width cut
+  the layout's cpu-to-node map where the run's resolved plan binds
+  the context, and keeps the standing `cpu@group` bytes where it
+  does not, with no key change in
+  `docs/schema/report-v1.json:350`; the standing width cut
   of the field in `source/harness/report.cpp` stands unchanged for
   the longer bytes (FR-011, FR-004, D-5, R-08) (depends on T004,
-  T008; the tests of T008 turn green)
+  T008, T010; the tests of T008 turn green)
 - [ ] T012 [US1] Add the bind call at the context start in
   `source/harness/execution_context.cpp:434`: the bind stands after
   the placement call, outside the replaceable function, driven by the
