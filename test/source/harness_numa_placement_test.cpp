@@ -608,12 +608,6 @@ auto bmNumaSpin(sg::State& state) -> void
 auto setupTwoNodeRun() -> void
 {
   installNodeLayout(4, 4, 2);
-  // The disclose verification's bystander names a cpu the synthetic
-  // layout carries; the online-set seam states the layout's cpus, so
-  // the context start's precondition reads them online on every
-  // host (FR-005, FR-017).
-  sg::detail::installTestOnlineCpus(std::vector<std::uint32_t> {
-      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15});
   installFakeBinder();
   auto handle = sg::registerBenchmark(&bmNumaSpin, "bmNumaSpin");
   handle.threads(2);
@@ -763,18 +757,18 @@ auto verifyNodeDisclose() -> void
     std::exit(1);
   }
   // A context the plan does not bind keeps the standing `cpu@group`
-  // bytes beside the installed plan (FR-011, FR-002). The bystander
-  // stands after the run, so the plan resets ahead of it and its
-  // start binds no node; the slot names cpu 15, a cpu the online-set
-  // seam states, so the start's precondition reads it on every host.
-  sg::detail::resolvedNodePlan() = std::nullopt;
+  // bytes beside the installed plan (FR-011, FR-002). The slot names
+  // cpu 2: a cpu every host states online, so the start's
+  // precondition reads it, a cpu the plan does not name, so the
+  // start binds no node, and a cpu the kernel pins, so the field
+  // carries the slot bytes on every host.
   sg::ExecutionContext bystander {
-      sg::ContextPolicy {sg::WaitMode::BLOCK, sg::PlacementSlot::cpu(15U)}};
+      sg::ContextPolicy {sg::WaitMode::BLOCK, sg::PlacementSlot::cpu(2U)}};
   bystander.drain();
   const sg::PlacementResult record = sg::detail::placementRecordOf(bystander);
   bystander.requestStop();
   bystander.join();
-  if (record.description != "15@3" && record.description != "UNAPPLIED") {
+  if (record.description != "2@0") {
     std::fprintf(stderr,
                  "the bystander field read '%.*s'\n",
                  static_cast<int>(record.description.size()),
