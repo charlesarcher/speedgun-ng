@@ -348,7 +348,7 @@ no-op check close SC-003.
 
 ### Implementation for User Story 3
 
-- [ ] T023 [US3] Add `std::optional<std::size_t> multiplexCap` to
+- [X] T023 [US3] Add `std::optional<std::size_t> multiplexCap` to
   `HuntOptions` in `include/speedgun-ng/hunt.hpp` and the `g` clause
   to the `parseHuntBudget` loop in `source/harness/hunt_cli.cpp`
   (whole count, "1 to 10000"); the grammar tests of T022 turn green

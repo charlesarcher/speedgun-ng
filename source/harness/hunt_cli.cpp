@@ -375,15 +375,17 @@ constexpr std::string_view kBudgetShape = "expected <n>s, <n>p, <n>e or <n>g";
 // \post the two-stage budget holds the count the `s` or `p` clause named, above
 //       zero, in the unit its suffix spelled, and stands unset when the value
 //       carries neither clause; the sample budget holds the whole nanoseconds
-//       of the `e` clause (FR-001, FR-004, FR-012). A value that carries one
+//       of the `e` clause; the multiplex cap holds the whole count the `g`
+//       clause named, in 1 to 10000 (FR-001, FR-003, FR-004, FR-012). A value
+//       that carries one
 //       `s` or `p` clause settles exactly as spec 029 shipped it, and the last
 //       value of the scan stands as the value of the run (R-01).
 // \post every refusal quotes the whole value the option carried: an empty
 //       clause, a kind spelled twice, a clause whose suffix is missing or
 //       unknown, a count that is no number, an `e` word below one nanosecond or
-//       above the seconds bound, and a value that opens or ends with a blank
-//       each leave one line naming the value (FR-081,
-//       contracts/budget-grammar.md).
+//       above the seconds bound, a `g` count outside 1 to 10000, and a value
+//       that opens or ends with a blank each leave one line naming the value
+//       (FR-081, contracts/budget-grammar.md).
 auto parseHuntBudget(const char* text, RunOptions& options) -> void
 {
   SG_ASSERT(text != nullptr,
@@ -393,6 +395,7 @@ auto parseHuntBudget(const char* text, RunOptions& options) -> void
   hunt::HuntBudget budget;
   bool twoStage = false;
   std::optional<std::uint64_t> sample;
+  std::optional<std::size_t> cap;
   std::size_t seen = 0;
   std::size_t at = 0;
   while (true) {
@@ -435,6 +438,16 @@ auto parseHuntBudget(const char* text, RunOptions& options) -> void
         budget.amount = amount;
         twoStage = true;
       } break;
+      case 'g': {
+        // The cap counts events, so it names its range the way the hunt table
+        // option names its own: whole digits, 1 to 10000 (FR-003).
+        std::uint64_t count = 0;
+        if (!scanHuntNumber(body.c_str(), count) || count < 1 || count > 10'000)
+        {
+          rejectHuntValue("--hunt-budget", "expected 1 to 10000", text);
+        }
+        cap = static_cast<std::size_t>(count);
+      } break;
       case 'e': {
         // The shared seconds rule: finite, above zero, a fraction admitted,
         // nothing below one nanosecond and nothing above the bound the run
@@ -459,6 +472,7 @@ auto parseHuntBudget(const char* text, RunOptions& options) -> void
   settled.budget = twoStage ? std::optional<hunt::HuntBudget> {budget}
                             : std::optional<hunt::HuntBudget> {};
   settled.sampleBudgetNs = sample;
+  settled.multiplexCap = cap;
 }
 
 // \pre `text` is the value getopt_long read for a required-argument row.

@@ -600,71 +600,84 @@ auto scenarioOptionValueRefusals() -> void
   std::printf("option-value-refusals: ok\n");
 }
 
-// The clause grammar of `--hunt-budget=` (specs/033-hunter-budgets T015,
-// FR-004, R-01; contracts/budget-grammar.md). Each row is a row of that
-// contract: a kind spelled twice, an empty clause, a suffix that names no kind,
-// a value that opens or ends with a blank, an `e` word below one nanosecond and
-// an `e` word above the seconds bound each answer one line that quotes the
-// whole value and end the run at status 2.
+// The clause grammar of `--hunt-budget=` (specs/033-hunter-budgets T015, T022,
+// FR-003, FR-004, R-01; contracts/budget-grammar.md). Each row stands for a row
+// of that contract: a kind spelled twice, an empty clause, a suffix that names
+// no kind, a value that opens or ends with a blank, an `e` word below one
+// nanosecond, an `e` word above the seconds bound and a `g` count outside the
+// range each answer one line that quotes the whole value and end the run at
+// status 2.
 auto scenarioBudgetClauseRefusals() -> void
 {
-  const std::string shape =
-      "--hunt-budget: expected <n>s, <n>p, <n>e or <n>g, got '";
-  const std::
-      string
-          seconds =
-              "--hunt-budget: expected a finite positive number of seconds at "
-              "most " "9223372036, got '";
-  const auto quoted = [](const std::string& lead,
-                         const std::string& value) -> std::string
-  { return lead + value + "'"; };
+  // The three sentences the grammar answers, in the standing family: the
+  // option, what it expected, and the whole value it read.
+  constexpr const char* kShape =
+      "--hunt-budget: expected <n>s, <n>p, <n>e or <n>g";
+  constexpr const char* kSeconds =
+      "--hunt-budget: expected a finite positive number of seconds at most "
+      "9223372036";
+  constexpr const char* kCount = "--hunt-budget: expected 1 to 10000";
+  const auto line = [](const char* expected,
+                       const std::string& value) -> std::string
+  { return std::string(expected) + ", got '" + value + "'"; };
 
   checkRefusals({
-      {"full", {"--hunt-budget=0.5e,2e"}, quoted(shape, "0.5e,2e")},
-      {"full", {"--hunt-budget=8p,2p"}, quoted(shape, "8p,2p")},
-      {"full", {"--hunt-budget=120s,,1e"}, quoted(shape, "120s,,1e")},
-      {"full", {"--hunt-budget=120x"}, quoted(shape, "120x")},
-      {"full", {"--hunt-budget= 120s"}, quoted(shape, " 120s")},
-      {"full", {"--hunt-budget=120s "}, quoted(shape, "120s ")},
+      {"full", {"--hunt-budget=0.5e,2e"}, line(kShape, "0.5e,2e")},
+      {"full", {"--hunt-budget=8p,2p"}, line(kShape, "8p,2p")},
+      {"full", {"--hunt-budget=32g,16g"}, line(kShape, "32g,16g")},
+      {"full", {"--hunt-budget=120s,,1e"}, line(kShape, "120s,,1e")},
+      {"full", {"--hunt-budget=120x"}, line(kShape, "120x")},
+      {"full", {"--hunt-budget= 120s"}, line(kShape, " 120s")},
+      {"full", {"--hunt-budget=120s "}, line(kShape, "120s ")},
+      {"full", {"--hunt-budget=0g"}, line(kCount, "0g")},
+      {"full", {"--hunt-budget=10001g"}, line(kCount, "10001g")},
+      {"full", {"--hunt-budget=1.5g"}, line(kCount, "1.5g")},
+      {"full", {"--hunt-budget=xg"}, line(kCount, "xg")},
+      {"full", {"--hunt-budget=xe"}, line(kSeconds, "xe")},
+      {"full", {"--hunt-budget=0e"}, line(kSeconds, "0e")},
       {"full",
        {"--hunt-budget=0.0000000001e"},
-       quoted(seconds, "0.0000000001e")},
-      {"full", {"--hunt-budget=9223372037e"}, quoted(seconds, "9223372037e")},
-      {"full", {"--hunt-budget=xe"}, quoted(seconds, "xe")},
-      {"full", {"--hunt-budget=0e"}, quoted(seconds, "0e")},
+       line(kSeconds, "0.0000000001e")},
+      {"full", {"--hunt-budget=9223372037e"}, line(kSeconds, "9223372037e")},
   });
   std::printf("budget-clause-refusals: ok\n");
 }
 
-// The accepted forms of the same grammar (T015, FR-004): the standing pair
-// parses exactly as spec 029 shipped it, the `e` clause settles on its own, and
-// a value that carries both clauses in either order reaches the run.
 auto scenarioBudgetClauseAccepted() -> void
 {
   registerHost(kScriptFull);
   registerCase();
 
+  // The accepted rows read the plan line, which carries each clause in the
+  // canonical text rebuilt from the settled figure: the standing budget first,
+  // then `sample=`, then `mux=`, in that order (FR-012, FR-023, N-06).
   struct Form
   {
     std::string_view value;
-    std::string_view budget;
+    std::string_view segments;
   };
 
-  for (const Form form : {Form {"120s", "budget=120s"},
-                          Form {"8p", "budget=8p"},
-                          Form {"0.5e", "budget=none"},
-                          Form {"1e", "budget=none"},
-                          Form {"1e,120s", "budget=120s"},
-                          Form {"120s,1e", "budget=120s"},
-                          Form {"9223372036e", "budget=none"}})
+  for (const Form form :
+       {Form {"120s", "budget=120s"},
+        Form {"8p", "budget=8p"},
+        Form {"0.5e", "budget=none sample=0.5e"},
+        Form {"1e", "budget=none sample=1e"},
+        Form {"1e,120s", "budget=120s sample=1e"},
+        Form {"120s,1e", "budget=120s sample=1e"},
+        Form {"9223372036e", "budget=none sample=9223372036e"},
+        Form {"32g", "budget=none mux=32g"},
+        Form {"1g", "budget=none mux=1g"},
+        Form {"10000g", "budget=none mux=10000g"},
+        Form {"32g,120s", "budget=120s mux=32g"},
+        Form {"120s,0.5e,32g", "budget=120s sample=0.5e mux=32g"}})
   {
     const std::string run = captureRun(
         withFilter({"--hunt=all", "--hunt-budget=" + std::string(form.value)}));
     check(run.find("hunt: plan events=") != std::string::npos,
           "an accepted budget clause value reaches the plan line (FR-004)");
-    check(run.find(std::string(form.budget)) != std::string::npos,
-          "the plan line carries the two-stage budget the value named and no "
-          "other (FR-012)");
+    check(run.find(std::string(form.segments)) != std::string::npos,
+          "the plan line carries the clause texts of the value, in order and "
+          "in their canonical spellings (FR-012, FR-023)");
   }
   std::printf("budget-clause-accepted: ok\n");
 }
