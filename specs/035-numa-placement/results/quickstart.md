@@ -73,6 +73,10 @@ The 2-cpu single-node host stands out of reach like the `NPS2` and
 
 ## The CI run
 
-The lane host pushes nothing: the pushed head's CI run stands owed to
-the push, the way the `032-lane-merge` record lands it (T027). The run
-reference lands in the pull request's body when the push happens.
+The branch stands pushed: `035-numa-placement` at `ee4122d`, three
+commits over `origin/master` (`e4a98bc`, which already carries the
+merged `034-host-noise-precheck` head). The workflow runs on the
+pull request that targets `master`, so the run stands one token away:
+the session holds none, the way the `032-fix-merged-features` lane
+read its run `40438223916` with a supplied token (T027). The run
+reference lands here when the pull request opens and the jobs report.
