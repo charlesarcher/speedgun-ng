@@ -9,7 +9,7 @@ sixteen keys and their order stand. (FR-020 to FR-023, R-11, R-12.)
 | --- | --- | --- | --- |
 | `sample_budget` | string | only when the sample budget stands | canonical `e` clause text, rebuilt from whole nanoseconds (`0.5e`) |
 | `multiplex_cap` | string | only when the cap stands | canonical `g` clause text (`32g`) |
-| `derived_repeats` | integer | only when a figure priced the stage under a sample budget | the derived count (E-03) |
+| `derived_repeats` | integer | only when a figure priced the stage under a sample budget | the derived count (033 N-03) |
 | `mux_groups` | integer array | only when the cap split the plan | group sizes in plan order |
 
 Presence rules:
@@ -17,11 +17,13 @@ Presence rules:
 - an unset budget writes no key (not a null key): a hunt run without
   the budgets writes the 1.6 bytes apart from `schemaVersion`
   (FR-022);
-- the four keys join `properties` and `x-order` in one commit;
-  `required` keeps the standing sixteen, so a 1.4 to 1.6 hunt
+- each key joins `properties` and `x-order` in the same commit as
+  its writer (the US2 pair first, the US3 pair after); `required`
+  keeps the standing sixteen, so a 1.4 to 1.6 hunt
   document stays valid and `loadReport` reads it equal (FR-021);
-- `x-order` position: appended after `stage_two_events`, order fixed
-  as listed above.
+- `x-order` position: after `stage_two_events`, the final order
+  fixed as listed above; the US3 keys insert, `multiplex_cap`
+  after `sample_budget` and `mux_groups` after `derived_repeats`.
 
 ## Read rules (`loadReport`)
 

@@ -50,7 +50,8 @@ one-address-per-line: the emitted counter set written by
 **Testing**: the repository harness (`add_executable` per area plus
 `add_test`); extended `harness_hunt_cli_test`,
 `harness_hunt_plan_test`, `harness_hunt_json_test`,
-`harness_hunt_report_test`, green `harness_cli_table_test`; scripted
+`harness_hunt_report_test`, `harness_hunt_rank_test`, green
+`harness_cli_table_test`; scripted
 hosts through `FakeProvider`/`pass_fixture`; `ctest -j 2`; the suite
 passes under `taskset -c 0,1`.
 
@@ -78,7 +79,7 @@ rule 15); option value 280, no short letter, no environment source.
 **Scale/Scope**: one option row; four clause kinds in one parse
 function; one planner derivation and one group split; one file
 writer; one gather-arm interception; two public fields and one
-public method; four schema keys at minor 1.7; four extended test
+public method; four schema keys at minor 1.7; five extended test
 executables; docs rows and one extended example.
 
 **Execution mode**: TDD (Principle III). Every test task is written
@@ -146,8 +147,9 @@ source/harness/
 │                               and split declarations (internal)
 ├── hunt_plan.cpp             parse-free planner: derived repeats in
 │                               splitStages, muxGroups in planHunt
-├── hunt.cpp                  runHuntNamed: one multiplex group per
-│                               seat through the standing loop;
+├── hunt.cpp                  runHuntNamed: the capped plan's
+│                               handoff passes are the groups,
+│                               seated through the standing loop;
 │                               RunHunt carries the new figures
 ├── hunt_cli.cpp              parseHuntBudget clause loop;
 │                               parseHuntEmitSet; writeHuntEmitSet;
@@ -207,11 +209,14 @@ selection read one grammar from one place.
 - **R-02 Derived repeats (FR-001, FR-002).** In `splitStages`, when
   `sampleBudgetNs` and the calibration figure stand, the stage repeat
   count becomes `min(requested, max(1, sampleBudgetNs /
-  (calibrationNsPerPass × passesOfStage)))`; the per-repeat,
-  per-stage figure is the standing `calibrationNsPerPass × passes`
-  product the estimate already computes (`hunt_plan.cpp:204`). No
-  clock read; pure data. The derived count re-prices `estimateNs`
-  and feeds the standing stage-drop decision (FR-005).
+  (calibrationNsPerPass × passRuns(plan, stage)))`; the
+  per-repeat, per-stage figure is the standing calibration term
+  against the stage's own window count: `calibrationNsPerPass` (the
+  estimate's term, `hunt_plan.cpp:204`) times `passRuns(plan,
+  stage)` (`hunt_plan.cpp:404`). No clock read; pure data. The
+  stage guarantees read the derived count as their rule figure
+  (spec D-12). The derived count re-prices `estimateNs` and feeds
+  the standing stage-drop decision (FR-005).
 - **R-03 Overrun and unpriced (FR-002).** One repeat above the
   budget keeps one repeat and records the overrun on the plan record;
   no calibration figure keeps the requested count and records the
@@ -222,9 +227,12 @@ selection read one grammar from one place.
   `planHunt` records `muxGroups`: the planned addresses split into
   consecutive groups of at most the cap in plan order (200 with 32
   gives 32×6 then 8). A `PASSES` plan records no groups; the cap
-  binds nothing. The run seats one group per multiplex pass through
-  the standing pass loop (`hunt.cpp:collectStageSamples`); no second
-  loop, no second counter path (D-23 of spec 029 stands).
+  binds nothing. The cap binds when the plan builds its windows: a
+  capped `MULTIPLEX` plan's handoff passes (`buildHandoff`,
+  `hunt.cpp:416`) are the groups, seated through the standing loop
+  (`collectStageSamples`, `hunt.cpp:502`), and `muxGroups` is that
+  table's disclosure; no second loop, no second counter path
+  (D-23 of spec 029 stands).
 - **R-05 Composition (FR-004, FR-005).** The three budgets coexist:
   the two-stage split chooses its stages, the sample budget derives
   the repeats inside each chosen stage, the cap groups inside each
@@ -232,9 +240,10 @@ selection read one grammar from one place.
   Clause kinds compose freely; none rewrites another's rule.
 - **R-06 The public record (FR-013).** `HuntOptions` gains
   `std::optional<std::uint64_t> sampleBudgetNs` and
-  `std::optional<std::size_t> multiplexCap`; `RunHunt` and
-  `EntryHunt` need no new data for the budgets (the run record owns
-  `options`). `EntryHunt::toCounterSet(std::size_t topN)` answers a
+  `std::optional<std::size_t> multiplexCap`; `EntryHunt` needs no
+  new data; `RunHunt` carries the derived figures the console and
+  JSON disclose (the run record owns `options` for the budgets
+  themselves). `EntryHunt::toCounterSet(std::size_t topN)` answers a
   `std::vector<std::string>`: ranked entries with a rank, ascending
   rank, capped at `topN`, one address each. It measures nothing and
   reads no clock (the header's standing sentence extends).
@@ -372,8 +381,8 @@ run (`hunt.cpp`), the option arms (`hunt_cli.cpp`,
 `options.cpp`) and the printers (`report.cpp`,
 `json_report.cpp`/`json_load.cpp`); the counters archive
 (`SOVERSION 4`) is untouched. No new target; no new link edge.
-Public symbols added: `toCounterSet`, the two `HuntOptions` fields
-(record layout).
+Public symbols added: `toCounterSet`, the two `HuntOptions`
+fields and the `RunHunt` disclosure fields (record layout).
 
 ### Version and `SOVERSION`
 
@@ -412,7 +421,7 @@ that turns it green.
    `sample` and `mux` text rebuild cases (`0.5e`, whole seconds,
    whole counts).
 6. Standing green: `harness_cli_table_test` (280 unique),
-   `harness_hunt_rank/collect_test` unchanged, `example_run` on the
+   `harness_hunt_collect_test` unchanged, `example_run` on the
    extended `hunt_rank`, the drift gate, coverage 100/100 with no
    marker, `taskset -c 0,1`, sanitize/tsan/tidy/cppcheck/prose.
 
