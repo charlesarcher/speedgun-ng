@@ -144,10 +144,12 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   "specs/033"}` with its parse arm in `source/harness/options.cpp`,
   the parse body `parseHuntEmitSet` in `source/harness/hunt_cli.cpp`
   (empty value: the standing one-line exit-2 refusal; else the path
-  settles on `RunOptions::huntEmitSet`), and the conflict line in
-  `source/harness/cli.cpp` beside the standing hunt conflicts: an
-  emit path with no hunt, `--hunt=none` among them, leaves one line
-  naming the value with status 2. The same commit moves the
+  settles on `RunOptions::huntEmitSet`), and the refusal joins
+  `validateHuntCombination` in
+  `source/harness/hunt_cli.cpp:660` ahead of its early unset-hunt
+  return, its `\post` line moving with it: an emit path with no
+  hunt, `--hunt=none` among them, leaves one line naming the value
+  with status 2. The same commit moves the
   `--hunt-emit-set` row of the `README.md` Option table and the
   `docs/pages/harness.md` row carrying the table's help string
   (`tools/docs/example_drift.py:744` and
