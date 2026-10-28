@@ -850,7 +850,9 @@
         "estimate_ns",
         "planned_events",
         "ran_events",
-        "stage_two_events"
+        "stage_two_events",
+        "sample_budget",
+        "derived_repeats"
       ],
       "required": [
         "selection",
@@ -903,7 +905,9 @@
         "estimate_ns": { "type": ["integer", "null"] },
         "planned_events": { "type": "integer" },
         "ran_events": { "type": "integer" },
-        "stage_two_events": { "type": "integer" }
+        "stage_two_events": { "type": "integer" },
+        "sample_budget": { "type": "string" },
+        "derived_repeats": { "type": "integer" }
       }
     }
   }
