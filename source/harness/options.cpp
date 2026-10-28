@@ -28,6 +28,7 @@
 #include <getopt.h>
 
 #include "detail/compare.hpp"
+#include "detail/hunt_selection.hpp"
 #include "detail/noise_tracer.hpp"
 #include "speedgun-ng/dbc.hpp"
 
@@ -1375,6 +1376,38 @@ auto sourceItems(const std::string& text,
   return splitItems(text);
 }
 
+// specs/033-hunter-budgets FR-014, R-09, contracts/counter-file.md: the
+// addresses one `--counter` item names. An item that spells `@path` is one list
+// file, read one level deep through `detail::readAddressFileLines`, the reader
+// the hunt selection reads with; every other item is the address it spells. The
+// refusals of the file form name the value the option carried: the file no host
+// opens, the comma that left an address empty, and the file that holds no
+// address. An address the host cannot resolve is no refusal of this arm, the
+// way it is none when the command line spells it: the entry point reads it the
+// standing way and answers the standing line.
+[[nodiscard]] auto counterItemAddresses(std::string_view item,
+                                        const std::string& option)
+    -> std::expected<std::vector<std::string>, std::string>
+{
+  if (!item.starts_with('@')) {
+    return std::vector<std::string> {std::string(item)};
+  }
+  const auto lines = readAddressFileLines(std::string(item.substr(1)), item);
+  if (!lines.has_value()) {
+    return std::unexpected(option + ": " + lines.error());
+  }
+  for (const auto& address : *lines) {
+    if (address.empty()) {
+      return std::unexpected(option + ": '' is not a counter address");
+    }
+  }
+  if (lines->empty()) {
+    return std::unexpected(option + ": '" + std::string(item)
+                           + "' holds no counter address");
+  }
+  return lines;
+}
+
 // The rows whose value accumulates within one source: their arms below
 // append the items of every word, where a scalar keeps the last word
 // (FR-035, FR-038). The disclosure of an accumulated row joins its items
@@ -1542,22 +1575,30 @@ auto applySourceValue(const OptionRow& row,
       options.warmupTimeNs = *seconds;
       return true;
     }
-    case 'c':
+    case 'c': {
       // FR-038, FR-087: the host resolves an address, so every address every
       // source named is kept for the walk of the entry point, settled or
-      // dropped, behind the origin of the source that held it.
+      // dropped, behind the origin of the source that held it. Each item is an
+      // address or the `@path` of one list file (FR-014), and no cap binds the
+      // number of addresses either form names.
+      std::vector<std::string> addresses;
       for (const std::string_view item : sourceItems(text, source)) {
-        resolved.counterAddresses.push_back(
-            CounterAddress {origin, std::string(item)});
+        const auto read = counterItemAddresses(item, option);
+        if (!read.has_value()) {
+          return refuse(read.error());
+        }
+        addresses.insert(addresses.end(), read->begin(), read->end());
+      }
+      for (const auto& address : addresses) {
+        resolved.counterAddresses.push_back(CounterAddress {origin, address});
       }
       if (!options.counterAddresses.empty() && prior != kSameSourceSettled) {
         return false;
       }
-      for (const std::string_view item : sourceItems(text, source)) {
-        options.counterAddresses.emplace_back(item);
-      }
+      options.counterAddresses.insert(
+          options.counterAddresses.end(), addresses.begin(), addresses.end());
       return true;
-
+    }
     case 'M': {
       const std::vector<std::string_view> items = sourceItems(text, source);
       // FR-028, FR-033, FR-038: the lookup of a metric name reads the host,
