@@ -1620,7 +1620,7 @@ auto applySourceValue(const OptionRow& row,
       const auto preset = parsePreset(text);
       if (!preset.has_value()) {
         return refuse(option + ": '" + quotedText(text)
-                      + "' is not one of the five preset names");
+                      + "' is not one of the six preset names");
       }
       if (options.placement.has_value() && prior != kSameSourceSettled) {
         return false;

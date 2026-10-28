@@ -260,12 +260,12 @@ the placement runs.
 quickstart links each one, and an unreachable state stands recorded
 as out of reach with the gap named.
 
-- [ ] T018 [US4] Write the NPS evidence plan in
+- [X] T018 [US4] Write the NPS evidence plan in
   `specs/035-numa-placement/results/plan.md`: the BIOS change and
   reboot procedure, the state list the board's menu offers, the
   command set per state, and the record format the states fill
   (FR-019, D-7, R-11)
-- [ ] T019 [US4] Record the runs on thrawn: one record per NPS state
+- [X] T019 [US4] Record the runs on thrawn: one record per NPS state
   under `specs/035-numa-placement/results/`, each naming the state,
   the boot, the commands, the exit codes and the listing, with the
   merged pre-check run beside the placement runs; a state the menu
@@ -284,11 +284,11 @@ offers carries its record, and the quickstart links them.
 **Goal**: the README, the guide page and the example teach the node
 plans, and the docs gates stand green over them.
 
-- [ ] T020 [P] [US5] Add the README section of at most 25 lines and
+- [X] T020 [P] [US5] Add the README section of at most 25 lines and
   the quick-reference rows in `README.md`, and the option and field
   detail in `docs/pages/harness.md` beside the placement sections
   spec 025 landed (FR-020, FR-021, R-12)
-- [ ] T021 [US5] Add the runnable example
+- [X] T021 [US5] Add the runnable example
   `example/docs/numa_placement.cpp` with its `.expected` file, a
   fixed context count of two with the `node` preset; register it in
   `example/CMakeLists.txt` and the example lists, name the shape test
@@ -296,7 +296,7 @@ plans, and the docs gates stand green over them.
   `SECTIONS` and `SECTION_OWNERS` rows in
   `tools/docs/example_drift.py` (FR-022, R-12) (depends on T011,
   T012)
-- [ ] T022 [US5] Record the shape-gate rule and the fixture pair for
+- [X] T022 [US5] Record the shape-gate rule and the fixture pair for
   the node tail in
   `specs/035-numa-placement/contracts/report-shape.md`'s fixture
   table and in `test/example-drift-fixture/run_report_shape_fixtures.py`:

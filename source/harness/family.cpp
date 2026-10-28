@@ -377,7 +377,7 @@ auto expandRegistry(const std::optional<Preset> processPreset) -> void
       if (!parsed.has_value()) {
         std::fprintf(stderr,
                      "placement: family '%s' names the preset '%s', which "
-                     "is not one of the five\n",
+                     "is not one of the six\n",
                      entry->name.c_str(), entry->placement->c_str());
         std::exit(2);
       }
