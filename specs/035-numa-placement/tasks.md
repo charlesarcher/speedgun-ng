@@ -58,7 +58,10 @@ feature with no new option row and no public-header move.
 machine read that states the nodes, and the seam the binding stands
 behind. No user story work can begin before this phase closes.
 
-- [ ] T003 [P] Write the failing node-walk tests in
+- [ ] T003 [P] Register the test executable in
+  `test/CMakeLists.txt` beside the standing placement tests
+  (`add_executable` and `add_test` with the quick label), then write
+  the failing node-walk tests in
   `test/source/harness_numa_placement_test.cpp`: synthetic layouts of
   one, two and four nodes installed through `installTestLayout`
   (`topology.cpp:306`) state the node numbers and the per-node cpu
@@ -256,8 +259,10 @@ as out of reach with the gap named.
   under `specs/035-numa-placement/results/`, each naming the state,
   the boot, the commands, the exit codes and the listing, with the
   merged pre-check run beside the placement runs; a state the menu
-  cannot produce stands recorded as out of reach with the gap named
-  (FR-019, D-7, R-11) (depends on T011, T012, T014, T017, T018)
+  cannot produce stands recorded as out of reach with the gap named;
+  the feature quickstart's NPS section links each record as it lands
+  (FR-019, D-7, R-11, SC-005) (depends on T011, T012, T014, T017,
+  T018)
 
 **Checkpoint**: the evidence stands recorded: every state the menu
 offers carries its record, and the quickstart links them.
@@ -279,7 +284,8 @@ plans, and the docs gates stand green over them.
   `example/CMakeLists.txt` and the example lists, name the shape test
   `report_shape_numa_sample` in `test/CMakeLists.txt`, and add the
   `SECTIONS` and `SECTION_OWNERS` rows in
-  `tools/docs/example_drift.py` (FR-022, R-12) (depends on T012)
+  `tools/docs/example_drift.py` (FR-022, R-12) (depends on T011,
+  T012)
 - [ ] T022 [US5] Record the shape-gate rule and the fixture pair for
   the node tail in
   `specs/035-numa-placement/contracts/report-shape.md`'s fixture
