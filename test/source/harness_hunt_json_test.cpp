@@ -1663,6 +1663,19 @@ auto budgetRoundTrip() -> void
   checked(padded->hunt->options.sampleBudgetNs == kSampleBudgetNs,
           "a sample budget spelled 0.50e reads back the same nanoseconds");
 
+  // A bound the writer spells in whole seconds takes the other arm of the same
+  // reader: no point, no fraction, the whole figure the option settled.
+  sg::test::writeText(scratchDocument,
+                      std::string(text.substr(0, value)) + "\"2e\""
+                          + std::string(text.substr(valueEnd(text, value))));
+  const auto whole = sg::loadReport(scratchDocument);
+  if (!whole.has_value()) {
+    failed("the document whose sample budget reads 2e refuses to load: "
+           + whole.error());
+  }
+  checked(whole->hunt->options.sampleBudgetNs == 2ULL * 1'000'000'000ULL,
+          "a sample budget spelled 2e reads back two whole seconds");
+
   auto rewritten = bounded;
   rewritten.run = *padded->hunt;
   rewritten.entry = *padded->results.front().hunt;
@@ -1782,6 +1795,30 @@ const auto kBudgetPlants = std::vector<Plant> {
            .body = "\"e\"",
            .pointer = "/hunt/sample_budget",
            .message = "states no sample budget amount"},
+    Plant {.what = "a sample budget text that stands empty",
+           .node = "run",
+           .key = "sample_budget",
+           .body = "\"\"",
+           .pointer = "/hunt/sample_budget",
+           .message = "states no sample budget unit"},
+    Plant {.what = "a sample budget count that is no number",
+           .node = "run",
+           .key = "sample_budget",
+           .body = "\"xe\"",
+           .pointer = "/hunt/sample_budget",
+           .message = "states no sample budget amount"},
+    Plant {.what = "a sample budget above the whole-second bound",
+           .node = "run",
+           .key = "sample_budget",
+           .body = "\"99999999999e\"",
+           .pointer = "/hunt/sample_budget",
+           .message = "states no sample budget amount"},
+    Plant {.what = "a sample budget fraction that is no digit",
+           .node = "run",
+           .key = "sample_budget",
+           .body = "\"1.2x3e\"",
+           .pointer = "/hunt/sample_budget",
+           .message = "states no sample budget amount"},
     Plant {.what = "a number where the multiplex cap stands",
            .node = "run",
            .key = "multiplex_cap",
@@ -1794,6 +1831,18 @@ const auto kBudgetPlants = std::vector<Plant> {
            .body = "\"32\"",
            .pointer = "/hunt/multiplex_cap",
            .message = "states no multiplex cap unit"},
+    Plant {.what = "a cap text that stands empty",
+           .node = "run",
+           .key = "multiplex_cap",
+           .body = "\"\"",
+           .pointer = "/hunt/multiplex_cap",
+           .message = "states no multiplex cap unit"},
+    Plant {.what = "a cap text with no count",
+           .node = "run",
+           .key = "multiplex_cap",
+           .body = "\"g\"",
+           .pointer = "/hunt/multiplex_cap",
+           .message = "states no whole multiplex cap count"},
     Plant {.what = "a negative cap count",
            .node = "run",
            .key = "multiplex_cap",
