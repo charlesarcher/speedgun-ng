@@ -1876,6 +1876,24 @@ auto muxCapAtOrAboveThePlanAnswersOneGroup() -> void
   }
 }
 
+// FR-003, N-04: a cap of zero names no events, so the split answers no group
+// and the plan keeps the one window of the standing multiplex shape (D-19).
+// The option loop refuses `0g` on the command line, so this is the read-back
+// and library route: a document that carries the text, or a caller that sets
+// the field.
+auto muxCapOfZeroNamesNoEvents() -> void
+{
+  const auto plan = planned(acSevenColumns(),
+                            std::nullopt,
+                            cappedOptions(std::nullopt, kAcSevenTop, 0),
+                            "a cap of no events plans");
+  check(plan.muxGroups.empty(),
+        "a cap that names no events records no group (FR-003, N-04)");
+  check(plan.passes.size() == 1
+            && plan.passes.front().size() == sg::test::kHuntEvents,
+        "the plan keeps the one window over every planned column (D-19)");
+}
+
 // FR-003, R-04, spec 029 D-16: a `PASSES` settlement records no groups and the
 // cap binds nothing. The AC-7 plan at limit 6 settles `PASSES` and keeps its 50
 // passes of four columns beside a cap of 32. The forced
@@ -2000,6 +2018,7 @@ auto muxCapComposedWithTwoStageBudget() -> void
       Scenario {"sample-reads-no-clock", sampleDerivationReadsNoClock},
       Scenario {"mux-group-sizes", muxGroupsSplitThePlan},
       Scenario {"mux-cap-one-group", muxCapAtOrAboveThePlanAnswersOneGroup},
+      Scenario {"mux-cap-zero-no-groups", muxCapOfZeroNamesNoEvents},
       Scenario {"mux-passes-no-groups", muxCapBindsNothingOnPasses},
       Scenario {"mux-cap-two-stage-composed", muxCapComposedWithTwoStageBudget},
   };
