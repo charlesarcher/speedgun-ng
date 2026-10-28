@@ -9,7 +9,7 @@ FR-015, R-07 to R-09).
 | --- | --- |
 | Argument | required; a path (standing path rules: relative resolves against the working directory) |
 | Guard | legal only beside a hunt; `--hunt-emit-set` without `--hunt`, and beside `--hunt=none`, is the standing conflict: one line naming the value, exit 2 |
-| Empty value | one line naming the option, exit 2 |
+| Empty value | one line naming the value, exit 2 |
 | Content | per benchmark entry: `toCounterSet(--hunt-top)`, rank ascending; the run writes the deduplicated union of the per-entry lists, entry order then rank order; one catalog address per line; no header |
 | Exclusions | an event with a null rank (noisy, excluded, skipped, unmeasured) never enters |
 | Empty ranking | an empty file; the run keeps its standing exit |
@@ -38,7 +38,7 @@ reader, the spec 029 grammar):
 | Refusals (one line naming the value, exit 2) | file does not exist; a comma beside nothing (the empty address); the file holds no address |
 | Unknown address | standing `--counter` shape: an `ABSENT` column with its stderr line; the run continues |
 | Count | no cap on the number of addresses (spec 029 PC-2 reading) |
-| Sources | command line, option file, environment carry the same grammar (the interception sits in the gather arm) |
+| Sources | command line, option file, environment carry the same grammar per item, the environment's `;` items splitting first (the interception sits in the gather arm) |
 
 ## Round trip (FR-015, CI, scripted host)
 

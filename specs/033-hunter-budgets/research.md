@@ -18,8 +18,9 @@ every refusal.
 `--jitter-probe` packs comma clauses into one value
 (`specs/027-jitter-probe/contracts/cli-options.md`), and comma
 splitting already lives in the hunt selection value. Spec 028's
-gather replaces a row's whole value per source, so one value keeps
-replacement atomic across the three sources. `parseSeconds`
+one whole value per use keeps the grammar atomic; the hunt family
+is command-line only (`options.cpp:713-715`), so source replacement
+never arises for the budget. `parseSeconds`
 (`options.cpp`) proves fractional seconds in house grammar;
 `scanHuntNumber` proves the whole-count shape for `g`.
 
@@ -35,7 +36,7 @@ XI.7's one-term rule).
 
 **Decision**: `stageRepeats = min(stageRule, max(1, floor(sampleNs /
 (calibrationNsPerPass × passRuns(plan, stage)))))`; `stageRule`
-is 1 at stage 1 of a budgeted plan and `options.repeats`
+is 1 at stage 1 of a two-stage plan and `options.repeats`
 elsewhere. the result re-prices the
 estimate and feeds the standing stage-drop decision.
 

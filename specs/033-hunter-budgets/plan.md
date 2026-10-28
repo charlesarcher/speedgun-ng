@@ -78,8 +78,8 @@ rule 15); option value 280, no short letter, no environment source.
 
 **Scale/Scope**: one option row; four clause kinds in one parse
 function; one planner derivation and one group split; one file
-writer; one gather-arm interception; two public fields and one
-public method; four schema keys at minor 1.7; five extended test
+writer; one gather-arm interception; two `HuntOptions` fields, one public
+method, and the `RunHunt` disclosure fields; four schema keys at minor 1.7; five extended test
 executables; docs rows and one extended example.
 
 **Execution mode**: TDD (Principle III). Every test task is written
@@ -149,7 +149,7 @@ source/harness/
 │                               splitStages, muxGroups in planHunt
 ├── hunt.cpp                  runHuntNamed: the capped plan's
 │                               handoff passes are the groups,
-│                               seated through the standing loop;
+│                               seated by the Runner's loop;
 │                               RunHunt carries the new figures
 ├── hunt_cli.cpp              parseHuntBudget clause loop;
 │                               parseHuntEmitSet; writeHuntEmitSet;
@@ -183,7 +183,8 @@ test/source/
 ├── harness_hunt_json_test.cpp    the four keys, absence, refusals,
 │                                 pre-1.7 documents
 ├── harness_hunt_report_test.cpp  plan line and disclosure lines
-└── harness_cli_table_test.cpp    green unchanged (uniqueness holds)
+└── harness_cli_table_test.cpp    row count and hunt-block bound move
+│                               inside T009's commit (270 to 289)
 ```
 
 **Structure Decision**: the standing hunt tree absorbs everything;
@@ -214,7 +215,7 @@ selection read one grammar from one place.
   count becomes `min(stageRule, max(1,
   sampleBudgetNs / (calibrationNsPerPass × passRuns(plan,
   stage))))`, `stageRule` being the stage's own rule figure (1 at
-  stage 1 of a budgeted plan, `options.repeats` elsewhere); the
+  stage 1 of a two-stage plan, `options.repeats` elsewhere); the
   per-repeat, per-stage figure is the standing calibration term
   against the stage's own window count: `calibrationNsPerPass` (the
   estimate's term, `hunt_plan.cpp:204`) times `passRuns(plan,
@@ -227,17 +228,22 @@ selection read one grammar from one place.
   no calibration figure keeps the requested count and records the
   unpriced state. The record carries the state as data; the printers
   spell it; the run never refuses for it.
-- **R-04 The multiplex group split (FR-003).** After the method
-  settles, when `multiplexCap` stands and the method is `MULTIPLEX`,
-  `planHunt` records `muxGroups`: the planned addresses split into
-  consecutive groups of at most the cap in plan order (200 with 32
-  gives 32×6 then 8). A `PASSES` plan records no groups; the cap
-  binds nothing. The cap binds when the plan builds its windows: a
-  capped `MULTIPLEX` plan's handoff passes (`buildHandoff`,
-  `hunt.cpp:416`) are the groups, seated through the standing loop
-  (`collectStageSamples`, `hunt.cpp:502`), and `muxGroups` is that
-  table's disclosure; no second loop, no second counter path
-  (D-23 of spec 029 stands).
+- **R-04 The multiplex group split (FR-003).** In `planHunt`, when
+  `multiplexCap` stands and `settleMethod(AUTO, ...)` answers
+  `MULTIPLEX` for want of a published limit
+  (`hunt_plan.cpp:171-176`), `planHunt` records `muxGroups`:
+  the planned addresses split into consecutive groups of at most
+  the cap in plan order (200 with 32 gives 32×6 then 8), and the
+  window build that follows seats one group per pass
+  (`hunt_plan.cpp:186-194`), so the handoff passes (`buildHandoff`,
+  `hunt.cpp:416`) are the groups, seated by the Runner's pass loop
+  (driven per stage at `hunt.cpp:984-1013`), and `muxGroups` is
+  that table's disclosure; no second loop, no second counter path
+  (D-23 of spec 029 stands). A `PASSES` settlement records no
+  groups; the forced `--metric-method=multiplex` override lands
+  later in `runHuntNamed` (`hunt.cpp:934`, spec 029 D-16) and never
+  re-settles, so a forced word on a limited host keeps the
+  limit-sized passes and the cap binds nothing.
 - **R-05 Composition (FR-004, FR-005).** The three budgets coexist:
   the two-stage split chooses its stages, the sample budget derives
   the repeats inside each chosen stage, the cap groups inside each
@@ -272,8 +278,9 @@ selection read one grammar from one place.
   from `hunt_cli.cpp` to
   `detail::readAddressFileLines(path, refusalContext)`; the hunt
   selection delegates, keeping its own refusal sentences. The
-  `counter` gather arm (`options.cpp:1537`) intercepts a value that
-  starts with `@` before `sourceItems`: one level, the address
+  `counter` gather arm (`options.cpp:1537`) intercepts every item
+  from `sourceItems` that starts with `@` (the `;` split belongs to
+  the environment alone, `options.cpp:1356-1368`): one level, the address
   elements are the lines cut at `#` and split on commas under spec
   029's separator rule (a line of `a,b` answers two addresses, the
   shipped hunt rule standing); a missing file, a comma beside
@@ -431,7 +438,7 @@ that turns it green.
    run without budgets; each segment and disclosure line pinned; the
    `sample` and `mux` text rebuild cases (`0.5e`, whole seconds,
    whole counts).
-6. Standing green: `harness_cli_table_test` (280 unique),
+6. Standing green: `harness_cli_table_test` (37 rows, 280 inside the widened block),
    `harness_hunt_collect_test` unchanged, `example_run` on the
    extended `hunt_rank`, the drift gate, coverage 100/100 with no
    marker, `taskset -c 0,1`, sanitize/tsan/tidy/cppcheck/prose.
