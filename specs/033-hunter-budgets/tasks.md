@@ -390,7 +390,7 @@ teach the budgets and the promotion inside their caps.
 section within 25 lines, and the extended example matches its
 `.expected` on a CI runner (SC-008).
 
-- [ ] T026 [P] [US4] Grow the "Hunter mode" section of `README.md`
+- [X] T026 [P] [US4] Grow the "Hunter mode" section of `README.md`
   within `SECTION_LINE_CAP` (25 lines total, `tools/docs/example_drift.py:195`),
   files the quick-reference rows in the README's `Quick reference`
   section beside the standing hunt rows (the 029 shape; the cap

@@ -636,7 +636,12 @@ the object its first leaf reaches, after that object's counter lines.
 
 `--counter` names one catalog counter address, in the shape
 `--counter=machine/monotonic`, and adds one column per address in the order
-the addresses are given. An address this host does not find, a typo or a valid
+the addresses are given. One item may stand as the `@path` of a file of
+addresses, read one level deep, one address per line with blank lines and `#`
+comments ignored, the reading `--hunt=@path` gives. A file no host opens, a
+comma that leaves an address empty and a file that holds no address each stop
+the run with status 2 on one line naming the value the option carried. An
+address this host does not find, a typo or a valid
 path whose device the host lacks, stops the run before any measurement with
 status 2, on one line naming the source that held the address, the address,
 and what the host found there. The listing and the catalog answer before the
@@ -1739,7 +1744,7 @@ planned.
 | `--hunt-top` | `20` | 1 to 10000 ranked events |
 | `--hunt-noise` | `10` | a percentage above 0 |
 | `--hunt-repeats` | `3` | 1 to 1000 hunt repetitions |
-| `--hunt-budget` | none | `<n>s` seconds or `<n>p` passes, `<n>` above 0 |
+| `--hunt-budget` | none | `<n>s`, `<n>p`, `<n>e` or `<n>g` clauses, one per kind |
 | `--hunt-seed` | `0` | any whole number a 64-bit unsigned holds |
 | `--hunt-emit-set` | none | a file path |
 
@@ -1790,12 +1795,14 @@ status 2 the three conflicts above print.
 
 ### The hunt lines
 
-The plan line prints once above the first result row, the cut line directly
-under it, and the lines that rank print after the benchmark tables. The block
-states the shape of the output.
+The plan line prints once above the first result row, the cut line and the two
+budget lines directly under it, and the lines that rank print after the
+benchmark tables. The block states the shape of the output.
 
 ```text
-hunt: plan events=42 passes=14 method=PASSES estimate=1260000ns budget=120s stage1=42 stage2=42
+hunt: plan events=42 passes=14 method=MULTIPLEX estimate=1260000ns budget=120s sample=0.5e mux=32g stage1=42 stage2=42
+hunt: plan sample repeats=2 of 3
+hunt: plan mux groups=2 sizes=32,10
 hunt: rank 1 cpu/instructions_retired_any instr=1042.300 cv=1.20
 hunt: rank 2 cpu/l2_lines_out.any_core instr=6.910 cv=2.05 multiplexed
 hunt: rank - cpu/mem_load_stalled_on_l2 instr=2.110 cv=24.80 mark=noisy
@@ -1825,6 +1832,17 @@ and the kind of the refusal in the words the `--catalog` listing prints. The
 summary denominator counts the planned events plus
 the refusals that kept an event out of the plan, and its numerator counts the
 events that produced at least one usable sample.
+
+`budget=` carries the two-stage budget. `sample=` carries the sample budget and
+`mux=` the group cap, each in the canonical clause text the document writes and
+each standing only while its clause stands. Two lines stand under the plan line
+for the two budgets, and each prints only in the state that states it. The
+sample line gives the repeats the budget derived beside the repeats the rule
+gave, `repeats=2 of 3`; the word `unpriced` for a stage no calibration figure
+prices; or `repeats=1 over-budget` for a budget that fits below one repeat. A
+derived count the rule already gave moved nothing, so it prints no line. The
+groups line gives the sizes the cap split out of the plan, in plan order,
+`sizes=32,10`. A plan the cap left whole prints no groups line.
 
 A host that refuses every event prints the plan line, the skipped list and the
 summary with `events=0/N`, and the run ends with status 0. A group open that
@@ -1871,6 +1889,36 @@ again. A plan whose estimate does not fit the budget drops the second stage
 whole. The budget prints in the unit it was given, `budget=120s` or `budget=8p`,
 on the plan line and on the summary.
 
+The value carries one clause per kind, in any order, each kind at most once.
+
+| Clause | Bounds | Unit kept |
+| --- | --- | --- |
+| `<n>s` | the whole hunt, in seconds | an integer count |
+| `<n>p` | the whole hunt, in passes | an integer count |
+| `<n>e` | one event inside one stage | whole nanoseconds |
+| `<n>g` | the events of one multiplex group | a count of 1 to 10000 |
+
+`120s` and `8p` read as they always did. `0.5e` and `32g` are new, and
+`120s,0.5e,32g` names three bounds of one run. A value that repeats a kind,
+leaves a clause without a suffix, or names a count outside the range the clause
+states prints one line quoting the whole value and ends the run with status 2.
+
+An `e` clause bounds one event inside one stage. The repeats of a stage fall to
+the count the budget fits, `min(rule, max(1, budget / (calibration x
+passRuns)))`, where the calibration figure is the one the plan estimate reads and
+`passRuns` counts the windows of that stage's own plan. The derived count is the
+figure the estimate weighs and the figure the stage-drop decision weighs, so a
+budget that bounds the repeats decides the two-stage run too. A stage no
+calibration figure prices keeps the repeats its rule gives and prints
+`unpriced`. A budget that fits below one repeat leaves one repeat and prints the
+overrun.
+
+A `g` clause bounds one multiplex group. A plan that settled `MULTIPLEX` splits
+its planned addresses into consecutive groups of at most that count, in plan
+order, and one pass opens one group: 200 events at `32g` give 32 six times and
+8. A `PASSES` plan carries no groups, and a plan the cap leaves whole keeps the
+one window of the standing multiplex shape.
+
 ### The stated collection method
 
 The plan settles its method from the published counter limits: `PASSES` if a
@@ -1907,6 +1955,14 @@ and `stages` holds one item per stage that ran, each with `first`, `count` and
 `repeats`. `budget` stands `null` with no budget and `estimate_ns` stands
 `null` when the hunt timed no pass. `ran_events` counts the events that produced
 a usable sample and `stage_two_events` the events the second stage re-measured.
+
+Four keys follow `stage_two_events`, each present only in the state that states
+it. `sample_budget` carries the canonical `e` clause text the stored nanoseconds
+rebuild, `multiplex_cap` the canonical `g` clause text, `derived_repeats` the
+count a priced stage derived, and `mux_groups` the group sizes in plan order. A
+run that named neither clause writes none of the four, and a document written
+before these keys existed carries none of them and loads with the four fields
+unset.
 
 The words these keys take are the words the options take: `method` is `AUTO`,
 `PASSES` or `MULTIPLEX`, `norm` is `instr`, `cycle` or `iter`, the ranking key

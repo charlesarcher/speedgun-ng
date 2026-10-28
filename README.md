@@ -754,7 +754,7 @@ auto rankHuntEvents(const std::vector<sg::hunt::EventSamples>& collected,
   return hunt;
 }
 ```
-The run prints its hunt on stdout behind a `hunt:` prefix. One plan line names the event count, the pass count and the settled method, one rank row gives the rate under the label of the norm beside the deviation, one skipped row gives the kind of a refusal, and one summary line counts the events that produced a usable sample.
+The run prints its hunt on stdout behind a `hunt:` prefix. One plan line names the event count, the pass count and the settled method, one rank row gives the rate under the label of the norm beside the deviation, one skipped row gives the kind of a refusal, and one summary line counts the events that produced a usable sample. `--hunt-budget` takes one clause per bound: `120s` and `8p` bound the whole hunt in two stages, `0.5e` bounds one event inside one stage, and `32g` bounds the events of one multiplex group, and the plan line carries `sample=` and `mux=` beside `budget=` with one line under it for each budget that speaks. `--hunt-emit-set=<file>` writes the ranked addresses of the run, and `--counter=@<file>` reads such a file back as report columns.
 One line on stderr naming the value ends the run with status 2 for a value outside the range its option states, for a raw event code such as `r4a03`, and for a hunt beside `--counter`, `--metric` or `--compare`. A host that refuses every event prints the plan line, the skipped list and a summary that reads `events=0/N`, and the run ends with status 0. See [Hunter mode](docs/pages/harness.md#hunter-mode) for the selection forms, the options, the lines and the names.
 
 ## Quick reference
@@ -878,7 +878,7 @@ One line on stderr naming the value ends the run with status 2 for a value outsi
 | `--jitter-probe` | Runs the jitter probe over the batch by one value; `precheck=<ms>` or `precheck=serial` runs the host noise pre-check |
 | `--os-noise` | Runs the named noise tracer across the pre-check window |
 | `--dry-run` | Runs one iteration and prints the row shape |
-| `--counter` | Adds one catalog counter to the report columns |
+| `--counter` | Adds one catalog counter address or `@file` of addresses to the report columns |
 | `--metric` | Adds one metric of the host's table to the report columns |
 | `--metric-method` | Sets the metric collection method to `auto`, `passes` or `multiplex` |
 | `--catalog` | Prints the counter catalog and stops |
@@ -900,7 +900,7 @@ One line on stderr naming the value ends the run with status 2 for a value outsi
 | `--hunt-top` | Sets how many ranked rows the hunt table carries |
 | `--hunt-noise` | Sets the deviation percent above which an event is noisy |
 | `--hunt-repeats` | Sets the repetitions of the hunt stages |
-| `--hunt-budget` | Caps the hunt at `<n>s` seconds or `<n>p` passes in two stages |
+| `--hunt-budget` | Caps the hunt with `<n>s`, `<n>p`, `<n>e` or `<n>g` clauses |
 | `--hunt-seed` | Shuffles the planned event order under a seed |
 | `--hunt-emit-set` | Writes the ranked hunt events to a file, one address per line |
 
