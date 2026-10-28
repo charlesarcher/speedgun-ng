@@ -384,6 +384,33 @@ auto rankEvents(const std::vector<EventSamples>& collected,
   return result;
 }
 
+// specs/033 FR-013, FR-015, contracts/counter-file.md: the ranked set one entry
+// hands a later run. The table stands in the order the plan seated the columns,
+// so the rank the record carries is read and not assumed: the ranked pairs sort
+// and the leading `topN` of them answer.
+auto EntryHunt::toCounterSet(std::size_t topN) const -> std::vector<std::string>
+{
+  std::vector<std::pair<std::size_t, std::string>> ranked;
+  for (const auto& entry : entries) {
+    if (entry.rank.has_value()) {
+      ranked.emplace_back(*entry.rank, entry.address);
+    }
+  }
+  std::ranges::sort(ranked);
+
+  std::vector<std::string> addresses;
+  for (const auto& [rank, address] : ranked) {
+    if (addresses.size() == topN) {
+      break;
+    }
+    addresses.push_back(address);
+  }
+  SG_ENSURE(addresses.size() <= topN,
+            "the answer holds at most topN addresses, the ranked entries in "
+            "ascending rank");
+  return addresses;
+}
+
 }  // namespace sg::hunt
 
 namespace sg::detail

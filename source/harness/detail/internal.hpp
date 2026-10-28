@@ -637,6 +637,11 @@ struct RunOptions
   // specs/029 data-model.md E-09, FR-080 to FR-082, D-22: the hunt selection
   // and its settled values, empty when the run carries no hunt.
   std::optional<hunt::HuntOptions> hunt;
+  // specs/033-hunter-budgets data-model.md N-08, FR-010, R-07: the path
+  // `--hunt-emit-set=` settled, empty when the run writes no promoted set. The
+  // path rides the run record and not the hunt record, because the write is a
+  // run-level union over every entry's list.
+  std::string huntEmitSet;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it

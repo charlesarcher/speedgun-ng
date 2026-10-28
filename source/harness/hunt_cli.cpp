@@ -1,7 +1,8 @@
 // specs/029 FR-080 to FR-082, PD-16, PD-17: the eight hunt options, their
-// value ranges, their refusals, the `@file` reader, the glob matcher and the
-// conflict check. The scan of `cli.cpp` holds the table rows, the eight named
-// constants and one call per row; every parse body lives here (D-22).
+// value ranges, their refusals, the glob matcher and the conflict check. The
+// scan of `cli.cpp` holds the table rows, the eight named constants and one
+// call per row; every parse body lives here (D-22). The `@file` reader these
+// routes share stands in `hunt_selection.cpp` (specs/033 R-09).
 
 #include <algorithm>
 #include <cctype>
@@ -11,7 +12,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <fstream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -122,88 +122,6 @@ auto readHuntPercent(const char* text) -> double
 [[noreturn]] auto rejectHuntCombination(const char* other) -> void
 {
   rejectHuntSelection(std::string("--hunt cannot combine with ") + other);
-}
-
-// The lines a `@path` carries, read where the providers stand registered. The
-// file the host refuses is a refusal naming the path the option spelled
-// (FR-006, FR-081).
-auto readSelectionFile(const std::string& path) -> std::string
-{
-  std::ifstream file(path);
-  if (!file) {
-    rejectHuntSelection("--hunt: '@" + path + "' cannot be opened");
-  }
-  std::string text;
-  std::string line;
-  while (std::getline(file, line)) {
-    text += line;
-    text += "\n";
-  }
-  return text;
-}
-
-// The whitespace that stands around an address, an element and the `@path` of a
-// file, trimmed by hand the way `rejectPercentileList`'s parser reads its
-// spaces, the trim landing before the number is read.
-[[nodiscard]] auto trimText(const std::string_view text) -> std::string_view
-{
-  std::size_t first = 0;
-  std::size_t last = text.size();
-  // The line split above keeps every newline for itself, so a newline stands
-  // in no text this cut reads; the classes here are the blanks a line
-  // carries inside it.
-  const auto blank = [](const char c)
-  { return c == ' ' || c == '\t' || c == '\r'; };
-  while (first < last && blank(text[first])) {
-    ++first;
-  }
-  while (last > first && blank(text[last - 1])) {
-    --last;
-  }
-  return text.substr(first, last - first);
-}
-
-// The elements of a selection text: one line at a newline, each line cut at the
-// first `#` the way FR-006 reads a `@file`, then one element at a comma. A line
-// a comment or whitespace leaves empty is ignored (FR-006); a comma that leaves
-// nothing beside it is the empty address line, which stands in the list as an
-// empty element for the resolution below to refuse.
-[[nodiscard]] auto splitElements(const std::string& text)
-    -> std::vector<std::string>
-{
-  std::vector<std::string> elements;
-  const std::string_view whole {text};
-  std::size_t at = 0;
-  while (at < whole.size()) {
-    const std::size_t found = whole.find('\n', at);
-    const std::size_t lineEnd =
-        found == std::string_view::npos ? whole.size() : found;
-    std::string_view line = whole.substr(at, lineEnd - at);
-    at = lineEnd + 1;
-    const std::size_t comment = line.find('#');
-    if (comment != std::string_view::npos) {
-      line = line.substr(0, comment);
-    }
-    std::size_t piece = 0;
-    // The last piece of a line breaks below; a trailing comma leaves no
-    // element to push, so reaching the size ends the loop there instead of
-    // running an iteration that could only break again.
-    while (piece < line.size()) {
-      const std::size_t comma = line.find(',', piece);
-      const std::size_t pieceEnd =
-          comma == std::string_view::npos ? line.size() : comma;
-      const std::string_view element =
-          trimText(line.substr(piece, pieceEnd - piece));
-      if (!element.empty() || comma != std::string_view::npos) {
-        elements.push_back(std::string(element));
-      }
-      if (comma == std::string_view::npos) {
-        break;
-      }
-      piece = pieceEnd + 1;
-    }
-  }
-  return elements;
 }
 
 // The raw event code one element carries, read the way this route reads an
@@ -517,11 +435,15 @@ auto expandHuntSelection(RunOptions& options) -> void
         continue;
       }
       // One level of `@path`: the lines of a file are addresses; the file
-      // itself names none.
+      // itself names none. The shared reader answers the elements and the one
+      // refusal line, and this route prefixes the line with its own option
+      // word (FR-006, FR-014, R-09).
       fromFile = true;
-      for (const auto& address :
-           splitElements(readSelectionFile(entry.substr(1))))
-      {
+      const auto lines = readAddressFileLines(entry.substr(1), entry);
+      if (!lines.has_value()) {
+        rejectHuntSelection("--hunt: " + lines.error());
+      }
+      for (const auto& address : *lines) {
         elements.push_back(address);
       }
     }

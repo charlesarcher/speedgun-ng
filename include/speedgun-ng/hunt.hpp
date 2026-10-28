@@ -409,7 +409,7 @@ struct RankedEvent
  * first; an event only stage 1 measured holds a record built from
  * its stage 1 samples (I-4).
  */
-struct EntryHunt
+struct SPEEDGUN_NG_EXPORT EntryHunt
 {
   std::optional<MetricMethod> method;
   std::size_t passCount = 0;
@@ -417,6 +417,25 @@ struct EntryHunt
   std::vector<RankedEvent> entries;
   std::vector<SkippedEvent> skipped;
   std::size_t retriedPasses = 0;
+
+  /**
+   * @brief The ranked addresses of this entry, best first, capped at
+   * `topN` (E-06, FR-013, FR-015).
+   *
+   * The set the entry hands to a later run's `--counter=@<file>`: the
+   * same top `--hunt-top` events the console ranks, in the order the
+   * rank table prints them.
+   *
+   * \pre none
+   * \post the answer holds at most `topN` addresses, the ranked
+   *       entries in ascending rank; `topN` above the ranked count
+   *       answers them all and `topN` zero answers none; an entry
+   *       whose `rank` stands empty holds no address, the event being
+   *       noisy, excluded, skipped or unmeasured (I-5); the call
+   *       measures nothing and reads no clock
+   */
+  [[nodiscard]] auto toCounterSet(std::size_t topN) const
+      -> std::vector<std::string>;
 };
 
 /**
