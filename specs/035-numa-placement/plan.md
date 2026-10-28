@@ -218,11 +218,11 @@ exported-layout check of the harness `SOVERSION` stays untouched.
   way `installTestLayout` clears (`topology.cpp:306`).
 - **R-07 (FR-013, D-4)**: a denied bind is a usage error, and the
   refusal stands ahead of every context: the run validates the
-  binding before the contexts spawn, the main thread binding to each
-  distinct planned node and restoring the policy it carried, one
-  pass over the plan; a denial in that pass prints one line naming
-  the node and exits 2 before any context starts. A bind that fails
-  at a context start despite the validation turns beside the
+  binding before the contexts spawn, the main thread binding and
+  restoring each planned context's node in plan order, one pass over
+  the plan; a denial in that pass prints one line naming the context
+  and the node and exits 2 before any context starts. A bind that
+  fails at a context start despite the validation turns beside the
   standing pin-failure account path (`execution_context.cpp:440`)
   into the same one-line status-2 refusal.
 - **R-08 (FR-011, D-5)**: `placementText` composes the node tail. The
