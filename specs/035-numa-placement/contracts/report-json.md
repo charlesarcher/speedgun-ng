@@ -18,7 +18,7 @@ the node tail:
 | --- | --- |
 | The schema minor stays `1.6`; the top-level `x-order` stands unchanged. | FR-004 |
 | `loadReport` reads the field unchanged: the value is a string, and the reader carries no node-specific rule. | FR-002 |
-| A run with no node preset writes the same bytes as master apart from the `schemaVersion` value. | FR-002, D-5 |
+| A run with no node preset writes the same bytes as master apart from the version figures the report carries. | FR-002, D-5 |
 
 ## Round trip
 

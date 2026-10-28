@@ -332,7 +332,8 @@ failing before its code lands.
 - **Wave 4 (the disclosure)**: `placementText` composes
   `cpu@group@node` for a bound context and the standing bytes for the
   rest; the console row and the JSON field carry it; a run with no
-  node preset stands byte-identical apart from `schemaVersion`.
+  node preset stands byte-identical apart from the version figures
+  the report carries.
   Gate: the report tests and the json round-trip suite.
 - **Wave 5 (the gates)**: the example records its `.expected`; the
   drift, snippet-compile, example-run and report-shape gates run;
