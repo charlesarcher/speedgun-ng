@@ -316,7 +316,7 @@ and the code stand one fact.
 
 **Purpose**: the hard gates and the records that outlive the branch.
 
-- [ ] T025 [P] Run the coverage gate over the feature paths: 100%
+- [X] T025 [P] Run the coverage gate over the feature paths: 100%
   lines and 100% branches, no `LCOV_EXCL` marker, no new
   `--ignore-errors` entry, no code shaped for coverage (FR-027,
   SC-005)
