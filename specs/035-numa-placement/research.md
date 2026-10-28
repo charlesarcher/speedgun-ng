@@ -32,10 +32,13 @@ the tree the findings read (master `e4a98bc`).
 - **Rationale**: the standing five presets plan by machine objects
   the read states (`l3` plans per L3 group, `core` per core), and
   the feature table of the roadmap names memory-node presets in the
-  same shape. The cycling and filling rules follow the `l3` plan's
-  own precedent, and the hwloc node order keeps the plan
-  deterministic for the fixture tests and comparable across boots
-  (the clarify answer of 2026-10-28).
+  same shape. The deterministic node-order fill follows the `l3`
+  plan's own ordering precedent; the cycling rule stands new, with
+  no standing precedent, and the plan's `places` bounds it at the
+  distinct-cpu count of the mask-touching nodes, beside the standing
+  fit check. The hwloc node order keeps the plan deterministic for
+  the fixture tests and comparable across boots (the clarify answer
+  of 2026-10-28).
 - **Alternatives considered**: an argument form (`node=<n>`) that
   names one node: new grammar the standing parse does not carry, and
   the standing rule keeps bare names; deferred to a follow-up

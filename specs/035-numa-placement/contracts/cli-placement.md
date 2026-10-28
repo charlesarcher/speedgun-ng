@@ -2,7 +2,8 @@
 
 Amendment of `specs/025-topology-placement/contracts/cli-placement.md`
 (specs/035). The standing rows stand unchanged except where this file
-amends them; the amendment lands in the same commit as the parser.
+amends them; the amendment lands in the commit that lands the
+listing, beside the parser commit the grammar rode in.
 
 ## Option table
 
