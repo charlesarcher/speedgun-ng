@@ -461,12 +461,20 @@ auto dataArgument = std::string {};
 
 // One scripted run, with one hunt record on its result and one on the run.
 // `hunted` standing null is the report of a run that carried no hunt (PD-10).
-[[nodiscard]] auto writeReportDocument(const Hunted* hunted) -> sg::ReportData
+[[nodiscard]] auto scriptedReportRun() -> sg::test::ScriptedRun
 {
   auto options = sg::detail::RunOptions {};
   options.fixedIterations = sg::test::kWindowIterations;
-  const auto scripted = sg::test::scriptedRun(options);
+  return sg::test::scriptedRun(options);
+}
 
+// The document of one scripted run beside one hunt record. The fake provider
+// hands its point sequence to whoever reads it, so a second scripted run of
+// one process answers other figures than the first: a scenario that compares
+// two documents takes the run once and hands it here twice.
+[[nodiscard]] auto writeDocumentOf(const sg::test::ScriptedRun& scripted,
+                                   const Hunted* hunted) -> sg::ReportData
+{
   auto data = sg::ReportData {};
   auto result = scripted.result;
   if (hunted != nullptr) {
@@ -481,6 +489,11 @@ auto dataArgument = std::string {};
   check(sg::detail::writeReport(scratchDocument, data),
         "the writer wrote the document");
   return data;
+}
+
+[[nodiscard]] auto writeReportDocument(const Hunted* hunted) -> sg::ReportData
+{
+  return writeDocumentOf(scriptedReportRun(), hunted);
 }
 
 [[nodiscard]] auto documentText() -> std::string
@@ -1721,9 +1734,10 @@ auto budgetBytesStand() -> void
 {
   const auto bounded = budgetedHunt();
   const auto unbounded = singleStageHunt();
-  static_cast<void>(writeReportDocument(&bounded));
+  const auto scripted = scriptedReportRun();
+  static_cast<void>(writeDocumentOf(scripted, &bounded));
   const auto boundedText = documentText();
-  static_cast<void>(writeReportDocument(&unbounded));
+  static_cast<void>(writeDocumentOf(scripted, &unbounded));
   const auto standing = documentText();
 
   checkOrder(standing, nodeOpen(standing, true), kRunKeys, "/hunt");
