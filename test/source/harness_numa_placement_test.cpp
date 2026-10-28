@@ -756,25 +756,36 @@ auto verifyNodeDisclose() -> void
     std::fprintf(stderr, "the validation pass restored wrong\n");
     std::exit(1);
   }
-  // A context the plan does not bind keeps the standing `cpu@group`
-  // bytes beside the installed plan (FR-011, FR-002). The slot names
-  // cpu 2: a cpu every host states online, so the start's
-  // precondition reads it, a cpu the plan does not name, so the
-  // start binds no node, and a cpu the kernel pins, so the field
-  // carries the slot bytes on every host.
-  sg::ExecutionContext bystander {
-      sg::ContextPolicy {sg::WaitMode::BLOCK, sg::PlacementSlot::cpu(2U)}};
-  bystander.drain();
-  const sg::PlacementResult record = sg::detail::placementRecordOf(bystander);
-  bystander.requestStop();
-  bystander.join();
-  if (record.description != "2@0") {
-    std::fprintf(stderr,
-                 "the bystander field read '%.*s'\n",
-                 static_cast<int>(record.description.size()),
-                 record.description.data());
-    std::exit(1);
+}
+
+// T008, FR-011, R-08: the field names the node tail only where the
+// resolved plan binds the placed cpu, and the standing `cpu@group`
+// bytes where it does not; the printer reads the plan and the layout
+// through the detail seams, so the scenario drives both arms on
+// every host (FR-002, FR-017).
+auto childFieldTail() -> int
+{
+  installNodeLayout(4, 4, 2);
+  sg::detail::PlacementPlan plan;
+  plan.places = 4;
+  plan.cpu = {0, 8, 1, 9};
+  plan.group = {0, 2, 0, 2};
+  plan.node = {0, 1, 0, 1};
+  sg::detail::resolvedNodePlan() = plan;
+  const std::string bound {
+      sg::detail::placementText(sg::PlacementSlot::cpu(0U))};
+  const std::string aside {
+      sg::detail::placementText(sg::PlacementSlot::cpu(2U))};
+  sg::detail::resolvedNodePlan().reset();
+  if (bound != "0@0@0") {
+    std::fprintf(stderr, "the bound field read '%s'\n", bound.c_str());
+    return 1;
   }
+  if (aside != "2@0") {
+    std::fprintf(stderr, "the unbound field read '%s'\n", aside.c_str());
+    return 1;
+  }
+  return 0;
 }
 
 auto scenarioNodeDisclose() -> int
@@ -1011,7 +1022,7 @@ auto main(int argc, char** argv) -> int
     int (*run)();
   };
 
-  const std::array<Scenario, 15> children {
+  const std::array<Scenario, 16> children {
       Scenario {"walkOneNode", &childWalkOneNode},
       Scenario {"walkTwoNodes", &childWalkTwoNodes},
       Scenario {"walkFourNodes", &childWalkFourNodes},
@@ -1027,7 +1038,8 @@ auto main(int argc, char** argv) -> int
       Scenario {"nodeSkipsExcluded", &childNodeSkipsExcluded},
       Scenario {"nodeUnfittable", &childNodeUnfittable},
       Scenario {"nodeOneNode", &childNodeOneNode},
-      Scenario {"nodePredicate", &childNodePredicate}};
+      Scenario {"nodePredicate", &childNodePredicate},
+      Scenario {"fieldTail", &childFieldTail}};
 
   if (argc > 1) {
     for (const auto& scenario : children) {
