@@ -93,7 +93,8 @@ package, L3 and core walks of `topology.cpp:175`), the preset table
 grown by one row (`placement_preset.cpp:46`), the plan resolver
 extended, the context start extended (the bind beside the pin at
 `execution_context.cpp:434`), the listing extended, the report
-disclosure extended (`placementText`, `report.cpp:156`), one detail
+disclosure extended (`placementText`, `placement_preset.cpp:477`,
+beside the standing width cut of `report.cpp`), one detail
 seam added, one new test executable, one example added with its
 `.expected` file, the NPS records, and the docs rows.
 
@@ -153,7 +154,8 @@ source/harness/
 ├── topology.cpp                 # The node walk beside the standing scan
 ├── placement_preset.cpp         # The `node` row of kPresetNames
 ├── execution_context.cpp        # The bind beside the pin at context start
-├── report.cpp                   # placementText carries the node tail
+├── placement_preset.cpp         # placementText carries the node tail
+├── report.cpp                   # the field prints beside the width cut
 └── detail/
     ├── internal.hpp             # LayoutNode beside LayoutGroup, Preset::NODE
     └── memory_bind.hpp          # The bind seam (new)
@@ -225,11 +227,15 @@ exported-layout check of the harness `SOVERSION` stays untouched.
   fails at a context start despite the validation turns beside the
   standing pin-failure account path (`execution_context.cpp:440`)
   into the same one-line status-2 refusal.
-- **R-08 (FR-011, D-5)**: `placementText` composes the node tail. The
-  field reads `cpu@group@node` where the plan binds one and the
-  standing `cpu@group` bytes where it does not. The compose reads the
-  layout's cpu-to-node map, so no slot change joins and the public
-  struct stands unchanged.
+- **R-08 (FR-011, D-5)**: `placementText`
+  (`source/harness/placement_preset.cpp:477`, the unit that composes
+  the field beside the layout) gains the node tail. The field reads
+  `cpu@group@node` where the plan binds one and the standing
+  `cpu@group` bytes where it does not. The compose reads the layout's
+  cpu-to-node map, so no slot change joins and the public struct
+  stands unchanged; the standing width cut of the field in
+  `source/harness/report.cpp` stands unchanged for the longer
+  bytes.
 - **R-09 (FR-007, D-3)**: a read that states no memory information
   prints `not available` for the node lines alone. The layout carries
   the state beside `readable`, and the listing branch keeps the rest

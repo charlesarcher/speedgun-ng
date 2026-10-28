@@ -36,12 +36,16 @@ version record the lane stands on.
   (FR-001, FR-015)
 - [ ] T002 Add the `node` row to `kPresetNames` in
   `source/harness/placement_preset.cpp:46` and the `NODE` row to the
-  `Preset` enum in `source/harness/detail/internal.hpp:106`; the
-  commit moves `CMakeLists.txt:15` to `0.22.0` with the harness
+  `Preset` enum in `source/harness/detail/internal.hpp:106`; amend
+  the standing preset-name comment at
+  `include/speedgun-ng/benchmark.hpp:2553` to name the six presets
+  (comment-only, no ABI move) and the `--placement` row's name list
+  in `specs/015-benchmark-harness-core/contracts/cli.md` beside it;
+  the commit moves `CMakeLists.txt:15` to `0.22.0` with the harness
   `SOVERSION` staying `13` at `CMakeLists.txt:298` and the archive
   `SOVERSION` staying `4` at `:80`, and its body records the ABI
-  check: no public type, function or struct changes (FR-003, D-6)
-  (depends on T001; the tests of T001 turn green)
+  check: no public type, function or struct changes (FR-001, FR-003,
+  D-6) (depends on T001; the tests of T001 turn green)
 
 **Checkpoint**: the grammar stands green; the surface carries the
 feature with no new option row and no public-header move.
@@ -129,12 +133,14 @@ the plan states.
   (FR-009, FR-012, D-2, R-03, R-04) (depends on T002, T004, T007;
   the tests of T007 turn green)
 - [ ] T011 [US1] Extend `placementText` in
-  `source/harness/report.cpp:156`: the field composes the node tail
-  from the layout's cpu-to-node map where the plan binds one, and
-  keeps the standing `cpu@group` bytes where it does not, with no
-  key change in `docs/schema/report-v1.json:350`
-  (FR-011, FR-004, D-5, R-08) (depends on T004, T008; the tests of
-  T008 turn green)
+  `source/harness/placement_preset.cpp:477`, the unit that composes
+  the field beside the layout: the field carries the node tail from
+  the layout's cpu-to-node map where the plan binds one, and keeps
+  the standing `cpu@group` bytes where it does not, with no key
+  change in `docs/schema/report-v1.json:350`; the standing width cut
+  of the field in `source/harness/report.cpp` stands unchanged for
+  the longer bytes (FR-011, FR-004, D-5, R-08) (depends on T004,
+  T008; the tests of T008 turn green)
 - [ ] T012 [US1] Add the bind call at the context start in
   `source/harness/execution_context.cpp:434`: the bind stands after
   the placement call, outside the replaceable function, driven by the
@@ -251,7 +257,7 @@ as out of reach with the gap named.
   the boot, the commands, the exit codes and the listing, with the
   merged pre-check run beside the placement runs; a state the menu
   cannot produce stands recorded as out of reach with the gap named
-  (FR-019, D-7, R-11) (depends on T012, T018)
+  (FR-019, D-7, R-11) (depends on T011, T012, T014, T017, T018)
 
 **Checkpoint**: the evidence stands recorded: every state the menu
 offers carries its record, and the quickstart links them.
@@ -270,7 +276,8 @@ plans, and the docs gates stand green over them.
 - [ ] T021 [US5] Add the runnable example
   `example/docs/numa_placement.cpp` with its `.expected` file, a
   fixed context count of two with the `node` preset; register it in
-  `example/CMakeLists.txt` and the example lists, and add the
+  `example/CMakeLists.txt` and the example lists, name the shape test
+  `report_shape_numa_sample` in `test/CMakeLists.txt`, and add the
   `SECTIONS` and `SECTION_OWNERS` rows in
   `tools/docs/example_drift.py` (FR-022, R-12) (depends on T012)
 - [ ] T022 [US5] Record the shape-gate rule and the fixture pair for
