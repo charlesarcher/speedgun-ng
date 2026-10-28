@@ -43,6 +43,28 @@ loop `:1248`, `writeReport` call `:1536`); the scripted seam
 `FakeProvider` and the scripted-host fixture
 `test/source/detail/pass_fixture.hpp`; simdjson for JSON both ways.
 
+**Re-anchored (T001, branch head `4ec288f`, read 2026-10-28)**: every
+seam symbol above stands where the plan cut it, each found by its
+symbol. Four numbers moved and are re-measured here: the conflict-check
+call of `cli.cpp` stands at `:528` (the `524` names its comment block),
+`readHunt` stands at `json_load.cpp:1463` and `asBudget` at
+`json_load.cpp:1246-1269`, the estimate multiply of `hunt_plan.cpp`
+stands at `:205`, and `writeReport`'s failure sentence stands at
+`json_report.cpp:1043-1058`. The rest of the cited anchors hold:
+`parseHuntBudget` at `hunt_cli.cpp:440` with `readSelectionFile` at
+`:130` and `splitElements` at `:171`, `expandHuntSelection` at `:502`
+and `validateHuntCombination` at `:660`, the `counter` gather arm at
+`options.cpp:1537`, the batch hunt call at `cli.cpp:1248`, the report
+write at `cli.cpp:1536`, `writeHunt` from `json_report.cpp:703` with
+its budget text at `:709-713`, `printHuntPlan` at `report.cpp:867`,
+`passRuns` at `hunt_plan.cpp:404`, the two stage postconditions at
+`hunt_plan.cpp:499-512`, the `HuntStage` document at
+`hunt.hpp:310-318`, `buildHandoff` at `hunt.cpp:416`, the forced-method
+override at `hunt.cpp:934`, the stage loop at `hunt.cpp:984-1013`, the
+`ABSENT` column loop at `runner.cpp:1239`, and the hunt option
+constants at `detail/options.hpp:94` with the free-block comment at
+`:93`. No code edit follows from this reading.
+
 **Storage**: N/A: no database. Two flat files join the run, both
 one-address-per-line: the emitted counter set written by
 `--hunt-emit-set`, read again by `--counter=@<file>`.
