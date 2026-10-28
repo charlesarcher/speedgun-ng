@@ -73,10 +73,39 @@ The 2-cpu single-node host stands out of reach like the `NPS2` and
 
 ## The CI run
 
-The branch stands pushed: `035-numa-placement` at `ee4122d`, three
-commits over `origin/master` (`e4a98bc`, which already carries the
-merged `034-host-noise-precheck` head). The workflow runs on the
-pull request that targets `master`, so the run stands one token away:
-the session holds none, the way the `032-fix-merged-features` lane
-read its run `40438223916` with a supplied token (T027). The run
-reference lands here when the pull request opens and the jobs report.
+The pull request [#56](https://github.com/charlesarcher/speedgun-ng/pull/56)
+carries the branch, and the run of the pushed head `3d45dd7` reads
+green job by job (T027, run `40774867120`, read 2026-10-28 with a
+supplied token):
+
+| Job | Conclusion |
+| --- | --- |
+| `lint` | success |
+| `test` | success |
+| `test-rocky` | success |
+| `sanitize` | success |
+| `tsan` | success |
+| `static-analysis` (library, tests, examples) | success |
+| `coverage` | success |
+| `dbc-gate` | success |
+| `prose-lint` | success |
+| `shared-audit` | success |
+| `downstream-consumer` | success |
+| `consumer-release` | success |
+| `docs` | skipped: the deploy runs on the master push |
+
+The coverage job's gate read:
+
+```
+lines.......: 100.0% (12946 of 12946 lines)
+coverage-gate: branch shortfall 18 rows, within the D-14 recorded
+              allowance of 19 (accepted classes)
+```
+
+The run's two host facts stand recorded beside the feature: the
+runner states two online cpus, so the run scenarios state the
+synthetic layout's cpus through the online-set seam and the rows
+carry the pin's own account (FR-005, FR-017), and the rocky job's
+container states the capability the bind's `set_mempolicy` call
+needs, so the recorded node-planned example folds there (FR-013,
+FR-022).

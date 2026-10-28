@@ -342,7 +342,7 @@ evidence stands recorded.
 
 **Purpose**: the closing evidence the lane lands with.
 
-- [ ] T027 Read the CI run of the pushed head end to end: every job
+- [x] T027 Read the CI run of the pushed head end to end: every job
   green (`lint`, `test`, `test-rocky`, `sanitize`, `tsan`,
   `static-analysis`, `coverage`, `dbc-gate`, `prose-lint`,
   `shared-audit`, `downstream-consumer`), the coverage figures read
