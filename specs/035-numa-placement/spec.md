@@ -124,6 +124,35 @@ stand in Decisions as D-1 to D-7.
   the NUMA node kind; the read extends to it (`hwloc_obj_type` scan
   at `source/harness/topology.cpp:175` walks the same tree).
 
+## Clarifications
+
+### Session 2026-10-28
+
+- Q: How does the node appear inside the standing `placement` field
+  of a bound context? → A: The node rides the same `@`-joined shape
+  as the group: the field reads `cpu@group@node` where the plan
+  binds one, and the field keeps the standing `cpu@group` bytes when
+  it does not (FR-011).
+- Q: Do the jitter probe's own measurement windows run with the
+  binding applied when a node preset stands? → A: The probe windows
+  keep the standing memory policy the process carries: the binding
+  applies only at the context starts the node preset plans (D-4,
+  FR-010).
+- Q: What line format does the `--topology` listing print for each
+  memory node? → A: The node lines mirror the L3 lines' shape,
+  `node <n>: <cpu-list>`, and the node set stays truthful to the
+  topology hwloc states: the node numbers, the cpus and the count
+  come from the read, with no abstraction beyond the listing shape
+  (FR-006).
+- Q: When the context count is smaller than the node count, which
+  nodes does the `node` plan place contexts on? → A: The plan fills
+  the nodes in hwloc's node order: the nodes `0` to `k-1` take one
+  context each and the later nodes take none (FR-009).
+- Q: Which NPS BIOS settings must the recorded evidence cover? → A:
+  Every NPS state the board's menu offers; a state the menu cannot
+  produce is recorded as out of reach in the results record
+  (FR-019, SC-005).
+
 ## Decisions
 
 - **D-1 The binding method is hwloc membind.** The binding applies
@@ -137,19 +166,24 @@ stand in Decisions as D-1 to D-7.
   a threaded run one per memory node inside the process mask, the
   way `l3` plans one per L3 group. A context count larger than the
   node count cycles the nodes again, the way the L3 plan repeats its
-  groups. No new option row, no option value, no argument form: the
-  bare name is the whole grammar this feature adds.
+  groups, and a smaller count fills the nodes in hwloc's node order,
+  one context each. No new option row, no option value, no argument
+  form: the bare name is the whole grammar this feature adds.
 - **D-3 The listing gains the node lines.** Under the L3 lines the
-  listing prints one line per memory node, naming the node number
-  and the cpus of that node inside the process mask. A host whose
-  read states no memory information prints `not available` for the
-  node lines alone and keeps the rest of the listing byte-identical
-  to today.
+  listing prints one line per memory node in the L3 lines' shape,
+  naming the node number and the cpus of that node inside the
+  process mask. The node set, the numbers and the counts stay the
+  ones the hwloc read states: the listing renames and regroups
+  nothing. A host whose read states no memory information prints
+  `not available` for the node lines alone and keeps the rest of the
+  listing byte-identical to today.
 - **D-4 The binding policy.** The binding applies at context start,
   on the context thread, beside the cpu pin the placement applies.
-  The plan binds each context to the node its cpu belongs to. A
-  binding the system denies is a usage error: one line naming the
-  context and the node, exit status 2, before any benchmark starts.
+  The plan binds each context to the node its cpu belongs to. The
+  jitter probe's measurement windows run before any context starts
+  and keep the standing memory policy the process carries. A binding
+  the system denies is a usage error: one line naming the context
+  and the node, exit status 2, before any benchmark starts.
 - **D-5 The disclosure rides the standing placement field.** The
   placement field of each context carries the node beside the group
   where the plan binds one, console and JSON, with no new key; the
@@ -165,7 +199,9 @@ stand in Decisions as D-1 to D-7.
   change and the reboot plan, the runs per setting, and the recorded
   evidence stand in the results directory, each record naming the
   NPS setting and the boot it ran on, with the merged pre-check run
-  beside the placement runs.
+  beside the placement runs. The record set covers every state the
+  board's menu offers, and a state the menu cannot produce stands
+  recorded as out of reach with the gap named.
 
 ## Out of scope
 
@@ -316,6 +352,9 @@ compiles.
 - A node whose cpus all stand outside the process mask: the plan
   gives the node no context, the way the L3 plan skips a group the
   mask does not touch.
+- A context count smaller than the node count: the plan fills the
+  nodes in hwloc's node order, one context each, and the later
+  nodes stand without a context.
 - A context count the node plan cannot fit inside the process mask:
   the standing unfittable-count refusal, one line, exit status 2.
 - A binding the system denies: one line naming the context and the
@@ -325,6 +364,9 @@ compiles.
   read refuses one line, exit status 2.
 - A machine read the harness cannot read at all: the standing
   refusal of spec 025 stands unchanged.
+- A run that carries the jitter probe beside a node preset: the
+  probe's measurement windows run with the standing memory policy,
+  and the binding stands only at the context starts.
 
 ## Requirements *(mandatory)*
 
@@ -350,8 +392,11 @@ compiles.
   process mask, with the node number and the cpus of each node, read
   one time per run through the standing topology read.
 - **FR-006**: The `--topology` listing SHALL print one line per
-  memory node under the L3 lines, naming the node number and the
-  cpus of that node inside the process mask (D-3).
+  memory node under the L3 lines in the L3 lines' shape,
+  `node <n>: <cpu-list>`, naming the node number hwloc states and
+  the cpus of that node inside the process mask; the node set, the
+  numbers and the counts stay the ones the hwloc read states, with
+  no abstraction beyond the line shape (D-3).
 - **FR-007**: A topology read that states no memory information
   SHALL print `not available` for the node lines alone, keep the
   rest of the listing unchanged, and exit 0.
@@ -364,13 +409,18 @@ compiles.
 - **FR-009**: The `node` preset SHALL plan the contexts of a
   threaded run one per memory node inside the process mask, cycling
   the nodes when the context count exceeds the node count, the way
-  the `l3` plan repeats its groups (D-2).
+  the `l3` plan repeats its groups; a context count smaller than the
+  node count SHALL fill the nodes in hwloc's node order, one context
+  each, and leave the later nodes with none (D-2).
 - **FR-010**: The binding SHALL apply at context start, on the
   context thread, beside the cpu pin, and SHALL bind the context to
-  the node its planned cpu belongs to (D-4).
+  the node its planned cpu belongs to; the jitter probe's
+  measurement windows SHALL keep the standing memory policy (D-4).
 - **FR-011**: The placement field of each bound context SHALL name
-  the node beside the group, in the console row and in the JSON
-  context field, with no new key (D-5).
+  the node beside the group in the same `@`-joined shape, reading
+  `cpu@group@node` where the plan binds one and keeping the standing
+  `cpu@group` bytes where it does not, in the console row and in the
+  JSON context field, with no new key (D-5).
 - **FR-012**: The cpus of the plan SHALL stay pairwise distinct and
   inside the process mask, the standing postcondition of spec 025's
   resolver, and the plan SHALL pass the standing fit check against
@@ -405,9 +455,11 @@ compiles.
 ### The evidence and the docs (F)
 
 - **FR-019**: The results directory SHALL carry one record per NPS
-  BIOS setting the lane runs, naming the setting, the boot, the
-  commands, the exit codes and the listing the run printed, with the
-  merged pre-check run beside the placement runs (D-7).
+  BIOS setting the board's menu offers, naming the setting, the
+  boot, the commands, the exit codes and the listing the run
+  printed, with the merged pre-check run beside the placement runs;
+  a state the menu cannot produce SHALL stand recorded as out of
+  reach, with the gap named (D-7).
 - **FR-020**: The README SHALL carry a section of at most 25 lines
   teaching the node plans, and the quick-reference table SHALL carry
   the rows.
@@ -433,8 +485,9 @@ compiles.
 - **SC-004**: The coverage gate reads 100.0% lines and a branch
   shortfall inside the D-14 recorded allowance, with no
   `LCOV_EXCL` marker and no new `--ignore-errors` entry.
-- **SC-005**: The NPS evidence stands recorded for every setting the
-  lane runs, and the quickstart links each record.
+- **SC-005**: The NPS evidence stands recorded for every state the
+  board's menu offers, an unreachable state stands recorded as out
+  of reach, and the quickstart links each record.
 - **SC-006**: The docs gates stand green: the example drifts from
   nothing, the snippet compiles, and the prose gate reads no
   finding.
@@ -445,18 +498,12 @@ compiles.
   default: the request names memory-node presets without fixing the
   many-contexts shape, and the `l3` plan's own cycling is the
   precedent the feature follows.
-- The node rides the standing `placement` field beside the group,
-  with the field's own format the plan decides; no key is added, so
-  the schema minor stands at `1.6` (D-5).
 - The binding applies to the allocations the context thread makes
   after the bind; memory another thread allocates follows its own
   policy, and the docs say so beside the binding rules.
 - The hwloc read of the NUMA node kind rides the same one-time
   topology read the placement performs; no second read, no second
   reader.
-- The NPS settings the lane exercises stand on the host's BIOS
-  menu; a setting the menu cannot produce is recorded as out of
-  reach in the results record, with the gap named.
 
 ## Constitution Checklist
 
