@@ -12,7 +12,10 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <fstream>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -21,6 +24,7 @@
 
 #include "detail/hunt_selection.hpp"
 #include "detail/internal.hpp"
+#include "detail/options.hpp"
 #include "speedgun-ng/counters_system.hpp"
 #include "speedgun-ng/dbc.hpp"
 
@@ -395,6 +399,22 @@ auto parseHuntSeed(const char* text, RunOptions& options) -> void
   huntValues(options).seed = seed;
 }
 
+// \pre `text` is the value getopt_long read for a required-argument row.
+// \post the settled path names the file the run writes its promoted set to; an
+//       empty value leaves with the one empty-path line of the path rows
+//       (FR-012). The guard that asks for a hunt beside the path stands in
+//       `validateHuntCombination`, where the whole line has settled.
+auto parseHuntEmitSet(const char* text, RunOptions& options) -> void
+{
+  SG_ASSERT(text != nullptr,
+            "the option row is a required-argument row, so getopt_long answers "
+            "a value for it (FR-010)");
+  if (text[0] == '\0') {
+    rejectHuntSelection(emptyPathFault("--hunt-emit-set"));
+  }
+  options.huntEmitSet = text;
+}
+
 // \pre the clock and PMU providers stand registered, so the catalog answers
 //      (FR-006); the option scan has ended, so `options` carries the hunt
 //      values the scan read, whether `--hunt` named them or parked them.
@@ -577,10 +597,20 @@ auto expandHuntSelection(RunOptions& options) -> void
 // \post a hunt together with a counter list, a metric list, a compare
 //       baseline or a placement preset leaves with one line naming both
 //       options and status 2, the same refusal for either order on the
-//       command line (D-16, FR-081); a run that carries no hunt, or a hunt
-//       beside `--list`, `--catalog` or `--topology`, is not a refusal.
+//       command line (D-16, FR-081); a settled emit path beside no hunt,
+//       `--hunt=none` among the ways to carry none, leaves with one line
+//       naming the value and status 2 (specs/033 FR-012, R-08); a run that
+//       carries no hunt, or a hunt beside `--list`, `--catalog` or
+//       `--topology`, is not a refusal.
 auto validateHuntCombination(const RunOptions& options) -> void
 {
+  // specs/033-hunter-budgets FR-012, R-08: the promoted set is a hunt's output,
+  // so a path with no hunt to fill it is read ahead of the unset-hunt return
+  // below: `--hunt=none` and no `--hunt` at all both leave nothing to emit.
+  if (!options.huntEmitSet.empty() && !huntRequested(options)) {
+    rejectHuntSelection("--hunt-emit-set: '" + options.huntEmitSet
+                        + "' needs --hunt");
+  }
   if (!huntRequested(options)) {
     return;
   }
@@ -600,6 +630,50 @@ auto validateHuntCombination(const RunOptions& options) -> void
   if (options.placement.has_value()) {
     rejectHuntCombination("--placement");
   }
+}
+
+// specs/033-hunter-budgets FR-011, FR-012, R-07, contracts/counter-file.md:
+// the file the run hands the next run. Each hunted entry contributes
+// `toCounterSet(topN)` and the union keeps the first occurrence of an address,
+// so the lines stand in entry order and, within an entry, in rank order. The
+// failure lines are the report file's own: the path, then the reason the file
+// system gave, on one line each.
+auto writeHuntEmitSet(const std::string& path,
+                      std::span<const BenchmarkResult> results,
+                      std::size_t topN) -> bool
+{
+  std::vector<std::string> addresses;
+  for (const auto& result : results) {
+    if (!result.hunt.has_value()) {
+      continue;
+    }
+    for (const auto& address : result.hunt->toCounterSet(topN)) {
+      if (std::ranges::find(addresses, address) == addresses.end()) {
+        addresses.push_back(address);
+      }
+    }
+  }
+
+  std::ofstream stream(path, std::ios::binary | std::ios::trunc);
+  if (!stream.is_open()) {
+    std::fprintf(stderr,
+                 "error: the counter set file '%s' cannot be opened: %s\n",
+                 quotedText(path).c_str(),
+                 quotedText(std::strerror(errno)).c_str());
+    return false;
+  }
+  for (const auto& address : addresses) {
+    stream << address << '\n';
+  }
+  stream.close();
+  if (stream.fail()) {
+    std::fprintf(stderr,
+                 "error: the counter set file '%s' could not be written: %s\n",
+                 quotedText(path).c_str(),
+                 quotedText(std::strerror(errno)).c_str());
+    return false;
+  }
+  return true;
 }
 
 }  // namespace sg::detail

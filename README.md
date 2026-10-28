@@ -902,6 +902,7 @@ One line on stderr naming the value ends the run with status 2 for a value outsi
 | `--hunt-repeats` | Sets the repetitions of the hunt stages |
 | `--hunt-budget` | Caps the hunt at `<n>s` seconds or `<n>p` passes in two stages |
 | `--hunt-seed` | Shuffles the planned event order under a seed |
+| `--hunt-emit-set` | Writes the ranked hunt events to a file, one address per line |
 
 ## Planned work
 

@@ -334,18 +334,6 @@ auto parseComparePair(const std::string_view text)
 }
 
 // The tail of the line a row that names a path answers when the word for
-// that path stands empty, so `--json`, `--compare-rules` and `--options`
-// print one form (FR-007 to FR-009, FR-035, FR-063).
-constexpr std::string_view kEmptyPathTail =
-    "the path the option names stands empty";
-
-// The one line of the row whose path word stands empty, read the same way by
-// the scan and by the settle function of the row (FR-030, FR-035).
-auto emptyPathFault(const std::string_view option) -> std::string
-{
-  return std::string(option) + ": " + std::string(kEmptyPathTail);
-}
-
 // The tail of the line an environment variable answers when its value stands
 // empty, which no reader of the table settles (FR-025, FR-027).
 constexpr std::string_view kEmptyValueTail = "the value stands empty";
@@ -772,6 +760,15 @@ auto optionRows() -> std::span<const OptionRow>
        false,
        "Sets the seed the hunt repeats draw from",
        "specs/029"},
+      // specs/033-hunter-budgets FR-010, R-13: the hunt lane's ninth row, on
+      // the free constant 280 the hunt block comment names. The command line
+      // owns it, the way it owns the eight rows above.
+      {"hunt-emit-set",
+       kHuntEmitSetOption,
+       OptionArgument::REQUIRED,
+       false,
+       "Writes the ranked hunt events to that file",
+       "specs/033"},
   });
   return kRows;
 }
@@ -945,6 +942,9 @@ auto scanCommandLine(int argc, char** argv)
         break;
       case kHuntSeedOption:
         parseHuntSeed(optarg, options);
+        break;
+      case kHuntEmitSetOption:
+        parseHuntEmitSet(optarg, options);
         break;
       case ':':
         return std::unexpected(missingValueLine(optopt));
@@ -1557,6 +1557,7 @@ auto applySourceValue(const OptionRow& row,
         options.counterAddresses.emplace_back(item);
       }
       return true;
+
     case 'M': {
       const std::vector<std::string_view> items = sourceItems(text, source);
       // FR-028, FR-033, FR-038: the lookup of a metric name reads the host,

@@ -102,7 +102,7 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   lists (FR-013; contracts/counter-file.md contract lines: "the
   answer holds at most `topN` addresses, the ranked entries in
   ascending rank")
-- [ ] T006 [P] [US1] Write the failing emit tests in
+- [X] T006 [P] [US1] Write the failing emit tests in
   `test/source/harness_hunt_cli_test.cpp`: the file holds the run's
   ranked addresses one per line no header, best first; a two-entry
   run writes the deduplicated union, entry order then rank order; a
@@ -139,7 +139,7 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   `SOVERSION 14`, and its body records the ABI check with the archive
   `SOVERSION` staying `4` (FR-013, FR-040, R-06, R-15) (depends on
   T005; the tests of T005 turn green)
-- [ ] T009 [US1] Add the table row `{"hunt-emit-set",
+- [X] T009 [US1] Add the table row `{"hunt-emit-set",
   kHuntEmitSetOption, OptionArgument::REQUIRED, false, help,
   "specs/033"}` with its parse arm in `source/harness/options.cpp`,
   the parse body `parseHuntEmitSet` in `source/harness/hunt_cli.cpp`
@@ -160,7 +160,7 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   270 to 289 beside its header comment (FR-044)
   (FR-010, FR-012, FR-030, R-13, R-08)
   (depends on T004, T006)
-- [ ] T010 [US1] Implement `writeHuntEmitSet` in
+- [X] T010 [US1] Implement `writeHuntEmitSet` in
   `source/harness/hunt_cli.cpp` (per entry `toCounterSet(options.top)`;
   the deduplicated union, entry order then rank order; one address
   per line; on an unwritable destination the standing report-file

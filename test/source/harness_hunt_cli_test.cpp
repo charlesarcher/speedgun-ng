@@ -1692,8 +1692,8 @@ auto scenarioFilterSelectsTwoHuntedInstances() -> void
 // prints over it.
 // ---------------------------------------------------------------------------
 
-auto readerFile(const char* kind, const std::string& text)
-    -> std::filesystem::path
+auto readerFile(const char* kind,
+                const std::string& text) -> std::filesystem::path
 {
   const auto path = capturePath(kind);
   writeFile(path, text);
@@ -1719,18 +1719,20 @@ auto scenarioSharedReaderRules() -> void
   // the first `#`, a blank or whitespace-only line answers nothing, one line of
   // two comma-separated addresses answers two elements, and a comma beside
   // nothing answers the empty element each caller refuses in its own sentence.
-  const auto rules = readerFile("_rules.txt",
-                                "# a header\n" + address(0) + "\n\n   \n"
-                                    + address(1) + "," + address(2)
-                                    + " # tail\n," + address(3) + "\n");
+  const auto rules =
+      readerFile("_rules.txt",
+                 "# a header\n" + address(0) + "\n\n   \n" + address(1) + ","
+                     + address(2) + " # tail\n," + address(3) + "\n");
   const auto lines = sg::detail::readAddressFileLines(rules, "@rules.txt");
   check(lines.has_value(), "the shared reader opens the file it is handed");
-  const std::string expected =
-      address(0) + "|" + address(1) + "|" + address(2) + "|<empty>|"
-      + address(3);
+  const std::string expected = address(0) + "|" + address(1) + "|" + address(2)
+      + "|<empty>|" + address(3);
   if (elementText(*lines) != expected) {
-    std::fprintf(
-        stderr, "reader answered (%zu): %s\nexpected: %s\n", lines->size(), elementText(*lines).c_str(), expected.c_str());
+    std::fprintf(stderr,
+                 "reader answered (%zu): %s\nexpected: %s\n",
+                 lines->size(),
+                 elementText(*lines).c_str(),
+                 expected.c_str());
   }
   check(elementText(*lines) == expected,
         "the reader answers the file's address elements under the separator "
@@ -1750,9 +1752,8 @@ auto scenarioSharedReaderRules() -> void
 
   // The reader's own refusal names the path in the spelling the caller gave it,
   // in one line; each route prefixes its own option word.
-  const auto missing =
-      sg::detail::readAddressFileLines("/no/such/counter-set.txt",
-                                       "@/no/such/counter-set.txt");
+  const auto missing = sg::detail::readAddressFileLines(
+      "/no/such/counter-set.txt", "@/no/such/counter-set.txt");
   check(!missing.has_value(),
         "an unopenable file leaves the reader no element list (FR-012)");
   if (missing.has_value()) {
@@ -1773,6 +1774,189 @@ auto scenarioSharedReaderRules() -> void
         "a file that holds no line answers no element (FR-011, FR-014)");
 
   std::printf("shared-reader-rules: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// The emitted counter set (specs/033-hunter-budgets T006; FR-010 to FR-012,
+// SC-004, R-07, R-08; contracts/counter-file.md). The file the run writes is
+// the round trip's half: one catalog address per line, best first, no header.
+// The ranked order is read back off the run's own rank lines, so the file is
+// compared against what the same run ranked and no fixture constant is
+// repeated.
+// ---------------------------------------------------------------------------
+
+auto emitPath() -> std::filesystem::path
+{
+  return capturePath("_emit.txt");
+}
+
+// The addresses of the run's ranked lines, in the order the report printed
+// them. An unranked line (`hunt: rank -`) names no culprit and stands skipped.
+auto rankedAddresses(const std::string& text) -> std::vector<std::string>
+{
+  std::vector<std::string> addresses;
+  for (const auto& line : huntLines(text, "rank ")) {
+    std::istringstream words(line);
+    std::string option;
+    std::string key;
+    std::string rank;
+    std::string address;
+    if (words >> option >> key >> rank >> address && rank != "-") {
+      addresses.push_back(address);
+    }
+  }
+  return addresses;
+}
+
+// The lines of the emitted file, the trailing newline of the last line left
+// out of the answer.
+auto fileLines(const std::filesystem::path& path) -> std::vector<std::string>
+{
+  std::vector<std::string> lines;
+  const std::string text = readAll(path);
+  std::istringstream stream(text);
+  std::string line;
+  while (std::getline(stream, line)) {
+    lines.push_back(line);
+  }
+  return lines;
+}
+
+auto joined(const std::vector<std::string>& lines) -> std::string
+{
+  std::string text;
+  for (const auto& line : lines) {
+    if (!text.empty()) {
+      text += "|";
+    }
+    text += line;
+  }
+  return text;
+}
+
+auto scenarioEmitSetHoldsTheRankedSet() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+  const std::string selection =
+      address(0) + "," + address(1) + "," + address(2) + "," + address(3);
+  const auto run = captureRun({"--iterations=1",
+                               "--hunt=" + selection,
+                               "--hunt-top=3",
+                               "--hunt-emit-set=" + emitPath().string()});
+  // The ranking itself stops at `--hunt-top`: the fourth event leaves the table
+  // `beyond-top`, so the ranked list and the emitted list carry the same three
+  // addresses and the cap of the call is the one T005 pins at the record.
+  const auto ranked = rankedAddresses(run);
+  check(ranked.size() == 3,
+        "the scripted hunt ranks its top three and leaves the fourth beyond "
+        "the top");
+  const std::vector<std::string> wanted(ranked.begin(), ranked.end());
+  const auto written = fileLines(emitPath());
+  if (joined(written) != joined(wanted)) {
+    std::fprintf(stderr,
+                 "the file holds (%zu): %s\nthe top three rank: %s\n",
+                 written.size(),
+                 joined(written).c_str(),
+                 joined(wanted).c_str());
+  }
+  check(joined(written) == joined(wanted),
+        "the emitted file holds the top `--hunt-top` addresses, one per line, "
+        "best first and no header (FR-011, SC-004)");
+  std::printf("emit-set-holds-the-ranked-set: ok\n");
+}
+
+auto scenarioEmitSetUnionsTwoEntries() -> void
+{
+  registerHost(kScriptFull);
+  registerCase("bmHuntCliPair");
+  registerCase("bmHuntCliPairTwo");
+  const std::string selection = address(0) + "," + address(1);
+  const auto run = captureRun({"--filter",
+                               "bmHuntCliPair",
+                               "--iterations=1",
+                               "--hunt=" + selection,
+                               "--hunt-top=2",
+                               "--hunt-emit-set=" + emitPath().string()});
+  check(countOf(run, "hunt: plan events=") == 2,
+        "the filter hunts both entries, so two entries emit");
+  const auto written = fileLines(emitPath());
+  // The scripted host ranks the two entries alike, so the union's work here is
+  // the deduplication: two entries that each emit two addresses write two lines
+  // and no address twice.
+  check(written.size() == 2,
+        "two entries that rank alike write each address once (FR-011, R-07)");
+  check(countOf(joined(written), address(0)) == 1
+            && countOf(joined(written), address(1)) == 1,
+        "the union holds both addresses of the ranked pair (FR-011)");
+  std::printf("emit-set-unions-two-entries: ok\n");
+}
+
+auto scenarioEmitSetStandsEmptyWithoutRanks() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+  // One repeat leaves every event unrepeated, and an unrepeated event carries
+  // no rank (hunt.hpp, I-5): the run ranks nothing, so the file stands written
+  // and empty, and the run keeps the exit status of the hunt that ran.
+  const auto run = captureRun({"--iterations=1",
+                               "--hunt=" + address(0) + "," + address(1),
+                               "--hunt-repeats=1",
+                               "--hunt-emit-set=" + emitPath().string()});
+  check(countOf(run, "mark=unrepeated") == 2,
+        "the scripted run leaves every event unranked");
+  check(std::filesystem::exists(emitPath()),
+        "a hunt that ranks nothing still writes the file it named "
+        "(FR-011, SC-004)");
+  check(fileLines(emitPath()).empty(),
+        "the file of a hunt that ranks nothing holds no line (FR-011)");
+  std::printf("emit-set-stands-empty-without-ranks: ok\n");
+}
+
+auto scenarioEmitSetRefusals() -> void
+{
+  const std::string wanted =
+      "--hunt-emit-set: '" + emitPath().string() + "' needs --hunt";
+  checkRefusals({
+      {"full", {"--hunt-emit-set=" + emitPath().string()}, wanted},
+      {"full",
+       {"--hunt=none", "--hunt-emit-set=" + emitPath().string()},
+       wanted},
+      {"full",
+       {"--hunt=" + address(0), "--hunt-emit-set="},
+       "--hunt-emit-set: the path the option names stands empty"},
+  });
+  std::printf("emit-set-refusals: ok\n");
+}
+
+auto scenarioEmitSetRefusesAnUnwritableDestination() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+  const std::string destination = "/no/such/directory/culprits.txt";
+  std::string output;
+  const int status = childRun(selfPath,
+                              "hunt",
+                              {"full",
+                               "--iterations=1",
+                               "--hunt=" + address(0),
+                               "--hunt-emit-set=" + destination},
+                              output);
+  check(WEXITSTATUS(status) == 2,
+        "an emit the file system refused leaves the usage status (FR-012)");
+  const std::string heading =
+      "error: the counter set file '" + destination + "' cannot be opened: ";
+  const std::string line = lineHolding(output, heading);
+  if (line.rfind(heading, 0) != 0 || line.size() == heading.size()) {
+    std::fprintf(stderr, "the failed write reads: %s\n", output.c_str());
+  }
+  check(line.rfind(heading, 0) == 0 && line.size() > heading.size(),
+        "the failed write names the path and the reason it got, on one line, "
+        "the shape the report file names (FR-012)");
+  check(countOf(output, "BENCHMARK_RAN") == 1,
+        "the benchmark ran, because the failure stands after the batch "
+        "(FR-012)");
+  std::printf("emit-set-refuses-an-unwritable-destination: ok\n");
 }
 
 [[nodiscard]] auto scenarios() -> const std::vector<Scenario>&
@@ -1813,6 +1997,15 @@ auto scenarioSharedReaderRules() -> void
       Scenario {"filter-selects-two-hunted",
                 &scenarioFilterSelectsTwoHuntedInstances},
       Scenario {"shared-reader-rules", &scenarioSharedReaderRules},
+      Scenario {"emit-set-holds-the-ranked-set",
+                &scenarioEmitSetHoldsTheRankedSet},
+      Scenario {"emit-set-unions-two-entries",
+                &scenarioEmitSetUnionsTwoEntries},
+      Scenario {"emit-set-stands-empty-without-ranks",
+                &scenarioEmitSetStandsEmptyWithoutRanks},
+      Scenario {"emit-set-refusals", &scenarioEmitSetRefusals},
+      Scenario {"emit-set-refuses-an-unwritable-destination",
+                &scenarioEmitSetRefusesAnUnwritableDestination},
       Scenario {"option-order-settles", &scenarioOptionOrderSettles},
       Scenario {"option-without-hunt", &scenarioOptionWithoutHunt},
       Scenario {"option-order-refusals", &scenarioOptionOrderRefusals},
