@@ -769,7 +769,7 @@ auto main(int argc, char** argv) -> int
     // The softirq kind whose column parses as no number stands absent
     // for that kind alone, and the schedstat line short of the three
     // figures stands absent beside it (FR-018).
-    write(procDir / "softirqs", " TIMER: 5 zz\n");
+    write(procDir / "softirqs", " TIMER: 5 3x\n");
     write(procDir / "schedstat",
           "cpu" + std::to_string(cpu1) + " 1 2\n");
     const auto shortShapes = sg::detail::precheckReadSnapshot(cpus);
@@ -868,9 +868,15 @@ auto main(int argc, char** argv) -> int
     };
     const auto cpus = pickCpus(2);
     const auto cpu0 = cpus.at(0);
-    write(procDir / "cmdline", "");
-    write(procDir / "cmdline2", "isolcpus nohz_full= rcu_nocbs=0-1\n");
-    std::filesystem::rename(procDir / "cmdline2", procDir / "cmdline");
+    const auto cpu1 = cpus.at(1);
+    write(procDir / "cmdline", "isolcpus2 nohz_full=1\n");
+    const auto prefixScan = sg::detail::precheckReadHostSettings(cpus);
+    check(!prefixScan.isolcpus.has_value()
+              && prefixScan.nohzFull.has_value()
+              && *prefixScan.nohzFull == "1",
+          "a token that names the key text beside other letters names "
+          "no setting (FR-017)");
+    write(procDir / "cmdline", "isolcpus nohz_full= rcu_nocbs=0-1\n");
     write(procDir / "softirqs", "");
     write(procDir / "schedstat", "");
     write(procDir / "interrupts", "");
@@ -878,7 +884,7 @@ auto main(int argc, char** argv) -> int
                     "scaling_governor"),
           "");
     write(procDir / "irq/5/smp_affinity_list",
-          std::to_string(cpu0) + "\n");
+          std::to_string(cpu0) + "," + std::to_string(cpu1) + "\n");
     const auto snapshot = sg::detail::precheckReadSnapshot(cpus);
     const auto& state0 = snapshot.at(cpu0);
     check(state0.interrupts.has_value() && *state0.interrupts == 0
@@ -897,8 +903,8 @@ auto main(int argc, char** argv) -> int
           "an empty governor file names no line (FR-017)");
     check(host.irqAffinity.size() == 2
               && host.irqAffinity.at(0).second.size() == 1
-              && host.irqAffinity.at(1).second.empty(),
-          "the single-token affinity list stands the cpu it names "
+              && host.irqAffinity.at(1).second.size() == 1,
+          "the two-token affinity list stands both cpus it names "
           "(FR-017)");
   }
 
