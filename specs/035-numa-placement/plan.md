@@ -343,9 +343,9 @@ failing before its code lands.
   The refusal scenarios stand in wave 3 beside T015 and T016.
 - **Wave 3 (the bind and the refusal)**: the fake binder records the
   node the call names and denies on demand; the eager validation pass
-  binds and restores each distinct planned node before the contexts
-  spawn, and a denial in that pass refuses one line, status 2,
-  ahead of every context; the bind stands at the context start beside
+  binds and restores each planned context's node in plan order
+  before the contexts spawn, and a denial in that pass refuses one
+  line, status 2, ahead of every context; the bind stands at the context start beside
   the pin; a bind that fails at a start stands the same refusal; a
   user-installed `PlacementFn` cannot bypass the bind. Gate: the new
   executable.

@@ -6,8 +6,10 @@ file amends it.
 
 ## The placement field
 
-The field composes from the layout the run reads
-(`source/harness/report.cpp:156`, `placementText`):
+The field composes in
+`source/harness/placement_preset.cpp:477` (`placementText`, beside
+the layout the run reads); `source/harness/report.cpp:156` stands
+the print and width-cut site the compose feeds:
 
 | Case | Field bytes |
 | --- | --- |

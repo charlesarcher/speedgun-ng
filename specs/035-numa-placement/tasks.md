@@ -145,7 +145,12 @@ the plan states.
   does not, with no key change in
   `docs/schema/report-v1.json:350`; the standing width cut
   of the field in `source/harness/report.cpp` stands unchanged for
-  the longer bytes (FR-011, FR-004, D-5, R-08) (depends on T004,
+  the longer bytes; the edit amends the standing field row of
+  `specs/025-topology-placement/contracts/report-topology.md` and
+  the placement value set of
+  `specs/020-execution-contexts-core/contracts/report-disclosure.md`
+  in the same commit, the way the standing rules pin the printer's
+  amendments (FR-011, FR-004, D-5, R-08) (depends on T004,
   T008, T010; the tests of T008 turn green)
 - [ ] T012 [US1] Add the bind call at the context start in
   `source/harness/execution_context.cpp:434`: the bind stands after
@@ -192,8 +197,8 @@ information prints `not available` for the node lines alone.
 
 - [ ] T015 [US2] Amend the standing contract
   `specs/025-topology-placement/contracts/cli-placement.md` in the
-  commit that lands the listing: the rule row `No memory node
-  appears in the listing` stands replaced by the node-family rule of
+  commit that lands the listing: the standing listing rule row stands
+  replaced by the node-family rule of
   [contracts/cli-placement.md](./contracts/cli-placement.md), and the
   exit-status table gains the denied-bind and no-memory-information
   rows (FR-006, FR-013, FR-014, D-3) (depends on T014; the edit rides
