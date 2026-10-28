@@ -427,15 +427,13 @@ auto setupTopoNodes() -> void
 auto setupTopoNodeExcluded() -> void
 {
   installTwoNodeShapeNarrowMask();
-  (void)sg::registerBenchmark(&bmCliTopoNodeExcluded,
-                              "bmCliTopoNodeExcluded");
+  (void)sg::registerBenchmark(&bmCliTopoNodeExcluded, "bmCliTopoNodeExcluded");
 }
 
 auto setupTopoNodeNoMemory() -> void
 {
   installFourGroupShape();
-  (void)sg::registerBenchmark(&bmCliTopoNodeNoMemory,
-                              "bmCliTopoNodeNoMemory");
+  (void)sg::registerBenchmark(&bmCliTopoNodeNoMemory, "bmCliTopoNodeNoMemory");
 }
 
 // One node holding cpus on both sides of a mask that names no
@@ -465,8 +463,7 @@ auto setupTopoNodeStraddle() -> void
   layoutNode.cpus = {0, 1, 2, 3};
   installed.nodes.push_back(layoutNode);
   sg::detail::installTestLayout(installed);
-  (void)sg::registerBenchmark(&bmCliTopoNodeStraddle,
-                              "bmCliTopoNodeStraddle");
+  (void)sg::registerBenchmark(&bmCliTopoNodeStraddle, "bmCliTopoNodeStraddle");
 }
 
 auto readFile(const std::string& path) -> std::string
@@ -793,10 +790,10 @@ auto scenarioTopoFilter() -> int
 // alone stands here.
 auto scenarioNodeName() -> int
 {
-  const Captured run = runChild("nodeName",
-                                {"--placement=node", "--filter",
-                                 "^bmCliNodeName$"},
-                                &setupNodeName);
+  const Captured run =
+      runChild("nodeName",
+               {"--placement=node", "--filter", "^bmCliNodeName$"},
+               &setupNodeName);
   check(run.status == 0, "the name node exits 0 (FR-001)");
   check(run.out.find("bmCliNodeName") != std::string::npos,
         "the benchmark ran (FR-001)");
@@ -826,9 +823,8 @@ auto scenarioNodeUnknown() -> int
 // standing names.
 auto scenarioNodeHandle() -> int
 {
-  const Captured run = runChild("nodeHandle",
-                                {"--filter", "^bmCliNodeHandle$"},
-                                &setupNodeHandle);
+  const Captured run = runChild(
+      "nodeHandle", {"--filter", "^bmCliNodeHandle$"}, &setupNodeHandle);
   check(run.status == 0, "the handle name node exits 0 (FR-001)");
   check(run.out.find("bmCliNodeHandle") != std::string::npos,
         "the benchmark ran (FR-001)");
@@ -840,8 +836,7 @@ auto scenarioNodeHandle() -> int
 auto scenarioTopoNodes() -> int
 {
   const Captured run = runChild("topoNodes",
-                                {"--topology", "--filter",
-                                 "^bmCliTopoNodes$"},
+                                {"--topology", "--filter", "^bmCliTopoNodes$"},
                                 &setupTopoNodes);
   check(run.status == 0, "the listing with nodes exits 0 (FR-006)");
   const auto l3 = run.out.find("l3 3: 36-47");
@@ -860,10 +855,10 @@ auto scenarioTopoNodes() -> int
 // prints no line, the way the L3 group it holds prints none.
 auto scenarioTopoNodeExcluded() -> int
 {
-  const Captured run = runChild("topoNodeExcluded",
-                                {"--topology", "--filter",
-                                 "^bmCliTopoNodeExcluded$"},
-                                &setupTopoNodeExcluded);
+  const Captured run =
+      runChild("topoNodeExcluded",
+               {"--topology", "--filter", "^bmCliTopoNodeExcluded$"},
+               &setupTopoNodeExcluded);
   check(run.status == 0, "the masked listing exits 0 (FR-006)");
   check(run.out.find("node 0: 0-1") != std::string::npos,
         "the mask-touched node prints its cpus (FR-006)");
@@ -876,10 +871,10 @@ auto scenarioTopoNodeExcluded() -> int
 // names no contiguous range names the cpus inside the mask alone.
 auto scenarioTopoNodeStraddle() -> int
 {
-  const Captured run = runChild("topoNodeStraddle",
-                                {"--topology", "--filter",
-                                 "^bmCliTopoNodeStraddle$"},
-                                &setupTopoNodeStraddle);
+  const Captured run =
+      runChild("topoNodeStraddle",
+               {"--topology", "--filter", "^bmCliTopoNodeStraddle$"},
+               &setupTopoNodeStraddle);
   check(run.status == 0, "the straddling listing exits 0 (FR-006)");
   check(run.out.find("node 0: 0,2") != std::string::npos,
         "the node line names the cpus inside the mask (FR-006)");
@@ -893,10 +888,10 @@ auto scenarioTopoNodeStraddle() -> int
 // the rest of the listing, exit status 0.
 auto scenarioTopoNodeNoMemory() -> int
 {
-  const Captured run = runChild("topoNodeNoMemory",
-                                {"--topology", "--filter",
-                                 "^bmCliTopoNodeNoMemory$"},
-                                &setupTopoNodeNoMemory);
+  const Captured run =
+      runChild("topoNodeNoMemory",
+               {"--topology", "--filter", "^bmCliTopoNodeNoMemory$"},
+               &setupTopoNodeNoMemory);
   check(run.status == 0, "the no-memory listing exits 0 (FR-007)");
   check(run.out.find("node: not available") != std::string::npos,
         "the node family prints not available (FR-007)");
