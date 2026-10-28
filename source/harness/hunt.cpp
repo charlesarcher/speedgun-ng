@@ -336,6 +336,47 @@ struct StageLeaves
   return leaves;
 }
 
+/// @brief The stage's leaf positions read as columns of the run that measured
+/// them. The run's columns start with the metrics the family attached in code
+/// (FR-021), so a position in the stage's leaf list is no index into a row's
+/// metric slots, and the address each leaf names joins the two spaces, the join
+/// the retry route of PD-11 reads (D-23).
+///
+/// \pre `leaves` names the leaf list the run was handed and `labels` are that
+///      run's column labels in column order
+/// \post every entry of `event`, `cycles` and `instructions` answers the run
+///       column carrying that leaf's address, and `kNoLeaf` stands where it
+///       stood
+[[nodiscard]] auto runColumns(const StageLeaves& leaves,
+                              const std::vector<std::string>& labels)
+    -> StageLeaves
+{
+  const auto columnOf = [&leaves, &labels](const std::size_t position)
+  {
+    if (position == kNoLeaf) {
+      return kNoLeaf;
+    }
+    const auto found =
+        std::find(labels.begin(), labels.end(), leaves.leaves[position]);
+    SG_ASSERT(found != labels.end(),
+              "the run carries a column for every leaf of the leaf list it was "
+              "handed (D-23)");
+    return static_cast<std::size_t>(found - labels.begin());
+  };
+  auto run = StageLeaves {
+      .leaves = leaves.leaves,
+      .event = {},
+      .cycles = {},
+      .instructions = {},
+  };
+  for (std::size_t column = 0; column < leaves.event.size(); ++column) {
+    run.event.push_back(columnOf(leaves.event[column]));
+    run.cycles.push_back(columnOf(leaves.cycles[column]));
+    run.instructions.push_back(columnOf(leaves.instructions[column]));
+  }
+  return run;
+}
+
 /// @brief T119, FR-012, FR-013: the nanoseconds one pass of `plan` costs, the
 /// figure the estimate of the plan line weighs the pass count against.
 ///
@@ -1035,7 +1076,13 @@ auto runHuntNamed(std::string_view name,
       refused.push_back(refusedEvents[record]);
     }
 
-    collectStageSamples(collected, leaves, result.rows, index + 1);
+    // A row carries one metric slot per column of the run that built it, and
+    // the run's columns start with the metrics the family attached in code, so
+    // the stage's leaf positions reach the rows by address (FR-021, D-23).
+    collectStageSamples(collected,
+                        runColumns(leaves, result.metricLabels),
+                        result.rows,
+                        index + 1);
     runRecord.stages.push_back(HuntStageRange {
         .first = stage.columns.front(),
         .count = stage.columns.size(),

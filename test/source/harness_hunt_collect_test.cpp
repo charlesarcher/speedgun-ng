@@ -132,6 +132,17 @@ constexpr std::size_t kCapGroups = kCapEvents / kCapWidth;
 // same four events ask for in the one window of an uncapped plan.
 constexpr std::size_t kCapCeiling = kCapWidth + 2;
 
+// The column the attached-column arm carries: one metric the family attached in
+// code (specs/015 FR-021) over the last catalog event, an event its hunt
+// selection never names.
+constexpr std::size_t kAttachedIndex = sg::test::kHuntEvents - 1;
+constexpr std::string_view kAttachedLabel {"attached"};
+
+// The widest window the scripted host admits for that arm: one group of two
+// beside its two anchors and the leaf of the attached column, which rides the
+// first window of the run.
+constexpr std::size_t kAttachedCeiling = kCapCeiling + 1;
+
 [[noreturn]] auto fail(const char* what) -> void
 {
   std::fprintf(stderr, "HARNESS HUNT COLLECT TEST FAIL: %s\n", what);
@@ -888,8 +899,9 @@ auto scenarioWidePassRetriesOneAtATime() -> void
   std::printf("group-leaf-retry: ok\n");
 }
 
-// 033 FR-003, R-04, N-04: the cap reaches the window the run opens, not only
-// the table the plan prints. The no-limit host settles `MULTIPLEX`, so an
+// 033 FR-003, R-04, N-04: the cap bounds the window the run opens. The plan
+// table discloses the groups the run seats. The no-limit host settles
+// `MULTIPLEX`, so an
 // uncapped plan seats all four events in one window of six leaves while a cap
 // of two seats two groups of two, each carrying its two events beside the two
 // anchors. The scripted ceiling admits four leaves: the capped run opens every
@@ -982,6 +994,85 @@ auto scenarioCappedMultiplexGroupRetriesOneAtATime() -> void
         "only the two solo retry passes ran after the ceiling was armed, which "
         "is the arming moment this arm reads its refusal from (T071)");
   std::printf("capped-multiplex-group-retry: ok\n");
+}
+
+// Attach one metric in code over a catalog leaf the selection never names, the
+// column a family carries through `addMetric` (specs/015 FR-021).
+auto attachHuntMetric(sg::BenchmarkHandle& handle) -> void
+{
+  const auto object = sg::counters::System::local().object(sg::test::kHuntCpu);
+  check(object.has_value(), "the device of the attached metric resolves");
+  const auto leaf = object->counter<sg::counters::Dim<0, 1>>(
+      sg::test::huntEvent(kAttachedIndex));
+  check(leaf.has_value(), "the leaf of the attached metric resolves");
+  handle.addMetric(sg::counters::Expression<sg::counters::Dim<0, 1>>(*leaf),
+                   kAttachedLabel);
+}
+
+// The rate the record answers for one catalog event.
+auto rateOfEvent(const EntryHunt& hunt, const std::size_t index) -> double
+{
+  const std::string address =
+      sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(index));
+  for (const auto& entry : hunt.entries) {
+    if (entry.address == address) {
+      return entry.rate;
+    }
+  }
+  fail("the record carries a rank row for every planned event");
+}
+
+// 033 FR-003, R-04 over a family that attaches a metric in code (specs/015
+// FR-021). The run's columns start with that column, so the handoff's leaf
+// positions and the run's column indices part at it. The seat joins the two
+// spaces at the address each names, the join the retry route of PD-11 reads,
+// and the attached column rides the first window. The scripted ceiling admits
+// one group beside its anchors and that column, and refuses a window one leaf
+// wider, so the ceiling is the witness of what each window carried.
+auto scenarioCappedGroupsJoinTheRunColumns() -> void
+{
+  registerHuntHost(std::nullopt);
+  scriptGroupCeiling(kAttachedCeiling);
+  auto capped = optionsFor(selectionCount(kCapEvents));
+  capped.multiplexCap = kCapWidth;
+  auto handle = sg::registerBenchmark(&bmHuntBody, "bmHuntAttachedGroups");
+  attachHuntMetric(handle);
+  sg::detail::expandRegistry();
+  const HuntAccount run = runHuntMeasured(handle, capped);
+  check(run.hunt.has_value(),
+        "a capped plan seats its groups beside an attached column (R-04)");
+  const EntryHunt& hunt = *run.hunt;
+  check(hunt.passCount == kCapGroups,
+        "the run seated one pass per group (R-04)");
+  check(hunt.retriedPasses == 0,
+        "no window outgrew the scripted ceiling (D-18)");
+  check(hunt.entries.size() == kCapEvents,
+        "the attached column joins no rank row (FR-021)");
+  const double base = rateOfEvent(hunt, 0);
+  for (std::size_t index = 0; index < kCapEvents; ++index) {
+    check(closeTo(rateOfEvent(hunt, index),
+                  static_cast<double>(index + 1) * base),
+          "each rank row carries the figure of its own event (R-04)");
+  }
+
+  // The same host one leaf narrower. The first window carries the attached
+  // column beside its group, so that seat is the refusal a hunt answers as its
+  // one clean failure (spec 029 PC-9).
+  scriptGroupCeiling(kCapCeiling);
+  auto narrow = optionsFor(selectionCount(kCapEvents));
+  narrow.multiplexCap = kCapWidth;
+  auto tight = sg::registerBenchmark(&bmHuntBody, "bmHuntAttachedNarrow");
+  attachHuntMetric(tight);
+  sg::detail::expandRegistry();
+  const HuntAccount refused = runHuntMeasured(tight, narrow);
+  check(!refused.hunt.has_value(),
+        "the first window carries the attached column, and a refused pass 0 "
+        "ends the hunt (PC-9)");
+  check(host->lastRefusalMessage().find("scripted count of "
+                                        + std::to_string(kCapCeiling))
+            != std::string::npos,
+        "the refusal names the ceiling the first window outgrew (PD-09)");
+  std::printf("capped-groups-run-columns: ok\n");
 }
 
 auto scenarioSoloRefusalMapsItsKind() -> void
@@ -2104,6 +2195,8 @@ auto scenarioLibraryRouteAnswersTheEntryRecord() -> void
                 &scenarioCappedMultiplexSeatsOneGroupPerWindow},
       Scenario {"capped-multiplex-group-retry",
                 &scenarioCappedMultiplexGroupRetriesOneAtATime},
+      Scenario {"capped-groups-run-columns",
+                &scenarioCappedGroupsJoinTheRunColumns},
       Scenario {"solo-refusal-maps-kind", &scenarioSoloRefusalMapsItsKind},
       Scenario {"anchorless-retry-one-leaf",
                 &scenarioAnchorlessRetrySeatsItsEventAlone},
