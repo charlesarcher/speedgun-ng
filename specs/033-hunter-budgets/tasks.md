@@ -208,7 +208,7 @@ fixtures close SC-002 and SC-005 with no clock.
 
 ### Tests for User Story 2 ⚠️ (write first, observe failing)
 
-- [ ] T014 [P] [US2] Write the failing planner tests in
+- [X] T014 [P] [US2] Write the failing planner tests in
   `test/source/harness_hunt_plan_test.cpp`: with a fixed estimate and
   seed the derived repeats equal
   `min(stageRule, max(1, floor(sampleNs / (calibrationNsPerPass ×
@@ -235,7 +235,7 @@ fixtures close SC-002 and SC-005 with no clock.
   quoting the whole value and exit 2; `120s` and `8p` parse exactly
   as spec 029 shipped; `1e,120s` (any order) settles both (FR-004,
   R-01)
-- [ ] T016 [P] [US2] Write the failing console and JSON tests in
+- [X] T016 [P] [US2] Write the failing console and JSON tests in
   `test/source/harness_hunt_report_test.cpp` and
   `test/source/harness_hunt_json_test.cpp`: the standing plan line
   prints byte-identical for a run without budgets; `sample=<text>`
@@ -265,7 +265,7 @@ fixtures close SC-002 and SC-005 with no clock.
   the whole value; structure the loop so the `g` clause joins in US3
   without a rewrite; the tests of T015 turn green (FR-004, R-01)
   (depends on T015)
-- [ ] T018 [US2] Implement the derivation: the repeat-state fields
+- [X] T018 [US2] Implement the derivation: the repeat-state fields
   land on the internal plan record in
   `source/harness/detail/hunt_plan.hpp`, `splitStages` in
   `source/harness/hunt_plan.cpp` derives the stage repeats, re-prices
@@ -284,7 +284,7 @@ fixtures close SC-002 and SC-005 with no clock.
   states; an unset budget
   prints the standing bytes; the tests of T016 (report side) turn
   green (FR-023, R-10) (depends on T018)
-- [ ] T020 [US2] Land the JSON half in one commit: `writeHunt` in
+- [X] T020 [US2] Land the JSON half in one commit: `writeHunt` in
   `source/harness/json_report.cpp` appends `sample_budget` and
   `derived_repeats` after `stage_two_events` with conditional
   presence (written only when set); `readHunt` in
@@ -323,7 +323,7 @@ no-op check close SC-003.
 
 ### Tests for User Story 3 ⚠️ (write first, observe failing)
 
-- [ ] T021 [P] [US3] Write the failing planner tests in
+- [X] T021 [P] [US3] Write the failing planner tests in
   `test/source/harness_hunt_plan_test.cpp`: 200 events on a no-limit
   device with cap 32 record `muxGroups` sizes 32, 32, 32, 32, 32, 32,
   8 in plan order; a cap at or above the event count records one
@@ -334,7 +334,7 @@ no-op check close SC-003.
   plan's passes carry the groups and the Runner's loop seats them,
   with a scripted per-group open refusal reaching the standing
   single-event retry (D-18 seam) (FR-003, FR-005, R-04, R-05)
-- [ ] T022 [P] [US3] Write the failing grammar, console and JSON
+- [X] T022 [P] [US3] Write the failing grammar, console and JSON
   tests in `test/source/harness_hunt_cli_test.cpp`,
   `test/source/harness_hunt_report_test.cpp` and
   `test/source/harness_hunt_json_test.cpp`: the `g` clause accepts
@@ -353,7 +353,7 @@ no-op check close SC-003.
   to the `parseHuntBudget` loop in `source/harness/hunt_cli.cpp`
   (whole count, "1 to 10000"); the grammar tests of T022 turn green
   (FR-003, FR-004, R-01) (depends on T017, T022)
-- [ ] T024 [US3] Implement the split: the group table type and
+- [X] T024 [US3] Implement the split: the group table type and
   declaration land in `source/harness/detail/hunt_plan.hpp`,
   `planHunt` in `source/harness/hunt_plan.cpp` records the
   consecutive groups when the settlement is `MULTIPLEX`
@@ -363,7 +363,7 @@ no-op check close SC-003.
   `source/harness/hunt.cpp:416`) carry them to the Runner's loop
   (`source/harness/hunt.cpp:984-1013`); the tests of T021 turn green (FR-003,
   FR-005, R-04) (depends on T018, T021, T023)
-- [ ] T025 [US3] Land the disclosure half in one commit: the `mux=`
+- [X] T025 [US3] Land the disclosure half in one commit: the `mux=`
   segment and the groups line in `printHuntPlan`
   (`source/harness/report.cpp`); `writeHunt`/`readHunt` gain
   `multiplex_cap` and `mux_groups` (conditional presence,
