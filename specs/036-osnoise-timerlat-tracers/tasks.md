@@ -487,17 +487,17 @@ every record, and the standing contracts carry the deltas.
 
 **Purpose**: the closing evidence the lane lands with.
 
-- [ ] T042 Read the CI run of the pushed head end to end: every job
+- [X] T042 Read the CI run of the pushed head end to end: every job
   green (`lint`, `test`, `test-rocky`, `sanitize`, `tsan`,
   `static-analysis`, `coverage`, `dbc-gate`, `prose-lint`,
   `shared-audit`, `downstream-consumer`), the coverage figures read
   100.0% lines and 100.0% branches, and the run reference stands
   recorded beside the acceptance evidence under
   `specs/036-osnoise-timerlat-tracers/results/` (constitution VIII)
-  (depends on T033 to T041). The local gates the run carries stand
-  green at the feature head (the phase 8 records); the pushed-head
-  read stands the pull request's own step, the push carrying the
-  branch the owner lands.
+  (depends on T033 to T041). The read stands done: the run
+  `40912750824` of head `c6ae33e3` reads every job green, the
+  coverage job reads 100.0% lines and branches, and the record
+  stands in `results/ci-run.md`.
 - [X] T043 Re-check the constitution table of
   [plan.md](./plan.md) against the landed tree: every gate stands as
   the table states it, the Complexity Tracking table stands empty, and

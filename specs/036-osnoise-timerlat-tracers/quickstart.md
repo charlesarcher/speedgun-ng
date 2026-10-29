@@ -146,7 +146,9 @@ One record per run stands under
 at [results/timerlat.md](./results/timerlat.md), each record
 carrying the commands, the exit codes, the engine and the per-CCD
 tables, and the count-file re-confirmation the runs stood beside
-the figures (spec SC-006). No CI gate stands on the records.
+the figures (spec SC-006). The pushed-head CI read stands recorded
+beside them ([results/ci-run.md](./results/ci-run.md), the run
+`40912750824` of head `c6ae33e3`). No CI gate stands on the records.
 
 ## Out of scope for the gates
 
