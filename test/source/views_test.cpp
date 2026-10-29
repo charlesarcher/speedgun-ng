@@ -109,6 +109,41 @@ auto loadedFixture(std::string_view name) -> sg::ReportData
   return std::move(loaded).value();
 }
 
+// The number of times one text stands inside another: the histogram
+// block counts the elements of a figure this way.
+auto occurrences(std::string const& text,
+                 std::string const& piece) -> std::size_t
+{
+  auto count = std::size_t {};
+  for (auto at = text.find(piece); at != std::string::npos;
+       at = text.find(piece, at + 1))
+  {
+    ++count;
+  }
+  return count;
+}
+
+// The bar widths of a figure's rect elements, in document order: the
+// proportionality check compares these against the counts the labels
+// name.
+auto barWidths(std::string const& svg) -> std::vector<std::size_t>
+{
+  auto widths = std::vector<std::size_t> {};
+  std::string const attribute {"width=\""};
+  for (auto at = svg.find("<rect"); at != std::string::npos;
+       at = svg.find("<rect", at + 1))
+  {
+    auto const digits = svg.find(attribute, at);
+    check(digits != std::string::npos, "histogram: every bar carries a width");
+    auto const closed = svg.find('"', digits + attribute.size());
+    check(closed != std::string::npos,
+          "histogram: every width stands closed on its quote");
+    widths.push_back(std::stoull(svg.substr(
+        digits + attribute.size(), closed - digits - attribute.size())));
+  }
+  return widths;
+}
+
 // The argument lists the header declares: every view takes the loaded
 // document value `loadReport` answered by const reference, the
 // benchmark name and the column selector as `std::string_view`, and
@@ -386,6 +421,129 @@ auto run() -> int
     check(sg::detail::escapeMarkup(label) == "branch&lt;miss&gt;&amp;rate",
           "escape: the fixture's markup label stands escaped");
   }
+
+  // ---- The histogram block (specs/038 T008; FR-007, FR-008, B-2 of
+  // the views-api contract) ----
+
+  // Row 1: the figure carries one bar per bin beside its range and
+  // count label, the bins cover the recorded value range with the last
+  // bin closed on the maximum, and the bars stand proportional to the
+  // counts (FR-007, B-2). multi.json stands four countable time values
+  // in us, 0.12 to 0.24, so the four bins stand 0.12-0.15, 0.15-0.18,
+  // 0.18-0.21 and the last bin 0.21-0.24 closed on the maximum, and
+  // the counts stand 2, 0, 1 and 1.
+  {
+    auto const svg = sg::renderHistogram(multi, "bmViews/threads:2", "time", 4);
+    check(svg.has_value(), "histogram: the time series answers the value form");
+    check(occurrences(*svg, "<rect") == 4, "histogram: one bar stands per bin");
+    check(svg->find("0.12-0.15 us: 2") != std::string::npos,
+          "histogram: the first bin names its range and count");
+    check(svg->find("0.15-0.18 us: 0") != std::string::npos,
+          "histogram: the empty bin names its zero count");
+    check(svg->find("0.18-0.21 us: 1") != std::string::npos,
+          "histogram: the third bin names its range and count");
+    check(svg->find("0.21-0.24 us: 1") != std::string::npos,
+          "histogram: the last bin stands closed on the maximum");
+    auto const widths = barWidths(*svg);
+    check(widths.size() == 4, "histogram: every bar carries its width");
+    check(widths[1] == 0, "histogram: the empty bin carries no bar");
+    check(widths[0] == 2 * widths[2] && widths[0] == 2 * widths[3],
+          "histogram: the bars stand proportional to the counts");
+  }
+
+  // Row 2: the bin count argument bounds the bars (FR-007): two bins
+  // over the same series answer two bars, 0.12-0.18 and the last bin
+  // 0.18-0.24 closed on the maximum, the counts 2 and 2.
+  {
+    auto const two = sg::renderHistogram(multi, "bmViews/threads:2", "time", 2);
+    check(two.has_value(),
+          "histogram: the two-bin answer stands the value form");
+    check(occurrences(*two, "<rect") == 2,
+          "histogram: the bin count bounds the bars");
+    check(two->find("0.12-0.18 us: 2") != std::string::npos
+              && two->find("0.18-0.24 us: 2") != std::string::npos,
+          "histogram: the two bins cover the recorded range");
+  }
+
+  // Row 3: the one-value disclosure (FR-008, B-2): single.json stands
+  // one repetition row, so the histogram answers the error form naming
+  // `not available` and the sample count.
+  {
+    auto const report = loadedFixture("single.json");
+    auto const disclosed =
+        sg::renderHistogram(report, "bmViewsSingle", "time", 4);
+    check(!disclosed.has_value(),
+          "histogram: the one-value series answers the error form");
+    check(disclosed.error().find("not available") != std::string::npos,
+          "histogram: the disclosure names not available");
+    check(disclosed.error().find("sample count 1") != std::string::npos,
+          "histogram: the disclosure names the sample count");
+  }
+
+  // Row 4: the all-unavailable disclosure (FR-008, D-6): every
+  // repetition row of the scratch document stands a GAP for the
+  // metric, so the series stands empty and the histogram answers the
+  // error form naming the sample count of zero.
+  {
+    auto const scratch = std::filesystem::temp_directory_path()
+        / "views_test_all_unavailable.json";
+    {
+      std::ofstream out(scratch);
+      out << R"({"schemaVersion":"1.8","benchmarks":[{"name":"bmViewsGap","
+             R"("suite":"bmViews","case":"bmViewsGap","outcome":"MEASURED","
+             R"("reason":null,"hideRepetitionRows":false,"timeUnit":"
+             R"("NANOSECONDS","primaryIsCpu":false,"pauseSamplesFolded":false,"
+             R"("percentilePoints":[],"contexts":[],"rows":[{"kind":"
+             R"("REPETITION","label":null,"iterations":8,"
+             R"("timePerIterationNs":10.0,"cpuTimePerIterationNs":10.0,"
+             R"("endpointSamples":8,"pauseSamplesFolded":false,"
+             R"("timeAvailability":"COUNTABLE","metrics":[{"label":"gap","
+             R"("value":0.0,"runningRatio":1.0,"scaled":false,"
+             R"("availability":"GAP","pass":null}],"counters":[],"
+             R"("counterDisclosure":null,"fit":null,"overheadFloorNs":0.0,"
+             R"("percentiles":[],"chunkCount":0,"chunkIterations":0,"
+             R"("timeStats":null,"metricStats":[]}],"metricLabels":["gap"],"
+             R"("counterLabels":[],"counterStats":[],"statisticValues":[]}]}))";
+    }
+    auto const empty = sg::loadReport(scratch.string());
+    check(empty.has_value(), "histogram: the all-unavailable document loads");
+    auto const disclosed = sg::renderHistogram(*empty, "bmViewsGap", "gap", 4);
+    check(!disclosed.has_value(),
+          "histogram: the empty series answers the error form");
+    check(disclosed.error().find("sample count 0") != std::string::npos,
+          "histogram: the disclosure names the sample count of zero");
+    std::error_code ignored;
+    std::filesystem::remove(scratch, ignored);
+  }
+
+  // Row 5: the markup label (A-6, D-8): the figure names its column
+  // through the escaper, and the metric values stand as stored with no
+  // unit beside them (A-5). The four countable values 0.4 to 1.1 stand
+  // in the bins 0.4-0.575, 0.575-0.75, 0.75-0.925 and 0.925-1.1.
+  {
+    auto const report = loadedFixture("markup.json");
+    auto const markup =
+        sg::renderHistogram(report, "bmViewsMarkup", "branch<miss>&rate", 4);
+    check(markup.has_value(),
+          "histogram: the metric series answers the value form");
+    check(markup->find("branch&lt;miss&gt;&amp;rate") != std::string::npos,
+          "histogram: the column label stands escaped through the escaper");
+    check(markup->find("branch<miss>&rate") == std::string::npos,
+          "histogram: the raw label stands nowhere in the figure");
+    check(markup->find("0.4-0.575: 1") != std::string::npos
+              && markup->find("0.925-1.1: 1") != std::string::npos,
+          "histogram: the metric values stand as stored, no unit beside");
+  }
+
+  // Row 6: the contract rows (A-1, B-2). The pre binCount at least 2
+  // stands enforced through the contract facility in the
+  // implementation; the standing tests of this file assert no
+  // contract-violation abort, so the block leaves the violation
+  // untested, the way the resolver block leaves its empty-name pre.
+  // The no-file and no-throw rules stand in the answer forms: every
+  // call above answers the value or the error form, the document value
+  // arrives by const reference as the whole input surface, and no
+  // exception escapes the try of main.
 
   std::printf("views_test PASS\n");
   return 0;
