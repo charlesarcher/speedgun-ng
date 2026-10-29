@@ -43,30 +43,30 @@ loop `:1248`, `writeReport` call `:1536`); the scripted seam
 `FakeProvider` and the scripted-host fixture
 `test/source/detail/pass_fixture.hpp`; simdjson for JSON both ways.
 
-**Re-anchored (T060, branch head `0a070fce`, read 2026-10-29)**: the
-rebase moved the head T001 read, and the lane's waves moved lines, so
-every number stands re-measured at this head, each symbol found by its
-name. `parseHuntBudget` stands at `hunt_cli.cpp:407`; the reader T001
-met as `readSelectionFile` and `splitElements` is
-`detail::readAddressFileLines` at `hunt_selection.cpp:80`, declared at
-`detail/hunt_selection.hpp:209`, beside `splitElements` at
-`hunt_selection.cpp:43`; `expandHuntSelection` stands at `:555` and
-`validateHuntCombination` at `:720`. The `counter` gather arm reads its
-`@` form at `options.cpp:1326`; the conflict-check call stands at
-`cli.cpp:528`, the batch hunt call at `cli.cpp:1248` and the report
-write at `cli.cpp:1536`. `writeHunt` stands at `json_report.cpp:705`
-with its budget text at `:708-714` and the two budget keys at
-`:766-788`; the report write's failure sentences stand at
-`:1070-1085`. `readHunt` stands at `json_load.cpp:1537` and `asBudget`
-at `:1246-1269`. `printHuntPlan` stands at `report.cpp:945`. The
-estimate multiply of `hunt_plan.cpp` stands at `:244`, `passRuns` at
-`:470` and the stage postconditions at `:615-638`. The `HuntStage`
-document stands at `hunt.hpp:345-361`, `buildHandoff` at `hunt.cpp:468`,
-the forced-method override at `hunt.cpp:992` and the stage loop at
+**Re-anchored (T060 re-measure, branch head `8d5c5e03`, read
+2026-10-29)**: the rebase onto the tree that landed specs/036 replaced
+the head this block cited, so every number stands re-measured at this
+head, each symbol found by its name. `parseHuntBudget` stands at
+`hunt_cli.cpp:407`; `detail::readAddressFileLines` stands at
+`hunt_selection.cpp:80`, declared at `detail/hunt_selection.hpp:209`,
+beside `splitElements` at `hunt_selection.cpp:43`;
+`expandHuntSelection` stands at `:555` and `validateHuntCombination`
+at `:720`. The `counter` gather arm reads its `@` form at
+`options.cpp:1334`; the conflict-check call stands at `cli.cpp:580`,
+the batch hunt call at `cli.cpp:1371` and the report write at
+`cli.cpp:1659`. `writeHunt` stands at `json_report.cpp:706` with its
+budget text at `:709-715` and the two budget keys at `:767-790`; the
+report write's failure sentences stand at `:1097-1112`. `readHunt`
+stands at `json_load.cpp:1632` and `asBudget` at `:1341-1364`.
+`printHuntPlan` stands at `report.cpp:945`. The estimate multiply of
+`hunt_plan.cpp` stands at `:244`, `passRuns` at `:470` and the stage
+postconditions at `:615-638`. The `HuntStage` document stands at
+`hunt.hpp:345-361`, `buildHandoff` at `hunt.cpp:468`, the
+forced-method override at `hunt.cpp:992` and the stage loop at
 `hunt.cpp:1040-1105`. The `ABSENT` column loop stands at
 `runner.cpp:1239`, and the hunt option constants at
-`detail/options.hpp:98` with the free-block comment at `:95-97`. No code
-edit follows from this reading.
+`detail/options.hpp:99` with the free-block comment at `:95-98`. No
+code edit follows from this reading.
 
 **Storage**: N/A: no database. Two flat files join the run, both
 one-address-per-line: the emitted counter set written by
