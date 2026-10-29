@@ -50,8 +50,8 @@ and whose users of the escaper are M-D and M-E (the SVG label text)
 and M-G (the page's text). Round 1's F4 moved the escaper out of the
 then-page module and round 2 verified the plan and tasks; the
 contracts file kept the pre-remediation letter. An implementer
-following A-6 to M-F finds the text view, not the escaper the
-contracts pin.
+following A-6 to M-F finds the text view; the escaper the
+contracts pin stands elsewhere.
 
 Remediation: A-6 reads "the escaper of M-C". One token.
 
@@ -77,8 +77,8 @@ in") therefore leaves the metric case to the implementer's guess:
 empty, or the metric label. The plan's own risk names data-model.md as
 the decider, so the pointer dangles.
 
-Remediation: data-model.md states the metric column's `unit` (empty —
-the metric column prints as stored and names no unit — or the label,
+Remediation: data-model.md states the metric column's `unit` (empty:
+the metric column prints as stored and names no unit; or the label,
 one ruling), and the risk line names `BenchmarkResult::metricMethod`
 instead of `MetricValue` for the method.
 
