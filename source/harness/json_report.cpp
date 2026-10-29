@@ -29,7 +29,7 @@ using Builder = simdjson::builder::string_builder;
 
 // The schema the writer emits and the checker reads (FR-007). The minor
 // stands at 1.3 since specs/028 added the `run` object, at 1.4 since
-specs/027 added the `jitter` object, at 1.5 since specs/029 added
+// specs/027 added the `jitter` object, at 1.5 since specs/029 added
 // the root `hunt` object and the per-benchmark `hunt` object, at 1.7
 // since specs/036 added the optional `tracer` object of the `precheck`
 // record, and at 1.8 since specs/033 added the four budget keys inside
