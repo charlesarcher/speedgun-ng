@@ -563,7 +563,12 @@ auto splitStages(const sg::hunt::HuntPlan& plan,
     // of the stage answers the same whole number the product would.
     const auto derive = [&](const sg::hunt::HuntStage& stage) -> std::size_t
     {
-      const auto runs = std::max<std::size_t>(passRuns(plan, stage), 1);
+      // `passRuns` answers at least one: the plan seats every column index in
+      // exactly one pass (I-3), stage 1 holds every column of a plan the
+      // precondition says is not empty, and stage 2 holds the leading
+      // `min(3 x top, count)` of them, a width at least one for a settled
+      // `top` of at least one.
+      const auto runs = passRuns(plan, stage);
       const auto fit = bound / runs;
       sample.overBudget = sample.overBudget || fit < 1;
       return std::min(stage.repeats, std::max<std::size_t>(1, fit));

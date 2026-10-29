@@ -516,6 +516,6 @@ Polish closes the gates and the record.
 - [X] T043 Correct the guide's hunt option count per FR-030 (contradicts)
 - [X] T044 Move the hunt-block bound text in the table test's report per FR-044 (partial)
 - [X] T045 Add the `hunt::HuntSampleState` row to the guide's name list per FR-030 (partial)
-- [ ] T046 Drop the unreachable zero guard beside T034's fix per Constitution X.2 (partial)
+- [X] T046 Drop the unreachable zero guard beside T034's fix per Constitution X.2 (partial)
 - [X] T047 Reuse `parseSeconds`' refusal sentence for the `e` clause per Constitution X.3, R-01 (partial)
 - [X] T048 Re-anchor the acceptance record's heads to reachable commits per FR-045, Constitution X.4 (partial)
