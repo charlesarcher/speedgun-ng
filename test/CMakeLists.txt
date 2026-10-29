@@ -919,6 +919,23 @@ target_include_directories(harness_noise_test
 target_compile_features(harness_noise_test PRIVATE cxx_std_23)
 add_test(NAME harness_noise_test COMMAND harness_noise_test)
 
+# The record surfaces of the tracer (specs/036 T013 to T016): the console
+# lines of the tracer record (FR-013, FR-016, R-14), the JSON round trip
+# (FR-014, R-08, R-11), the schema shape (FR-006, D-3), and the byte
+# identity (FR-012, FR-015, R-10) over hand-built records. The schema path
+# enters the way `harness_json_report_test` takes it.
+add_executable(harness_noise_report_test
+               source/harness_noise_report_test.cpp)
+target_link_libraries(harness_noise_report_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_noise_report_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_noise_report_test PRIVATE cxx_std_23)
+target_compile_definitions(
+    harness_noise_report_test
+    PRIVATE SG_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/docs/schema/report-v1.json"
+)
+add_test(NAME harness_noise_report_test COMMAND harness_noise_report_test)
+
 # The idle resolver, the overlap check and the mask decision over
 # installed layouts (T017; US2, FR-016 to FR-020, D-3 to D-5, D-9, R-07,
 # PC-2).

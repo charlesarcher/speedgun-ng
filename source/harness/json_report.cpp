@@ -29,11 +29,12 @@ using Builder = simdjson::builder::string_builder;
 
 // The schema the writer emits and the checker reads (FR-007). The minor
 // stands at 1.3 since specs/028 added the `run` object, at 1.4 since
-// specs/027 added the `jitter` object, and at 1.5 since specs/029 added
-// the root `hunt` object and the per-benchmark `hunt` object, the move
-// specs/023/contracts/schema-file.md states for a key added inside major 1
-// (specs/027 FR-026, specs/028 FR-086, PC-6).
-constexpr std::string_view kSchemaVersion = "1.6";
+// specs/027 added the `jitter` object, at 1.5 since specs/029 added
+// the root `hunt` object and the per-benchmark `hunt` object, and at 1.7
+// since specs/036 added the optional `tracer` object of the `precheck`
+// record, the move specs/023/contracts/schema-file.md states for a key
+// added inside major 1 (specs/027 FR-026, specs/028 FR-086, PC-6).
+constexpr std::string_view kSchemaVersion = "1.7";
 
 // The `source` word of one disclosed use, spelled as the enum of
 // `docs/schema/report-v1.json` states it (specs/028 E-04, FR-040). The
@@ -1017,6 +1018,32 @@ auto writeReport(const std::string& path,
         for (const auto group : precheck->skippedGroups) {
           skipped.item();
           builder.append(std::uint64_t {group});
+        }
+      }
+      if (precheck->tracer.has_value()) {
+        // specs/036 FR-014, E-20: the optional tracer object stands after
+        // `skippedGroups`, the engine word beside the per-cpu entries. A
+        // run that requests no tracer, and a run whose tracer stands not
+        // available, leave the member empty and write no key, so the
+        // document stands byte-identical to master's apart from the
+        // version (specs/036 FR-015, R-10).
+        precheckWriter.key("tracer");
+        JsonObjectWriter tracerWriter(builder);
+        put(builder, tracerWriter, "engine", precheck->tracer->engine);
+        tracerWriter.key("cpus");
+        {
+          JsonArrayWriter tracerCpus(builder);
+          for (const auto& entry : precheck->tracer->cpus) {
+            tracerCpus.item();
+            JsonObjectWriter tracerCpu(builder);
+            put(builder, tracerCpu, "cpu", std::uint64_t {entry.cpu});
+            putAttributionFigure(builder, tracerCpu, "nmi", entry.nmi);
+            putAttributionFigure(builder, tracerCpu, "irq", entry.irq);
+            putAttributionFigure(builder, tracerCpu, "softirq", entry.softirq);
+            putAttributionFigure(builder, tracerCpu, "thread", entry.thread);
+            putAttributionFigure(
+                builder, tracerCpu, "hardware", entry.hardware);
+          }
         }
       }
     }

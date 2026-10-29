@@ -155,7 +155,7 @@
     },
     "precheck": {
       "type": "object",
-      "x-order": ["serial", "windowMs", "cpus", "hostSettings", "skippedGroups"],
+      "x-order": ["serial", "windowMs", "cpus", "hostSettings", "skippedGroups", "tracer"],
       "required": ["serial", "windowMs", "cpus", "hostSettings", "skippedGroups"],
       "additionalProperties": false,
       "properties": {
@@ -269,6 +269,46 @@
         "skippedGroups": {
           "type": "array",
           "items": { "type": "integer" }
+        },
+        "tracer": {
+          "type": "object",
+          "x-order": ["engine", "cpus"],
+          "required": ["engine", "cpus"],
+          "additionalProperties": false,
+          "properties": {
+            "engine": { "type": "string", "enum": ["osnoise", "timerlat"] },
+            "cpus": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "x-order": [
+                  "cpu",
+                  "nmi",
+                  "irq",
+                  "softirq",
+                  "thread",
+                  "hardware"
+                ],
+                "required": [
+                  "cpu",
+                  "nmi",
+                  "irq",
+                  "softirq",
+                  "thread",
+                  "hardware"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "cpu": { "type": "integer" },
+                  "nmi": { "type": ["integer", "null"] },
+                  "irq": { "type": ["integer", "null"] },
+                  "softirq": { "type": ["integer", "null"] },
+                  "thread": { "type": ["integer", "null"] },
+                  "hardware": { "type": ["integer", "null"] }
+                }
+              }
+            }
+          }
         }
       }
     },
