@@ -699,7 +699,7 @@ variable.
 | `hunt-top` | required |  | Sets how many ranked events the hunt prints |
 | `hunt-noise` | required |  | Sets the hunt noise threshold as a percent CV |
 | `hunt-repeats` | required |  | Sets how many repeats one hunt event takes |
-| `hunt-budget` | required |  | Sets the hunt budget in seconds or passes |
+| `hunt-budget` | required |  | Sets the hunt budget: `<n>s`, `<n>p`, `<n>e` or `<n>g` clauses |
 | `hunt-seed` | required |  | Sets the seed the hunt repeats draw from |
 | `hunt-emit-set` | required |  | Writes the ranked hunt events to that file |
 
