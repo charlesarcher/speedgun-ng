@@ -69,6 +69,13 @@ ATTRIBUTION_VALUE = re.compile(
     r"^((?:interrupts|softirq \S+) delta:) (?:not available|#)"
     r" (\(source: /proc/(?:interrupts|softirqs)\))$"
 )
+# specs/036 FR-023, R-14: the tracer figure lines stand the not-available
+# wording in the figure position on a host without the rights, so the
+# position folds beside a figure while the source word and the prefix keep
+# their bytes. The disclosure line and the header line keep their bytes.
+TRACER_FIGURE_VALUE = re.compile(
+    r"^(tracer cpu #) (nmi|irq|softirq|thread|hardware): (?:not available|#)$"
+)
 SCHEDSTAT_VALUE = re.compile(
     r"^(switch delta:) (?:not available|#), (schedule delta:)"
     r" (?:not available|#) (\(source: /proc/schedstat\))$"
@@ -82,7 +89,9 @@ def mask(line: str) -> str:
     float edge words an unlucky window prints, the governor a host runs, the
     kernel setting values and the irq affinity list the host states, the
     attribution delta figures and their `not available` wording, each
-    beside the source token that keeps its bytes."""
+    beside the source token that keeps its bytes, and the tracer figure
+    position folds the `not available` wording beside a figure the
+    engine states (specs/036 FR-023, R-14)."""
     folded = BUILD_FIELD.sub("build=#", line)
     if FIT_FIELD.search(folded):
         folded = FIT_CLASS.sub("#", folded)
@@ -93,6 +102,7 @@ def mask(line: str) -> str:
     folded = IRQ_AFFINITY_VALUE.sub(r"\1 # \2", folded)
     folded = ATTRIBUTION_VALUE.sub(r"\1 # \2", folded)
     folded = SCHEDSTAT_VALUE.sub(r"\1 #, \2 # \3", folded)
+    folded = TRACER_FIGURE_VALUE.sub(r"\1 \2: #", folded)
     # Two field paddings are dropped rather than collapsed: a value wide enough
     # to consume the padding after an equals sign, or after the open paren of the
     # coefficient field of a fit row, prints without it.

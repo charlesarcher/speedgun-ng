@@ -685,7 +685,8 @@ auto main(int argc, char** argv) -> int
 {
   sg::runJitterProbe({.thresholdNs = 1000000000,
                       .mode = sg::JitterProbeMode::PRECHECK,
-                      .precheckSerial = true});
+                      .precheckSerial = true,
+                      .tracerEngine = sg::TracerEngine::OSNOISE});
   return sg::speedgunMain(argc, argv);
 }
 ```
@@ -707,7 +708,8 @@ auto main(int argc, char** argv) -> int
 {
   sg::runJitterProbe({.thresholdNs = 1000000000,
                       .mode = sg::JitterProbeMode::PRECHECK,
-                      .precheckSerial = true});
+                      .precheckSerial = true,
+                      .tracerEngine = sg::TracerEngine::OSNOISE});
   return sg::speedgunMain(argc, argv);
 }
 ```
@@ -729,7 +731,8 @@ auto main(int argc, char** argv) -> int
 {
   sg::runJitterProbe({.thresholdNs = 1000000000,
                       .mode = sg::JitterProbeMode::PRECHECK,
-                      .precheckSerial = true});
+                      .precheckSerial = true,
+                      .tracerEngine = sg::TracerEngine::OSNOISE});
   return sg::speedgunMain(argc, argv);
 }
 ```
