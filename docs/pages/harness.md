@@ -1681,7 +1681,7 @@ The names of the tracer surface:
 
 Hunter mode puts a wide catalog event set on one benchmark and ranks the events
 by how far each one stands out of the run. `--hunt` turns it on and selects the
-events, and seven `--hunt-*` options shape the measurement. The hunt drives the
+events, and eight `--hunt-*` options shape the measurement. The hunt drives the
 pass loop described above, so it opens no second counter path. Its lines print
 on stdout under the `hunt:` prefix, after the benchmark tables of the run. A
 value outside the range its option states prints one line naming it on stderr
@@ -1761,11 +1761,12 @@ catalog order, and any other value shuffles the planned order the same way on
 every host. `--hunt-repeats` sets the repeats of the hunt stages, and
 `--repetitions` keeps its own meaning for the repetitions of the report rows. A
 hunt option given twice keeps its last value, and a hunt option beside no
-`--hunt` leaves the hunt off. Beside `--list`, `--catalog` or `--topology` the
-hunt forms no plan and prints no `hunt:` line, because those modes print and
-stop. A selection that fails expansion refuses first: the scan expands it
-before the listing modes, so the run prints its one line and ends with
-status 2 ahead of any listing.
+`--hunt` leaves the hunt off. `--hunt-emit-set` is the one exception: a settled
+emit path with no hunt to fill it is a refusal, and the run ends with status 2.
+Beside `--list`, `--catalog` or `--topology` the hunt forms no plan and prints
+no `hunt:` line, because those modes print and stop. A selection that fails
+expansion refuses first: the scan expands it before the listing modes, so the
+run prints its one line and ends with status 2 ahead of any listing.
 
 ### The refusal lines
 
@@ -2009,6 +2010,7 @@ the set a later run reads back through `--counter=@<file>`.
 | `hunt::HuntColumn` | type | The plan's one column: one event and the anchors of its own device | [hunter mode](#hunter-mode) |
 | `hunt::HuntStage` | type | The columns one plan stage measures and the repeats each column gets | [hunter mode](#hunter-mode) |
 | `hunt::HuntPlan` | type | The columns, passes, stages and estimate one hunt run executes | [hunter mode](#hunter-mode) |
+| `hunt::HuntSampleState` | type | The repeats one sample budget derived for a stage, with the overrun and unpriced states it leaves | [hunter mode](#hunter-mode) |
 | `hunt::HuntSample` | type | One measured repetition of one column of one pass, with its anchors | [hunter mode](#hunter-mode) |
 | `hunt::EventSamples` | type | The collected rows of one event address, the input of the rank table | [hunter mode](#hunter-mode) |
 | `hunt::RankedEvent` | type | One row of the ranked table, with the marks the console prints | [hunter mode](#hunter-mode) |

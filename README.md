@@ -738,7 +738,7 @@ auto main(int argc, char** argv) -> int
 ```
 
 ### Hunter mode
-`--hunt` puts a wide catalog event set on one benchmark and ranks the events by how far each one stands out of the run. `--hunt=all` selects every entry of every core device, and an address list, a glob such as `uncore/*` or a `@file` of addresses selects the rest. A hunt option beside no `--hunt` leaves the hunt off, and `--hunt=none` states the same run in words. The hunt drives the multi-pass collection loop above, so it opens no second counter path.
+`--hunt` puts a wide catalog event set on one benchmark and ranks the events by how far each one stands out of the run. `--hunt=all` selects every entry of every core device, and an address list, a glob such as `uncore/*` or a `@file` of addresses selects the rest. A hunt option beside no `--hunt` leaves the hunt off, and `--hunt=none` states the same run in words. A settled `--hunt-emit-set` beside no `--hunt` is the one exception: it names a file no hunt will write, so the run prints one line and ends with status 2. The hunt drives the multi-pass collection loop above, so it opens no second counter path.
 <!-- sg-example: example/docs/hunt_rank.cpp#hunt-rank -->
 ```cpp
 // The ranked table of a hunt, with the refusals discovery handed back folded
