@@ -637,8 +637,9 @@ the object its first leaf reaches, after that object's counter lines.
 `--counter` names one catalog counter address, in the shape
 `--counter=machine/monotonic`, and adds one column per address in the order
 the addresses are given. One item may stand as the `@path` of a file of
-addresses, read one level deep, one address per line with blank lines and `#`
-comments ignored, the reading `--hunt=@path` gives. A file no host opens, a
+addresses, read one level deep, the reading `--hunt=@path` gives: blank lines
+and `#` comments stand ignored, and a line of comma-separated addresses answers
+one element per address. A file no host opens, a
 comma that leaves an address empty and a file that holds no address each stop
 the run with status 2 on one line naming the value the option carried. An
 address this host does not find, a typo or a valid
