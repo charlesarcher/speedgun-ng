@@ -67,8 +67,8 @@ auto check(const bool cond, const char* what) -> void
 // affinity mask (specs/036 FR-008): the parser validates every cpu of a
 // `cpus=` list against the mask and the online set, so the values stand
 // inside both on every host the suite runs on.
-auto pickCpus(std::size_t count, bool reportShortfall = true)
-    -> std::vector<std::uint32_t>
+auto pickCpus(std::size_t count,
+              bool reportShortfall = true) -> std::vector<std::uint32_t>
 {
   cpu_set_t mask {};
   CPU_ZERO(&mask);
