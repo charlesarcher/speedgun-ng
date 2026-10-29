@@ -1,14 +1,21 @@
 // ============================================================================
-// The noise tracer value parser (specs/036-osnoise-timerlat-tracers T007,
-// US3).
+// The noise tracer value parser and the engine session
+// (specs/036-osnoise-timerlat-tracers T007, T011, T012).
 //
-// One translation unit owns the tracer beside the engine session the later
-// phases land in the same files: the value grammar of
+// One translation unit owns the tracer: the value grammar of
 // contracts/cli-options.md, the standing cpu-list reader of the jitter
-// probe, and the refusal shape the option module quotes.
+// probe, the refusal shape the option module quotes, and the session
+// lifecycle and the figure read over the tracefs files the file-root
+// seam resolves (R-01 to R-05, R-07).
 // ============================================================================
 
+#include <array>
+#include <charconv>
+#include <cstdint>
+#include <fstream>
+#include <iomanip>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -16,6 +23,8 @@
 
 #include "detail/jitter_probe.hpp"
 #include "detail/options.hpp"
+#include "detail/proc_root.hpp"
+#include "speedgun-ng/dbc.hpp"
 
 namespace sg::detail
 {
@@ -108,6 +117,267 @@ auto parseOsNoiseValue(const std::string& value,
     }
   }
   return true;
+}
+
+namespace
+{
+
+// The first line of one file text, trimmed of the blanks the line
+// carries at either end (R-04): the form the control files carry.
+auto trimmedWordOf(const std::string& text) -> std::string
+{
+  const auto stop = text.find('\n');
+  const auto line = stop == std::string::npos ? text : text.substr(0, stop);
+  const auto begin = line.find_first_not_of(" \t\r");
+  if (begin == std::string::npos) {
+    return {};
+  }
+  const auto end = line.find_last_not_of(" \t\r");
+  return line.substr(begin, end - begin + 1);
+}
+
+// One file under the tracing root, read whole (R-01): a file that
+// stands missing or unreadable answers nothing, and one the read
+// cannot carry to the end answers nothing beside it (FR-016).
+auto readTracerFile(const std::string& relative) -> std::optional<std::string>
+{
+  std::ifstream file(procRootPath(relative));
+  if (!file) {
+    return std::nullopt;
+  }
+  std::string text;
+  std::string line;
+  while (std::getline(file, line)) {
+    text += line;
+    text += '\n';
+  }
+  if (!file.eof()) {
+    return std::nullopt;
+  }
+  return text;
+}
+
+// One file under the tracing root, written whole (R-01): a write that
+// does not stand through answers false (FR-016).
+auto writeTracerFile(const std::string& relative,
+                     const std::string& text) -> bool
+{
+  std::ofstream file(procRootPath(relative));
+  if (!file) {
+    return false;
+  }
+  file << text;
+  file.close();
+  return file.good();
+}
+
+// The word the engine writes into `current_tracer` (R-02).
+auto engineWordOf(TracerEngine engine) -> std::string
+{
+  return engine == TracerEngine::OSNOISE ? "osnoise" : "timerlat";
+}
+
+// The mask text of the tracer cpus at `width` hex digits per word,
+// comma-separated, the leftmost word naming the highest cpus, bit i of
+// word w naming cpu w * width * 4 + i (R-02, R-05): the width the
+// standing text carried, and the word count the cpus need.
+auto renderCpuMask(const std::vector<std::uint32_t>& cpus,
+                   std::size_t width) -> std::string
+{
+  const std::size_t bitsPerWord = width * 4;
+  std::size_t wordCount = 1;
+  for (const auto cpu : cpus) {
+    const std::size_t needed = cpu / bitsPerWord + 1;
+    if (needed > wordCount) {
+      wordCount = needed;
+    }
+  }
+  std::string text;
+  for (std::size_t at = 0; at < wordCount; ++at) {
+    const std::size_t word = wordCount - 1 - at;
+    std::uint64_t bits = 0;
+    for (const auto cpu : cpus) {
+      if (cpu / bitsPerWord == word) {
+        bits |= std::uint64_t {1} << (cpu % bitsPerWord);
+      }
+    }
+    std::ostringstream digits;
+    digits << std::hex << std::setw(static_cast<int>(width))
+           << std::setfill('0') << bits;
+    if (!text.empty()) {
+      text += ',';
+    }
+    text += digits.str();
+  }
+  return text;
+}
+
+// The word width the standing mask text carries: the digits of the
+// first comma-separated word (R-05). A text that names no word answers
+// nothing.
+auto maskWidthOf(const std::string& text) -> std::optional<std::size_t>
+{
+  const auto stop = text.find(',');
+  const auto word = stop == std::string::npos ? text : text.substr(0, stop);
+  const auto begin = word.find_first_not_of(" \t\r\n");
+  if (begin == std::string::npos) {
+    return std::nullopt;
+  }
+  const auto end = word.find_last_not_of(" \t\r\n");
+  return word.substr(begin, end - begin + 1).size();
+}
+
+// The five source words of the pinned count-file format, and the
+// record figure each one feeds (R-03).
+struct CountSource
+{
+  const char* word;
+  std::optional<std::uint64_t> PrecheckTracerCpuRecord::*figure;
+};
+
+constexpr std::array<CountSource, 5> kCountSources {{
+    {"nmi", &PrecheckTracerCpuRecord::nmi},
+    {"irq", &PrecheckTracerCpuRecord::irq},
+    {"softirq", &PrecheckTracerCpuRecord::softirq},
+    {"thread", &PrecheckTracerCpuRecord::thread},
+    {"hw", &PrecheckTracerCpuRecord::hardware},
+}};
+
+// One unsigned figure off one token; a token that parses as no number
+// answers nothing (R-07).
+auto countOfToken(const std::string& token) -> std::optional<std::uint64_t>
+{
+  std::uint64_t figure = 0;
+  const auto* begin = token.data();
+  const auto* end = begin + token.size();
+  const auto parsed = std::from_chars(begin, end, figure);
+  if (parsed.ec != std::errc {} || parsed.ptr != end) {
+    return std::nullopt;
+  }
+  return figure;
+}
+
+// The figures the count file of one cpu carries (R-07): the five
+// figures of the pinned format, `hw` mapping to `hardware`; a file
+// that states nothing stands every figure absent, and one malformed
+// line stands the whole file unparsable, every figure absent.
+auto figuresOfCpu(std::uint32_t cpu, const std::optional<std::string>& text)
+    -> PrecheckTracerCpuRecord
+{
+  PrecheckTracerCpuRecord record;
+  record.cpu = cpu;
+  if (!text.has_value()) {
+    return record;
+  }
+  std::array<bool, kCountSources.size()> seen {};
+  std::array<std::optional<std::uint64_t>, kCountSources.size()> counts;
+  std::istringstream stream(*text);
+  std::string line;
+  while (std::getline(stream, line)) {
+    if (trimmedWordOf(line).empty()) {
+      continue;
+    }
+    const auto colon = line.find(':');
+    if (colon == std::string::npos) {
+      return record;
+    }
+    const auto word = trimmedWordOf(line.substr(0, colon));
+    const auto count = countOfToken(trimmedWordOf(line.substr(colon + 1)));
+    bool matched = false;
+    for (std::size_t at = 0; at < kCountSources.size(); ++at) {
+      if (word == kCountSources[at].word) {
+        if (seen[at] || !count.has_value()) {
+          return record;
+        }
+        seen[at] = true;
+        counts.at(at) = count;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      return record;
+    }
+  }
+  for (std::size_t at = 0; at < kCountSources.size(); ++at) {
+    record.*kCountSources[at].figure = counts.at(at);
+  }
+  return record;
+}
+
+}  // namespace
+
+auto noiseTracerSetup(TracerEngine engine,
+                      const std::vector<std::uint32_t>& cpus)
+    -> std::optional<NoiseTracerSession>
+{
+  SG_REQUIRE(engine != TracerEngine::NONE,
+             "noiseTracerSetup reaches an engine that names no tracer");
+  SG_REQUIRE(!cpus.empty(), "noiseTracerSetup reaches an empty cpu list");
+  const auto word = readTracerFile("sys/kernel/tracing/current_tracer");
+  if (!word.has_value()) {
+    return std::nullopt;
+  }
+  const auto mask = readTracerFile("sys/kernel/tracing/tracing_cpumask");
+  if (!mask.has_value()) {
+    return std::nullopt;
+  }
+  const auto width = maskWidthOf(*mask);
+  if (!width.has_value()) {
+    return std::nullopt;
+  }
+  if (!writeTracerFile("sys/kernel/tracing/current_tracer",
+                       engineWordOf(engine) + "\n"))
+  {
+    return std::nullopt;
+  }
+  if (!writeTracerFile("sys/kernel/tracing/tracing_cpumask",
+                       renderCpuMask(cpus, *width) + "\n"))
+  {
+    return std::nullopt;
+  }
+  if (!writeTracerFile("sys/kernel/tracing/tracing_on", "1\n")) {
+    return std::nullopt;
+  }
+  NoiseTracerSession session;
+  session.engine = engine;
+  session.cpus = cpus;
+  session.previousTracer = trimmedWordOf(*word);
+  session.previousCpuMask = trimmedWordOf(*mask);
+  SG_ENSURE(session.engine == engine && session.cpus == cpus
+                && !session.previousCpuMask.empty(),
+            "noiseTracerSetup answers a session that carries the engine, "
+            "the cpus and the standing mask text");
+  return session;
+}
+
+auto noiseTracerFigures(const NoiseTracerSession& session)
+    -> std::vector<PrecheckTracerCpuRecord>
+{
+  SG_REQUIRE(session.engine != TracerEngine::NONE,
+             "noiseTracerFigures reaches a session that names no tracer");
+  std::vector<PrecheckTracerCpuRecord> figures;
+  figures.reserve(session.cpus.size());
+  for (const auto cpu : session.cpus) {
+    figures.push_back(
+        figuresOfCpu(cpu,
+                     readTracerFile("sys/kernel/tracing/osnoise/cpu"
+                                    + std::to_string(cpu))));
+  }
+  SG_ENSURE(figures.size() == session.cpus.size(),
+            "noiseTracerFigures answers one entry per session cpu");
+  return figures;
+}
+
+auto noiseTracerRestore(const NoiseTracerSession& session) -> void
+{
+  SG_REQUIRE(session.engine != TracerEngine::NONE,
+             "noiseTracerRestore reaches a session that names no tracer");
+  writeTracerFile("sys/kernel/tracing/tracing_on", "0\n");
+  writeTracerFile("sys/kernel/tracing/current_tracer",
+                  session.previousTracer + "\n");
+  writeTracerFile("sys/kernel/tracing/tracing_cpumask",
+                  session.previousCpuMask + "\n");
 }
 
 }  // namespace sg::detail
