@@ -531,7 +531,7 @@ Polish closes the gates and the record.
 - [X] T053 Drop the unread leaf copy from the column-join record per Constitution VII (partial)
 - [X] T054 Drop the test-side check that reads no production code per Constitution VI, X.4 (partial)
 - [X] T055 Name the four budget clause kinds in the option's help text per FR-004, FR-030 (partial)
-- [ ] T056 State the counter file's comma separator in the guide's counter paragraph per FR-014, contracts/counter-file.md (partial)
+- [X] T056 State the counter file's comma separator in the guide's counter paragraph per FR-014, contracts/counter-file.md (partial)
 - [ ] T057 Stop the example naming a file the run never writes per Constitution IV.1 (partial)
 - [ ] T058 Restate the contrastive comments the prose gate cannot read per Constitution XI.2, XI.6 (partial)
 - [ ] T059 Restate the version reservation and the overrun quote in the plan and the spec note per FR-040, FR-002 (partial)
