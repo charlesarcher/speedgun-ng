@@ -36,7 +36,7 @@ reader, the spec 029 grammar):
 | --- | --- |
 | Form | the whole value starts with `@`; one level; the address elements follow spec 029's separator rule (lines cut at `#`, split on commas) |
 | Refusals (one line naming the value, exit 2) | file does not exist; a comma beside nothing (the empty address); the file holds no address |
-| Unknown address | standing `--counter` shape: an `ABSENT` column with its stderr line; the run continues |
+| Unknown address | the entry point's standing `--counter` shape: one line naming the value, exit 2, the run stops; the entry point resolves every address every source named before the first measurement (`detail::counterAddressFailure`, spec 028 FR-087); a library caller that hands addresses to the runner keeps the runner's `ABSENT` column (spec 015 FR-023) |
 | Count | no cap on the number of addresses (spec 029 PC-2 reading) |
 | Sources | command line, option file, environment carry the same grammar per item, the environment's `;` items splitting first (the interception sits in the gather arm) |
 
