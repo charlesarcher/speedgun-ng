@@ -141,10 +141,12 @@ ctest --test-dir build -R harness_noise
 ```
 
 One record per run stands under
-[results/](./results/), named for the engine, each record carrying the
-commands, the exit codes, the engine and the per-CCD tables; the
-quickstart links every record once the records stand filled (spec
-SC-006). No CI gate stands on the records.
+[results/](./results/): the osnoise record stands at
+[results/osnoise.md](./results/osnoise.md) and the timerlat record
+at [results/timerlat.md](./results/timerlat.md), each record
+carrying the commands, the exit codes, the engine and the per-CCD
+tables, and the count-file re-confirmation the runs stood beside
+the figures (spec SC-006). No CI gate stands on the records.
 
 ## Out of scope for the gates
 
