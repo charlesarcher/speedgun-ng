@@ -890,7 +890,7 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
                                                          : "the new row '")
           + row.name + "' answers inside its block (FR-004, FR-079)";
       report(label.c_str(),
-             hunt ? "a constant from 270 to 279"
+             hunt ? "a constant from 270 to 289"
                  : master
                  ? "a letter or a constant from 256 to 259"
                  : "a constant from 290 to 296, the lane block's 260, "
@@ -938,8 +938,9 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
   }
 }
 
-// The nine hunt rows of the table, each at the number the contract of
-// specs/029-hunter-core states (FR-083, SC-05, D-22).
+// The nine hunt rows of the table, each at the number its contract states:
+// the eight of specs/029-hunter-core (FR-083, SC-05, D-22) and
+// `hunt-emit-set` of specs/033-hunter-budgets (FR-010).
 auto theHuntNamesTakeTheReservedConstants(const std::vector<Row>& rows) -> void
 {
   for (const std::pair<std::string_view, int>& entry : kHuntValues) {

@@ -514,7 +514,7 @@ Polish closes the gates and the record.
 - [ ] T041 Re-record the SOVERSION 14 note for the record-layout moves per FR-040, hard rule 12 (contradicts)
 - [ ] T042 State the capped pass shape and the new plan fields in `planHunt`'s postcondition per Constitution II, FR-003 (partial)
 - [ ] T043 Correct the guide's hunt option count per FR-030 (contradicts)
-- [ ] T044 Move the hunt-block bound text in the table test's report per FR-044 (partial)
+- [X] T044 Move the hunt-block bound text in the table test's report per FR-044 (partial)
 - [ ] T045 Add the `hunt::HuntSampleState` row to the guide's name list per FR-030 (partial)
 - [ ] T046 Drop the unreachable zero guard beside T034's fix per Constitution X.2 (partial)
 - [ ] T047 Reuse `parseSeconds`' refusal sentence for the `e` clause per Constitution X.3, R-01 (partial)
