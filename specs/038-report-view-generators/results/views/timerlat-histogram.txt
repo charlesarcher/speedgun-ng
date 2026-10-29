@@ -1,0 +1,1 @@
+renderHistogram: the histogram of the column 'time' of 'bmTouch/threads:2' stands not available: the series carries the sample count 1
