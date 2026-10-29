@@ -144,6 +144,27 @@ auto barWidths(std::string const& svg) -> std::vector<std::size_t>
   return widths;
 }
 
+// The coordinate pairs of a figure's polyline, in document order: the
+// point-count check compares these against the values the series
+// carries.
+auto polylinePoints(std::string const& svg) -> std::vector<std::string>
+{
+  auto const attribute = std::string {"points=\""};
+  auto const open = svg.find(attribute);
+  check(open != std::string::npos, "plot: the figure carries a polyline");
+  auto const closed = svg.find('"', open + attribute.size());
+  check(closed != std::string::npos,
+        "plot: the points attribute stands closed on its quote");
+  auto pairs = std::vector<std::string> {};
+  std::istringstream listed(
+      svg.substr(open + attribute.size(), closed - open - attribute.size()));
+  std::string pair;
+  while (listed >> pair) {
+    pairs.push_back(pair);
+  }
+  return pairs;
+}
+
 // The argument lists the header declares: every view takes the loaded
 // document value `loadReport` answered by const reference, the
 // benchmark name and the column selector as `std::string_view`, and
@@ -546,6 +567,144 @@ auto run() -> int
   // call above answers the value or the error form, the document value
   // arrives by const reference as the whole input surface, and no
   // exception escapes the try of main.
+
+  // ---- The plot block (specs/038 T010; FR-009, FR-010, B-3 of the
+  // views-api contract) ----
+
+  // Row 1: the figure carries one point per recorded value in document
+  // order with the axes labeled and the values printed scaled (FR-009,
+  // B-3, A-5). multi.json stands five repetition rows, so the four
+  // countable time values 0.12, 0.145, 0.185 and 0.24 us stand four
+  // points and the row the time column leaves unavailable stands out.
+  {
+    auto const svg = sg::renderPlot(multi, "bmViews/threads:2", "time");
+    check(svg.has_value(), "plot: the time series answers the value form");
+    check(polylinePoints(*svg).size() == 4,
+          "plot: one point stands per recorded value");
+    check(svg->find("0 us") == std::string::npos,
+          "plot: the GAP row stands out of the points");
+    check(svg->find("0.12 us") != std::string::npos
+              && svg->find("0.145 us") != std::string::npos
+              && svg->find("0.185 us") != std::string::npos
+              && svg->find("0.24 us") != std::string::npos,
+          "plot: the values print scaled with the unit named");
+    check(svg->find("0.12 us") < svg->find("0.145 us")
+              && svg->find("0.145 us") < svg->find("0.185 us")
+              && svg->find("0.185 us") < svg->find("0.24 us"),
+          "plot: the points stand in document order");
+    check(svg->find("time (us)") != std::string::npos,
+          "plot: the column axis names the column and the unit");
+    check(svg->find("row") != std::string::npos,
+          "plot: the row axis names the row");
+  }
+
+  // Row 2: the multipass order (FR-009, D-7): multipass.json stands
+  // its metric values in pass order, so the figure renders the three
+  // passes in that order, the aggregate row standing out of the
+  // points, and the values print as stored with no unit beside (A-5).
+  {
+    auto const report = loadedFixture("multipass.json");
+    auto const svg = sg::renderPlot(report, "bmViewsMultipass", "faults");
+    check(svg.has_value(), "plot: the multipass series answers the value form");
+    check(polylinePoints(*svg).size() == 3,
+          "plot: the multipass figure renders the three passes");
+    check(svg->find(">8<") != std::string::npos
+              && svg->find(">8.5<") != std::string::npos
+              && svg->find(">9.1<") != std::string::npos,
+          "plot: the metric values stand as stored, no unit beside");
+    check(svg->find(">8<") < svg->find(">8.5<")
+              && svg->find(">8.5<") < svg->find(">9.1<"),
+          "plot: the passes stand in pass order");
+  }
+
+  // Row 3: the single-point case (B-3, FR-010): single.json stands one
+  // repetition row, so the figure renders one point and answers no
+  // disclosure.
+  {
+    auto const report = loadedFixture("single.json");
+    auto const svg = sg::renderPlot(report, "bmViewsSingle", "time");
+    check(svg.has_value(),
+          "plot: the single-value series answers the value form");
+    check(polylinePoints(*svg).size() == 1,
+          "plot: the single value renders one point");
+    check(svg->find("55 ns") != std::string::npos,
+          "plot: the single point names its value and unit");
+  }
+
+  // Row 4: the empty-series disclosure (FR-010, clarify 2/Q2): every
+  // repetition row of the scratch document stands a GAP for the
+  // metric, so the series stands empty and the plot answers the error
+  // form naming the column and the sample count of zero.
+  {
+    auto const scratch =
+        std::filesystem::temp_directory_path() / "views_test_plot_empty.json";
+    {
+      std::ofstream out(scratch);
+      out << R"({"schemaVersion":"1.8","benchmarks":[
+          {"name":"bmViewsPlotGap","suite":"bmViews",
+           "case":"bmViewsPlotGap","outcome":"MEASURED","reason":null,
+           "hideRepetitionRows":false,"timeUnit":"NANOSECONDS",
+           "primaryIsCpu":false,"pauseSamplesFolded":false,
+           "percentilePoints":[],"contexts":[],
+           "rows":[{"kind":"REPETITION","label":null,"iterations":8,
+                    "timePerIterationNs":10.0,"cpuTimePerIterationNs":10.0,
+                    "endpointSamples":8,"pauseSamplesFolded":false,
+                    "timeAvailability":"COUNTABLE",
+                    "metrics":[{"label":"gap","value":0.0,
+                                "runningRatio":1.0,"scaled":false,
+                                "availability":"GAP","pass":null}],
+                    "counters":[],"counterDisclosure":null,"fit":null,
+                    "overheadFloorNs":0.0,"percentiles":[],"chunkCount":0,
+                    "chunkIterations":0,"timeStats":null,"metricStats":[]}],
+           "metricLabels":["gap"],"counterLabels":[],"counterStats":[],
+           "statisticValues":[]}]})";
+    }
+    auto const empty = sg::loadReport(scratch.string());
+    check(empty.has_value(), "plot: the all-unavailable document loads");
+    auto const disclosed = sg::renderPlot(*empty, "bmViewsPlotGap", "gap");
+    check(!disclosed.has_value(),
+          "plot: the empty series answers the error form");
+    check(disclosed.error().find("not available") != std::string::npos,
+          "plot: the disclosure names not available");
+    check(disclosed.error().find("gap") != std::string::npos,
+          "plot: the disclosure names the column");
+    check(disclosed.error().find("sample count 0") != std::string::npos,
+          "plot: the disclosure names the sample count of zero");
+    std::error_code ignored;
+    std::filesystem::remove(scratch, ignored);
+  }
+
+  // Row 5: the markup label (A-6, D-8): the figure names its column
+  // through the escaper, and the metric values stand as stored with no
+  // unit beside them (A-5). The four countable values 0.4 to 1.1 stand
+  // one point each in document order.
+  {
+    auto const report = loadedFixture("markup.json");
+    auto const markup =
+        sg::renderPlot(report, "bmViewsMarkup", "branch<miss>&rate");
+    check(markup.has_value(), "plot: the metric series answers the value form");
+    check(markup->find("branch&lt;miss&gt;&amp;rate") != std::string::npos,
+          "plot: the column label stands escaped through the escaper");
+    check(markup->find("branch<miss>&rate") == std::string::npos,
+          "plot: the raw label stands nowhere in the figure");
+    check(markup->find(">0.4<") != std::string::npos
+              && markup->find(">0.6<") != std::string::npos
+              && markup->find(">0.7<") != std::string::npos
+              && markup->find(">1.1<") != std::string::npos,
+          "plot: the metric values stand as stored, no unit beside");
+    check(markup->find(">0.4<") < markup->find(">0.6<")
+              && markup->find(">0.6<") < markup->find(">0.7<")
+              && markup->find(">0.7<") < markup->find(">1.1<"),
+          "plot: the metric points stand in document order");
+  }
+
+  // Row 6: the contract rows (A-1, B-3). The plot carries no pre, so
+  // the block enforces no contract facility call, and the standing
+  // tests of this file assert no contract-violation abort. The no-file
+  // and no-throw rules stand in the answer forms: every call above
+  // answers the value or the error form, the document value arrives by
+  // const reference as the whole input surface, and no exception
+  // escapes the try of main.
 
   std::printf("views_test PASS\n");
   return 0;
