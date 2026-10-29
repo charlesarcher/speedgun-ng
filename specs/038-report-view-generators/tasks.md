@@ -286,7 +286,8 @@ that builds, passes its tests, and stands committed.
 
 - The commit plan: one logical block per phase, each commit
   compiling and passing its tests, the titles following the
-  template (`Views: ...`, `CMake: ...`, `Docs: ...`, `Meta: ...`),
+  template with the standing sections (`Harness: ...` for the
+  views and the driver, `CMake: ...`, `Docs: ...`, `Meta: ...`),
   the `Refs:` footer naming `specs/038-report-view-generators`.
 - The evidence runs ride the lane host thrawn and stand a script,
   not a CI gate (D-5).
