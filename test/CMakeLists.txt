@@ -760,6 +760,16 @@ target_compile_features(harness_cli_table_test PRIVATE cxx_std_23)
 add_test(NAME harness_cli_table_test
          COMMAND harness_cli_table_test ${CMAKE_SOURCE_DIR}/source/harness)
 
+# The public view surface over the report value `loadReport` answered:
+# `ViewSeries` default-constructs empty and the six declarations
+# type-check through the header's declares (specs/038 T001; FR-001,
+# FR-004, FR-005). The unit runs red until the header lands, and the
+# same registration turns green with it.
+add_executable(views_test source/views_test.cpp)
+target_link_libraries(views_test PRIVATE speedgun-ng::harness)
+target_compile_features(views_test PRIVATE cxx_std_23)
+add_test(NAME views_test COMMAND views_test)
+
 # The usage faults of the command-line scan, each driven by an `argv`
 # array built in the test and compared byte for byte against the fault
 # line of the contract (T010; FR-007 to FR-012, SC-003,

@@ -1,0 +1,94 @@
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <expected>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <vector>
+
+#include "speedgun-ng/views.hpp"
+
+namespace
+{
+
+auto fail(char const* what) -> void
+{
+  std::fprintf(stderr, "SPEEDGUN-NG TEST FAIL: %s\n", what);
+  std::exit(1);
+}
+
+auto check(bool cond, char const* what) -> void
+{
+  if (!cond) {
+    fail(what);
+  }
+}
+
+// The argument lists the header declares: every view takes the loaded
+// document value `loadReport` answered by const reference, the
+// benchmark name and the column selector as `std::string_view`, and
+// the view's own arguments (A-1 of the views-api contract).
+using ReportArg = const sg::ReportData&;
+
+static_assert(
+    std::is_same_v<decltype(sg::viewSeries(std::declval<ReportArg>(),
+                                           std::declval<std::string_view>(),
+                                           std::declval<std::string_view>())),
+                   std::expected<sg::ViewSeries, std::string>>);
+
+static_assert(std::is_same_v<
+              decltype(sg::renderHistogram(std::declval<ReportArg>(),
+                                           std::declval<std::string_view>(),
+                                           std::declval<std::string_view>(),
+                                           std::declval<std::size_t>())),
+              std::expected<std::string, std::string>>);
+
+static_assert(
+    std::is_same_v<decltype(sg::renderPlot(std::declval<ReportArg>(),
+                                           std::declval<std::string_view>(),
+                                           std::declval<std::string_view>())),
+                   std::expected<std::string, std::string>>);
+
+static_assert(
+    std::is_same_v<decltype(sg::renderPage(std::declval<ReportArg>(),
+                                           std::declval<std::string_view>(),
+                                           std::declval<std::string_view>(),
+                                           std::declval<std::size_t>())),
+                   std::expected<std::string, std::string>>);
+
+static_assert(
+    std::is_same_v<decltype(sg::renderText(std::declval<ReportArg>(),
+                                           std::declval<std::string_view>(),
+                                           std::declval<std::string_view>(),
+                                           std::declval<std::size_t>())),
+                   std::expected<std::string, std::string>>);
+
+static_assert(
+    std::is_same_v<decltype(sg::ViewSeries::values), std::vector<double>>);
+static_assert(std::is_same_v<decltype(sg::ViewSeries::unit), std::string>);
+
+auto run() -> int
+{
+  // ViewSeries default-constructs empty (specs/038 data-model.md).
+  {
+    auto const series = sg::ViewSeries {};
+    check(series.values.empty(), "pass: default values empty");
+    check(series.unit.empty(), "pass: default unit empty");
+  }
+
+  std::printf("views_test PASS\n");
+  return 0;
+}
+
+}  // namespace
+
+auto main() -> int
+{
+  try {
+    return run();
+  } catch (...) {
+    std::fprintf(stderr, "SPEEDGUN-NG TEST FAIL: unhandled exception\n");
+    return 1;
+  }
+}
