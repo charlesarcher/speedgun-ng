@@ -580,6 +580,20 @@ auto speedgunMain(int argc, char** argv) -> int
     options.jitterProbe = detail::suiteJitterProbe();
   }
 
+  // specs/036 FR-005, D-6, R-06: the same source order binds the
+  // tracer. The command line's and the option file's values settled the
+  // carrier in the gather, where each parses where it settles, so an
+  // empty carrier here names no higher source, and the suite binding's
+  // pair stands in. A binding that asks for no tracer leaves the
+  // carrier empty, so the run carries none (FR-005, R-06).
+  if (!options.noiseTracer.has_value()) {
+    const auto& suite = detail::suiteJitterProbe();
+    if (suite.has_value() && suite->tracerEngine != TracerEngine::NONE) {
+      options.noiseTracer = suite->tracerEngine;
+      options.noiseTracerCpus = suite->tracerCpus;
+    }
+  }
+
   if (options.catalogMode) {
     detail::printCatalog();
     return 0;

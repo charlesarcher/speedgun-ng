@@ -11,12 +11,13 @@
 // seven new names take the constants 290 to 296 that spec D-24 reserves.
 // The expected rows stand here as literals, the master name to value
 // mapping of FR-013 among them.
-// The contract fixes 35 rows in one order. The 20 rows master carries keep
+// The contract fixes 37 rows in one order. The 20 rows master carries keep
 // their spelling, their argument kind and their internal value, the seven
-// new names take the constants 290 to 296 that spec D-24 reserves, and the
-// eight hunt names of specs/029-hunter-core take the block 270 to 279 that
-// lane reserves. The expected rows stand here as literals, the master name
-// to value mapping of FR-013 among them.
+// new names take the constants 290 to 296 that spec D-24 reserves, the
+// noise tracer's name takes 297, and the eight hunt names of
+// specs/029-hunter-core take the block 270 to 279 that lane reserves. The
+// expected rows stand here as literals, the master name to value mapping
+// of FR-013 among them.
 //
 // The seam the contract names, `detail::optionRows()`, is declared at T006
 // and written at T007, so this file reads the rows out of the source that
@@ -48,7 +49,7 @@
 //
 // Check map:
 //   theTableAnswersARowList        one source file yields rows
-//   theTableHoldsThirtySixRows     the row count is the contract's 36
+//   theTableHoldsThirtySevenRows   the row count is the contract's 37
 //                                  (FR-001, FR-004, SC-001)
 //   theNamesStandInTheContractOrder
 //                                  the names in table order equal the
@@ -62,7 +63,7 @@
 //                                  letter or the constant of FR-013,
 //                                  spelled out as a table of their own
 //                                  (FR-003, FR-079, SC-001)
-//   theSevenNewNamesTakeTheReservedConstants
+//   theNewNamesTakeTheReservedConstants
 //                                  `options`, `env`, `threads`,
 //                                  `interleave`, `compare-rules`, `help`
 //                                  and `version` at 290 to 296, and
@@ -83,9 +84,11 @@
 //   theValueBlocksStayUniqueAndDisjoint
 //                                  the 20 master rows answer inside the
 //                                  letters and 256 to 259, the 7 new
-//                                  rows inside 290 to 296, the two
-//                                  blocks share no number, and no name
-//                                  or value repeats across them
+//                                  rows inside 290 to 296 with the
+//                                  jitter row at 260 and the noise
+//                                  tracer's row at 297, the blocks
+//                                  share no number, and no name or
+//                                  value repeats across them
 //                                  (FR-004, FR-079)
 //   theCarriedConstantsNameTheirOptions
 //                                  256 to 259 name `metric-method`,
@@ -202,7 +205,7 @@ constexpr char kRequired = 'r';
 constexpr char kOptional = 'o';
 constexpr char kNoArgument = 'n';
 
-constexpr std::array<ExpectedRow, 36> kContract = {{
+constexpr std::array<ExpectedRow, 37> kContract = {{
     {"filter", kRequired, 'f'},
     {"list", kNoArgument, 'l'},
     {"repetitions", kRequired, 'r'},
@@ -231,6 +234,7 @@ constexpr std::array<ExpectedRow, 36> kContract = {{
     {"help", kNoArgument, 295},
     {"version", kNoArgument, 296},
     {"jitter-probe", kRequired, 260},
+    {"os-noise", kRequired, 297},
     {"hunt", kOptional, 270},
     {"hunt-norm", kRequired, 271},
     {"hunt-rank", kRequired, 272},
@@ -245,13 +249,13 @@ constexpr std::array<ExpectedRow, 36> kContract = {{
 // this feature adds, and the eight hunt rows of specs/029-hunter-core close
 // the table.
 constexpr std::size_t kMasterRows = 20;
-constexpr std::size_t kRowsBeforeHunt = 28;
+constexpr std::size_t kRowsBeforeHunt = 29;
 
 // The bounds of the three value blocks: the constants the harness carried
 // before this feature, the constants specs/029-hunter-core reserves for the
-// eight hunt names, and the constants spec D-24 reserves for the seven new
-// names with 297 to 319 left free for the lanes that follow (FR-004,
-// FR-079; specs/029 FR-083, D-22).
+// eight hunt names, the constants spec D-24 reserves for the seven new
+// names, and the noise tracer's own constant, 298 to 319 left free for the
+// lanes that follow (FR-004, FR-079; specs/029 FR-083, D-22).
 constexpr int kCarriedLow = 256;
 constexpr int kCarriedHigh = 259;
 constexpr int kHuntLow = 270;
@@ -259,6 +263,7 @@ constexpr int kHuntHigh = 279;
 constexpr int kReservedLow = 290;
 constexpr int kReservedHigh = 296;
 constexpr int kJitterProbeValue = 260;
+constexpr int kOsNoiseValue = 297;
 
 // The eight hunt rows and the numbers
 // `specs/029-hunter-core/contracts/hunt-cli.md` assigns them; the rule binds
@@ -670,13 +675,13 @@ auto theTableAnswersARowList(const std::vector<Row>& rows) -> void
   check(!rows.empty(), "the table source answers a row list (FR-079)");
 }
 
-auto theTableHoldsThirtySixRows(const std::vector<Row>& rows) -> void
+auto theTableHoldsThirtySevenRows(const std::vector<Row>& rows) -> void
 {
   if (rows.size() == kContract.size()) {
     return;
   }
-  report("the table holds the 36 rows of the contract (FR-001, FR-004, SC-001)",
-         "36 rows",
+  report("the table holds the 37 rows of the contract (FR-001, FR-004, SC-001)",
+         "37 rows",
          std::to_string(rows.size()) + " rows");
 }
 
@@ -747,8 +752,7 @@ auto theBaseOptionsKeepTheirMasterValues(const std::vector<Row>& rows) -> void
   }
 }
 
-auto theSevenNewNamesTakeTheReservedConstants(const std::vector<Row>& rows)
-    -> void
+auto theNewNamesTakeTheReservedConstants(const std::vector<Row>& rows) -> void
 {
   for (std::size_t index = kMasterRows; index < kRowsBeforeHunt; ++index) {
     const auto& expected = kContract[index];
@@ -831,13 +835,13 @@ auto inMasterBlock(const int value) -> bool
       || (value >= kCarriedLow && value <= kCarriedHigh);
 }
 
-// The value block of the 7 rows the command-line lane brings: the
-// constants 290 to 296 that spec D-24 reserves, plus the one row this
-// feature brings at 260 (FR-004).
+// The value block of the rows the lanes after master bring: the
+// constants 290 to 296 that spec D-24 reserves, the jitter row at 260,
+// and the noise tracer's row at 297 (FR-004).
 auto inNewBlock(const int value) -> bool
 {
   return (value >= kReservedLow && value <= kReservedHigh)
-      || value == kJitterProbeValue;
+      || value == kJitterProbeValue || value == kOsNoiseValue;
 }
 
 // The value block of the 8 hunt rows: the constants 270 to 279 that
@@ -886,7 +890,8 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
              hunt ? "a constant from 270 to 279"
                  : master
                  ? "a letter or a constant from 256 to 259"
-                 : "a constant from 290 to 296, or the lane block's 260",
+                 : "a constant from 290 to 296, the lane block's 260, "
+                   "or the noise tracer's 297",
              valueWord(row.value));
     }
     if (hunt) {
@@ -1710,12 +1715,12 @@ auto main(int argc, char** argv) -> int
   }
 
   theTableAnswersARowList(rows);
-  theTableHoldsThirtySixRows(rows);
+  theTableHoldsThirtySevenRows(rows);
   theNamesStandInTheContractOrder(rows);
   eachRowCarriesItsArgumentKind(rows);
   eachRowCarriesItsValue(rows);
   theBaseOptionsKeepTheirMasterValues(rows);
-  theSevenNewNamesTakeTheReservedConstants(rows);
+  theNewNamesTakeTheReservedConstants(rows);
   noNameAndNoValueRepeat(rows);
   theValueBlocksStayUniqueAndDisjoint(rows);
   theHuntNamesTakeTheReservedConstants(rows);

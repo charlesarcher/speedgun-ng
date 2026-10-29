@@ -718,9 +718,11 @@ auto parseProbeNumber(const std::string& text,
   return true;
 }
 
-// The cpu token of the value grammar: an index or a closed a-b range,
-// the form the topology listing prints; each cpu stands in the
-// process affinity mask (FR-011, FR-038).
+}  // namespace
+
+// The cpu token of the value grammar, lifted to the detail namespace so
+// both value grammars read it (specs/036 R-06): see the declaration's
+// contract in detail/jitter_probe.hpp.
 auto parseProbeCpuToken(const std::string& token,
                         std::vector<std::uint32_t>& cpus,
                         std::string& message) -> bool
@@ -783,8 +785,6 @@ auto parseProbeCpuToken(const std::string& token,
   }
   return true;
 }
-
-}  // namespace
 
 // The value grammar of contracts/cli-options.md (FR-011, FR-014, R-06):
 // the head names a cpu list or the word idle, and the keys follow, each

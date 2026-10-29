@@ -28,12 +28,13 @@
 #include <getopt.h>
 
 #include "detail/compare.hpp"
+#include "detail/noise_tracer.hpp"
 #include "speedgun-ng/dbc.hpp"
 
 /**
  * @file options.cpp
  * @brief The one option table of specs/028-full-command-line and the scan
- * that walks it: the 35 rows `detail::optionRows()` answers in the order
+ * that walks it: the 37 rows `detail::optionRows()` answers in the order
  * `specs/028-full-command-line/contracts/option-table.md` fixes, the
  * `getopt_long` array built from those rows, the walk of one command
  * line that `detail::scanCommandLine` answers, and the two answers that
@@ -526,7 +527,7 @@ auto argumentText(const OptionArgument argument) -> const char*
 }  // namespace
 
 /**
- * @brief The one option table: the 35 rows in the order the contract
+ * @brief The one option table: the 37 rows in the order the contract
  * fixes them, each with its name, internal value, argument kind,
  * environment flag, help text and owning requirement (FR-001, FR-002,
  * FR-003, FR-004, FR-079, SC-001).
@@ -538,6 +539,7 @@ auto argumentText(const OptionArgument argument) -> const char*
  * codes and never short options: the scan's option string carries none
  * (FR-005). Exactly the 12 rows FR-020 names carry the environment flag,
  * and the name of such a row's variable follows from the row (FR-019).
+ * The noise tracer's row takes the constant 297 (specs/036 FR-001).
  */
 auto optionRows() -> std::span<const OptionRow>
 {
@@ -710,6 +712,12 @@ auto optionRows() -> std::span<const OptionRow>
        false,
        "Runs the jitter probe over the batch by that value",
        "specs/027-jitter-probe"},
+      {"os-noise",
+       kOsNoiseOptionValue,
+       OptionArgument::REQUIRED,
+       false,
+       "Runs the named noise tracer across the pre-check window",
+       "specs/036-osnoise-timerlat-tracers"},
       // specs/029-hunter-core FR-080 to FR-082, D-22: the hunt family. No hunt
       // row carries an environment name, so the gather refuses each of them
       // from a file or the environment and the command line owns the family.
@@ -1780,6 +1788,29 @@ auto applySourceValue(const OptionRow& row,
       }
       options.jitterProbe = std::move(parsed);
       options.jitterProbeText.reset();
+      return true;
+    }
+    case kOsNoiseOptionValue: {
+      // specs/036 FR-002, FR-003, R-06: the value parses where it
+      // settles, so a file line's refusal names the path and the line
+      // every file fault names, and a lower source's line is still read
+      // before it drops (FR-024, FR-027, FR-038, R-06).
+      auto engine = TracerEngine::NONE;
+      auto cpus = std::vector<std::uint32_t> {};
+      std::string message;
+      if (!parseOsNoiseValue(text, engine, cpus, message)) {
+        return refuse(option + ": " + message);
+      }
+      // The scan routes the command line's word through this arm, so an
+      // engine standing settled here names a higher source's word, and
+      // the line sets nothing and discloses nothing (FR-037, FR-038).
+      // Within one source the last line's word stands, the scalar rule
+      // the file shares with the command line (FR-035).
+      if (options.noiseTracer.has_value() && prior != kSameSourceSettled) {
+        return false;
+      }
+      options.noiseTracer = engine;
+      options.noiseTracerCpus = std::move(cpus);
       return true;
     }
   }
