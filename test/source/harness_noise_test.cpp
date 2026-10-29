@@ -1641,6 +1641,34 @@ auto theMissingWindowRefusalRows() -> void
                                     "--iterations=2"});
   checkRefusalShape(run, "--os-noise: ");
 
+  // The option file's probe settlement stands the mode the check reads:
+  // the file names the alongside probe, the tracer stands settled, and
+  // the refusal stands the one line (R-07).
+  {
+    std::ofstream file("harness_noise_window_file.txt");
+    file << "jitter-probe=" << pickCpus(1).at(0) << "\n";
+  }
+  const auto fileSettled =
+      runRefusalChild("window-file",
+                      {"--os-noise=osnoise",
+                       "--options=harness_noise_window_file.txt",
+                       "--filter=bmQuiet",
+                       "--repetitions=1",
+                       "--iterations=2"});
+  checkRefusalShape(fileSettled, "--os-noise: ");
+  std::remove("harness_noise_window_file.txt");
+
+  // A command-line probe value the check's own parse refuses stands the
+  // value's own refusal there (FR-003): the later parse names the
+  // probe option, the check having read no mode off it (R-07).
+  const auto badProbe = runRefusalChild("window-bad-probe",
+                                        {"--os-noise=osnoise",
+                                         "--jitter-probe=not-a-probe-value",
+                                         "--filter=bmQuiet",
+                                         "--repetitions=1",
+                                         "--iterations=2"});
+  checkRefusalShape(badProbe, "--jitter-probe: ");
+
   const auto probe = pickCpus(1);
   const auto alongside =
       runRefusalChild("window-alongside",
