@@ -32,7 +32,6 @@
 #include <vector>
 
 #include <sched.h>
-#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -712,6 +711,17 @@ auto installStandingTree(const std::filesystem::path& root,
   writeTracingFile(root, "sys/kernel/tracing/tracing_on", "0\n");
 }
 
+// One denied control path of the fake tree: the standing file replaced
+// by a directory, so the open fails for every user, the root of a CI
+// container included (T010).
+auto denyTracingPath(const std::filesystem::path& root,
+                     const std::string& relative) -> bool
+{
+  const auto path = root / std::filesystem::path(relative);
+  return std::filesystem::remove(path)
+      && std::filesystem::create_directory(path);
+}
+
 // The per-cpu count file of one cpu, the path R-03 pins (T009).
 auto cpuCountFile(std::uint32_t cpu) -> std::string
 {
@@ -957,17 +967,16 @@ auto theMissingTracingRootAnswersTheEmptySession() -> void
         "session (T010, D-5)");
 }
 
-// T010, FR-016, D-5, R-02: a `current_tracer` the uid cannot write
-// answers the empty session; the tests run unprivileged and need no
-// root (FR-017).
+// T010, FR-016, D-5, R-02: a `current_tracer` path that stands a
+// directory answers the empty session; the denial binds every user,
+// the root of a CI container included (FR-017).
 auto theUnwritableTracerWordAnswersTheEmptySession() -> void
 {
   const auto cpus = pickCpus(1);
   TracingRootGuard guard;
   installStandingTree(guard.root(), "ffffffff");
-  const auto wordPath = guard.root() / "sys/kernel/tracing/current_tracer";
-  check(::chmod(wordPath.c_str(), 0444) == 0,
-        "the word file stands read-only (T010)");
+  check(denyTracingPath(guard.root(), "sys/kernel/tracing/current_tracer"),
+        "the word file stands a directory (T010)");
   const auto session =
       sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, cpus);
   check(!session.has_value(),
@@ -988,7 +997,8 @@ auto theFailedEngineWriteAnswersTheEmptySession() -> void
 
 // T010, FR-016, D-5, R-02: a denied mask write and a denied start
 // write each answer the empty session, the word file standing
-// writable.
+// writable; the denied path stands replaced by a directory, so the
+// denial binds every user, the root of a CI container included.
 auto theDeniedSetupWritesAnswerTheEmptySession(std::size_t which) -> void
 {
   const auto cpus = pickCpus(1);
@@ -996,8 +1006,8 @@ auto theDeniedSetupWritesAnswerTheEmptySession(std::size_t which) -> void
   installStandingTree(guard.root(), "ffffffff");
   const char* denied = which == 0 ? "sys/kernel/tracing/tracing_cpumask"
                                   : "sys/kernel/tracing/tracing_on";
-  check(::chmod((guard.root() / denied).c_str(), 0444) == 0,
-        "the denied file stands read-only (T010)");
+  check(denyTracingPath(guard.root(), denied),
+        "the denied file stands a directory (T010)");
   const auto session =
       sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, cpus);
   check(!session.has_value(),
@@ -1601,7 +1611,8 @@ auto theWholeRunRows() -> void
     std::remove("harness_noise_unavailable_free.json");
   }
 
-  // The fake tree's files stand read-only: the setup's writes fail.
+  // The fake tree's control paths stand directories: the setup's
+  // writes fail for every user, the root of a CI container included.
   {
     TracingRootGuard guard;
     installStandingTree(guard.root(), "ffffffff");
@@ -1609,8 +1620,8 @@ auto theWholeRunRows() -> void
                              "sys/kernel/tracing/tracing_cpumask",
                              "sys/kernel/tracing/tracing_on"})
     {
-      check(::chmod((guard.root() / file).c_str(), 0444) == 0,
-            "the fake control files stand read-only (T022)");
+      check(denyTracingPath(guard.root(), file),
+            "the fake control path stands a directory (T022)");
     }
     const auto console = captureRun(
         {"--filter=bmPinnedNoise",
@@ -1823,28 +1834,26 @@ auto theSessionArmRows() -> void
     check(!session.has_value(),
           "the missing mask answers the empty session (FR-016, D-5)");
   }
-  // The mask file read-only: the mask write fails, the setup the empty
-  // session; the tests run unprivileged and need no root (FR-016,
-  // FR-017).
+  // The mask path a directory: the setup's read of the mask fails for
+  // every user, the root of a CI container included, and the mask
+  // write stands denied with it (FR-016, FR-017).
   {
     TracingRootGuard guard;
     installStandingTree(guard.root(), "ffffffff");
-    const auto maskPath = guard.root() / "sys/kernel/tracing/tracing_cpumask";
-    check(::chmod(maskPath.c_str(), 0444) == 0,
-          "the mask file stands read-only (FR-016)");
+    check(denyTracingPath(guard.root(), "sys/kernel/tracing/tracing_cpumask"),
+          "the mask path stands a directory (FR-016)");
     const auto session =
         sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, pickCpus(1));
     check(!session.has_value(),
           "the unwritable mask answers the empty session (FR-016, D-5)");
   }
-  // The on-off file read-only: the start write fails, the setup the
-  // empty session (FR-016).
+  // The on-off path a directory: the start write's open fails for
+  // every user, the root of a CI container included (FR-016).
   {
     TracingRootGuard guard;
     installStandingTree(guard.root(), "ffffffff");
-    const auto onPath = guard.root() / "sys/kernel/tracing/tracing_on";
-    check(::chmod(onPath.c_str(), 0444) == 0,
-          "the on-off file stands read-only (FR-016)");
+    check(denyTracingPath(guard.root(), "sys/kernel/tracing/tracing_on"),
+          "the on-off path stands a directory (FR-016)");
     const auto session =
         sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, pickCpus(1));
     check(
