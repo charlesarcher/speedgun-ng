@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <bit>
 #include <cctype>
 #include <cstddef>
@@ -163,6 +164,26 @@ auto polylinePoints(std::string const& svg) -> std::vector<std::string>
     pairs.push_back(pair);
   }
   return pairs;
+}
+
+// The lines of one text view answer, in document order: the text
+// block counts the lines the two parts compose this way.
+auto textLines(std::string const& text) -> std::vector<std::string>
+{
+  auto lines = std::vector<std::string> {};
+  std::istringstream listed(text);
+  std::string line;
+  while (std::getline(listed, line)) {
+    lines.push_back(line);
+  }
+  return lines;
+}
+
+// The number of '#' characters one line carries: the proportionality
+// check compares the bin lines' character bars this way.
+auto barLength(std::string const& line) -> std::size_t
+{
+  return static_cast<std::size_t>(std::count(line.begin(), line.end(), '#'));
 }
 
 // The argument lists the header declares: every view takes the loaded
@@ -705,6 +726,102 @@ auto run() -> int
   // answers the value or the error form, the document value arrives by
   // const reference as the whole input surface, and no exception
   // escapes the try of main.
+
+  // ---- The text block (specs/038 T012; FR-013, B-4 of the views-api
+  // contract) ----
+
+  // Row 1: the histogram part renders one line per bin naming the
+  // range and count the graphic histogram renders, the unit scaled
+  // beside the values (FR-013, B-4, A-5), and the character bars stand
+  // proportional to the counts. multi.json stands the four countable
+  // time values 0.12 to 0.24 us, so the four bins stand 0.12-0.15,
+  // 0.15-0.18, 0.18-0.21 and the last bin 0.21-0.24 closed on the
+  // maximum, the counts 2, 0, 1 and 1.
+  {
+    auto const text = sg::renderText(multi, "bmViews/threads:2", "time", 4);
+    check(text.has_value(), "text: the time series answers the value form");
+    auto const lines = textLines(*text);
+    check(
+        lines.size() == 9,
+        "text: the column, the four bin lines and the four value lines stand");
+    check(lines[0] == "time", "text: the view names its column");
+    check(lines[1].starts_with("0.12-0.15 us: 2"),
+          "text: the first bin names its range and count");
+    check(lines[2].starts_with("0.15-0.18 us: 0"),
+          "text: the empty bin names its zero count");
+    check(lines[3].starts_with("0.18-0.21 us: 1"),
+          "text: the third bin names its range and count");
+    check(lines[4].starts_with("0.21-0.24 us: 1"),
+          "text: the last bin stands closed on the maximum");
+    check(barLength(lines[1]) == 2 * barLength(lines[3])
+              && barLength(lines[3]) == barLength(lines[4])
+              && barLength(lines[1]) > 0,
+          "text: the character bars stand proportional to the counts");
+    check(barLength(lines[2]) == 0, "text: the empty bin carries no bar");
+  }
+
+  // Row 2: the plot part carries one line per recorded value in row
+  // order (FR-013, B-4, D-7), the values in the scaled unit (A-5) and
+  // the GAP row standing out (D-6). multi.json stands the four
+  // countable time values 0.12, 0.145, 0.185 and 0.24 us; the row the
+  // time column leaves unavailable stands out of the lines.
+  {
+    auto const text = sg::renderText(multi, "bmViews/threads:2", "time", 4);
+    check(text.has_value(), "text: the time series answers the value form");
+    auto const lines = textLines(*text);
+    check(lines[5] == "0.12 us" && lines[6] == "0.145 us"
+              && lines[7] == "0.185 us" && lines[8] == "0.24 us",
+          "text: one line stands per recorded value in row order");
+    check(text->find("0 us") == std::string::npos,
+          "text: the GAP row stands out of the lines");
+  }
+
+  // Row 3: the one-repetition composition (FR-013, clarify 2/Q1, the
+  // rule FR-012 states for the page): single.json stands one
+  // repetition row, so the histogram part renders the disclosure line
+  // in the histogram's place, the plot part renders the single
+  // value's line, and the whole answers the value form.
+  {
+    auto const report = loadedFixture("single.json");
+    auto const text = sg::renderText(report, "bmViewsSingle", "time", 4);
+    check(text.has_value(),
+          "text: the one-repetition view answers the value form");
+    check(text->find("not available") != std::string::npos,
+          "text: the disclosed part names not available");
+    check(text->find("sample count 1") != std::string::npos,
+          "text: the disclosure names the sample count");
+    auto const lines = textLines(*text);
+    check(lines.size() == 3,
+          "text: the column, the disclosure line and the value line stand");
+    check(lines[1].find("not available") != std::string::npos
+              && lines[1].find("sample count 1") != std::string::npos,
+          "text: the disclosure stands in the histogram part's place");
+    check(lines[2] == "55 ns",
+          "text: the plot part renders the single value's line");
+  }
+
+  // Row 4: the markup label (A-6, D-8): the view names its column
+  // through the escaper, the way the figures name theirs.
+  {
+    auto const report = loadedFixture("markup.json");
+    auto const text =
+        sg::renderText(report, "bmViewsMarkup", "branch<miss>&rate", 4);
+    check(text.has_value(), "text: the markup series answers the value form");
+    check(text->find("branch&lt;miss&gt;&amp;rate") != std::string::npos,
+          "text: the column label stands escaped through the escaper");
+    check(text->find("branch<miss>&rate") == std::string::npos,
+          "text: the raw label stands nowhere in the view");
+  }
+
+  // Row 5: the contract rows (A-1, B-4). The pre binCount at least 2
+  // stands enforced through the contract facility in the
+  // implementation; the standing tests of this file assert no
+  // contract-violation abort, so the block leaves the violation
+  // untested, the way the histogram block leaves its. The no-file and
+  // no-throw rules stand in the answer forms: every call above answers
+  // the value or the error form, the document value arrives by const
+  // reference as the whole input surface, and no exception escapes the
+  // try of main.
 
   std::printf("views_test PASS\n");
   return 0;
