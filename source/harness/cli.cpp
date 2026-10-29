@@ -25,6 +25,7 @@
 #include "detail/compare.hpp"
 #include "detail/internal.hpp"
 #include "detail/jitter_probe.hpp"
+#include "detail/noise_tracer.hpp"
 #include "detail/json_report.hpp"
 #include "detail/options.hpp"
 #include "speedgun-ng/benchmark.hpp"
@@ -116,6 +117,57 @@ constinit std::atomic<bool> interruptFlagValue {false};
 // The gather computes each full name from its option row, so this is the
 // one place the prefix is spelled for the process side of the seam.
 constexpr std::string_view kEnvironmentPrefix = "SPEEDGUN_";
+
+// specs/036 FR-011, R-07: the missing-window refusal. The check reads
+// the batch's probe options across the sources it sees here: the
+// command line's text, the option file's settlement, and the suite
+// binding where neither stands, because the command line's parse and
+// the standing merge stand later in the function (FR-015, R-07). A
+// settled tracer beside a batch that carries no pre-check window
+// stands one line on standard error and status 2, ahead of the compare
+// mode and every run (R-07).
+/// \pre the option scan and the gather have ended, so `options` holds
+///       every value they settled
+/// \post an answer of true stands the one line on standard error, and
+///       the caller leaves with status 2
+auto refuseMissingPrecheckWindow(const RunOptions& options) -> bool
+{
+  // The settled tracer: the carrier, or the suite binding's engine
+  // where the carrier holds none (R-06, the merge standing later).
+  const auto& suite = suiteJitterProbe();
+  const bool settled = options.noiseTracer.has_value()
+      || (suite.has_value() && suite->tracerEngine != TracerEngine::NONE);
+  if (!settled) {
+    return false;
+  }
+  // The batch's probe mode across the sources the check sees here: the
+  // command line's text parses where it settles, later in the
+  // function, so the check reads the mode off the value's own parse;
+  // a value that fails stands the value's own refusal there (FR-003).
+  std::optional<JitterProbeMode> mode;
+  if (options.jitterProbeText.has_value()) {
+    auto parsed = JitterProbeOptions {};
+    std::string message;
+    if (!parseJitterProbeValue(*options.jitterProbeText, parsed, message)) {
+      return false;
+    }
+    mode = parsed.mode;
+  } else if (options.jitterProbe.has_value()) {
+    mode = options.jitterProbe->mode;
+  } else if (suite.has_value()) {
+    mode = suite->mode;
+  }
+  // No batch probe options at all, or a mode that runs no pre-check
+  // window, is the refusal (R-07); the precheck and both modes carry
+  // one.
+  if (mode.has_value() && *mode != JitterProbeMode::ALONGSIDE) {
+    return false;
+  }
+  std::fprintf(stderr,
+               "--os-noise: the batch carries no pre-check window for "
+               "the tracer\n");
+  return true;
+}
 
 }  // namespace
 
@@ -527,6 +579,15 @@ auto speedgunMain(int argc, char** argv) -> int
   // no catalog and runs no benchmark.
   detail::validateHuntCombination(options);
 
+  // specs/036 FR-011, R-07: the missing-window refusal stands beside
+  // the standing combination check, after the gather and ahead of the
+  // compare mode and every run: a settled `--os-noise` value beside a
+  // batch that carries no pre-check window stops the run one line at
+  // status 2 (R-07).
+  if (detail::refuseMissingPrecheckWindow(options)) {
+    return 2;
+  }
+
   // specs/029 FR-006, FR-081, PD-17: the selection expands here, where the
   // clock and PMU providers stand registered and before the first run, so an
   // unknown address, a pattern that matches nothing and an unreadable `@path`
@@ -859,8 +920,41 @@ auto speedgunMain(int argc, char** argv) -> int
     const auto beforeSnapshot = precheckRuns
         ? detail::precheckReadSnapshot(probeCpus)
         : std::map<std::uint32_t, detail::PrecheckCpuSnapshot> {};
+    // specs/036 FR-008, R-05, R-09: the tracer cpus and the engine
+    // session stand resolved inside the pre-check branch: the cpus the
+    // carrier names, else the candidates of the measured set (the
+    // non-planned entries of the probe cpus, one per L3 group the plans
+    // touch), and the setup stands before the items' dispatch (R-05).
+    // A run whose carrier names no engine stands no session (R-06); a
+    // default that names no cpu stands the not-available shape, the
+    // setup's own precondition (FR-016).
+    std::optional<detail::NoiseTracerSession> tracerSession;
+    std::vector<PrecheckTracerCpuRecord> tracerFigures;
+    if (precheckRuns && options.noiseTracer.has_value()) {
+      auto tracerCpus = options.noiseTracerCpus;
+      if (tracerCpus.empty()) {
+        for (const auto cpu : probeCpus) {
+          if (std::ranges::find(planned, cpu) == planned.end()) {
+            tracerCpus.push_back(cpu);
+          }
+        }
+      }
+      std::ranges::sort(tracerCpus);
+      if (!tracerCpus.empty()) {
+        tracerSession =
+            detail::noiseTracerSetup(*options.noiseTracer, tracerCpus);
+      }
+    }
     jitterProbe.emplace(probeOptions);
     jitterProbe->start();
+    // specs/036 FR-009, R-04, R-05: the figures stand read and the
+    // session stands restored right behind the start's latch, before
+    // the record builds, so every path the setup preceded carries the
+    // restore (R-04) and the run never fails on the tracer (FR-016).
+    if (tracerSession.has_value()) {
+      tracerFigures = detail::noiseTracerFigures(*tracerSession);
+      detail::noiseTracerRestore(*tracerSession);
+    }
     if (jitterProbe->states().empty()) {
       // The availability answer (Q-1): strict stops the batch before
       // any run, and the plain run discloses and continues (FR-037,
@@ -927,6 +1021,15 @@ auto speedgunMain(int argc, char** argv) -> int
         built.serial = probeOptions.precheckSerial;
         built.windowMs = probeOptions.precheckMs;
         built.skippedGroups = skippedGroups;
+        // specs/036 FR-014, R-08, R-09: the tracer record stands the
+        // figures the session read, the engine word the carrier named,
+        // the cpus ascending.
+        if (tracerSession.has_value()) {
+          PrecheckTracerRecord tracerRecord;
+          tracerRecord.engine = detail::engineWordOf(*options.noiseTracer);
+          tracerRecord.cpus = std::move(tracerFigures);
+          built.tracer = std::move(tracerRecord);
+        }
         built.host = detail::precheckReadHostSettings(probeCpus);
         for (const auto& state : jitterProbe->states()) {
           PrecheckCpuRecord entry;
@@ -939,7 +1042,13 @@ auto speedgunMain(int argc, char** argv) -> int
           built.cpus.push_back(std::move(entry));
         }
         precheckRecord = std::move(built);
-        detail::printPrecheckReport(*precheckRecord);
+        // specs/036 FR-016, R-14: the requested engine carries the
+        // not-available signal: a not-available setup prints the one
+        // disclosure line, and a run whose tracer ran prints the figure
+        // lines.
+        detail::printPrecheckReport(
+            *precheckRecord,
+            options.noiseTracer.value_or(sg::TracerEngine::NONE));
       }
     }
   }

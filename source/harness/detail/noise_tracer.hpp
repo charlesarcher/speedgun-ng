@@ -50,6 +50,14 @@ struct NoiseTracerSession
   std::string previousCpuMask;
 };
 
+/// @brief The word the engine writes into `current_tracer` (specs/036
+/// R-02): `osnoise` or `timerlat`. The record's engine field carries
+/// the same word (FR-014).
+///
+/// \pre `engine` names `OSNOISE` or `TIMERLAT`
+/// \post the answer stands the engine's word
+[[nodiscard]] auto engineWordOf(TracerEngine engine) -> std::string;
+
 /// @brief The session setup (specs/036 FR-007, FR-016, R-02, R-04):
 /// the standing `current_tracer` word and the standing
 /// `tracing_cpumask` text read first, then the engine word written,
