@@ -1659,6 +1659,13 @@ SG_BENCHMARK(bmQuiet);
 
 auto main() -> int
 {
+  // The scripted provider stands the in-process runs' time source: the
+  // tsc series steps one tick per read, so every pre-check window keeps
+  // no gap and the stats carry the zero fields, the deterministic shape
+  // the suite requires (VI, the timing-margin record of specs/032). The
+  // rows that run benchmarks name no figure of their own, so the quiet
+  // series serves them all.
+  scriptedProvider();
   theDefaultOptionsCarryNoTracer();
   theDefaultRecordCarriesNoTracer();
   theEngineWordSettlesTheCarrier();
