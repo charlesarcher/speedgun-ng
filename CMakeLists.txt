@@ -983,6 +983,16 @@ if(PROJECT_IS_TOP_LEVEL)
   endif()
 endif()
 
+# ---- Tools ----
+
+# The driver programs a user runs beside the library (specs/038 FR-014,
+# D-2): report_view links the harness and renders one view of one
+# report document. A consumer of the package builds no tool, so the
+# directory joins the top-level project alone, the way the examples do.
+if(PROJECT_IS_TOP_LEVEL)
+  add_subdirectory(tools)
+endif()
+
 # ---- Developer mode ----
 
 if(NOT speedgun-ng_DEVELOPER_MODE)
