@@ -43,8 +43,9 @@ clock, measure nothing, and touch no baseline (VII).
 report schema at `1.8` (FR-003); the option value block `298` to `319`
 free; 100% line and branch coverage with no exclusions (FR-019).
 
-**Scale/Scope**: one public header, five implementation files, one
-driver, one docs example, one evidence directory.
+**Scale/Scope**: one public header, five implementation files and
+one shared escaper header, one driver, one docs example, one
+evidence directory.
 
 ## Constitution Check
 
@@ -98,8 +99,7 @@ specs/038-report-view-generators/
 └── results/             # the evidence records (FR-021)
     ├── reports/         # the report documents the records rendered
     ├── placement.md     # the specs/035 placement-report record
-    ├── tracers.md       # the specs/036 tracer-report record
-    └── quickstart.md    # the links (the specs/036 shape)
+    └── tracers.md       # the specs/036 tracer-report record
 ```
 
 ### Source Code (repository root)
@@ -108,15 +108,16 @@ specs/038-report-view-generators/
 include/speedgun-ng/views.hpp   # the public surface (M-A)
 source/views/
 ├── view_series.cpp             # the resolver (M-B)
-├── histogram.cpp               # the SVG histogram (M-C)
-├── plot.cpp                    # the SVG plot (M-D)
-├── text_view.cpp               # the terminal text (M-E)
-├── page.cpp                    # the HTML page (M-F)
-└── escape.hpp                  # the shared escaper (M-F, M-C, M-D)
-tools/report_view.cpp           # the thin driver (M-G)
-example/docs/report_views.cpp   # the docs example (M-H)
+├── histogram.cpp               # the SVG histogram (M-D)
+├── plot.cpp                    # the SVG plot (M-E)
+├── text_view.cpp               # the terminal text (M-F)
+├── page.cpp                    # the HTML page (M-G)
+└── escape.hpp                  # the shared escaper (M-C)
+tools/report_view.cpp           # the thin driver (M-H)
+example/docs/report_views.cpp   # the docs example (M-I)
 example/docs/report_views.expected
-test/source/views_test.cpp      # the library tests (M-B to M-F)
+test/source/views_test.cpp      # the library tests (M-B to M-G)
+test/report_view_cli.sh         # the driver's CLI tests (M-H)
 test/data/report_views/         # the fixture documents the tests load
 ```
 
@@ -142,32 +143,36 @@ test/data/report_views/         # the fixture documents the tests load
 
 ### Modules and dependency order
 
-The feature splits into nine modules; each carries its public
+The feature splits into ten modules; each carries its public
 surface, its contracts and its test plan, and each lands apart. The
 order below stands the landing order; the brace marks the parallel
 group.
 
 ```text
 1. M-A  the public header, the CMake seams and the version move
-2. M-B  the series resolver
-3. { M-C  the SVG histogram
-     M-D  the SVG plot
-     M-E  the text view }          # the three land in parallel
-4. M-F  the HTML page
-5. M-G  the driver
-6. M-H  the docs and the example
-7. M-I  the evidence records
+2. { M-B  the series resolver
+     M-C  the shared escaper }     # the two land in parallel
+3. { M-D  the SVG histogram
+     M-E  the SVG plot
+     M-F  the text view }          # the three land in parallel
+4. M-G  the HTML page
+5. M-H  the driver
+6. M-I  the docs and the example
+7. M-J  the evidence records
 ```
 
 - **M-A the public header, the CMake seams and the version move**
-  (`include/speedgun-ng/views.hpp`, `CMakeLists.txt`, the library
-  source list). Public surface: `ViewSeries`, `viewSeries`,
-  `renderHistogram`, `renderPlot`, `renderPage`, `renderText`, all
-  `sg::`, all declared with doxygen contracts and enforced nothing
-  yet. Test plan: the header builds, the declared functions link,
-  and the version stands at `0.25.0` with harness `SOVERSION 16`
-  and archive `SOVERSION 4` (FR-001, FR-002); the check rides the
-  version commit. Nothing else builds before M-A lands.
+  (`include/speedgun-ng/views.hpp`, `CMakeLists.txt`). Public
+  surface: `ViewSeries`, `viewSeries`, `renderHistogram`,
+  `renderPlot`, `renderPage`, `renderText`, all `sg::`, all
+  declared with doxygen contracts. The seams: the
+  `speedgun-ng_harness` target's source list gains the
+  `source/views/` files beside the `source/harness/` glob, the
+  test executable `views_test` registers in `test/CMakeLists.txt`
+  linking `speedgun-ng::harness`, and the version moves to
+  `0.25.0` with harness `SOVERSION 16` and archive `SOVERSION 4`
+  (FR-001, FR-002); the version assertions land in `views_test`
+  beside the surface tests. Nothing else builds before M-A lands.
 - **M-B the series resolver** (`source/views/view_series.cpp`).
   Public surface: `viewSeries` answering the column's recorded
   values, scaled by `timeUnit` for the time columns with the unit
@@ -181,7 +186,13 @@ group.
   (wave 2): the three column kinds, the unit scale and label, the
   unavailable-row filter, the benchmark-missing error, the
   counter-label error, the empty-document error. Depends on M-A.
-- **M-C the SVG histogram** (`source/views/histogram.cpp`). Public
+- **M-C the shared escaper** (`source/views/escape.hpp`). Public
+  surface: none (detail): the escape helper the SVG and the HTML
+  writers share. Contracts: A-6 of views-api.md. Test plan: the
+  escape rows of `views_test` (wave 2): the markup characters
+  stand escaped, the plain text stands byte-identical. Depends on
+  M-A alone, so it lands beside M-B.
+- **M-D the SVG histogram** (`source/views/histogram.cpp`). Public
   surface: `renderHistogram`. The bins cover the recorded value
   range with the last bin closed on the maximum, the bars stand
   proportional to the counts, each bar carries its range and count
@@ -190,8 +201,8 @@ group.
   views-api.md B-2. Test plan: the histogram rows of `views_test`
   (wave 3): the bin count argument, the range coverage, the
   proportional bars, the label text, the one-value disclosure, the
-  all-unavailable disclosure. Depends on M-B.
-- **M-D the SVG plot** (`source/views/plot.cpp`). Public surface:
+  all-unavailable disclosure. Depends on M-B and M-C.
+- **M-E the SVG plot** (`source/views/plot.cpp`). Public surface:
   `renderPlot`. The series stands one point per recorded value in
   document order, the axes carry labels naming the row and the
   column, and an empty series answers the disclosure naming the
@@ -199,26 +210,25 @@ group.
   Contracts: views-api.md B-3. Test plan: the plot rows of
   `views_test` (wave 3): the point count and order, the axis
   labels, the single-point case, the empty-series disclosure, the
-  multipass order. Depends on M-B.
-- **M-E the text view** (`source/views/text_view.cpp`). Public
+  multipass order. Depends on M-B and M-C.
+- **M-F the text view** (`source/views/text_view.cpp`). Public
   surface: `renderText`. The histogram part renders one line per
   bin with a proportional character bar, the plot part one line
   per recorded value in row order, each part composing by the rule
   FR-012 states (clarify 2/Q1). Contracts: views-api.md B-4. Test
   plan: the text rows of `views_test` (wave 3): the bin lines, the
   series lines, the one-repetition composition, the disclosure
-  lines. Depends on M-B.
-- **M-F the HTML page** (`source/views/page.cpp`,
-  `source/views/escape.hpp`). Public surface: `renderPage`. The
-  page carries the identity the document records (the `speedgun`
-  version, the `schemaVersion`, the benchmark, the column), the
-  two SVG figures inline, the text escaped by the shared escaper,
-  and no script (FR-011, FR-012, D-8). Contracts: views-api.md
-  B-5. Test plan: the page rows of `views_test` (wave 4): the
-  identity fields, the absent-field disclosure, the embedded
-  figures standing the standalone bytes, the escaping of a markup
-  label, the no-script shape. Depends on M-C and M-D.
-- **M-G the driver** (`tools/report_view.cpp`, the tools CMake).
+  lines. Depends on M-B and M-C.
+- **M-G the HTML page** (`source/views/page.cpp`). Public surface:
+  `renderPage`. The page carries the identity the document records
+  (the `speedgun` version, the `schemaVersion`, the benchmark, the
+  column), the two SVG figures inline, the text escaped through
+  M-C's helper, and no script (FR-011, FR-012, D-8). Contracts:
+  views-api.md B-5. Test plan: the page rows of `views_test`
+  (wave 4): the identity fields, the absent-field disclosure, the
+  embedded figures standing the standalone bytes, the escaping of
+  a markup label, the no-script shape. Depends on M-D and M-E.
+- **M-H the driver** (`tools/report_view.cpp`, `tools/CMakeLists.txt`).
   Public surface: none (a program). The driver parses the four
   arguments, loads the document, pre-checks the request against
   it, calls the view function, and answers the exit mapping of
@@ -226,27 +236,35 @@ group.
   disclosure on stdout at status 0, one refusal line on stderr at
   status 2, `--help` one line per argument at status 0. Contracts:
   views-api.md B-6. Test plan: the driver rows of
-  `report_view_cli_test` (wave 5): every view word over a fixture
-  document, every refusal of FR-015, the disclosure exit, the help
-  lines, and the harness CLI byte-identity rows of the standing
-  option-table test staying untouched (SC-004). Depends on M-B
-  through M-F.
-- **M-H the docs and the example** (`README.md`,
+  `test/report_view_cli.sh` (wave 5): every view word over a
+  fixture document, every refusal of FR-015, the disclosure exit,
+  the help lines, and the harness CLI byte-identity rows of the
+  standing option-table test staying untouched (SC-004). Depends
+  on M-B through M-G.
+- **M-I the docs and the example** (`README.md`,
   `example/docs/report_views.cpp`,
-  `example/docs/report_views.expected`). The main page gains its
-  section: one purpose sentence, one marked snippet from the
-  example region, one result sentence, the quick-reference rows
-  naming the public header (FR-022, IV.1). The example builds a
-  report document through the library, loads it, renders the text
-  view, and prints lines the `example_run` gate reads. Test plan:
-  `example_drift`, `snippet_compile`, `example_run`,
-  `report_shape`, the prose gate (wave 6). Depends on every module
-  above.
-- **M-I the evidence records**
+  `example/docs/report_views.expected`,
+  `tools/docs/example_drift.py`). The example registers one
+  benchmark the `example_run` gate drives (`--list` names it, the
+  run carries `--min-time=0.01`, the rows print), runs it with the
+  JSON write, loads the written document, renders the text view,
+  and prints the lines; the `.expected` file records the output
+  the page quotes. The main page gains its section: one purpose
+  sentence, one marked snippet from the example region with its
+  own `views.hpp` include, one result sentence, the
+  quick-reference rows naming the public header (FR-022, IV.1).
+  The drift gate's fixed tables move with the section: the section
+  joins `SECTIONS` and `SECTION_OWNERS`, `views.hpp` joins
+  `NAME_SCAN_HEADERS`, and the `PAGE_LINE_CAP` move stands
+  measured and recorded beside it. Test plan: `example_drift`,
+  `snippet_compile`, `example_run`, `report_shape`, the prose gate
+  (wave 6). Depends on every module above.
+- **M-J the evidence records**
   (`specs/038-report-view-generators/results/`). One record per
   run on thrawn: the commands, the exit codes, the report rendered
   and the views produced, the report documents under
-  `results/reports/`, the quickstart linking every record (FR-021,
+  `results/reports/`, the script that drove the runs standing
+  beside the records, the quickstart linking every record (FR-021,
   D-5). Test plan: none in CI; the check stands the quickstart's
   links and the records' own shape (wave 7). Depends on the built
   driver and the lane host.
@@ -265,7 +283,7 @@ group.
   and the method; the label text the figures print needs the plan's
   data-model decision, and the tests pin it (M-B, data-model.md).
 - The SVG label text meets document-derived strings (benchmark
-  names, labels): the escaper is shared and tested once (M-F), and
+  names, labels): the escaper is shared and tested once (M-C), and
   the histogram and the plot call it (X.2: one escaper, no second).
 
 ### Logical view: the render path
@@ -296,13 +314,15 @@ driver: parse args → loadReport (error: refuse, 2)
 
 - The public surface stands in `include/speedgun-ng/views.hpp`,
   namespace `sg`, exported through the standing export header.
-- The implementation stands under `source/views/`, linked into the
-  `speedgun-ng` library target; the driver stands at
-  `tools/report_view.cpp` as its own executable target linking the
-  library.
+- The implementation stands under `source/views/` and compiles into
+  the `speedgun-ng_harness` target, the reader's home: the target's
+  source list gains the `source/views/` files beside the
+  `source/harness/` glob (`CMakeLists.txt:234`). The driver stands
+  at `tools/report_view.cpp` as its own executable target linking
+  `speedgun-ng::harness`.
 - The tests stand at `test/source/views_test.cpp` and
-  `test/source/report_view_cli_test.cpp`, registered with CTest;
-  the fixture documents stand under `test/data/report_views/`.
+  `test/report_view_cli.sh`, registered with CTest; the fixture
+  documents stand under `test/data/report_views/`.
 
 ### Public API surface added
 
@@ -356,19 +376,19 @@ The suite passes under `taskset -c 0,1` and on a 2-cpu host.
   version stands at `0.25.0` with `SOVERSION 16` / archive `4`.
   Verify: `ctest --preset=dev -R views_test`, plus the version
   print test.
-- **Wave 2 (M-B)**: the resolver rows. Verify:
+- **Wave 2 (M-B, M-C)**: the resolver and escaper rows. Verify:
   `ctest --preset=dev -R views_test`, red first, then green.
-- **Wave 3 (M-C, M-D, M-E in parallel)**: the three renderers'
+- **Wave 3 (M-D, M-E, M-F in parallel)**: the three renderers'
   rows, one test binary, disjoint scenario blocks per module.
   Verify: `ctest --preset=dev -R views_test`.
-- **Wave 4 (M-F)**: the page rows. Verify:
+- **Wave 4 (M-G)**: the page rows. Verify:
   `ctest --preset=dev -R views_test`.
-- **Wave 5 (M-G)**: the driver rows through the CLI test binary.
+- **Wave 5 (M-H)**: the driver rows through the CLI script test.
   Verify: `ctest --preset=dev -R report_view_cli_test`.
-- **Wave 6 (M-H)**: the docs gates. Verify:
+- **Wave 6 (M-I)**: the docs gates. Verify:
   `ctest --preset=dev -R 'example_drift|snippet_compile|example_run|report_shape'`
   and `cmake -P cmake/prose-lint.cmake`.
-- **Wave 7 (M-I)**: the evidence records on thrawn. Verify: the
+- **Wave 7 (M-J)**: the evidence records on thrawn. Verify: the
   records' exit codes stand 0 and the quickstart links resolve.
 - **Wave 8 (convergence)**: the full suite, the coverage gate, the
   sanitizer and tsan presets, the release build (`ci-ubuntu` once
@@ -382,7 +402,7 @@ The suite passes under `taskset -c 0,1` and on a 2-cpu host.
 | FR | Wave | Test |
 | --- | --- | --- |
 | FR-001 | 1, 8 | the header builds; the byte-identity rows of the option-table test stay untouched |
-| FR-002 | 1 | the version print test reads `0.25.0`; the commit records the check |
+| FR-002 | 1 | the version assertions of `views_test` read `0.25.0`; the commit records the check |
 | FR-003 | 8 | the schema round-trip tests stay green; no key moves |
 | FR-004 | 2-4 | the resolver and renderer rows: no file, no clock, no throw (the contracts) |
 | FR-005 | 2-4 | the error-form rows: the disclosure text names the input |
