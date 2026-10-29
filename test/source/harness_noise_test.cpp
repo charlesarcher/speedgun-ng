@@ -1,9 +1,11 @@
 // ============================================================================
-// The public surface of the noise tracer (specs/036-osnoise-timerlat-tracers
-// T001, T002): the struct defaults of data-model.md E-16 and E-17, and the
-// source-order binding rows of FR-005. The carrier rows drive the scan and
-// the gather the way `harness_cli_sources_test.cpp` drives them, and they
-// stand red until T007 lands the option row and the value parser. The
+// The public surface and the engine session of the noise tracer
+// (specs/036-osnoise-timerlat-tracers T001, T002, T008 to T010): the
+// struct defaults of data-model.md E-16 and E-17, the source-order
+// binding rows of FR-005, and the engine session rows over fake
+// tracefs trees (FR-007, FR-010, FR-016, FR-017). The carrier rows drive the
+// scan and the gather the way `harness_cli_sources_test.cpp` drives them, and
+// they stand red until T007 lands the option row and the value parser. The
 // suite-order row runs `speedgunMain` in a forked child the way
 // `harness_jitter_cli_test.cpp` builds its `childFileOverSuite` scenario,
 // and it stands red until T024 lands the integration. The staging stands
@@ -16,6 +18,7 @@
 #include <filesystem>
 #include <fstream>
 #include <initializer_list>
+#include <iomanip>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -24,10 +27,12 @@
 #include <vector>
 
 #include <sched.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include "detail/internal.hpp"
+#include "detail/noise_tracer.hpp"
 #include "detail/options.hpp"
 #include "detail/proc_root.hpp"
 #include "speedgun-ng/benchmark.hpp"
@@ -615,6 +620,360 @@ auto theOptionFileFaultNamesThePathTheLineAndTheToken() -> void
         "the refusal names the token (FR-003)");
 }
 
+// ---- The tracer engine session (T008 to T010, FR-007, FR-010,
+// FR-016, FR-017, R-01 to R-05, R-07): the fake tracefs trees the
+// scenarios install through the file-root seam, the setup rows, the
+// figure rows and the not-available rows. The fake tree stands a
+// scratch directory the test owns, named with the pid so parallel
+// runs stand apart (T005 of the pre-check suite).
+
+// The seam's root stands restored when the scenario ends, the way the
+// standing install/clear seams stand cleared by the test.
+class TracingRootGuard
+{
+public:
+  TracingRootGuard()
+  {
+    // One fresh root per instance: the scenarios must not read the
+    // files another scenario wrote (T010).
+    static int sequence = 0;
+    m_root = std::filesystem::path("harness_noise_tracing_root_")
+        / ("pid" + std::to_string(::getpid()) + "-"
+           + std::to_string(sequence++));
+    std::filesystem::create_directories(m_root);
+    sg::detail::installTestProcRoot(m_root);
+  }
+
+  ~TracingRootGuard()
+  {
+    sg::detail::installTestProcRoot(std::nullopt);
+    std::error_code removeFailed;
+    std::filesystem::remove_all(m_root, removeFailed);
+  }
+
+  TracingRootGuard(const TracingRootGuard&) = delete;
+  auto operator=(const TracingRootGuard&) -> TracingRootGuard& = delete;
+
+  auto root() const -> const std::filesystem::path& { return m_root; }
+
+private:
+  std::filesystem::path m_root;
+};
+
+// One fake file under the tracing root, the text written whole (T008).
+auto writeTracingFile(const std::filesystem::path& root,
+                      const std::string& relative,
+                      const std::string& text) -> void
+{
+  const auto path = root / std::filesystem::path(relative);
+  std::filesystem::create_directories(path.parent_path());
+  std::ofstream file(path);
+  check(static_cast<bool>(file), "the fake tracing file opens (T008)");
+  file << text;
+}
+
+// The standing files of one fake tracing tree: the word `nop`, the
+// mask text, and `tracing_on` at `0` (T008).
+auto installStandingTree(const std::filesystem::path& root,
+                         const std::string& maskText) -> void
+{
+  writeTracingFile(root, "sys/kernel/tracing/current_tracer", "nop\n");
+  writeTracingFile(root, "sys/kernel/tracing/tracing_cpumask", maskText + "\n");
+  writeTracingFile(root, "sys/kernel/tracing/tracing_on", "0\n");
+}
+
+// The per-cpu count file of one cpu, the path R-03 pins (T009).
+auto cpuCountFile(std::uint32_t cpu) -> std::string
+{
+  return "sys/kernel/tracing/osnoise/cpu" + std::to_string(cpu);
+}
+
+// The mask text of one cpu set at `width` hex digits per word,
+// comma-separated, the leftmost word naming the highest cpus, bit i of
+// word w naming cpu w * width * 4 + i (T008, R-02, R-05): the shape
+// the mask write renders the tracer cpus in.
+auto maskTextOf(const std::vector<std::uint32_t>& cpus,
+                std::size_t width) -> std::string
+{
+  const std::size_t bitsPerWord = width * 4;
+  std::size_t wordCount = 1;
+  for (const auto cpu : cpus) {
+    const std::size_t needed = cpu / bitsPerWord + 1;
+    if (needed > wordCount) {
+      wordCount = needed;
+    }
+  }
+  std::string text;
+  for (std::size_t at = 0; at < wordCount; ++at) {
+    const std::size_t word = wordCount - 1 - at;
+    std::uint64_t bits = 0;
+    for (const auto cpu : cpus) {
+      if (cpu / bitsPerWord == word) {
+        bits |= std::uint64_t {1} << (cpu % bitsPerWord);
+      }
+    }
+    std::ostringstream digits;
+    digits << std::hex << std::setw(static_cast<int>(width))
+           << std::setfill('0') << bits;
+    if (!text.empty()) {
+      text += ',';
+    }
+    text += digits.str();
+  }
+  return text;
+}
+
+// T008, FR-007, FR-017, R-02, R-04, R-05: the setup reads the standing
+// word and mask, writes the engine word, the tracer mask in the word
+// width the standing mask carried, and `tracing_on` at `1`; the
+// restore writes `tracing_on` at `0` and the standing word and mask.
+auto theSetupWritesTheEngineTheMaskAndTheStart() -> void
+{
+  const auto cpus = pickCpus(2);
+  TracingRootGuard guard;
+  installStandingTree(guard.root(), "ffffffff");
+  const auto session =
+      sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, cpus);
+  check(session.has_value(), "the setup answers the session (T008, R-02)");
+  if (!session.has_value()) {
+    return;
+  }
+  check(session->engine == sg::TracerEngine::OSNOISE,
+        "the session carries the engine (E-18)");
+  check(session->cpus == cpus, "the session carries the cpu list (E-18)");
+  check(session->previousTracer == "nop",
+        "the session carries the standing word (T008, R-04)");
+  check(session->previousCpuMask == "ffffffff",
+        "the session carries the standing mask text (T008, R-04)");
+  check(
+      readStream((guard.root() / "sys/kernel/tracing/current_tracer").string())
+          == "osnoise\n",
+      "the setup writes the engine word (T008, FR-007)");
+  check(readStream((guard.root() / "sys/kernel/tracing/tracing_cpumask")
+                       .string())
+            == maskTextOf(cpus, 8) + "\n",
+        "the setup writes the tracer mask in the standing width "
+        "(T008, R-02, R-05)");
+  check(readStream((guard.root() / "sys/kernel/tracing/tracing_on").string())
+            == "1\n",
+        "the setup writes tracing_on at 1 (T008, R-02)");
+
+  sg::detail::noiseTracerRestore(*session);
+  check(readStream((guard.root() / "sys/kernel/tracing/tracing_on").string())
+            == "0\n",
+        "the restore writes tracing_on at 0 (T008, R-04)");
+  check(
+      readStream((guard.root() / "sys/kernel/tracing/current_tracer").string())
+          == "nop\n",
+      "the restore returns the standing word (T008, FR-007)");
+  check(
+      readStream((guard.root() / "sys/kernel/tracing/tracing_cpumask").string())
+          == "ffffffff\n",
+      "the restore returns the standing mask (T008, FR-007)");
+}
+
+// T008, R-02, R-05: the mask render takes its width from the standing
+// text, no width stands fixed: a standing word of two digits renders a
+// two-digit mask.
+auto theMaskRenderTakesTheWidthTheStandingTextCarried() -> void
+{
+  const auto cpus = pickCpus(1);
+  TracingRootGuard guard;
+  installStandingTree(guard.root(), "ff");
+  const auto session =
+      sg::detail::noiseTracerSetup(sg::TracerEngine::TIMERLAT, cpus);
+  check(session.has_value(), "the setup answers the session (T008)");
+  if (!session.has_value()) {
+    return;
+  }
+  check(
+      readStream((guard.root() / "sys/kernel/tracing/tracing_cpumask").string())
+          == maskTextOf(cpus, 2) + "\n",
+      "the tracer mask renders in the standing width (T008, R-05)");
+  sg::detail::noiseTracerRestore(*session);
+}
+
+// T009, FR-010, FR-017, R-07: one entry per tracer cpu in session
+// order, the five figures read from the per-cpu count files, the
+// source word `hw` mapping to the hardware figure.
+auto theFiguresReadOneEntryPerTracerCpu() -> void
+{
+  const auto cpus = pickCpus(2);
+  TracingRootGuard guard;
+  installStandingTree(guard.root(), "ffffffff");
+  writeTracingFile(guard.root(),
+                   cpuCountFile(cpus.at(0)),
+                   "nmi: 1\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n");
+  writeTracingFile(guard.root(),
+                   cpuCountFile(cpus.at(1)),
+                   "nmi: 6\nirq: 7\nsoftirq: 8\nthread: 9\nhw: 10\n");
+  // The reversed list binds the session order: the read answers the
+  // cpus as the session carries them (T009, R-07).
+  const std::vector<std::uint32_t> sessionCpus {cpus.at(1), cpus.at(0)};
+  const auto session =
+      sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, sessionCpus);
+  check(session.has_value(), "the setup answers the session (T009)");
+  if (!session.has_value()) {
+    return;
+  }
+  const auto figures = sg::detail::noiseTracerFigures(*session);
+  check(figures.size() == 2,
+        "the read answers one entry per tracer cpu (T009, FR-010)");
+  if (figures.size() != 2) {
+    return;
+  }
+  check(figures.at(0).cpu == cpus.at(1) && figures.at(1).cpu == cpus.at(0),
+        "the entries stand in the session order (T009, R-07)");
+  check(figures.at(0).nmi == 6 && figures.at(0).irq == 7
+            && figures.at(0).softirq == 8 && figures.at(0).thread == 9
+            && figures.at(0).hardware == 10,
+        "the figures read the count file of the first session cpu "
+        "(T009, FR-010)");
+  check(figures.at(1).nmi == 1 && figures.at(1).irq == 2
+            && figures.at(1).softirq == 3 && figures.at(1).thread == 4
+            && figures.at(1).hardware == 5,
+        "the figures read the count file of the second session cpu, "
+        "hw mapping to hardware (T009, FR-010)");
+}
+
+// T009, FR-010, R-07: a source the count file states no figure for
+// stands absent for that source alone.
+auto theMissingSourceWordStandsAbsentForThatSourceAlone() -> void
+{
+  const auto cpus = pickCpus(2);
+  TracingRootGuard guard;
+  installStandingTree(guard.root(), "ffffffff");
+  writeTracingFile(guard.root(),
+                   cpuCountFile(cpus.at(0)),
+                   "nmi: 1\nirq: 2\nthread: 4\nhw: 5\n");
+  writeTracingFile(guard.root(),
+                   cpuCountFile(cpus.at(1)),
+                   "nmi: 6\nirq: 7\nsoftirq: 8\nthread: 9\n");
+  const auto session =
+      sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, cpus);
+  check(session.has_value(), "the setup answers the session (T009)");
+  if (!session.has_value()) {
+    return;
+  }
+  const auto figures = sg::detail::noiseTracerFigures(*session);
+  check(figures.size() == 2,
+        "the read answers one entry per tracer cpu (T009, FR-010)");
+  if (figures.size() != 2) {
+    return;
+  }
+  check(figures.at(0).nmi.has_value() && figures.at(0).irq.has_value()
+            && !figures.at(0).softirq.has_value()
+            && figures.at(0).thread.has_value()
+            && figures.at(0).hardware.has_value(),
+        "the omitted softirq word stands absent for that source alone "
+        "(T009, FR-010)");
+  check(figures.at(1).nmi.has_value() && figures.at(1).irq.has_value()
+            && figures.at(1).softirq.has_value()
+            && figures.at(1).thread.has_value()
+            && !figures.at(1).hardware.has_value(),
+        "the omitted hw word stands absent for that source alone "
+        "(T009, FR-010)");
+}
+
+// T009, R-07: a cpu whose count file states nothing at read time
+// stands every figure absent: the empty file, the missing file and the
+// malformed line each stand the whole entry absent, and no exception
+// reaches the run (FR-016).
+auto theCpuWithNoCountFiguresStandsEveryFigureAbsent(std::size_t which) -> void
+{
+  const auto cpus = pickCpus(1);
+  const auto cpu = cpus.at(0);
+  const std::string tag =
+      "empty file, missing file or malformed line " "case "
+      + std::to_string(which);
+  TracingRootGuard guard;
+  installStandingTree(guard.root(), "ffffffff");
+  if (which == 0) {
+    writeTracingFile(guard.root(), cpuCountFile(cpu), "");
+  } else if (which == 1) {
+    // No count file stands written for the cpu (T009, R-07).
+  } else {
+    writeTracingFile(
+        guard.root(), cpuCountFile(cpu), "nmi: 1\nirq broken\nsoftirq: 3\n");
+  }
+  const auto session =
+      sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, cpus);
+  check(session.has_value(), "the setup answers the session (T009)");
+  if (!session.has_value()) {
+    return;
+  }
+  const auto figures = sg::detail::noiseTracerFigures(*session);
+  check(figures.size() == 1,
+        "the read answers one entry per tracer cpu (T009, FR-010)");
+  if (figures.size() != 1) {
+    return;
+  }
+  check(!figures.at(0).nmi.has_value() && !figures.at(0).irq.has_value()
+            && !figures.at(0).softirq.has_value()
+            && !figures.at(0).thread.has_value()
+            && !figures.at(0).hardware.has_value(),
+        ("the cpu stands every figure absent (T009, R-07): " + tag).c_str());
+}
+
+// T010, FR-016, FR-017, D-5, R-02: a scratch root without the tracing
+// subtree answers the empty session, and no exception reaches the run.
+auto theMissingTracingRootAnswersTheEmptySession() -> void
+{
+  TracingRootGuard guard;
+  const auto session =
+      sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, pickCpus(1));
+  check(!session.has_value(),
+        "the root without the tracing subtree answers the empty "
+        "session (T010, D-5)");
+}
+
+// T010, FR-016, D-5, R-02: a `current_tracer` the uid cannot write
+// answers the empty session; the tests run unprivileged and need no
+// root (FR-017).
+auto theUnwritableTracerWordAnswersTheEmptySession() -> void
+{
+  const auto cpus = pickCpus(1);
+  TracingRootGuard guard;
+  installStandingTree(guard.root(), "ffffffff");
+  const auto wordPath = guard.root() / "sys/kernel/tracing/current_tracer";
+  check(::chmod(wordPath.c_str(), 0444) == 0,
+        "the word file stands read-only (T010)");
+  const auto session =
+      sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, cpus);
+  check(!session.has_value(),
+        "the unwritable word answers the empty session (T010, D-5)");
+}
+
+// T010, FR-016, D-5, R-02: the tracing subtree without the word file
+// stands the engine write failing to open, the empty session.
+auto theFailedEngineWriteAnswersTheEmptySession() -> void
+{
+  TracingRootGuard guard;
+  std::filesystem::create_directories(guard.root() / "sys/kernel/tracing");
+  const auto session =
+      sg::detail::noiseTracerSetup(sg::TracerEngine::TIMERLAT, pickCpus(1));
+  check(!session.has_value(),
+        "the failed engine write answers the empty session (T010, D-5)");
+}
+
+// T010, FR-016, D-5, R-02: a denied mask write and a denied start
+// write each answer the empty session, the word file standing
+// writable.
+auto theDeniedSetupWritesAnswerTheEmptySession(std::size_t which) -> void
+{
+  const auto cpus = pickCpus(1);
+  TracingRootGuard guard;
+  installStandingTree(guard.root(), "ffffffff");
+  const char* denied = which == 0 ? "sys/kernel/tracing/tracing_cpumask"
+                                  : "sys/kernel/tracing/tracing_on";
+  check(::chmod((guard.root() / denied).c_str(), 0444) == 0,
+        "the denied file stands read-only (T010)");
+  const auto session =
+      sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, cpus);
+  check(!session.has_value(),
+        "the denied setup write answers the empty session (T010, D-5)");
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmQuiet);
@@ -634,6 +993,18 @@ auto main() -> int
   theCpuStandingTwiceRefuses();
   theRepeatedKeyRefuses();
   theOptionFileFaultNamesThePathTheLineAndTheToken();
+  theSetupWritesTheEngineTheMaskAndTheStart();
+  theMaskRenderTakesTheWidthTheStandingTextCarried();
+  theFiguresReadOneEntryPerTracerCpu();
+  theMissingSourceWordStandsAbsentForThatSourceAlone();
+  theCpuWithNoCountFiguresStandsEveryFigureAbsent(0);
+  theCpuWithNoCountFiguresStandsEveryFigureAbsent(1);
+  theCpuWithNoCountFiguresStandsEveryFigureAbsent(2);
+  theMissingTracingRootAnswersTheEmptySession();
+  theUnwritableTracerWordAnswersTheEmptySession();
+  theFailedEngineWriteAnswersTheEmptySession();
+  theDeniedSetupWritesAnswerTheEmptySession(0);
+  theDeniedSetupWritesAnswerTheEmptySession(1);
   theCommandLineSettlesOverTheOptionFile();
   theOptionFileSettlesOverTheSuiteCall();
   std::printf(failures == 0 ? "ok\n" : "%d checks failed\n", failures);
