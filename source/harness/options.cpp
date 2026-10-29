@@ -692,7 +692,7 @@ auto optionRows() -> std::span<const OptionRow>
        kHuntBudgetOption,
        OptionArgument::REQUIRED,
        false,
-       "Sets the hunt budget in seconds or passes",
+       "Sets the hunt budget: <n>s, <n>p, <n>e or <n>g clauses",
        "specs/029"},
       {"hunt-seed",
        kHuntSeedOption,
