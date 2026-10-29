@@ -867,6 +867,120 @@ auto run() -> int
   // reference as the whole input surface, and no exception escapes the
   // try of main.
 
+  // ---- The page block (specs/038 T014; FR-011, FR-012, B-5 of the
+  // views-api contract) ----
+
+  // Row 1: the identity (FR-011, B-5): the page answers one static
+  // HTML document carrying the speedgun version, the schemaVersion,
+  // the benchmark name and the column, each in the document's escaped
+  // spelling. multi.json records the version 0.25.0 and the
+  // schemaVersion 1.8, and the document shell stands the doctype, the
+  // html element with its head and its body.
+  {
+    auto const page = sg::renderPage(multi, "bmViews/threads:2", "time", 4);
+    check(page.has_value(), "page: the request answers the value form");
+    check(page->starts_with("<!DOCTYPE html>"),
+          "page: the document opens with its doctype");
+    check(page->find("<html>") != std::string::npos
+              && page->find("<head>") != std::string::npos
+              && page->find("<body>") != std::string::npos,
+          "page: the html element carries its head and its body");
+    check(page->find("0.25.0") != std::string::npos,
+          "page: the speedgun version the document records stands");
+    check(page->find("1.8") != std::string::npos,
+          "page: the schemaVersion the document records stands");
+    check(page->find("bmViews/threads:2") != std::string::npos,
+          "page: the benchmark name stands");
+    check(page->find("time") != std::string::npos, "page: the column stands");
+  }
+
+  // Row 2: the embedded figures stand the standalone bytes (B-5, D-3):
+  // the page embeds the histogram and the plot figures the standalone
+  // calls answer for the same request, the page adding only its
+  // document shell around them.
+  {
+    auto const page = sg::renderPage(multi, "bmViews/threads:2", "time", 4);
+    auto const histogram =
+        sg::renderHistogram(multi, "bmViews/threads:2", "time", 4);
+    auto const plot = sg::renderPlot(multi, "bmViews/threads:2", "time");
+    check(page.has_value() && histogram.has_value() && plot.has_value(),
+          "page: the page and the two figures answer the value form");
+    check(page->find(*histogram) != std::string::npos,
+          "page: the histogram stands the standalone bytes");
+    check(page->find(*plot) != std::string::npos,
+          "page: the plot stands the standalone bytes");
+  }
+
+  // Row 3: the absent-field disclosure (FR-012, clarify 1/Q4): the
+  // document of nospeedgun.json carries no speedgun header, so the
+  // version field renders the not available disclosure in its place,
+  // the version string standing nowhere, and the page answers the
+  // value form.
+  {
+    auto const report = loadedFixture("nospeedgun.json");
+    auto const page = sg::renderPage(report, "bmViewsNoHeader", "time", 4);
+    check(page.has_value(),
+          "page: the no-header document answers the value form");
+    check(page->find("not available") != std::string::npos,
+          "page: the absent identity field renders the disclosure");
+    check(page->find("0.25.0") == std::string::npos,
+          "page: the version the document does not carry stands nowhere");
+  }
+
+  // Row 4: the disclosed figure in place (FR-012, clarify 1/Q4):
+  // single.json stands one repetition row, so the page embeds the plot
+  // figure and renders the histogram's disclosure text in the
+  // histogram's place, the whole answering the value form.
+  {
+    auto const report = loadedFixture("single.json");
+    auto const page = sg::renderPage(report, "bmViewsSingle", "time", 4);
+    auto const plot = sg::renderPlot(report, "bmViewsSingle", "time");
+    auto const histogram =
+        sg::renderHistogram(report, "bmViewsSingle", "time", 4);
+    check(page.has_value(),
+          "page: the one-repetition page answers the value form");
+    check(plot.has_value(), "page: the plot answers the value form");
+    check(!histogram.has_value(), "page: the histogram answers the disclosure");
+    check(page->find(*plot) != std::string::npos,
+          "page: the plot figure stands inline");
+    check(page->find(histogram.error()) != std::string::npos,
+          "page: the disclosure text stands in the histogram's place");
+  }
+
+  // Row 5: the markup label (A-6, D-8): the page names its column
+  // through the escaper, the way the figures name theirs.
+  {
+    auto const report = loadedFixture("markup.json");
+    auto const page =
+        sg::renderPage(report, "bmViewsMarkup", "branch<miss>&rate", 4);
+    check(page.has_value(), "page: the markup page answers the value form");
+    check(page->find("branch&lt;miss&gt;&amp;rate") != std::string::npos,
+          "page: the column label stands escaped through the escaper");
+    check(page->find("branch<miss>&rate") == std::string::npos,
+          "page: the raw label stands nowhere in the page");
+  }
+
+  // Row 6: the no-script shape (FR-011, D-8): the page carries no
+  // script element and no event attribute.
+  {
+    auto const page = sg::renderPage(multi, "bmViews/threads:2", "time", 4);
+    check(page.has_value(), "page: the page answers the value form");
+    check(page->find("<script") == std::string::npos,
+          "page: the page carries no script element");
+    check(page->find("onclick") == std::string::npos,
+          "page: the page carries no event attribute");
+  }
+
+  // Row 7: the contract rows (A-1, B-5). The pre binCount at least 2
+  // stands enforced through the contract facility in the
+  // implementation; the standing tests of this file assert no
+  // contract-violation abort, so the block leaves the violation
+  // untested, the way the text block leaves its. The no-file and
+  // no-throw rules stand in the answer forms: every call above answers
+  // the value or the error form, the document value arrives by const
+  // reference as the whole input surface, and no exception escapes the
+  // try of main.
+
   std::printf("views_test PASS\n");
   return 0;
 }
