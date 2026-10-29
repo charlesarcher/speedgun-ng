@@ -219,6 +219,32 @@ auto theCommandLineSettlesOverTheOptionFile() -> void
         "the command line's cpu list stands over the file's (FR-005, D-6)");
 }
 
+// FR-035, R-06: the file's second line for the option stands over its
+// first, the same source settling twice and keeping the last word, the
+// scalar rule the file shares with the command line (FR-038).
+auto theFileSecondLineStandsOverItsFirst() -> void
+{
+  const auto cpus = pickCpus(2);
+  const std::string firstLine =
+      "os-noise=osnoise,cpus=" + std::to_string(cpus.at(0)) + "\n";
+  const std::string lastLine =
+      "os-noise=timerlat,cpus=" + std::to_string(cpus.at(1)) + "\n";
+  const Gathered gathered = gatherSources({}, firstLine + lastLine);
+  check(gathered.settled.has_value(),
+        ("the gather accepts the two file lines (FR-035): " + gathered.fault)
+            .c_str());
+  if (!gathered.settled.has_value()) {
+    return;
+  }
+  const auto& settled = gathered.settled->options;
+  check(settled.noiseTracer.has_value()
+            && *settled.noiseTracer == sg::TracerEngine::TIMERLAT,
+        "the file's last line stands over its first (FR-035, R-06)");
+  const std::vector<std::uint32_t> wanted {cpus.at(1)};
+  check(settled.noiseTracerCpus == wanted,
+        "the last line's cpu list stands (FR-035, R-06)");
+}
+
 // The scratch names of the suite-order scenario, one set per row, so a
 // second copy of this binary shares no file.
 struct SuiteOrderFiles
@@ -1873,6 +1899,7 @@ auto theFigureArmRows() -> void
   const std::string_view shapes[] {
       "nmi: 1\n\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
       "nmi: abc\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
+      "nmi: 1x\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
       "nmi: 1\nnmi: 2\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
       "foo: 1\nnmi: 1\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
       "nmi 1\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
@@ -1910,6 +1937,33 @@ auto theFigureArmRows() -> void
   }
 }
 
+// The affinity list that states no item: the reader's per-item loop
+// answers the condition once and the entry stands the cpu with the
+// empty list (specs/034 FR-018).
+auto theEmptyAffinityListLoadsTheEntry() -> void
+{
+  const char* const document =
+      "{\"schemaVersion\":\"1.7\",\"benchmarks\":[],\"precheck\":{"
+      "\"serial\":false,\"windowMs\":1,\"cpus\":[],\"hostSettings\":{"
+      "\"isolcpus\":null,\"nohz_full\":null,\"rcu_nocbs\":null,"
+      "\"governors\":{},\"irqAffinity\":{\"3\":\"\"}},"
+      "\"skippedGroups\":[]}}";
+  {
+    std::ofstream file("harness_noise_affinity-empty.json");
+    file << document;
+  }
+  const auto loaded = sg::loadReport("harness_noise_affinity-empty.json");
+  check(loaded.has_value() && loaded->precheck.has_value(),
+        "the document with the empty affinity list loads (specs/034 FR-018)");
+  if (loaded.has_value() && loaded->precheck.has_value()) {
+    const auto& host = loaded->precheck->host;
+    check(host.irqAffinity.size() == 1 && host.irqAffinity.front().first == 3U
+              && host.irqAffinity.front().second.empty(),
+          "the entry stands the cpu with the empty list (specs/034 FR-018)");
+  }
+  std::remove("harness_noise_affinity-empty.json");
+}
+
 auto main() -> int
 {
   // The scripted provider stands the in-process runs' time source: the
@@ -1942,12 +1996,14 @@ auto main() -> int
   theParserArmRows();
   theSessionArmRows();
   theFigureArmRows();
+  theEmptyAffinityListLoadsTheEntry();
   theMissingTracingRootAnswersTheEmptySession();
   theUnwritableTracerWordAnswersTheEmptySession();
   theFailedEngineWriteAnswersTheEmptySession();
   theDeniedSetupWritesAnswerTheEmptySession(0);
   theDeniedSetupWritesAnswerTheEmptySession(1);
   theCommandLineSettlesOverTheOptionFile();
+  theFileSecondLineStandsOverItsFirst();
   theOptionFileSettlesOverTheSuiteCall();
   // The integration rows (T020 to T022) run in this process over the
   // injected layout, installed here before the first read of it: the
