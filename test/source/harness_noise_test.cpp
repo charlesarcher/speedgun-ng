@@ -67,7 +67,8 @@ auto check(const bool cond, const char* what) -> void
 // affinity mask (specs/036 FR-008): the parser validates every cpu of a
 // `cpus=` list against the mask and the online set, so the values stand
 // inside both on every host the suite runs on.
-auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
+auto pickCpus(std::size_t count, bool reportShortfall = true)
+    -> std::vector<std::uint32_t>
 {
   cpu_set_t mask {};
   CPU_ZERO(&mask);
@@ -84,7 +85,7 @@ auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
       cpus.push_back(static_cast<std::uint32_t>(index));
     }
   }
-  if (cpus.size() < count) {
+  if (cpus.size() < count && reportShortfall) {
     fail("the affinity mask holds too few cpus for the scenario (FR-008)");
   }
   return cpus;
@@ -1726,7 +1727,9 @@ auto theParserArmRows() -> void
         ("the refusal names the token (FR-003): " + gathered.fault).c_str());
   }
   {
-    const Gathered gathered = gatherSources({"--os-noise=osnoise,cpus=2,"}, "");
+    const std::string value =
+        "--os-noise=osnoise,cpus=" + std::to_string(pickCpus(1).at(0)) + ",";
+    const Gathered gathered = gatherSources({value.c_str()}, "");
     check(!gathered.settled.has_value(),
           "the empty item a trailing comma names refuses (FR-002)");
     check(
@@ -1941,7 +1944,10 @@ auto main() -> int
   // injected layout, installed here before the first read of it: the
   // layout read caches once per process, so the rows share the one
   // injected shape (T011 of the pre-check suite).
-  const auto integrationCpus = pickCpus(4);
+  // The skip reads the mask before the pick, so a host whose mask
+  // holds fewer than the scenario needs skips without a failed check
+  // (FR-018: the suite passes under `taskset -c 0,1`).
+  const auto integrationCpus = pickCpus(4, false);
   if (integrationCpus.size() == 4) {
     sg::detail::installTestLayout(twoGroupNoiseLayout(integrationCpus));
     auto pinned = sg::registerBenchmark(&bmPinnedNoise, "bmPinnedNoise");
