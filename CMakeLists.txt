@@ -23,7 +23,11 @@ project(
     # has taken 0.23.0 takes the next free minor, 0.24.0. The hunt
     # surface moves past specs/036, so the harness SOVERSION is 15 and
     # the archive SOVERSION stays 4 (D-6, PD-20).
-    VERSION 0.24.0
+    # specs/038-report-view-generators FR-002 (D-2): this feature takes
+    # the next free minor, 0.25.0. The view functions join the exported
+    # harness surface behind include/speedgun-ng/views.hpp, so the
+    # harness SOVERSION is 16 and the archive SOVERSION stays 4.
+    VERSION 0.25.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -231,9 +235,13 @@ include(cmake/dbc.cmake)
 # The target is declared ahead of the install rules because
 # cmake/install-rules.cmake installs it, and that include sits where the
 # specs/005 R-010 load order requires.
+# specs/038 D-2: the view functions live under source/views/ and compile
+# into this target beside the source/harness/ units.
 file(
     GLOB_RECURSE speedgun-ng_harness_sources
-    CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/source/harness/*.cpp"
+    CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/harness/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/source/views/*.cpp"
 )
 add_library(speedgun-ng_harness ${speedgun-ng_harness_sources})
 add_library(speedgun-ng::harness ALIAS speedgun-ng_harness)
@@ -317,7 +325,12 @@ set_target_properties(
     # The hand-kept number rises to 15 past the 14 specs/036 left. The
     # counters library surface moves nothing, so that archive keeps its
     # SOVERSION 4 (hard rule 12).
-    SOVERSION 15
+    # specs/038 FR-002, D-2: the view functions join the exported
+    # surface behind include/speedgun-ng/views.hpp, so the exported
+    # layouts move and the hand-kept number rises to 16 past the 15
+    # specs/033 left. The counters library surface moves nothing, so
+    # that archive keeps its SOVERSION 4 (hard rule 12).
+    SOVERSION 16
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )
