@@ -32,6 +32,8 @@
 #include <vector>
 
 #include <sched.h>
+#include <signal.h>
+#include <sys/resource.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -1040,6 +1042,73 @@ auto theDeniedSetupWritesAnswerTheEmptySession(std::size_t which) -> void
         "the denied setup write answers the empty session (T010, D-5)");
 }
 
+// The run's own file-size limit stood below one setup write's text:
+// the kernel refuses the write for every user, the root of a CI
+// container included (FR-017), so the denial needs no chmod. The
+// standing limit and the standing signal disposition stand restored
+// when the guard ends.
+class SetupWriteLimit
+{
+public:
+  explicit SetupWriteLimit(rlim_t limit)
+  {
+    m_savedSignal = ::signal(SIGXFSZ, SIG_IGN);
+    if (m_savedSignal == SIG_ERR) {
+      fail("the file-size signal stands unrestorable (T010)");
+      return;
+    }
+    if (::getrlimit(RLIMIT_FSIZE, &m_saved) != 0) {
+      fail("the file-size limit stands unreadable (T010)");
+      return;
+    }
+    rlimit limited = m_saved;
+    limited.rlim_cur = limit;
+    if (::setrlimit(RLIMIT_FSIZE, &limited) != 0) {
+      fail("the file-size limit stands unset (T010)");
+      return;
+    }
+    m_lowered = true;
+  }
+
+  ~SetupWriteLimit()
+  {
+    if (m_lowered) {
+      ::setrlimit(RLIMIT_FSIZE, &m_saved);
+    }
+    if (m_savedSignal != SIG_ERR) {
+      ::signal(SIGXFSZ, m_savedSignal);
+    }
+  }
+
+  SetupWriteLimit(const SetupWriteLimit&) = delete;
+  auto operator=(const SetupWriteLimit&) -> SetupWriteLimit& = delete;
+
+private:
+  rlimit m_saved {};
+  void (*m_savedSignal)(int) = SIG_DFL;
+  bool m_lowered = false;
+};
+
+// T010, FR-016, D-5, R-01, R-02: a setup write the run's file-size
+// limit bounds does not stand through, the empty session, the reads
+// and the earlier writes ahead of it standing whole (R-01, R-02).
+auto theLimitedSetupWritesAnswerTheEmptySession(std::size_t which) -> void
+{
+  const auto cpus = pickCpus(1);
+  TracingRootGuard guard;
+  installStandingTree(guard.root(), "ffffffff");
+  // The engine word stands eight bytes and the tracer mask nine, so
+  // the four-byte limit bounds the word write alone and the
+  // eight-byte limit carries the word and bounds the mask (R-02,
+  // R-05).
+  const SetupWriteLimit limit(which == 0 ? 4 : 8);
+  const auto session =
+      sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, cpus);
+  check(!session.has_value(),
+        "the setup write the limit bounds answers the empty session "
+        "(T010, FR-016, D-5)");
+}
+
 // ---- The pre-check integration rows (T020 to T023, FR-008, FR-009,
 // FR-011, FR-016, R-05, R-07, R-09, R-10): the run stands the tracer up
 // before the probe items are dispatched and reads the figures after
@@ -1637,18 +1706,14 @@ auto theWholeRunRows() -> void
     std::remove("harness_noise_unavailable_free.json");
   }
 
-  // The fake tree's control paths stand directories: the setup's
-  // writes fail for every user, the root of a CI container included.
+  // The fake tree's on-off path stands a directory: the setup's
+  // reads and earlier writes stand whole and the on-off write fails
+  // for every user, the root of a CI container included.
   {
     TracingRootGuard guard;
     installStandingTree(guard.root(), "ffffffff");
-    for (const char* file : {"sys/kernel/tracing/current_tracer",
-                             "sys/kernel/tracing/tracing_cpumask",
-                             "sys/kernel/tracing/tracing_on"})
-    {
-      check(denyTracingPath(guard.root(), file),
-            "the fake control path stands a directory (T022)");
-    }
+    check(denyTracingPath(guard.root(), "sys/kernel/tracing/tracing_on"),
+          "the on-off path stands a directory (T022)");
     const auto console = captureRun(
         {"--filter=bmPinnedNoise",
          "--repetitions=1",
@@ -2002,6 +2067,8 @@ auto main() -> int
   theFailedEngineWriteAnswersTheEmptySession();
   theDeniedSetupWritesAnswerTheEmptySession(0);
   theDeniedSetupWritesAnswerTheEmptySession(1);
+  theLimitedSetupWritesAnswerTheEmptySession(0);
+  theLimitedSetupWritesAnswerTheEmptySession(1);
   theCommandLineSettlesOverTheOptionFile();
   theFileSecondLineStandsOverItsFirst();
   theOptionFileSettlesOverTheSuiteCall();
