@@ -82,14 +82,14 @@ stands; they join `properties` and `x-order`, and stay out of
 
 **Rationale**: FR-022's byte rule (an unset run writes the standing
 bytes apart from `schemaVersion`) requires absence.
-Absence also keeps pre-1.7 hunt documents valid and loadable with no
+Absence also keeps pre-1.8 hunt documents valid and loadable with no
 reader version branch, matching spec 029's recorded deviation of the
 hunt keys from `required`. Key-name style follows the snake family
 already inside the node (`estimate_ns`, `planned_events`).
 
 **Alternatives considered**: null-when-unset like the standing
 `budget` key (rejected: it writes new bytes on runs that never asked
-for a budget, breaking FR-022 and the pre-1.7 byte-diff test);
+for a budget, breaking FR-022 and the pre-1.8 byte-diff test);
 nested `budgets` object (rejected: a new closed node for three
 scalars, against X.2).
 

@@ -1,4 +1,4 @@
-# Contract: the `hunt` JSON extension at schema 1.7 (033)
+# Contract: the `hunt` JSON extension at schema 1.8 (033)
 
 Extends `specs/029-hunter-core/contracts/hunt-json.md`; the standing
 sixteen keys and their order stand. (FR-020 to FR-023, R-11, R-12.)
@@ -15,11 +15,11 @@ sixteen keys and their order stand. (FR-020 to FR-023, R-11, R-12.)
 Presence rules:
 
 - an unset budget writes no key (not a null key): a hunt run without
-  the budgets writes the 1.6 bytes apart from `schemaVersion`
+  the budgets writes the 1.7 bytes apart from `schemaVersion`
   (FR-022);
 - each key joins `properties` and `x-order` in the same commit as
   its writer (the US2 pair first, the US3 pair after); `required`
-  keeps the standing sixteen, so a 1.4 to 1.6 hunt
+  keeps the standing sixteen, so a 1.4 to 1.7 hunt
   document stays valid and `loadReport` reads it equal (FR-021);
 - `x-order` position: after `stage_two_events`, the final order
   fixed as listed above; the US3 keys insert, `multiplex_cap`

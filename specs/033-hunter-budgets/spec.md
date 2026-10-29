@@ -47,11 +47,11 @@ with the ruling it carries named. The decisions the roadmap and spec
   moves nothing, so the archive `SOVERSION` stays `4` unless the
   scripted seam changes. The check is recorded beside the commit that
   moves the version (hard rule 12).
-- Report schema: master stands at `1.6`
-  (`source/harness/json_report.cpp:36`). The top-level `hunt` object
+- Report schema: master stands at `1.7`
+  (`source/harness/json_report.cpp:39`). The top-level `hunt` object
   in `docs/schema/report-v1.json` is closed (`additionalProperties:
   false` with its `x-order` list), so the budget keys are a minor
-  bump: the schema takes `1.7`, or the next free minor at rebase, with
+  bump: the schema takes `1.8`, the next free minor at the rebase, with
   the `x-order` moved in the same commit.
 - Option values: the hunt block `270` to `279` stands taken, with
   `278` and `279` unused (`source/harness/detail/options.hpp:94`
@@ -654,8 +654,8 @@ file on a CI runner (SC-008).
   when its budget stands, absent when it does not), beside the
   derived numeric plan figures of FR-002 and FR-003. The closed schema
   objects SHALL gain every new key in `properties` and in `x-order`
-  in the same commit; the schema minor takes `1.7` or the next free
-  minor at rebase (D-9, PC-6, hard rule 11).
+  in the same commit; the schema minor takes `1.8`, the next free
+  minor at the rebase (D-9, PC-6, hard rule 11).
 - **FR-021**: `loadReport` SHALL read every new key back with equal
   values; the writer SHALL use the simdjson builder and the reader
   the error-code form, with a test per refusal code (hard rule 7).
