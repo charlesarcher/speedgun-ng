@@ -1848,9 +1848,10 @@ each standing only while its clause stands. Two lines stand under the plan line
 for the two budgets, and each prints only in the state that states it. The
 sample line gives the repeats the budget derived beside the repeats the rule
 gave, `repeats=2 of 3`; the word `unpriced` for a stage no calibration figure
-prices; or `repeats=1 over-budget` for a budget that fits below one repeat. A
-derived count the rule already gave moved nothing, so it prints no line. The
-groups line gives the sizes the cap split out of the plan, in plan order,
+prices; or the count the record carries under the word `over-budget`, which
+stands where the budget fits below one repeat of a stage. A derived count the
+rule already gave moved nothing, so it prints no line. The groups line
+gives the sizes the cap split out of the plan, in plan order,
 `sizes=32,10`. A plan that settled `PASSES` opens no group and prints no groups
 line, and a cap that covers the whole plan leaves one group of it.
 

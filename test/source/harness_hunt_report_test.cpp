@@ -813,8 +813,9 @@ auto scenarioPlanLineBudgetClauseOrder() -> void
 
 // The sample budget leaves one line in one of its three states, below the plan
 // line and below the cut line. A derived count reads against the stage rule it
-// came under, an overrun reads the one repeat the plan kept, and a stage no
-// calibration figure priced reads the word `unpriced`.
+// came under, an overrun reads the count the record carries beside the word
+// that marks it, and a stage no calibration figure priced reads the word
+// `unpriced`.
 auto scenarioPlanLineSampleDisclosure() -> void
 {
   const auto derived = contractRecord(kRecordEstimateNs,
@@ -846,6 +847,27 @@ auto scenarioPlanLineSampleDisclosure() -> void
         "the disclosure line stands below the cut line, so both lines that "
         "spell the run's budgets come first (FR-013, FR-023)");
 
+  // The composed state of a two-stage plan: the budget fitted below one repeat
+  // of one stage while the stage the run prices derived two repeats, so the
+  // record holds the overrun and the count at once and the line prints the
+  // count the document writes under `derived_repeats` (FR-002, FR-023, N-06,
+  // the console parity of contracts/hunt-json.md).
+  const auto composed = contractRecord(kRecordEstimateNs,
+                                       {address(0)},
+                                       1,
+                                       500'000'000ULL,
+                                       std::nullopt,
+                                       sg::hunt::HuntSampleState {
+                                           .derivedRepeats = 2,
+                                           .overBudget = true,
+                                       });
+  check(capturePrint([&composed] { sg::detail::printHuntPlan(composed); })
+            == "hunt: plan events=1 passes=14 method=PASSES "
+               "estimate=1260000ns budget=120s sample=0.5e\n"
+               "hunt: plan sample repeats=2 over-budget\n",
+        "the overrun line prints the derived count the record carries beside "
+        "the word that marks the overrun (FR-002, FR-023, N-06)");
+
   const auto overrun = contractRecord(kRecordEstimateNs,
                                       {address(0)},
                                       1,
@@ -859,9 +881,9 @@ auto scenarioPlanLineSampleDisclosure() -> void
             == "hunt: plan events=1 passes=14 method=PASSES "
                "estimate=1260000ns budget=120s sample=0.5e\n"
                "hunt: plan sample repeats=1 over-budget\n",
-        "a budget that fitted below one repeat prints the one repeat the plan "
-        "kept, and the word names the state the record holds (FR-001, FR-023, "
-        "N-03)");
+        "a budget that fitted below one repeat of every stage prints the one "
+        "repeat the record carries, and the word names the state (FR-001, "
+        "FR-023, N-03)");
 
   const auto unpriced = contractRecord(kRecordEstimateNs,
                                        {address(0)},
