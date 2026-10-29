@@ -155,6 +155,21 @@ auto installTestReader(std::unique_ptr<counters::WindowReader> reader) -> void;
                                          JitterProbeOptions& parsed,
                                          std::string& message) -> bool;
 
+/// @brief The cpu token of the value grammars: an index or a closed
+/// `a-b` range, the form the topology listing prints; each cpu stands
+/// in the process affinity mask (FR-011, FR-038) and in the online cpu
+/// set the topology seam owns, and the reader pushes every cpu of a
+/// range in ascending order. The os-noise grammar reads its `cpus`
+/// list through this one reader, so no second cpu-list reader stands
+/// (specs/036 R-06). Every rejection names the token it read, quoted
+/// the way the option module quotes a value, so the caller's one line
+/// carries it (FR-038). Declared beside the probe's parser because
+/// both value grammars read the standing cpu-list rules (specs/036
+/// FR-002, R-06).
+[[nodiscard]] auto parseProbeCpuToken(const std::string& token,
+                                      std::vector<std::uint32_t>& cpus,
+                                      std::string& message) -> bool;
+
 /// @brief specs/034 R-01: the measured set of one pre-check run: the
 /// planned cpus ascending, then the candidates ascending, the
 /// candidates the standing `idle` resolution takes over the plans

@@ -73,8 +73,8 @@ enum class StopKind
 // the options master gives them, the jitter probe's lane block holds
 // 260 to 269, the eight hunt names take the block 270 to 279
 // specs/029-hunter-core reserves, the seven names the command-line lane
-// brings take 290 to 296, and 297 to 319 stay free (FR-001, FR-004,
-// FR-005, D-24; specs/029 FR-080, D-22).
+// brings take 290 to 296, the noise tracer's name takes 297, and 298 to
+// 319 stay free (FR-001, FR-004, FR-005, D-24; specs/029 FR-080, D-22).
 inline constexpr int kMetricMethodOption = 256;
 inline constexpr int kCompareOptionValue = 257;
 inline constexpr int kCompareRuleOptionValue = 258;
@@ -87,6 +87,7 @@ inline constexpr int kInterleaveOptionValue = 293;
 inline constexpr int kCompareRulesOptionValue = 294;
 inline constexpr int kHelpOptionValue = 295;
 inline constexpr int kVersionOptionValue = 296;
+inline constexpr int kOsNoiseOptionValue = 297;
 
 // specs/029-hunter-core FR-080 to FR-082, D-22: the value each hunt option
 // answers. The hunt lane reserves the block 270 to 279: 278 and 279 stay

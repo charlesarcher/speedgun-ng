@@ -197,7 +197,10 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # in place. The rows join the Quick reference table, which the
 # per-section budgets do not inspect, so SECTION_LINE_CAP and
 # SECTION_LINE_CAPS keep their values.
-PAGE_LINE_CAP = 880
+# specs/036 FR-001 adds the `--os-noise` option row: one line moves the
+# cap from 880 to 881, the measured length of the page with the row in
+# place.
+PAGE_LINE_CAP = 881
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that

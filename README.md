@@ -846,6 +846,7 @@ One line on stderr naming the value ends the run with status 2 for a value outsi
 | `--json` | Writes one JSON report document for the run |
 | `--json-raw` | Selects the chunk columns the document carries |
 | `--jitter-probe` | Runs the jitter probe over the batch by one value; `precheck=<ms>` or `precheck=serial` runs the host noise pre-check |
+| `--os-noise` | Runs the named noise tracer across the pre-check window |
 | `--dry-run` | Runs one iteration and prints the row shape |
 | `--counter` | Adds one catalog counter to the report columns |
 | `--metric` | Adds one metric of the host's table to the report columns |

@@ -18,6 +18,7 @@
 #include <initializer_list>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -26,6 +27,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "detail/internal.hpp"
 #include "detail/options.hpp"
 #include "detail/proc_root.hpp"
 #include "speedgun-ng/benchmark.hpp"
@@ -247,8 +249,7 @@ auto runSuiteOrderChild(const SuiteOrderFiles& files,
     // file-root seam (specs/036 FR-017): the suite needs no kernel
     // tracer and no rights, so the record the row reads stands the
     // run's own (FR-014).
-    std::filesystem::create_directories(files.root
-                                        / "sys/kernel/tracing");
+    std::filesystem::create_directories(files.root / "sys/kernel/tracing");
     {
       std::ofstream(files.root / "sys/kernel/tracing/current_tracer")
           << "nop\n";
@@ -321,16 +322,14 @@ auto theOptionFileSettlesOverTheSuiteCall() -> void
           "the document carries the pre-check record (FR-005)");
     if (precheck.has_value()) {
       check(precheck->tracer.has_value(),
-            "the record carries the tracer the file settled "
-            "(FR-005, D-6)");
+            "the record carries the tracer the file settled " "(FR-005, D-6)");
       if (precheck->tracer.has_value()) {
-        check(precheck->tracer->engine == "osnoise",
-              "the file's engine stands over the suite call's "
-              "(FR-005, D-6)");
+        check(
+            precheck->tracer->engine == "osnoise",
+            "the file's engine stands over the suite call's " "(FR-005, D-6)");
         check(precheck->tracer->cpus.size() == 1
                   && precheck->tracer->cpus.front().cpu == cpus.at(0),
-              "the file's cpu stands over the suite call's "
-              "(FR-005, D-6)");
+              "the file's cpu stands over the suite call's " "(FR-005, D-6)");
       }
     }
   }
@@ -342,6 +341,280 @@ auto theOptionFileSettlesOverTheSuiteCall() -> void
   std::filesystem::remove_all(files.root, removeFailed);
 }
 
+// The first cpu index the process affinity mask does not hold, below the
+// set's own bound: the token the outside-the-mask refusal reads (FR-003).
+auto pickCpuOutsideMask() -> std::string
+{
+  cpu_set_t mask {};
+  CPU_ZERO(&mask);
+  if (sched_getaffinity(0, sizeof(mask), &mask) != 0) {
+    fail("the process affinity mask is unreadable (FR-003)");
+    return {};
+  }
+  for (std::size_t cpu = 0; cpu < static_cast<std::size_t>(CPU_SETSIZE); ++cpu)
+  {
+    if (CPU_ISSET(cpu, &mask) == 0) {
+      return std::to_string(cpu);
+    }
+  }
+  fail("the mask leaves no cpu index free (FR-003)");
+  return {};
+}
+
+// The text of one captured stream.
+auto readStream(const std::string& path) -> std::string
+{
+  std::ifstream file(path);
+  std::ostringstream text;
+  text << file.rdbuf();
+  return text.str();
+}
+
+// The count of the lines one captured stream carries.
+auto lineCount(const std::string& text) -> std::size_t
+{
+  std::size_t count = 0;
+  for (const char current : text) {
+    if (current == '\n') {
+      ++count;
+    }
+  }
+  return count;
+}
+
+// The exit status and both captures of one forked entry-point child: a
+// refusal answers from inside the entry point, so the run stands in a
+// child either way (the harness_jitter_cli_test pattern).
+struct Captured
+{
+  int status;
+  std::string out;
+  std::string err;
+};
+
+// One speedgunMain run in a forked child with both streams captured: the
+// arguments stand the child's command line, and the child inherits the
+// seams the caller installed ahead of the fork.
+auto runRefusalChild(const std::string& tag,
+                     const std::vector<std::string>& arguments) -> Captured
+{
+  const std::string outPath = "harness_noise_" + tag + "-out.txt";
+  const std::string errPath = "harness_noise_" + tag + "-err.txt";
+  std::fflush(stdout);
+  std::fflush(stderr);
+  const pid_t pid = fork();
+  if (pid < 0) {
+    fail("cannot fork the child");
+    return Captured {3, {}, {}};
+  }
+  if (pid == 0) {
+    if (std::freopen(outPath.c_str(), "w", stdout) == nullptr
+        || std::freopen(errPath.c_str(), "w", stderr) == nullptr)
+    {
+      _exit(3);
+    }
+    std::vector<char*> argv;
+    argv.push_back(const_cast<char*>("harness_noise_test"));
+    for (const auto& argument : arguments) {
+      argv.push_back(const_cast<char*>(argument.c_str()));
+    }
+    const int status =
+        sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+    std::fflush(stdout);
+    std::fflush(stderr);
+    std::exit(status);
+  }
+  int waitStatus = 0;
+  if (waitpid(pid, &waitStatus, 0) < 0) {
+    fail("cannot wait for the child");
+    return Captured {3, {}, {}};
+  }
+  if (!WIFEXITED(waitStatus)) {
+    fail("the child did not exit normally");
+    return Captured {3, {}, {}};
+  }
+  return Captured {
+      WEXITSTATUS(waitStatus), readStream(outPath), readStream(errPath)};
+}
+
+// FR-003, SC-003: a refused value stands one line on standard error,
+// carrying the option prefix, and exits 2 with no benchmark output.
+auto checkRefusalShape(const Captured& run, const std::string& prefix) -> void
+{
+  check(run.status == 2, "the refused value stands status 2 (FR-003, SC-003)");
+  check(lineCount(run.err) == 1,
+        "the refusal stands one line (FR-003, SC-003)");
+  check(run.err.find(prefix) != std::string::npos,
+        "the refusal names the option and the fault (FR-003)");
+  check(run.out.empty(),
+        "the refusal prints no benchmark output (FR-003, SC-003)");
+}
+
+// T004, FR-002, D-4, R-06: the engine words settle the carrier through the
+// scan and the gather, and an absent cpus key names the candidate set.
+auto theEngineWordSettlesTheCarrier() -> void
+{
+  const Gathered osnoise = gatherSources({"--os-noise=osnoise"}, "");
+  check(osnoise.settled.has_value(),
+        ("the gather accepts the engine word (FR-002): " + osnoise.fault)
+            .c_str());
+  if (osnoise.settled.has_value()) {
+    const auto& settled = osnoise.settled->options;
+    check(settled.noiseTracer.has_value()
+              && *settled.noiseTracer == sg::TracerEngine::OSNOISE,
+          "the word osnoise settles the engine (FR-002, R-06)");
+    check(settled.noiseTracerCpus.empty(),
+          "the absent key names the candidate set (FR-008, R-09)");
+  }
+
+  const Gathered timerlat = gatherSources({"--os-noise=timerlat"}, "");
+  check(timerlat.settled.has_value(),
+        ("the gather accepts the engine word (FR-002): " + timerlat.fault)
+            .c_str());
+  if (timerlat.settled.has_value()) {
+    const auto& settled = timerlat.settled->options;
+    check(settled.noiseTracer.has_value()
+              && *settled.noiseTracer == sg::TracerEngine::TIMERLAT,
+          "the word timerlat settles the engine (FR-002, R-06)");
+    check(settled.noiseTracerCpus.empty(),
+          "the absent key names the candidate set (FR-008, R-09)");
+  }
+}
+
+// T004, FR-002, R-06: the optional cpus key settles the tracer cpus
+// through the standing cpu-list reader, the form the --topology listing
+// prints.
+auto theCpusKeySettlesTheTracerCpus() -> void
+{
+  const auto cpus = pickCpus(2);
+  const std::string value = "--os-noise=timerlat,cpus="
+      + std::to_string(cpus.at(0)) + "," + std::to_string(cpus.at(1));
+  const Gathered gathered = gatherSources({value.c_str()}, "");
+  check(
+      gathered.settled.has_value(),
+      ("the gather accepts the cpus key (FR-002): " + gathered.fault).c_str());
+  if (!gathered.settled.has_value()) {
+    return;
+  }
+  const auto& settled = gathered.settled->options;
+  check(settled.noiseTracer.has_value()
+            && *settled.noiseTracer == sg::TracerEngine::TIMERLAT,
+        "the engine word settles the carrier (FR-002, R-06)");
+  check(settled.noiseTracerCpus == cpus,
+        "the cpus key settles the list through the standing reader "
+        "(FR-002, R-06)");
+}
+
+// T004, FR-002: a second cpus key in one value stands the repeated-key
+// refusal; the option file's value parses where the gather settles it,
+// so the fault names the path, the line and the key.
+auto theSecondCpusKeyStandsTheRepeatedKeyRefusal() -> void
+{
+  const auto cpus = pickCpus(2);
+  const std::string line = "os-noise=osnoise,cpus=" + std::to_string(cpus.at(0))
+      + ",cpus=" + std::to_string(cpus.at(1)) + "\n";
+  const Gathered gathered = gatherSources({}, line);
+  check(!gathered.settled.has_value(),
+        "the gather refuses the repeated key (FR-002)");
+  check(gathered.fault.find("--os-noise: ") != std::string::npos,
+        "the refusal names the option (FR-002, FR-003)");
+  check(gathered.fault.find("'cpus'") != std::string::npos,
+        "the refusal names the key (FR-002)");
+}
+
+// T004, FR-002, D-4: --os-noise with no argument takes the standing
+// missing-argument path, the line the scan answers at the row.
+auto theBareOptionTakesTheMissingArgumentPath() -> void
+{
+  const auto scan = scanOf({"--os-noise"});
+  if (scan.has_value()) {
+    fail("the scan refuses the bare option (FR-002, D-4)");
+    return;
+  }
+  check(scan.error().find("--os-noise") != std::string::npos
+            && scan.error().find("needs a value") != std::string::npos,
+        "the missing-value line names the option (FR-002, D-4)");
+}
+
+// T005, FR-003: an engine word outside the two refuses.
+auto theEngineWordOutsideTheTwoRefuses() -> void
+{
+  const auto run = runRefusalChild("engine-word", {"--os-noise=undefined"});
+  checkRefusalShape(run, "--os-noise: ");
+}
+
+// T005, FR-003: a cpus value that is no cpu index or range refuses.
+auto theCpusTokenOutsideTheListRulesRefuses() -> void
+{
+  const auto run =
+      runRefusalChild("cpus-token", {"--os-noise=osnoise,cpus=notacpu"});
+  checkRefusalShape(run, "--os-noise: ");
+}
+
+// T005, FR-003: a cpu outside the process affinity mask refuses.
+auto theCpuOutsideTheAffinityMaskRefuses() -> void
+{
+  const std::string value = "--os-noise=osnoise,cpus=" + pickCpuOutsideMask();
+  const auto run = runRefusalChild("cpu-mask", {value});
+  checkRefusalShape(run, "--os-noise: ");
+}
+
+// T005, FR-003: a cpu the online set does not hold refuses; the child
+// inherits the online set the caller installs, so the refusal needs no
+// host state.
+auto theCpuOutsideTheOnlineSetRefuses() -> void
+{
+  const auto cpus = pickCpus(2);
+  const std::string value =
+      "--os-noise=osnoise,cpus=" + std::to_string(cpus.at(0));
+  sg::detail::installTestOnlineCpus(std::vector<std::uint32_t> {cpus.at(1)});
+  const auto run = runRefusalChild("cpu-online", {value});
+  sg::detail::installTestOnlineCpus(std::nullopt);
+  checkRefusalShape(run, "--os-noise: ");
+}
+
+// T005, FR-003: a cpu standing twice in one list refuses, the index and
+// the whole value named.
+auto theCpuStandingTwiceRefuses() -> void
+{
+  const auto cpus = pickCpus(1);
+  const std::string cpu = std::to_string(cpus.at(0));
+  const std::string value = "--os-noise=osnoise,cpus=" + cpu + "," + cpu;
+  const auto run = runRefusalChild("cpu-twice", {value});
+  checkRefusalShape(run, "--os-noise: ");
+}
+
+// T005, FR-003: a repeated key refuses, the key named.
+auto theRepeatedKeyRefuses() -> void
+{
+  const auto cpus = pickCpus(2);
+  const std::string value = "--os-noise=osnoise,cpus="
+      + std::to_string(cpus.at(0)) + ",cpus=" + std::to_string(cpus.at(1));
+  const auto run = runRefusalChild("key-twice", {value});
+  checkRefusalShape(run, "--os-noise: ");
+}
+
+// T005, FR-003: a bad value from an option file line names the path, the
+// line and the token, the standing file-fault shape.
+auto theOptionFileFaultNamesThePathTheLineAndTheToken() -> void
+{
+  const std::string optionPath = "harness_noise_file-fault.txt";
+  {
+    std::ofstream file(optionPath);
+    file << "os-noise=osnoise,cpus=notacpu\n";
+  }
+  const std::string option = "--options=" + optionPath;
+  const auto run = runRefusalChild("file-fault", {option});
+  std::remove(optionPath.c_str());
+  checkRefusalShape(run, "--os-noise: ");
+  check(run.err.find(optionPath) != std::string::npos,
+        "the refusal names the path (FR-003)");
+  check(run.err.find(":1:") != std::string::npos,
+        "the refusal names the line (FR-003)");
+  check(run.err.find("notacpu") != std::string::npos,
+        "the refusal names the token (FR-003)");
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmQuiet);
@@ -350,6 +623,17 @@ auto main() -> int
 {
   theDefaultOptionsCarryNoTracer();
   theDefaultRecordCarriesNoTracer();
+  theEngineWordSettlesTheCarrier();
+  theCpusKeySettlesTheTracerCpus();
+  theSecondCpusKeyStandsTheRepeatedKeyRefusal();
+  theBareOptionTakesTheMissingArgumentPath();
+  theEngineWordOutsideTheTwoRefuses();
+  theCpusTokenOutsideTheListRulesRefuses();
+  theCpuOutsideTheAffinityMaskRefuses();
+  theCpuOutsideTheOnlineSetRefuses();
+  theCpuStandingTwiceRefuses();
+  theRepeatedKeyRefuses();
+  theOptionFileFaultNamesThePathTheLineAndTheToken();
   theCommandLineSettlesOverTheOptionFile();
   theOptionFileSettlesOverTheSuiteCall();
   std::printf(failures == 0 ? "ok\n" : "%d checks failed\n", failures);
