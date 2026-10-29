@@ -27,6 +27,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <vector>
 
@@ -1657,6 +1658,202 @@ auto theMissingWindowRefusalRows() -> void
 
 SG_BENCHMARK(bmQuiet);
 
+// The value-grammar arms the gather routes through the one settle arm:
+// a key outside the value's names, a bare item before the key, the
+// items after one key extending the list, and the empty item a
+// trailing comma names (FR-002, FR-003).
+auto theParserArmRows() -> void
+{
+  {
+    const Gathered gathered =
+        gatherSources({"--os-noise=osnoise,strict=1"}, "");
+    check(!gathered.settled.has_value(),
+          "a key outside the value's names refuses (FR-002)");
+    check(
+        gathered.fault.find("is not one the value names") != std::string::npos,
+        ("the refusal names the key (FR-003): " + gathered.fault).c_str());
+  }
+  {
+    const Gathered gathered = gatherSources({"--os-noise=osnoise,2"}, "");
+    check(!gathered.settled.has_value(),
+          "a bare item before the key refuses (FR-002)");
+    check(
+        gathered.fault.find("stands outside the cpus key") != std::string::npos,
+        ("the refusal names the token (FR-003): " + gathered.fault).c_str());
+  }
+  {
+    const Gathered gathered = gatherSources({"--os-noise=osnoise,cpus=2,"}, "");
+    check(!gathered.settled.has_value(),
+          "the empty item a trailing comma names refuses (FR-002)");
+    check(
+        gathered.fault.find("is not a cpu index or range") != std::string::npos,
+        ("the refusal names the empty item (FR-003): " + gathered.fault)
+            .c_str());
+  }
+}
+
+// The setup and figure arms of the session over the fake trees: the
+// failure arms of FR-016 and the render and parse arms of R-02 and
+// R-07, each answered the empty session, the absent figures or the
+// figures the file states, with no exception reaching the run.
+auto theSessionArmRows() -> void
+{
+  // The mask render grows past the standing word: a tracer cpu above
+  // the standing word's capacity stands a second word, the bits of the
+  // first word cleared (R-02, R-05).
+  {
+    TracingRootGuard guard;
+    installStandingTree(guard.root(), "ffffffff");
+    const auto session = sg::detail::noiseTracerSetup(
+        sg::TracerEngine::OSNOISE, std::vector<std::uint32_t> {35});
+    check(session.has_value(),
+          "the setup answers the session over the two-word mask (R-02)");
+    if (session.has_value()) {
+      const auto written =
+          firstLineOf(guard.root() / "sys/kernel/tracing/tracing_cpumask");
+      check(written == maskTextOf({35}, 8),
+            ("the mask renders the two words the cpus need (R-02, R-05): "
+             + written)
+                .c_str());
+      sg::detail::noiseTracerRestore(*session);
+    }
+  }
+  // The standing word text that names no word: the first line all
+  // blanks stands an empty previous word, the session carrying it for
+  // the restore (R-04).
+  {
+    TracingRootGuard guard;
+    installStandingTree(guard.root(), "ffffffff");
+    writeTracingFile(
+        guard.root(), "sys/kernel/tracing/current_tracer", "   \nnop\n");
+    const auto session =
+        sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, pickCpus(1));
+    check(session.has_value(),
+          "the blank standing word answers the session (R-04)");
+    if (session.has_value()) {
+      check(session->previousTracer.empty(),
+            "the blank standing word stands the empty previous word " "(R-04)");
+      sg::detail::noiseTracerRestore(*session);
+    }
+  }
+  // The standing mask text that names no word: the width read answers
+  // nothing, the setup the empty session (R-05, FR-016).
+  {
+    TracingRootGuard guard;
+    installStandingTree(guard.root(), "ffffffff");
+    writeTracingFile(
+        guard.root(), "sys/kernel/tracing/tracing_cpumask", " ,ffffffff\n");
+    const auto session =
+        sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, pickCpus(1));
+    check(!session.has_value(),
+          "the blank mask word answers the empty session (R-05, D-5)");
+  }
+  // The control file that stands a directory: the read carries to no
+  // end, the setup the empty session (FR-016, R-01).
+  {
+    TracingRootGuard guard;
+    installStandingTree(guard.root(), "ffffffff");
+    const auto wordPath = guard.root() / "sys/kernel/tracing/current_tracer";
+    const auto replaced = std::filesystem::remove(wordPath);
+    check(replaced, "the word file stands replaced by a directory (R-01)");
+    check(std::filesystem::create_directory(wordPath),
+          "the word file stands replaced by a directory (R-01)");
+    const auto session =
+        sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, pickCpus(1));
+    check(!session.has_value(),
+          "the unreadable word answers the empty session (FR-016, D-5)");
+  }
+  // The mask file missing: the standing read answers nothing, the
+  // setup the empty session (FR-016, R-04).
+  {
+    TracingRootGuard guard;
+    installStandingTree(guard.root(), "ffffffff");
+    check(std::filesystem::remove(guard.root()
+                                  / "sys/kernel/tracing/tracing_cpumask"),
+          "the mask file stands removed (R-04)");
+    const auto session =
+        sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, pickCpus(1));
+    check(!session.has_value(),
+          "the missing mask answers the empty session (FR-016, D-5)");
+  }
+  // The mask file read-only: the mask write fails, the setup the empty
+  // session; the tests run unprivileged and need no root (FR-016,
+  // FR-017).
+  {
+    TracingRootGuard guard;
+    installStandingTree(guard.root(), "ffffffff");
+    const auto maskPath = guard.root() / "sys/kernel/tracing/tracing_cpumask";
+    check(::chmod(maskPath.c_str(), 0444) == 0,
+          "the mask file stands read-only (FR-016)");
+    const auto session =
+        sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, pickCpus(1));
+    check(!session.has_value(),
+          "the unwritable mask answers the empty session (FR-016, D-5)");
+  }
+  // The on-off file read-only: the start write fails, the setup the
+  // empty session (FR-016).
+  {
+    TracingRootGuard guard;
+    installStandingTree(guard.root(), "ffffffff");
+    const auto onPath = guard.root() / "sys/kernel/tracing/tracing_on";
+    check(::chmod(onPath.c_str(), 0444) == 0,
+          "the on-off file stands read-only (FR-016)");
+    const auto session =
+        sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, pickCpus(1));
+    check(
+        !session.has_value(),
+        "the unwritable on-off file answers the empty session " "(FR-016, "
+                                                                "D-5)");
+  }
+}
+
+// The figure-read arms of the pinned format: the blank line the file
+// carries between two sources stands the figures around it, and the
+// malformed line shapes stand every figure of the cpu absent (R-07).
+auto theFigureArmRows() -> void
+{
+  const auto cpus = pickCpus(1);
+  const auto cpu = cpus.at(0);
+  const std::string_view shapes[] {
+      "nmi: 1\n\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
+      "nmi: abc\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
+      "nmi: 1\nnmi: 2\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
+      "foo: 1\nnmi: 1\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
+      "nmi 1\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
+      "irq: 2\nsoftirq: 3\nthread: 4\nhw: 5\nnmi:\n"};
+  for (const auto& shape : shapes) {
+    TracingRootGuard guard;
+    installStandingTree(guard.root(), "ffffffff");
+    writeTracingFile(guard.root(), cpuCountFile(cpu), std::string(shape));
+    const auto session =
+        sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, cpus);
+    check(session.has_value(), "the setup answers the session (R-07)");
+    if (!session.has_value()) {
+      continue;
+    }
+    const auto figures = sg::detail::noiseTracerFigures(*session);
+    check(figures.size() == 1,
+          "the read answers one entry per tracer cpu (R-07)");
+    if (figures.size() != 1) {
+      continue;
+    }
+    const bool everyAbsent = !figures.at(0).nmi.has_value()
+        && !figures.at(0).irq.has_value() && !figures.at(0).softirq.has_value()
+        && !figures.at(0).thread.has_value()
+        && !figures.at(0).hardware.has_value();
+    const bool blankLine =
+        shape.front() == 'n' && shape.find("\n\n") != std::string::npos;
+    check(everyAbsent != blankLine,
+          ("the malformed line stands every figure absent and the blank " "line"
+                                                                          " " "stands" " the " "figure" "s " "around" " it " "(R-07)" ": the " "shape "
+           + std::string(shape))
+              .c_str());
+    if (everyAbsent == blankLine) {
+      std::printf("the shape: %s\n", std::string(shape).c_str());
+    }
+  }
+}
+
 auto main() -> int
 {
   // The scripted provider stands the in-process runs' time source: the
@@ -1686,6 +1883,9 @@ auto main() -> int
   theCpuWithNoCountFiguresStandsEveryFigureAbsent(0);
   theCpuWithNoCountFiguresStandsEveryFigureAbsent(1);
   theCpuWithNoCountFiguresStandsEveryFigureAbsent(2);
+  theParserArmRows();
+  theSessionArmRows();
+  theFigureArmRows();
   theMissingTracingRootAnswersTheEmptySession();
   theUnwritableTracerWordAnswersTheEmptySession();
   theFailedEngineWriteAnswersTheEmptySession();
