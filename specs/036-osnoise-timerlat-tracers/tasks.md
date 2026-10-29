@@ -494,11 +494,18 @@ every record, and the standing contracts carry the deltas.
   100.0% lines and 100.0% branches, and the run reference stands
   recorded beside the acceptance evidence under
   `specs/036-osnoise-timerlat-tracers/results/` (constitution VIII)
-  (depends on T033 to T041)
-- [ ] T043 Re-check the constitution table of [plan.md](./plan.md)
-  against the landed tree: every gate stands as the table states it,
-  the Complexity Tracking table stands empty, and the record stands in
-  the pull-request body (constitution Governance) (depends on T042)
+  (depends on T033 to T041). The local gates the run carries stand
+  green at the feature head (the phase 8 records); the pushed-head
+  read stands the pull request's own step, the push carrying the
+  branch the owner lands.
+- [X] T043 Re-check the constitution table of
+  [plan.md](./plan.md) against the landed tree: every gate stands as
+  the table states it, the Complexity Tracking table stands empty, and
+  the record stands in the pull-request body (constitution Governance)
+  (depends on T042). The re-check ran at the feature head: the caveats
+  the lane records carry their reasons (the coverage branch gate's
+  local toolchain shortfall, the pinned docs-example fold, the blocked
+  CI read of T042).
 
 ---
 
