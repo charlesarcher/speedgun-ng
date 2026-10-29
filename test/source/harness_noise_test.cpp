@@ -499,7 +499,7 @@ auto theEngineWordSettlesTheCarrier() -> void
 }
 
 // T004, FR-002, R-06: the optional cpus key settles the tracer cpus
-// through the standing cpu-list reader, the form the --topology listing
+// through the standing cpu-list reader, the form the `--topology` listing
 // prints.
 auto theCpusKeySettlesTheTracerCpus() -> void
 {
@@ -539,7 +539,7 @@ auto theSecondCpusKeyStandsTheRepeatedKeyRefusal() -> void
         "the refusal names the key (FR-002)");
 }
 
-// T004, FR-002, D-4: --os-noise with no argument takes the standing
+// T004, FR-002, D-4: `--os-noise` with no argument takes the standing
 // missing-argument path, the line the scan answers at the row.
 auto theBareOptionTakesTheMissingArgumentPath() -> void
 {
@@ -1640,7 +1640,7 @@ auto theWholeRunRows() -> void
   }
 }
 
-// T023, FR-011, R-07: a settled --os-noise value beside a batch that
+// T023, FR-011, R-07: a settled `--os-noise` value beside a batch that
 // carries no pre-check window refuses one line at exit 2 before
 // anything runs, and the compare mode refuses the same way.
 auto theMissingWindowRefusalRows() -> void
