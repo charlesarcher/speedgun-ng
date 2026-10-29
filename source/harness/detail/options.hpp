@@ -316,6 +316,19 @@ enum class ZeroWord
 inline constexpr auto kZeroAdmitted = ZeroWord::ADMITTED;
 inline constexpr auto kZeroRefused = ZeroWord::REFUSED;
 
+// The words the seconds rule puts after the option name. The fault line below
+// prints them, and the hunt lane's `e` clause quotes them when it refuses a
+// clause body, so the sentence stands in one place (specs/033-hunter-budgets
+// FR-004, R-01).
+[[nodiscard]] inline auto secondsExpectedWords(const ZeroWord zeroWord)
+    -> std::string
+{
+  const std::string_view qualifier =
+      zeroWord == kZeroAdmitted ? "number" : "positive number";
+  return "expected a finite " + std::string(qualifier) + " of seconds at most "
+      + std::to_string(kMaxWholeSeconds);
+}
+
 // specs/033-hunter-budgets FR-004, R-01: the hunt lane's `e` clause is the
 // third caller of this rule, so the bound the duration rows hold is the bound
 // the budget clause holds.
@@ -345,11 +358,8 @@ inline constexpr auto kZeroRefused = ZeroWord::REFUSED;
           && static_cast<std::int64_t>(seconds * 1'000'000'000.0) == 0)
       || opensWithBlank(text))
   {
-    const std::string_view qualifier =
-        zeroAdmitted ? "number" : "positive number";
-    return std::unexpected(std::string(option) + ": expected a finite "
-                           + std::string(qualifier) + " of seconds at most "
-                           + std::to_string(kMaxWholeSeconds) + ", got '"
+    return std::unexpected(std::string(option) + ": "
+                           + secondsExpectedWords(zeroWord) + ", got '"
                            + quotedText(text) + "'");
   }
   return static_cast<std::int64_t>(seconds * 1'000'000'000.0);

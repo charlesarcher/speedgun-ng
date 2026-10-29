@@ -362,15 +362,6 @@ auto parseHuntRepeats(const char* text, RunOptions& options) -> void
 // (contracts/budget-grammar.md, FR-004, R-01).
 constexpr std::string_view kBudgetShape = "expected <n>s, <n>p, <n>e or <n>g";
 
-// The bound of the `e` clause in the words the seconds rule prints: the same
-// sentence `--min-time` answers, because both read `detail::parseSeconds`
-// (specs/033-hunter-budgets FR-004, R-01).
-[[nodiscard]] auto budgetSecondsExpected() -> std::string
-{
-  return "expected a finite positive number of seconds at most "
-      + std::to_string(detail::kMaxWholeSeconds);
-}
-
 // \pre `text` is the value getopt_long read for a required-argument row.
 // \post the two-stage budget holds the count the `s` or `p` clause named, above
 //       zero, in the unit its suffix spelled, and stands unset when the value
@@ -455,8 +446,12 @@ auto parseHuntBudget(const char* text, RunOptions& options) -> void
         const auto seconds = detail::parseSeconds(
             body.c_str(), "--hunt-budget", detail::kZeroRefused);
         if (!seconds.has_value()) {
-          rejectHuntValue(
-              "--hunt-budget", budgetSecondsExpected().c_str(), text);
+          // The refusal quotes the whole value the option carried, so the line
+          // takes the words of the shared rule and prints them beside that
+          // value (contracts/budget-grammar.md).
+          const std::string expected =
+              detail::secondsExpectedWords(detail::kZeroRefused);
+          rejectHuntValue("--hunt-budget", expected.c_str(), text);
         }
         sample = static_cast<std::uint64_t>(*seconds);
       } break;
