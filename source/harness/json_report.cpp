@@ -766,7 +766,7 @@ void writeHunt(Builder& builder, const hunt::RunHunt& record)
   put(builder, object, "stage_two_events", record.stageTwoEvents);
   // specs/033-hunter-budgets FR-020 to FR-022, N-06: the two budgets and the
   // two figures they left on the plan. Each key stands only where its figure
-  // stands, so a run no budget bounds writes the bytes it wrote at 1.6 and no
+  // stands, so a run no budget bounds writes the bytes it wrote at 1.7 and no
   // null key. The two texts come back from the stored figures through the
   // builders the plan line reads, so console and document state one text.
   if (options.sampleBudgetNs.has_value()) {
