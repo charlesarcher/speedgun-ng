@@ -1841,8 +1841,8 @@ auto scenarioSharedReaderRules() -> void
       sg::detail::readAddressFileLines(outer, "@" + outer.string());
   check(nested.has_value(), "the shared reader opens the outer file");
   check(nested->size() == 1 && (*nested)[0] == "@" + inner.string(),
-        "one level stands: a nested `@path` answers its own text, never the "
-        "file behind it (029 D-14, FR-014)");
+        "one level stands: a nested `@path` answers its own text as one "
+        "element; the reader opens no file behind it (029 D-14, FR-014)");
 
   // The reader's own refusal names the path in the spelling the caller gave it,
   // in one line; each route prefixes its own option word.

@@ -425,7 +425,7 @@ auto rankEvents(const std::vector<EventSamples>& collected,
 
 // specs/033 FR-013, FR-015, contracts/counter-file.md: the ranked set one entry
 // hands a later run. The table stands in the order the plan seated the columns,
-// so the rank the record carries is read and not assumed: the ranked pairs sort
+// so the answer follows the rank the record carries: the ranked pairs sort
 // and the leading `topN` of them answer.
 auto EntryHunt::toCounterSet(std::size_t topN) const -> std::vector<std::string>
 {
