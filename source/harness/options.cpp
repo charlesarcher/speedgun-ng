@@ -644,12 +644,14 @@ auto optionRows() -> std::span<const OptionRow>
        false,
        "Runs the named noise tracer across the pre-check window",
        "specs/036-osnoise-timerlat-tracers"},
-      // specs/029-hunter-core FR-080 to FR-082, D-22: the hunt family. No hunt
-      // row carries an environment name, so the gather refuses each of them
-      // from a file or the environment and the command line owns the family.
-      // `--hunt` is the table's first optional_argument row, and `getopt_long`
-      // reads an optional argument only in the attached form, so `--hunt=all`
-      // selects and `--hunt all` selects nothing and leaves `all` positional.
+      // specs/029-hunter-core FR-080 to FR-082, D-22: the hunt family, nine
+      // rows on the ids the constants block of `detail/options.hpp` reserves.
+      // No hunt row carries an environment name, so the gather refuses each of
+      // them from a file or the environment and the command line owns the
+      // family. `--hunt` is the table's first optional_argument row, and
+      // `getopt_long` reads an optional argument only in the attached form, so
+      // `--hunt=all` selects and `--hunt all` selects nothing and leaves `all`
+      // positional.
       {"hunt",
        kHuntOption,
        OptionArgument::OPTIONAL,
@@ -700,7 +702,7 @@ auto optionRows() -> std::span<const OptionRow>
        "specs/029"},
       // specs/033-hunter-budgets FR-010, R-13: the hunt lane's ninth row, on
       // the free constant 280 the hunt block comment names. The command line
-      // owns it, the way it owns the eight rows above.
+      // owns it, the way it owns every row of the family.
       {"hunt-emit-set",
        kHuntEmitSetOption,
        OptionArgument::REQUIRED,
