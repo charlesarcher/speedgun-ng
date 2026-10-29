@@ -58,6 +58,7 @@ SECTIONS = (
     "Regression gate",
     "Jitter probe",
     "Host noise pre-check",
+    "Noise tracer",
     "Hunter mode",
 )
 
@@ -93,6 +94,7 @@ SECTION_OWNERS = {
     "Regression gate": ("regression_gate.cpp",),
     "Jitter probe": ("jitter_probe.cpp",),
     "Host noise pre-check": ("jitter_probe.cpp",),
+    "Noise tracer": ("jitter_probe.cpp",),
     "Hunter mode": ("hunt_rank.cpp",),
 }
 
@@ -200,7 +202,12 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # specs/036 FR-001 adds the `--os-noise` option row: one line moves the
 # cap from 880 to 881, the measured length of the page with the row in
 # place.
-PAGE_LINE_CAP = 881
+# specs/036 FR-021 measures its own move: the "Noise tracer" section runs
+# 22 lines and the five quick-reference name rows add 5, so 27 lines move
+# the cap from 881 to 908. The tracer field the example region gains adds
+# one line to each of the three sections quoting the region, so the page
+# measures 911 as the feature lands.
+PAGE_LINE_CAP = 911
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that

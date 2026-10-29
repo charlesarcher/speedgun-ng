@@ -1627,6 +1627,48 @@ The names of the probe surface:
 | `JitterStats` | type | One probe cpu's fold over the covered windows | [jitter-probe](#jitter-probe) |
 | `JitterEntryFold` | type | One probe cpu's fold over one benchmark's windows | [jitter-probe](#jitter-probe) |
 
+### The noise tracer
+
+The `--os-noise` value reads `osnoise|timerlat[,cpus=<cpu-list>]`: one engine
+name first, then one optional `cpus` key whose value the standing cpu-list
+parser reads, the form the `--topology` listing prints. Each key stands once,
+and a second occurrence of one key is an invalid value. The value binds beside
+the other options: the command line first, then the option file, then the
+environment, then the built-in default.
+
+A bad value refuses one line on standard error with exit status 2 before
+anything runs: an engine word outside the two, a `cpus` value outside the
+standing cpu-list rules, and a repeated key each name their fault. A bad value
+from an option file line names the path, the line and the token, the standing
+file-fault shape. A value on a run whose mode runs no pre-check window refuses
+one line with exit status 2 before anything runs. The same refusal covers a
+run that carries no `--jitter-probe` option at all.
+
+An empty `cpus=` names the pre-check's candidate set, and a list names cpus
+inside the process affinity mask and the online set, the standing rules. A
+host without tracefs at the standing path `/sys/kernel/tracing`, without the
+tracer engine, or without the rights the setup writes need prints
+`tracer: not available` on the tracer lines alone and exits 0. The lines stand
+after the host settings and before the warning lines: one header line naming
+the engine word and the cpus, then one figure line per source per tracer cpu,
+the sources in the NMI, IRQ, softirq, thread, hardware order, cpus ascending.
+A figure the engine states nothing for prints the standing `not available`
+wording for that source alone.
+
+A `cpus=` list naming a planned cpu runs as named: the tracer's own load
+stands beside the measured cpus while they run.
+
+The names of the tracer surface:
+
+| Name | Owner | What it does | Teaches |
+| --- | --- | --- | --- |
+| `TracerEngine` | type | The engine the `--os-noise` value names | [the noise tracer](#the-noise-tracer) |
+| `JitterProbeOptions::tracerEngine` | field | The engine field of the probe options | [the noise tracer](#the-noise-tracer) |
+| `JitterProbeOptions::tracerCpus` | field | The tracer cpu list of the probe options | [the noise tracer](#the-noise-tracer) |
+| `PrecheckTracerRecord` | type | The tracer record one run carries: the engine and one entry per tracer cpu | [the noise tracer](#the-noise-tracer) |
+| `PrecheckTracerCpuRecord` | type | One tracer cpu's five noise-by-source counts | [the noise tracer](#the-noise-tracer) |
+| `PrecheckRecord::tracer` | field | The optional record standing when the tracer ran | [the noise tracer](#the-noise-tracer) |
+
 ## Hunter mode
 
 Hunter mode puts a wide catalog event set on one benchmark and ranks the events
