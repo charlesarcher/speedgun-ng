@@ -101,8 +101,8 @@ pin. The doxygen contracts of the header govern on disagreement
 
 ### B-6 the driver `report_view`
 
-- Grammar: `report_view <report> --benchmark=<name>
-  --metric=<column> --view=histogram|plot|page|text` (D-9).
+- Grammar:
+  `report_view <report> --benchmark=<name> --metric=<column> --view=histogram|plot|page|text` (D-9).
 - The driver loads the document, pre-checks the request against it
   (the benchmark name, the column selector, the view word), and
   calls the view function (FR-015, clarify 1/Q2).

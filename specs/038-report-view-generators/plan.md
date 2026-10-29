@@ -354,20 +354,20 @@ The suite passes under `taskset -c 0,1` and on a 2-cpu host.
 
 - **Wave 1 (M-A)**: the header compiles, the functions link, the
   version stands at `0.25.0` with `SOVERSION 16` / archive `4`.
-  Verify: `cmake --preset=dev && cmake --build build && ctest
-  --preset=dev -R views_test`, plus the version print test.
-- **Wave 2 (M-B)**: the resolver rows. Verify: `ctest --preset=dev
-  -R views_test`, red first, then green.
+  Verify: `ctest --preset=dev -R views_test`, plus the version
+  print test.
+- **Wave 2 (M-B)**: the resolver rows. Verify:
+  `ctest --preset=dev -R views_test`, red first, then green.
 - **Wave 3 (M-C, M-D, M-E in parallel)**: the three renderers'
   rows, one test binary, disjoint scenario blocks per module.
   Verify: `ctest --preset=dev -R views_test`.
-- **Wave 4 (M-F)**: the page rows. Verify: `ctest --preset=dev -R
-  views_test`.
+- **Wave 4 (M-F)**: the page rows. Verify:
+  `ctest --preset=dev -R views_test`.
 - **Wave 5 (M-G)**: the driver rows through the CLI test binary.
   Verify: `ctest --preset=dev -R report_view_cli_test`.
-- **Wave 6 (M-H)**: the docs gates. Verify: `ctest --preset=dev -R
-  'example_drift|snippet_compile|example_run|report_shape'` and
-  `cmake -P cmake/prose-lint.cmake`.
+- **Wave 6 (M-H)**: the docs gates. Verify:
+  `ctest --preset=dev -R 'example_drift|snippet_compile|example_run|report_shape'`
+  and `cmake -P cmake/prose-lint.cmake`.
 - **Wave 7 (M-I)**: the evidence records on thrawn. Verify: the
   records' exit codes stand 0 and the quickstart links resolve.
 - **Wave 8 (convergence)**: the full suite, the coverage gate, the
