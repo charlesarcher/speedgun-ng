@@ -299,11 +299,12 @@ viewSeries(report, benchmark, column)
    ▼
 ViewSeries { values, unit }
    │
-renderHistogram(series, binCount) ── SVG text
-renderPlot(series)                ── SVG text
-renderText(series)                ── terminal text
+renderHistogram(report, benchmark, column, binCount) ── SVG text
+renderPlot(report, benchmark, column)                ── SVG text
+renderText(report, benchmark, column, binCount)      ── terminal text
 renderPage(report, benchmark, column, binCount)
-   │  identity + renderHistogram + renderPlot inline
+   │  identity + renderHistogram + renderPlot inline,
+   │  each renderer resolving through viewSeries
    ▼
 HTML text
 
