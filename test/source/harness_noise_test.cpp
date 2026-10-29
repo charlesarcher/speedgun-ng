@@ -457,11 +457,27 @@ auto runRefusalChild(const std::string& tag,
 
 // FR-003, SC-003: a refused value stands one line on standard error,
 // carrying the option prefix, and exits 2 with no benchmark output.
+// The coverage build's forked child stands the gcov dump error the
+// compare row's tolerance names, so the count reads the stream beside
+// it (the specs/032 record's shape).
 auto checkRefusalShape(const Captured& run, const std::string& prefix) -> void
 {
+  std::string err;
+  std::size_t start = 0;
+  while (start <= run.err.size()) {
+    const auto end = run.err.find('\n', start);
+    const std::string line = run.err.substr(
+        start, end == std::string::npos ? std::string::npos : end - start + 1);
+    if (line.find("libgcov profiling error:") == std::string::npos) {
+      err += line;
+    }
+    if (end == std::string::npos) {
+      break;
+    }
+    start = end + 1;
+  }
   check(run.status == 2, "the refused value stands status 2 (FR-003, SC-003)");
-  check(lineCount(run.err) == 1,
-        "the refusal stands one line (FR-003, SC-003)");
+  check(lineCount(err) == 1, "the refusal stands one line (FR-003, SC-003)");
   check(run.err.find(prefix) != std::string::npos,
         "the refusal names the option and the fault (FR-003)");
   check(run.out.empty(),
@@ -1843,11 +1859,11 @@ auto theFigureArmRows() -> void
         && !figures.at(0).hardware.has_value();
     const bool blankLine =
         shape.front() == 'n' && shape.find("\n\n") != std::string::npos;
-    check(everyAbsent != blankLine,
-          ("the malformed line stands every figure absent and the blank " "line"
-                                                                          " " "stands" " the " "figure" "s " "around" " it " "(R-07)" ": the " "shape "
-           + std::string(shape))
-              .c_str());
+    check(
+        everyAbsent != blankLine,
+        ("the malformed line stands every figure absent and the blank " "line" " " "stands" " the " "figure" "s " "around" " it " "(R-07)" ": the " "shape "
+         + std::string(shape))
+            .c_str());
     if (everyAbsent == blankLine) {
       std::printf("the shape: %s\n", std::string(shape).c_str());
     }
