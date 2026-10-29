@@ -1,0 +1,19 @@
+# sg-example:begin report
+speedgun-ng 0.25.0 build=Release
+bmViews                  iterations=         4  real time/iter (ns)=  100.000  cpu time/iter (ns)=  112.750  overhead floor (ns)=  101.000  endpoint samples=2
+bmViews                  iterations=         4  real time/iter (ns)=  100.000  cpu time/iter (ns)=   42.500  overhead floor (ns)=  101.000  endpoint samples=2
+bmViews                  iterations=         4  real time/iter (ns)=  250.000  cpu time/iter (ns)=   35.000  overhead floor (ns)=  101.000  endpoint samples=2
+bmViews                  iterations=         4  real time/iter (ns)=  400.000  cpu time/iter (ns)=   35.000  overhead floor (ns)=  101.000  endpoint samples=2
+bmViews                  iterations=         4  real time/iter (ns)=  500.000  cpu time/iter (ns)=   35.000  overhead floor (ns)=  101.000  endpoint samples=2
+bmViews                   AGGREGATE  primary time/iter (ns) mean=  270.000 median=  250.000 sd=  178.885 cv=  0.6625 min=  100.000 max=  500.000 n=5
+time
+100-200 ns: 2 ####################
+200-300 ns: 1 ##########
+300-400 ns: 0
+400-500 ns: 2 ####################
+100 ns
+100 ns
+250 ns
+400 ns
+500 ns
+# sg-example:end report

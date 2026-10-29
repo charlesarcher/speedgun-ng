@@ -757,6 +757,29 @@ auto rankHuntEvents(const std::vector<sg::hunt::EventSamples>& collected,
 The run prints its hunt on stdout behind a `hunt:` prefix. One plan line names the event count, the pass count and the settled method, one rank row gives the rate under the label of the norm beside the deviation, one skipped row gives the kind of a refusal, and one summary line counts the events that produced a usable sample. `--hunt-budget` takes one clause per bound: `120s` and `8p` bound the whole hunt in two stages, `0.5e` bounds one event inside one stage, and `32g` bounds the events of one multiplex group, and the plan line carries `sample=` and `mux=` beside `budget=` with one line under it for each budget that speaks. `--hunt-emit-set=<file>` writes the ranked addresses of the run, and `--counter=@<file>` reads such a file back as report columns.
 One line on stderr naming the value ends the run with status 2 for a value outside the range its option states, for a raw event code such as `r4a03`, and for a hunt beside `--counter`, `--metric` or `--compare`. A host that refuses every event prints the plan line, the skipped list and a summary that reads `events=0/N`, and the run ends with status 0. See [Hunter mode](docs/pages/harness.md#hunter-mode) for the selection forms, the options, the lines and the names.
 
+### Report views
+One loaded report document renders four ways: the SVG histogram, the SVG plot, the static HTML page and the terminal text, all declared in `speedgun-ng/views.hpp`.
+<!-- sg-example: example/docs/report_views.cpp#report-views -->
+```cpp
+#include <cstdio>
+
+#include "speedgun-ng/views.hpp"
+
+// The document the run wrote at --json=path loads back, and the text
+// view prints the terminal figures of the primary time column.
+auto printTimeView(const std::string& path) -> void
+{
+  const auto document = sg::loadReport(path);
+  if (!document.has_value()) {
+    std::printf("%s\n", document.error().c_str());
+    return;
+  }
+  const auto text = sg::renderText(*document, "bmViews", "time", 4);
+  std::printf("%s\n", text.has_value() ? text->c_str() : text.error().c_str());
+}
+```
+The run writes its document at `--json=path`, loads it back with `loadReport`, and prints the five repetition rows and the aggregate row, then the text view: one line naming the column, one line per bin with its range, count and bar (`100-200 ns: 2` first), and one line per recorded value (`100 ns` first).
+
 ## Quick reference
 
 | Name | Owner | What it does | Teaches |
@@ -862,6 +885,11 @@ One line on stderr naming the value ends the run with status 2 for a value outsi
 | `PrecheckTracerCpuRecord` | tracer type | One tracer cpu's five noise-by-source counts | [noise tracer](#noise-tracer) |
 | `PrecheckRecord::tracer` | tracer field | The optional record standing when the tracer ran | [noise tracer](#noise-tracer) |
 | `BenchmarkResult::contexts` | BenchmarkResult | The disclosures one run recorded for its contexts | [reading the report](#reading-the-report) |
+| `viewSeries` | free function | Resolves one column's recorded values of one benchmark | [report views](#report-views) |
+| `renderHistogram` | free function | Renders one column's distribution as the SVG histogram | [report views](#report-views) |
+| `renderPlot` | free function | Renders one column's series as the SVG plot | [report views](#report-views) |
+| `renderPage` | free function | Renders the static HTML page carrying the two figures | [report views](#report-views) |
+| `renderText` | free function | Renders the two figures as terminal text | [report views](#report-views) |
 
 | Option | What it does |
 | --- | --- |
