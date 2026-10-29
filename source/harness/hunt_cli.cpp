@@ -93,6 +93,33 @@ auto scanHuntNumber(const char* text, std::uint64_t& value) -> bool
   return true;
 }
 
+// Whether one text is spelled as the `e` clause states it: decimal digits with
+// at most one decimal point and at least one digit
+// (contracts/budget-grammar.md, FR-004). The shared seconds reader is a C
+// number reader, which also takes a sign, a decimal exponent and a hexadecimal
+// float, three spellings the clause grammar holds no part of; the test stands
+// beside the digits-alone rule that `scanHuntNumber` keeps for the whole-count
+// clauses (T050).
+[[nodiscard]] auto isDecimalSeconds(const std::string& text) -> bool
+{
+  bool holdsDigit = false;
+  bool holdsPoint = false;
+  for (const char symbol : text) {
+    if (symbol == '.') {
+      if (holdsPoint) {
+        return false;
+      }
+      holdsPoint = true;
+      continue;
+    }
+    if (!std::isdigit(static_cast<unsigned char>(symbol))) {
+      return false;
+    }
+    holdsDigit = true;
+  }
+  return holdsDigit;
+}
+
 auto readHuntCount(const char* text,
                    const char* option,
                    const char* expected,
@@ -442,10 +469,12 @@ auto parseHuntBudget(const char* text, RunOptions& options) -> void
       case 'e': {
         // The shared seconds rule: finite, above zero, a fraction admitted,
         // nothing below one nanosecond and nothing above the bound the run
-        // control carries (FR-004).
+        // control carries (FR-004). The shape test keeps the decimal spelling
+        // the clause grammar states, so the reader's C number readings stand
+        // outside the clause (T050).
         const auto seconds = detail::parseSeconds(
             body.c_str(), "--hunt-budget", detail::kZeroRefused);
-        if (!seconds.has_value()) {
+        if (!isDecimalSeconds(body) || !seconds.has_value()) {
           // The refusal quotes the whole value the option carried, so the line
           // takes the words of the shared rule and prints them beside that
           // value (contracts/budget-grammar.md).

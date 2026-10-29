@@ -604,9 +604,9 @@ auto scenarioOptionValueRefusals() -> void
 // FR-003, FR-004, R-01; contracts/budget-grammar.md). Each row stands for a row
 // of that contract: a kind spelled twice, an empty clause, a suffix that names
 // no kind, a value that opens or ends with a blank, an `e` word below one
-// nanosecond, an `e` word above the seconds bound and a `g` count outside the
-// range each answer one line that quotes the whole value and end the run at
-// status 2.
+// nanosecond, an `e` word above the seconds bound, a `g` count outside the
+// range, and an `e` spelling outside the decimal grammar each answer one line
+// that quotes the whole value and end the run at status 2.
 auto scenarioBudgetClauseRefusals() -> void
 {
   // The three sentences the grammar answers, in the standing family: the
@@ -639,6 +639,16 @@ auto scenarioBudgetClauseRefusals() -> void
        {"--hunt-budget=0.0000000001e"},
        line(kSeconds, "0.0000000001e")},
       {"full", {"--hunt-budget=9223372037e"}, line(kSeconds, "9223372037e")},
+      // The `e` body is decimal digits and one decimal point, the spelling the
+      // contract states. A C number reader takes a sign, an exponent and a
+      // hexadecimal float beside that spelling, so each stands refused the way
+      // the digits-alone rule refuses them on the `g` clause (FR-004, T050).
+      {"full", {"--hunt-budget=+0.5e"}, line(kSeconds, "+0.5e")},
+      {"full", {"--hunt-budget=1e3e"}, line(kSeconds, "1e3e")},
+      {"full", {"--hunt-budget=1E2e"}, line(kSeconds, "1E2e")},
+      {"full", {"--hunt-budget=0x10e"}, line(kSeconds, "0x10e")},
+      {"full", {"--hunt-budget=0x1p-2e"}, line(kSeconds, "0x1p-2e")},
+      {"full", {"--hunt-budget=1.2.3e"}, line(kSeconds, "1.2.3e")},
   });
   std::printf("budget-clause-refusals: ok\n");
 }
