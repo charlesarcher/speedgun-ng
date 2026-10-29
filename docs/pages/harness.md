@@ -1708,7 +1708,7 @@ hunt: skipped cpu/hunt_noenc not-encodable
 hunt: plan summary events=5/7 passes=3 budget=none
 hunt_rank: promoted cpu/hunt_branches
 hunt_rank: promoted cpu/hunt_loads
-hunt_rank: 2 addresses for --counter=@culprits.txt
+hunt_rank: 2 addresses for --counter=@<file>
 ```
 
 The last three lines are the example's own. It hands its ranked record to

@@ -210,12 +210,12 @@ auto main(int argc, char** argv) -> int
   // FR-013, FR-015: the ranked set the run hands the next run. `toCounterSet`
   // reads the ranks the record carries, at most `--hunt-top` addresses, and a
   // later run reads the same lines back as report columns through
-  // `--counter=@culprits.txt`.
+  // `--counter=@<file>`.
   const auto promoted = hunt.toCounterSet(options.top);
   for (const auto& address : promoted) {
     std::printf("hunt_rank: promoted %s\n", address.c_str());
   }
-  std::printf("hunt_rank: %zu addresses for --counter=@culprits.txt\n",
+  std::printf("hunt_rank: %zu addresses for --counter=@<file>\n",
               promoted.size());
   return status;
 }
