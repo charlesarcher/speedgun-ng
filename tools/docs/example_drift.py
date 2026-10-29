@@ -28,7 +28,8 @@ INFO_TOKEN = re.compile(r"^(sg-example|sg-sample-output)=(\S+)$")
 # adds (FR-028, FR-044, research D-13), the two specs/020 adds (FR-029), the
 # one specs/021 add (FR-027), the one specs/023 add (FR-037), the one
 # specs/025 add (FR-016), the one specs/026 add (FR-063), the one
-# specs/024 add (FR-027) and the one specs/029 add (FR-070).
+# specs/024 add (FR-027), the one specs/029 add (FR-070) and the one
+# specs/038 add (FR-022).
 SECTIONS = (
     "The run loop",
     "Registration",
@@ -60,6 +61,7 @@ SECTIONS = (
     "Host noise pre-check",
     "Noise tracer",
     "Hunter mode",
+    "Report views",
 )
 
 # The example file each section owns its snippets by (FR-028, FR-032, D-12, D-13).
@@ -96,6 +98,7 @@ SECTION_OWNERS = {
     "Host noise pre-check": ("jitter_probe.cpp",),
     "Noise tracer": ("jitter_probe.cpp",),
     "Hunter mode": ("hunt_rank.cpp",),
+    "Report views": ("report_views.cpp",),
 }
 
 # The distinctively named jobs of .github/workflows/ci.yml, plus the
@@ -211,7 +214,12 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # line, so the cap moves from 911 to 912, the measured length of the page
 # with the row in place. The Hunter mode prose rides its existing lines,
 # so nothing else moves.
-PAGE_LINE_CAP = 912
+# specs/038 FR-022 measures its own move: the "Report views" section runs
+# 23 lines and the five quick-reference name rows add 5, so 28 lines move
+# the cap from 912 to 940, the measured length of the page as the feature
+# lands. The section sits under the per-section budget of FR-024, so no
+# entry joins SECTION_LINE_CAPS.
+PAGE_LINE_CAP = 940
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that
@@ -508,6 +516,7 @@ NAME_SCAN_HEADERS = (
     "counters_metrics.hpp",
     "counters_system.hpp",
     "hunt.hpp",
+    "views.hpp",
 )
 
 
