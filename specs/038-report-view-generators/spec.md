@@ -164,6 +164,23 @@ evidence record shape.
   (FR-006). The figures then agree with the report's printed
   columns a reader cross-reads.
 
+- Q (round 2): Does the text view compose per part when one of its
+  two figures answers the disclosure? → A: Yes, the rule FR-012
+  states for the page: the disclosed part renders the disclosure
+  line in its place, the other part renders, and the whole answers
+  the value form (FR-013). The two composite views carry one
+  composition rule.
+- Q (round 2): What does the plot answer when rows stand recorded
+  but no row's value stands for the column? → A: The `not
+  available` disclosure naming the column and the sample count of
+  zero, the currency D-6 fixes for the histogram: the recorded
+  values alone, the rows standing out of the count (FR-010).
+- Q (round 2): What format does the standalone histogram view
+  emit? → A: SVG, one bar per bin beside its range and count
+  label, the figure the page embeds inline beside the plot's SVG
+  (FR-007, D-3); the standalone bytes and the page's embedded
+  bytes stand equal, and the terminal text stays the text view's.
+
 ## Decisions
 
 - **D-1 (R-1)**: The reader stands alone. `loadReport` and the
@@ -178,7 +195,10 @@ evidence record shape.
   to `16` and the commit records the check (FR-002).
 - **D-3 (R-3)**: The formats stand hand-rolled. The SVG, the HTML
   and the text views are written from the standing records; no
-  plotting or HTML library joins the dependency set.
+  plotting or HTML library joins the dependency set. The histogram
+  and the plot stand SVG figures; the page embeds them inline, so
+  the standalone bytes and the page's embedded bytes stand equal;
+  the text view renders the same figures as terminal text.
 - **D-4 (R-4)**: The report stands unchanged. The schema minor stays
   `1.8`; the views render the figures the run recorded and invent
   none; a record the document does not carry answers the standing
@@ -477,7 +497,9 @@ read no finding.
   over one benchmark from the repetition rows the document records;
   the bins SHALL cover the recorded value range, the bin count SHALL
   be the function's argument with the driver passing `20`, and the
-  bars SHALL stand proportional to the counts (D-6).
+  bars SHALL stand proportional to the counts. The histogram emits
+  SVG, one bar per bin beside its range and count label, the figure
+  the page embeds inline beside the plot's SVG (D-3, D-6).
 - **FR-008**: A benchmark with fewer than two recorded values for
   the column SHALL answer the `not available` error naming the
   sample count; the histogram SHALL invent no sample (R-4, D-6).
@@ -488,9 +510,10 @@ read no finding.
   benchmark's repetition rows in document order as one SVG polyline
   with labeled axes; a multipass run's rows stand the passes in
   order (D-7).
-- **FR-010**: The plot SHALL answer `not available` when the
-  benchmark records no repetition row; a single recorded value
-  renders one point (D-7).
+- **FR-010**: The plot SHALL answer `not available` naming the
+  column and the sample count when the series stands empty: the
+  benchmark records no repetition row, or no row's value stands for
+  the column. A single recorded value renders one point (D-6, D-7).
 
 ### The page (D)
 
@@ -511,7 +534,10 @@ read no finding.
   graphic views render as terminal text: the histogram as one line
   per bin naming the range and the count with a proportional bar,
   and the plot as one line per recorded value in row order (D-6,
-  D-7).
+  D-7). The text view composes per part, the rule FR-012 states for
+  the page: a part whose figure answers the disclosure renders the
+  disclosure line in the part's place, and the whole answers the
+  value form.
 
 ### The driver (F)
 
