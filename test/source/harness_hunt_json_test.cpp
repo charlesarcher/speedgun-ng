@@ -902,7 +902,7 @@ constexpr std::string_view kMuxGroupsKey = "\"mux_groups\":[32,32,8]";
 }
 
 // The written bytes with the four budget keys taken out of the run node: the
-// document a writer left before schema 1.7, every standing key in its place
+// document a writer left before schema 1.8, every standing key in its place
 // (033 FR-021).
 [[nodiscard]] auto budgetLessRun(std::string_view text) -> std::string
 {
@@ -1789,7 +1789,7 @@ auto budgetBytesStand() -> void
   }
 }
 
-// A document written before schema 1.7 carries none of the four keys: it passes
+// A document written before schema 1.8 carries none of the four keys: it passes
 // the schema, which keeps the standing sixteen in `required`, and it loads with
 // the four fields unset and every standing field equal (033 FR-021).
 auto preBudgetDocument() -> void
@@ -1807,7 +1807,7 @@ auto preBudgetDocument() -> void
   sg::test::writeText(scratchDocument, standing);
   const auto loaded = sg::loadReport(scratchDocument);
   if (!loaded.has_value()) {
-    failed("a document written before schema 1.7 refuses to load: "
+    failed("a document written before schema 1.8 refuses to load: "
            + loaded.error());
   }
   const auto& run = *loaded->hunt;
@@ -1817,7 +1817,7 @@ auto preBudgetDocument() -> void
               && run.muxGroups.empty(),
           "a document without the four keys leaves the four fields unset");
   check(sg::test::sameReport(written, *loaded),
-        "the standing fields of a pre-1.7 document read back equal");
+        "the standing fields of a pre-1.8 document read back equal");
 }
 
 // The rows the four keys add to contracts/hunt-json.md's reader table, each in
@@ -1981,7 +1981,7 @@ struct Scenario
       Scenario {.name = "overrun-count", .body = &overrunWritesTheDerivedCount},
       Scenario {.name = "cap-round-trip", .body = &capRoundTrip},
       Scenario {.name = "budget-bytes", .body = &budgetBytesStand},
-      Scenario {.name = "pre-1.7", .body = &preBudgetDocument},
+      Scenario {.name = "pre-1.8", .body = &preBudgetDocument},
       Scenario {.name = "budget-refusals", .body = &budgetRefusals},
   };
   return kList;

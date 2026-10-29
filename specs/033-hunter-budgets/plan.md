@@ -19,7 +19,7 @@ groups in plan order; every derived figure discloses on the plan line
 and in the JSON. `--hunt-emit-set=<file>` (option value 280) writes
 the run's ranked addresses, and `--counter=@<file>` reads them again
 under the spec 029 list-file rules. The library gains
-`EntryHunt::toCounterSet(topN)`. The schema takes minor 1.7 with four
+`EntryHunt::toCounterSet(topN)`. The schema takes minor 1.8 with four
 conditionally present `hunt` keys; the harness `SOVERSION` rises to
 14 for the new public surface, the archive stays 4.
 
@@ -104,7 +104,7 @@ rule 15); option value 280, no short letter, no environment source.
 **Scale/Scope**: one option row; four clause kinds in one parse
 function; one planner derivation and one group split; one file
 writer; one gather-arm interception; two `HuntOptions` fields, one public
-method, and the `RunHunt` disclosure fields; four schema keys at minor 1.7; five extended test
+method, and the `RunHunt` disclosure fields; four schema keys at minor 1.8; five extended test
 executables; docs rows and one extended example.
 
 **Execution mode**: TDD (Principle III). Every test task is written
@@ -147,7 +147,7 @@ specs/033-hunter-budgets/
 ├── contracts/
 │   ├── budget-grammar.md   # the --hunt-budget= clause grammar
 │   ├── counter-file.md     # --hunt-emit-set file, --counter=@<file>
-│   └── hunt-json.md        # the four new hunt keys at schema 1.7
+│   └── hunt-json.md        # the four new hunt keys at schema 1.8
 └── results/               # the gary acceptance record (FR-045, at
     │                      # implement time)
 ```
@@ -208,7 +208,7 @@ test/source/
 ├── harness_hunt_plan_test.cpp    derived repeats, group split,
 │                                 composition with the two-stage plan
 ├── harness_hunt_json_test.cpp    the four keys, absence, refusals,
-│                                 pre-1.7 documents
+│                                 pre-1.8 documents
 ├── harness_hunt_report_test.cpp  plan line and disclosure lines
 └── harness_cli_table_test.cpp    row count and hunt-block bound move
 │                               inside T009's commit (270 to 289)
@@ -343,7 +343,7 @@ selection read one grammar from one place.
   writes the standing bytes (the byte rule of FR-022 needs
   conditional presence: the key is absent when unset). `docs/schema/report-v1.json`
   gains the four properties and the moved `x-order` in the same
-  commit; `required` keeps the standing sixteen (a pre-1.7 hunt
+  commit; `required` keeps the standing sixteen (a pre-1.8 hunt
   document must stay valid and loadable).
 - **R-12 The JSON reader (FR-021).** `readHunt` keeps the standing sixteen
   in the key list; the four new keys read through `optionalField`
@@ -364,11 +364,12 @@ selection read one grammar from one place.
   `toCounterSet`, the program prints the promoted addresses, and the
   result sentence names the `--counter=@<file>` reading they serve.
   The `.expected` re-records; the example stays host-independent.
-- **R-15 Schema, version, ABI (FR-040).** Schema `1.7`; version the
-  next free minor at the version-move commit, `0.23.0`: the rebase
-  landed on the tree where specs/035-numa-placement had taken
-  `0.22.0`, and the reservation rule moved the lane up one; harness
-  `SOVERSION` 13 to 14 (new public method and fields); archive
+- **R-15 Schema, version, ABI (FR-040).** Schema `1.8`; version the
+  next free minor at the version-move commit, `0.24.0`: the rebase
+  landed on the tree where specs/036-osnoise-timerlat-tracers had
+  taken `0.23.0`, and the reservation rule moved the lane up one;
+  harness `SOVERSION` 14 to 15 (new public method and fields);
+  archive
   `SOVERSION` stays 4 (no counters-library surface moves; the
   scripted seam grows no new API; the check stands recorded in the
   version-move commit).
@@ -441,11 +442,11 @@ fields and the `RunHunt` disclosure fields (record layout).
 
 ### Version and `SOVERSION`
 
-Version `0.23.0` (next free minor at the move commit: the rebase
-landed on the tree where specs/035-numa-placement had taken
-`0.22.0`); harness `SOVERSION` 13 → 14; archive `SOVERSION` stays
-`4` (check recorded
-beside the move, FR-040); report schema `1.6` → `1.7` with the
+Version `0.24.0` (next free minor at the move commit: the rebase
+landed on the tree where specs/036-osnoise-timerlat-tracers had
+taken `0.23.0`); harness `SOVERSION` 14 → 15; archive `SOVERSION`
+stays `4` (check recorded
+beside the move, FR-040); report schema `1.7` → `1.8` with the
 `x-order` commit rule (FR-020).
 
 ## Test Plan
