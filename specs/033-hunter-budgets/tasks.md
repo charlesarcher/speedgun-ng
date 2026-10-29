@@ -505,7 +505,7 @@ Polish closes the gates and the record.
 ## Phase 8: Convergence
 
 - [ ] T034 Derive stage 2's repeats from its own pass runs per FR-001, FR-002, contracts/budget-grammar.md, N-03 (contradicts)
-- [ ] T035 Stand reader rows for the two unexercised sample-budget arcs per FR-041, SC-007, Constitution VI (partial)
+- [X] T035 Stand reader rows for the two unexercised sample-budget arcs per FR-041, SC-007, Constitution VI (partial)
 - [ ] T036 Make the suite pass under `taskset -c 0,1` per FR-042, T029 (partial)
 - [X] T037 Restate the stage repeat contract in `hunt.hpp` for the derived count per D-12, Constitution II (contradicts)
 - [ ] T038 Print the record's derived repeats in the overrun line per FR-002, FR-023, contracts/hunt-json.md, N-06 (contradicts)
@@ -517,5 +517,5 @@ Polish closes the gates and the record.
 - [X] T044 Move the hunt-block bound text in the table test's report per FR-044 (partial)
 - [ ] T045 Add the `hunt::HuntSampleState` row to the guide's name list per FR-030 (partial)
 - [ ] T046 Drop the unreachable zero guard beside T034's fix per Constitution X.2 (partial)
-- [ ] T047 Reuse `parseSeconds`' refusal sentence for the `e` clause per Constitution X.3, R-01 (partial)
+- [X] T047 Reuse `parseSeconds`' refusal sentence for the `e` clause per Constitution X.3, R-01 (partial)
 - [X] T048 Re-anchor the acceptance record's heads to reachable commits per FR-045, Constitution X.4 (partial)
