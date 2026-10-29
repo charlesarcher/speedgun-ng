@@ -23,7 +23,19 @@ index and the two counts inside the warning are values the run owns, so they
 fold equal, while the mode words, the `contexts=` field and the fixed warning
 wording are letters, so a change folds different. A block that leaves either
 line out cannot describe a threaded run, and a single-context block keeps its
-exact bytes. Exit 0 clean, 1 with any finding, 2 on a usage error.
+exact bytes.
+The pre-check block and the probe disclosure print one unit per cpu the host
+gives the run, and a host that leaves no candidate cpu discloses that once
+beside the host settings instead of printing a candidate unit (034 console
+contract, the empty-candidate-set answer). A recorded block is one host's
+run, so the comparison reads the host's cpu multiplicity out of both sides
+before it compares: a repeated governor, irq affinity or probe line folds to
+one, a candidate unit stands beside the line that discloses none, a per-cpu
+value list and a cpu index list fold to one entry, and the skipped-group
+disclosure stands on either side. What is left is the shape the program
+owns: every field name, every line class and their order. The fold is what
+lets a run under an affinity mask describe a block recorded on a wider host
+(033 FR-042). Exit 0 clean, 1 with any finding, 2 on a usage error.
 """
 
 from __future__ import annotations
@@ -33,6 +45,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -81,6 +94,32 @@ SCHEDSTAT_VALUE = re.compile(
     r" (?:not available|#) (\(source: /proc/schedstat\))$"
 )
 
+# The lines the host owns the count of, in the shape the mask leaves them in.
+# The pre-check block prints one unit per measured cpu, the host settings one
+# governor line and one affinity line per measured cpu, and the probe block
+# one disclosure line per probe cpu (034 console contract, block order).
+CPU_UNIT = re.compile(r"^precheck cpu # \((planned|candidate)\)$")
+CANDIDATE_UNIT = re.compile(r"^precheck cpu # \(candidate\)$")
+UNIT_END = re.compile(r"^(host settings:|warning:|pinning candidates:)")
+PER_CPU_LINE = (
+    re.compile(r"^governor: cpu # "),
+    re.compile(r"^irq affinity: cpu # "),
+    re.compile(r"^jitter: cpu # kept # dropped #$"),
+)
+# A host with no candidate cpu prints this line beside the host settings
+# instead of a candidate unit, and a host with an L3 group that leaves no cpu
+# free prints the skipped-group disclosure (034 console contract, the empty
+# candidate set answer; 027 FR-035). Whether each of the two stands is the
+# host's answer, not the shape the program owns.
+NO_CANDIDATES = "precheck candidates: none"
+HOST_CONDITION = (re.compile(r"^jitter: skipped L# group\(s\) #"),)
+# The probe fold block: one value per probe cpu on every field line, and the
+# cpu indexes the block and its disclosure name.
+PROBE_HEAD = re.compile(r"^jitter probe: cpus ")
+PROBE_ON = re.compile(r"^jitter: probe on cpus ")
+PROBE_TAIL = re.compile(r"^jitter: ")
+VALUE_TOKEN = re.compile(r"(?:#\.)*#")
+
 
 def mask(line: str) -> str:
     """Fold the values a run owns: digits, whitespace runs, the build field and,
@@ -128,31 +167,115 @@ def classify(shape: str) -> str:
     return "header line"
 
 
+class Folded(NamedTuple):
+    """One line of one side of the comparison: the shape the mask leaves, the
+    text the page or the run printed, and the line that text stands on."""
+
+    shape: str
+    text: str
+    line: int
+
+
+def fold_cpu_lists(shape: str) -> str:
+    """Read a per-cpu list as one entry. The probe fold block carries one
+    value per probe cpu on every field line, and the block and its disclosure
+    name one cpu index per probe cpu, so the count the host's cpus set folds
+    away while the field name and the value shape stay."""
+    shape = re.sub(r"#(,#)+", "#", shape)
+    kept: list[str] = []
+    for token in shape.split(" "):
+        if kept and token == kept[-1] and VALUE_TOKEN.fullmatch(token):
+            continue
+        kept.append(token)
+    return " ".join(kept)
+
+
+def fold_host(side: list[Folded], no_candidates: bool) -> list[Folded]:
+    """Read the host's cpu multiplicity out of one masked side.
+
+    The pre-check block prints one unit per measured cpu, the host settings
+    print one governor line and one affinity line per measured cpu, and the
+    probe block prints one value, one cpu index and one disclosure line per
+    probe cpu. A recorded block is one host's run, so a count the host's cpus
+    set cannot stand against it: a repeated per-cpu line reads as one, a
+    per-cpu value or cpu list reads as one entry, a candidate unit stands
+    where the other side discloses that its host left one out, and the
+    skipped-group disclosure stands on either side. Every other line keeps its
+    place, so a field name, a line class or an order that changes still reads
+    different.
+    """
+    folded: list[Folded] = []
+    in_fold = False
+    index = 0
+    while index < len(side):
+        entry = side[index]
+        if CPU_UNIT.match(entry.shape):
+            end = index + 1
+            while end < len(side) and not CPU_UNIT.match(side[end].shape) \
+                    and not UNIT_END.match(side[end].shape):
+                end += 1
+            if not (no_candidates and CANDIDATE_UNIT.match(entry.shape)):
+                folded.extend(side[index:end])
+            index = end
+            continue
+        if PROBE_HEAD.match(entry.shape):
+            in_fold = True
+        elif PROBE_TAIL.match(entry.shape):
+            in_fold = False
+        if in_fold or PROBE_HEAD.match(entry.shape) or PROBE_ON.match(entry.shape):
+            entry = entry._replace(shape=fold_cpu_lists(entry.shape))
+        if entry.shape == NO_CANDIDATES and no_candidates:
+            index += 1
+            continue
+        if any(rule.match(entry.shape) for rule in HOST_CONDITION):
+            index += 1
+            continue
+        if folded and folded[-1].shape == entry.shape and any(
+                rule.match(entry.shape) for rule in PER_CPU_LINE
+        ):
+            index += 1
+            continue
+        folded.append(entry)
+        index += 1
+    return folded
+
+
 def compare(block: list[str], stdout: list[str]) -> list[str]:
-    folded = [mask(line) for line in block], [mask(line) for line in stdout]
-    if folded[0] == folded[1]:
+    sides = [
+        [Folded(mask(line), line, number) for number, line in enumerate(side, 1)]
+        for side in (block, stdout)
+    ]
+    # A candidate unit and the line that discloses no candidate answer one
+    # host question, so they stand as one fact across the two sides: the block
+    # of a host that had a candidate describes a run whose host left one out,
+    # once that run names that it did.
+    no_candidates = any(
+        entry.shape == NO_CANDIDATES for side in sides for entry in side
+    )
+    folded = [fold_host(side, no_candidates) for side in sides]
+    if [entry.shape for entry in folded[0]] == [entry.shape for entry in folded[1]]:
         return []
     findings = [f"sample output block holds {len(block)} lines, the run printed "
                 f"{len(stdout)}"]
-    for index in range(max(len(block), len(stdout))):
+    for index in range(max(len(folded[0]), len(folded[1]))):
         left = folded[0][index] if index < len(folded[0]) else None
         right = folded[1][index] if index < len(folded[1]) else None
-        if left == right:
+        if left is not None and right is not None and left.shape == right.shape:
             continue
         if left is None:
             findings.append(
-                f"line {index + 1}: the block omits this {classify(right)}: "
-                f"{stdout[index]!r}"
+                f"line {right.line}: the block omits this "
+                f"{classify(right.shape)}: {right.text!r}"
             )
         elif right is None:
             findings.append(
-                f"line {index + 1}: the block carries an extra {classify(left)}: "
-                f"{block[index]!r}"
+                f"line {left.line}: the block carries an extra "
+                f"{classify(left.shape)}: {left.text!r}"
             )
         else:
             findings.append(
-                f"line {index + 1}: {classify(left)} differs: block "
-                f"{block[index]!r} against run {stdout[index]!r}"
+                f"line {left.line}: {classify(left.shape)} differs: block "
+                f"{left.text!r} against run {right.text!r}"
             )
     return findings
 

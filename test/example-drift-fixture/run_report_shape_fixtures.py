@@ -55,6 +55,98 @@ PINNED = "  contexts=2  ctx0=SPIN/3/applied  ctx1=SPIN/7/applied"
 WARNING = "warning: spinning contexts oversubscribed (2 spin, 8 cpus)"
 THREAD_RUN = (STDOUT[0], STDOUT[1], DISCLOSURE, WARNING)
 
+
+# 033 FR-042: the pre-check block prints one unit per measured cpu and the
+# probe fold block one value and one disclosure line per probe cpu, so the
+# comparison reads the cpus the host gives the run as one occurrence on both
+# sides. The pairs below pin which counts fold away and which lines still
+# stand on their own name.
+def precheck_unit(cpu: int, role: str) -> tuple[str, ...]:
+    """One measured cpu of the pre-check block: the header, one stats line and
+    one attribution line, the lines the fold groups as one unit."""
+    return (
+        f"precheck cpu {cpu} ({role})",
+        "gapCount: 0",
+        "switch delta: 0, schedule delta: 0 (source: /proc/schedstat)",
+    )
+
+
+HOST_SETTINGS = (
+    "host settings: isolcpus=not available nohz_full=not available "
+    "rcu_nocbs=not available",
+)
+GOVERNORS = (
+    "governor: cpu 0 powersave (source: /sys devices system cpu "
+    "scaling_governor)",
+    "governor: cpu 24 powersave (source: /sys devices system cpu "
+    "scaling_governor)",
+)
+AFFINITY = (
+    "irq affinity: cpu 0 0,1,2 (source: /proc/irq)",
+    "irq affinity: cpu 24 0,1,2 (source: /proc/irq)",
+)
+PINNING = ("pinning candidates: cpu 0 0.00 cpu 24 0.00",)
+PROBE_BLOCK = (
+    "jitter probe: cpus 0,24,1",
+    "gapCount: 0 0 0",
+    "gapsPerSecond: 0.00 0.00 0.00",
+    "jitter: probe on cpus 0,24,1",
+    "jitter: cpu 0 kept 0 dropped 0",
+    "jitter: cpu 24 kept 0 dropped 0",
+    "jitter: cpu 1 kept 0 dropped 0",
+    "jitter: split and percentiles use the kept gaps only",
+)
+# One host's probe run: two planned cpus and one candidate cpu measured, three
+# cpus probed.
+PROBE_RUN = (
+    STDOUT[0],
+    *precheck_unit(0, "planned"),
+    *precheck_unit(24, "planned"),
+    *precheck_unit(1, "candidate"),
+    *HOST_SETTINGS, *GOVERNORS, *AFFINITY, *PINNING,
+    STDOUT[1],
+    *PROBE_BLOCK,
+)
+# The same run on a host that leaves no cpu for a candidate: the candidate unit
+# stands unprinted and the block says so once beside the host settings (034
+# console contract, the empty-candidate-set answer).
+NO_CANDIDATE_RUN = (
+    STDOUT[0],
+    *precheck_unit(0, "planned"),
+    *precheck_unit(24, "planned"),
+    *HOST_SETTINGS, *GOVERNORS, *AFFINITY,
+    "precheck candidates: none",
+    *PINNING,
+    STDOUT[1],
+    *PROBE_BLOCK,
+)
+# The same run on a host that leaves an L3 group with no free cpu, which the
+# probe block discloses (027 FR-035).
+SKIPPED_GROUP_RUN = (*PROBE_RUN, "jitter: skipped L3 group(s) 0")
+# A run whose candidate cpu stands between the two planned cpus, and the block
+# that leaves that unit out of the middle rather than off the end.
+MIDDLE_CANDIDATE_RUN = (
+    STDOUT[0],
+    *precheck_unit(0, "planned"),
+    *precheck_unit(1, "candidate"),
+    *precheck_unit(24, "planned"),
+    *HOST_SETTINGS, *GOVERNORS, *AFFINITY, *PINNING,
+    STDOUT[1],
+    *PROBE_BLOCK,
+)
+MIDDLE_CANDIDATE_BLOCK = (
+    STDOUT[0],
+    *precheck_unit(0, "planned"),
+    *precheck_unit(24, "planned"),
+    *HOST_SETTINGS, *GOVERNORS, *AFFINITY, *PINNING,
+    STDOUT[1],
+    *PROBE_BLOCK,
+)
+# A probe fold field that holds one value where the cpu list names three cpus.
+ONE_VALUE_RUN = tuple(
+    line.replace("gapCount: 0 0 0", "gapCount: 0") for line in PROBE_RUN
+)
+
 FAILURES: list[str] = []
 
 
@@ -444,6 +536,20 @@ def end_to_end(tool: Path) -> None:
             ("a planted renamed column header beside the disclosure line", False,
              [STDOUT[0], STDOUT[1].replace("real time/iter", "wall time/iter"),
               DISCLOSURE, WARNING], THREAD_RUN),
+            # 033 FR-042: the cpus the host gives the run set the count of the
+            # pre-check units, of the per-cpu host lines and of the values of
+            # the probe fold block, so that count folds out of both sides while
+            # every field name, line class and their order keeps its place.
+            ("a block whose probe fold field holds one value beside a run that "
+             "names three probe cpus", True, list(ONE_VALUE_RUN), PROBE_RUN),
+            ("a run whose probe fold field holds one value beside a block that "
+             "names three probe cpus", True, list(PROBE_RUN), ONE_VALUE_RUN),
+            ("a run whose host left no candidate cpu and discloses it once",
+             True, list(PROBE_RUN), NO_CANDIDATE_RUN),
+            ("a run that discloses a skipped L3 group the block's host left",
+             True, list(PROBE_RUN), SKIPPED_GROUP_RUN),
+            ("a planted candidate unit dropped from the middle of the block",
+             False, list(MIDDLE_CANDIDATE_BLOCK), MIDDLE_CANDIDATE_RUN),
         )
         for case, want_pass, block, stdout in cases:
             root.joinpath("README.md").write_text(page_text(block))
