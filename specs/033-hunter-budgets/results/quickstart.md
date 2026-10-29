@@ -132,25 +132,32 @@ the docs deploy job stands skipped by its own condition, which asks for
 a push to `master`.
 
 ```
-run 40826982752, head 6e5ac93a, 26m09s
-lint 28s  prose-lint 53s  test 8m49s  test-rocky 13m54s
-tsan 10m36s  sanitize 9m38s  coverage 15m44s  dbc-gate 56s
-static-analysis library 12m10s, tests 25m36s, examples 11m02s
-shared-audit 2m22s  downstream-consumer 2m34s  consumer-release 2m37s
+run 40886044636, head 42d2b7f7, 27m39s
+lint 35s  prose-lint 48s  test 7m15s  test-rocky 17m03s
+tsan 8m23s  sanitize 7m14s  coverage 15m45s  dbc-gate 54s
+static-analysis library 12m34s, tests 26m57s, examples 11m22s
+shared-audit 2m20s  downstream-consumer 2m06s  consumer-release 2m59s
 ```
 
-The coverage artifact of that run reads 100.0% lines over 13277
-instrumented lines and 99.8% branches, 6828 of 6845, a 17-row shortfall
-inside the 19-row allowance the gate records under D-14. The two rows
-the shortfall gained since the pre-rebase run stand in the placement
-code `specs/035-numa-placement` brought onto the branch, not in the
-budget code.
+The coverage artifact of that run reads 100.0% lines over 13292
+instrumented lines and 99.8% branches, 6832 of 6849, a 17-row shortfall
+inside the 19-row allowance the gate records under D-14. The shortfall
+count stands where the run of `6e5ac93a` left it while the instrumented
+totals grew with the placement code `specs/035-numa-placement` brought
+onto the branch and this lane's convergence edits.
 
 Three earlier runs of the lane came back red, and every finding they
 named stood for something real. `lint` named a row the naming rename
 had pushed past the column limit. `prose-lint` named a contrastive
-sentence in this record, and on the run before this one a double hyphen
+sentence in this record, and on the run of `8a0b3b95` a double hyphen
 in a commit message body, both Principle XI.1. `tsan` and `sanitize`
 named the byte row of `harness_hunt_json_test`, which now takes one
 scripted run for both of its documents.
 
+The run of `ffcd9555`, the head the second convergence wave replaced,
+came back red on three findings. `prose-lint` named an XI.2 contrast in
+that verdict record's own body, and the message left the branch with
+the rewrite. `example_run` named `bmSquares/cells:8192` printing no row
+on Ubuntu, and `harness_jitter_window_test` failed on Rocky; no commit
+between that head and this one touches either check, and both close
+green at this head, so the record marks them unreproduced.
