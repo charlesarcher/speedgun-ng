@@ -16,7 +16,10 @@ project(
     # next free minor on the master line. No public type, function or
     # struct changes, so the harness SOVERSION stays 13 and the archive
     # SOVERSION stays 4 (D-6).
-    VERSION 0.22.0
+    # specs/036-osnoise-timerlat-tracers FR-004: this feature takes
+    # 0.23.0, the next free minor; the ABI grows, so the harness
+    # SOVERSION is 14 and the archive SOVERSION stays 4 (D-6).
+    VERSION 0.23.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -299,7 +302,11 @@ set_target_properties(
     # BenchmarkResult gains its hunt record and ReportData gains its hunt
     # record, so the exported layouts move again and the hand-kept number
     # goes to 12 past the 11 of specs/027 (hard rule 12).
-    SOVERSION 13
+    # specs/036 D-6: TracerEngine joins the public header, JitterProbeOptions
+    # gains tracerEngine and tracerCpus, and PrecheckRecord gains the
+    # optional tracer record, so the exported layouts move again and the
+    # number rises to 14.
+    SOVERSION 14
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )
