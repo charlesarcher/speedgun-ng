@@ -1627,7 +1627,9 @@ if(TARGET docs_jitter_probe)
   # the selector names which recorded run this invocation owns. The fold
   # checks the recorded file against a real run of the example, which is what
   # keeps a quoted probe block from drifting away from what the harness
-  # prints (027 FR-034, FR-035).
+  # prints (027 FR-034, FR-035). The fold reads the cpus the host gives the
+  # run out of both sides, so a run under an affinity mask still describes a
+  # block recorded on a wider host (033 FR-042).
   add_test(
       NAME report_shape_jitter_sample
       COMMAND
