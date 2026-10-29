@@ -526,7 +526,7 @@ Polish closes the gates and the record.
 ## Phase 9: Convergence, second pass
 
 - [X] T050 Refuse the `e` clause spellings the document reader refuses per FR-004, contracts/budget-grammar.md (contradicts)
-- [ ] T051 State the hunt option count and the reserved id block in the comments that own them per Constitution IV (partial)
+- [X] T051 State the hunt option count and the reserved id block in the comments that own them per Constitution IV (partial)
 - [ ] T052 Join a hunt address to its run column through one seam per Constitution X.2, D-23 (partial)
 - [ ] T053 Drop the unread leaf copy from the column-join record per Constitution VII (partial)
 - [ ] T054 Drop the test-side check that reads no production code per Constitution VI, X.4 (partial)
