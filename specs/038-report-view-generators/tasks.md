@@ -54,8 +54,8 @@ the lane stands on. No other module builds before this phase closes.
   `SOVERSION` lines (FR-002, D-2). Verify:
   `ctest --test-dir build -R views_test --output-on-failure` green,
   the standing version expectation of `harness_cli_table_test`
-  green after its update, and the commit message carries the
-  record.
+  green (it reads the `project(` block, so the move stands
+  observed), and the commit message carries the record.
 
 ## Phase 2: The resolver and the escaper in parallel (modules M-B and M-C, wave 2)
 
