@@ -171,12 +171,6 @@ auto writeTracerFile(const std::string& relative,
   return file.good();
 }
 
-// The word the engine writes into `current_tracer` (R-02).
-auto engineWordOf(TracerEngine engine) -> std::string
-{
-  return engine == TracerEngine::OSNOISE ? "osnoise" : "timerlat";
-}
-
 // The mask text of the tracer cpus at `width` hex digits per word,
 // comma-separated, the leftmost word naming the highest cpus, bit i of
 // word w naming cpu w * width * 4 + i (R-02, R-05): the width the
@@ -306,6 +300,15 @@ auto figuresOfCpu(std::uint32_t cpu, const std::optional<std::string>& text)
 }
 
 }  // namespace
+
+// The word the engine writes into `current_tracer` (R-02): see the
+// declaration's contract in detail/noise_tracer.hpp.
+auto engineWordOf(TracerEngine engine) -> std::string
+{
+  SG_REQUIRE(engine != TracerEngine::NONE,
+             "engineWordOf reaches an engine that names no tracer");
+  return engine == TracerEngine::OSNOISE ? "osnoise" : "timerlat";
+}
 
 auto noiseTracerSetup(TracerEngine engine,
                       const std::vector<std::uint32_t>& cpus)
