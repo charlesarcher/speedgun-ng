@@ -317,8 +317,8 @@ the standing `not available` disclosure, the user-space pre-check
 stands whole, and the run exits 0.
 
 **Why this priority**: root is optional on the lane host and the
-pre-check never fails on a host state; the disclosure keeps the run
-honest about the source it could not read.
+pre-check never fails on a host state; the disclosure names the
+source the run could not read.
 
 **Independent Test**: with an injected tracefs root that names no
 engine files, the run prints the disclosure on the tracer lines
