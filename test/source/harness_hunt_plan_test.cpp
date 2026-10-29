@@ -1742,6 +1742,88 @@ auto sampleComposedWithTwoStageBudget() -> void
         "the seam gives stage 1 its rule and stage 2 its derived count");
 }
 
+// R-02, R-05, N-03: the derivation prices a stage over the passes that stage
+// spans, the figure the re-priced fit decision reads. The 200 scripted events
+// on a host that publishes no limit stand in 50 groups of 4, so one repeat of
+// stage 1 costs 50 pass runs. A top of 32 asks for 96 stage-2 columns, the
+// leading 96 of the plan order, and those stand in the first 24 groups, so one
+// repeat of stage 2 costs 24 pass runs. A sample budget of 60 calibration terms
+// leaves stage 1 at the one repeat its rule gives and derives 2 of the 3
+// repeats of stage 2's rule, and the re-priced run costs 50 + 24 x 2 = 98 pass
+// runs, which a 100-pass budget hosts.
+auto sampleStageTwoPricedByItsOwnPasses() -> void
+{
+  constexpr std::size_t kCap = 4;
+  constexpr std::size_t kTop = 32;
+  constexpr std::size_t kPlanPasses = sg::test::kHuntEvents / kCap;
+  constexpr std::size_t kStageTwoColumns = 3 * kTop;
+  constexpr std::size_t kStageTwoPasses = kStageTwoColumns / kCap;
+  constexpr std::uint64_t kSixtyTerms = 60 * kCalibrationNsPerPass;
+  constexpr std::uint64_t kSeventyOneTerms = 71 * kCalibrationNsPerPass;
+
+  struct Row
+  {
+    std::uint64_t sampleNs;
+    std::uint64_t passes;
+    std::size_t stageTwo;
+    const char* what;
+  };
+
+  const Row rows[] = {
+      Row {kSixtyTerms, 100, 2, "the composed row plans at 100 passes"},
+      Row {kSeventyOneTerms, 100, 2, "the row with a remainder plans"},
+  };
+
+  const auto events = acSevenColumns();
+  for (const auto& row : rows) {
+    auto options = sampleOptions(passBudget(row.passes), kTop, row.sampleNs);
+    options.multiplexCap = kCap;
+    const auto plan = planned(events, std::nullopt, options, row.what);
+
+    check(plan.method == sg::MetricMethod::MULTIPLEX,
+          "a host that publishes no limit groups the plan");
+    check(plan.passes.size() == kPlanPasses,
+          "the cap seats one group of 4 on each of the 50 passes");
+    check(plan.stages.size() == 2, "the budget hosts both stages");
+    check(plan.stages[1].columns.size() == kStageTwoColumns,
+          "stage 2 spans three times the top");
+    check(plan.stages[1].columns.back() == kStageTwoColumns - 1,
+          "stage 2 is the leading set of the plan order");
+    const auto formula = SampleRow {
+        kStageTwoPasses, kDefaultRepeats, row.sampleNs, row.stageTwo, row.what};
+    check(derivedOf(formula) == row.stageTwo,
+          "the formula over stage 2's 24 passes answers the row's count");
+    check(plan.stages.front().repeats == 1,
+          "stage 1 keeps the one repeat its rule gives (R-02)");
+    check(plan.stages[1].repeats == row.stageTwo,
+          "stage 2 measures the count its own pass runs price (FR-001, R-02)");
+    check(plan.sample.derivedRepeats == row.stageTwo,
+          "the record carries the count of the priced stage (N-03)");
+    check(!plan.sample.overBudget && !plan.sample.unpriced,
+          "both stages priced a count that fits, so no flag stands (FR-002)");
+
+    const auto split =
+        sg::detail::splitStages(plan, options, kCalibrationNsPerPass);
+    check(split.stages.size() == 2
+              && split.stages[1].columns == plan.stages[1].columns
+              && split.stages[1].repeats == row.stageTwo,
+          "the seam prices the columns the plan record carries");
+  }
+
+  // FR-005: the standing stage-drop decision reads that same figure. The 98
+  // re-priced runs stand above a 97-pass budget, so stage 2 goes whole with the
+  // standing word and the record keeps the count the derivation answered for it
+  // (FR-013 of spec 029).
+  auto tight = sampleOptions(passBudget(97), kTop, kSixtyTerms);
+  tight.multiplexCap = kCap;
+  const auto cut =
+      planned(events, std::nullopt, tight, "the tight composed row plans");
+  check(cut.stages.size() == 1 && cut.sample.derivedRepeats == 2,
+        "the fit check prices the stage the derivation priced (FR-005)");
+  check(cut.stages.front().columns.size() == sg::test::kHuntEvents,
+        "the cut plan keeps stage 1 whole (FR-013 of spec 029)");
+}
+
 // R-03, R-05: a sample budget under one repeat's price bounds both stages of a
 // composed plan. The first stage records the overrun and the second reads the
 // state the first left, so each stage answers the one repeat above the budget
@@ -2035,6 +2117,8 @@ auto muxCapComposedWithTwoStageBudget() -> void
       Scenario {"sample-cut-reads-repriced-figure",
                 sampleCutReadsTheRepricedFigure},
       Scenario {"sample-two-stage-composed", sampleComposedWithTwoStageBudget},
+      Scenario {"sample-stage-two-priced-by-passes",
+                sampleStageTwoPricedByItsOwnPasses},
       Scenario {"sample-over-budget-both-stages",
                 sampleOverBudgetBoundsBothStages},
       Scenario {"sample-estimate-stage-one-figure",

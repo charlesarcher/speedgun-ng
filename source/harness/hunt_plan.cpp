@@ -529,9 +529,16 @@ auto splitStages(const sg::hunt::HuntPlan& plan,
   auto first =
       sg::hunt::HuntStage {all, budgeted ? std::size_t {1} : options.repeats};
 
+  // FR-013, FR-014: stage 2 measures the leading `3 x top` columns of the plan
+  // order, capped at the column count. FR-014 derives a stage from the seed and
+  // the catalog order only, so no measured figure reorders this set, and it
+  // stands in column order as E-04 spells a stage's column list. The set stands
+  // here, ahead of the derivation below, because one repeat of a stage costs
+  // the passes of the plan that hold its columns: the derivation and the fit
+  // check of one stage read one figure (FR-001, R-02).
   const auto width = std::min(kStageTwoFactor * options.top, count);
   auto second =
-      sg::hunt::HuntStage {std::vector<std::size_t> {}, options.repeats};
+      sg::hunt::HuntStage {hunt::columnIndices(width), options.repeats};
 
   // specs/033-hunter-budgets FR-001, FR-002, R-02, R-03, N-03, D-12: the sample
   // budget bounds one event inside one stage. A stage that repeats costs
@@ -575,13 +582,6 @@ auto splitStages(const sg::hunt::HuntPlan& plan,
 
   auto overBudget = false;
   if (budgeted) {
-    // FR-013, FR-014: stage 2 measures the leading `3 x top` columns of the
-    // plan order, capped at the column count. FR-014 derives a stage from the
-    // seed and the catalog order only, so no measured figure reorders this
-    // set, and it stands in column order as E-04 spells a stage's column
-    // list.
-    second.columns = hunt::columnIndices(width);
-
     // The re-priced figure: the repeats the sample budget derived stand in the
     // runs the budget is weighed against, so a budget that bounds the repeats
     // also decides whether stage 2 fits (FR-002, R-02).
