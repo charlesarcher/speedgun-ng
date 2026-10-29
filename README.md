@@ -765,8 +765,8 @@ One loaded report document renders four ways: the SVG histogram, the SVG plot, t
 
 #include "speedgun-ng/views.hpp"
 
-// The document the run wrote at --json=path loads back, and the text
-// view prints the terminal figures of the primary time column.
+// The document the run wrote at its json path loads back, and the
+// text view prints the terminal figures of the primary time column.
 auto printTimeView(const std::string& path) -> void
 {
   const auto document = sg::loadReport(path);
