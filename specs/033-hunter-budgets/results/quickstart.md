@@ -127,24 +127,29 @@ No Intel run stands recorded (corsairone down; the record says so).
 
 ## The CI verdict
 
-The run of the pushed head closed green end to end: 14 jobs passed, and
-the docs deploy job stands skipped by its own condition, which asks for
-a push to `master`.
+The rebase onto the tree that landed specs/036 replaced the head this
+record cited, and its run with it. The run of the rebased head closed
+green: 14 jobs passed, and the docs deploy job stands skipped by its
+own condition, which asks for a push to `master`.
 
 ```
-run 40886044636, head 42d2b7f7, 27m39s
-lint 35s  prose-lint 48s  test 7m15s  test-rocky 17m03s
-tsan 8m23s  sanitize 7m14s  coverage 15m45s  dbc-gate 54s
-static-analysis library 12m34s, tests 26m57s, examples 11m22s
-shared-audit 2m20s  downstream-consumer 2m06s  consumer-release 2m59s
+run 40921391242, head 6037e712, 20m23s
+lint 36s  prose-lint 46s  test 6m00s  test-rocky 20m17s
+tsan 13m12s  sanitize 6m00s  coverage 15m40s  dbc-gate 1m24s
+static-analysis library 13m04s, tests 37m19s, examples 18m10s
+shared-audit 2m27s  downstream-consumer 2m14s  consumer-release 3m17s
 ```
 
-The coverage artifact of that run reads 100.0% lines over 13292
-instrumented lines and 99.8% branches, 6832 of 6849, a 17-row shortfall
-inside the 19-row allowance the gate records under D-14. The shortfall
-count stands where the run of `6e5ac93a` left it while the instrumented
-totals grew with the placement code `specs/035-numa-placement` brought
-onto the branch and this lane's convergence edits.
+The spans of `test-rocky` and the tests analysis carry the wait of a
+first attempt that ended red, named below, so they run long beside the
+total.
+
+The coverage artifact of that run reads 100.0% lines over 13646
+instrumented lines and 99.8% branches, 7044 of 7060, a 16-row shortfall
+inside the 19-row allowance the gate records under D-14. The reconciled
+lane takes version 0.24.0, harness SOVERSION 15 and schema minor 1.8 on
+the tree that rebase landed, the next free numbers past what specs/036
+took on master.
 
 Three earlier runs of the lane came back red, and every finding they
 named stood for something real. `lint` named a row the naming rename
@@ -153,6 +158,13 @@ sentence in this record, and on the run of `8a0b3b95` a double hyphen
 in a commit message body, both Principle XI.1. `tsan` and `sanitize`
 named the byte row of `harness_hunt_json_test`, which now takes one
 scripted run for both of its documents.
+
+The first attempt of the run above came back red on Rocky, where
+`counters_linux_pmu_seam_test` aborted with stack smashing two tenths
+of a second in. The code is counters-side, this lane moved none of it,
+the Ubuntu job of the same run and the local suite read it green, and
+the re-run of the same head passes, so the record marks the reading
+unreproduced.
 
 The run of `ffcd9555`, the head the second convergence wave replaced,
 came back red on three findings. `prose-lint` named an XI.2 contrast in
