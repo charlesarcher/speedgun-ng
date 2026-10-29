@@ -76,7 +76,7 @@
             </li>
           </ul>
         </nav>
-<p>Stage 1 covers every column at one repeat of a budgeted plan; stage 2 covers the top <code>3 x top</code> columns at <code>options.repeats</code>. Stage 1 never shrinks and no stage keeps a reduced repeat count (FR-013).</p>
+<p>Stage 1 covers every column; its column list never shrinks. Stage 2 covers the leading <code>3 x top</code> columns of the plan order, capped at the column count (D-2, FR-013, FR-014). <code><a href="#a3fffcbd453ef0dd314931464ac8005f3" class="m-doc">repeats</a></code> starts at the stage&#x27;s rule: one for stage 1 of a two-stage plan, <code>options.repeats</code> for stage 2 and for the single stage of a plan no budget splits.</p><p>A sample budget lowers that count. The planner derives the largest count that measures every event of the stage within the budget, and the stage keeps that figure: at or below its own rule, never below one (033 FR-001, FR-002, N-03, D-12). A stage no calibration figure prices keeps its rule (033 FR-002, N-03).</p>
         <section id="pub-attribs">
           <h2><a href="#pub-attribs">Public variables</a></h2>
           <dl class="m-doc">

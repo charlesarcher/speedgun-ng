@@ -71,12 +71,22 @@
             <li>
               Reference
               <ul>
+                <li><a href="#pub-methods">Public functions</a></li>
                 <li><a href="#pub-attribs">Public variables</a></li>
               </ul>
             </li>
           </ul>
         </nav>
 <p><code><a href="namespacesg_1_1hunt.html#a25ae639b173a96040d82ae7bb9851c6e" class="m-doc">rankEvents</a></code> and <code><a href="namespacesg_1_1hunt.html#a5a1da29691c1ed5037738873b593e24f" class="m-doc">runHunt</a></code> fill it and <code><a href="structsg_1_1BenchmarkResult.html#a430889eadca7e7f677fb3ac42035552b" class="m-doc">BenchmarkResult::<wbr />hunt</a></code> holds it. <code><a href="#a610ac8962cb456f2448ee6c3ecae9753" class="m-doc">entries</a></code> covers every planned column, the ranked ones first; an event only stage 1 measured holds a record built from its stage 1 samples (I-4).</p>
+        <section id="pub-methods">
+          <h2><a href="#pub-methods">Public functions</a></h2>
+          <dl class="m-doc">
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a58b9cd6827d2bdda5d5f6afaedb27469" class="m-doc">toCounterSet</a>(</span><span class="m-doc-wrap">std::size_t topN) const -&gt; std::vector&lt;std::string&gt;</span>
+            </dt>
+            <dd>The ranked addresses of this entry, best first, capped at <code>topN</code> (E-06, FR-013, FR-015).</dd>
+          </dl>
+        </section>
         <section id="pub-attribs">
           <h2><a href="#pub-attribs">Public variables</a></h2>
           <dl class="m-doc">
@@ -105,6 +115,16 @@
             </dt>
             <dd><span></span></dd>
           </dl>
+        </section>
+        <section>
+          <h2>Function documentation</h2>
+          <section class="m-doc-details" id="a58b9cd6827d2bdda5d5f6afaedb27469"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">std::vector&lt;std::string&gt; sg::<wbr />hunt::<wbr />EntryHunt::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a58b9cd6827d2bdda5d5f6afaedb27469" class="m-doc-self">toCounterSet</a>(</span><span class="m-doc-wrap">std::size_t topN) const</span></span>
+            </h3>
+            <p>The ranked addresses of this entry, best first, capped at <code>topN</code> (E-06, FR-013, FR-015).</p>
+<p>The set the entry hands to a later run&#x27;s <code>--counter=@&lt;file&gt;</code>: the same top <code>--hunt-top</code> events the console ranks, in the order the rank table prints them.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the answer holds at most <code>topN</code> addresses, the ranked entries in ascending rank; <code>topN</code> above the ranked count answers them all and <code>topN</code> zero answers none; an entry whose <code>rank</code> stands empty holds no address, the event being noisy, excluded, skipped or unmeasured (I-5); the call measures nothing and reads no clock</p></aside>
+          </div></section>
         </section>
       </div>
     </div>
