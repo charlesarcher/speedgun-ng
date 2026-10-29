@@ -776,6 +776,21 @@ target_compile_features(views_test PRIVATE cxx_std_23)
 add_test(NAME views_test
          COMMAND views_test ${CMAKE_SOURCE_DIR}/test/data/report_views)
 
+# The driver's command line over the fixture documents (specs/038
+# T017; FR-014 to FR-017, contracts/views-api.md B-6 and the refusal
+# and disclosure table C): the gate script drives the built binary
+# over the fixtures and asserts every row of the table, one verdict
+# line per run. The binary and the fixture directory travel as
+# arguments, the shape harness_cli_table_test gives its source
+# directory. The registration runs red until the driver's task T018
+# fills the program in.
+add_test(
+    NAME report_view_cli_test
+    COMMAND
+        bash ${CMAKE_CURRENT_SOURCE_DIR}/report_view_cli.sh
+        $<TARGET_FILE:report_view> ${CMAKE_SOURCE_DIR}/test/data/report_views
+)
+
 # The usage faults of the command-line scan, each driven by an `argv`
 # array built in the test and compared byte for byte against the fault
 # line of the contract (T010; FR-007 to FR-012, SC-003,
