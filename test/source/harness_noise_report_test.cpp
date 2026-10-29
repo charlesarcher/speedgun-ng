@@ -492,6 +492,57 @@ auto theNotAvailableRecordWritesNoTracerKey() -> void
 
 }  // namespace
 
+// The reader's error arms of the optional tracer record: a document
+// whose tracer object stands malformed in one key or kind each names
+// the fault at its own pointer, the way the standing record readers
+// name theirs (FR-014, specs/036 R-08).
+auto theTracerReaderErrorArms() -> void
+{
+  const std::string head =
+      R"({"schemaVersion":"1.7","benchmarks":[],"precheck":{"serial":false,)" R"("windowMs":1,"cpus":[],"hostSettings":{"isolcpus":null,)" R"("nohz_full":null,"rcu_nocbs":null,"governors":{},"irqAffinity":{}},)" R"("skippedGroups":[],"tracer":)";
+  const std::string tail = "}}";
+  const std::pair<const char*, const char*> variants[] {
+      {R"({"cpus":[]})", "the key 'engine' stands missing"},
+      {R"({"engine":5,"cpus":[]})", "expected a string"},
+      {R"({"engine":"hrtimers","cpus":[]})", "stands outside the names"},
+      {R"({"engine":"osnoise"})", "the key 'cpus' stands missing"},
+      {R"({"engine":"osnoise","cpus":{}})", "expected an array"},
+      {R"({"engine":"osnoise","cpus":[5]})", "INCORRECT_TYPE"},
+      {R"({"engine":"osnoise","cpus":[{"nmi":1}]})",
+       "the key 'cpu' stands missing"},
+      {R"({"engine":"osnoise","cpus":[{"cpu":"2"}]})", "expected an integer"},
+      {R"({"engine":"osnoise","cpus":[{"cpu":2}]})",
+       "the key 'nmi' stands missing"},
+      {R"({"engine":"osnoise","cpus":[{"cpu":2,"nmi":"x","irq":1,"softirq":1,"thread":1,"hardware":1}]})",
+       "expected an integer"},
+      {R"({"engine":"osnoise","cpus":[{"cpu":2,"nmi":1,"irq":2,"softirq":3,"thread":4}]})",
+       "the key 'hardware' stands missing"},
+      {R"([])", "INCORRECT_TYPE"},
+  };
+  for (const auto& [tracer, fragment] : variants) {
+    const std::string document = head + tracer + tail;
+    const std::string path = "harness_noise_reader_arm.json";
+    {
+      std::ofstream file(path);
+      file << document;
+    }
+    const auto loaded = sg::loadReport(path);
+    check(
+        !loaded.has_value(),
+        (std::string("the malformed tracer record stands refused " "(FR-014): ")
+         + fragment)
+            .c_str());
+    if (!loaded.has_value()) {
+      check(loaded.error().find("/precheck/tracer") != std::string::npos
+                && loaded.error().find(fragment) != std::string::npos,
+            ("the refusal names the tracer pointer and the fault (FR-014): "
+             + loaded.error())
+                .c_str());
+    }
+    std::remove(path.c_str());
+  }
+}
+
 auto main() -> int
 {
   theTracerLinesStandBesideTheStandingBlock();
@@ -503,6 +554,7 @@ auto main() -> int
   theWrittenTracerDocumentPassesTheSchema();
   theTracerLessDocumentMatchesTheFixtureBytes();
   theNotAvailableRecordWritesNoTracerKey();
+  theTracerReaderErrorArms();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;
