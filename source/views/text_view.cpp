@@ -75,12 +75,12 @@ auto renderText(const ReportData& report,
   const auto histogram = renderHistogram(report, benchmark, column, binCount);
   if (histogram.has_value()) {
     const auto bins = detail::buildBins(series->values, binCount);
-    const auto widest = std::max_element(
-        bins.begin(),
-        bins.end(),
-        [](const detail::Bin& left, const detail::Bin& right) {
-          return left.count < right.count;
-        })->count;
+    const auto widest =
+        std::max_element(bins.begin(),
+                         bins.end(),
+                         [](const detail::Bin& left, const detail::Bin& right)
+                         { return left.count < right.count; })
+            ->count;
     for (const auto& bin : bins) {
       text += '\n' + binLine(bin, series->unit, widest);
     }
