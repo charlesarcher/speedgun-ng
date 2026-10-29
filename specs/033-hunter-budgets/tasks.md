@@ -242,7 +242,8 @@ fixtures close SC-002 and SC-005 with no clock.
   prints byte-identical for a run without budgets; `sample=<text>`
   appears only when set; the disclosure lines read
   `hunt: plan sample repeats=<d> of <m>`, `hunt: plan sample
-  repeats=1 over-budget`, `hunt: plan sample unpriced` in their
+  repeats=<d> over-budget` (the count the record carries), `hunt:
+  plan sample unpriced` in their
   states; the JSON round-trips `sample_budget` (canonical text:
   `0.50e` rebuilds as `0.5e`) and `derived_repeats`; an unset run
   writes the standing bytes apart from `schemaVersion`; a pre-1.7
@@ -534,6 +535,6 @@ Polish closes the gates and the record.
 - [X] T056 State the counter file's comma separator in the guide's counter paragraph per FR-014, contracts/counter-file.md (partial)
 - [X] T057 Stop the example naming a file the run never writes per Constitution IV.1 (partial)
 - [X] T058 Restate the contrastive comments the prose gate cannot read per Constitution XI.2, XI.6 (partial)
-- [ ] T059 Restate the version reservation and the overrun quote in the plan and the spec note per FR-040, FR-002 (partial)
+- [X] T059 Restate the version reservation and the overrun quote in the plan and the spec note per FR-040, FR-002 (partial)
 - [ ] T060 Re-anchor the plan's re-anchor block to a reachable head per Constitution X.4 (partial)
 - [X] T061 Restate the unknown-address rows, the version row and the page-cap row in the task list per FR-014, FR-040, FR-030 (partial)
