@@ -14,6 +14,8 @@
 
 #include "speedgun-ng/views.hpp"
 
+#include "escape.hpp"
+
 namespace
 {
 
@@ -344,6 +346,45 @@ auto run() -> int
               && sameDouble(faults->values[2], 9.1),
           "resolver: the values stand in pass order");
     check(faults->unit.empty(), "resolver: the metric names no unit");
+  }
+
+  // ---- The escape block (specs/038 T006; A-6, D-8 of the views-api
+  // contract, the escaper of M-C) ----
+
+  // Row 1: the markup characters stand escaped (A-6). The answer
+  // spells the HTML/SVG standard named entities, and the ampersand
+  // stands rewritten first, since the entity spellings the other two
+  // rules introduce carry an `&` themselves.
+  {
+    check(sg::detail::escapeMarkup("&<>") == "&amp;&lt;&gt;",
+          "escape: the markup characters stand escaped");
+  }
+
+  // Row 2: the plain text stands byte-identical (A-6): the string
+  // carries no markup character, so the escaper rewrites nothing.
+  {
+    auto const plain = std::string("bmViews/threads:2");
+    check(sg::detail::escapeMarkup(plain) == plain,
+          "escape: the plain text stands byte-identical");
+  }
+
+  // Row 3: the empty string answers the empty string.
+  {
+    check(sg::detail::escapeMarkup(std::string_view {}).empty(),
+          "escape: the empty string answers the empty string");
+  }
+
+  // Row 4: the fixture's markup metric label stands escaped through
+  // the escaper (A-6, D-8): the label markup.json records reads
+  // `branch<miss>&rate` and escapes to `branch&lt;miss&gt;&amp;rate`.
+  {
+    auto const markup = loadedFixture("markup.json");
+    check(
+        !markup.results.empty() && !markup.results.front().metricLabels.empty(),
+        "escape: the markup fixture carries its labeled metric");
+    auto const& label = markup.results.front().metricLabels.front();
+    check(sg::detail::escapeMarkup(label) == "branch&lt;miss&gt;&amp;rate",
+          "escape: the fixture's markup label stands escaped");
   }
 
   std::printf("views_test PASS\n");
