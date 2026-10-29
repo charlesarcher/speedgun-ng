@@ -48,7 +48,13 @@ file records the shapes the feature adds and the fields it reads.
 | --- | --- | --- | --- |
 | `time` | primary time | `timePerIterationNs` | `timeUnit` scaled |
 | `cpu` | CPU time | `cpuTimePerIterationNs` | `timeUnit` scaled |
-| a metric label | metric | the matching `metrics` slot | as stored |
+| a metric label | metric | the matching `metrics` slot | as stored; `unit` stands empty |
+
+A metric column prints as stored and names no unit, so
+`ViewSeries::unit` stands empty for a metric label; only the time
+columns carry a unit label, the scale of FR-006. The settled method
+stands at `BenchmarkResult::metricMethod`; the figures name no
+method.
 
 A selector matching none of the three refuses: a counter label
 stands outside the selector this spec fixes (clarify 1/Q3).
