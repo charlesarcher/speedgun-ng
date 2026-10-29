@@ -533,7 +533,7 @@ Polish closes the gates and the record.
 - [X] T055 Name the four budget clause kinds in the option's help text per FR-004, FR-030 (partial)
 - [X] T056 State the counter file's comma separator in the guide's counter paragraph per FR-014, contracts/counter-file.md (partial)
 - [X] T057 Stop the example naming a file the run never writes per Constitution IV.1 (partial)
-- [ ] T058 Restate the contrastive comments the prose gate cannot read per Constitution XI.2, XI.6 (partial)
+- [X] T058 Restate the contrastive comments the prose gate cannot read per Constitution XI.2, XI.6 (partial)
 - [ ] T059 Restate the version reservation and the overrun quote in the plan and the spec note per FR-040, FR-002 (partial)
 - [ ] T060 Re-anchor the plan's re-anchor block to a reachable head per Constitution X.4 (partial)
 - [X] T061 Restate the unknown-address rows, the version row and the page-cap row in the task list per FR-014, FR-040, FR-030 (partial)

@@ -976,8 +976,8 @@ auto scenarioCappedMultiplexGroupRetriesOneAtATime() -> void
   sg::detail::expandRegistry();
   const HuntAccount run = runHuntMeasured(handle, capped);
   check(run.hunt.has_value(),
-        "a refused group is a retry and not an error, so the run exits 0 "
-        "(D-18, FR-021)");
+        "the retry route keeps a refused group inside the run, so the run "
+        "exits 0 (D-18, FR-021)");
   const EntryHunt& hunt = *run.hunt;
 
   check(hunt.retriedPasses == 1,

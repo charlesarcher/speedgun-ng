@@ -657,8 +657,8 @@ struct RunOptions
   std::optional<hunt::HuntOptions> hunt;
   // specs/033-hunter-budgets data-model.md N-08, FR-010, R-07: the path
   // `--hunt-emit-set=` settled, empty when the run writes no promoted set. The
-  // path rides the run record and not the hunt record, because the write is a
-  // run-level union over every entry's list.
+  // The write is a run-level union over every entry's list, so the path rides
+  // the run record.
   std::string huntEmitSet;
 };
 
