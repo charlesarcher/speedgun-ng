@@ -207,7 +207,11 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # the cap from 881 to 908. The tracer field the example region gains adds
 # one line to each of the three sections quoting the region, so the page
 # measures 911 as the feature lands.
-PAGE_LINE_CAP = 911
+# specs/033-hunter-budgets quick-reference row for --hunt-emit-set adds 1
+# line, so the cap moves from 911 to 912, the measured length of the page
+# with the row in place. The Hunter mode prose rides its existing lines,
+# so nothing else moves.
+PAGE_LINE_CAP = 912
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that
