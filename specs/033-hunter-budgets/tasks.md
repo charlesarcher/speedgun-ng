@@ -520,3 +520,18 @@ Polish closes the gates and the record.
 - [X] T047 Reuse `parseSeconds`' refusal sentence for the `e` clause per Constitution X.3, R-01 (partial)
 - [X] T048 Re-anchor the acceptance record's heads to reachable commits per FR-045, Constitution X.4 (partial)
 - [X] T049 Re-run and re-record the acceptance rows the convergence wave changed per FR-045, SC-009 (partial)
+
+## Phase 9: Convergence, second pass
+
+- [ ] T050 Refuse the `e` clause spellings the document reader refuses per FR-004, contracts/budget-grammar.md (contradicts)
+- [ ] T051 State the hunt option count and the reserved id block in the comments that own them per Constitution IV (partial)
+- [ ] T052 Join a hunt address to its run column through one seam per Constitution X.2, D-23 (partial)
+- [ ] T053 Drop the unread leaf copy from the column-join record per Constitution VII (partial)
+- [ ] T054 Drop the test-side check that reads no production code per Constitution VI, X.4 (partial)
+- [ ] T055 Name the four budget clause kinds in the option's help text per FR-004, FR-030 (partial)
+- [ ] T056 State the counter file's comma separator in the guide's counter paragraph per FR-014, contracts/counter-file.md (partial)
+- [ ] T057 Stop the example naming a file the run never writes per Constitution IV.1 (partial)
+- [ ] T058 Restate the contrastive comments the prose gate cannot read per Constitution XI.2, XI.6 (partial)
+- [ ] T059 Restate the version reservation and the overrun quote in the plan and the spec note per FR-040, FR-002 (partial)
+- [ ] T060 Re-anchor the plan's re-anchor block to a reachable head per Constitution X.4 (partial)
+- [ ] T061 Restate the unknown-address rows, the version row and the page-cap row in the task list per FR-014, FR-040, FR-030 (partial)
