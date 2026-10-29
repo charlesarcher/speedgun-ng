@@ -2,15 +2,12 @@
 
 Task T032, FR-045, SC-009, D-11. Every figure below was read out of a
 run made on 2026-10-28 on `gary`, the host the feature names. The runs
-went while the branch `033-hunter-budgets` stood at the commit the lane
-now carries as `fac88821`. The suite counts below stand at the commit
-the lane now carries as `e3be6b55`, the lane head at the time. A fixup
-and an autosquash rebase rewrote the lane after those runs, so the two
-hashes this record first named stand on no branch. The rewrite folded
-one fixup into an earlier commit, so `fac88821` carries a change the
-tree under those runs did not carry. Every figure stands as observed.
-This record stands against `f3b54411`, the head the branch carried when
-the record was re-anchored. The shape follows
+went while the branch `033-hunter-budgets` stood at `0f280c79`, and the
+suite counts below stand at that head. An earlier version of this record
+named two heads that a fixup and an autosquash rebase had left on no
+branch, and its sample-budget row quoted a line the planner no longer
+prints. The convergence wave re-ran every row and both suite passes
+against a head that stands on the branch. The shape follows
 `specs/034-host-noise-precheck/results/quickstart.md`.
 
 Host: `gary`, AMD Ryzen 9 9950X3D 16-Core Processor, 32 threads, kernel
@@ -28,21 +25,21 @@ The binary is `build/example/docs_throughput` of this working tree,
 configured and built with `cmake --preset=ci-rocky`; it prints
 `speedgun-ng 0.22.0 build=Release` as the first line of every run.
 
-Co-tenancy disclosure: `uptime` read `load average: 7.93, 9.09, 10.13`
-while these runs went, one user logged in. The machine was occupied,
+Co-tenancy disclosure: `uptime` read `load average: 9.62, 9.25, 9.64`
+while these runs went, two users logged in. The machine was occupied,
 and the record says so.
 
 ## The budgeted acceptance
 
 | Scenario | Command | Exit | Observation |
 | --- | --- | --- | --- |
-| Budgeted hunt | `./build/example/docs_throughput --filter=bmEncode --hunt=all --hunt-budget=120s,0.5e,32g --hunt-top=5 --json /tmp/033-r1.json` | 0 | plan line carries all three clause texts: `hunt: plan events=353 passes=89 method=PASSES estimate=51620ns budget=120s sample=0.5e mux=32g stage1=353 stage2=15`; no `hunt: plan mux groups=` line stands anywhere in the log, and the settlement word is `method=PASSES`, which is the pairing the contract states |
+| Budgeted hunt | `./build/example/docs_throughput --filter=bmEncode --hunt=all --hunt-budget=120s,0.5e,32g --hunt-top=5 --json /tmp/033-r1.json` | 0 | plan line carries all three clause texts: `hunt: plan events=353 passes=89 method=PASSES estimate=54290ns budget=120s sample=0.5e mux=32g stage1=353 stage2=15`; no `hunt: plan mux groups=` line stands anywhere in the log, and the settlement word is `method=PASSES`, which is the pairing the contract states |
 | Emitted set | `./build/example/docs_throughput --filter=bmEncode --hunt=all --hunt-budget=120s,0.5e,32g --hunt-top=5 --hunt-emit-set=/tmp/033-culprits.txt --json /tmp/033-r2.json` | 0 | `wc -l` reads 6 lines; the first two are `cpu/branch-instructions` and `cpu/ref-cycles`, the ranks 1 and 2 of both instances |
 | Read back | `./build/example/docs_throughput --filter=bmEncode --counter=@/tmp/033-culprits.txt` | 0 | six counter columns on each printed row, `cpu/branch-instructions= 2050.001 ratio=1.000 scaled=0 gap=0` first; `grep -c ABSENT` over the log answers 0 |
 | Conflict | `./build/example/docs_throughput --hunt-emit-set=/tmp/033-x.txt` | 2 | one line on stderr, `--hunt-emit-set: '/tmp/033-x.txt' needs --hunt`, stdout empty, and no file written |
-| Two-stage budget, stage 2 standing | `./build/example/docs_throughput --filter="bmEncode/items:65536" --hunt=all --hunt-budget=120s,0.5e,32g --hunt-top=3` | 0 | `hunt: plan events=353 passes=89 method=PASSES estimate=1344790ns budget=120s sample=0.5e mux=32g stage1=353 stage2=9`: both stages named, no cut line, no `hunt: plan mux groups=` line; the summary closes `hunt: plan summary events=341/353 passes=89 budget=120s` |
-| Two-stage budget, stage 2 cut | `./build/example/docs_throughput --filter="bmEncode/items:65536" --hunt=all --hunt-budget=1p,0.5e,32g --hunt-top=3 --json /tmp/033-r5d.json` | 0 | the plan line drops the stage fields whole, `hunt: plan events=353 passes=89 method=PASSES estimate=1341141ns budget=1p sample=0.5e mux=32g`, and the line below discloses the decision: `hunt: plan budget cut stage=2 reason=over-budget`; the document answers `stage_two_events: 0` and one stage |
-| Sample budget below one repeat | `./build/example/docs_throughput --filter="bmEncode/items:65536" --hunt=all --hunt-budget=120s,0.001e,32g --hunt-top=3 --hunt-seed=7` | 0 | `hunt: plan sample repeats=1 over-budget` between the plan line and the summary |
+| Two-stage budget, stage 2 standing | `./build/example/docs_throughput --filter="bmEncode/items:65536" --hunt=all --hunt-budget=120s,0.5e,32g --hunt-top=3` | 0 | `hunt: plan events=353 passes=89 method=PASSES estimate=2055010ns budget=120s sample=0.5e mux=32g stage1=353 stage2=9`: both stages named, no cut line, no `hunt: plan mux groups=` line; the summary closes `hunt: plan summary events=341/353 passes=89 budget=120s` |
+| Two-stage budget, stage 2 cut | `./build/example/docs_throughput --filter="bmEncode/items:65536" --hunt=all --hunt-budget=1p,0.5e,32g --hunt-top=3 --json /tmp/033-r5d.json` | 0 | the plan line drops the stage fields whole, `hunt: plan events=353 passes=89 method=PASSES estimate=1402640ns budget=1p sample=0.5e mux=32g`, and the line below discloses the decision: `hunt: plan budget cut stage=2 reason=over-budget`; the document answers `stage_two_events: 0` and one stage |
+| Sample budget below one repeat | `./build/example/docs_throughput --filter="bmEncode/items:65536" --hunt=all --hunt-budget=120s,0.001e,32g --hunt-top=3 --hunt-seed=7 --json /tmp/033-r7.json` | 0 | `hunt: plan sample repeats=3 over-budget` between the plan line and the summary, and the document of that same run writes `derived_repeats: 3` |
 
 ## What the rows hold, and what they leave open
 
@@ -64,13 +61,16 @@ produced a `hunt: plan mux groups=` line.
 
 The seconds clause never reached the cut decision on this host. The
 calibration figure a seconds budget is weighed against is the hunt
-entry's own pass cost, 15110 ns at the run quoted above (`estimate_ns`
-1344790 over 89 passes at the stage-1 repeat of 1), so a `1s` budget
-allows some 66,000 passes while the plan costs 89 stage-1 runs plus
+entry's own pass cost, 23090 ns at the run quoted above (`estimate_ns`
+2055010 over 89 passes at the stage-1 repeat of 1), so a `1s` budget
+allows some 43,000 passes while the plan costs 89 stage-1 runs plus
 three stage-2 runs per repeat, at most 3089 at the option bound of
 `--hunt-repeats=1000`. The cut row above reaches the decision through
-the `p` clause, which bounds the pass count directly. The record states the cut disclosure from that
-run and states that no seconds clause produced it here.
+the `p` clause, which bounds the pass count directly. The record states
+the cut disclosure from that run and states that no seconds clause
+produced it here. The estimate moves with the host: the same command
+read 1344790 ns when this record was first written and 2055010 ns on
+the re-run, with the machine occupied both times.
 
 The emitted file is the deduplicated union of the two instances' emit
 lists: five ranked addresses each, six distinct, best first. The
@@ -78,34 +78,33 @@ read-back run printed one column per line of that file and no `ABSENT`.
 
 ## The suite at the lane head
 
-The runs above went at the commit the lane now carries as `fac88821`.
-The suite ran twice at the commit the lane now carries as `e3be6b55`,
-the head of the lane before the rewrite, in the shared `build`
-directory configured with `cmake --preset=ci-rocky`, on a machine with
-nothing else running:
+The runs above went at `0f280c79`, and the suite ran at that head in
+the shared `build` directory configured with `cmake --preset=ci-rocky`:
 
 ```
 $ ctest --test-dir build --output-on-failure
 100% tests passed out of 141
-Total Test time (real) = 196.94 sec
+Total Test time (real) = 202.14 sec
 exit status 0
 
 $ taskset -c 0,1 ctest --test-dir build -j 2 --output-on-failure
-99% tests passed, 1 tests failed out of 141
-Total Test time (real) = 158.47 sec
-exit status 8
+100% tests passed out of 141
+Total Test time (real) = 158.85 sec
+exit status 0
 ```
 
 Every test under `test/source/` passes both ways and none skips. The
-one pinned failure is `report_shape_jitter_sample`, the shape gate over
-the jitter probe's recorded sample, and it answers the host rather than
-this feature: the block holds 122 lines of a many-cpu host, `precheck
-cpu 1 (candidate)` and the per-cpu governor and irq-affinity rows among
-them, while a run pinned to two cpus prints 92 lines and answers
-`isolcpus=not available`. The same test passes unpinned at the same
-head. The block comes from `cf4a0230` (`Docs: Record the quiet host the
-example stands on`), and no commit in this lane touches the jitter
-example, its recorded output, or the gate.
+pinned pass used to fail on `report_shape_jitter_sample`, the shape gate
+over the jitter probe's recorded sample: the block holds 122 lines of a
+many-cpu host, `precheck cpu 1 (candidate)` and the per-cpu governor and
+irq-affinity rows among them, while a run pinned to two cpus prints 92
+lines and answers `isolcpus=not available`. The block comes from
+`cf4a0230` (`Docs: Record the quiet host the example stands on`).
+`test: Fold cpu counts out of the shape gate` reads the host's cpu
+multiplicity out of both sides of that comparison, so the gate states
+the shape the program owns and a run under an affinity mask describes a
+block recorded on a wider host. FR-042 asks for a suite that passes
+pinned, and it now does.
 
 Two coverage-lane runs named `harness_jitter_cli_test` and
 `harness_hunt_json_test` as failures, and the second was a real one. The
