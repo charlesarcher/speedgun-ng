@@ -107,7 +107,6 @@ constexpr std::uint64_t kCalibrationNsPerPass = 1'920'000;
 // value.
 constexpr std::uint64_t kFixedSeed = 0;
 constexpr std::size_t kDefaultRepeats = 3;
-constexpr std::uint64_t kNanosecondsPerSecond = 1'000'000'000;
 
 // The AC-7 shape: 200 events at limit 6 with a top of 4. Stage 2 spans three
 // times the top (D-2), `kAcSevenPasses` passes hold the 200 columns at the four
@@ -944,9 +943,6 @@ auto parseSecondsForm() -> void
         "the s suffix settles the seconds unit");
   check(budget.amount == kFitSeconds,
         "the parse keeps the count the option named");
-  check(kFitSeconds * kNanosecondsPerSecond / kCalibrationNsPerPass
-            >= kAcSevenRuns,
-        "the seconds budget hosts the 59 pass runs of the AC-7 plan");
   const auto plan = planned(acSevenColumns(),
                             kAcOneLimit,
                             budgetOptions(budget, kAcSevenTop),

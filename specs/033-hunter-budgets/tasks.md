@@ -529,7 +529,7 @@ Polish closes the gates and the record.
 - [X] T051 State the hunt option count and the reserved id block in the comments that own them per Constitution IV (partial)
 - [X] T052 Join a hunt address to its run column through one seam per Constitution X.2, D-23 (partial)
 - [X] T053 Drop the unread leaf copy from the column-join record per Constitution VII (partial)
-- [ ] T054 Drop the test-side check that reads no production code per Constitution VI, X.4 (partial)
+- [X] T054 Drop the test-side check that reads no production code per Constitution VI, X.4 (partial)
 - [ ] T055 Name the four budget clause kinds in the option's help text per FR-004, FR-030 (partial)
 - [ ] T056 State the counter file's comma separator in the guide's counter paragraph per FR-014, contracts/counter-file.md (partial)
 - [ ] T057 Stop the example naming a file the run never writes per Constitution IV.1 (partial)
