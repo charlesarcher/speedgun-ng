@@ -1,10 +1,13 @@
 #ifndef SG_HARNESS_DETAIL_HUNT_PLAN_HPP
 #define SG_HARNESS_DETAIL_HUNT_PLAN_HPP
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "speedgun-ng/counters_core.hpp"
@@ -97,6 +100,26 @@ struct RetriedPass
 ///       `GAP` answer themselves and no other `Availability` answers a kind
 [[nodiscard]] auto skippedKindOf(counters::Availability availability) noexcept
     -> hunt::SkippedKind;
+
+/// @brief specs/029 D-23, specs/033-hunter-budgets T052 (Constitution X.2):
+///        the one join of a hunt address to the column that carries it.
+///
+/// A hunt's column spaces stand keyed by address: the leaf list of a stage
+/// hands the run its columns, the run answers the same addresses on its
+/// column labels, and the handoff names them as its events. Every route that
+/// seats or reads a column joins the two spaces by address, so the search
+/// stands here once.
+///
+/// \pre none: any address list and any address answer
+/// \post the answer is the index of the first entry spelling `address`, and
+///       the length of the list when it stands nowhere
+[[nodiscard]] inline auto columnIndexFor(std::span<const std::string> addresses,
+                                         const std::string_view address)
+    -> std::size_t
+{
+  return static_cast<std::size_t>(std::ranges::find(addresses, address)
+                                  - addresses.begin());
+}
 
 /// @brief specs/029 D-18, spec PC-1 (T118): the availability one refusal of a
 /// seat names.

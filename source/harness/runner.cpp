@@ -2529,47 +2529,58 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         anchorLabels.push_back(candidate.instructions);
       }
     }
+    // The address-keyed lists this route joins against the run's columns: the
+    // handoff's event addresses in handoff order and every label the run
+    // carries. `detail::columnIndexFor` owns the lookup they answer (D-23,
+    // specs/033 T052).
+    std::vector<std::string> eventLabels;
+    eventLabels.reserve(instance.huntPlan->columns.size());
+    for (const auto& candidate : instance.huntPlan->columns) {
+      eventLabels.push_back(candidate.event);
+    }
+    std::vector<std::string> columnLabels;
+    columnLabels.reserve(columns.size());
+    for (const auto& column : columns) {
+      columnLabels.push_back(column.label);
+    }
     for (const std::size_t column : passColumns[huntPass]) {
-      if (std::find(
-              anchorLabels.begin(), anchorLabels.end(), columns[column].label)
-          != anchorLabels.end())
+      if (detail::columnIndexFor(anchorLabels, columns[column].label)
+          != anchorLabels.size())
       {
         continue;
       }
       // The plan column of this column, by address: an anchor column answers
       // nothing, because no plan column names an anchor as its event.
-      const hunt::HuntColumn* planned = nullptr;
-      for (const auto& candidate : instance.huntPlan->columns) {
-        if (candidate.event == columns[column].label) {
-          planned = &candidate;
-          break;
-        }
-      }
-      if (planned == nullptr) {
+      const auto seat =
+          detail::columnIndexFor(eventLabels, columns[column].label);
+      if (seat == eventLabels.size()) {
         continue;
       }
+      const hunt::HuntColumn& planned = instance.huntPlan->columns[seat];
       std::vector<std::size_t> single {column};
       const auto addAnchor = [&](const std::string& anchor)
       {
         if (anchor.empty()) {
           return;
         }
-        for (std::size_t index = 0; index < columns.size(); ++index) {
-          if (columns[index].label != anchor) {
-            continue;
-          }
-          // The loop above skipped every column whose label is an anchor of
-          // any column, and the two anchors of one column are two distinct
-          // addresses, so a matched index cannot already stand in `single`
-          // twice (specs/029 D-18). The ignore build drops SG_* bodies, so a
-          // local read only by the contract call would be unused there.
-          SG_ASSERT(std::ranges::find(single, index) == single.end(),
-                    "one retry pass opens each anchor column once");
-          single.push_back(index);
-        }
+        const auto anchorSeat = detail::columnIndexFor(columnLabels, anchor);
+        // The handoff names the anchors of every event it seats, so the run
+        // that opened the stage's leaf list carries a column for each (D-18,
+        // D-23).
+        SG_ASSERT(anchorSeat != columnLabels.size(),
+                  "the run carries a column for every anchor the handoff "
+                  "names (D-18, D-23)");
+        // The loop above skipped every column whose label is an anchor of
+        // any column, and the two anchors of one column are two distinct
+        // addresses, so the anchor column stands nowhere in `single` yet
+        // (specs/029 D-18). The ignore build drops SG_* bodies, so a
+        // local read only by the contract call would be unused there.
+        SG_ASSERT(std::ranges::find(single, anchorSeat) == single.end(),
+                  "one retry pass opens each anchor column once");
+        single.push_back(anchorSeat);
       };
-      addAnchor(planned->cycles);
-      addAnchor(planned->instructions);
+      addAnchor(planned.cycles);
+      addAnchor(planned.instructions);
       const std::size_t opened = passColumns.size();
       passColumns.push_back(std::move(single));
       rowOf.push_back(kNoHuntIndex);
