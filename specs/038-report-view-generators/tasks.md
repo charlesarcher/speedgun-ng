@@ -36,13 +36,15 @@ the lane stands on. No other module builds before this phase closes.
 - [ ] T001 [P] Register the test executable `views_test` in
   `test/CMakeLists.txt` beside the standing harness tests
   (`add_executable`, link `speedgun-ng::harness`, `add_test`), then
-  write the failing public-surface tests in
-  `test/source/views_test.cpp`: the header's declares resolve, the
-  six public functions link, `ViewSeries` default-constructs empty,
-  and a call answers the error form on a document with zero
-  benchmarks (FR-001, FR-004, FR-005). Verify:
-  `ctest --test-dir build -R views_test --output-on-failure` with
-  the link rows red first (the release build configured).
+  write the public-surface tests in `test/source/views_test.cpp`
+  red first (the header missing, so the unit fails to compile):
+  `ViewSeries` default-constructs empty, and the declared
+  signatures stand type-checked through the header's declares
+  (FR-001, FR-004, FR-005). The zero-benchmark error row stands in
+  the resolver block T004 carries. Verify:
+  `ctest --test-dir build -R views_test --output-on-failure`, red
+  on the missing header, green once the header lands (the release
+  build configured).
 - [ ] T002 Move the version and record the ABI check: `VERSION
   0.25.0` in `CMakeLists.txt` with the comment recording it (the
   view functions join the exported harness surface, so the harness
