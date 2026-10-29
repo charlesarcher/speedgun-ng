@@ -305,9 +305,9 @@ struct StageLeaves
 [[nodiscard]] auto leafPosition(std::vector<std::string>& leaves,
                                 const std::string& address) -> std::size_t
 {
-  const auto found = std::find(leaves.begin(), leaves.end(), address);
-  if (found != leaves.end()) {
-    return static_cast<std::size_t>(found - leaves.begin());
+  const auto position = detail::columnIndexFor(leaves, address);
+  if (position != leaves.size()) {
+    return position;
   }
   leaves.push_back(address);
   return leaves.size() - 1;
@@ -339,8 +339,9 @@ struct StageLeaves
 /// @brief The stage's leaf positions read as columns of the run that measured
 /// them. The run's columns start with the metrics the family attached in code
 /// (FR-021), so a position in the stage's leaf list is no index into a row's
-/// metric slots, and the address each leaf names joins the two spaces, the join
-/// the retry route of PD-11 reads (D-23).
+/// metric slots, and the address each leaf names joins the two spaces through
+/// `detail::columnIndexFor`, the join the retry route of PD-11 reads (D-23,
+/// T052).
 ///
 /// \pre `leaves` names the leaf list the run was handed and `labels` are that
 ///      run's column labels in column order
@@ -356,12 +357,11 @@ struct StageLeaves
     if (position == kNoLeaf) {
       return kNoLeaf;
     }
-    const auto found =
-        std::find(labels.begin(), labels.end(), leaves.leaves[position]);
-    SG_ASSERT(found != labels.end(),
+    const auto column = detail::columnIndexFor(labels, leaves.leaves[position]);
+    SG_ASSERT(column != labels.size(),
               "the run carries a column for every leaf of the leaf list it was "
               "handed (D-23)");
-    return static_cast<std::size_t>(found - labels.begin());
+    return column;
   };
   auto run = StageLeaves {
       .leaves = leaves.leaves,
