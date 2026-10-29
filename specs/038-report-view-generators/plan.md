@@ -279,9 +279,11 @@ group.
   host's scratch space: the reader loads the minors the merged
   lanes recorded (the Assumptions), and each record names the
   schema its document carries.
-- The metric column's unit label: `MetricValue` carries the value
-  and the method; the label text the figures print needs the plan's
-  data-model decision, and the tests pin it (M-B, data-model.md).
+- The metric column's unit label: the data-model rules it empty,
+  the metric column printing as stored and naming no unit (FR-006,
+  A-5), and the tests pin it (M-B, data-model.md). The settled
+  method stands at `BenchmarkResult::metricMethod`; the figures
+  name no method.
 - The SVG label text meets document-derived strings (benchmark
   names, labels): the escaper is shared and tested once (M-C), and
   the histogram and the plot call it (X.2: one escaper, no second).

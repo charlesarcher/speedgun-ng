@@ -29,7 +29,7 @@ pin. The doxygen contracts of the header govern on disagreement
   benchmark records, the unit named beside the values; a metric
   column prints as stored (FR-006).
 - A-6: A document-derived string stands escaped where the format
-  can read it as markup (D-8, the escaper of M-F).
+  can read it as markup (D-8, the escaper of M-C).
 
 ## B. The per-function contracts
 
