@@ -704,7 +704,7 @@ auto theRootListAndTheWarningKeyAnswerTheirOwnRules(const std::string& text)
 }
 
 constexpr Mutation kMutations[] = {
-    {"\"schemaVersion\":\"1.6\"", "\"schemaVersion\":1", "/schemaVersion"},
+    {"\"schemaVersion\":\"1.7\"", "\"schemaVersion\":1", "/schemaVersion"},
     {"\"name\":\"bmJsonWindow\"", "\"name\":[]", "/benchmarks/0/name"},
     // The two kinds the naming word has no other caller for: a document
     // that holds null, and one that holds a flag, at a name.

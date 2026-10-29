@@ -983,7 +983,8 @@ auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
 // once, then the warning lines and the pinning-candidate line
 // (FR-012, FR-013, the clarify answers). The strict refusal never
 // reaches this printer: the run stops at the error surface (FR-014).
-auto printPrecheckReport(const PrecheckRecord& record) -> void
+auto printPrecheckReport(const PrecheckRecord& record,
+                         sg::TracerEngine requestedEngine) -> void
 {
   const auto figureText =
       [](const std::optional<std::uint64_t>& value) -> std::string
@@ -1059,6 +1060,46 @@ auto printPrecheckReport(const PrecheckRecord& record) -> void
     std::printf("irq affinity: cpu %u %s (source: /proc/irq)\n",
                 static_cast<unsigned>(cpu),
                 list.empty() ? kUnavailableFigure : list.c_str());
+  }
+  // specs/036 FR-013, R-14: the tracer lines stand after the host
+  // settings and before the warning lines: the header line naming the
+  // engine word and the cpus, then one figure line per source per tracer
+  // cpu in the NMI, IRQ, softirq, thread, hardware order, cpus ascending,
+  // each absent figure standing the kUnavailableFigure wording (FR-010).
+  // The record leaves the member empty for a run that requests no tracer
+  // and for a run whose tracer stands not available alike (E-17), so the
+  // requested engine carries the signal: a requested tracer prints the
+  // one disclosure line (FR-016), a tracer-free run prints none (FR-012).
+  if (record.tracer.has_value()) {
+    const auto& tracer = *record.tracer;
+    std::string cpuList;
+    for (const auto& entry : tracer.cpus) {
+      if (!cpuList.empty()) {
+        cpuList += ',';
+      }
+      cpuList += std::to_string(entry.cpu);
+    }
+    std::printf(
+        "tracer: engine %s cpus %s\n", tracer.engine.c_str(), cpuList.c_str());
+    for (const auto& entry : tracer.cpus) {
+      std::printf("tracer cpu %u nmi: %s\n",
+                  static_cast<unsigned>(entry.cpu),
+                  figureText(entry.nmi).c_str());
+      std::printf("tracer cpu %u irq: %s\n",
+                  static_cast<unsigned>(entry.cpu),
+                  figureText(entry.irq).c_str());
+      std::printf("tracer cpu %u softirq: %s\n",
+                  static_cast<unsigned>(entry.cpu),
+                  figureText(entry.softirq).c_str());
+      std::printf("tracer cpu %u thread: %s\n",
+                  static_cast<unsigned>(entry.cpu),
+                  figureText(entry.thread).c_str());
+      std::printf("tracer cpu %u hardware: %s\n",
+                  static_cast<unsigned>(entry.cpu),
+                  figureText(entry.hardware).c_str());
+    }
+  } else if (requestedEngine != sg::TracerEngine::NONE) {
+    std::printf("tracer: not available\n");
   }
   bool candidatesStand = false;
   for (const auto& entry : record.cpus) {

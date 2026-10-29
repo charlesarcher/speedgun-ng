@@ -861,6 +861,89 @@ auto readPrecheckHost(Element value, const std::string& where)
   return read;
 }
 
+// One per-cpu entry of a tracer record: the cpu and the five figures,
+// each an absent-figure `null` or a count, the standing per-figure
+// optional path of the attribution read (specs/036 FR-014, E-17).
+auto readPrecheckTracerCpu(Element value, const std::string& where)
+    -> std::expected<sg::PrecheckTracerCpuRecord, std::string>
+{
+  sg::PrecheckTracerCpuRecord read {};
+  auto cpu = field(value, where, "cpu");
+  if (!cpu.has_value()) {
+    return std::unexpected(cpu.error());
+  }
+  auto cpuValue = asUnsigned(*cpu, where + "/cpu");
+  if (!cpuValue.has_value()) {
+    return std::unexpected(cpuValue.error());
+  }
+  read.cpu = static_cast<std::uint32_t>(*cpuValue);
+  const auto readFigure = [&](std::string_view key,
+                              std::optional<std::uint64_t>* into)
+      -> std::expected<void, std::string>
+  {
+    auto found = field(value, where, key);
+    if (!found.has_value()) {
+      return std::unexpected(found.error());
+    }
+    auto figure = readNullableCount(*found, where + "/" + std::string(key));
+    if (!figure.has_value()) {
+      return std::unexpected(figure.error());
+    }
+    *into = std::move(*figure);
+    return {};
+  };
+  auto settledValues = allSettled(readFigure("nmi", &read.nmi),
+                                  readFigure("irq", &read.irq),
+                                  readFigure("softirq", &read.softirq),
+                                  readFigure("thread", &read.thread),
+                                  readFigure("hardware", &read.hardware));
+  if (!settledValues.has_value()) {
+    return std::unexpected(settledValues.error());
+  }
+  return read;
+}
+
+// The optional tracer record of a pre-check record (specs/036 FR-014,
+// E-20): the engine word of the closed table, then one entry per tracer
+// cpu. The engine reads through the standing `asEnum` reader the way the
+// jitter `mode` reads, so a word outside the list refuses and names
+// itself, and the record carries the word back.
+auto readPrecheckTracer(Element value, const std::string& where)
+    -> std::expected<sg::PrecheckTracerRecord, std::string>
+{
+  sg::PrecheckTracerRecord read {};
+  auto engine = field(value, where, "engine");
+  if (!engine.has_value()) {
+    return std::unexpected(engine.error());
+  }
+  auto engineValue = asEnum<sg::TracerEngine>(
+      detail::kTracerEngineWords, *engine, where + "/engine");
+  if (!engineValue.has_value()) {
+    return std::unexpected(engineValue.error());
+  }
+  read.engine = std::string(detail::enumWord(detail::kTracerEngineWords,
+                                             std::to_underlying(*engineValue)));
+  auto cpus = field(value, where, "cpus");
+  if (!cpus.has_value()) {
+    return std::unexpected(cpus.error());
+  }
+  auto cpuItems = asArray(*cpus, where + "/cpus");
+  if (!cpuItems.has_value()) {
+    return std::unexpected(cpuItems.error());
+  }
+  std::size_t index = 0;
+  for (const auto item : *cpuItems) {
+    auto entry =
+        readPrecheckTracerCpu(item, where + "/cpus/" + std::to_string(index));
+    if (!entry.has_value()) {
+      return std::unexpected(entry.error());
+    }
+    read.cpus.push_back(std::move(*entry));
+    ++index;
+  }
+  return read;
+}
+
 // The run-level pre-check record: the five keys the writer stands in
 // order, one entry per measured cpu with its role and figures, the host
 // settings, and the skipped groups (specs/034 FR-021, FR-024). Each key
@@ -932,6 +1015,18 @@ auto readPrecheckRecord(Element value, const std::string& where)
     }
     read.skippedGroups.push_back(static_cast<std::uint32_t>(*group));
     ++index;
+  }
+  // The optional tracer record of specs/036 (FR-014, E-20), read through
+  // the standing `optionalField` path the way the root `hunt` reads: a
+  // document written before the key, and a run whose tracer stands not
+  // available, carry no key and leave the member empty (FR-015, R-11). A
+  // key that stands present keeps its own kind and its own refusal.
+  if (const auto tracer = optionalField(value, "tracer"); tracer.has_value()) {
+    auto record = readPrecheckTracer(*tracer, where + "/tracer");
+    if (!record.has_value()) {
+      return std::unexpected(record.error());
+    }
+    read.tracer = std::move(*record);
   }
   return read;
 }

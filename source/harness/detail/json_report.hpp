@@ -82,6 +82,20 @@ inline constexpr std::array<std::string_view, 3> kJitterModeWords {
 static_assert(kJitterModeWords.size()
               == std::to_underlying(sg::JitterProbeMode::BOTH) + 1);
 
+// The engine words of the optional tracer record (specs/036 E-20,
+// contracts/report-json.md). The document spells the two engine words the
+// way the `--os-noise` value names them, so this table stands apart from
+// the enumerator spellings above; the first word answers the `NONE`
+// enumerator and stands in no written document, since a run that requests
+// no tracer writes no key.
+inline constexpr std::array<std::string_view, 3> kTracerEngineWords {
+    "NONE",
+    "osnoise",
+    "timerlat",
+};
+static_assert(kTracerEngineWords.size()
+              == std::to_underlying(sg::TracerEngine::TIMERLAT) + 1);
+
 inline constexpr std::array<std::string_view, 2> kStatUnitWords {
     "TIME",
     "PERCENTAGE",
@@ -278,7 +292,12 @@ struct JitterReportRecord
  *       `jitter` and before `benchmarks` (specs/034 FR-024, D-8); an
  *       empty one writes no such key, so a run without the pre-check
  *       writes the same bytes apart from the `schemaVersion` value
- *       (specs/034 FR-024)
+ *       (specs/034 FR-024). A filled `precheck->tracer` writes the
+ *       `tracer` object inside the `precheck` object after
+ *       `skippedGroups` (specs/036 FR-014, E-20); an empty one writes
+ *       no such key, so a run that requests no tracer and a run whose
+ *       tracer stands not available write the same bytes apart from the
+ *       `schemaVersion` value (specs/036 FR-015, R-10)
  */
 [[nodiscard]] auto writeReport(
     const std::string& path,

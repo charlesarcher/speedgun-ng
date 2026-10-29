@@ -1041,8 +1041,20 @@ auto printJitterReport(bool available,
 /// @brief specs/034 FR-023, D-8: the pre-check block, printed before the
 /// benchmark tables: one block per measured cpu, the host settings
 /// once, the warning lines, and the pinning-candidate line. The strict
-/// refusal never reaches this printer (FR-014).
-auto printPrecheckReport(const PrecheckRecord& record) -> void;
+/// refusal never reaches this printer (FR-014). The tracer lines of
+/// specs/036 stand after the host settings and before the warning
+/// lines (specs/036 R-14). The record leaves `tracer` empty for a
+/// tracer-free run and for a not-available run alike (specs/036 E-17),
+/// so `requestedEngine` carries the not-available signal: an engine
+/// that names a tracer prints the one disclosure line (specs/036
+/// FR-016), and a run that requests no tracer prints no tracer line
+/// (specs/036 FR-012).
+///
+/// \pre none
+/// \post none
+auto printPrecheckReport(
+    const PrecheckRecord& record,
+    sg::TracerEngine requestedEngine = sg::TracerEngine::NONE) -> void;
 /// @brief specs/029 T035, FR-012, FR-013, data-model E-07: the plan line of
 /// one hunt run, and the one line a cut plan adds below it.
 ///
