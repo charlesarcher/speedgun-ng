@@ -23,6 +23,7 @@ fixes.
 | `--compare-rule` | one rule text, repeatable | adds one rule in the order given; a text the parse call rejects prints one line naming the option and the fault the parse call named (specs/026 FR-049, FR-051) | specs/026 FR-049 |
 | `--compare-strict` | none | makes every `NOISY` row fail the run while the state word stays `NOISY` (specs/026 FR-044, FR-045) | specs/026 FR-044, FR-045 |
 | `--jitter-probe` | one value: a cpu list or the word `idle`, then the `threshold`, `mode`, `precheck`, `gaps` and `strict` keys, each standing once | runs the jitter probe over the batch by that value; the value parses once before the first run | specs/027 FR-011 |
+| `--os-noise` | one value: the word `osnoise` or `timerlat`, then one optional `cpus=<cpu-list>` key, the grammar `specs/036-osnoise-timerlat-tracers/contracts/cli-options.md` fixes | runs the named noise tracer across the pre-check window and prints the noise-by-source figures beside the pre-check block | specs/036 FR-002, FR-012 |
 
 - A benchmark value set through the handle shall win over the command
   line (FR-015).
@@ -138,6 +139,8 @@ FR-034, FR-036, FR-046, FR-054, FR-064, FR-065, FR-082).
 | a `--jitter-probe` value stands outside the grammar of contracts/cli-options.md | 2, with one line naming the rejected token, before any run (specs/027 FR-008, FR-009, FR-014, FR-038, R-06) |
 | the machine/tsc leaf stands missing under `--jitter-probe` with the `strict` key | 2, with one line, before any run (specs/027 FR-037, Q-1) |
 | the machine/tsc leaf stands missing under `--jitter-probe` without the `strict` key | zero, with the disclosure at report time (specs/027 FR-037, D-10) |
+| an `--os-noise` value stands outside the grammar of contracts/cli-options.md | 2, with one line naming the rejected token, before any run (specs/036 FR-003) |
+| an `--os-noise` value stands beside a batch that carries no pre-check window | 2, with one line naming the missing pre-check window, before any run (specs/036 FR-011) |
 
 ## Interrupt behavior (clarification, FR-032)
 
