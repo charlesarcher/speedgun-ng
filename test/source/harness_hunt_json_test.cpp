@@ -859,12 +859,18 @@ constexpr std::uint64_t kSampleBudgetNs = 500'000'000;
 constexpr std::size_t kMultiplexCap = 32;
 constexpr std::size_t kDerivedRepeats = 4;
 
+// The count of the stage a composed plan prices while its other stage stands
+// over the sample budget: the overrun and this count hold one record (033
+// FR-002, N-03).
+constexpr std::size_t kOverrunDerivedRepeats = 2;
+
 // The four keys as the written bytes must carry them. The `e` text is the
 // shortest decimal word of the seconds, the `g` text is the whole count with
 // its letter (033 N-06, contracts/hunt-json.md).
 constexpr std::string_view kSampleBudgetKey = "\"sample_budget\":\"0.5e\"";
 constexpr std::string_view kMultiplexCapKey = "\"multiplex_cap\":\"32g\"";
 constexpr std::string_view kDerivedRepeatsKey = "\"derived_repeats\":4";
+constexpr std::string_view kOverrunDerivedRepeatsKey = "\"derived_repeats\":2";
 constexpr std::string_view kMuxGroupsKey = "\"mux_groups\":[32,32,8]";
 
 // The run node's keys once the four budgets stand: the standing sixteen, then
@@ -1699,6 +1705,32 @@ auto budgetRoundTrip() -> void
           "the record a document handed back writes the canonical text again");
 }
 
+// The composed state of a two-stage plan: the sample budget fitted below one
+// repeat of one stage while the stage the run prices derived two repeats, so
+// the record holds the overrun and the count at once. The document writes that
+// count, the figure the console line prints beside the word `over-budget`
+// (033 FR-002, FR-023, N-06, the console parity of contracts/hunt-json.md).
+auto overrunWritesTheDerivedCount() -> void
+{
+  auto composed = budgetedHunt();
+  composed.run.sample.derivedRepeats = kOverrunDerivedRepeats;
+  composed.run.sample.overBudget = true;
+  const auto written = writeReportDocument(&composed);
+  const auto text = documentText();
+  checked(occurrences(text, kOverrunDerivedRepeatsKey) == 1,
+          "the overrun record writes the count it carries, under one key");
+
+  const auto loaded = sg::loadReport(scratchDocument);
+  if (!loaded.has_value()) {
+    failed("the document of an overrun hunt refuses to load: "
+           + loaded.error());
+  }
+  checked(loaded->hunt->sample.derivedRepeats == kOverrunDerivedRepeats,
+          "the count the overrun record carries reads back");
+  check(sg::test::sameReport(written, *loaded),
+        "the standing fields of the overrun record survive the round trip");
+}
+
 // The cap and the sizes a capped plan splits into read back equal: the text
 // carries the whole count, the array carries the sizes in plan order (033
 // FR-003, FR-020, FR-021).
@@ -1946,6 +1978,7 @@ struct Scenario
       Scenario {.name = "no-hunt-bytes", .body = &noHuntBytesMatchCapture},
       Scenario {.name = "budget-keys", .body = &budgetKeysInOrder},
       Scenario {.name = "budget-round-trip", .body = &budgetRoundTrip},
+      Scenario {.name = "overrun-count", .body = &overrunWritesTheDerivedCount},
       Scenario {.name = "cap-round-trip", .body = &capRoundTrip},
       Scenario {.name = "budget-bytes", .body = &budgetBytesStand},
       Scenario {.name = "pre-1.7", .body = &preBudgetDocument},

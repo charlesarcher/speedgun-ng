@@ -508,7 +508,7 @@ Polish closes the gates and the record.
 - [X] T035 Stand reader rows for the two unexercised sample-budget arcs per FR-041, SC-007, Constitution VI (partial)
 - [X] T036 Make the suite pass under `taskset -c 0,1` per FR-042, T029 (partial)
 - [X] T037 Restate the stage repeat contract in `hunt.hpp` for the derived count per D-12, Constitution II (contradicts)
-- [ ] T038 Print the record's derived repeats in the overrun line per FR-002, FR-023, contracts/hunt-json.md, N-06 (contradicts)
+- [X] T038 Print the record's derived repeats in the overrun line per FR-002, FR-023, contracts/hunt-json.md, N-06 (contradicts)
 - [X] T039 Correct the unknown-address row to the entry point's standing refusal per FR-014, D-8, contracts/counter-file.md (contradicts)
 - [X] T040 Except `--hunt-emit-set` from the beside-no-`--hunt` sentence per FR-030, FR-012 (contradicts)
 - [X] T041 Re-record the SOVERSION 14 note for the record-layout moves per FR-040, hard rule 12 (contradicts)
@@ -519,3 +519,4 @@ Polish closes the gates and the record.
 - [X] T046 Drop the unreachable zero guard beside T034's fix per Constitution X.2 (partial)
 - [X] T047 Reuse `parseSeconds`' refusal sentence for the `e` clause per Constitution X.3, R-01 (partial)
 - [X] T048 Re-anchor the acceptance record's heads to reachable commits per FR-045, Constitution X.4 (partial)
+- [ ] T049 Re-run and re-record the acceptance rows the convergence wave changed per FR-045, SC-009 (partial)

@@ -16,6 +16,7 @@
 #include "detail/json_report.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
+#include "speedgun-ng/dbc.hpp"
 #include "speedgun-ng/execution_context.hpp"
 #include "speedgun-ng/hunt.hpp"
 
@@ -824,15 +825,24 @@ auto printHuntBudget(const std::optional<sg::hunt::HuntBudget>& budget) -> void
 
 // specs/033 FR-001, FR-002, FR-023, R-10, N-03, N-06: the one sample-budget
 // disclosure line. The stage split recorded the state the budget settled, so
-// the line reads that state and answers one of its three words: the one repeat
-// a budget that fitted below one repeat leaves, the word `unpriced` for a stage
-// no calibration figure priced, and the derived count weighed against the stage
-// rule that capped it. A derived count the rule already gave moved nothing, so
-// the record leaves no line.
+// the line reads that state and answers one of its three words: the derived
+// count under the word `over-budget` where the budget fitted below one repeat
+// of a stage, the word `unpriced` for a stage no calibration figure priced, and
+// the derived count weighed against the stage rule that capped it. The overrun
+// is the state of a stage of the plan and the count is the figure of the stage
+// the run prices, so the line prints the count the record carries beside the
+// word, the figure the document writes under `derived_repeats`. The split
+// records an overrun inside the derivation that answers the count, so no
+// record holds an overrun without that count. A derived count the rule already
+// gave moved nothing, so the record leaves no line.
 auto printHuntSampleLine(const sg::hunt::RunHunt& run) -> void
 {
   if (run.sample.overBudget) {
-    std::printf("hunt: plan sample repeats=1 over-budget\n");
+    SG_REQUIRE(run.sample.derivedRepeats.has_value(),
+               "the split records an overrun inside the derivation that "
+               "answers the count, so the record carries it");
+    std::printf("hunt: plan sample repeats=%zu over-budget\n",
+                *run.sample.derivedRepeats);
     return;
   }
   if (run.sample.unpriced) {
