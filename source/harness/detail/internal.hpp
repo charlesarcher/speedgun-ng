@@ -625,6 +625,15 @@ struct RunOptions
   // file's settle arm parses its own value in place, so the entry
   // point parses the command line's text alone (FR-027, R-06).
   std::optional<std::string> jitterProbeText;
+  // specs/036 FR-002, FR-005, R-06: the engine the `--os-noise` value
+  // settled, empty when the option stood absent. The value rides the
+  // batch options beside the probe option, so the missing-window
+  // refusal reads it on a batch that names no probe option.
+  std::optional<TracerEngine> noiseTracer;
+  // specs/036 FR-002, FR-005, R-06: the cpu list the `--os-noise`
+  // value settled; an empty vector names the pre-check's candidate
+  // set (specs/036 FR-008, R-09).
+  std::vector<std::uint32_t> noiseTracerCpus;
   // specs/029 data-model.md E-09, FR-080 to FR-082, D-22: the hunt selection
   // and its settled values, empty when the run carries no hunt.
   std::optional<hunt::HuntOptions> hunt;
