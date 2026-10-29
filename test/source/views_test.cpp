@@ -800,6 +800,50 @@ auto run() -> int
           "text: the plot part renders the single value's line");
   }
 
+  // Row 3b: the all-unavailable series (FR-013, D-6): every repetition
+  // row stands a GAP for the column, so both parts answer the
+  // disclosure and each part's line stands in its place, the whole
+  // answering the value form.
+  {
+    auto const scratch = std::filesystem::temp_directory_path()
+        / "views_test_text_all_unavailable.json";
+    {
+      std::ofstream out(scratch);
+      out << R"({"schemaVersion":"1.8","benchmarks":[
+          {"name":"bmViewsGap","suite":"bmViews","case":"bmViewsGap",
+           "outcome":"MEASURED","reason":null,"hideRepetitionRows":false,
+           "timeUnit":"NANOSECONDS","primaryIsCpu":false,
+           "pauseSamplesFolded":false,"percentilePoints":[],"contexts":[],
+           "rows":[{"kind":"REPETITION","label":null,"iterations":8,
+                    "timePerIterationNs":10.0,"cpuTimePerIterationNs":10.0,
+                    "endpointSamples":8,"pauseSamplesFolded":false,
+                    "timeAvailability":"COUNTABLE",
+                    "metrics":[{"label":"gap","value":0.0,
+                                "runningRatio":1.0,"scaled":false,
+                                "availability":"GAP","pass":null}],
+                    "counters":[],"counterDisclosure":null,"fit":null,
+                    "overheadFloorNs":0.0,"percentiles":[],"chunkCount":0,
+                    "chunkIterations":0,"timeStats":null,"metricStats":[]}],
+           "metricLabels":["gap"],"counterLabels":[],"counterStats":[],
+           "statisticValues":[]}]})";
+    }
+    auto const empty = sg::loadReport(scratch.string());
+    check(empty.has_value(), "text: the all-unavailable document loads");
+    auto const text = sg::renderText(*empty, "bmViewsGap", "gap", 4);
+    check(text.has_value(), "text: the all-gap view answers the value form");
+    const auto lines = textLines(*text);
+    check(lines.size() == 3,
+          "text: the column and the two disclosure lines stand");
+    check(lines[1].find("not available") != std::string::npos
+              && lines[1].find("sample count 0") != std::string::npos,
+          "text: the histogram part's disclosure stands in its place");
+    check(lines[2].find("not available") != std::string::npos
+              && lines[2].find("sample count 0") != std::string::npos,
+          "text: the plot part's disclosure stands in its place");
+    std::error_code ignored;
+    std::filesystem::remove(scratch, ignored);
+  }
+
   // Row 4: the markup label (A-6, D-8): the view names its column
   // through the escaper, the way the figures name theirs.
   {
