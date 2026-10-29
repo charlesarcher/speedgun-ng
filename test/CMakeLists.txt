@@ -767,6 +767,9 @@ add_test(NAME harness_cli_table_test
 # same registration turns green with it.
 add_executable(views_test source/views_test.cpp)
 target_link_libraries(views_test PRIVATE speedgun-ng::harness)
+# The detail escaper the escape block calls directly (specs/038 T006),
+# the shape harness_cli_table_test gives its source directory.
+target_include_directories(views_test PRIVATE ${CMAKE_SOURCE_DIR}/source/views)
 target_compile_features(views_test PRIVATE cxx_std_23)
 # The fixture directory the resolver block loads its documents from, the
 # shape harness_compare_test gives its fixture directory.
