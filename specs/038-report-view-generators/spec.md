@@ -126,6 +126,44 @@ evidence record shape.
   `source/harness/detail/options.hpp`; the block `298` to `319`
   stands free.
 
+## Clarifications
+
+### Session 2026-10-29
+
+- Q: Does a repetition row whose value stands unavailable join the
+  histogram's sample set and the plot's series, and what does the
+  sample count name? → A: The row stands out of the sample set and
+  the series; the figure carries the measured values alone, and the
+  sample count names the rows a value stands for (D-6, D-7). A gap
+  marker or a zero count would carry a shape the run did not
+  measure, and one unavailable value hides no measured repetition.
+- Q: How does the driver choose between the refusal of FR-015 and
+  the disclosure of FR-016 when both ride one error form? → A: The
+  driver checks the request against the loaded document (the
+  benchmark name, the column selector, the view word) before it
+  calls the view function; a failed check refuses with status 2,
+  and every error the view function answers is a disclosure with
+  status 0 (FR-015, FR-016). The library keeps the one error shape
+  D-10 names, and the classification stands testable as two driver
+  cases.
+- Q: Does the column selector resolve a user counter column? → A:
+  No: the selector ends at `time`, `cpu` and the metric labels; a
+  counter label refuses one line, and a later spec extends the
+  selector (FR-006, Out of scope). No user story, fixture or
+  evidence run names a counter column, so the lane ships the
+  shapes the stories name.
+- Q: What does the page carry when one embedded figure answers the
+  disclosure? → A: The disclosure text stands in the figure's
+  place, and the page answers the value form (FR-012). The page
+  composes the two figures and the identity, so each part renders
+  by the rule the part follows alone; a one-repetition column
+  still renders its plot in the page view.
+- Q: What unit do the time figures print? → A: The time columns
+  print scaled by the `timeUnit` the benchmark records, the unit
+  named beside the values; a metric column prints as stored
+  (FR-006). The figures then agree with the report's printed
+  columns a reader cross-reads.
+
 ## Decisions
 
 - **D-1 (R-1)**: The reader stands alone. `loadReport` and the
@@ -153,12 +191,18 @@ evidence record shape.
   them.
 - **D-6**: The histogram's sample set: the per-repetition values of
   one column, the distribution the `Statistics` of specs/019
-  summarizes. Fewer than two recorded values names no shape, so the
-  histogram answers `not available` with the sample count named.
+  summarizes. A row whose value stands unavailable (an `Availability`
+  other than `COUNTABLE`) stands out of the sample set: the figure
+  carries the measured values alone, and the sample count names the
+  rows a value stands for. Fewer than two recorded values names no
+  shape, so the histogram answers `not available` with the sample
+  count named.
 - **D-7**: The plot's series: one column's values across the
   benchmark's repetition rows in document order; a multipass run's
   rows stand the passes in order. The `AGGREGATE` row stands out of
-  the series: it summarizes the rows, it is no sample.
+  the series: it summarizes the rows, it is no sample. A row whose
+  value stands unavailable stands out of the series, the rule D-6
+  states for the sample set.
 - **D-8**: The page shape: one static HTML document, no script, the
   views inline, the run's identity beside them, the text escaped by
   hand.
@@ -182,6 +226,8 @@ evidence record shape.
   own.
 - Views over two reports, comparison figures, and interactive
   views: one report in, one view out.
+- User counter columns as a view column: the selector ends at the
+  time columns and the metric labels; a later spec extends it.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -384,6 +430,9 @@ read no finding.
   `not available` in its place.
 - A metric label carrying a markup or escape character: the page and
   the SVG escape it.
+- A column name that names a user counter: one refusal line, exit
+  status 2, the counter columns standing outside the selector this
+  spec fixes.
 - A document with zero benchmarks: the driver refuses one line,
   exit status 2.
 
@@ -415,7 +464,12 @@ read no finding.
 - **FR-006**: The column selector SHALL read `time` for the primary
   time column, `cpu` for the CPU-time column, and a metric label of
   the benchmark for a metric column; the views SHALL render no
-  figure outside the columns the document records (R-4).
+  figure outside the columns the document records (R-4). A user
+  counter label SHALL stand outside the selector this spec fixes:
+  the driver refuses it one line (FR-015), and a later spec extends
+  the selector. The time columns SHALL print scaled by the
+  `timeUnit` the benchmark records, the unit named beside the
+  values; a metric column SHALL print as stored.
 
 ### The histogram (B)
 
@@ -446,7 +500,10 @@ read no finding.
   column) and the histogram and the plot views of the request, the
   text escaped, and no script (D-8).
 - **FR-012**: An identity field the document does not carry SHALL
-  render `not available`; the page SHALL invent no field (R-4).
+  render `not available`; a figure the page embeds that answers the
+  disclosure SHALL render the disclosure text in the figure's place;
+  the page SHALL invent no field and SHALL answer the value form
+  (R-4, FR-005).
 
 ### The text views (E)
 
@@ -466,7 +523,12 @@ read no finding.
   with exit status 2 before any view output: a document `loadReport`
   refuses, the reader's error text; a name the document does not
   carry, the benchmark, the column or the view word; a missing or
-  repeated required argument (the standing refusal shape).
+  repeated required argument (the standing refusal shape). The
+  driver SHALL check the request against the loaded document (the
+  benchmark name, the column selector, the view word) before it
+  calls the view function, so a failed check refuses and every
+  error a view function answers rides FR-016's disclosure shape
+  (D-10).
 - **FR-016**: A view that answers the `not available` disclosure
   SHALL print the disclosure on standard output and exit 0 (D-9).
 - **FR-017**: `--help` SHALL print one line per argument row on
