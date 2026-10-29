@@ -712,6 +712,28 @@ auto main(int argc, char** argv) -> int
 }
 ```
 
+### Noise tracer
+The `--os-noise` value runs the `osnoise` or the `timerlat` tracer across the pre-check window. The report prints one header line naming the engine and the tracer cpus, then one figure line per source per tracer cpu. The disclosure covers three host states: no tracefs mount at the standing path, no tracer engine, and no rights for the setup writes. It stands one line, `tracer: not available`, on the tracer lines alone, and the exit status stays 0. A `cpus=` list naming a planned cpu runs the tracer's own load beside the measured cpus. See [jitter probe in detail](docs/pages/harness.md#jitter-probe) for the value grammar, the refusal shape and the record.
+<!-- sg-example: example/docs/jitter_probe.cpp#jitter-probe -->
+```cpp
+auto bmMeasured(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.iterations());
+  }
+}
+
+SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
+
+auto main(int argc, char** argv) -> int
+{
+  sg::runJitterProbe({.thresholdNs = 1000000000,
+                      .mode = sg::JitterProbeMode::PRECHECK,
+                      .precheckSerial = true});
+  return sg::speedgunMain(argc, argv);
+}
+```
+
 ### Hunter mode
 `--hunt` puts a wide catalog event set on one benchmark and ranks the events by how far each one stands out of the run. `--hunt=all` selects every entry of every core device, and an address list, a glob such as `uncore/*` or a `@file` of addresses selects the rest. A hunt option beside no `--hunt` leaves the hunt off, and `--hunt=none` states the same run in words. The hunt drives the multi-pass collection loop above, so it opens no second counter path.
 <!-- sg-example: example/docs/hunt_rank.cpp#hunt-rank -->
@@ -831,6 +853,11 @@ One line on stderr naming the value ends the run with status 2 for a value outsi
 | `ContextDisclosure` | type | The wait mode and placement one context disclosed | [reading the report](#reading-the-report) |
 | `JitterProbeOptions::precheckSerial` | field | Runs the pre-check windows one cpu at a time | [host noise pre-check](#host-noise-pre-check) |
 | `PrecheckRecord` | type | The pre-check record one run carries, one entry per measured cpu | [host noise pre-check](#host-noise-pre-check) |
+| `JitterProbeOptions::tracerEngine` | tracer field | Names the noise tracer the run sets across the pre-check window | [noise tracer](#noise-tracer) |
+| `JitterProbeOptions::tracerCpus` | tracer field | Names the cpus the tracer runs on; empty names the candidate set | [noise tracer](#noise-tracer) |
+| `PrecheckTracerRecord` | tracer type | The tracer record one run carries: the engine and one entry per tracer cpu | [noise tracer](#noise-tracer) |
+| `PrecheckTracerCpuRecord` | tracer type | One tracer cpu's five noise-by-source counts | [noise tracer](#noise-tracer) |
+| `PrecheckRecord::tracer` | tracer field | The optional record standing when the tracer ran | [noise tracer](#noise-tracer) |
 | `BenchmarkResult::contexts` | BenchmarkResult | The disclosures one run recorded for its contexts | [reading the report](#reading-the-report) |
 
 | Option | What it does |
