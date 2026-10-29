@@ -489,21 +489,23 @@ auto run() -> int
         / "views_test_all_unavailable.json";
     {
       std::ofstream out(scratch);
-      out << R"({"schemaVersion":"1.8","benchmarks":[{"name":"bmViewsGap","
-             R"("suite":"bmViews","case":"bmViewsGap","outcome":"MEASURED","
-             R"("reason":null,"hideRepetitionRows":false,"timeUnit":"
-             R"("NANOSECONDS","primaryIsCpu":false,"pauseSamplesFolded":false,"
-             R"("percentilePoints":[],"contexts":[],"rows":[{"kind":"
-             R"("REPETITION","label":null,"iterations":8,"
-             R"("timePerIterationNs":10.0,"cpuTimePerIterationNs":10.0,"
-             R"("endpointSamples":8,"pauseSamplesFolded":false,"
-             R"("timeAvailability":"COUNTABLE","metrics":[{"label":"gap","
-             R"("value":0.0,"runningRatio":1.0,"scaled":false,"
-             R"("availability":"GAP","pass":null}],"counters":[],"
-             R"("counterDisclosure":null,"fit":null,"overheadFloorNs":0.0,"
-             R"("percentiles":[],"chunkCount":0,"chunkIterations":0,"
-             R"("timeStats":null,"metricStats":[]}],"metricLabels":["gap"],"
-             R"("counterLabels":[],"counterStats":[],"statisticValues":[]}]}))";
+      out << R"({"schemaVersion":"1.8","benchmarks":[
+          {"name":"bmViewsGap","suite":"bmViews","case":"bmViewsGap",
+           "outcome":"MEASURED","reason":null,"hideRepetitionRows":false,
+           "timeUnit":"NANOSECONDS","primaryIsCpu":false,
+           "pauseSamplesFolded":false,"percentilePoints":[],"contexts":[],
+           "rows":[{"kind":"REPETITION","label":null,"iterations":8,
+                    "timePerIterationNs":10.0,"cpuTimePerIterationNs":10.0,
+                    "endpointSamples":8,"pauseSamplesFolded":false,
+                    "timeAvailability":"COUNTABLE",
+                    "metrics":[{"label":"gap","value":0.0,
+                                "runningRatio":1.0,"scaled":false,
+                                "availability":"GAP","pass":null}],
+                    "counters":[],"counterDisclosure":null,"fit":null,
+                    "overheadFloorNs":0.0,"percentiles":[],"chunkCount":0,
+                    "chunkIterations":0,"timeStats":null,"metricStats":[]}],
+           "metricLabels":["gap"],"counterLabels":[],"counterStats":[],
+           "statisticValues":[]}]})";
     }
     auto const empty = sg::loadReport(scratch.string());
     check(empty.has_value(), "histogram: the all-unavailable document loads");
