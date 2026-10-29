@@ -1789,7 +1789,10 @@ auto preBudgetDocument() -> void
 }
 
 // The rows the four keys add to contracts/hunt-json.md's reader table, each in
-// the one form no record can express it (033 FR-021, hard rule 7).
+// the one form no record can express it (033 FR-021, hard rule 7). Two of the
+// `sample_budget` rows reach a reader arc the other rows leave untried: a whole
+// part that stops at a letter, and a fraction finer than the nanosecond the
+// record holds (033 FR-041, SC-007).
 const auto kBudgetPlants = std::vector<Plant> {
     Plant {.what = "a number where the sample budget stands",
            .node = "run",
@@ -1821,6 +1824,12 @@ const auto kBudgetPlants = std::vector<Plant> {
            .body = "\"xe\"",
            .pointer = "/hunt/sample_budget",
            .message = "states no sample budget amount"},
+    Plant {.what = "a sample budget whole part that stops at a letter",
+           .node = "run",
+           .key = "sample_budget",
+           .body = "\"12xe\"",
+           .pointer = "/hunt/sample_budget",
+           .message = "states no sample budget amount"},
     Plant {.what = "a sample budget above the whole-second bound",
            .node = "run",
            .key = "sample_budget",
@@ -1831,6 +1840,12 @@ const auto kBudgetPlants = std::vector<Plant> {
            .node = "run",
            .key = "sample_budget",
            .body = "\"1.2x3e\"",
+           .pointer = "/hunt/sample_budget",
+           .message = "states no sample budget amount"},
+    Plant {.what = "a sample budget fraction finer than a nanosecond",
+           .node = "run",
+           .key = "sample_budget",
+           .body = "\"0.1234567890e\"",
            .pointer = "/hunt/sample_budget",
            .message = "states no sample budget amount"},
     Plant {.what = "a number where the multiplex cap stands",
