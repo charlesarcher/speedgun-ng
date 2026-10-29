@@ -336,6 +336,18 @@ struct StageLeaves
   return leaves;
 }
 
+// The joined columns of one stage's run: for each planned column the run
+// column of its event and of its two anchors, `kNoLeaf` where the position
+// stood. The leaf list itself rides the `StageLeaves` the run was handed, so
+// this record carries the positions the collection reads and no second copy of
+// the list (D-23, T053).
+struct RunColumns
+{
+  std::vector<std::size_t> event;
+  std::vector<std::size_t> cycles;
+  std::vector<std::size_t> instructions;
+};
+
 /// @brief The stage's leaf positions read as columns of the run that measured
 /// them. The run's columns start with the metrics the family attached in code
 /// (FR-021), so a position in the stage's leaf list is no index into a row's
@@ -350,7 +362,7 @@ struct StageLeaves
 ///       stood
 [[nodiscard]] auto runColumns(const StageLeaves& leaves,
                               const std::vector<std::string>& labels)
-    -> StageLeaves
+    -> RunColumns
 {
   const auto columnOf = [&leaves, &labels](const std::size_t position)
   {
@@ -363,8 +375,7 @@ struct StageLeaves
               "handed (D-23)");
     return column;
   };
-  auto run = StageLeaves {
-      .leaves = leaves.leaves,
+  auto run = RunColumns {
       .event = {},
       .cycles = {},
       .instructions = {},
@@ -538,17 +549,17 @@ auto joinLeaf(std::vector<std::size_t>& pass, std::size_t position) -> void
 /// measured repetition of one column, each with the anchor readings of its own
 /// window, its iteration count and its disclosure.
 ///
-/// \pre `leaves` names the columns of the stage that produced `rows`
+/// \pre `run` names the run columns of the stage that produced `rows`
 /// \post a column the stage measures keeps the samples of this stage alone, so
 ///       stage 2 values win over stage 1 ones (PD-13); a column the stage does
 ///       not measure keeps the rows of the stage that measured it (I-4)
 auto collectStageSamples(std::vector<EventSamples>& collected,
-                         const StageLeaves& leaves,
+                         const RunColumns& run,
                          const std::vector<sg::ResultRow>& rows,
                          const std::size_t stage) -> void
 {
   for (std::size_t column = 0; column < collected.size(); ++column) {
-    if (leaves.event[column] != kNoLeaf) {
+    if (run.event[column] != kNoLeaf) {
       collected[column].samples.clear();
     }
   }
@@ -557,7 +568,7 @@ auto collectStageSamples(std::vector<EventSamples>& collected,
       continue;
     }
     for (std::size_t column = 0; column < collected.size(); ++column) {
-      const std::size_t position = leaves.event[column];
+      const std::size_t position = run.event[column];
       if (position == kNoLeaf) {
         continue;
       }
@@ -570,8 +581,8 @@ auto collectStageSamples(std::vector<EventSamples>& collected,
           .pass = value.pass.value_or(0),
           .stage = stage,
           .eventValue = static_cast<std::uint64_t>(value.value),
-          .anchorInstr = anchorReading(row, leaves.instructions[column]),
-          .anchorCycle = anchorReading(row, leaves.cycles[column]),
+          .anchorInstr = anchorReading(row, run.instructions[column]),
+          .anchorCycle = anchorReading(row, run.cycles[column]),
           .iterations = row.iterations,
           .disclosure = {},
       };
