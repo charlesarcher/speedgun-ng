@@ -315,6 +315,36 @@ def golden_pairs() -> None:
           mask(schedstat) != mask(renamed_schedstat_source),
           "both folded to the same shape")
 
+    # specs/036 FR-023, R-14: the tracer figure line folds the figure
+    # beside the not-available wording, the source words and the cpu
+    # index keeping their bytes; the header and the disclosure lines
+    # keep their bytes.
+    tracer_figure = "tracer cpu 1 nmi: 12"
+    absent_tracer = "tracer cpu 1 nmi: not available"
+    check("a tracer figure folds equal beside an absent one",
+          mask(tracer_figure) == mask(absent_tracer),
+          f"{mask(tracer_figure)!r} against {mask(absent_tracer)!r}")
+
+    renamed_tracer_source = tracer_figure.replace(" nmi:", " nmi-total:")
+    check("a renamed tracer source folds different",
+          mask(tracer_figure) != mask(renamed_tracer_source),
+          "both folded to the same shape")
+
+    tracer_header = "tracer: engine osnoise cpus 1,9"
+    other_header = "tracer: engine timerlat cpus 1,9"
+    check("the tracer header line keeps its bytes",
+          mask(tracer_header) != mask(other_header),
+          "both folded to the same shape")
+
+    tracer_disclosure = "tracer: not available"
+    renamed_disclosure = "tracer: unavailable"
+    check("the tracer disclosure line folds equal beside itself",
+          mask(tracer_disclosure) == mask(tracer_disclosure),
+          f"{mask(tracer_disclosure)!r} against the literal")
+    check("a renamed tracer disclosure folds different",
+          mask(tracer_disclosure) != mask(renamed_disclosure),
+          "both folded to the same shape")
+
     # specs/035 FR-011, D-5: the placement field's node tail folds by the
     # standing digit rule with no fold of its own, so the bound and the
     # unbound shapes fold different, checked in both directions.

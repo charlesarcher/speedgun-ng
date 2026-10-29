@@ -58,6 +58,35 @@ the console's `not available` (spec FR-018).
 | `governors` | object | one entry per measured cpu, its key the cpu index; string or `null`; source the `scaling_governor` file |
 | `irqAffinity` | object | one entry per measured cpu, its key the cpu index; the comma-joined IRQ list or `null`; source `/proc/irq` |
 
+## The `tracer` object (specs/036)
+
+The optional tracer record stands inside the `precheck` object after
+`skippedGroups`, outside its `required` list; the `precheck`
+object's `x-order` reads the six keys
+`["serial", "windowMs", "cpus", "hostSettings", "skippedGroups",
+"tracer"]`, and the top-level list stands unchanged. The schema
+minor stands `1.7` past the `1.6` of this spec (specs/036 FR-006,
+R-11).
+
+| Key | Kind | Meaning |
+| --- | --- | --- |
+| `engine` | string, enum `osnoise` or `timerlat` | the engine word the value named |
+| `cpus` | array | one entry per tracer cpu, ascending |
+
+A `cpus` entry carries `cpu` (integer) then `nmi`, `irq`,
+`softirq`, `thread` and `hardware` (each integer or `null`), the
+cumulative figures the engine's count files state; `null` stands
+only for a source the engine states no figure for, or a cpu whose
+files state nothing at read time (specs/036 FR-010, FR-014).
+
+- A run that requests no tracer, and a run whose tracer stands not
+  available, write no `tracer` key: the document stands
+  byte-identical to the run without the option apart from the
+  `schemaVersion` value (specs/036 FR-015).
+- `loadReport` reads the object back through the standing
+  `optionalField` path, the way `hunt` reads (specs/036 FR-014); a
+  document written before the key reads as the tracer-less record.
+
 ## Rules
 
 - A run without the pre-check writes no `precheck` key; the document

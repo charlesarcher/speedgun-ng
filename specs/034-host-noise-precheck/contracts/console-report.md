@@ -23,6 +23,13 @@ order and the named figures.
   host settings: isolcpus=<...> nohz_full=<...> rcu_nocbs=<...>
   governor: cpu <n> <name> ... (source: /sys .../scaling_governor)
   irq affinity: cpu <n> <irq list> (source: /proc/irq)
+  tracer: engine <word> cpus <list>                       [specs/036, a run whose tracer ran]
+  tracer cpu <n> nmi: <figure>                             [per source per tracer cpu, the
+  tracer cpu <n> irq: <figure>                              sources in the NMI, IRQ, softirq,
+  tracer cpu <n> softirq: <figure>                          thread, hardware order, cpus
+  tracer cpu <n> thread: <figure>                           ascending]
+  tracer cpu <n> hardware: <figure>
+  tracer: not available                                    [specs/036, the not-available case]
 [after the blocks, the non-strict path]
   warning: cpu <n> gapsPerSecond <figure> maxNs <figure>     [per noisy planned cpu]
   pinning candidates: cpu <n> <rate> ... (lowest gap rate first)
@@ -57,5 +64,15 @@ order and the named figures.
 - A run with no candidate cpu stands disclosed once beside the
   host settings; the pinning line names the planned cpus alone
   (spec Edge Cases, the empty-candidate-set answer).
+- The tracer lines of specs/036 stand after the host-settings lines
+  and before the warning lines: one header line naming the engine
+  word and the cpus, then one figure line per source per tracer cpu,
+  the sources in the NMI, IRQ, softirq, thread, hardware order, cpus
+  ascending; an absent figure stands the `not available` wording for
+  that source alone (specs/036 FR-010, FR-013). The not-available
+  case stands one line, `tracer: not available`; the exit status
+  stays 0 (specs/036 FR-016). A run that requests no tracer prints
+  no tracer line, and every standing line stands byte-identical
+  (specs/036 FR-012, FR-015).
 - The `sg::NoiseWarning` disclosure of the standing report stands
   beside this block unchanged (spec FR-025).
