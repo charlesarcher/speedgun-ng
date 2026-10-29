@@ -99,7 +99,7 @@ auto scriptedProvider() -> sg::counters::FakeProvider&
   {
     auto owned = std::make_unique<sg::counters::FakeProvider>();
     auto& ref = *owned;
-    ref.addCounter("machine", "monotonic", "nanoseconds", "wall clock");
+    ref.addCounter("machine", "monotonic", "nanoseconds", "host time");
     ref.setPoints("machine", "monotonic", {0}, 4000);
     ref.addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
     ref.setPoints("machine", "thread_cpu", {0}, 2000);
@@ -993,8 +993,8 @@ auto theDeniedSetupWritesAnswerTheEmptySession(std::size_t which) -> void
 // candidate default; the not-available run stays whole at exit 0; the
 // missing-window refusal. The scenarios drive speedgunMain in this
 // process over the injected layout and the fake tracefs trees, and the
-// window stays bounded by the scripted reader, so no test sleeps and no
-// test reads a clock (FR-019).
+// window stays bounded by the scripted reader, the timing bound
+// FR-019 records.
 
 // The integration rows' benchmark: two contexts on the `l3` plan over
 // the injected layout, so the measured set carries the planned cpus and
@@ -1089,8 +1089,8 @@ struct TracerTally
 // files. The first read rewrites the tracer cpus' count files with the
 // post-window figures, so the record's figures pin the figure read
 // that stands behind the window (FR-009, R-05). The window stays
-// bounded by the reader's stamp series: no test sleeps and no test
-// reads a clock (FR-011).
+// bounded by the reader's stamp series, the timing bound the
+// scripted reader carries (FR-011).
 class TracerWindowReader final : public sg::counters::WindowReader
 {
 public:
@@ -1100,12 +1100,12 @@ public:
                      std::string expectedWord,
                      std::uint64_t stampStep,
                      std::filesystem::path tallyPath)
-      : m_root(std::move(root)),
-        m_countPaths(std::move(countPaths)),
-        m_postFigures(std::move(postFigures)),
-        m_expectedWord(std::move(expectedWord)),
-        m_stampStep(stampStep),
-        m_tallyPath(std::move(tallyPath))
+      : m_root(std::move(root))
+      , m_countPaths(std::move(countPaths))
+      , m_postFigures(std::move(postFigures))
+      , m_expectedWord(std::move(expectedWord))
+      , m_stampStep(stampStep)
+      , m_tallyPath(std::move(tallyPath))
   {
   }
 
@@ -1229,11 +1229,11 @@ inline const std::string kPostWindowFigures =
 auto checkPostWindowFigures(const sg::PrecheckTracerCpuRecord& entry,
                             const char* what) -> void
 {
-  check(entry.nmi.has_value() && *entry.nmi == 11
-            && entry.irq.has_value() && *entry.irq == 12
-            && entry.softirq.has_value() && *entry.softirq == 13
-            && entry.thread.has_value() && *entry.thread == 14
-            && entry.hardware.has_value() && *entry.hardware == 15,
+  check(entry.nmi.has_value() && *entry.nmi == 11 && entry.irq.has_value()
+            && *entry.irq == 12 && entry.softirq.has_value()
+            && *entry.softirq == 13 && entry.thread.has_value()
+            && *entry.thread == 14 && entry.hardware.has_value()
+            && *entry.hardware == 15,
         what);
 }
 
@@ -1254,9 +1254,7 @@ auto theWindowLifecycleRows(const std::vector<std::uint32_t>& planned,
     TracingRootGuard guard;
     const std::uint32_t tracerCpu = candidates.at(0);
     installStandingTree(guard.root(), "ffffffff");
-    writeTracingFile(guard.root(),
-                     cpuCountFile(tracerCpu),
-                     kPreWindowFigures);
+    writeTracingFile(guard.root(), cpuCountFile(tracerCpu), kPreWindowFigures);
     sg::detail::installTestReader(std::make_unique<TracerWindowReader>(
         guard.root(),
         countPathsOf(guard.root(), {tracerCpu}),
@@ -1264,23 +1262,18 @@ auto theWindowLifecycleRows(const std::vector<std::uint32_t>& planned,
         "osnoise",
         1000,
         "harness_noise_window_serial_tally.txt"));
-    const auto console = captureRun({"--filter=bmPinnedNoise",
-                                     "--repetitions=1",
-                                     "--iterations=2",
-                                     "--jitter-probe=idle,mode=precheck,"
-                                     "precheck=serial",
-                                     "--os-noise=osnoise,cpus="
-                                         + std::to_string(tracerCpu),
-                                     "--json=harness_noise_window_serial"
-                                     ".json"});
-    const auto tally = readTracerTally(
-        "harness_noise_window_serial_tally.txt");
+    const auto console =
+        captureRun({"--filter=bmPinnedNoise",
+                    "--repetitions=1",
+                    "--iterations=2",
+                    "--jitter-probe=idle,mode=precheck," "precheck=serial",
+                    "--os-noise=osnoise,cpus=" + std::to_string(tracerCpu),
+                    "--json=harness_noise_window_serial" ".json"});
+    const auto tally = readTracerTally("harness_noise_window_serial_tally.txt");
     const auto loaded = sg::loadReport("harness_noise_window_serial.json");
-    check(loaded.has_value(),
-          "the serial run writes the document (FR-005)");
+    check(loaded.has_value(), "the serial run writes the document (FR-005)");
     if (loaded.has_value()) {
-      check(loaded->precheck.has_value()
-                && loaded->precheck->serial,
+      check(loaded->precheck.has_value() && loaded->precheck->serial,
             "the serial window shape rides the record (specs/034 R-06)");
     }
     if (loaded.has_value()) {
@@ -1293,9 +1286,9 @@ auto theWindowLifecycleRows(const std::vector<std::uint32_t>& planned,
         if (tracer.has_value()) {
           check(tracer->engine == "osnoise",
                 "the record names the engine the carrier named (FR-014)");
-          check(tracer->cpus.size() == 1
-                    && tracer->cpus.front().cpu == tracerCpu,
-                "the record names the cpus the carrier named (FR-008)");
+          check(
+              tracer->cpus.size() == 1 && tracer->cpus.front().cpu == tracerCpu,
+              "the record names the cpus the carrier named (FR-008)");
           if (tracer->cpus.size() == 1) {
             checkPostWindowFigures(
                 tracer->cpus.front(),
@@ -1311,21 +1304,18 @@ auto theWindowLifecycleRows(const std::vector<std::uint32_t>& planned,
     check(tally.reads > 0, "the probe reads ran (R-05)");
     check(tally.downs == 0,
           "every read of both serial windows saw the engine up (FR-009)");
-    check(tally.firstUp,
-          "the engine stood up before the reads ran (R-05)");
-    check(console.find("tracer: engine osnoise cpus "
-                       + std::to_string(tracerCpu))
-              != std::string::npos,
-          "the block names the engine and the cpus (FR-013)");
-    check(readStream(guard.root()
-                     / "sys/kernel/tracing/current_tracer")
+    check(tally.firstUp, "the engine stood up before the reads ran (R-05)");
+    check(
+        console.find("tracer: engine osnoise cpus " + std::to_string(tracerCpu))
+            != std::string::npos,
+        "the block names the engine and the cpus (FR-013)");
+    check(readStream(guard.root() / "sys/kernel/tracing/current_tracer")
               == "nop\n",
           "the restore returns the standing word (R-04)");
     check(readStream(guard.root() / "sys/kernel/tracing/tracing_cpumask")
               == "ffffffff\n",
           "the restore returns the standing mask (R-04)");
-    check(readStream(guard.root() / "sys/kernel/tracing/tracing_on")
-              == "0\n",
+    check(readStream(guard.root() / "sys/kernel/tracing/tracing_on") == "0\n",
           "the restore writes tracing_on at 0 (R-04)");
     std::remove("harness_noise_window_serial.json");
     std::remove("harness_noise_window_serial_tally.txt");
@@ -1348,15 +1338,13 @@ auto theWindowLifecycleRows(const std::vector<std::uint32_t>& planned,
         "osnoise",
         1,
         "harness_noise_window_both_tally.txt"));
-    const auto console = captureRun(
-        {"--filter=bmPinnedNoise",
-         "--repetitions=1",
-         "--iterations=2",
-         "--jitter-probe=idle,mode=both,precheck=1",
-         "--os-noise=osnoise",
-         "--json=harness_noise_window_both.json"});
-    const auto tally =
-        readTracerTally("harness_noise_window_both_tally.txt");
+    const auto console = captureRun({"--filter=bmPinnedNoise",
+                                     "--repetitions=1",
+                                     "--iterations=2",
+                                     "--jitter-probe=idle,mode=both,precheck=1",
+                                     "--os-noise=osnoise",
+                                     "--json=harness_noise_window_both.json"});
+    const auto tally = readTracerTally("harness_noise_window_both_tally.txt");
     const auto loaded = sg::loadReport("harness_noise_window_both.json");
     check(loaded.has_value(), "the both run writes the document (FR-005)");
     if (loaded.has_value()) {
@@ -1389,14 +1377,11 @@ auto theWindowLifecycleRows(const std::vector<std::uint32_t>& planned,
       }
     }
     check(tally.reads > 0, "the probe reads ran (R-05)");
-    check(tally.firstUp,
-          "the engine stood up before the reads ran (R-05)");
-    check(readStream(guard.root()
-                     / "sys/kernel/tracing/current_tracer")
+    check(tally.firstUp, "the engine stood up before the reads ran (R-05)");
+    check(readStream(guard.root() / "sys/kernel/tracing/current_tracer")
               == "nop\n",
           "the restore returns the standing word (R-04)");
-    check(readStream(guard.root() / "sys/kernel/tracing/tracing_on")
-              == "0\n",
+    check(readStream(guard.root() / "sys/kernel/tracing/tracing_on") == "0\n",
           "the restore writes tracing_on at 0 (R-04)");
     std::remove("harness_noise_window_both.json");
     std::remove("harness_noise_window_both_tally.txt");
@@ -1441,8 +1426,7 @@ auto theTracerCpuRows(const std::vector<std::uint32_t>& planned,
                 "--jitter-probe=idle,mode=precheck,precheck=1",
                 "--os-noise=osnoise,cpus=" + list,
                 "--json=harness_noise_cpus_named.json"});
-    const auto tally =
-        readTracerTally("harness_noise_cpus_named_tally.txt");
+    const auto tally = readTracerTally("harness_noise_cpus_named_tally.txt");
     const auto loaded = sg::loadReport("harness_noise_cpus_named.json");
     check(loaded.has_value(), "the named run writes the document (FR-005)");
     if (loaded.has_value()) {
@@ -1450,28 +1434,25 @@ auto theTracerCpuRows(const std::vector<std::uint32_t>& planned,
             "the document carries the pre-check record (FR-014)");
       if (loaded->precheck.has_value()) {
         const auto& tracer = loaded->precheck->tracer;
-        check(tracer.has_value(),
-              "the record carries the tracer (FR-014)");
+        check(tracer.has_value(), "the record carries the tracer (FR-014)");
         if (tracer.has_value()) {
           check(tracer->cpus.size() == tracerCpus.size(),
                 "the named list runs as named (FR-008)");
           bool named = tracer->cpus.size() == tracerCpus.size();
-          for (std::size_t index = 0;
-               named && index < tracerCpus.size();
+          for (std::size_t index = 0; named && index < tracerCpus.size();
                ++index)
           {
             named = tracer->cpus.at(index).cpu == tracerCpus.at(index);
           }
-          check(named,
-                "the record names the cpus the list named, ascending "
-                "(FR-008)");
-          check(tally.downs == 0,
-                "every read saw the engine up (FR-009)");
+          check(
+              named,
+              "the record names the cpus the list named, ascending " "(FR-"
+                                                                     "008)");
+          check(tally.downs == 0, "every read saw the engine up (FR-009)");
         }
       }
     }
-    const std::set<std::string> wantedMask {
-        maskTextOf(tracerCpus, 8)};
+    const std::set<std::string> wantedMask {maskTextOf(tracerCpus, 8)};
     check(tally.masks == wantedMask,
           "the setup wrote the mask of the named list (FR-008, R-02)");
     std::remove("harness_noise_cpus_named.json");
@@ -1499,24 +1480,20 @@ auto theTracerCpuRows(const std::vector<std::uint32_t>& planned,
                 "--jitter-probe=idle,mode=precheck,precheck=1",
                 "--os-noise=osnoise",
                 "--json=harness_noise_cpus_default.json"});
-    const auto tally =
-        readTracerTally("harness_noise_cpus_default_tally.txt");
+    const auto tally = readTracerTally("harness_noise_cpus_default_tally.txt");
     const auto loaded = sg::loadReport("harness_noise_cpus_default.json");
-    check(loaded.has_value(),
-          "the default run writes the document (FR-005)");
+    check(loaded.has_value(), "the default run writes the document (FR-005)");
     if (loaded.has_value()) {
       check(loaded->precheck.has_value(),
             "the document carries the pre-check record (FR-014)");
       if (loaded->precheck.has_value()) {
         const auto& tracer = loaded->precheck->tracer;
-        check(tracer.has_value(),
-              "the record carries the tracer (FR-014)");
+        check(tracer.has_value(), "the record carries the tracer (FR-014)");
         if (tracer.has_value()) {
           check(tracer->cpus.size() == candidates.size(),
                 "the absent key names the candidates (FR-008, R-09)");
           bool named = tracer->cpus.size() == candidates.size();
-          for (std::size_t index = 0;
-               named && index < candidates.size();
+          for (std::size_t index = 0; named && index < candidates.size();
                ++index)
           {
             named = tracer->cpus.at(index).cpu == candidates.at(index);
@@ -1524,8 +1501,7 @@ auto theTracerCpuRows(const std::vector<std::uint32_t>& planned,
           check(named,
                 "the record names the candidates, one per touched group "
                 "(FR-008, R-09)");
-          check(tally.downs == 0,
-                "every read saw the engine up (FR-009)");
+          check(tally.downs == 0, "every read saw the engine up (FR-009)");
         }
       }
     }
@@ -1588,16 +1564,13 @@ auto theWholeRunRows() -> void
     const auto loaded = sg::loadReport("harness_noise_unavailable.json");
     check(loaded.has_value(),
           "the not-available run writes the document (FR-016)");
-    checkNotAvailableShape(withTracer,
-                           loaded.has_value() ? loaded->precheck
-                                              : std::nullopt);
+    checkNotAvailableShape(
+        withTracer, loaded.has_value() ? loaded->precheck : std::nullopt);
     const auto loadedFree =
         sg::loadReport("harness_noise_unavailable_free.json");
     check(loadedFree.has_value(),
           ("the tracer-free run writes the document (FR-012): "
-           + std::string(loadedFree.has_value()
-                             ? "none"
-                             : loadedFree.error()))
+           + std::string(loadedFree.has_value() ? "none" : loadedFree.error()))
               .c_str());
     if (loadedFree.has_value()) {
       check(loadedFree->precheck.has_value()
@@ -1633,9 +1606,8 @@ auto theWholeRunRows() -> void
           ("the denied run writes the document (FR-016): "
            + std::string(loaded.has_value() ? "none" : loaded.error()))
               .c_str());
-    checkNotAvailableShape(console,
-                           loaded.has_value() ? loaded->precheck
-                                              : std::nullopt);
+    checkNotAvailableShape(
+        console, loaded.has_value() ? loaded->precheck : std::nullopt);
     std::remove("harness_noise_denied.json");
   }
 }
@@ -1724,13 +1696,13 @@ auto main() -> int
     auto pinned = sg::registerBenchmark(&bmPinnedNoise, "bmPinnedNoise");
     pinned.threads(2).placement("l3");
     const auto planned = sg::detail::resolvePreset(
-        sg::detail::Preset::L3, sg::detail::layout(), 2).cpu;
+                             sg::detail::Preset::L3, sg::detail::layout(), 2)
+                             .cpu;
     const auto measured =
         sg::detail::precheckMeasuredSet(sg::detail::layout(), planned);
     std::vector<std::uint32_t> candidates;
     for (const auto cpu : measured.cpus) {
-      if (std::ranges::find(planned, cpu) == planned.end())
-      {
+      if (std::ranges::find(planned, cpu) == planned.end()) {
         candidates.push_back(cpu);
       }
     }

@@ -25,8 +25,8 @@
 #include "detail/compare.hpp"
 #include "detail/internal.hpp"
 #include "detail/jitter_probe.hpp"
-#include "detail/noise_tracer.hpp"
 #include "detail/json_report.hpp"
+#include "detail/noise_tracer.hpp"
 #include "detail/options.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_clock.hpp"
@@ -163,9 +163,9 @@ auto refuseMissingPrecheckWindow(const RunOptions& options) -> bool
   if (mode.has_value() && *mode != JitterProbeMode::ALONGSIDE) {
     return false;
   }
-  std::fprintf(stderr,
-               "--os-noise: the batch carries no pre-check window for "
-               "the tracer\n");
+  std::fprintf(
+      stderr,
+      "--os-noise: the batch carries no pre-check window for " "the tracer\n");
   return true;
 }
 
