@@ -554,11 +554,49 @@ struct PrecheckCpuRecord
 };
 
 /**
+ * @brief One measured cpu of the tracer: its index and the five
+ * noise-by-source counts the engine's count files state (specs/036
+ * FR-010, data-model.md E-17). A figure the source states nothing for
+ * stands absent, the file form of the console's `not available`
+ * wording (specs/036 FR-013).
+ *
+ * \pre none
+ * \post none
+ */
+struct PrecheckTracerCpuRecord
+{
+  std::uint32_t cpu = 0;
+  std::optional<std::uint64_t> nmi;
+  std::optional<std::uint64_t> irq;
+  std::optional<std::uint64_t> softirq;
+  std::optional<std::uint64_t> thread;
+  std::optional<std::uint64_t> hardware;
+};
+
+/**
+ * @brief The tracer record one run carries: the engine word the
+ * value named, and one entry per tracer cpu ascending (specs/036
+ * FR-014, data-model.md E-17). The entry names its cpu, so the cpus
+ * the tracer ran on stand the array itself (specs/036 D-3).
+ *
+ * \pre none
+ * \post none
+ */
+struct PrecheckTracerRecord
+{
+  std::string engine;
+  std::vector<PrecheckTracerCpuRecord> cpus;
+};
+
+/**
  * @brief The pre-check record one run carries: the window shape, one
  * entry per measured cpu ascending, the host settings, and the
  * skipped groups the candidate resolution left (specs/034 FR-012,
- * FR-016, FR-017, D-8). The document carries it under the top-level
- * `precheck` key, and `loadReport` reads it back (FR-024).
+ * FR-016, FR-017, D-8). The optional `tracer` stands when the tracer
+ * ran; a run that requests no tracer and a run whose tracer stands
+ * not available leave it empty (specs/036 FR-015, R-10). The document
+ * carries it under the top-level `precheck` key, and `loadReport`
+ * reads it back (FR-024).
  */
 struct PrecheckRecord
 {
@@ -567,6 +605,7 @@ struct PrecheckRecord
   std::vector<PrecheckCpuRecord> cpus;
   PrecheckHostSettings host;
   std::vector<std::uint32_t> skippedGroups;
+  std::optional<PrecheckTracerRecord> tracer;
 };
 
 /**
@@ -1980,6 +2019,22 @@ inline constexpr std::uint32_t kMaxGapCount = 16777216;
 inline constexpr std::uint32_t kDefaultPrecheckMs = 200;
 
 /**
+ * @brief The engine the `--os-noise` value names (specs/036 FR-002,
+ * D-4, data-model.md E-16, R-06). The enum closes the engine set at
+ * the type level the way `JitterProbeMode` closes the modes; `NONE`
+ * names no tracer, and a run whose value stands absent carries `NONE`.
+ *
+ * \pre none
+ * \post none
+ */
+enum class TracerEngine : std::uint8_t
+{
+  NONE,
+  OSNOISE,
+  TIMERLAT,
+};
+
+/**
  * @brief The one argument of every jitter probe entry point (FR-003,
  * FR-015).
  *
@@ -1998,7 +2053,13 @@ inline constexpr std::uint32_t kDefaultPrecheckMs = 200;
  * discloses and continues with status 0 (FR-037, D-10).
  * `precheckSerial` runs the pre-check one measured cpu per window,
  * ascending cpu order, the planned cpus before the candidates; the
- * parallel shape stands the default (FR-009, D-2). The entry
+ * parallel shape stands the default (FR-009, D-2).
+ * `tracerEngine` carries the engine the `--os-noise` value names;
+ * `NONE` names no tracer (specs/036 FR-005, R-06). `tracerCpus`
+ * carries the tracer cpu request: an empty vector names the
+ * pre-check's candidate set, and a non-empty list names cpus inside
+ * the process affinity mask and the online set (specs/036 FR-008,
+ * R-09). The entry
  * points that take the options require a `thresholdNs` value at or
  * above 1 when the field carries one, `gapCount` inside the
  * `kMinGapCount` through `kMaxGapCount` range,
@@ -2017,6 +2078,8 @@ struct JitterProbeOptions
   std::uint32_t precheckMs = kDefaultPrecheckMs;
   bool strict = false;
   bool precheckSerial = false;
+  TracerEngine tracerEngine = TracerEngine::NONE;
+  std::vector<std::uint32_t> tracerCpus = {};
 };
 
 /**

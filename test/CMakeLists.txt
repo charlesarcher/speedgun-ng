@@ -904,6 +904,21 @@ target_compile_definitions(
     PRIVATE SG_OPTIONS_SOURCE="${CMAKE_SOURCE_DIR}/source/harness/options.cpp")
 add_test(NAME harness_jitter_cli_test COMMAND harness_jitter_cli_test)
 
+# The public surface of the noise tracer (specs/036 T001, T002): the
+# struct defaults of data-model.md E-16 and E-17, and the source-order
+# binding rows of FR-005. The carrier rows drive the scan and the
+# gather the way `harness_cli_sources_test` drives them, and they stand
+# red until T007 lands the option row and the value parser; the
+# suite-order row runs `speedgunMain` in a forked child the way
+# `harness_jitter_cli_test` does, and it stands red until T024 lands
+# the integration, the staging the tasks table records.
+add_executable(harness_noise_test source/harness_noise_test.cpp)
+target_link_libraries(harness_noise_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_noise_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_noise_test PRIVATE cxx_std_23)
+add_test(NAME harness_noise_test COMMAND harness_noise_test)
+
 # The idle resolver, the overlap check and the mask decision over
 # installed layouts (T017; US2, FR-016 to FR-020, D-3 to D-5, D-9, R-07,
 # PC-2).
