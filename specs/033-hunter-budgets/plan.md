@@ -316,8 +316,9 @@ selection read one grammar from one place.
   shipped hunt rule standing); a missing file, a comma beside
   nothing, and a file holding no address each refuse through the
   arm's standing `refuse` route (one line, exit 2). Unknown
-  addresses keep the standing `ABSENT` column shape
-  (`runner.cpp:1239` onward, unchanged). No count cap joins. The
+  addresses keep the entry point's standing refusal (one line naming
+  the value, exit 2, spec 028 FR-087); the runner's `ABSENT` column
+  stands for a library caller that hands addresses over. No count cap joins. The
   interception sits in the gather arm, so command line, option file
   and environment carry one grammar.
 - **R-10 Console disclosure (FR-023).** `printHuntPlan` grows two
@@ -457,7 +458,7 @@ that turns it green.
    multi-entry union; empty ranked record; unwritable path (status
    2, one line); emit without hunt; `--hunt=none` with emit;
    `--counter=@` missing/empty-address/no-address refusals; unknown
-   address as an `ABSENT` column; a 20-address file as 20 columns;
+   address refused with the line the typed spelling answers; a 20-address file as 20 columns;
    the full scripted round trip (hunt with emit, re-read run,
    columns equal the emitted addresses).
 4. JSON (`harness_hunt_json_test`): round trip of all four keys;

@@ -341,8 +341,10 @@ them. The ruling each decision carries is named beside it.
   are ignored; a file that does not exist, a line with an empty
   address, and a file that holds no address each print one line
   naming the value and exit 2. An address the host cannot resolve
-  keeps the standing `--counter` shape: an `ABSENT` column with its
-  stderr line, and the run continues. No count cap binds the file
+  keeps the standing `--counter` shape of the entry point: one line
+  naming the value, exit 2, and the run stops (spec 028 FR-087). A
+  library caller that hands addresses to the runner keeps the runner's
+  `ABSENT` column (spec 015 FR-023). No count cap binds the file
   form (PC-2). The interception sits where the value is read, so the
   command line, an option file and the environment all carry the same
   grammar.
@@ -534,11 +536,11 @@ file on a CI runner (SC-008).
   refusal.
 - A list file that holds comments or blank lines only: the same
   refusal names the value.
-- A line inside the file naming an unknown address: the standing
-  `--counter` shape, an `ABSENT` column with its stderr line, the run
-  continues (D-8).
+- A line inside the file naming an unknown address: the entry point's
+  standing shape, one line naming the value and exit 2, the same line
+  the typed spelling answers (D-8).
 - A line inside the file naming a raw code such as `r4a03`: the same
-  standing shape; the raw-code exit-2 refusal stays a hunt-selection
+  entry-point shape; the raw-code exit-2 refusal stays a hunt-selection
   rule (spec 029 D-11), and the file form changes only where
   addresses come from.
 - `--hunt=none` beside `--hunt-emit-set`: the no-hunt refusal (D-5).
@@ -632,7 +634,8 @@ file on a CI runner (SC-008).
   line may hold comma-separated addresses, and a missing file, a
   comma beside nothing (the empty address), and a file holding no
   address each print one line naming the value and exit 2. An unresolvable address SHALL keep the
-  standing `ABSENT` column shape. No count cap SHALL bind the file
+  entry point's standing refusal: one line naming the value and exit 2
+  (spec 028 FR-087). No count cap SHALL bind the file
   form (PC-2). The interception SHALL sit where the value is read, so
   the command line, an option file and the environment carry one
   grammar (D-8).
