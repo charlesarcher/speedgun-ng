@@ -327,8 +327,9 @@ selection read one grammar from one place.
   stored value (`e` rebuilds minimal decimal seconds; `g` the whole
   count). Two conditional lines follow, in the standing `hunt: plan`
   style: `hunt: plan sample repeats=<d> of <m>` (derived, shown when
-  the count moved; `=1 over-budget` on the overrun; `unpriced`
-  instead when no figure priced it) and `hunt: plan mux groups=<n>`
+  the count moved; the count the record carries under the word
+  `over-budget` on the overrun; `unpriced` instead when no figure
+  priced it) and `hunt: plan mux groups=<n>`
   with the sizes spelled after it. An unset budget prints nothing:
   a run without the budgets prints the standing bytes (FR-022).
 - **R-11 The JSON keys (FR-020, FR-022).** `writeHunt` appends,
@@ -361,11 +362,13 @@ selection read one grammar from one place.
   result sentence names the `--counter=@<file>` reading they serve.
   The `.expected` re-records; the example stays host-independent.
 - **R-15 Schema, version, ABI (FR-040).** Schema `1.7`; version the
-  next free minor at the version-move commit (`0.22.0` while nothing
-  else moves); harness `SOVERSION` 13 to 14 (new public method and
-  fields); archive `SOVERSION` stays 4 (no counters-library surface
-  moves; the scripted seam grows no new API; the check stands
-  recorded in the version-move commit).
+  next free minor at the version-move commit, `0.23.0`: the rebase
+  landed on the tree where specs/035-numa-placement had taken
+  `0.22.0`, and the reservation rule moved the lane up one; harness
+  `SOVERSION` 13 to 14 (new public method and fields); archive
+  `SOVERSION` stays 4 (no counters-library surface moves; the
+  scripted seam grows no new API; the check stands recorded in the
+  version-move commit).
 - **R-16 Evidence (FR-045).** `specs/033-hunter-budgets/results/`
   carries the gary table (scenario, command, exit, observation) for
   the budgeted `--hunt=all` run and the read-back; the record states
@@ -435,8 +438,10 @@ fields and the `RunHunt` disclosure fields (record layout).
 
 ### Version and `SOVERSION`
 
-Version `0.22.0` (next free minor at the move commit); harness
-`SOVERSION` 13 → 14; archive `SOVERSION` stays `4` (check recorded
+Version `0.23.0` (next free minor at the move commit: the rebase
+landed on the tree where specs/035-numa-placement had taken
+`0.22.0`); harness `SOVERSION` 13 → 14; archive `SOVERSION` stays
+`4` (check recorded
 beside the move, FR-040); report schema `1.6` → `1.7` with the
 `x-order` commit rule (FR-020).
 

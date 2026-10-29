@@ -37,7 +37,9 @@ with the ruling it carries named. The decisions the roadmap and spec
 - Version: master stands at `0.21.0` (`CMakeLists.txt:15`). The lane
   takes the next free minor at branch time, `0.22.0` while no other
   lane moves; a taken number moves the lane up under the reservation
-  rule spec 029 records.
+  rule spec 029 records. The lane stands at `0.23.0`: the rebase
+  landed on the tree where specs/035-numa-placement had taken
+  `0.22.0` (recorded at the version-move commit).
 - ABI: harness `SOVERSION` stands at `13` (`CMakeLists.txt:298`),
   archive `SOVERSION` at `4` (`CMakeLists.txt:80`). `toCounterSet`
   joins the public hunt surface, so the harness public ABI changes
@@ -679,7 +681,9 @@ file on a CI runner (SC-008).
 ### Version, tests and discipline (E)
 
 - **FR-040**: `CMakeLists.txt` SHALL rise to the next free minor at
-  branch time (`0.22.0` while no other lane moves); the harness
+  branch time (`0.22.0` while no other lane moves; the lane stands at
+  `0.23.0` after the rebase landed on the tree where
+  specs/035-numa-placement had taken `0.22.0`); the harness
   `SOVERSION` SHALL rise from `13` to `14` for the new public call,
   the archive `SOVERSION` SHALL stay `4`, and the ABI check SHALL
   stand recorded beside the version-move commit (hard rule 12).
