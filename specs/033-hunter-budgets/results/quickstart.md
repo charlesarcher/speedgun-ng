@@ -127,29 +127,30 @@ No Intel run stands recorded (corsairone down; the record says so).
 
 ## The CI verdict
 
-The verdict below is the run of the head this branch pushed before it
-rebased onto the tree that carries `specs/035-numa-placement`. The head
-it names, `9fb6e7bb`, stands on no branch after that rebase, and the run
-measured the content the rebase replayed. That run closed green end to
-end: 14 jobs passed, and the docs deploy job stands skipped by its own
-condition, which asks for a push to `master`.
+The run of the pushed head closed green end to end: 14 jobs passed, and
+the docs deploy job stands skipped by its own condition, which asks for
+a push to `master`.
 
 ```
-run 40771614859, head 9fb6e7bb, 38m17s
-lint 40s  prose-lint 1m38s  test 9m20s  test-rocky 8m44s
-tsan 13m28s  sanitize 7m7s  coverage 14m34s  dbc-gate 1m9s
-static-analysis library 12m24s, tests, examples 17m25s
-shared-audit 2m7s  downstream-consumer 2m35s  consumer-release 2m57s
+run 40826982752, head 6e5ac93a, 26m09s
+lint 28s  prose-lint 53s  test 8m49s  test-rocky 13m54s
+tsan 10m36s  sanitize 9m38s  coverage 15m44s  dbc-gate 56s
+static-analysis library 12m10s, tests 25m36s, examples 11m02s
+shared-audit 2m22s  downstream-consumer 2m34s  consumer-release 2m37s
 ```
 
-The coverage artifact of that run reads 100.0% lines over 13110
-instrumented lines and 99.8% branches, 6738 of 6754, a 16-row shortfall
-inside the 19-row allowance the gate records under D-14.
+The coverage artifact of that run reads 100.0% lines over 13277
+instrumented lines and 99.8% branches, 6828 of 6845, a 17-row shortfall
+inside the 19-row allowance the gate records under D-14. The two rows
+the shortfall gained since the pre-rebase run stand in the placement
+code `specs/035-numa-placement` brought onto the branch, not in the
+budget code.
 
-Two earlier runs of the lane came back red, and every finding they
+Three earlier runs of the lane came back red, and every finding they
 named stood for something real. `lint` named a row the naming rename
 had pushed past the column limit. `prose-lint` named a contrastive
-sentence in this record. `tsan` and `sanitize` named the byte row of
-`harness_hunt_json_test`, which now takes one scripted run for both of
-its documents.
+sentence in this record, and on the run before this one a double hyphen
+in a commit message body, both Principle XI.1. `tsan` and `sanitize`
+named the byte row of `harness_hunt_json_test`, which now takes one
+scripted run for both of its documents.
 
