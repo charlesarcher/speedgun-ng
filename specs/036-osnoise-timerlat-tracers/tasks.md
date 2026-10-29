@@ -33,7 +33,7 @@ fold, a schema shape, or a grep with a match count.
 **Purpose**: the types every story stands on, and the version record
 the lane stands on. No other module builds before this phase closes.
 
-- [ ] T001 [P] Register the test executable `harness_noise_test` in
+- [X] T001 [P] Register the test executable `harness_noise_test` in
   `test/CMakeLists.txt` beside the standing harness tests
   (`add_executable` with the harness link, `add_test`), then write the
   failing public-surface tests in `test/source/harness_noise_test.cpp`:
@@ -44,7 +44,7 @@ the lane stands on. No other module builds before this phase closes.
   option file, then the suite call, the order spec 027 fixes
   (FR-005, D-6, R-06, R-10).
   Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits non-zero with the new checks failing (red observed)
-- [ ] T002 Add the public surface in `include/speedgun-ng/benchmark.hpp`:
+- [X] T002 Add the public surface in `include/speedgun-ng/benchmark.hpp`:
   the closed enum `TracerEngine` (`NONE`, `OSNOISE`, `TIMERLAT`);
   `JitterProbeOptions::tracerEngine` and `JitterProbeOptions::tracerCpus`
   appended after `precheckSerial`; `PrecheckTracerRecord` and
@@ -57,7 +57,7 @@ the lane stands on. No other module builds before this phase closes.
   struct-default rows of T001 turn green, and the source-order binding
   rows stay red until T007 stands the parser and the option row up).
   Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits 0
-- [ ] T003 Move the version in `CMakeLists.txt`: the project `VERSION`
+- [X] T003 Move the version in `CMakeLists.txt`: the project `VERSION`
   at `CMakeLists.txt:19` stands `0.23.0`; the harness `SOVERSION` at
   `CMakeLists.txt:302` stands `14` with the comment naming the ABI
   growth (`TracerEngine`, the two `JitterProbeOptions` fields,
@@ -84,7 +84,7 @@ one line naming the fault and exits 2 with no benchmark output.
 
 ### Tests for User Story 3 (write first, observe failure)
 
-- [ ] T004 [P] [US3] Write the failing grammar tests in
+- [X] T004 [P] [US3] Write the failing grammar tests in
   `test/source/harness_noise_test.cpp`: `--os-noise=osnoise` and
   `--os-noise=timerlat` settle `tracerEngine`; the optional `cpus=` key
   settles `tracerCpus` through the standing cpu-list reader
@@ -93,7 +93,7 @@ one line naming the fault and exits 2 with no benchmark output.
   stands the repeated-key refusal; `--os-noise` with no argument takes
   the standing missing-argument path (FR-002, D-4, R-06).
   Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits non-zero (red observed)
-- [ ] T005 [P] [US3] Write the failing refusal tests in
+- [X] T005 [P] [US3] Write the failing refusal tests in
   `test/source/harness_noise_test.cpp`: an engine word outside the two;
   a `cpus` value that is no cpu index or range, a cpu outside the
   process affinity mask, a cpu the online set does not hold, and a cpu
@@ -101,7 +101,7 @@ one line naming the fault and exits 2 with no benchmark output.
   option file line naming the path, the line and the token; each case
   prints one line and exits 2 with no benchmark output (FR-003, SC-003).
   Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits non-zero (red observed)
-- [ ] T006 [P] [US3] Write the failing option-table row tests in
+- [X] T006 [P] [US3] Write the failing option-table row tests in
   `test/source/harness_cli_table_test.cpp`: the
   `noNameAndNoValueRepeat` check and the
   `theValueBlocksStayUniqueAndDisjoint` check carry the `os-noise` row;
@@ -111,7 +111,7 @@ one line naming the fault and exits 2 with no benchmark output.
 
 ### Implementation for User Story 3
 
-- [ ] T007 [US3] Add the option row and the value parser:
+- [X] T007 [US3] Add the option row and the value parser:
   `kOsNoiseOptionValue` stands `297` in
   `source/harness/detail/options.hpp` with the block comment amended to
   name `297` taken and `298` to `319` free; the row joins
@@ -144,7 +144,7 @@ restore; with a denied tree every path answers the empty session.
 
 ### Tests for User Stories 1 and 2 (write first, observe failure)
 
-- [ ] T008 [P] [US1] Write the failing engine-lifecycle tests in
+- [X] T008 [P] [US1] Write the failing engine-lifecycle tests in
   `test/source/harness_noise_test.cpp` over fake tracefs trees
   installed through `installTestProcRoot`
   (`source/harness/detail/proc_root.hpp`): `noiseTracerSetup` reads the
@@ -154,7 +154,7 @@ restore; with a denied tree every path answers the empty session.
   `noiseTracerRestore` writes `tracing_on` at `0` and returns the
   standing word and mask (FR-007, FR-017, R-02, R-04, R-05).
   Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits non-zero (red observed)
-- [ ] T009 [P] [US1] Write the failing figure-read tests in
+- [X] T009 [P] [US1] Write the failing figure-read tests in
   `test/source/harness_noise_test.cpp` over the same fake trees: one
   entry per tracer cpu in session order carrying the five figures
   `nmi`, `irq`, `softirq`, `thread`, `hardware` read from the per-cpu
@@ -163,7 +163,7 @@ restore; with a denied tree every path answers the empty session.
   every figure absent; the read never fails the run (FR-010, FR-017,
   R-07).
   Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits non-zero (red observed)
-- [ ] T010 [P] [US2] Write the failing not-available tests in
+- [X] T010 [P] [US2] Write the failing not-available tests in
   `test/source/harness_noise_test.cpp`: no tracefs mount at the
   standing path, an unwritable `current_tracer`, a failed engine write,
   and denied setup writes each answer the empty session, and no
@@ -172,7 +172,7 @@ restore; with a denied tree every path answers the empty session.
 
 ### Implementation for User Stories 1 and 2
 
-- [ ] T011 [US1] Implement the session lifecycle in
+- [X] T011 [US1] Implement the session lifecycle in
   `source/harness/detail/noise_tracer.hpp` and
   `source/harness/noise_tracer.cpp`: the session type carrying
   `engine`, `cpus`, the standing `current_tracer` word and the standing
@@ -183,7 +183,7 @@ restore; with a denied tree every path answers the empty session.
   two files this task writes; the tests of T008 and T010 turn
   green).
   Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits 0
-- [ ] T012 [US1] Implement `noiseTracerFigures` in
+- [X] T012 [US1] Implement `noiseTracerFigures` in
   `source/harness/noise_tracer.cpp`: one entry per tracer cpu, the five
   counts as `std::optional<std::uint64_t>`, an absent figure standing
   `std::nullopt`, the read answering the session cpu order
@@ -209,7 +209,7 @@ stand green with no engine and no integration wired.
 
 ### Tests for User Stories 1 and 2 (write first, observe failure)
 
-- [ ] T013 [P] [US1] Register the test executable
+- [X] T013 [P] [US1] Register the test executable
   `harness_noise_report_test` in `test/CMakeLists.txt` beside the
   standing harness tests, then write the failing console tests in
   `test/source/harness_noise_report_test.cpp` built against a
@@ -221,14 +221,14 @@ stand green with no engine and no integration wired.
   figure position; the not-available record prints the one disclosure
   line (FR-013, FR-010, FR-016, R-14).
   Verify: `ctest --test-dir build -R harness_noise_report_test --output-on-failure` exits non-zero (red observed)
-- [ ] T014 [P] [US1] Write the failing JSON round-trip tests in
+- [X] T014 [P] [US1] Write the failing JSON round-trip tests in
   `test/source/harness_noise_report_test.cpp`: the writer emits the
   tracer object inside `precheck` after `skippedGroups` carrying
   `engine` and the `cpus` entries; `loadReport` reads it back with
   equal values; a document written before the key reads as the
   tracer-less record (FR-014, R-08, R-11).
   Verify: `ctest --test-dir build -R harness_noise_report_test --output-on-failure` exits non-zero (red observed)
-- [ ] T015 [P] [US1] Write the failing schema tests in
+- [X] T015 [P] [US1] Write the failing schema tests in
   `test/source/harness_noise_report_test.cpp`:
   `docs/schema/report-v1.json` carries the `tracer` key in the
   `precheck` object's `properties` and in its `x-order` after
@@ -238,7 +238,7 @@ stand green with no engine and no integration wired.
   top-level `x-order` stands unchanged; `kSchemaVersion` reads `1.7`
   (FR-006, D-3, R-11).
   Verify: `ctest --test-dir build -R harness_noise_report_test --output-on-failure` exits non-zero (red observed)
-- [ ] T016 [P] [US2] Write the failing byte-identity tests in
+- [X] T016 [P] [US2] Write the failing byte-identity tests in
   `test/source/harness_noise_report_test.cpp`: a record without the
   tracer member writes a document whose bytes fold equal to the fixture
   bytes, the fixture carrying master's key set with `schemaVersion` at
@@ -250,7 +250,7 @@ stand green with no engine and no integration wired.
 
 ### Implementation for User Stories 1 and 2
 
-- [ ] T017 [US1] Print the tracer lines in `printPrecheckReport`
+- [X] T017 [US1] Print the tracer lines in `printPrecheckReport`
   (`source/harness/report.cpp:986`) after the host-settings lines and
   before the warning lines: the header line naming the engine and the
   cpus, one figure line per source per tracer cpu in the standing
@@ -260,14 +260,14 @@ stand green with no engine and no integration wired.
   (FR-012, FR-013, FR-016, R-14) (depends on T013, T016; the console
   rows of T013 and T016 turn green).
   Verify: `ctest --test-dir build -R harness_noise_report_test --output-on-failure` exits 0
-- [ ] T018 [US1] Write the tracer object in
+- [X] T018 [US1] Write the tracer object in
   `source/harness/json_report.cpp` after `skippedGroups` and stand
   `kSchemaVersion` at `1.7`; read it back in
   `source/harness/json_load.cpp` through the standing `optionalField`
   path, the way `hunt` reads (FR-014, FR-006, R-08, R-11) (depends on
   T014; the round-trip rows of T014 turn green).
   Verify: `ctest --test-dir build -R harness_noise_report_test --output-on-failure` exits 0
-- [ ] T019 [US1] Extend `docs/schema/report-v1.json`: the `tracer` key
+- [X] T019 [US1] Extend `docs/schema/report-v1.json`: the `tracer` key
   in the `precheck` object's `properties` and in its `x-order` after
   `skippedGroups`, outside its `required` list, the top-level
   `x-order` unchanged, the per-cpu entry listing `cpu` then the five
@@ -295,7 +295,7 @@ window refuses one line at exit 2.
 
 ### Tests for User Stories 1, 2 and 3 (write first, observe failure)
 
-- [ ] T020 [P] [US1] Write the failing window tests in
+- [X] T020 [P] [US1] Write the failing window tests in
   `test/source/harness_noise_test.cpp` with the scripted
   `WindowReader` installed through `installTestReader`: the engine
   stands up before the probe items are dispatched and the figures stand
@@ -305,19 +305,19 @@ window refuses one line at exit 2.
   planned cpus free of the default tracer load (FR-009, R-05, R-06
   of research.md).
   Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits non-zero (red observed)
-- [ ] T021 [P] [US1] Write the failing tracer-cpu tests in
+- [X] T021 [P] [US1] Write the failing tracer-cpu tests in
   `test/source/harness_noise_test.cpp`: a `cpus=` list runs as named, a
   planned cpu included, with no overlap refusal; an absent key names
   the candidate set of the injected topology, one cpu per L3 group the
   plans touch (FR-008, R-09).
   Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits non-zero (red observed)
-- [ ] T022 [US2] Write the failing whole-run tests in
+- [X] T022 [US2] Write the failing whole-run tests in
   `test/source/harness_noise_test.cpp`: a not-available host keeps the
   user-space pre-check whole, the standing block stands byte-identical,
   the tracer lines stand the disclosure, and the run exits 0 (FR-016,
   SC-004, R-10).
   Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits non-zero (red observed)
-- [ ] T023 [US3] Write the failing missing-window refusal tests in
+- [X] T023 [US3] Write the failing missing-window refusal tests in
   `test/source/harness_noise_test.cpp`: a settled `--os-noise` value
   beside a batch that carries no `--jitter-probe` option, and beside a
   batch whose jitter-probe mode stands `ALONGSIDE`, each prints one
@@ -327,7 +327,7 @@ window refuses one line at exit 2.
 
 ### Implementation for User Stories 1, 2 and 3
 
-- [ ] T024 [US1] Wire the lifecycle in `source/harness/cli.cpp`, the
+- [X] T024 [US1] Wire the lifecycle in `source/harness/cli.cpp`, the
   `batchProbed` block: resolve the tracer cpus beside the measured set
   (the `cpus=` list as named, else the candidates), run
   `noiseTracerSetup` before the items dispatch, run
@@ -337,7 +337,7 @@ window refuses one line at exit 2.
   0 (FR-008, FR-009, FR-016, R-05, R-09, R-10) (depends on T007, T011,
   T012, T020, T021, T022; the tests of T020 to T022 turn green).
   Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits 0
-- [ ] T025 [US3] Wire the missing-window refusal in
+- [X] T025 [US3] Wire the missing-window refusal in
   `source/harness/cli.cpp` beside the standing combination check the
   hunt family calls after the gather
   (`validateHuntCombination`, `source/harness/hunt_cli.cpp:660`): the
@@ -362,16 +362,16 @@ green over them.
 `example_run` and `report_shape` pass, and the prose gate reads no
 finding over the branch range.
 
-- [ ] T026 [P] [US5] Add the README section of at most 25 lines in
+- [X] T026 [P] [US5] Add the README section of at most 25 lines in
   `README.md` teaching the option row, the disclosure rule and the
   perturbation note for a `cpus=` list naming a planned cpu, with the
   quick-reference rows, beside the pre-check sections spec 034 landed
   (FR-021, IV.1).
   Verify: `ctest --test-dir build -R example_drift --output-on-failure` exits 0 (the quick-reference rows stand inside the drift gate), and a line count over the section (`sed -n` over the section range piped to `grep -c`) reads at most 25
-- [ ] T027 [P] [US5] Add the option and field detail beside the
+- [X] T027 [P] [US5] Add the option and field detail beside the
   pre-check sections in `docs/pages/harness.md` (FR-022).
   Verify: `ctest --test-dir build -R example_drift --output-on-failure` exits 0, and the prose gate over the branch range exits 0
-- [ ] T028 [US5] Extend the example region in
+- [X] T028 [US5] Extend the example region in
   `example/docs/jitter_probe.cpp` with the tracer section, re-record
   `example/docs/jitter_probe.expected`, register the section in
   `tools/docs/example_drift.py` (`SECTIONS` and `SECTION_OWNERS`
@@ -398,14 +398,14 @@ in the commit that lands the code.
 engine, each record naming the commands, the exit codes, the engine and
 the per-CCD tables, and the quickstart links each one.
 
-- [ ] T029 [US4] Write the evidence plan in
+- [X] T029 [US4] Write the evidence plan in
   `specs/036-osnoise-timerlat-tracers/results/plan.md`: the command set
   per engine, the record format, the CCD names read from the
   `--topology` listing the same host prints, and the re-confirmation
   step for the per-cpu count-file name and line format (FR-020, D-7,
   R-03, R-14 of research.md).
   Verify: `grep -c "benchmark_example --filter=bmTouch" specs/036-osnoise-timerlat-tracers/results/plan.md` counts at least the two engine commands the quickstart names
-- [ ] T030 [US4] Record the osnoise acceptance run on thrawn in
+- [X] T030 [US4] Record the osnoise acceptance run on thrawn in
   `specs/036-osnoise-timerlat-tracers/results/osnoise.md` (needs the
   lane host thrawn; the FR-020 script records the run): the commands,
   the exit codes, the engine and the per-CCD tables with the CCD named
@@ -415,16 +415,16 @@ the per-CCD tables, and the quickstart links each one.
   mismatch going to the pull request as a question (FR-020, R-03)
   (depends on T024, T029).
   Verify: the recorded command set replays with exit code 0 on the lane host, and the record names the exit codes and the CCD beside every figure
-- [ ] T031 [US4] Record the timerlat acceptance run on thrawn in
+- [X] T031 [US4] Record the timerlat acceptance run on thrawn in
   `specs/036-osnoise-timerlat-tracers/results/timerlat.md` in the shape
   of T030, with the same re-confirmation note (FR-020, D-7, R-03)
   (depends on T024, T029).
   Verify: the recorded command set replays with exit code 0 on the lane host
-- [ ] T032 [US4] Link every record from the acceptance section of
+- [X] T032 [US4] Link every record from the acceptance section of
   `specs/036-osnoise-timerlat-tracers/quickstart.md` (FR-020, SC-006)
   (depends on T030, T031).
   Verify: `grep -c "results/osnoise.md\|results/timerlat.md" specs/036-osnoise-timerlat-tracers/quickstart.md` counts one link per record
-- [ ] T033 [US4] Amend the standing contracts in the commit that lands
+- [X] T033 [US4] Amend the standing contracts in the commit that lands
   the code (FR-024): the `--os-noise` row joins
   `specs/015-benchmark-harness-core/contracts/cli.md`; the tracer lines
   join
@@ -445,36 +445,36 @@ every record, and the standing contracts carry the deltas.
 
 **Purpose**: the hard gates of Principle VIII at the feature head.
 
-- [ ] T034 [P] Run the format and spell gates; every finding stands
+- [X] T034 [P] Run the format and spell gates; every finding stands
   fixed (constitution V).
   Verify: `cmake -D FORMAT_COMMAND=clang-format -P cmake/lint.cmake` exits 0 and `cmake -P cmake/spell.cmake` exits 0
-- [ ] T035 [P] Run the sanitizer and tsan suites: configure
+- [X] T035 [P] Run the sanitizer and tsan suites: configure
   `ci-sanitize` and `ci-tsan`, build, and run each suite; no finding
   stands (constitution VIII).
   Verify: both `ctest` runs exit 0
-- [ ] T036 [P] Run the analyzer build once with clang-tidy and cppcheck
+- [X] T036 [P] Run the analyzer build once with clang-tidy and cppcheck
   wired in; `readability-identifier-naming` reports zero findings on
   the new names (`TracerEngine`, `parseOsNoiseValue`,
   `noiseTracerSetup`, `noiseTracerFigures`, `noiseTracerRestore`,
   `kOsNoiseOptionValue`), and every other finding stands fixed
   (constitution V, IX).
   Verify: `cmake --preset=ci-ubuntu` exits 0 and `cmake --build build` exits 0
-- [ ] T037 Run the coverage contract: configure the coverage preset,
+- [X] T037 Run the coverage contract: configure the coverage preset,
   build, and run the coverage suite; the gate reads 100.0% lines and
   100.0% branches, no `LCOV_EXCL` marker joins, and no new
   `--ignore-errors` entry joins (FR-025, SC-005, constitution VI).
   Verify: the coverage gate output reads `100.0%` for lines and branches, and `grep -rn "LCOV_EXCL" source/harness test/source/harness_noise_test.cpp test/source/harness_noise_report_test.cpp` reads no match
-- [ ] T038 [P] Run the full suite under `taskset -c 0,1` and on a 2-cpu
+- [X] T038 [P] Run the full suite under `taskset -c 0,1` and on a 2-cpu
   host, the DBC contract checks green inside the run (FR-018,
   constitution II, VI).
   Verify: `taskset -c 0,1 ctest --test-dir build -j 2` exits 0 on both hosts
-- [ ] T039 [P] Run the no-sleep and no-clock review over the new tests
+- [X] T039 [P] Run the no-sleep and no-clock review over the new tests
   and the time-source gate (FR-019, constitution VIII).
   Verify: `grep -rnE "sleep|chrono|clock" test/source/harness_noise_test.cpp test/source/harness_noise_report_test.cpp` reads no match, and `test/time_source_gate.sh` exits 0
-- [ ] T040 [P] Run the docs gates and the prose gate over the branch
+- [X] T040 [P] Run the docs gates and the prose gate over the branch
   range (constitution VIII, XI; FR-021 to FR-023).
   Verify: `ctest --test-dir build -R "example_drift|snippet_compile|example_run|report_shape" --output-on-failure` exits 0 (the fixtures tasks of the same families included), and the prose job exits 0
-- [ ] T041 [P] Run the code-discipline gates: no lambda stands inside
+- [X] T041 [P] Run the code-discipline gates: no lambda stands inside
   an `SG_*` macro, contract-only helpers carry `[[maybe_unused]]`, and
   simdjson stands the only JSON reader the change uses (FR-026).
   Verify: `grep -nE "SG_(REQUIRE|ENSURE|INVARIANT)\(.*\] *\(" source/harness/noise_tracer.cpp` reads no match, `grep -rnE "nlohmann|rapidjson|json.hpp" source/harness/noise_tracer.cpp source/harness/detail/noise_tracer.hpp` reads no match, and the clang-tidy step of T036 stands clean over the new files
