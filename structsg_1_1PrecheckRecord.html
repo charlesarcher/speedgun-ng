@@ -64,7 +64,7 @@
           <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span>PrecheckRecord <span class="m-thin">struct</span>
           <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
         </h1>
-        <p>The pre-check record one run carries: the window shape, one entry per measured cpu ascending, the host settings, and the skipped groups the candidate resolution left (specs/034 FR-012, FR-016, FR-017, D-8). The document carries it under the top-level <code>precheck</code> key, and <code><a href="namespacesg.html#a59d2ce0d2cfd165637238e77ee452a4c" class="m-doc">loadReport</a></code> reads it back (FR-024).</p>
+        <p>The pre-check record one run carries: the window shape, one entry per measured cpu ascending, the host settings, and the skipped groups the candidate resolution left (specs/034 FR-012, FR-016, FR-017, D-8). The optional <code><a href="#a4d47502366bd34dc2a723df7aa7b3fd7" class="m-doc">tracer</a></code> stands when the tracer ran; a run that requests no tracer and a run whose tracer stands not available leave it empty (specs/036 FR-015, R-10). The document carries it under the top-level <code>precheck</code> key, and <code><a href="namespacesg.html#a59d2ce0d2cfd165637238e77ee452a4c" class="m-doc">loadReport</a></code> reads it back (FR-024).</p>
         <nav class="m-block m-default">
           <h3>Contents</h3>
           <ul>
@@ -97,6 +97,10 @@
             <dd><span></span></dd>
             <dt id="a2de4ace8c816bd6fa01172ce32945261">
               std::vector&lt;std::uint32_t&gt; <a href="#a2de4ace8c816bd6fa01172ce32945261" class="m-doc-self">skippedGroups</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a4d47502366bd34dc2a723df7aa7b3fd7">
+              std::optional&lt;<a href="structsg_1_1PrecheckTracerRecord.html" class="m-doc">PrecheckTracerRecord</a>&gt; <a href="#a4d47502366bd34dc2a723df7aa7b3fd7" class="m-doc-self">tracer</a>
             </dt>
             <dd><span></span></dd>
           </dl>

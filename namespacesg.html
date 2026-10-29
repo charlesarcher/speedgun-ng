@@ -145,9 +145,17 @@
             </dt>
             <dd>One measured cpu of the pre-check: its index, whether the run plans it (the planned cpus stand the run&#x27;s own; the candidates stand the cpus the <code>idle</code> preset would take), the sixteen-field stats of its pre-check window, and its attribution deltas (specs/034 FR-010, FR-012).</dd>
             <dt>
+              struct <a href="structsg_1_1PrecheckTracerCpuRecord.html" class="m-doc">PrecheckTracerCpuRecord</a>
+            </dt>
+            <dd>One measured cpu of the tracer: its index and the five noise-by-source counts the engine&#x27;s count files state (specs/036 FR-010, data-model.md E-17). A figure the source states nothing for stands absent, the file form of the console&#x27;s <code>not available</code> wording (specs/036 FR-013).</dd>
+            <dt>
+              struct <a href="structsg_1_1PrecheckTracerRecord.html" class="m-doc">PrecheckTracerRecord</a>
+            </dt>
+            <dd>The tracer record one run carries: the engine word the value named, and one entry per tracer cpu ascending (specs/036 FR-014, data-model.md E-17). The entry names its cpu, so the cpus the tracer ran on stand the array itself (specs/036 D-3).</dd>
+            <dt>
               struct <a href="structsg_1_1PrecheckRecord.html" class="m-doc">PrecheckRecord</a>
             </dt>
-            <dd>The pre-check record one run carries: the window shape, one entry per measured cpu ascending, the host settings, and the skipped groups the candidate resolution left (specs/034 FR-012, FR-016, FR-017, D-8). The document carries it under the top-level <code>precheck</code> key, and <code><a href="namespacesg.html#a59d2ce0d2cfd165637238e77ee452a4c" class="m-doc">loadReport</a></code> reads it back (FR-024).</dd>
+            <dd>The pre-check record one run carries: the window shape, one entry per measured cpu ascending, the host settings, and the skipped groups the candidate resolution left (specs/034 FR-012, FR-016, FR-017, D-8). The optional <code><a href="structsg_1_1PrecheckRecord.html#a4d47502366bd34dc2a723df7aa7b3fd7" class="m-doc">tracer</a></code> stands when the tracer ran; a run that requests no tracer and a run whose tracer stands not available leave it empty (specs/036 FR-015, R-10). The document carries it under the top-level <code>precheck</code> key, and <code><a href="namespacesg.html#a59d2ce0d2cfd165637238e77ee452a4c" class="m-doc">loadReport</a></code> reads it back (FR-024).</dd>
             <dt>
               struct <a href="structsg_1_1JitterEntryFold.html" class="m-doc">JitterEntryFold</a>
             </dt>
@@ -341,6 +349,12 @@
               <a href="#ad1de9d92c896b2ce4d1be9aaebc4ef75a6328e5e3186c227a021ef2ff77e40197" class="m-doc">BOTH</a> }</span>
             </dt>
             <dd><span></span></dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#a6f9ed1f2de4aab5e0cd5f3afba2a98ef" class="m-doc">TracerEngine</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a6f9ed1f2de4aab5e0cd5f3afba2a98efab50339a10e1de285ac99d4c3990b8693" class="m-doc">NONE</a>,
+              <a href="#a6f9ed1f2de4aab5e0cd5f3afba2a98efae4a27fe02149de5061690e22090c584a" class="m-doc">OSNOISE</a>,
+              <a href="#a6f9ed1f2de4aab5e0cd5f3afba2a98efa0ebabe63c87b85eb2d11d739948867b2" class="m-doc">TIMERLAT</a> }</span>
+            </dt>
+            <dd>The engine the <code>--os-noise</code> value names (specs/036 FR-002, D-4, data-model.md E-16, R-06). The enum closes the engine set at the type level the way <code><a href="#ad1de9d92c896b2ce4d1be9aaebc4ef75" class="m-doc">JitterProbeMode</a></code> closes the modes; <code>NONE</code> names no tracer, and a run whose value stands absent carries <code>NONE</code>.</dd>
             <dt>
               <span class="m-doc-wrap-bumper">enum class <a href="#aa3fb9e24a0f554081c7ed820b9d71565" class="m-doc">WaitMode</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#aa3fb9e24a0f554081c7ed820b9d71565a01518642fd172918ac4e6fa78bbb3164" class="m-doc">SPIN</a>,
               <a href="#aa3fb9e24a0f554081c7ed820b9d71565a18e25ac6cc28c2b91bce1fbe629b682a" class="m-doc">YIELD</a>,
@@ -630,6 +644,14 @@
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="a6f9ed1f2de4aab5e0cd5f3afba2a98ef"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#a6f9ed1f2de4aab5e0cd5f3afba2a98ef" class="m-doc-self">TracerEngine</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>The engine the <code>--os-noise</code> value names (specs/036 FR-002, D-4, data-model.md E-16, R-06). The enum closes the engine set at the type level the way <code><a href="#ad1de9d92c896b2ce4d1be9aaebc4ef75" class="m-doc">JitterProbeMode</a></code> closes the modes; <code>NONE</code> names no tracer, and a run whose value stands absent carries <code>NONE</code>.</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
           <section class="m-doc-details" id="aa3fb9e24a0f554081c7ed820b9d71565"><div>
             <h3>
