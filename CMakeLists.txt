@@ -310,11 +310,13 @@ set_target_properties(
     # gains tracerEngine and tracerCpus, and PrecheckRecord gains the
     # optional tracer record, so the exported layouts move again and the
     # number rises to 14.
-    # specs/033 FR-013, FR-040: EntryHunt gains toCounterSet, so the hunt
-    # surface of this target moves past the 14 specs/036 left and the
-    # hand-kept number rises to 15. No record layout moves: the struct
-    # gains one member function and no member, and the counters archive
-    # keeps its SOVERSION 4 (hard rule 12).
+    # specs/033 FR-013, FR-040: EntryHunt gains toCounterSet and joins the
+    # exported surface, and the record layouts move with it. HuntSampleState
+    # is a new exported record type, HuntOptions gains sampleBudgetNs and
+    # multiplexCap, and HuntPlan and RunHunt each gain sample and muxGroups.
+    # The hand-kept number rises to 15 past the 14 specs/036 left. The
+    # counters library surface moves nothing, so that archive keeps its
+    # SOVERSION 4 (hard rule 12).
     SOVERSION 15
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness

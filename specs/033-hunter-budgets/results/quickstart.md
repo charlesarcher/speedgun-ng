@@ -1,9 +1,16 @@
 # Zen 5 acceptance record: gary, hunter budgets (033)
 
 Task T032, FR-045, SC-009, D-11. Every figure below was read out of a
-run made on 2026-10-28 on `gary`, the host the feature names, while the
-branch `033-hunter-budgets` stood at `6851429b`; the suite counts below
-stand at the lane head `f28832c7`. The shape follows
+run made on 2026-10-28 on `gary`, the host the feature names. The runs
+went while the branch `033-hunter-budgets` stood at the commit the lane
+now carries as `fac88821`. The suite counts below stand at the commit
+the lane now carries as `e3be6b55`, the lane head at the time. A fixup
+and an autosquash rebase rewrote the lane after those runs, so the two
+hashes this record first named stand on no branch. The rewrite folded
+one fixup into an earlier commit, so `fac88821` carries a change the
+tree under those runs did not carry. Every figure stands as observed.
+This record stands against `f3b54411`, the head the branch carried when
+the record was re-anchored. The shape follows
 `specs/034-host-noise-precheck/results/quickstart.md`.
 
 Host: `gary`, AMD Ryzen 9 9950X3D 16-Core Processor, 32 threads, kernel
@@ -71,10 +78,11 @@ read-back run printed one column per line of that file and no `ABSENT`.
 
 ## The suite at the lane head
 
-The runs above were made at `6851429b`. The suite ran twice at
-`f28832c7`, the head the lane carries, in the shared `build` directory
-configured with `cmake --preset=ci-rocky`, on a machine with nothing
-else running:
+The runs above went at the commit the lane now carries as `fac88821`.
+The suite ran twice at the commit the lane now carries as `e3be6b55`,
+the head of the lane before the rewrite, in the shared `build`
+directory configured with `cmake --preset=ci-rocky`, on a machine with
+nothing else running:
 
 ```
 $ ctest --test-dir build --output-on-failure
