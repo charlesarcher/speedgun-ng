@@ -117,8 +117,8 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   `test/source/harness_hunt_cli_test.cpp`: the file's lines become
   one counter column each (20 addresses give 20 columns; one
   line of two comma-separated addresses gives two); `#` comments and
-  blank lines are skipped; an unknown address keeps the standing
-  `ABSENT` column with its stderr line and the run continues; a
+  blank lines are skipped; an unknown address prints one line
+  naming the value and ends the run with status 2 (FR-014, D-8); a
   missing file, a comma beside nothing (the empty address), and a
   file holding no address each print one line naming the value and
   exit 2;
@@ -135,8 +135,9 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   answer holds at most `topN` addresses, the ranked entries in
   ascending rank, measures nothing, reads no clock) and define it in
   `source/harness/hunt_plan.cpp`, its `SG_ENSURE` postcondition paired with the `\post` (the dbc-gate); the commit moves
-  `CMakeLists.txt:15` to `0.22.0` and `CMakeLists.txt:298` to
-  `SOVERSION 14`, and its body records the ABI check with the archive
+  `CMakeLists.txt:15` to the next free minor, `0.23.0` once the
+  rebase onto the tree that had taken `0.22.0` landed, and
+  `CMakeLists.txt:298` to `SOVERSION 14`; its body records the ABI check with the archive
   `SOVERSION` staying `4` (FR-013, FR-040, R-06, R-15) (depends on
   T005; the tests of T005 turn green)
 - [X] T009 [US1] Add the table row `{"hunt-emit-set",
@@ -175,9 +176,9 @@ roadmap criterion 12.7-6 with no PMU hardware (spec US1).
   starting with `@` reads one level through
   `detail::readAddressFileLines`, the other items staying
   addresses, the refusals ride the arm's standing `refuse` route,
-  unresolvable addresses keep the standing `ABSENT` shape
-  (`source/harness/runner.cpp:1239` unchanged); the tests of T007
-  turn green (FR-014, R-09) (depends on T003, T007)
+  an unresolvable address takes the entry point's standing
+  refusal, one line naming the value and exit 2 (FR-014, D-8); the
+  tests of T007 turn green (R-09) (depends on T003, T007)
 - [X] T012 [US1] Add the failing full round-trip test in
   `test/source/harness_hunt_cli_test.cpp` on the scripted host
   (`test/source/detail/pass_fixture.hpp`): a hunt with
@@ -414,9 +415,10 @@ section within 25 lines, and the extended example matches its
   (after T026: the same file)
 - [X] T028 [US4] Run the drift gates (`example_drift`,
   `example_run`, `report_shape`) and measure the README length: the
-  861-line page stands three lines under `PAGE_LINE_CAP` 864, so a
-  cap move joins `tools/docs/example_drift.py:194` only through a
-  recorded decision beside the measured length (FR-030, PC-9)
+  page stands at its measured length under `PAGE_LINE_CAP`, and the
+  `--hunt-emit-set` row moved that cap from 880 to 881 beside the
+  recorded decision at `tools/docs/example_drift.py:200` (FR-030,
+  PC-9)
   (depends on T026, T027)
 
 **Checkpoint**: the page teaches the feature inside its caps.
@@ -534,4 +536,4 @@ Polish closes the gates and the record.
 - [ ] T058 Restate the contrastive comments the prose gate cannot read per Constitution XI.2, XI.6 (partial)
 - [ ] T059 Restate the version reservation and the overrun quote in the plan and the spec note per FR-040, FR-002 (partial)
 - [ ] T060 Re-anchor the plan's re-anchor block to a reachable head per Constitution X.4 (partial)
-- [ ] T061 Restate the unknown-address rows, the version row and the page-cap row in the task list per FR-014, FR-040, FR-030 (partial)
+- [X] T061 Restate the unknown-address rows, the version row and the page-cap row in the task list per FR-014, FR-040, FR-030 (partial)
