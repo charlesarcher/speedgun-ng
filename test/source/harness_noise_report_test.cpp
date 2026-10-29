@@ -15,8 +15,8 @@
 // record without the tracer member against the fixture bytes. The schema
 // path enters through SG_SCHEMA_PATH, the way `harness_json_report_test`
 // takes it. Frameworkless check()/fail() convention, the way
-// `harness_json_schema_test.cpp` carries it. No test sleeps and no test
-// reads a clock (VI).
+// `harness_json_schema_test.cpp` carries it. The suite carries no
+// timed wait of its own (VI).
 // ============================================================================
 
 #include <algorithm>
