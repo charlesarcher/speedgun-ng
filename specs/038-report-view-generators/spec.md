@@ -50,8 +50,8 @@ evidence record shape.
   arguments are the driver's own, so no option row joins the
   standing table and the value block `298` to `319` stays free
   (`source/harness/detail/options.hpp:81` to `:107` name the
-  standing constants; `kOsNoiseOptionValue` stands at `297`) (R-2,
-  D-9).
+  standing constants; `kOsNoiseOptionValue` stands at `:93`
+  carrying the value `297`) (R-2, D-9).
 
 ## Roadmap position
 
@@ -187,12 +187,14 @@ evidence record shape.
   record types are the whole input surface; the renderer carries no
   second JSON reader and no second schema.
 - **D-2 (R-2)**: Library first. The view functions live in the
-  `speedgun-ng` library behind one public header,
+  project's harness library behind one public header,
   `include/speedgun-ng/views.hpp`; the implementation lives under
-  `source/views/`. The driver stands at `tools/report_view.cpp` and
-  carries no logic the tests cannot reach through the library. The
-  exported library surface grows, so the harness `SOVERSION` rises
-  to `16` and the commit records the check (FR-002).
+  `source/views/` and compiles into the `speedgun-ng_harness`
+  target, the reader's home. The driver stands at
+  `tools/report_view.cpp` and carries no logic the tests cannot
+  reach through the library. The exported harness surface grows,
+  so the harness `SOVERSION` rises to `16` and the commit records
+  the check (FR-002).
 - **D-3 (R-3)**: The formats stand hand-rolled. The SVG, the HTML
   and the text views are written from the standing records; no
   plotting or HTML library joins the dependency set. The histogram
@@ -567,8 +569,9 @@ read no finding.
   build, the suite SHALL pass under `taskset -c 0,1` and on a 2-cpu
   host, no test SHALL sleep or read a clock, and the renderer SHALL
   carry no timing figure (the acceptance shape).
-- **FR-019**: Coverage SHALL stand at 100% line and 100% branch with
-  no `LCOV_EXCL` marker and no new `--ignore-errors` entry (VI).
+- **FR-019**: Coverage SHALL stand at 100% line, 100% branch and
+  100% DBC, with no `LCOV_EXCL` marker and no new `--ignore-errors`
+  entry (VI).
 - **FR-020**: Every public interface SHALL carry its doxygen
   contracts (`\pre`, `\post`), the implementation SHALL enforce
   them through the project contract facility, and the public header
@@ -617,9 +620,9 @@ read no finding.
 - **SC-004**: The harness CLI stands byte-identical to master: the
   option-table rows and the value blocks stand unchanged, the block
   `298` to `319` free (FR-001, FR-017).
-- **SC-005**: The coverage gate reads 100.0% lines and 100.0%
-  branches, with no `LCOV_EXCL` marker and no new `--ignore-errors`
-  entry (FR-019).
+- **SC-005**: The coverage gate reads 100.0% lines, 100.0%
+  branches and 100.0% DBC, with no `LCOV_EXCL` marker and no new
+  `--ignore-errors` entry (FR-019).
 - **SC-006**: The suite passes under the sanitizer and tsan gates
   the matrix carries, and under `taskset -c 0,1` (FR-018).
 - **SC-007**: The docs gates stand green: the example builds and
