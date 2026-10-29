@@ -346,10 +346,18 @@ struct SPEEDGUN_NG_EXPORT HuntSampleState
  * @brief One stage of the plan: the column indices it measures and
  * the repeats each column gets (E-04, D-2).
  *
- * Stage 1 covers every column at one repeat of a budgeted plan;
- * stage 2 covers the top `3 x top` columns at `options.repeats`.
- * Stage 1 never shrinks and no stage keeps a reduced repeat count
- * (FR-013).
+ * Stage 1 covers every column; its column list never shrinks. Stage
+ * 2 covers the leading `3 x top` columns of the plan order, capped at
+ * the column count (D-2, FR-013, FR-014). `repeats` starts at the
+ * stage's rule: one for stage 1 of a two-stage plan,
+ * `options.repeats` for stage 2 and for the single stage of a plan no
+ * budget splits.
+ *
+ * A sample budget lowers that count. The planner derives the largest
+ * count that measures every event of the stage within the budget, and
+ * the stage keeps that figure: at or below its own rule, never below
+ * one (033 FR-001, FR-002, N-03, D-12). A stage no calibration figure
+ * prices keeps its rule (033 FR-002, N-03).
  */
 struct HuntStage
 {
@@ -564,17 +572,31 @@ struct RunHunt
  *       `planPasses` answer for the columns and `sourceLimits`, so a
  *       pass that is not exclusive holds at most `max(L - 2, 0)`
  *       events of a device that publishes `L`, and at most `L` leaves
- *       counting its anchors (I-3, FR-011); `method` is the
- *       `settleMethod` answer, which is `MULTIPLEX` exactly when no
- *       needed device publishes a limit (FR-011, D-19, spec PC-2);
- *       `stages` holds one stage when `options.budget` is empty:
- *       every column at `options.repeats`; with a budget `stages`
- *       holds two: stage 1 over every column at one repeat and stage
- *       2 over the top `3 x top` columns at `options.repeats` (D-2,
- *       FR-013), the budget rule dropping stage 2 whole when the
- *       two-stage estimate does not fit the budget or when a seconds
- *       budget has no calibration figure to price it; `estimateNs` holds
- *       `calibrationNsPerPass x passes x repeats`, the stage-1
+ *       counting its anchors (I-3, FR-011); a plan that settles on
+ *       `MULTIPLEX` has no `planPasses` answer, and the planner seats
+ *       the columns itself: one pass over every column, or one pass
+ *       per group when a multiplex cap stands, the groups standing
+ *       consecutive in plan order and each at most the cap wide (033
+ *       FR-003, N-04, D-3); `method` is the `settleMethod` answer,
+ *       which is `MULTIPLEX` exactly when no needed device publishes
+ *       a limit (FR-011, D-19, spec PC-2); `stages` holds one stage
+ *       when `options.budget` is empty: every column at
+ *       `options.repeats`; with a budget `stages` holds two: stage 1
+ *       over every column at one repeat and stage 2 over the leading
+ *       `3 x top` columns at `options.repeats` (D-2, FR-013), the
+ *       budget rule dropping stage 2 whole when the two-stage estimate
+ *       does not fit the budget or when a seconds budget has no
+ *       calibration figure to price it; a stage's `repeats` holds the
+ *       count the sample budget derived, at or below that stage's rule
+ *       and never below one, and holds the rule itself when no
+ *       calibration figure prices the stage (033 FR-001, FR-002,
+ *       N-03, D-12); `sample` holds the state that derivation leaves,
+ *       the fields `HuntSampleState` spells (033 N-03, N-06);
+ *       `muxGroups` holds the width of each group of a capped plan,
+ *       every entry at or below the cap and the entries summing to the
+ *       column count, and stands empty for a plan that settles on
+ *       `PASSES` or that no cap binds (033 FR-003, N-04); `estimateNs`
+ *       holds `calibrationNsPerPass x passes x repeats`, the stage-1
  *       figures on a split plan, or stands empty; `normalized` is
  *       false exactly when `anchorsPerPass` is zero
  * \post an event whose device publishes a limit below 3, which
