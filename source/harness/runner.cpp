@@ -1622,6 +1622,14 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // of the contexts the run spawns, and a run with no node preset
   // clears it, so the bind at the context start reads the plan of the
   // run in flight alone (FR-002, FR-011).
+  // specs/039-context-groups FR-001, P-4: the partition of this instance's
+  // contexts into the groups its source names, computed once here beside the
+  // contexts it groups and carried to every attempt the instance runs. One
+  // partition paces the instance's rounds and fills its disclosures across
+  // its passes and repetitions (FR-001). The empty partition is the run that
+  // carries none, the shape of FR-004.
+  std::vector<detail::ContextGroup> partition;
+
   detail::resolvedNodePlan().reset();
   if (instance.threadCount > 1) {
     const std::optional<detail::PlacementPlan> placePlan =
@@ -1631,6 +1639,14 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         : std::nullopt;
     if (placePlan.has_value() && instance.placement == detail::Preset::NODE) {
       detail::resolvedNodePlan() = *placePlan;
+    }
+    if (placePlan.has_value()) {
+      // FR-006, FR-007: the preset answers the partition its own plan reads,
+      // and the preset that names no unit answers none.
+      partition = detail::groupPartition(
+          instance.placement,
+          *placePlan,
+          static_cast<std::size_t>(instance.threadCount));
     }
     for (int position = 0; position < instance.threadCount; ++position) {
       const sg::ContextPolicy policy {
@@ -1652,16 +1668,24 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // joiner ends any thread (FR-025). The vector stays empty for a
   // single-context run (FR-022) and for a threaded run that ended before
   // it sampled, whose contexts placed nothing.
-  const auto fillDisclosures = [&result, &contexts]
+  const auto fillDisclosures = [&result, &contexts, &partition]
   {
     result.contexts.clear();
-    for (const auto& context : contexts) {
+    for (std::size_t position = 0; position < contexts.size(); ++position) {
+      const auto& context = contexts[position];
       const sg::PlacementResult placement =
           sg::detail::placementRecordOf(*context);
+      // FR-001, FR-004: the record names the group that holds this context,
+      // and stands empty for the run that carries no partition.
+      std::string group;
+      if (!partition.empty()) {
+        group = partition[detail::groupOfContext(partition, position)].name;
+      }
       result.contexts.push_back(
           sg::ContextDisclosure {context->policy().waitMode,
                                  std::string(placement.description),
-                                 placement.applied});
+                                 placement.applied,
+                                 std::move(group)});
     }
   };
 
@@ -1930,7 +1954,7 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     if (entry.threadRunner) {
       // FR-021, E-08: the family's own callable performs the
       // dispatches. The harness still owns the contexts, the body
-      // nodes, the two barrier rounds and the merge: the view hands out
+      // nodes, the barrier rounds and the merge: the view hands out
       // the context of an index and the dispatch of that index's body
       // node, and the ledger under it records what the call dispatched.
       // The call runs here, on the thread running the attempt, which
@@ -2035,10 +2059,11 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // The threaded attempt (E-05, D-05, FR-018, FR-020, FR-023, D-07):
   // one body per body index, each dispatched to the context that owns
   // that index, so every timed loop runs on its own context's thread
-  // over its own plan; the two barrier rounds stand outside every
-  // measured window; the fixture pair runs once, on context 0, outside
-  // both rounds; and the attempt answers with one merged record and the
-  // per-context folds the merged row reads.
+  // over its own plan; the barrier rounds, one pair per group where the
+  // instance carries a partition, stand outside every measured window; the
+  // fixture pair runs once, on context 0, outside every window; and the
+  // attempt answers with one merged record and the per-context folds the
+  // merged row reads.
   auto threadedSampleRun = [&](const std::uint64_t iterations)
       -> std::expected<RunRecord, std::string>
   {
@@ -2059,13 +2084,51 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       maxRecorderPauseRoom() = pauseRoom;
     }
 
-    // FR-019: the two rounds of the attempt, one before any context
-    // opens its window and one after every context has closed its
-    // window. Nothing dispatches, arrives, or waits inside a measured
-    // window (FR-015, Q-3).
-    sg::ContextBarrier startBarrier(instance.threadCount);
-    sg::ContextBarrier stopBarrier(instance.threadCount);
+    // FR-019: the rounds of the attempt, one before any context opens its
+    // window and one after every context has closed its window. Nothing
+    // dispatches, arrives, or waits inside a measured window (FR-015, Q-3).
+    // specs/039-context-groups FR-022, FR-023, FR-024, P-2: a run that
+    // carries a partition stands one pair per group, each pair carrying that
+    // group's own member count and no other context, and a run that carries
+    // none keeps the standing pair over every context of the instance. The
+    // vectors outlive the launch below, where the bodies arrive.
+    const std::size_t groupCount =
+        partition.empty() ? std::size_t {1} : partition.size();
+    std::vector<std::unique_ptr<sg::ContextBarrier>> startBarriers;
+    std::vector<std::unique_ptr<sg::ContextBarrier>> stopBarriers;
+    startBarriers.reserve(groupCount);
+    stopBarriers.reserve(groupCount);
+    for (std::size_t group = 0; group < groupCount; ++group) {
+      const int participants = partition.empty()
+          ? instance.threadCount
+          : static_cast<int>(partition[group].slots.size());
+      startBarriers.push_back(
+          std::make_unique<sg::ContextBarrier>(participants));
+      stopBarriers.push_back(
+          std::make_unique<sg::ContextBarrier>(participants));
+    }
     std::vector<ThreadedOutcome> outcomes(count);
+
+    // FR-026, D-7: the fixture publication of an attempt whose groups pace
+    // apart. Context 0 writes the text of the pair's first half and releases
+    // the flag above it, and every other body acquires that flag before it
+    // copies the text, so the pair reaches the bodies of every group and no
+    // round carries it across one. A run with no partition, and a run whose
+    // one group holds every context, keep the standing route below.
+    const bool splitPublication = partition.size() > 1;
+    std::string publishedSetup;
+    std::atomic<bool> setupPublished {false};
+
+    // FR-026, D-7: one settlement flag per body, raised past that body's stop
+    // arrival. The pair's second half waits on the flags of the bodies it
+    // shares no round with, inside the body that owns the pair.
+    std::vector<std::unique_ptr<std::atomic<bool>>> settled;
+    if (splitPublication) {
+      settled.reserve(count);
+      for (std::size_t position = 0; position < count; ++position) {
+        settled.push_back(std::make_unique<std::atomic<bool>>(false));
+      }
+    }
 
     // FR-018, PC-1: the body of one body index, running on that
     // context's own thread. Plan, recorder, state, and window are the
@@ -2116,22 +2179,50 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       // serves carries the arguments this instance owns.
       State callbackState(iterations, nullptr, instance.arguments, true);
       std::unique_ptr<Fixture> fixture;
+      // specs/039-context-groups FR-022: the rounds of this body's own
+      // group, the group the instance's partition holds this position in.
+      const std::size_t group = partition.empty()
+          ? 0
+          : detail::groupOfContext(partition, static_cast<std::size_t>(index));
+
       if (index == 0) {
         // FR-023, D-07: the pair wraps the attempt once, on context 0,
         // and the setup half runs before the start barrier, so it
         // stands outside every window of the attempt.
         fixtureHalf(true, callbackState, fixture, outcome.setupError);
+        if (splitPublication) {
+          // FR-026, D-7: the text stands written ahead of the release that
+          // carries it, the way a context writes its item before the state
+          // that publishes it.
+          publishedSetup = outcome.setupError;
+          setupPublished.store(true, std::memory_order_release);
+        }
       }
 
-      startBarrier.arriveAndWait();
+      startBarriers[group]->arriveAndWait();
 
-      // FR-023, D-07: this round publishes the setup slot of context 0 to
-      // every context, and this copy is the first write of this context's
-      // error: the vector is built for the attempt, and nothing above
-      // writes that field. A setup that failed leaves every context out of
-      // the body; an empty slot leaves the error empty, so the test below
-      // carries the whole decision.
-      outcome.error = outcomes.front().setupError;
+      if (splitPublication) {
+        // FR-026, D-7: the first half's outcome reaches this body through
+        // the slot. A body that shares no group with context 0 waits on the
+        // flag before it copies the text; the wait stands outside every
+        // window, reads no clock and takes no bound.
+        if (index == 0) {
+          outcome.error = outcome.setupError;
+        } else {
+          while (!setupPublished.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+          }
+          outcome.error = publishedSetup;
+        }
+      } else {
+        // FR-023, D-07: this round publishes the setup slot of context 0 to
+        // every context, and this copy is the first write of this context's
+        // error: the vector is built for the attempt, and nothing above
+        // writes that field. A setup that failed leaves every context out of
+        // the body; an empty slot leaves the error empty, so the test below
+        // carries the whole decision.
+        outcome.error = outcomes.front().setupError;
+      }
 
       if (outcome.error.empty()) {
         try {
@@ -2146,9 +2237,26 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         state.topUpWindow();
       }
 
-      stopBarrier.arriveAndWait();
+      stopBarriers[group]->arriveAndWait();
+
+      if (splitPublication) {
+        // FR-026, D-7: this body stands settled once it stands past its
+        // group's stop round.
+        settled[static_cast<std::size_t>(index)]->store(
+            true, std::memory_order_release);
+      }
 
       if (index == 0 && outcome.error.empty()) {
+        if (splitPublication) {
+          // FR-026, D-7: every body of a split attempt settles on its own
+          // flag, so the pair's second half waits on the flags of the bodies
+          // it shares no round with before it runs.
+          for (std::size_t position = 1; position < count; ++position) {
+            while (!settled[position]->load(std::memory_order_acquire)) {
+              std::this_thread::yield();
+            }
+          }
+        }
         // FR-023, D-07: the teardown half runs on context 0 after the
         // stop barrier, outside every window of the attempt, and a
         // callable that threw leaves the pair, the way the
