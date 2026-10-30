@@ -1,6 +1,8 @@
 // ============================================================================
 // TDD test for the `--group-layout` row of specs/039-context-groups (T010,
-// T012; FR-011, FR-015, FR-026, FR-035, FR-037, D-5).
+// T012; FR-011, FR-036, FR-037; specs/028 FR-001, FR-004, FR-008, FR-012,
+// FR-015, FR-017, FR-018, FR-026, FR-035, FR-037, FR-039, FR-040, D-04,
+// D-05).
 //
 // The row is one name, one internal value and one path. The scan recognizes
 // the word, the settle arm carries the path through the resolved option set,
@@ -10,37 +12,38 @@
 // comment of `detail/options.hpp` names the split that leaves it there.
 //
 // Nothing here opens the named file. The scan, the settle arm and the gather
-// keep their rule of reading no file of their own (D-05), so each case hands
-// the row a path that stands uncreated and asserts what the row answers. The
-// file lines reach the gather as text, the way the entry point hands them.
-// No scenario reads `/sys` or the host topology, starts a thread or reads a
-// clock (FR-036, R-5).
+// keep their rule of reading no file of their own (specs/028 D-05), so each
+// case hands the row a path that stands uncreated and asserts what the row
+// answers. The file lines reach the gather as text, the way the entry point
+// hands them. No scenario reads `/sys` or the host topology, starts a thread or
+// reads a clock (FR-036, FR-037, R-5).
 //
 // Check map:
 //   theWordNamesTheRowAndSettlesItsPath
-//                                the bare word answers the needs-a-value line
-//                                a required row gives, the word with a path
-//                                scans clean, and the resolved option set
-//                                carries that path (FR-011, FR-008)
+//                                the bare word answers the needs-a-value line a
+//                                required row gives, the word with a path scans
+//                                clean, and the resolved option set carries
+//                                that path (FR-011, specs/028 FR-008)
 //   theRowCarriesItsRecord       the row of the live table carries the value
 //                                299, a required argument and the owner this
-//                                feature names (FR-011, FR-004)
+//                                feature names (FR-011, specs/028 FR-001,
+//                                FR-004)
 //   theHelpAnswerCarriesTheRowLine
-//                                `--help` prints the line the live row
-//                                builds, in the table's own words (FR-011,
+//                                `--help` prints the line the live row builds,
+//                                in the table's own words (FR-011, specs/028
 //                                FR-015, FR-018)
 //   theRowCarriesNoEnvironmentSource
 //                                the row flags no environment source, and a
 //                                variable that carries the name settles and
-//                                discloses nothing (FR-011, FR-026)
+//                                discloses nothing (FR-011, specs/028 FR-026)
 //   theWordsHoldThePathOverTheFile
-//                                the word of the command line keeps its
-//                                path over a file line that names one, and
-//                                the dropped line discloses nothing
-//                                (FR-037, FR-038)
+//                                the word of the command line keeps its path
+//                                over a file line that names one, and the
+//                                dropped line discloses nothing (specs/028
+//                                FR-037, FR-039)
 //   theLastFileLineHoldsThePath  two lines of one file settle the path of the
-//                                last of them, disclosed once (FR-035,
-//                                FR-040)
+//                                last of them, disclosed once (specs/028
+//                                FR-035, FR-040)
 // ============================================================================
 
 #include <cstdio>
@@ -71,7 +74,8 @@ constexpr std::string_view kGroupName = "group-layout";
 constexpr std::string_view kGroupEnvironment = "SPEEDGUN_GROUP_LAYOUT";
 
 // The paths no case creates. The row carries a path and opens nothing, so an
-// absent file answers the same at this seam as one that stands (D-05).
+// absent file answers the same at this seam as one that stands (specs/028
+// D-05).
 const std::string kWordPath = "/tmp/harness_group_cli_word.yaml";
 const std::string kFileFirst = "/tmp/harness_group_cli_first.yaml";
 const std::string kFileSecond = "/tmp/harness_group_cli_second.yaml";
@@ -108,9 +112,9 @@ auto readText(const std::filesystem::path& path) -> std::string
   return text.str();
 }
 
-// One scan of one command line through the seam the scan owns. The words
-// stand in this process's memory alone, so the scan reads no environment and
-// opens no file (FR-012, D-05).
+// One scan of one command line through the seam the scan owns. The words stand
+// in this process's memory alone, so the scan reads no environment and opens no
+// file (specs/028 FR-012, D-05).
 auto scanWords(const std::vector<std::string>& words) -> Scan
 {
   std::vector<char*> argv;
@@ -122,7 +126,8 @@ auto scanWords(const std::vector<std::string>& words) -> Scan
                                      argv.data());
 }
 
-// The gather of one scan over the sources a case hands as data (D-04, D-05).
+// The gather of one scan over the sources a case hands as data (specs/028 D-04,
+// D-05).
 auto gather(const sg::detail::CommandLineOptions& scan,
             const std::vector<sg::detail::EnvironmentRow>& environment,
             const std::optional<sg::detail::OptionFileText>& optionFile)
@@ -149,16 +154,17 @@ auto groupUses(const sg::detail::ResolvedOptions& resolved) -> std::size_t
   return found;
 }
 
-// The row of the live table, or no row when the table holds none (FR-033).
+// The row of the live table, or no row when the table holds none (specs/028
+// FR-001).
 auto groupRow() -> const sg::detail::OptionRow*
 {
   return sg::detail::rowNamed(kGroupName);
 }
 
 // The printed line of the help answer that names `name`, with the standard
-// output captured to a file beside this process number. The entry point
-// prints the answer and stops at status 0, so no instance runs and no
-// topology reads (FR-017). An empty answer means no printed line names it.
+// output captured to a file beside this process number. The entry point prints
+// the answer and stops at status 0, so no instance runs and no topology reads
+// (specs/028 FR-017). An empty answer means no printed line names it.
 auto helpAnswerLine(std::string_view name) -> std::string
 {
   const std::filesystem::path outPath = std::filesystem::temp_directory_path()
@@ -180,9 +186,9 @@ auto helpAnswerLine(std::string_view name) -> std::string
   close(savedOut);
   const std::string printed = readText(outPath);
   std::filesystem::remove(outPath);
-  check(
-      status == 0,
-      "the help answer stops at status 0 (FR-017): " + std::to_string(status));
+  check(status == 0,
+        "the help answer stops at status 0 (specs/028 FR-017): "
+            + std::to_string(status));
   const std::string prefix = "  --" + std::string(name);
   std::string current;
   std::string found;
@@ -199,18 +205,19 @@ auto helpAnswerLine(std::string_view name) -> std::string
   return found;
 }
 
-// The word that names the row settles its path, and the bare word answers
-// the needs-a-value line a required row gives (FR-011, FR-008).
+// The word that names the row settles its path, and the bare word answers the
+// needs-a-value line a required row gives (FR-011, specs/028 FR-008).
 auto theWordNamesTheRowAndSettlesItsPath() -> void
 {
   const Scan bare = scanWords({"--group-layout"});
   check(!bare.has_value(),
-        "the bare word names a row that needs a value (FR-008)");
+        "the bare word names a row that needs a value (specs/028 FR-008)");
   if (!bare.has_value()) {
     checkText(
         bare.error(),
         "option '--group-layout' needs a value",
-        "the bare word answers the needs-a-value line of the row " "(FR-008)");
+        "the bare word answers the needs-a-value line of the row "
+        "(specs/028 FR-008)");
   }
 
   const Scan given = scanWords({"--group-layout=" + kWordPath});
@@ -225,8 +232,8 @@ auto theWordNamesTheRowAndSettlesItsPath() -> void
       "the resolved option set carries the path the word named " "(FR-011)");
 }
 
-// The row of the table carries the value, the argument kind and the owner
-// this feature names (FR-011, FR-004).
+// The row of the table carries the value, the argument kind and the owner this
+// feature names (FR-011, specs/028 FR-001, FR-004).
 auto theRowCarriesItsRecord() -> void
 {
   const sg::detail::OptionRow* const row = groupRow();
@@ -249,7 +256,7 @@ auto theRowCarriesItsRecord() -> void
 }
 
 // The help answer prints one line per row out of the row's own words, so the
-// live row is the expectation (FR-011, FR-015, FR-018).
+// live row is the expectation (FR-011, specs/028 FR-015, FR-018).
 auto theHelpAnswerCarriesTheRowLine() -> void
 {
   const sg::detail::OptionRow* const row = groupRow();
@@ -261,12 +268,13 @@ auto theHelpAnswerCarriesTheRowLine() -> void
   checkText(
       helpAnswerLine(kGroupName),
       "  --" + std::string(kGroupName) + " <value>  " + row->help,
-      "the help answer carries the line the row builds (FR-011, " "FR-015)");
+      "the help answer carries the line the row builds (FR-011, "
+      "specs/028 FR-015)");
 }
 
-// The row carries no environment source: the gather never asks for a
-// variable of its name, so such a variable settles nothing and discloses
-// nothing (FR-011, FR-026).
+// The row carries no environment source: the gather never asks for a variable
+// of its name, so such a variable settles nothing and discloses nothing
+// (FR-011, specs/028 FR-026).
 auto theRowCarriesNoEnvironmentSource() -> void
 {
   const sg::detail::OptionRow* const row = groupRow();
@@ -279,15 +287,17 @@ auto theRowCarriesNoEnvironmentSource() -> void
 
   const Scan empty = scanWords({});
   check(empty.has_value(),
-        "a line with no word scans clean (FR-012): " + empty.error_or({}));
+        "a line with no word scans clean (specs/028 FR-012): "
+            + empty.error_or({}));
   if (!empty.has_value()) {
     return;
   }
   const Gathered gathered = gather(
       *empty, {{std::string(kGroupEnvironment), kWordPath}}, std::nullopt);
-  check(gathered.has_value(),
-        "the gather accepts a variable no flagged row claims (FR-026): "
-            + gathered.error_or({}));
+  check(
+      gathered.has_value(),
+      "the gather accepts a variable no flagged row claims (specs/028 FR-026): "
+          + gathered.error_or({}));
   if (!gathered.has_value()) {
     return;
   }
@@ -295,12 +305,12 @@ auto theRowCarriesNoEnvironmentSource() -> void
             {},
             "the variable of the row's name settles no path (FR-011)");
   check(groupUses(*gathered) == 0,
-        "the variable of the row's name discloses no use (FR-039)");
+        "the variable of the row's name discloses no use (specs/028 FR-039)");
 }
 
 // The words stand above the file: the path the command line named keeps its
-// place, and the file's line sets nothing and discloses nothing (FR-037,
-// FR-038).
+// place, and the file's line sets nothing and discloses nothing (specs/028
+// FR-037, FR-039).
 auto theWordsHoldThePathOverTheFile() -> void
 {
   const Scan given = scanWords({"--group-layout=" + kWordPath});
@@ -321,18 +331,19 @@ auto theWordsHoldThePathOverTheFile() -> void
   checkText(pathOf(*gathered),
             kWordPath,
             "the word of the command line holds the path over the file line "
-            "(FR-037)");
+            "(specs/028 FR-037)");
   check(groupUses(*gathered) == 0,
-        "the dropped file line discloses no use (FR-038)");
+        "the dropped file line discloses no use (specs/028 FR-039)");
 }
 
 // Two lines of one file are one source: the last line's path stands, and the
-// row discloses the text that took effect (FR-035, FR-040).
+// row discloses the text that took effect (specs/028 FR-035, FR-040).
 auto theLastFileLineHoldsThePath() -> void
 {
   const Scan empty = scanWords({});
   check(empty.has_value(),
-        "a line with no word scans clean (FR-012): " + empty.error_or({}));
+        "a line with no word scans clean (specs/028 FR-012): "
+            + empty.error_or({}));
   if (!empty.has_value()) {
     return;
   }
@@ -348,9 +359,9 @@ auto theLastFileLineHoldsThePath() -> void
   }
   checkText(pathOf(*gathered),
             kFileSecond,
-            "the last line of one file settles the path (FR-035)");
+            "the last line of one file settles the path (specs/028 FR-035)");
   check(groupUses(*gathered) == 1,
-        "the row discloses one use for the settled path (FR-040): "
+        "the row discloses one use for the settled path (specs/028 FR-040): "
             + std::to_string(groupUses(*gathered)));
 }
 

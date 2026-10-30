@@ -1082,9 +1082,9 @@ add_test(NAME harness_group_partition_test
 
 # The `--group-layout` row: the word the scan recognizes, the record the row
 # carries, the line the help answer prints and the source the row refuses
-# (specs/039-context-groups T010, T012; FR-011, FR-015, FR-018, FR-026). The
-# option table and the run record stand behind the harness source directory,
-# the way harness_cli_table_test reaches them.
+# (specs/039-context-groups T010, T012; FR-011; specs/028 FR-015, FR-018,
+# FR-026). The option table and the run record stand behind the harness source
+# directory, the way harness_cli_table_test reaches them.
 add_executable(harness_group_cli_test source/harness_group_cli_test.cpp)
 target_link_libraries(harness_group_cli_test PRIVATE speedgun-ng::harness)
 target_include_directories(harness_group_cli_test

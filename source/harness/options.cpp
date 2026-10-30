@@ -645,11 +645,11 @@ auto optionRows() -> std::span<const OptionRow>
        false,
        "Runs the named noise tracer across the pre-check window",
        "specs/036-osnoise-timerlat-tracers"},
-      // specs/039-context-groups FR-011, D-5: the layout file that names the
+      // specs/039-context-groups FR-011, FR-020: the layout file that names the
       // run's context groups. The row takes the constant 299 the free block
-      // leaves this lane, carries no environment name the way
-      // `--compare-rules` keeps none, and hands the path to the fit walk,
-      // which is the reader that opens it.
+      // leaves this lane, carries no environment name the way `--compare-rules`
+      // keeps none, and hands the path to the fit walk, which is the reader
+      // that opens it (D-05).
       {"group-layout",
        kGroupLayoutOptionValue,
        OptionArgument::REQUIRED,
@@ -1832,12 +1832,12 @@ auto applySourceValue(const OptionRow& row,
       return true;
     }
     case kGroupLayoutOptionValue: {
-      // specs/039 FR-011, D-5: the path stands as the source spelled it,
-      // unopened. The gather opens no file of its own, so the fit walk is the
-      // reader that answers the fault of a file it cannot read (D-05,
-      // FR-019). The row is scalar: within one source the last word stands,
-      // and a source below the one that settled the path is read and then
-      // dropped (FR-035, FR-037).
+      // specs/039 FR-011: the path stands as the source spelled it, unopened.
+      // The gather opens no file of its own, so the fit walk is the reader that
+      // answers the fault of a file it cannot read (D-05, specs/039 FR-018).
+      // The row is scalar: within one source the last word stands, and a source
+      // below the one that settled the path is read and then dropped (FR-035,
+      // FR-037).
       if (!resolved.groupLayout.empty() && prior != kSameSourceSettled) {
         return false;
       }

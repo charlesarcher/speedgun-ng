@@ -226,10 +226,10 @@ struct ResolvedOptions
   // it settles, so the preset it read stands here for the entry point to
   // read, and that text is parsed one time (FR-046, FR-048).
   std::optional<Preset> preset;
-  // specs/039-context-groups FR-011, D-5: the path the `--group-layout` row
-  // settled, empty when no source named one. The row carries no environment
-  // source, and the gather keeps the text unopened: the fit walk reads the
-  // file and answers its fault (FR-019, FR-020).
+  // specs/039-context-groups FR-011: the path the `--group-layout` row settled,
+  // empty when no source named one. The row carries no environment source, and
+  // the gather keeps the text unopened (D-05): the fit walk reads the file and
+  // answers its fault (FR-018, FR-020).
   std::string groupLayout;
   // Every metric name every source named, settled or dropped, in the order
   // the sources named them, each behind the origin that names its source.
