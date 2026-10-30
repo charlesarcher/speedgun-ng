@@ -225,7 +225,10 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # the cap from 940 to 947, the measured length of the page as the feature
 # lands. The section spans 24 lines, under the per-section budget of
 # FR-024, so no entry joins SECTION_LINE_CAPS.
-PAGE_LINE_CAP = 947
+# specs/039 FR-011 adds the `--group-layout` option row: one line moves
+# the cap from 947 to 948, the measured length of the page with the row
+# in place.
+PAGE_LINE_CAP = 948
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that

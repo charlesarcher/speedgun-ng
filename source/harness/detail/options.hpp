@@ -76,8 +76,10 @@ enum class StopKind
 // the options master gives them, the jitter probe's lane block holds
 // 260 to 269, the eight hunt names take the block 270 to 279
 // specs/029-hunter-core reserves, the seven names the command-line lane
-// brings take 290 to 296, the noise tracer's name takes 297, and 298 to
-// 319 stay free (FR-001, FR-004, FR-005, D-24; specs/029 FR-080, D-22).
+// brings take 290 to 296, the noise tracer's name takes 297, the graph
+// row of specs/037 takes 298 at its own merge, the layout row of
+// specs/039 takes 299, and 300 to 319 stay free (FR-001, FR-004, FR-005,
+// D-24; specs/029 FR-080, D-22; specs/039 FR-011).
 inline constexpr int kMetricMethodOption = 256;
 inline constexpr int kCompareOptionValue = 257;
 inline constexpr int kCompareRuleOptionValue = 258;
@@ -91,6 +93,7 @@ inline constexpr int kCompareRulesOptionValue = 294;
 inline constexpr int kHelpOptionValue = 295;
 inline constexpr int kVersionOptionValue = 296;
 inline constexpr int kOsNoiseOptionValue = 297;
+inline constexpr int kGroupLayoutOptionValue = 299;
 
 // specs/029-hunter-core FR-080 to FR-082, D-22: the value each hunt option
 // answers. The hunt lane reserves the block 270 to 279: 278 and 279 stay
@@ -223,6 +226,11 @@ struct ResolvedOptions
   // it settles, so the preset it read stands here for the entry point to
   // read, and that text is parsed one time (FR-046, FR-048).
   std::optional<Preset> preset;
+  // specs/039-context-groups FR-011, D-5: the path the `--group-layout` row
+  // settled, empty when no source named one. The row carries no environment
+  // source, and the gather keeps the text unopened: the fit walk reads the
+  // file and answers its fault (FR-019, FR-020).
+  std::string groupLayout;
   // Every metric name every source named, settled or dropped, in the order
   // the sources named them, each behind the origin that names its source.
   // The table lookup is a reading of the host, so the entry point walks this

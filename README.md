@@ -917,6 +917,7 @@ The run writes its document at `--json=path`, loads it back with `loadReport`, a
 | `--catalog` | Prints the counter catalog and stops |
 | `--placement` | Selects the preset that plans the run's cpus |
 | `--topology` | Prints the machine layout listing and stops |
+| `--group-layout` | Reads the run's context groups from a file |
 | `--compare` | Compares two report documents; the mode runs no benchmark |
 | `--compare-rule` | Adds one comparison rule, repeatable in order |
 | `--compare-strict` | Makes every noisy row fail the verdict |
