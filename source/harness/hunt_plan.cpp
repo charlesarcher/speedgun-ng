@@ -450,6 +450,36 @@ auto EntryHunt::toCounterSet(std::size_t topN) const -> std::vector<std::string>
   return addresses;
 }
 
+// specs/040 FR-021, FR-024, contracts/hunt-ranks-api.md B-1, D-7: the pair
+// shape `toCounterSet` carries: the entries with a rank sort into rank order
+// and at most `topN` of them stand the lines. A line reads the stamped
+// figures of its entry, and no stamping pass fills them yet, so the walk
+// answers a figure-less record empty; the lines land beside the delta work
+// (shortcut: T027 emits the promoted-set lines in this walk, under the cap
+// and the rank order it stands).
+auto EntryHunt::toCompareRules(std::size_t topN, double noisePercent) const
+    -> std::vector<std::string>
+{
+  SG_REQUIRE(noisePercent > 0.0,
+             "the threshold stands above zero in the range the option "
+             "states (B-1)");
+  std::vector<std::pair<std::size_t, const RankedEvent*>> ranked;
+  for (const auto& entry : entries) {
+    if (entry.rank.has_value()) {
+      ranked.emplace_back(*entry.rank, &entry);
+    }
+  }
+  std::ranges::sort(ranked,
+                    std::less<> {},
+                    [](const auto& pair) { return pair.first; });
+
+  auto rules = std::vector<std::string> {};
+  SG_ENSURE(rules.size() <= topN,
+            "the answer holds at most topN lines, the ranked entries in "
+            "rank order (B-1)");
+  return rules;
+}
+
 }  // namespace sg::hunt
 
 namespace sg::detail

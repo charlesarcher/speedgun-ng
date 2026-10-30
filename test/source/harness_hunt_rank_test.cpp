@@ -29,6 +29,11 @@
 // contracts/counter-file.md): its cases build the `EntryHunt` record in place,
 // so the call reads the ranks a scenario states and nothing else.
 //
+// The surface block of specs/040-hunter-sensitivity stands the two
+// declarations the feature adds: a default `RankedEvent` answers the three
+// new rank fields empty, and `toCompareRules` declares beside
+// `toCounterSet` with the public signature FR-024 states (D-1).
+//
 // The list at the bottom is what CTest runs, so an entry absent from it never
 // runs, and `argv[1]` selects one entry of it. Frameworkless check()/fail()
 // convention, the one `harness_pass_plan_test.cpp` carries.
@@ -1248,6 +1253,46 @@ auto counterSetRepeat() -> void
   }
 }
 
+// ---------------------------------------------------------------------------
+// The public surface of specs/040-hunter-sensitivity (T004, red; FR-024,
+// D-1)
+// ---------------------------------------------------------------------------
+
+// A default `RankedEvent` answers the three rank figures of N14b empty
+// (D-1, the record half of FR-030): the fields stand optional, so a run
+// that measured none stands null on the record, and the console and the
+// document read their `n/a` cells and null keys from that empty state.
+auto surfaceDefaultFields() -> void
+{
+  const auto row = sg::hunt::RankedEvent {};
+  check(!row.sensitivityCorrelation.has_value(),
+        "a default record answers the sensitivity correlation empty");
+  check(!row.sensitivitySlope.has_value(),
+        "a default record answers the sensitivity slope empty");
+  check(!row.delta.has_value(),
+        "a default record answers the delta empty");
+}
+
+// `toCompareRules` declares beside `toCounterSet` (FR-024, D-1): the call
+// takes `(std::size_t, double)` arguments of public types and binds the
+// answer to `std::vector<std::string>`, so a `detail/` type in the
+// signature breaks the compile of this call, which is the red the pair
+// shape asks for. The record carries one unranked entry, so the empty
+// answer is the pair rule's verdict and the grammar rows of the CLI wave
+// pin the line texts.
+auto surfaceCompareRules() -> void
+{
+  const auto record = []
+  {
+    auto hunt = sg::hunt::EntryHunt {};
+    hunt.entries = {rankRow(4, std::nullopt)};
+    return hunt;
+  }();
+
+  const std::vector<std::string> rules = record.toCompareRules(kWideTop, 10.0);
+  check(rules.empty(), "a record with no ranked entry answers no rule line");
+}
+
 struct Scenario
 {
   std::string_view name;
@@ -1281,6 +1326,8 @@ struct Scenario
       Scenario {"counter-set-zero-top", counterSetZeroTop},
       Scenario {"counter-set-above-count", counterSetAboveCount},
       Scenario {"counter-set-repeat", counterSetRepeat},
+      Scenario {"surface-default-fields", surfaceDefaultFields},
+      Scenario {"surface-compare-rules", surfaceCompareRules},
   };
   return kList;
 }

@@ -1510,6 +1510,11 @@ auto readRankedEvent(Element value, const std::string& where)
       .repeated = false,
       .multiplexed = *multiplexed,
       .rank = std::nullopt,
+      // specs/040 B-9: the three rank figures read back with the document
+      // keys task; a document read today stands them empty.
+      .sensitivityCorrelation = std::nullopt,
+      .sensitivitySlope = std::nullopt,
+      .delta = std::nullopt,
   };
   // A noisy event, a single-sample event and an event outside the top N
   // carry no rank, which the document writes `null` (D-7).
