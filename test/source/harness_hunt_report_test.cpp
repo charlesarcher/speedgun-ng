@@ -624,8 +624,10 @@ auto scenarioPlanLineMultiplex() -> void
         "multiplexed hunt (D-19, E-07)");
   const auto block = huntBlock(run);
   const std::string expectedRows {
-      "hunt: rank 1 cpu/hunt001 instr=50.000 cv=0.00 multiplexed\n"
-      "hunt: rank 2 cpu/hunt000 instr=25.000 cv=0.00 multiplexed\n"};
+      "hunt: rank 1 cpu/hunt001 instr=50.000 cv=0.00 correlation=n/a "
+          "slope=n/a delta=n/a multiplexed\n"
+      "hunt: rank 2 cpu/hunt000 instr=25.000 cv=0.00 correlation=n/a "
+          "slope=n/a delta=n/a multiplexed\n"};
   check(block.find(expectedRows) != std::string::npos,
         "every row of the multiplexed hunt carries the word, in the rank order "
         "of the rate column (D-19, PD-07)");
@@ -652,9 +654,12 @@ auto scenarioPlanLineNoLimitHost() -> void
   check(huntBlock(run)
             == "hunt: plan events=3 passes=1 method=MULTIPLEX estimate="
                    "<host-calibrated>ns budget=none\n"
-                   "hunt: rank 1 cpu/hunt002 instr=75.000 cv=0.00 multiplexed\n"
-                   "hunt: rank 2 cpu/hunt001 instr=50.000 cv=0.00 multiplexed\n"
-                   "hunt: rank 3 cpu/hunt000 instr=25.000 cv=0.00 multiplexed\n"
+                   "hunt: rank 1 cpu/hunt002 instr=75.000 cv=0.00 "
+                   "correlation=n/a slope=n/a delta=n/a multiplexed\n"
+                   "hunt: rank 2 cpu/hunt001 instr=50.000 cv=0.00 "
+                   "correlation=n/a slope=n/a delta=n/a multiplexed\n"
+                   "hunt: rank 3 cpu/hunt000 instr=25.000 cv=0.00 "
+                   "correlation=n/a slope=n/a delta=n/a multiplexed\n"
                    "hunt: plan summary events=3/3 passes=1 budget=none\n",
         "the plan line of a hunt whose host publishes no limit carries the "
         "settled method word with no option stating it, every row carries the "
@@ -971,10 +976,12 @@ auto scenarioHuntBlockOrder() -> void
   check(huntBlock(run)
             == "hunt: plan events=3 passes=1 method=PASSES estimate="
                    "<host-calibrated>ns budget=none\n"
-                   "hunt: rank 1 cpu/hunt002 instr=75.000 cv=0.00\n"
-                   "hunt: rank 2 cpu/hunt001 instr=50.000 cv=0.00\n"
+                   "hunt: rank 1 cpu/hunt002 instr=75.000 cv=0.00 "
+                   "correlation=n/a slope=n/a delta=n/a\n"
+                   "hunt: rank 2 cpu/hunt001 instr=50.000 cv=0.00 "
+                   "correlation=n/a slope=n/a delta=n/a\n"
                    "hunt: rank - cpu/hunt000 instr=25.000 cv=0.00 "
-                   "mark=beyond-top\n"
+                   "correlation=n/a slope=n/a delta=n/a mark=beyond-top\n"
                    "hunt: skipped cpu/hunt007 permission-blocked\n"
                    "hunt: plan summary events=3/4 passes=1 budget=none\n",
         "the hunt lines of one run print the shapes of E-07 in the order PD-15 "
@@ -1013,13 +1020,14 @@ auto scenarioStageOneOnlyRow() -> void
   check(huntBlock(run)
             == "hunt: plan events=4 passes=1 method=PASSES estimate="
                    "<host-calibrated>ns budget=8p stage1=4 stage2=3\n"
-                   "hunt: rank 1 cpu/hunt002 instr=75.000 cv=0.00\n"
+                   "hunt: rank 1 cpu/hunt002 instr=75.000 cv=0.00 "
+                   "correlation=n/a slope=n/a delta=n/a\n"
                    "hunt: rank - cpu/hunt000 instr=25.000 cv=0.00 "
-                   "mark=beyond-top\n"
+                   "correlation=n/a slope=n/a delta=n/a mark=beyond-top\n"
                    "hunt: rank - cpu/hunt001 instr=50.000 cv=0.00 "
-                   "mark=beyond-top\n"
+                   "correlation=n/a slope=n/a delta=n/a mark=beyond-top\n"
                    "hunt: rank - cpu/hunt003 instr=100.000 cv=0.00 "
-                   "mark=unrepeated\n"
+                   "correlation=n/a slope=n/a delta=n/a mark=unrepeated\n"
                    "hunt: plan summary events=4/4 passes=1 budget=8p\n",
         "one row set stands for the two stages: the column only stage 1 "
         "measured prints once, in the tail, marked unrepeated, with the figure "
@@ -1099,10 +1107,14 @@ auto scenarioRankRowMarks() -> void
   };
 
   const std::string expectedRows {
-      "hunt: rank 1 cpu/hunt001 instr=50.000 cv=0.00 multiplexed\n"
-      "hunt: rank - cpu/hunt002 instr=30.000 cv=24.80 mark=noisy\n"
-      "hunt: rank - cpu/hunt003 instr=100.000 cv=0.00 mark=unrepeated\n"
-      "hunt: rank - cpu/hunt004 instr=20.000 cv=3.00 mark=beyond-top\n"};
+      "hunt: rank 1 cpu/hunt001 instr=50.000 cv=0.00 correlation=n/a "
+          "slope=n/a delta=n/a multiplexed\n"
+      "hunt: rank - cpu/hunt002 instr=30.000 cv=24.80 correlation=n/a "
+          "slope=n/a delta=n/a mark=noisy\n"
+      "hunt: rank - cpu/hunt003 instr=100.000 cv=0.00 correlation=n/a "
+          "slope=n/a delta=n/a mark=unrepeated\n"
+      "hunt: rank - cpu/hunt004 instr=20.000 cv=3.00 correlation=n/a "
+          "slope=n/a delta=n/a mark=beyond-top\n"};
   check(capturePrint([&table] {
           sg::detail::printHuntRanking(table, sg::hunt::HuntNorm::INSTR);
         })
@@ -1164,7 +1176,8 @@ auto scenarioNormalizedIterLine() -> void
   check(huntBlock(run)
             == "hunt: plan events=1 passes=1 method=PASSES estimate="
                    "<host-calibrated>ns budget=none normalized=iter\n"
-                   "hunt: rank 1 cpu/hunt000 iter=100.000 cv=0.00\n"
+                   "hunt: rank 1 cpu/hunt000 iter=100.000 cv=0.00 "
+                   "correlation=n/a slope=n/a delta=n/a\n"
                    "hunt: plan summary events=1/1 passes=1 budget=none\n",
         "the norm the run measured under is the norm both the plan line and "
         "the rate column name (D-13, E-07)");

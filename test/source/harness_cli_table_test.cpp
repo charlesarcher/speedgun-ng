@@ -167,7 +167,6 @@
 #include "detail/cli_table_fixture.hpp"
 #include "detail/options.hpp"
 #include "speedgun-ng/benchmark.hpp"
-
 #include "speedgun-ng/dbc.hpp"
 
 namespace
@@ -1199,8 +1198,7 @@ auto projectVersion(const std::filesystem::path& start) -> std::string
   std::string line;
   while (std::getline(lines, line)) {
     const std::size_t word = line.find_first_not_of(" \t");
-    if (word == std::string::npos || line.compare(word, 8, "VERSION ") != 0)
-    {
+    if (word == std::string::npos || line.compare(word, 8, "VERSION ") != 0) {
       continue;
     }
     std::istringstream value(line.substr(word + 8));

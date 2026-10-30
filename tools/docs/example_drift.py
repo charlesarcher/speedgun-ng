@@ -221,11 +221,11 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # entry joins SECTION_LINE_CAPS.
 # specs/040 FR-040 and FR-041 measure their own move: the "Hunter mode"
 # section swaps its rankEvents block for the rank-figures block the new
-# region carries (8 lines more) and the two quick-reference rows add 2,
-# so 8 lines move the cap from 940 to 948, the measured length of the
-# page as the feature lands. The section spans 25 lines, the per-section
-# budget itself, so no entry joins SECTION_LINE_CAPS.
-PAGE_LINE_CAP = 948
+# region carries and the two quick-reference rows add 2, so 6 lines move
+# the cap from 940 to 946, the measured length of the page as the feature
+# lands. The section spans 23 lines, under the per-section budget of
+# FR-024, so no entry joins SECTION_LINE_CAPS.
+PAGE_LINE_CAP = 946
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that

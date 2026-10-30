@@ -608,8 +608,7 @@ auto speedgunMain(int argc, char** argv) -> int
               "the settlement loaded the same document through the same "
               "loader, so the value stands (B-8, D-6)");
     const auto settled = options.hunt->norm.value_or(hunt::HuntNorm::INSTR);
-    if (const auto mismatch = detail::baselineNormMismatch(*loaded, settled))
-    {
+    if (const auto mismatch = detail::baselineNormMismatch(*loaded, settled)) {
       std::fprintf(stderr, "%s\n", mismatch->c_str());
       return 2;
     }

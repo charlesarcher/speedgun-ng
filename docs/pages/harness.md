@@ -1700,11 +1700,11 @@ speedgun-ng 0.20.1 build=Release
 bmHunt/8                 iterations= 262004939  real time/iter (ns)=    2.677  cpu time/iter (ns)=    2.672  overhead floor (ns)=  671.000  endpoint samples=2
 bmHunt/64                iterations=  32779693  real time/iter (ns)=   21.392  cpu time/iter (ns)=   21.357  overhead floor (ns)=  671.000  endpoint samples=2
 hunt: plan events=5 passes=3 method=PASSES estimate=not available budget=none
-hunt: rank 1 cpu/hunt_branches instr=2000.000 cv=0.00
-hunt: rank 2 cpu/hunt_loads instr=1000.000 cv=0.00
-hunt: rank - cpu/hunt_rtls instr=0.000 cv=0.00 mark=unrepeated
-hunt: rank - cpu/hunt_stalls instr=3000.000 cv=33.33 mark=noisy
-hunt: rank - cpu/hunt_stores instr=0.000 cv=0.00 mark=beyond-top
+hunt: rank 1 cpu/hunt_branches instr=2000.000 cv=0.00 correlation=n/a slope=n/a delta=n/a
+hunt: rank 2 cpu/hunt_loads instr=1000.000 cv=0.00 correlation=n/a slope=n/a delta=n/a
+hunt: rank - cpu/hunt_rtls instr=0.000 cv=0.00 correlation=n/a slope=n/a delta=n/a mark=unrepeated
+hunt: rank - cpu/hunt_stalls instr=3000.000 cv=33.33 correlation=n/a slope=n/a delta=n/a mark=noisy
+hunt: rank - cpu/hunt_stores instr=0.000 cv=0.00 correlation=n/a slope=n/a delta=n/a mark=beyond-top
 hunt: skipped cpu/hunt_blocked permission-blocked
 hunt: skipped cpu/hunt_noenc not-encodable
 hunt: plan summary events=5/7 passes=3 budget=none
@@ -1815,10 +1815,10 @@ benchmark tables. The block states the shape of the output.
 hunt: plan events=42 passes=14 method=MULTIPLEX estimate=1260000ns budget=120s sample=0.5e mux=32g stage1=42 stage2=42
 hunt: plan sample repeats=2 of 3
 hunt: plan mux groups=2 sizes=32,10
-hunt: rank 1 cpu/instructions_retired_any instr=1042.300 cv=1.20
-hunt: rank 2 cpu/l2_lines_out.any_core instr=6.910 cv=2.05 multiplexed
-hunt: rank - cpu/mem_load_stalled_on_l2 instr=2.110 cv=24.80 mark=noisy
-hunt: rank - cpu/page_walker_walk_completed instr=0.310 cv=0.00 mark=unrepeated
+hunt: rank 1 cpu/instructions_retired_any instr=1042.300 cv=1.20 correlation=n/a slope=n/a delta=n/a
+hunt: rank 2 cpu/l2_lines_out.any_core instr=6.910 cv=2.05 correlation=n/a slope=n/a delta=n/a multiplexed
+hunt: rank - cpu/mem_load_stalled_on_l2 instr=2.110 cv=24.80 correlation=n/a slope=n/a delta=n/a mark=noisy
+hunt: rank - cpu/page_walker_walk_completed instr=0.310 cv=0.00 correlation=n/a slope=n/a delta=n/a mark=unrepeated
 hunt: skipped cpu/l1_dc_misses permission-blocked
 hunt: skipped armv8_pmuv3/cycle not-encodable
 hunt: plan summary events=40/42 passes=14 budget=120s

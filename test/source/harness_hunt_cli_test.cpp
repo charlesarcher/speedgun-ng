@@ -113,7 +113,6 @@ auto blankFile() -> std::filesystem::path
   return capturePath("_blank.txt");
 }
 
-
 auto rawFile() -> std::filesystem::path
 {
   return capturePath("_raw.txt");
@@ -172,14 +171,13 @@ auto check(const bool condition, const char* what) -> void
   return (directory / "baseline_rates.json").string();
 }
 
-
 auto address(const std::size_t index) -> std::string
 {
   return sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(index));
 }
 
-auto writeFile(const std::filesystem::path& path,
-               const std::string& text) -> void
+auto writeFile(const std::filesystem::path& path, const std::string& text)
+    -> void
 {
   std::ofstream file(path, std::ios::trunc);
   check(static_cast<bool>(file), "the scenario could write its @file fixture");
@@ -208,8 +206,8 @@ auto writeSelectionFiles() -> void
 
 // Refuse one anchor leaf on every core device that owns one: the leaf stays in
 // the catalog with its disclosure, the shape D-13 describes.
-auto refuseAnchor(sg::counters::FakeProvider& host,
-                  const std::string_view leaf) -> void
+auto refuseAnchor(sg::counters::FakeProvider& host, const std::string_view leaf)
+    -> void
 {
   for (const auto device : sg::test::huntDevices()) {
     if (device == sg::test::kHuntUncore) {
@@ -284,8 +282,7 @@ std::atomic<int> huntRuns {0};
 auto bmHuntCli(sg::State& state) -> void
 {
   ++huntRuns;
-  for (auto _ : state) {
-  }
+  for (auto _ : state) {}
 }
 
 auto registerCase(const char* name = "bmHuntCli") -> sg::BenchmarkHandle
@@ -434,8 +431,8 @@ auto checkRefusals(const std::vector<RefusalRow>& rows) -> void
 
 // The hunt lines of a captured run, in the spelling contracts/hunt-cli.md
 // states.
-auto lineHolding(const std::string& text,
-                 const std::string& needle) -> std::string
+auto lineHolding(const std::string& text, const std::string& needle)
+    -> std::string
 {
   std::istringstream stream(text);
   std::string line;
@@ -447,8 +444,8 @@ auto lineHolding(const std::string& text,
   return {};
 }
 
-auto huntLines(const std::string& text,
-               const std::string& needle) -> std::vector<std::string>
+auto huntLines(const std::string& text, const std::string& needle)
+    -> std::vector<std::string>
 {
   std::vector<std::string> found;
   std::istringstream stream(text);
@@ -1039,10 +1036,11 @@ auto scenarioAcceptedSelectionForms() -> void
         "a run whose rank option spells the sensitivity key plans the same "
         "hunt (FR-010)");
 
-  const auto delta = captureRun(
-      withFilter({"--hunt=" + address(0), "--hunt-rank=delta",
-                  "--hunt-norm=instr",
-                  "--hunt-baseline=" + huntBaselinePath()}));
+  const auto delta =
+      captureRun(withFilter({"--hunt=" + address(0),
+                             "--hunt-rank=delta",
+                             "--hunt-norm=instr",
+                             "--hunt-baseline=" + huntBaselinePath()}));
   check(!planLine(delta).empty(),
         "a run whose rank option spells the delta key beside its baseline "
         "plans the same hunt (FR-010)");
@@ -1077,8 +1075,8 @@ auto scenarioBaselineAndRulesRefusals() -> void
   const auto rejected = sg::loadReport(refused);
   check(!rejected.has_value(),
         "the scratch document stands refused by the loader (FR-005)");
-  const std::string rejectedLine = "--hunt-baseline: '" + refused
-      + "' was rejected: " + rejected.error();
+  const std::string rejectedLine =
+      "--hunt-baseline: '" + refused + "' was rejected: " + rejected.error();
   checkRefusals({
       // FR-011, FR-023: the delta key reads a baseline, so a run that names
       // it beside none refuses the same way (B-8).
@@ -1519,8 +1517,8 @@ auto scenarioOptionOrderRefusals() -> void
 // report, or `npos` when no line holds it. Where the report puts a line is
 // what the two cases below weigh, and a line position states it in the bytes
 // of the report itself, where a reader can see it.
-auto lineIndex(const std::string& text,
-               const std::string& needle) -> std::size_t
+auto lineIndex(const std::string& text, const std::string& needle)
+    -> std::size_t
 {
   const std::size_t hit = text.find(needle);
   if (hit == std::string::npos) {
@@ -1701,8 +1699,8 @@ auto scenarioCutLinePrintsTheRecordedReason() -> void
 // The JSON number that stands behind one key, scanned the way
 // `holdOutOverheadFloor` of `harness_json_report_test.cpp` scans it, or the
 // empty text when the document holds no such key.
-auto numberAfter(const std::string& text,
-                 const std::string_view key) -> std::string
+auto numberAfter(const std::string& text, const std::string_view key)
+    -> std::string
 {
   const auto at = text.find(key);
   if (at == std::string::npos) {
@@ -1867,10 +1865,10 @@ auto scenarioRankTableCarriesTheNewColumns() -> void
         "the summary closes the hunt block below the rows it summarizes "
         "(FR-012)");
 
-  const std::string capped = captureRun(
-      withFilter({"--hunt=" + address(0) + "," + address(1) + ","
-                  + address(2) + "," + address(3),
-                  "--hunt-top=2"}));
+  const std::string capped =
+      captureRun(withFilter({"--hunt=" + address(0) + "," + address(1) + ","
+                                 + address(2) + "," + address(3),
+                             "--hunt-top=2"}));
   const auto cappedRows = huntLines(capped, "hunt: rank ");
   const std::vector<std::string> cappedWanted {
       "hunt: rank 1 cpu/hunt003 instr=100.000 cv=0.00 correlation=n/a "
@@ -1885,8 +1883,8 @@ auto scenarioRankTableCarriesTheNewColumns() -> void
         "the cap leaves the top two rows ranked and the tail marked "
         "beyond-top, every row carrying the new cells beside the standing "
         "flag cell (FR-012)");
-  check(countOf(capped,
-                "hunt: plan summary events=4/4 passes=1 budget=none") == 1,
+  check(countOf(capped, "hunt: plan summary events=4/4 passes=1 budget=none")
+            == 1,
         "the capped run closes with the standing summary (FR-012)");
   std::printf("rank-table-columns: ok\n");
 }
@@ -1958,8 +1956,8 @@ auto scenarioFilterSelectsTwoHuntedInstances() -> void
 // prints over it.
 // ---------------------------------------------------------------------------
 
-auto readerFile(const char* kind,
-                const std::string& text) -> std::filesystem::path
+auto readerFile(const char* kind, const std::string& text)
+    -> std::filesystem::path
 {
   const auto path = capturePath(kind);
   writeFile(path, text);
@@ -2287,6 +2285,108 @@ auto scenarioEmitSetSkipsAResultWithoutAHunt() -> void
   std::printf("emit-set-skips-a-result-without-a-hunt: ok\n");
 }
 
+// R-07 on the rules file: a result that carries no hunt contributes nothing
+// to the file, and a rule two results share stands once, the union keeping
+// the first line of it (FR-021). The skip and the union stand tested on the
+// writer's own seam, the two results of the emit-set scenario above carrying
+// the shapes.
+auto scenarioEmitRulesSkipsAResultWithoutAHunt() -> void
+{
+  auto best = sg::hunt::RankedEvent {};
+  best.address = address(1);
+  best.rank = 1;
+  best.delta = 10.0;
+  auto next = sg::hunt::RankedEvent {};
+  next.address = address(0);
+  next.rank = 2;
+  auto record = sg::hunt::EntryHunt {};
+  record.entries = {best, next};
+  auto hunted = sg::BenchmarkResult {};
+  hunted.name = "bmCase/8";
+  hunted.hunt = record;
+  auto plain = sg::BenchmarkResult {};
+  plain.name = "bmCase/16";
+  auto shared = sg::BenchmarkResult {};
+  shared.name = "bmCase/32";
+  shared.hunt = record;
+  const auto results = std::vector<sg::BenchmarkResult> {hunted, plain, shared};
+
+  check(sg::detail::writeHuntEmitRules(rulesPath().string(), results, 2, 10.0),
+        "the writer answered the file it wrote (FR-021)");
+  const auto written = fileLines(rulesPath());
+  check(written
+            == std::vector<std::string> {
+                "counter:" + std::string(address(1)) + "@median:higher:10%",
+                "counter:" + std::string(address(0)) + "@median:lower:10%"},
+        "the file holds the rules of the hunted results alone, best first, "
+        "the rule the two hunted results share standing once (FR-021, R-07)");
+  std::printf("emit-rules-skips-a-result-without-a-hunt: ok\n");
+}
+
+// FR-022: a path the file system refuses to open answers false from the
+// writer's own seam, the refusal the settlement's probe answers before the
+// entries run in every CLI-shaped run. A directory path opens for nothing,
+// so the open failure is the one shape the run path cannot reach.
+auto scenarioEmitRulesRefusesAnUnopenablePath() -> void
+{
+  const sg::BenchmarkResult plain;
+  check(
+      !sg::detail::writeHuntEmitRules("/no/such/directory/rules.txt",
+                                      std::vector<sg::BenchmarkResult> {plain},
+                                      2,
+                                      10.0),
+      "a path the file system refuses to open answers false (FR-022)");
+  std::printf("emit-rules-refuses-an-unopenable-path: ok\n");
+}
+
+// FR-022: the file can open and still refuse the write. `/dev/full` answers
+// every write with ENOSPC, so the second failure line of the writer stands
+// tested beside the open refusal above, in the one shape no path of its own
+// can give.
+auto scenarioEmitRulesRefusesAFullDestination() -> void
+{
+  auto best = sg::hunt::RankedEvent {};
+  best.address = address(0);
+  best.rank = 1;
+  auto record = sg::hunt::EntryHunt {};
+  record.entries = {best};
+  auto hunted = sg::BenchmarkResult {};
+  hunted.name = "bmCase/8";
+  hunted.hunt = record;
+  const auto results = std::vector<sg::BenchmarkResult> {hunted};
+  check(!sg::detail::writeHuntEmitRules("/dev/full", results, 2, 10.0),
+        "a file system that refuses the bytes answers false (FR-022)");
+  std::printf("emit-rules-refuses-a-full-destination: ok\n");
+}
+
+// FR-022: the run path sets the usage status when the rules file refuses the
+// write, the arm of the exit-status table the emit set shares (FR-036). The
+// settlement probe opens `/dev/full` for appending, so the failure stands
+// after the batch, on the writer's own seam.
+auto scenarioEmitRulesRefusesAFullDestinationRun() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+  const std::string destination = "/dev/full";
+  std::string output;
+  const int status = childRun(selfPath,
+                              "hunt",
+                              {"full",
+                               "--iterations=1",
+                               "--hunt=" + address(0),
+                               "--hunt-emit-rules=" + destination},
+                              output);
+  check(WEXITSTATUS(status) == 2,
+        "an emit the file system refused on the write leaves the usage status "
+        "(FR-022)");
+  const std::string heading =
+      "error: the rules file '" + destination + "' could not be written: ";
+  const auto line = lineHolding(output, heading);
+  check(line.rfind(heading, 0) == 0 && line.size() > heading.size(),
+        "the refused write names the path and the reason it got, on one line, "
+        "the shape the report file names (FR-022)");
+  std::printf("emit-rules-refuses-a-full-destination-run: ok\n");
+}
 
 // ---------------------------------------------------------------------------
 // The run path of the batch stamp (T031, FR-003, FR-004, FR-021, FR-030;
@@ -2527,7 +2627,8 @@ auto registerRankFamily() -> void
 // marked noisy (A-3).
 [[nodiscard]] auto runPathArguments() -> std::vector<std::string>
 {
-  return {"--filter", "bmRankFamily",
+  return {"--filter",
+          "bmRankFamily",
           "--iterations=1",
           "--repetitions=3",
           "--hunt-noise=100",
@@ -2714,23 +2815,22 @@ auto scenarioBaselineRulesRunPath() -> void
   // B-10).
   writeFile(runMismatchPath(), runBaselineDocument("iter"));
   std::string output;
-  const int status =
-      childRun(selfPath,
-               "hunt",
-               {"full",
-                "--hunt=" + address(0),
-                "--hunt-baseline=" + runMismatchPath().string()},
-               output);
-  check(WIFEXITED(status) && WEXITSTATUS(status) == 2,
-        "a baseline whose norm does not pair leaves the usage status "
-        "(FR-005)");
+  const int status = childRun(selfPath,
+                              "hunt",
+                              {"full",
+                               "--hunt=" + address(0),
+                               "--hunt-baseline=" + runMismatchPath().string()},
+                              output);
+  check(
+      WIFEXITED(status) && WEXITSTATUS(status) == 2,
+      "a baseline whose norm does not pair leaves the usage status " "(FR-"
+                                                                     "005)");
   const auto refused = splitLines(output);
   check(refused.size() == 2 && refused.back() == "BENCHMARK_NO_RUN",
         "the norm refusal reaches no benchmark (FR-005, B-10)");
   check(refused.size() == 2
-            && refused.front().find(
-                   "does not pair with the run's settled norm")
-                   != std::string::npos,
+            && refused.front().find("does not pair with the run's settled norm")
+                != std::string::npos,
         "the refusal names the mismatch on one line (FR-005, B-10)");
 
   std::printf("baseline-rules-run-path: ok\n");
@@ -2964,11 +3064,9 @@ auto scenarioEmitSetRoundTrip() -> void
                 &scenarioSingleContextHuntPrintsTheHuntWhole},
       Scenario {"threaded-hunt-context-tail",
                 &scenarioThreadedHuntPrintsTheContextTail},
-      Scenario {"rank-table-columns",
-                &scenarioRankTableCarriesTheNewColumns},
+      Scenario {"rank-table-columns", &scenarioRankTableCarriesTheNewColumns},
       Scenario {"stamp-pass-run-path", &scenarioStampPassRunPath},
-      Scenario {"baseline-rules-run-path",
-                &scenarioBaselineRulesRunPath},
+      Scenario {"baseline-rules-run-path", &scenarioBaselineRulesRunPath},
       Scenario {"filter-selects-two-hunted",
                 &scenarioFilterSelectsTwoHuntedInstances},
       Scenario {"shared-reader-rules", &scenarioSharedReaderRules},
@@ -2985,6 +3083,14 @@ auto scenarioEmitSetRoundTrip() -> void
                 &scenarioEmitSetRefusesAFullDestination},
       Scenario {"emit-set-skips-a-result-without-a-hunt",
                 &scenarioEmitSetSkipsAResultWithoutAHunt},
+      Scenario {"emit-rules-skips-a-result-without-a-hunt",
+                &scenarioEmitRulesSkipsAResultWithoutAHunt},
+      Scenario {"emit-rules-refuses-an-unopenable-path",
+                &scenarioEmitRulesRefusesAnUnopenablePath},
+      Scenario {"emit-rules-refuses-a-full-destination",
+                &scenarioEmitRulesRefusesAFullDestination},
+      Scenario {"emit-rules-refuses-a-full-destination-run",
+                &scenarioEmitRulesRefusesAFullDestinationRun},
       Scenario {"counter-file-form-reads-addresses",
                 &scenarioCounterFileFormReadsAddresses},
       Scenario {"counter-file-keeps-the-standing-resolution",

@@ -1532,9 +1532,9 @@ auto readRankedEvent(Element value, const std::string& where)
   // them, so an absent key leaves its member empty, the reading of a run
   // that stamped no figure, and a key that stands present keeps its own
   // kind and its own refusal (FR-031).
-  const auto readFigure = [&](std::string_view key,
-                              std::optional<double>* into)
-      -> std::expected<void, std::string>
+  const auto readFigure =
+      [&](std::string_view key,
+          std::optional<double>* into) -> std::expected<void, std::string>
   {
     const auto found = optionalField(value, key);
     if (!found.has_value() || found->is_null()) {

@@ -1433,10 +1433,10 @@ auto scenarioUncoreColumnsRankByIterations() -> void
   // window is the figure the rate column prints (E-07, AC-4).
   const std::string firstRow = "hunt: rank 2 " + first
       + " iter=" + std::to_string(sg::test::huntValue(sg::test::kHuntEvents))
-      + ".000 cv=0.00 multiplexed";
+      + ".000 cv=0.00 correlation=n/a slope=n/a delta=n/a multiplexed";
   const std::string lastRow = "hunt: rank 1 " + last + " iter="
       + std::to_string(sg::test::huntValue(sg::test::kHuntEvents + 1))
-      + ".000 cv=0.00 multiplexed";
+      + ".000 cv=0.00 correlation=n/a slope=n/a delta=n/a multiplexed";
   check(linesHolding(lines, "hunt: plan events=2 passes=1 "
                              "method=MULTIPLEX estimate=not available "
                              "budget=none normalized=iter")
