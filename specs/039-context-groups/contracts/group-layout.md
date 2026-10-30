@@ -60,3 +60,11 @@ Answers `std::expected<std::vector<ContextGroup>, std::string>`.
 | any key outside the grammar | the path, the entry, the key | 2 |
 | repeated group name | the path, the name | 2 |
 | a `name` outside the characters or the length | the path, the text | 2 |
+
+Two malformed shapes stand outside the rows and ride a row's text: a
+`groups` value that is no sequence, and a file that holds a second root
+document, each answered by the `unparsable document` line (FR-017). An
+empty, comment-only or scalar-rooted file answers the `root mapping with
+no `groups`` line. A file that repeats the root `groups` key is no named
+fault, and the reader answers the entries of the first mapping it reads
+(A-2).
