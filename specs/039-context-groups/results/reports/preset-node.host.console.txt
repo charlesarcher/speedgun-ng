@@ -1,0 +1,4 @@
+speedgun-ng 0.26.0 build=Release
+topology: packages=1 l3-groups=2 cores=16 threads=32
+bmSharded/threads:4      iterations=         4  real time/iter (ns)= 1032.500  cpu time/iter (ns)=  722.500  overhead floor (ns)=   90.000  endpoint samples=8
+  contexts=4  ctx0=SPIN/0@0@0/applied/node-0  ctx1=SPIN/1@0@0/applied/node-0  ctx2=SPIN/2@0@0/applied/node-0  ctx3=SPIN/3@0@0/applied/node-0
