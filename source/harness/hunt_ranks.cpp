@@ -184,7 +184,8 @@ auto baselineHuntRates(const sg::ReportData& baseline,
   }
   auto rates = std::map<std::string, double> {};
   for (const auto& record : matched.hunt->entries) {
-    const auto placed = rates.emplace(record.address, record.rate);
+    [[maybe_unused]] const auto placed =
+        rates.emplace(record.address, record.rate);
     SG_ASSERT(placed.second,
               "no address stands twice in the ranked list, the invariant "
               "the hunt record carries (I-4)");
