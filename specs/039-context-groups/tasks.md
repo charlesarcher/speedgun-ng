@@ -211,7 +211,10 @@ groups.
 - [ ] T018 [4] Compute the partition once per instance beside the
   context build in `source/harness/runner.cpp:1626-1644` and carry it
   with `groupOfContext` to the attempt scope, the `node` plan's standing
-  slot as the shape to follow (FR-001, P-4). Verify:
+  slot as the shape to follow, and fill `ContextDisclosure::group` where
+  the disclosures are built at `runner.cpp:1655-1666`, the empty name
+  standing for a run that carries no partition (FR-001, FR-005, P-4).
+  Verify:
   `ctest --test-dir build -R "harness_threads_test|harness_group_partition_test" --output-on-failure`
   green, the new run cases still red.
 - [ ] T019 [4] Build one `sg::ContextBarrier` per group per point in
