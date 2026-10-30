@@ -1050,6 +1050,10 @@ add_executable(harness_group_report_test
                source/harness_group_report_test.cpp)
 target_link_libraries(harness_group_report_test
                       PRIVATE speedgun-ng::harness)
+# The console block reads the printers, the fit walk and the layout reader at
+# the internal seam, and installs the machine layout the machine line names.
+target_include_directories(harness_group_report_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
 target_compile_features(harness_group_report_test PRIVATE cxx_std_23)
 add_test(NAME harness_group_report_test
          COMMAND harness_group_report_test)

@@ -98,7 +98,7 @@ irq affinity: cpu 1 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,22,23,29,30,31,32,3
 tracer: not available
 pinning candidates: cpu 0 0.00 cpu 24 0.00
 bmMeasured/threads:2     iterations=1895944730  real time/iter (ns)=    0.376  cpu time/iter (ns)=    0.375  overhead floor (ns)=  100.000  endpoint samples=4
-  contexts=2  ctx0=SPIN/0@0/applied  ctx1=SPIN/24@0/applied
+  contexts=2  ctx0=SPIN/0@0/applied/l3-0  ctx1=SPIN/24@0/applied/l3-0
 jitter probe: cpus 0,24,1
 gapCount: 0 0 0
 gapsPerSecond: 0.00 0.00 0.00
