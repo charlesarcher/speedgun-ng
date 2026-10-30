@@ -68,7 +68,7 @@ pin. The doxygen contracts of the headers govern on disagreement
 ### B-4 The family point assembly and the sensitivity stamp
 
 - \pre the entries carry ranked `EntryHunt` records with the
-  standing rate figures; the grouping reads suite and case name.
+  standing rate figures; the grouping reads the suite.
 - \post one point per entry that measured the event, the time
   figure the entry's aggregate row median, the rate under the
   run's settled norm; under 3 points the stamp leaves both

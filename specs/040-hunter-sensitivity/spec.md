@@ -149,7 +149,8 @@ reading it settles.
   `toCounterSet`, the pair the prompt names (R-1).
 - **D-2 The sensitivity runs over one family of one run.** One point
   per entry of one benchmark family of one run, a family standing the
-  entries of one suite and case name over distinct args or sizes. The
+  entries of one suite, the registered family; the case name carries
+  the args or the labels. The
   point carries the entry's time per iteration and the event's
   normalized rate under the norm the run settled. The Spearman rank
   correlation and the least-squares slope of the rate against the time
