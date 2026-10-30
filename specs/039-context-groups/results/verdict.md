@@ -4,9 +4,9 @@
   VIII with the reading the lane took, the task ledger marked, and this
   record linked from the quickstart beside the five acceptance records
   (FR-038, VIII, X.4).
-- Branch: `039-context-groups`, 45 commits over the lane base
-  `bea6af5b` once this unit's two commits stand, read on 2026-10-30 on
-  the lane host `gary`, 16 cores over two L3 groups and one memory
+- Branch: `039-context-groups`, 51 commits over the lane base
+  `bea6af5b` once this record's correction stands, read on 2026-10-30
+  on the lane host `gary`, 16 cores over two L3 groups and one memory
   node.
 - Reads: each gate unit took its reading on the tree named beside it.
   Seven rows stand re-read on this record's tree the same day and match
@@ -14,7 +14,9 @@
   row, the spell and format row, the time-source row, the DBC leg inside
   the coverage row, and the vendor-proof row. The prose read counts the
   sources this record adds, so its source count grows and its finding
-  count stays at zero.
+  count stays at zero. The convergence pass that followed this record
+  moved one source file, so the coverage row stands re-read again after
+  that fix, in the section that states the claim.
 - Commits: a hash stands quoted only for the lane base. T051 rewrote one
   commit body, which moved every hash from
   `Meta: Clear the analysis round-3 findings` onward, so the lane's own
@@ -66,7 +68,13 @@
 ## The coverage claim in the lane's numbers
 
 Lines stand at 100.0% over the tree and on every lane file, and all 268
-gcov-recorded added lines answer a positive count. Branches stand at
+gcov-recorded added lines answer a positive count. The trace stands
+re-read after the convergence fix `Harness: Refuse a layout path that
+fails to read`, its counters purged and the CI suite route run again
+(147 of 147), and the totals answer the same: the fix moved a branch
+site from a caught exception to a checked value, so
+`source/harness/group_layout.cpp:117` carries the two arcs the removed
+`catch` gave up and answers them taken 5 and 50 times. Branches stand at
 7,343 of 7,360, 99.8%, a shortfall of 17 rows inside the recorded D-14
 allowance of 19 rows. The lane owned one of those rows, and
 `test: Feed the partly numeric slot` cleared it. The third arc at
@@ -75,9 +83,9 @@ guard, answered zero taken until the row 9 case fed a partly numeric
 `slots` member; the trace now answers that arc taken once, which moved
 the branch count from 7,342 to 7,343 and the shortfall from 18 rows to
 17. None of the 17 rows stands on a line this branch moved: they sit at
-`cli.cpp` with 10 arcs, `options.cpp` with 2, `json_load.cpp` with 1,
-`execution_context.cpp` with 2, and the two rows the pre-lane baseline
-carried.
+`cli.cpp` with 12 rows, two of them carried by the pre-lane baseline,
+`options.cpp` with 2, `json_load.cpp` with 1, and
+`execution_context.cpp` with 2.
 
 | The lane file | Branches taken |
 | --- | --- |
@@ -115,12 +123,23 @@ carried.
    function record reads 0 in the genhtml summary. Lines and branches,
    the two metrics the gate reads, stand at 100.0%, and the site sits
    far from any hunk this branch moved.
+4. One coverage pass aborted `counters_linux_pmu_seam_test` with
+   `*** stack smashing detected ***` at 0.10 s, which dropped the
+   counters trace and dragged the summary to 99.3% lines. The same
+   binary passes run directly, passes through `ctest` on another preset,
+   and passes with a cleared environment, and the pass re-run read 147
+   of 147 with lines back at 100.0%. The counters subsystem stands
+   outside this lane, so the reading stands recorded and the host owns
+   the follow-up.
 
 ## The task ledger
 
 Every task of [tasks.md](../tasks.md) this lane landed stands checked
 there, this one included, and no task stands checked that did not land.
 The wave checkpoints in the lane ledger name the unit that took each
-reading above, the reads that earned no commit of their own, and the two
+reading above, the reads that earned no commit of their own, and the
 tasks the lane added while it ran: T052 for the file's route to the
-runner, and T053 for the guide's standing blocks (X.4).
+runner, T053 for the guide's standing blocks, and the convergence phase
+the `/speckit-converge` read appended, T054 for a layout path the reader
+could not read and T055 for the two hunt pairings the main page left
+out. Both convergence tasks stand landed and checked here (X.4).
