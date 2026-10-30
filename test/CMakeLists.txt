@@ -1093,6 +1093,21 @@ target_compile_features(harness_group_cli_test PRIVATE cxx_std_23)
 add_test(NAME harness_group_cli_test
          COMMAND harness_group_cli_test)
 
+# The rounds of a grouped threaded attempt: the partition each run carries,
+# the rounds each group meets on, the fixture pair of a split attempt, and the
+# ledger fault of a stranded member (specs/039-context-groups T017; FR-001,
+# FR-004, FR-010, FR-022 to FR-027, D-7, D-9).
+add_executable(harness_group_run_test
+               source/harness_group_run_test.cpp)
+target_link_libraries(harness_group_run_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_group_run_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_group_run_test PRIVATE cxx_std_23)
+add_test(NAME harness_group_run_test COMMAND harness_group_run_test)
+# The grouped scenarios run eight contexts at once, the widest the file
+# installs, so eight slots cover one attempt (030 FR-003).
+set_tests_properties(harness_group_run_test PROPERTIES PROCESSORS 8)
+
 # The barrier codegen shape at -O2 in every compiler present (T036; US6,
 # FR-029, FR-030).
 add_test(NAME barrier_shape
