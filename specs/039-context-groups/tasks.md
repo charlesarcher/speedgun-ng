@@ -72,7 +72,8 @@ owns its own files, so the module pairs run together.
   registration: the six presets over four installed shapes (four L3
   groups, two nodes over four groups, one group, a narrow mask), the
   `kNoGroup` read, the one-group answer, the one-context answer, the
-  `l3-` and `node-` name spellings, the plan-unchanged read, the
+  `l3-` and `node-` name spellings beside a mask that excludes the
+  read's first node, the plan-unchanged read, the
   first-appearance order, and `groupOfContext` over a two-group
   partition (FR-001 to FR-010, B-1, B-2, A-1 to A-6). Verify:
   `ctest --test-dir build -R harness_group_partition_test --output-on-failure`
@@ -120,9 +121,10 @@ fit walk learns to stop a batch the layout cannot serve.
   `test/source/harness_group_cli_test.cpp` with their registration: the
   row is recognized, `--help` prints its line, a missing file refuses
   one line at status 2, the pairing beside `--placement=l3` and beside
-  `--hunt` refuses one line naming both, and the counts `2,4,8` beside a
-  four-slot layout stop the batch with no row printed (FR-011, FR-019,
-  FR-020, FR-021, B-3). Verify:
+  `--hunt` refuses one line naming both, a handle that states
+  `placement("l3")` beside an option that states `none` refuses at the
+  fit checkpoint, and the counts `2,4,8` beside a four-slot layout stop
+  the batch with no row printed (FR-011, FR-019, FR-020, FR-021, B-3). Verify:
   `ctest --test-dir build -R harness_group_cli_test --output-on-failure`
   red.
 - [ ] T011 [3] Move `test/source/harness_cli_table_test.cpp` to the
