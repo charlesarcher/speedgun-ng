@@ -260,6 +260,11 @@ fit step that stops a layout the run cannot carry.
   - `node`: the memory node the plan names at that position
     (`plan.node`), the unit that preset distributes across.
   - `none`: no partition.
+  The `l3` arm seats one context per L3 unit
+  (`placement_preset.cpp:127-131`), so that preset's groups stand
+  single-member. The arms that seat several contexts in one unit are
+  `core`, `smt` and `compact` (`placement_preset.cpp:123-146`), and
+  the `node` arm cycles its nodes (`placement_preset.cpp:175-188`).
   The plan's cpu assignment stays untouched: grouping reads the plan,
   it changes none (specs/025 FR-008 to FR-014, specs/035 FR-009 stay
   in force byte for byte).
@@ -301,8 +306,9 @@ fit step that stops a layout the run cannot carry.
 - **D-8**: The batch fit. A layout names the slots of one instance.
   The standing fit step reads the layout before any instance runs and
   stops the batch when the layout's slot count differs from the
-  context count of any instance the batch runs, or when a cpu entry
-  names no cpu of that instance's plan. One line, exit status 2
+  context count of any instance the batch runs. The grammar refuses a
+  `cpus` key before the fit step reads the file, so the fit step reads
+  slot counts alone. One line, exit status 2
   (specs/025 FR-018 is the precedent for the stop).
 - **D-9**: One group is legal. A layout with one entry, and a preset
   whose contexts all land in one unit, give one group holding every
@@ -353,10 +359,10 @@ fit step that stops a layout the run cannot carry.
 
 ### User Story 1 - The preset groups the contexts behind their own round (Priority: P1)
 
-A user runs a benchmark with eight contexts over a machine of four
-L3 groups under `--placement=l3`. The run partitions the contexts by
-the L3 group each one's plan names, so four groups of two stand
-behind rounds of their own. Each group starts and paces as one unit,
+A user runs a benchmark with eight contexts over a machine whose four
+L3 groups hold eight cores under `--placement=core`. The run
+partitions the contexts by the L3 group each one's plan names, so four
+groups of two stand behind rounds of their own. Each group starts and paces as one unit,
 and no round waits for a context of another group.
 
 **Why this priority**: the group round is the feature. Without it the
@@ -370,10 +376,10 @@ no group named.
 
 **Acceptance Scenarios**:
 
-1. **Given** a layout of four L3 groups and eight contexts under
-   `--placement=l3`, **When** the instance runs, **Then** the
-   disclosure names four groups, each holding two contexts, and every
-   context names the group of its own plan unit.
+1. **Given** a layout of four L3 groups holding eight cores, and
+   eight contexts under `--placement=core`, **When** the instance
+   runs, **Then** the disclosure names four groups, each holding two
+   contexts, and every context names the group of its own plan unit.
 2. **Given** a two-node layout of four contexts under
    `--placement=node`, **When** the instance runs, **Then** the
    contexts alternate into two groups named by their node.
@@ -544,8 +550,11 @@ prints; the drift and prose gates read no finding.
 - A batch whose instances all share one context count carries one
   layout; a batch of differing counts refuses (FR-020).
 - A one-context instance of a batch carries no threaded round, so the
-  layout names one group of that one context and the disclosure
-  prints no context lines for it.
+  run names no group and the disclosure prints no context lines for it
+  (FR-010).
+- `--placement=l3` seats one context in each L3 unit, so its groups
+  stand single-member and the run still carries a partition (FR-006,
+  FR-009).
 - A `cpus` key refuses at the grammar, one line naming the key and
   its reason, before the fit step reads the file (FR-014).
 - A machine read that states no L3 unit leaves the L3-keyed presets
@@ -630,7 +639,9 @@ prints; the drift and prose gates read no finding.
   taking the internal value `299`, reading its argument as a file
   path, standing in the table `options.cpp:470-714` with the standing
   row record, and appearing in `--help` and in the guide's option
-  reference the way the table drives both. The row SHALL carry no
+  reference the way the table drives both. The main page's option
+  table SHALL gain the row in the same change, the check
+  `example_drift` runs on every suite read. The row SHALL carry no
   environment source, the shape `--compare-rules` keeps.
 - **FR-012**: The file SHALL read as a YAML mapping whose root key
   `groups` holds a sequence of at least one entry, one entry per
@@ -773,7 +784,9 @@ prints; the drift and prose gates read no finding.
 - **FR-039**: The main page SHALL gain the groups section, its
   example region and its quick-reference rows in the same change as
   the behavior, and the example SHALL build and run and print the
-  rows its result sentence names (IV.1).
+  rows its result sentence names (IV.1). The option table row of
+  FR-011 and the guide row move ahead of the section, in the wave the
+  option lands, so no wave closes with a failing drift read.
 - **FR-040**: The public header this lane grows SHALL carry doxygen
   `\pre`, `\post` and `\invariant` on every interface it adds, and
   the DBC gate SHALL read no finding (II).
@@ -787,7 +800,7 @@ prints; the drift and prose gates read no finding.
   exactly once, named by one source, fixed for the instance. The
   absence of a partition is a standing shape, an empty group list.
 - **Layout file**: the YAML document naming one entry per group with
-  a name and either slots or cpus (FR-012). Its grammar is closed.
+  a name and its slots (FR-012). Its grammar is closed.
 - **Group round**: one `sg::ContextBarrier` of the group's own
   participant count at one of the two standing rendezvous points.
 - **Context disclosure**: the per-context record the console and the
@@ -801,10 +814,10 @@ prints; the drift and prose gates read no finding.
 
 ### Measurable Outcomes
 
-- **SC-001**: A run of eight contexts over a four-L3-group layout
-  under `--placement=l3` discloses exactly four groups of two
-  contexts, each named `l3-0` to `l3-3`, and each context names the
-  group its plan unit names (FR-006, FR-008).
+- **SC-001**: A run of eight contexts over a layout of four L3 groups
+  holding eight cores, under `--placement=core`, discloses exactly
+  four groups of two contexts, each named `l3-0` to `l3-3`, and each
+  context names the group its plan unit names (FR-006, FR-008).
 - **SC-002**: A run of four contexts over a two-node layout under
   `--placement=node` discloses two groups of two, named `node-0` and
   `node-1`, holding the alternating contexts (FR-006, FR-008).
@@ -886,9 +899,9 @@ prints; the drift and prose gates read no finding.
   group record's public members take camelBack (N-12).
 - Coverage (VI): FR-037 states 100 percent line and branch over the
   added code with no exclusion marker.
-- Performance (VII): the group rounds sit outside every measured
-  window, and the lane records the round count per attempt so a
-  regression in pacing shows in the disclosure.
+- Performance (VII): the group rounds and the publication slot sit
+  outside every measured window, and the records name the grouped runs
+  that ran them.
 - Hard gates (VIII): FR-036 and FR-037 state the sanitizer, tsan,
   two-cpu and coverage readings; FR-039 states the drift and prose
   readings.

@@ -50,7 +50,9 @@ builds on. Nothing else lands before this phase closes.
   `CMakeLists.txt:30` and the harness `SOVERSION` `16` to `17` in
   `CMakeLists.txt:333`, the archive `SOVERSION` staying `4` at
   `CMakeLists.txt:95`, the comment beside the block naming the moved
-  public layout (FR-005, FR-032). Verify:
+  public layout, and the three checks of
+  `test/source/views_test.cpp:241-254` with the comment above them
+  (FR-005, FR-032). Verify:
   `cmake --preset=ci-rocky && cmake --build build` green, and the
   configure log names `0.26.0`.
 - [ ] T004 [1] Read the wave on the release preset with the analyzers
@@ -159,7 +161,9 @@ fit walk learns to stop a batch the layout cannot serve.
   green.
 - [ ] T015 [3] Add the option-reference row for `--group-layout` to
   `docs/pages/harness.md` beside the `--placement` row at `:680`, the
-  text the table's help string copies (FR-011, FR-039). Verify:
+  text the table's help string copies, and the matching `| Option |`
+  row in `README.md` that `table_rows` compares against
+  `cli_options` (`example_drift.py:763-776`) (FR-011, FR-039). Verify:
   `ctest --test-dir build -R "harness_cli_table_test|example_drift" --output-on-failure`
   green.
 - [ ] T016 [3] Read the wave on the release preset:
@@ -179,10 +183,11 @@ groups.
 
 - [ ] T017 [4] Write the failing run tests in
   `test/source/harness_group_run_test.cpp` with their registration and
-  `PROCESSORS`: eight contexts over a four-group shape complete and
-  disclose four groups of two; four contexts over a two-node shape
-  alternate into `node-0` and `node-1`; a one-group run completes; a
-  single-member group completes; an ungrouped run completes; a thread
+  `PROCESSORS`: eight contexts over a four-L3-group, eight-core shape
+  under `core` complete and disclose four groups of two; four contexts
+  over a two-node shape alternate into `node-0` and `node-1`; a
+  one-group run completes; the `l3` preset's four single-member groups
+  complete; an ungrouped run completes; a thread
   runner that leaves a member undispatched aborts at the ledger; a
   fixture setup that fails reaches every body and skips the teardown;
   the teardown follows the last settled body (FR-001, FR-004, FR-010,
@@ -193,7 +198,7 @@ groups.
   context build in `source/harness/runner.cpp:1626-1644` and carry it
   with `groupOfContext` to the attempt scope, the `node` plan's standing
   slot as the shape to follow (FR-001, P-4). Verify:
-  `ctest --test-dir build -R "harness_runner_test|harness_group_partition_test" --output-on-failure`
+  `ctest --test-dir build -R "harness_threads_test|harness_group_partition_test" --output-on-failure`
   green, the new run cases still red.
 - [ ] T019 [4] Build one `sg::ContextBarrier` per group per point in
   `threadedSampleRun` (`runner.cpp:2066-2067`) as
@@ -204,9 +209,11 @@ groups.
   green on the completion cases.
 - [ ] T020 [4] Add the per-attempt publication slot beside the outcome
   vector: context 0 writes the setup text then the ready flag with
-  release order, every other body waits on the flag with acquire order
-  before it copies the text, and the teardown node runs on context 0
-  after `launchBodies` returns when the run carries more than one group
+  release order, every other body waits on that flag with acquire
+  order before it copies the text, each body raises its own settlement
+  flag after its stop arrival, and context 0's teardown half waits on
+  those flags inside its own body, where `Fixture` and `callbackState`
+  stand locals (`runner.cpp:2115-2118`), so the pair keeps its owner
   (FR-026, D-7). Verify:
   `ctest --test-dir build -R "harness_group_run_test|harness_fixture_test" --output-on-failure`
   green.
@@ -253,8 +260,9 @@ and the report unit own disjoint files and run together.
   move the `1.8` literals to `1.10` in
   `test/source/harness_json_report_test.cpp:546`,
   `test/source/harness_json_load_test.cpp:707` and its `1.9` plant at
-  `:1076`, and `test/source/harness_noise_report_test.cpp:403` and
-  `:423`: the writer names `group` per context, the schema accepts the
+  `:1076`, and `test/source/harness_noise_report_test.cpp:423` and
+  `:453` with the comments at `:411` and `:451`: the writer names
+  `group` per context, the schema accepts the
   document and refuses a group name outside it, the reader answers the
   name, and an ungrouped document carries no key (FR-029 to FR-032,
   R-4). Verify:
@@ -271,7 +279,9 @@ and the report unit own disjoint files and run together.
   green.
 - [ ] T027 [5] Re-read the quoted report samples the segment touches:
   the `contexts=` lines in `docs/pages/harness.md` at `:596`, `:979` and
-  `:1568` and the `report_shape` goldens (FR-028, IV.1). Verify:
+  `:1568`, the inline quotes at `docs/pages/harness.md:971` and
+  `README.md:607`, and the `report_shape` goldens (FR-028, IV.1).
+  Verify:
   `ctest --test-dir build -R "report_shape|example_drift" --output-on-failure`
   green.
 - [ ] T028 [5] Read the wave on the release preset:
@@ -325,9 +335,11 @@ commands and exit codes named, the artifacts beside them.
   code, and copies the reports it writes into `results/reports/`
   (FR-038). Verify: `bash specs/039-context-groups/results/run_groups.sh`
   exits 0.
-- [ ] T034 [7] Record the preset grouping over the multi-group shape in
-  `results/preset-l3.md`: the command, the exit code, the console block
-  naming the groups, and the report document beside it (FR-038, SC-001).
+- [ ] T034 [7] Record the `core` grouping over the eight-core,
+  four-L3-group shape in `results/preset-core.md`, and the `l3`
+  grouping's single-member groups beside it: the commands, the exit
+  codes, the console blocks naming the groups, and the report documents
+  beside them (FR-038, SC-001).
 - [ ] T035 [7] Record the `node` grouping over a multi-node shape in
   `results/preset-node.md`, the alternating memberships named
   (FR-038, SC-002).
@@ -369,10 +381,10 @@ bindings re-read against the base, the verdict recorded.
   `taskset -c 0,1 ctest --preset prepush-quick -j 2` (FR-036, specs/035
   FR-017). Verify: every test passes.
 - [ ] T044 [P] [8] Run the coverage read: the coverage preset, the full
-  suite, then the coverage target (VI). Verify: 100 percent lines and
-  100 percent branches over `group_partition.cpp`, `group_layout.cpp`,
-  `group_fit.cpp` and the changed hunks, no `LCOV_EXCL` marker and no
-  new ignored error class.
+  suite, then the coverage target (VI, FR-037). Verify: 100 percent
+  lines and 100 percent branches over `group_partition.cpp`,
+  `group_layout.cpp`, `group_fit.cpp` and the changed hunks, no
+  `LCOV_EXCL` marker and no new ignored error class.
 - [ ] T045 [P] [8] Read the static-analysis gate on the release preset
   with the analyzers wired in, and the naming gate
   (`readability-identifier-naming`) with it (I, V.1, VIII). Verify: zero
