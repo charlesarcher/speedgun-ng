@@ -1,0 +1,1 @@
+  contexts=8  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN  ctx2=SPIN/NO_PIN  ctx3=SPIN/NO_PIN  ctx4=SPIN/NO_PIN  ctx5=SPIN/NO_PIN  ctx6=SPIN/NO_PIN  ctx7=SPIN/NO_PIN
