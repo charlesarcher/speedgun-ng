@@ -477,6 +477,10 @@ struct ContextDisclosure
    * contract); an empty name states the ungrouped shape, the record a
    * report document that carries no `group` key loads as (FR-004, FR-031,
    * FR-033)
+   * \invariant the console segment and the report key print this one text,
+   * and the runner fills it from the instance's partition as it fills the
+   * disclosure record, so both channels answer one name for one context
+   * (FR-028, FR-029, FR-033)
    */
   std::string group = {};
 };

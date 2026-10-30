@@ -970,13 +970,12 @@ The report of a run with a preset carries a topology line below the
 version line, `topology: packages=1 l3-groups=4 cores=24 threads=48`,
 and each context of a threaded run discloses its planned pair,
 `ctx0=SPIN/0@0/applied`: the cpu it ran on, `@`, and the ordinal of
-its L3 group. A context the node plan binds names the node beside
-the group, `ctx0=SPIN/0@0@0/applied`. A pair longer than the field
-meets the standing cut mark. A run whose plan names a group for its
-contexts ends each of those fields with that group's name, behind the
-placement flag, as in `ctx0=SPIN/0@0/applied/l3-0`. A run that
-carries no partition prints no group segment, and a layout file
-grouped run names the file's own text there.
+its L3 group. A context the node plan binds adds that node's ordinal
+behind the pair, so its placement text reads `0@0@0`. A pair longer
+than the field meets the standing cut mark. The partition a run
+names for its contexts closes each of those fields behind the
+placement flag, and the next section states the two sources, the
+names and the refusals.
 
 <!-- sg-sample-output: example/docs/numa_placement.expected#report -->
 ```text
@@ -995,6 +994,92 @@ node order; a node the mask excludes prints no line, and a read that
 states no memory information prints `node: not available` in the
 node family's place. An unreadable layout prints one line and exits
 2.
+
+## Context groups
+
+A group is the set of contexts of one instance that start and pace as one
+unit. A threaded instance stands in one partition: the groups that cover its
+contexts exactly once, fixed for that instance across its passes and
+repetitions. Each group meets the run's start and stop rendezvous on rounds of
+its own participant count, so no round carries contexts of two groups. The two
+standing points split by group, and a grouped run carries no round the
+ungrouped shape did not carry in some form. A member a thread runner leaves
+undispatched meets the standing ledger fault before any round waits on it. A
+partition needs more than one context: a one-context instance carries no group
+and no threaded round.
+
+Partitioning leaves the plan's cpus and the memory binds where the preset put
+them, so the placement behavior the presets state stands unchanged. It adds no
+group dimension to a merged row, to its divisor, to a per-context percentile
+line or to a raw column. It reaches the instance's threaded run alone, so the
+jitter probe, the hunt path, the idle reads and the noise tracers keep their
+standing rendezvous shapes. A run whose partition holds more than one group
+publishes context 0's fixture setup to every body over a route that carries no
+round across groups, and it runs context 0's fixture teardown on context 0's
+own thread after every body of the attempt has settled.
+
+One source names a run's partition.
+
+| Source | The groups it names |
+| --- | --- |
+| `--placement` above `none` | the topology unit the plan names at each position: the L3 group under `core`, `l3`, `smt` and `compact`, the memory node under `node`, each named for that unit and its ordinal in the read, `l3-0` and `node-1` |
+| `--group-layout=path` | one group per entry of the file, under the name the entry carries |
+
+The preset source reads the plan the run settled on, a plan a handle stated
+with `placement("l3")` included. Where the machine read states no unit for the
+preset in hand, that preset names no partition and the contexts run as one
+ungrouped set behind the standing pair of rounds. `--placement=none`, and a run
+that names neither source, name no partition the same way.
+
+The file source reads one YAML document whose root key `groups` holds one entry
+per group:
+
+```yaml
+groups:
+  - name: wide
+    slots: [0, 1]
+  - slots: [2, 3]
+```
+
+An entry is a mapping with one `slots` key and an optional `name`. A slot names
+a context position, `0` based, and the entries cover every context of the
+instance exactly once. A name runs 1 to 32 characters drawn from letters,
+digits, `-`, `_` and `.` and stands unique across the entries; an entry naming
+none takes `g` beside its zero-based document index, so the file above answers
+`wide` and `g1`. A key named `cpus` refuses with one line naming the key, the
+entry and the reason: a layout run carries no plan cpu to group by. No other
+key, no nesting and no second document read.
+
+These stops answer one line on standard error and exit status 2 before any
+instance runs, and each writes no report:
+
+- A file beside a preset that names a partition for the machine read in hand,
+  read at the fit checkpoint over every selected instance. The line names the
+  file and the preset.
+- A file beside `--hunt`: one run carries the file's partition or the hunt's
+  counter plan, and the line reads
+  `--hunt cannot combine with --group-layout` for either order.
+- A batch whose instance context counts disagree with the file's slots. The
+  line names the slot count and the count that instance runs.
+- A path that cannot be opened, a document the reader rejects, and every fault
+  of the grammar above. The line names the file path, and a line that names one
+  entry names that entry's index or name.
+
+A file beside `--placement=none` stands allowed, and so does a file beside a
+preset that names no unit for the read in hand: the preset keeps its pins and
+the file names the run's one partition.
+
+The disclosure closes a context's field with its group, behind the placement
+flag where that flag prints: `ctx0=SPIN/0@0/applied/l3-0` for a context of a
+plan that names its L3 unit, and `ctx0=SPIN/0@0@0/applied/node-0` for one the
+node plan binds. A layout run that carries no preset pins nothing, so its
+field runs wait mode, `NO_PIN`, group: `ctx0=SPIN/NO_PIN/wide`. A run with no
+partition prints no group segment, and its disclosure line keeps the bytes it
+printed before the
+segment existed. The topology line follows a preset in effect, so a run grouped
+by a file alone prints none. The JSON context record carries the same text as
+its `group` key, present for a grouped run alone, and a document that names no
+key loads as the record naming no group.
 
 ## Percentiles
 
