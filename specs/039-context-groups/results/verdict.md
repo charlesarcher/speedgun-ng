@@ -20,8 +20,11 @@
   convergence fix and the review fixes after it, so the suite row, the
   two sanitizer rows, the static-analysis row, the prose, spell, format
   and time-source rows, the doc-facing subset and the coverage claim all
-  stand re-read at the head those fixes left. The independent read of
-  the same head is the pull request's own CI matrix.
+  stand re-read at the head those fixes left. Each sanitizer row names
+  the compiler behind every reading it carries, and the newest reading
+  on each of the two stands taken on the `clang` compiler those two CI
+  jobs drive. The independent read of the same head is the pull
+  request's own CI matrix.
 - Commits: a hash stands quoted only for the lane base. T051 rewrote one
   commit body, which moved every hash from
   `Meta: Clear the analysis round-3 findings` onward, so the lane's own
@@ -32,9 +35,9 @@
 | Gate of Principle VIII | The command | The tree | The reading |
 | --- | --- | --- | --- |
 | Builds succeed for developer and CI presets on Linux | `cmake --preset=ci-rocky`, `cmake --preset=ci-ubuntu`, each followed by `cmake --build build` over a clean tree | `build` | 271 translation units compiled on each preset, 0 warnings on the `ci-rocky` read; `ci-sanitize`, `ci-tsan` and `ci-coverage` each configured and built the suite, read in their own rows below; the host compiler is GCC 16.2.1 at `/usr/bin/c++`, and CI drives Clang on the `sanitize` and `tsan` jobs (`.github/workflows/ci.yml`), so both families stand read |
-| All tests pass (`ctest`) | `ctest --test-dir build --output-on-failure` after each clean rebuild | `build` | `ci-rocky`: 152 of 152 in 299.42 s; `ci-ubuntu`: 147 of 147 in 139.33 s, and re-read at this record's tree at `-j 24`: 100 percent tests passed out of 147 in 22.80 s; re-read at the head the review fixes left: 152 of 152 on `ci-rocky` in 68.87 s at `-j 8`, and 147 of 147 on `ci-ubuntu` in 21.14 s at `-j 6`; the five-entry difference between the two presets' counts is the first wrinkle below, no failing entry stands in either tree |
-| Sanitizer-clean: ASan and UBSan | `cmake --preset=ci-sanitize`, `cmake --build build`, `ctest --test-dir build/sanitize --output-on-failure` | `build/sanitize` | 147 of 147 in 183.78 s; 0 AddressSanitizer, UBSan, leak and SEGV lines in the run log; re-read at the head the review fixes left, on a rebuilt tree at `-j 6`: 147 of 147 in 33.29 s, 0 such lines |
-| Thread-sanitizer-clean | `cmake --preset=ci-tsan`, `cmake --build build`, `ctest --test-dir build/tsan --output-on-failure` | `build/tsan` | 148 of 148 in 484.60 s; 0 ThreadSanitizer lines; the grouped run, barrier, threads and fixture tests stand named green inside that read; re-read at that head, on a rebuilt tree at `-j 6`: 148 of 148 in 115.50 s, 0 such lines |
+| All tests pass (`ctest`) | `ctest --test-dir build --output-on-failure` after each clean rebuild | `build` | `ci-rocky`: 152 of 152 in 299.42 s; `ci-ubuntu`: 147 of 147 in 139.33 s, and re-read at this record's tree at `-j 24`: 100 percent tests passed out of 147 in 22.80 s; re-read at the head the review fixes left: 152 of 152 on `ci-rocky` in 68.87 s at `-j 8`, and 147 of 147 on `ci-ubuntu` in 21.14 s at `-j 8`; the five-entry difference between the two presets' counts is the first wrinkle below, no failing entry stands in either tree |
+| Sanitizer-clean: ASan and UBSan | `cmake --preset=ci-sanitize`, `cmake --build build`, `ctest --test-dir build/sanitize --output-on-failure` | `build/sanitize` | 147 of 147 in 183.78 s; 0 AddressSanitizer, UBSan, leak and SEGV lines in the run log; re-read at the head the review fixes left, on a rebuilt tree at `-j 6`: 147 of 147 in 33.29 s, 0 such lines; that tree names `clang` 23.1.3 for both arms in its cache, the compiler the `sanitize` job drives with `CXX: clang++` (`.github/workflows/ci.yml:153`); re-read once more at that head on a clean `clang` tree at `-j 6`: 271 translation units, 147 of 147 in 39.99 s, 0 such lines; a GCC sanitizer read stands unavailable on this host, since `ci-sanitize` configured to GCC 16.2.1 stops with `-Werror=maybe-uninitialized` raised inside libstdc++'s `<regex>` internals while compiling `source/harness/compare.cpp`, a file no lane commit touched, and that stop stands reproduced on a retry at `-j 4` |
+| Thread-sanitizer-clean | `cmake --preset=ci-tsan`, `cmake --build build`, `ctest --test-dir build/tsan --output-on-failure` | `build/tsan` | 148 of 148 in 484.60 s; 0 ThreadSanitizer lines; the grouped run, barrier, threads and fixture tests stand named green inside that read; re-read at that head, on a rebuilt tree at `-j 6`: 148 of 148 in 115.50 s, 0 such lines; the `build/tsan` cache names `/usr/bin/cc` and `/usr/bin/c++`, the host GCC 16.2.1, so both readings above stand GCC readings; the `tsan` job drives `CXX: clang++` (`.github/workflows/ci.yml:236`), and a read on a clean `clang` tree at `-j 6` there answers 267 translation units, 147 of 148 in 104.34 s, 0 ThreadSanitizer lines, the one failing entry named in the third wrinkle below |
 | Static-analysis-clean: clang-tidy and cppcheck | `cmake --preset=ci-ubuntu`, a clean rebuild, and the collection forms the CI `Fail on gate findings` step uses | `build` | 271 translation units, 16,482 distinct findings over 132 checks, 0 findings on the gate list; re-read at the head the review fixes left: 271 translation units, 16,491 findings over 132 checks, 0 on the gate; the one cppcheck line of error severity stands off that list and stands named below with the branch that carries it |
 | Name-check-clean: `readability-identifier-naming` | the same rebuild, counted against `.clang-tidy:21`, which names `readability-identifier-naming` alone under `WarningsAsErrors` | `build` | 0 findings on the naming check; the zero stands proven live against a scratch file that does carry a naming finding, so the reading cannot come from a scan that inspects nothing |
 | `format-check` and `spell-check` pass | `cmake --build build --target spell-check`, `cmake --build build --target format-check` | `build` | both exit 0; the spell read loads `.codespellrc`, and the lane's 17 side build directories stood removed first so the two reads see tracked sources only; re-read at the head the review fixes left, both exit 0 |
@@ -47,7 +50,7 @@
 | Build and test results are recorded with a verdict per change | `ls specs/039-context-groups/results/`, read through [quickstart.md](../quickstart.md) | the tree | six records stand under `results/`: five acceptance records beside the driver `run_groups.sh`, and this verdict; each names its commands, its exit codes and its artifacts, and the quickstart links every one of them (FR-038, SC-010) |
 | Weakening a gate configuration silently is forbidden | `git diff --name-only bea6af5b..HEAD`, read against `tools/`, `cmake/`, `.github/`, `.clang-tidy` and `.codespellrc` | the tree | one gate-side constant moved: `PAGE_LINE_CAP` from 940 to 957 at `tools/docs/example_drift.py:224-232`, each step carrying its measured reason beside it; no gate config, no check list, no spell skip and no ignored error class moved, so no gate's checks stand narrowed |
 
-## The two wrinkles
+## The three wrinkles
 
 1. The `ci-ubuntu` tree registers 147 entries where `ci-rocky` registers
    152. That preset leaves `SPEEDGUN_DBC_MATRIX` off, so the five
@@ -69,6 +72,24 @@
    records it. The line and branch readings above
    stand the gate's own verdict, and the exit code belongs to the report
    step that follows the verdict.
+3. `harness_context_barrier_test` stands flaky under a thread sanitizer
+   on this host and stands green without one, and no report line stands
+   behind the failure. Measured at the head the review fixes left: 9 of
+   25 and 10 of 25 direct runs on the `clang` tree, 2 of 12 through
+   `ctest` serial, 1 of 12 at `-j 6`, and 8 of 25 on the GCC tree,
+   while 50 direct runs on the `ci-rocky` tree answered no failure. The
+   two failing scenarios are `yieldWait` and `spinWait`, the two that
+   read a waiting participant's `voluntary_ctxt_switches` and expect
+   that counter to stand flat, so the entry fails on a counter reading
+   with no sanitizer report behind it. Neither that test nor
+   `source/harness/execution_context.cpp` carries a commit in this
+   lane's range, and the test's last change predates the lane base, so
+   the flake stands outside this lane's ownership and no lane change
+   clears it, while the `tsan` job of the pull request's run on that
+   head answered success. The mechanism stands unproven between two readings: the
+   observer takes the counter after the released participant has
+   parked, or the sanitizer's own thread bookkeeping moves it. Finding
+   4 below holds the sibling case of a flaky entry the host owns.
 
 ## The coverage claim in the lane's numbers
 
