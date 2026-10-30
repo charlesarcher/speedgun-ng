@@ -49,6 +49,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "detail/hunt_fixture.hpp"
@@ -1293,6 +1294,138 @@ auto surfaceCompareRules() -> void
   check(rules.empty(), "a record with no ranked entry answers no rule line");
 }
 
+// ---------------------------------------------------------------------------
+// The statistics rows (specs/040-hunter-sensitivity T010, red; FR-006;
+// contracts/hunt-ranks-api.md B-2, B-3)
+//
+// The two helpers stand over one point set of plain pairs: the first
+// coordinate carries the time per iteration, the second the event's rate
+// (D-2, the point record of data-model.md). Every expectation below derives
+// from the ranks and the sums the point set itself stands from. The figures
+// the arithmetic carries exactly, the rank variance 42 of eight distinct
+// ranks and the quarter-step sums of the slope sets, let the closed forms of
+// the correlation and the slope answer one bit pattern, so the rows read
+// their answers with no tolerance band (I-6).
+// ---------------------------------------------------------------------------
+
+// The strictly monotone set answers the correlation `1` (B-2): the rate
+// rises with the time per iteration over eight points, the rank pairs stand
+// identical, and the rank variance 42 of eight distinct ranks carries its
+// square root exactly, so every closed form answers the same figure.
+auto correlationMonotone() -> void
+{
+  std::vector<std::pair<double, double>> points;
+  for (std::size_t step = 1; step <= 8; ++step) {
+    points.push_back(
+        {static_cast<double>(step), static_cast<double>(step)});
+  }
+  const auto answer = sg::detail::spearmanCorrelation(points);
+  check(answer.has_value(), "a monotone set answers a correlation");
+  check(sameDouble(*answer, 1.0), "the strictly monotone set answers 1");
+}
+
+// The anti-monotone set answers `-1` (B-2): the rate falls with the time
+// per iteration over the same eight steps, the rank pairs stand reversed,
+// and the figure carries the sign of the fall.
+auto correlationAntiMonotone() -> void
+{
+  std::vector<std::pair<double, double>> points;
+  for (std::size_t step = 1; step <= 8; ++step) {
+    points.push_back(
+        {static_cast<double>(step), static_cast<double>(9 - step)});
+  }
+  const auto answer = sg::detail::spearmanCorrelation(points);
+  check(answer.has_value(), "an anti-monotone set answers a correlation");
+  check(sameDouble(*answer, -1.0), "the anti-monotone set answers -1");
+}
+
+// The tie set averages the ranks (B-2): the two equal time figures carry
+// the average of the ranks they span, 2.5 each, and the rank pairs of this
+// set stand uncorrelated, so the correlation answers `0` exactly. The
+// ordinal reading of the same set, the first tied figure ranked ahead of
+// the second, answers one half, so the row separates the average ranks
+// from an arbitrary tie-break.
+auto correlationTieRanks() -> void
+{
+  const std::vector<std::pair<double, double>> points {
+      {1.0, 2.0}, {2.0, 1.0}, {2.0, 3.0}};
+  const auto answer = sg::detail::spearmanCorrelation(points);
+  check(answer.has_value(), "a tied set answers a correlation");
+  check(sameDouble(*answer, 0.0),
+        "the tied time figures average their ranks");
+  check(!sameDouble(*answer, 0.5),
+        "the tied set does not read the ordinal ranks");
+}
+
+// A set with no spread in either coordinate answers nothing (B-2, FR-002):
+// one constant column leaves no rank order to correlate, and the empty
+// optional is the source of the `n/a` disclosure (A-2).
+auto correlationNoSpread() -> void
+{
+  const std::vector<std::pair<double, double>> flatTime {
+      {2.0, 1.0}, {2.0, 2.0}, {2.0, 3.0}};
+  const std::vector<std::pair<double, double>> flatRate {
+      {1.0, 2.0}, {2.0, 2.0}, {3.0, 2.0}};
+  check(!sg::detail::spearmanCorrelation(flatTime).has_value(),
+        "a constant time coordinate answers no correlation");
+  check(!sg::detail::spearmanCorrelation(flatRate).has_value(),
+        "a constant rate coordinate answers no correlation");
+}
+
+// The set under three points answers nothing (B-2, FR-002): two points
+// stand below the count the contract correlates, whatever their figures.
+auto correlationUnderThree() -> void
+{
+  const std::vector<std::pair<double, double>> points {
+      {1.0, 1.0}, {2.0, 3.0}};
+  check(!sg::detail::spearmanCorrelation(points).has_value(),
+        "a set under three points answers no correlation");
+}
+
+// The exact line answers its slope (B-3): the four points stand on a rate
+// of 2 times the time plus 3, and the least-squares slope of an exact line
+// is the line's own slope. Every sum of this set is exactly representable,
+// so the closed forms answer `2` on one bit pattern.
+auto slopeExactLine() -> void
+{
+  const std::vector<std::pair<double, double>> points {
+      {1.0, 3.0}, {2.0, 5.0}, {3.0, 7.0}, {4.0, 9.0}};
+  const auto answer = sg::detail::leastSquaresSlope(points);
+  check(answer.has_value(), "an exact line answers a slope");
+  check(sameDouble(*answer, 2.0), "the exact line answers its slope");
+}
+
+// The slope reads the sums the complexity fit shares (B-3, FR-006, D-8):
+// the quotient the four shared sums answer, the count times the cross sum
+// minus the time sum times the rate sum, over the count times the square
+// sum minus the time sum squared. This set stands off any line, so the
+// figure separates the shared closed form from the through-origin quotient
+// of the cross and square sums alone.
+auto slopeSharedSums() -> void
+{
+  const std::vector<std::pair<double, double>> points {
+      {1.0, 2.0}, {2.0, 1.0}, {3.0, 4.0}, {4.0, 3.0}};
+  double cross = 0.0;
+  double square = 0.0;
+  double timeSum = 0.0;
+  double rateSum = 0.0;
+  for (const auto& [time, rate] : points) {
+    cross += time * rate;
+    square += time * time;
+    timeSum += time;
+    rateSum += rate;
+  }
+  const auto count = static_cast<double>(points.size());
+  const auto expected = (count * cross - timeSum * rateSum)
+      / (count * square - timeSum * timeSum);
+  const auto answer = sg::detail::leastSquaresSlope(points);
+  check(answer.has_value(), "the point set answers a slope");
+  check(sameDouble(*answer, expected),
+        "the slope reads the shared least-squares sums");
+  check(!sameDouble(*answer, cross / square),
+        "the slope is not the quotient of two sums alone");
+}
+
 struct Scenario
 {
   std::string_view name;
@@ -1328,6 +1461,13 @@ struct Scenario
       Scenario {"counter-set-repeat", counterSetRepeat},
       Scenario {"surface-default-fields", surfaceDefaultFields},
       Scenario {"surface-compare-rules", surfaceCompareRules},
+      Scenario {"correlation-monotone", correlationMonotone},
+      Scenario {"correlation-anti-monotone", correlationAntiMonotone},
+      Scenario {"correlation-tie-ranks", correlationTieRanks},
+      Scenario {"correlation-no-spread", correlationNoSpread},
+      Scenario {"correlation-under-three", correlationUnderThree},
+      Scenario {"slope-exact-line", slopeExactLine},
+      Scenario {"slope-shared-sums", slopeSharedSums},
   };
   return kList;
 }
