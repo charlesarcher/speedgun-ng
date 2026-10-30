@@ -32,13 +32,14 @@ using Builder = simdjson::builder::string_builder;
 // specs/027 added the `jitter` object, at 1.5 since specs/029 added
 // the root `hunt` object and the per-benchmark `hunt` object, at 1.7
 // since specs/036 added the optional `tracer` object of the `precheck`
-// record, at 1.8 since specs/033 added the four budget keys inside
-// the root `hunt` object, and at 1.9 since specs/040 added the three
-// rank fields inside the per-entry `hunt` object, the move
-// specs/023/contracts/schema-file.md states for a key added inside
-// major 1 (specs/027 FR-026, specs/028 FR-086, specs/033 FR-022,
-// specs/040 FR-032, PC-6).
-constexpr std::string_view kSchemaVersion = "1.9";
+// record, at 1.8 since specs/033 added the four budget keys inside the
+// root `hunt` object, at 1.9 since specs/040 added the three rank fields
+// inside the per-entry `hunt` object, and at 1.10 since specs/039 added
+// the optional `group` key of the context record. The minor moves as
+// specs/023/contracts/schema-file.md states for a key added inside major
+// 1 (specs/027 FR-026, specs/028 FR-086, specs/033 FR-022, specs/040
+// FR-032, PC-6, specs/039 FR-030, FR-032).
+constexpr std::string_view kSchemaVersion = "1.10";
 
 // The `source` word of one disclosed use, spelled as the enum of
 // `docs/schema/report-v1.json` states it (specs/028 E-04, FR-040). The
@@ -599,6 +600,13 @@ void writeEntry(Builder& builder,
           enumWord(kWaitModeWords, std::to_underlying(context.waitMode)));
       put(builder, record, "placement", context.placement);
       put(builder, record, "applied", context.applied);
+      // specs/039 FR-029, D-10: the partition's name for this context
+      // rides its own record, the one spelling the document carries. A run
+      // that carries no partition leaves the field empty and writes no key,
+      // keeping the bytes specs/039 FR-033 states for such a run.
+      if (!context.group.empty()) {
+        put(builder, record, "group", context.group);
+      }
     }
   }
   object.key("noiseWarning");

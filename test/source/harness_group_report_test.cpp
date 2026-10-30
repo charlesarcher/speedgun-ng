@@ -46,6 +46,17 @@
 //                     beside the file, prints the machine line (FR-028)
 //   rowsKeepShape     the merged row, its divisor and the per-context rows
 //                     carry no group column (FR-035)
+//   documentNamesGroup each context record of the written document names its
+//                     group beside the three standing fields (FR-029, D-10)
+//   documentSchema    the schema takes that document, refuses a name above
+//                     the context item and a value of the wrong kind (FR-030)
+//   documentReader    the reader answers each name, the loaded values write
+//                     the same bytes again, and a value of the wrong kind
+//                     names its pointer (FR-031, specs/023 FR-011,
+//                     specs/023 FR-024)
+//   documentNoKey     an ungrouped document carries no key, keeps the standing
+//                     record bytes, and loads as the record naming no group
+//                     (FR-029, FR-031, FR-033, D-12)
 // ============================================================================
 
 #include <cstddef>
@@ -65,6 +76,7 @@
 #include <unistd.h>
 
 #include "detail/internal.hpp"
+#include "detail/json_report.hpp"
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
 
@@ -644,6 +656,247 @@ auto scenarioRecord() -> void
   std::printf("harness_group_report_test record: ok\n");
 }
 
+// ---------------------------------------------------------------------------
+// The document block (T025, T026; FR-029 to FR-032, D-10, C of the partition
+// contract).
+//
+// The writer reads the disclosure records the console block above builds, so
+// each scenario hands one result to `writeReport` and reads the file back: the
+// key of a grouped record, the schema's reading of that key, the name the
+// reader answers, and the bare record of a run that carries no partition. The
+// stamp every scenario reads back stands in the other three report tests;
+// here the key of the context record, its schema and its reader stand
+// covered.
+// ---------------------------------------------------------------------------
+
+// The documents of the four scenarios, named for this test so a suite run in
+// parallel holds no file in common with it.
+constexpr auto kDocumentFile = "harness_group_report_doc.json";
+constexpr auto kPlainDocumentFile = "harness_group_report_plain.json";
+constexpr auto kRewrittenFile = "harness_group_report_rewritten.json";
+constexpr auto kPlantedFile = "harness_group_report_planted.json";
+
+// The flag that closes the first record of a pair: a planted key stands
+// behind it, the way the writer's own key does.
+constexpr std::string_view kFirstFlag = "\"applied\":true";
+
+// The two context records of a pair, spelled as the writer's bytes hold them:
+// the grouped pair names each group behind its flag, and the bare pair keeps
+// the bytes a run that carries no partition wrote before the key (FR-029,
+// FR-033).
+constexpr std::string_view kGroupedPair =
+    "\"contexts\":[{\"waitMode\":\"SPIN\",\"placement\":\"3\",\"applied\":true,"
+    "\"group\":\"l3-0\"},{\"waitMode\":\"BLOCK\",\"placement\":\"7\","
+    "\"applied\":false,\"group\":\"l3-1\"}]";
+constexpr std::string_view kUngroupedPair =
+    "\"contexts\":[{\"waitMode\":\"SPIN\",\"placement\":\"3\","
+    "\"applied\":true},{\"waitMode\":\"BLOCK\",\"placement\":\"7\","
+    "\"applied\":false}]";
+
+// The pinned pair of the console block, each context held by the group the
+// scenario names.
+auto groupedContexts(const std::string& first,
+                     const std::string& second) -> std::vector<Context>
+{
+  return {{sg::WaitMode::SPIN, "3", true, first},
+          {sg::WaitMode::BLOCK, "7", false, second}};
+}
+
+// The whole bytes of one file.
+auto readBytes(const char* path) -> std::string
+{
+  auto file = std::ifstream(path);
+  auto buffer = std::stringstream();
+  buffer << file.rdbuf();
+  return buffer.str();
+}
+
+// One result, its row, and the disclosure records the scenario hands: the
+// document of a threaded run that captured no chunk column.
+auto makeDocument(const std::string& name,
+                  const std::vector<Context>& contexts) -> sg::ReportData
+{
+  auto data = sg::ReportData {};
+  data.results.push_back(makeResult(name, contexts));
+  data.rowRaw.push_back({});
+  data.contextRaw.push_back({});
+  return data;
+}
+
+// The bytes one scenario writes, read back.
+auto writeDocument(const char* path, const sg::ReportData& data) -> std::string
+{
+  check(sg::detail::writeReport(path, data),
+        "the writer wrote the document of the scenario");
+  return readBytes(path);
+}
+
+// A hand-edited document, written for the reader to read.
+auto writeBytes(const char* path, const std::string& text) -> void
+{
+  auto file = std::ofstream(path);
+  file << text;
+  file.close();
+  check(!file.fail(), "the scenario can write its planted document");
+}
+
+// The bytes of a document or the line of a refusal hold `needle`. The whole
+// text prints on a miss, so the verdict names the bytes that came back.
+auto holdsText(const std::string& text,
+               std::string_view needle,
+               const char* what) -> void
+{
+  if (text.find(needle) != std::string::npos) {
+    return;
+  }
+  std::fprintf(stderr,
+               "the text holds no %.*s\n  %s\n",
+               static_cast<int>(needle.size()),
+               needle.data(),
+               text.c_str());
+  fail(what);
+}
+
+// The document of a grouped run, written and read back.
+auto writeGrouped(const char* path) -> std::string
+{
+  return writeDocument(
+      path, makeDocument("bmGroupDocument", groupedContexts("l3-0", "l3-1")));
+}
+
+// FR-029, D-10: a run that carries a partition names the group of each
+// context in that context's record, beside the three standing fields.
+auto scenarioDocumentNamesGroup() -> void
+{
+  const auto text = writeGrouped(kDocumentFile);
+  holdsText(text,
+            kGroupedPair,
+            "the document names the group of every context the run carried"
+            " (FR-029, D-10)");
+}
+
+// FR-030: the schema carries the key in the context item, so it takes a
+// grouped document, refuses a name that stands on the entry above that item,
+// and refuses a value that holds no text.
+auto scenarioDocumentSchema() -> void
+{
+  const auto text = writeGrouped(kDocumentFile);
+  const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, text);
+  if (!clean.has_value()) {
+    std::fprintf(stderr, "  %s\n", clean.error().c_str());
+  }
+  check(clean.has_value(),
+        "the schema takes the document of a grouped run (FR-030)");
+
+  auto onEntry = text;
+  const auto array = onEntry.find("\"contexts\":[");
+  check(array != std::string::npos, "the document carries its contexts array");
+  onEntry.insert(array, "\"group\":\"l3-0\",");
+  const auto outside = sg::detail::checkReport(SG_SCHEMA_PATH, onEntry);
+  check(!outside.has_value(),
+        "a group name that stands above the context item stands refused"
+        " (FR-030)");
+  if (!outside.has_value()) {
+    holdsText(outside.error(),
+              "/benchmarks/0/group",
+              "the refusal names the closed object that holds the extra key"
+              " (FR-030)");
+  }
+
+  auto number = text;
+  const auto flag = number.find(kFirstFlag);
+  check(flag != std::string::npos,
+        "the document carries the flag that closes its first record");
+  number.insert(flag + kFirstFlag.size(), ",\"group\":5");
+  const auto kind = sg::detail::checkReport(SG_SCHEMA_PATH, number);
+  check(!kind.has_value(),
+        "a group name that holds no text stands refused (FR-030, specs/023"
+        " FR-024)");
+  if (!kind.has_value()) {
+    holdsText(kind.error(),
+              "/benchmarks/0/contexts/0/group",
+              "the refusal names the key it read (FR-030, specs/023 FR-024)");
+  }
+}
+
+// FR-031: the reader answers the name each record carries, keeps the three
+// standing fields beside it, and writes the same bytes again from the values
+// it loaded. A name that holds no text names the pointer it stands at.
+auto scenarioDocumentReader() -> void
+{
+  const auto text = writeGrouped(kDocumentFile);
+  const auto loaded = sg::loadReport(kDocumentFile);
+  if (!loaded.has_value()) {
+    std::fprintf(stderr, "  %s\n", loaded.error().c_str());
+    fail("the grouped document refuses the reader (FR-031)");
+    return;
+  }
+  const auto& contexts = loaded->results.front().contexts;
+  check(contexts.size() == 2 && contexts[0].group == "l3-0"
+            && contexts[1].group == "l3-1",
+        "the reader answers the group of each context record (FR-031)");
+  check(contexts[0].waitMode == sg::WaitMode::SPIN && contexts[0].placement == "3"
+            && contexts[0].applied && contexts[1].waitMode == sg::WaitMode::BLOCK
+            && contexts[1].placement == "7" && !contexts[1].applied,
+        "the loaded record keeps its three standing fields beside its group"
+        " (FR-031)");
+
+  check(sg::detail::writeReport(kRewrittenFile, *loaded),
+        "the writer wrote the loaded values again (specs/023 FR-011)");
+  check(readBytes(kRewrittenFile) == text,
+        "the loaded values write the document they came from, the group key"
+        " and its place among them (FR-031, specs/023 FR-011)");
+
+  auto number = text;
+  const auto flag = number.find(kFirstFlag);
+  check(flag != std::string::npos,
+        "the document carries the flag that closes its first record");
+  number.insert(flag + kFirstFlag.size(), ",\"group\":5");
+  writeBytes(kPlantedFile, number);
+  const auto refused = sg::loadReport(kPlantedFile);
+  check(!refused.has_value(),
+        "a group name that holds no text refuses the reader (specs/023"
+        " FR-024)");
+  if (!refused.has_value()) {
+    holdsText(
+        refused.error(),
+        "/benchmarks/0/contexts/0/group",
+        "the refusal names the field of the wrong type (specs/023" " FR-024)");
+  }
+}
+
+// FR-029, FR-031, FR-033, D-12: a run that carries no partition writes no
+// key, its record keeps the bytes it wrote before the key existed, and the
+// reader answers the record naming no group.
+auto scenarioDocumentNoKey() -> void
+{
+  const auto text =
+      writeDocument(kPlainDocumentFile,
+                    makeDocument("bmGroupPlain", groupedContexts("", "")));
+  check(text.find("\"group\"") == std::string::npos,
+        "an ungrouped document carries no group key (FR-029, FR-033)");
+  holdsText(text,
+            kUngroupedPair,
+            "the record of an ungrouped run keeps the bytes it wrote before"
+            " the key (FR-033, D-12)");
+
+  const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, text);
+  if (!clean.has_value()) {
+    std::fprintf(stderr, "  %s\n", clean.error().c_str());
+  }
+  check(clean.has_value(),
+        "a document that names no group stands valid, the required list of"
+        " the context item standing untouched (FR-030, FR-031)");
+
+  const auto loaded = sg::loadReport(kPlainDocumentFile);
+  check(loaded.has_value() && loaded->results.size() == 1
+            && loaded->results.front().contexts.size() == 2
+            && loaded->results.front().contexts[0].group.empty()
+            && loaded->results.front().contexts[1].group.empty(),
+        "a document that carries no key loads as the record naming no group"
+        " (FR-031)");
+}
+
 // One scenario of the suite with the name the verdict line prints.
 struct Scenario
 {
@@ -696,6 +949,10 @@ auto main() -> int
       {"machineLineAbsent", scenarioMachineLineAbsent},
       {"machineLinePrints", scenarioMachineLinePrints},
       {"rowsKeepShape", scenarioRowsKeepShape},
+      {"documentNamesGroup", scenarioDocumentNamesGroup},
+      {"documentSchema", scenarioDocumentSchema},
+      {"documentReader", scenarioDocumentReader},
+      {"documentNoKey", scenarioDocumentNoKey},
   };
   std::size_t failed = 0;
   for (const auto& scenario : scenarios) {

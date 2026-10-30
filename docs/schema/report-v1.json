@@ -387,7 +387,7 @@
             "type": "array",
             "items": {
               "type": "object",
-              "x-order": ["waitMode", "placement", "applied"],
+              "x-order": ["waitMode", "placement", "applied", "group"],
               "required": ["waitMode", "placement", "applied"],
               "additionalProperties": false,
               "properties": {
@@ -396,7 +396,8 @@
                   "enum": ["SPIN", "YIELD", "BLOCK"]
                 },
                 "placement": { "type": "string" },
-                "applied": { "type": "boolean" }
+                "applied": { "type": "boolean" },
+                "group": { "type": "string" }
               }
             }
           },
