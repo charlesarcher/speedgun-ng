@@ -197,9 +197,10 @@ M-A  (version, header field)
   (`include/speedgun-ng/benchmark.hpp`, `CMakeLists.txt`,
   `source/harness/json_report.cpp`). Public surface: `ContextDisclosure`
   gains `std::string group`, camelBack under N-12, empty when the run
-  carries no partition. Version `0.25.0` to `0.26.0`
-  (`CMakeLists.txt:30`), harness `SOVERSION` `16` to `17`
-  (`CMakeLists.txt:333`), archive `SOVERSION` stays `4`
+  carries no partition. Version `0.26.0` to `0.27.0`
+  (`CMakeLists.txt:30`), harness `SOVERSION` `17` to `18`
+  (`CMakeLists.txt:333`), the pair the cut claimed, `0.26.0` and `17`,
+  having landed with specs/040 first; archive `SOVERSION` stays `4`
   (`CMakeLists.txt:95`). Test plan: the disclosure rows of
   `harness_group_report_test` (wave 1 carries the header, wave 5 the
   bytes), the stamped-byte rows of `harness_json_report_test`.
@@ -355,7 +356,7 @@ half waits on those flags inside its own body.
   SYSTEM-include promotion at `CMakeLists.txt:744-748` already keeps
   yaml headers out of the strict set.
 - The public header `include/speedgun-ng/benchmark.hpp` grows one
-  member, so the harness `SOVERSION` moves to `17`; the merged archive
+  member, so the harness `SOVERSION` moves to `18`; the merged archive
   keeps `4` (`CMakeLists.txt:95`, hard rule 12).
 - Five test executables register beside the placement tests
   (`test/CMakeLists.txt:989-1043` pattern): `add_executable`, link
@@ -378,13 +379,14 @@ half waits on those flags inside its own body.
 
 ### Version and `SOVERSION`
 
-- Version: `0.25.0` to `0.26.0`, the next free minor at the cut
-  (`CMakeLists.txt:30`).
-- Harness `SOVERSION`: `16` to `17`; a public struct's layout moves
-  (FR-005).
+- Version: `0.26.0` to `0.27.0` (`CMakeLists.txt:30`). The cut claimed
+  `0.26.0`; specs/040 landed it first, so the rule moved this lane one
+  step (FR-032).
+- Harness `SOVERSION`: `17` to `18`; a public struct's layout moves
+  (FR-005), and `17` stands landed by specs/040.
 - Archive `SOVERSION`: stays `4`; no exported archive layout moves.
-- Report schema: `1.8` to `1.10`. Spec 037 cut first and its graph
-  record takes `1.9`, so this lane lands one past it (R-4, FR-032).
+- Report schema: `1.8` to `1.10`. Spec 040 landed `1.9` for its rank
+  fields, so this lane lands one past it (R-4, FR-032).
 - Option values: `kGroupLayoutOptionValue = 299`, one past the `298`
   the earlier lane's `--graph` row takes; the block comment names the
   split.

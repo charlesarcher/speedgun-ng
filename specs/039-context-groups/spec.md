@@ -31,15 +31,17 @@ fit step that stops a layout the run cannot carry.
   carrying `039` or `context-group` (read 2026-10-30). The directory
   `specs/039-context-groups` stands free and the branch takes it.
 - Branch: `039-context-groups`, cut from master `bea6af5b`
-  (`Meta: Mark the landed tasks`, PR #59, spec 038) on 2026-10-30.
-- Version: master stands at `0.25.0` (`CMakeLists.txt:30`). The lane
-  takes the next free minor, `0.26.0`. Spec 037 takes a minor at its
-  own merge, so the landing that moves second re-reads the line and
-  takes the next free value, and the commit records the check
-  (FR-032).
-- Harness `SOVERSION`: master stands at `16` (`CMakeLists.txt:333`).
-  The group record joins the public header, the exported layouts
-  move, and the harness `SOVERSION` rises to `17`. The archive
+  (`Meta: Mark the landed tasks`, PR #59, spec 038) on 2026-10-30 and
+  rebased onto master `9ff389f9` the same day, the base the lane
+  landed on.
+- Version: the cut read master at `0.25.0` (`CMakeLists.txt:30`) and
+  claimed the next free minor, `0.26.0`. Spec 040 landed that value
+  first, so the re-read the rule requires moved this lane to `0.27.0`,
+  and the commit that moves the numbers records the check (FR-032).
+- Harness `SOVERSION`: the cut read master at `16`
+  (`CMakeLists.txt:333`) and claimed `17`. Spec 040 landed `17` first,
+  so this lane rises to `18`. The group record joins the public header
+  and the exported layouts move. The archive
   `SOVERSION` stays `4` (`CMakeLists.txt:95`), and the commit that
   moves the numbers records the ABI check beside them (FR-005).
 - Report schema: master stands at `1.8`
@@ -764,11 +766,13 @@ prints; the drift and prose gates read no finding.
 - **FR-031**: The report reader SHALL answer the group name for each
   context record it loads, and a document that carries no `group` key
   SHALL load as the record naming no group.
-- **FR-032**: The lane SHALL land the version `0.26.0`, the harness
-  `SOVERSION` `17`, the archive `SOVERSION` `4` and the schema minor
+- **FR-032**: The lane SHALL land the version `0.27.0`, the harness
+  `SOVERSION` `18`, the archive `SOVERSION` `4` and the schema minor
   `1.10`, each re-read at landing against the tree the base stands at
   and moved one step higher where a landing took it, the check named
-  in the commit that moves the numbers.
+  in the commit that moves the numbers. The pair the cut claimed,
+  `0.26.0` and `17`, reached master with specs/040 before this lane
+  merged, so the rule moved this lane one step.
 - **FR-033**: An ungrouped run's console output SHALL stand
   byte-identical to master's for the same fixture, apart from the
   schema stamp, and its document SHALL carry no `group` key (D-12).
