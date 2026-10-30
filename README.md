@@ -739,21 +739,26 @@ auto main(int argc, char** argv) -> int
 
 ### Hunter mode
 `--hunt` puts a wide catalog event set on one benchmark and ranks the events by how far each one stands out of the run. `--hunt=all` selects every entry of every core device, and an address list, a glob such as `uncore/*` or a `@file` of addresses selects the rest. A hunt option beside no `--hunt` leaves the hunt off, and `--hunt=none` states the same run in words. A settled `--hunt-emit-set` beside no `--hunt` is the one exception: it names a file no hunt will write, so the run prints one line and ends with status 2. The hunt drives the multi-pass collection loop above, so it opens no second counter path.
-<!-- sg-example: example/docs/hunt_rank.cpp#hunt-rank -->
+`--hunt-rank=sensitivity` ranks the events by the Spearman rank correlation and the slope of the event's rate against the time per iteration over the benchmark's family, a family of at least three arg points. `--hunt-rank=delta` ranks by the relative change against the baseline `--hunt-baseline=<file>` names, a document the standing reader loads, whose entries match by the rules the comparison runs.
+<!-- sg-example: example/docs/hunt_ranks.cpp#hunt-ranks -->
 ```cpp
-// The ranked table of a hunt, with the refusals discovery handed back folded
-// into the skipped list of the record. `rankEvents` decides the order, the
-// noise mark and the size of the table (FR-014, FR-021, I-5).
-auto rankHuntEvents(const std::vector<sg::hunt::EventSamples>& collected,
-                    const std::vector<sg::hunt::SkippedEvent>& refused,
-                    const sg::hunt::HuntOptions& options) -> sg::hunt::EntryHunt
+// The two rank figures of one event of a ranked hunt, read back from the
+// record the run filled: the sensitivity over the benchmark family's arg
+// points, the delta against the baseline (FR-012, FR-030).
+auto rankCell(const std::optional<double>& figure) -> std::string
 {
-  // No plan collected these scripted rows, so the record states no method.
-  auto hunt = sg::hunt::rankEvents(collected, options, std::nullopt);
-  hunt.skipped.insert(hunt.skipped.end(), refused.begin(), refused.end());
-  return hunt;
+  return figure.has_value() ? std::to_string(*figure) : std::string {"n/a"};
+}
+auto printRankCells(const sg::hunt::RankedEvent& event) -> void
+{
+  std::printf("%s correlation=%s slope=%s delta=%s\n",
+              event.address.c_str(),
+              rankCell(event.sensitivityCorrelation).c_str(),
+              rankCell(event.sensitivitySlope).c_str(),
+              rankCell(event.delta).c_str());
 }
 ```
+The run prints the two figures beside each ranked row: `correlation=` and `slope=` under the sensitivity rank, `delta=` as a signed percent under the delta rank, each cell reading `n/a` where the run measured none.
 The run prints its hunt on stdout behind a `hunt:` prefix. One plan line names the event count, the pass count and the settled method, one rank row gives the rate under the label of the norm beside the deviation, one skipped row gives the kind of a refusal, and one summary line counts the events that produced a usable sample. `--hunt-budget` takes one clause per bound: `120s` and `8p` bound the whole hunt in two stages, `0.5e` bounds one event inside one stage, and `32g` bounds the events of one multiplex group, and the plan line carries `sample=` and `mux=` beside `budget=` with one line under it for each budget that speaks. `--hunt-emit-set=<file>` writes the ranked addresses of the run, and `--counter=@<file>` reads such a file back as report columns.
 One line on stderr naming the value ends the run with status 2 for a value outside the range its option states, for a raw event code such as `r4a03`, and for a hunt beside `--counter`, `--metric` or `--compare`. A host that refuses every event prints the plan line, the skipped list and a summary that reads `events=0/N`, and the run ends with status 0. See [Hunter mode](docs/pages/harness.md#hunter-mode) for the selection forms, the options, the lines and the names.
 
@@ -924,13 +929,15 @@ The run writes its document at `--json=path`, loads it back with `loadReport`, a
 | `--version` | Prints the project version and stops |
 | `--hunt` | Hunts a catalog event set on one benchmark and ranks the events |
 | `--hunt-norm` | Sets the rate denominator to `instr`, `cycle` or `iter` |
-| `--hunt-rank` | Orders the ranked table by `rate` or by `cv` |
+| `--hunt-rank` | Orders the ranked table by `rate`, `cv`, `sensitivity` or `delta` |
 | `--hunt-top` | Sets how many ranked rows the hunt table carries |
 | `--hunt-noise` | Sets the deviation percent above which an event is noisy |
 | `--hunt-repeats` | Sets the repetitions of the hunt stages |
 | `--hunt-budget` | Caps the hunt with `<n>s`, `<n>p`, `<n>e` or `<n>g` clauses |
 | `--hunt-seed` | Shuffles the planned event order under a seed |
 | `--hunt-emit-set` | Writes the ranked hunt events to a file, one address per line |
+| `--hunt-emit-rules` | Writes the promoted hunt events as comparison rules to a file |
+| `--hunt-baseline` | Sets the baseline document the delta rank matches against |
 
 ## Planned work
 

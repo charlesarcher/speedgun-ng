@@ -76,6 +76,7 @@ add_docs_example(regression_gate)
 add_docs_example(jitter_probe)
 
 add_docs_example(hunt_rank)
+add_docs_example(hunt_ranks)
 add_docs_example(report_views)
 
 # The time budget (030 P-07, FR-031), the rule the test directory applies
