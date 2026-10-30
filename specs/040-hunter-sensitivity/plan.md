@@ -147,13 +147,13 @@ brace marks a parallel group.
      M-D  the JSON keys and the schema minor }   # parallel
 3. M-C  the rank figures (pure stamping)
 4. M-E  the CLI, the console and the run path
-5. { M-F  the docs and the example
-     M-G  the evidence records }                 # parallel
+5. M-F  the docs and the example
+6. M-G  the evidence records, after M-F
 ```
 
 - **M-A the public surface and the version bindings**
   (`include/speedgun-ng/hunt.hpp`, `source/harness/detail/options.hpp`,
-  `source/harness/detail/options.cpp`, `CMakeLists.txt`). Public
+  `source/harness/options.cpp`, `CMakeLists.txt`). Public
   surface: `RankedEvent` gains `sensitivityCorrelation`,
   `sensitivitySlope` and `delta`, each `std::optional<double>`, and
   `EntryHunt` gains `toCompareRules(std::size_t topN, double
@@ -203,7 +203,8 @@ brace marks a parallel group.
   so it lands beside M-B.
 - **M-E the CLI, the console and the run path**
   (`source/harness/hunt_cli.cpp`, `source/harness/hunt.cpp`,
-  `source/harness/options.cpp`, the console printer). The CLI: the
+  `source/harness/hunt_plan.cpp`, `source/harness/options.cpp`,
+  `source/harness/report.cpp`). The CLI: the
   rank keys `sensitivity` and `delta` accepted, `score` alone
   refused (FR-010); the two rows wired with their refusals: an empty
   value, `--hunt-emit-rules` beside no hunt, `--hunt-baseline`
@@ -229,7 +230,7 @@ brace marks a parallel group.
 - **M-G the evidence records** (`specs/040-hunter-sensitivity/results/`).
   One record per run on gary naming the commands, the exit codes and
   the artifacts, the quickstart linking each (FR-052). Test plan:
-  the records' exit codes stand 0 and the links resolve (wave 7).
+  the records' exit codes stand 0 and the links resolve (wave 6).
   Depends on M-F.
 
 ### Risks
@@ -353,7 +354,8 @@ and on a 2-cpu host.
   for the analyzer findings), the prose gate over the range.
   Verify: `ctest --test-dir build --output-on-failure`, the
   coverage read at 100.0/100.0, `ci-sanitize`, `ci-tsan`,
-  `cmake --preset=ci-ubuntu && cmake --build build`.
+  `cmake --preset=ci-ubuntu && cmake --build build`, `format-check`,
+  `spell-check`, the dbc-gate, `test/time_source_gate.sh`.
 
 ### FR coverage map
 

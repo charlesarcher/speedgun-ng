@@ -35,7 +35,7 @@ and contention notes stand carried in the sections that read them.
   `--hunt-baseline` do? → A: print one line naming the value and exit
   2, the standing refusal shape (FR-011).
 - Q: What shall the run do when the baseline document's top-level
-  hunt object names a normalization different from the contender's
+  hunt object names a norm different from the contender's
   norm? → A: print one line naming the mismatch and exit 2, beside
   the schema-pairing refusal of FR-005.
 
@@ -74,7 +74,7 @@ and contention notes stand carried in the sections that read them.
   landing takes the next value and records the check (hard rule 11).
 - Option values: the hunt block stands taken through `280`
   (`--hunt-emit-set`), and `281` to `289` stand free for this feature
-  (`source/harness/detail/options.hpp:10-22`). `--hunt-emit-rules`
+  (`source/harness/detail/options.hpp:96-107`). `--hunt-emit-rules`
   takes `281` and `--hunt-baseline` takes `282`, both as named
   constants, long spelling only, no short letter, no environment
   source. No standing name or value moves, and the name and value
@@ -103,7 +103,7 @@ and contention notes stand carried in the sections that read them.
   `planHunt`, `rankEvents`, `runHunt`.
 - The hunt option rows stand at `source/harness/detail/options.hpp`:
   `--hunt` at `270` through `--hunt-emit-set` at `280`, and `281` to
-  `289` stand free for this feature (`:10-22`).
+  `289` stand free for this feature (`:96-107`).
 - The comparison rules stand at specs/026: the grammar
   `<value>[@<agg>]:<lower|higher>:<threshold>[:<filter>]` with the
   `counter:<label>` value name, the threshold as `<n>%` or `abs=<n>`,
@@ -119,7 +119,7 @@ and contention notes stand carried in the sections that read them.
   standing least-squares sums at `source/harness/complexity.cpp:69`
   (specs/019).
 - The per-entry hunt JSON stands a closed node
-  (`source/harness/json_report.cpp:499-540`): `address`, `rate`, `cv`,
+  (`source/harness/json_report.cpp:503-544`): `address`, `rate`, `cv`,
   `noisy`, `multiplexed`, `rank`, with null for a rank the run left
   unset; `source/harness/json_load.cpp` reads the node back.
 - The results-evidence precedent stands at
@@ -217,13 +217,13 @@ form. No second reader and no second grammar exist.
 ### PC-4: the option table stands ready for two rows. PASS.
 
 The hunt block holds `270` to `277` and `280`
-(`source/harness/detail/options.hpp:14-22`), and `:10-13` records that
+(`source/harness/detail/options.hpp:99-107`), and `:95-98` records that
 `281` to `289` stand free for the next feature. The two rows take
 `281` and `282`; `283` to `289` stay free.
 
 ### PC-5: the per-entry hunt JSON node stands closed. PASS.
 
-`writeEntryHunt` (`source/harness/json_report.cpp:499-540`) writes
+`writeEntryHunt` (`source/harness/json_report.cpp:503-544`) writes
 every key of the closed node and stands null for a rank the run left
 unset; `json_load.cpp` reads the node back; the schema file carries
 the node with its `x-order`. The rank fields join the node under the
@@ -289,7 +289,7 @@ family under 3 points stands `n/a` in every cell of the column.
 1. **Given** a family of 4 arg points whose scripted rates rise with
    the time per iteration, **When** the run carries
    `--hunt-rank=sensitivity`, **Then** the table orders by the
-   correlation, the top cell carries a correlation near 1 and the
+   correlation, the top cell carries the correlation `1` and the
    slope stands beside it.
 2. **Given** a family of 2 arg points, **When** the run asks for the
    sensitivity rank, **Then** every sensitivity cell stands `n/a`, no
@@ -412,7 +412,7 @@ example runs, and the rows match the option table.
   (D-3).
 - A `--hunt-rank=delta` run beside no `--hunt-baseline` prints one
   line naming the value and ends with status 2 (FR-011).
-- A baseline whose hunt object names a normalization different from
+- A baseline whose hunt object names a norm different from
   the contender's norm ends the run with status 2 and one line naming
   the mismatch (FR-005).
 - A rules file path that cannot be opened or written prints one line
@@ -452,7 +452,7 @@ names at least one test (FR-051).
   time, and no error shall join a missing figure (D-5, R-1).
 - **FR-005**: A baseline file `loadReport` refuses, a schema pairing
   the comparison refuses, and a baseline whose top-level hunt object
-  names a normalization different from the contender's norm, shall
+  names a norm different from the contender's norm, shall
   each print one stderr line naming the value or the mismatch and
   exit 2 (D-6).
 - **FR-006**: The correlation and the slope shall run through the
@@ -556,7 +556,9 @@ names at least one test (FR-051).
 - **FR-053**: The change shall clear the standing gates: 100 percent
   line and branch coverage with no `LCOV_EXCL` marker and no new
   `--ignore-errors` entry, the sanitizer and tsan gates, the suite
-  under `taskset -c 0,1`, and the prose rules of XI.
+  under `taskset -c 0,1`, the DBC gate, the time-source scan
+  (`test/time_source_gate.sh`), the format and spell checks, and the
+  prose rules of XI.
 
 ## Key Entities
 
@@ -594,7 +596,8 @@ names at least one test (FR-051).
   equal, and the schema guard tests pass at the new minor.
 - **SC-006**: The gates stand green: 100 percent line and branch
   coverage, no exclusion markers, sanitizer and tsan clean, the suite
-  green under `taskset -c 0,1`.
+  green under `taskset -c 0,1`, the DBC, time-source, format and
+  spell gates green.
 - **SC-007**: The section, its region and the quick-reference rows
   move in the same change, and the drift gates pass.
 
@@ -650,6 +653,13 @@ names at least one test (FR-051).
   today.
 - The prompt's rulings R-1 to R-5 stand carried in Decisions and
   Requirements, each at the requirement that binds it.
+- The numbered hard rules the Requirements cite (5, 8, 9, 10, 11 and
+  12) stand the N14a lane prompt's rule list: the prompt this spec
+  comes from carries no numbered list, and the constitution and the
+  roadmap copy carry none, so each number reads through specs/029,
+  which quotes and summarizes the list at its Input and its
+  Decisions: specs/029's D-22 states rule 9's meaning and its ABI
+  record states rule 12's.
 
 ## Open questions
 
