@@ -24,7 +24,8 @@
 //   entry that is not a mapping         the index names it (A-3)
 //   entry with no `slots`               plus a `slots` value that is no list
 //   empty `slots` sequence              one case
-//   a `slots` member of the wrong kind  a text, and a nested member
+//   a `slots` member of the wrong kind  a text, part of a text, and a
+//                                       nested member
 //   member outside the context range    the line names the value
 //   a repeated slot                     the line names the slot
 //   a context no entry names            the line names the slot
@@ -311,10 +312,16 @@ auto run() -> int
              kOne,
              {"entry 'slow'", "empty"});
 
-  // Row 9, a `slots` member of the wrong kind: a text that is no number, and
-  // a member that is no text.
+  // Row 9, a `slots` member of the wrong kind: a text that is no number, a
+  // text a number only partly fills, and a member that is no text. The partly
+  // numeric text parses as a position and leaves characters behind, so it
+  // names none.
   checkFault("bad-slot-text",
              "groups:\n  - name: mixed\n    slots: [0, x]\n",
+             kFour,
+             {"entry 'mixed'", "no context position"});
+  checkFault("bad-slot-partial",
+             "groups:\n  - name: mixed\n    slots: [0, 1x]\n",
              kFour,
              {"entry 'mixed'", "no context position"});
   checkFault("bad-slot-kind",
