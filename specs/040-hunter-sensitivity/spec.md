@@ -60,7 +60,11 @@ and contention notes stand carried in the sections that read them.
   `0.26.0`, at its cut; specs/037 and specs/039 each take one minor at
   their own merge, so a rebase past a landing takes the next free
   minor, and the commit that moves the number records the check (the
-  reservation rule of specs/029 FR-090).
+  reservation rule of specs/029 FR-090). Resolved 2026-10-30: this
+  lane's feature merged first (PR #62), and specs/039's merge
+  (PR #61) took the next values past it at its own rebase (version
+  `0.27.0`, harness `SOVERSION` `18`, schema `1.10`); the contention
+  stands closed.
 - ABI: `RankedEvent` gains the rank fields and `EntryHunt` gains
   `toCompareRules`, so the harness public ABI moves and the harness
   `SOVERSION` rises to `17`. The counters-library surface moves
