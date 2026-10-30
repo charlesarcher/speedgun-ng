@@ -46,6 +46,7 @@ Answers `std::expected<std::vector<ContextGroup>, std::string>`.
 | --- | --- | --- |
 | unreadable path | the path, the open fault | 2 |
 | unparsable document | the path, the reader's reason | 2 |
+| a second root document | the path | 2 |
 | root mapping with no `groups` | the path | 2 |
 | root node that is a sequence | the path | 2 |
 | empty `groups` sequence | the path | 2 |
@@ -61,10 +62,12 @@ Answers `std::expected<std::vector<ContextGroup>, std::string>`.
 | repeated group name | the path, the name | 2 |
 | a `name` outside the characters or the length | the path, the text | 2 |
 
-Two malformed shapes stand outside the rows and ride a row's text: a
-`groups` value that is no sequence, and a file that holds a second root
-document, each answered by the `unparsable document` line (FR-017). An
-empty, comment-only or scalar-rooted file answers the `root mapping with
-no `groups`` line. A file that repeats the root `groups` key is no named
-fault, and the reader answers the entries of the first mapping it reads
-(A-2).
+Two malformed shapes ride a row's text. A `groups` value that is no
+sequence answers the `root mapping with no `groups`` line, because the
+root names no groups by its key or by its kind (FR-012, row 3). An empty,
+comment-only or scalar-rooted file answers the same line. A file that
+holds a second root document answers its own row, which is how the
+grammar of FR-017 refuses a second document while the reader keeps one
+line per shape (FR-018, A-2). A file that repeats the root `groups` key is
+no named fault, and the reader answers the entries of the first mapping it
+reads (A-2).
