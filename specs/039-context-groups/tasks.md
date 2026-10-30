@@ -111,7 +111,9 @@ owns its own files, so the module pairs run together.
   files reads `/sys` or the host topology, and every exact shape stands
   installed through `installTestLayout` (`internal.hpp:790`) (FR-036,
   R-5). Verify:
-  `grep -rn "/sys" test/source/harness_group_*.cpp` answers nothing.
+  `grep -rnE '"(/sys|/proc)' test/source/harness_group_*.cpp` answers
+  nothing, the read for a path a scenario opens; a comment that names
+  the rule in prose stands outside the check.
 
 **Checkpoint**: the partition and the grammar stand proven, no run
 behavior changed.
