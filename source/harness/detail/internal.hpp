@@ -958,6 +958,35 @@ struct ContextGroup
                                   std::size_t position) -> std::size_t;
 
 /**
+ * @brief specs/039-context-groups FR-012 to FR-018, FR-021, R-3: the
+ * partition one layout file names for one instance.
+ *
+ * The grammar is the whole vocabulary: one document, one root mapping
+ * holding the one key `groups`, and one entry per group carrying an
+ * optional `name` beside one `slots` sequence. The reader opens `path`
+ * and nothing else: it trims no text, folds no case, expands no path
+ * and reads no environment variable (A-4). The vendored reader stands
+ * inside `source/harness/group_layout.cpp`, behind the harness target's
+ * private link (FR-016).
+ *
+ * \pre `contexts >= 1`, and `path` stands as the winning option source
+ *      spelled it (B-1)
+ * \post the value satisfies A-1, A-2, A-6 and FR-002: the groups stand
+ *       in document order, each group's slots ascend, and the slots
+ *       cover `0` to `contexts - 1` exactly once (B-1)
+ * \post an entry that names none answers `g` plus its zero-based
+ *       document index (FR-015)
+ * \post on the error form: one line with no newline naming the path,
+ *       and the entry the fault stands in by its `name` where it has
+ *       one and by its index otherwise (A-3, FR-018, FR-021)
+ * \post a fault about the key `cpus` names the key and states that this
+ *       release groups by slots (FR-014)
+ */
+[[nodiscard]] auto parseGroupLayout(const std::string& path,
+                                    std::size_t contexts)
+    -> std::expected<std::vector<ContextGroup>, std::string>;
+
+/**
  * @brief specs/027 data-model.md D-4: the `idle` preset's resolution
  * over one layout (FR-016, FR-017, R-07).
  *
