@@ -244,9 +244,10 @@ auto stampDelta(std::vector<sg::BenchmarkResult>& results,
 // B-7, A-3, A-4, D-3): the rank assignment under the two new keys. The
 // stamp reads the figures the two stamps above left, orders the events
 // that carry the key's figure the key orders by, and writes the ranks
-// 1 to k onto every record of the ranked addresses; the records the
-// key ranks none of keep no rank, so the events that carry a rank are
-// the events the key reads (A-3, A-4).
+// 1 to k onto every clean record of the ranked addresses; a noisy
+// record's rank stands empty even at an address the key ranks, and the
+// records the key ranks none of keep no rank, so the events that carry
+// a rank are the clean events the key reads (A-3, A-4).
 
 auto stampRank(std::vector<sg::BenchmarkResult>& results,
                const sg::hunt::HuntRank key) -> void
@@ -320,10 +321,12 @@ auto stampRank(std::vector<sg::BenchmarkResult>& results,
   for (std::size_t index = 0; index < candidates.size(); ++index) {
     rankOf.emplace(candidates[index].address, index + 1);
   }
+  // The write honors the rule the candidate set carries (A-3): a noisy
+  // record's rank stands empty even at an address the key ranks.
   for (auto& result : results) {
     for (auto& record : result.hunt->entries) {
       const auto ranked = rankOf.find(record.address);
-      if (ranked == rankOf.end()) {
+      if (record.noisy || ranked == rankOf.end()) {
         record.rank.reset();
       } else {
         record.rank = ranked->second;
