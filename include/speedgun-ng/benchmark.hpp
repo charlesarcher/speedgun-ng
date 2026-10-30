@@ -459,6 +459,26 @@ struct ContextDisclosure
   /// landed (FR-005). The report prints it beside `placement`, so a pin that
   /// did not land shows whatever text its function returned (FR-025).
   bool applied = true;
+
+  /**
+   * @brief The context group this context belongs to, empty where the run
+   *        carries no partition (FR-005, FR-029).
+   *
+   * The run's partition names one text per group: `<unit>-<ordinal>` for
+   * the unit a preset plan reads, the text a layout entry states, or `g`
+   * beside the entry index where an entry named none (D-4). The console
+   * prints the name as the last segment of its context line and the report
+   * writes it as the record's `group` key, so both read this one text
+   * (FR-028, FR-029).
+   *
+   * \pre none
+   * \post a name with text stands unique within the run's partition and
+   * names the group holding this context (A-1, A-2 of the partition
+   * contract); an empty name states the ungrouped shape, the record a
+   * report document that carries no `group` key loads as (FR-004, FR-031,
+   * FR-033)
+   */
+  std::string group = {};
 };
 
 /**
