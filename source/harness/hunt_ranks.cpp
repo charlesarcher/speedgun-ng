@@ -1,10 +1,11 @@
 // specs/040-hunter-sensitivity T022 (FR-001, FR-002; contracts/hunt-ranks-api.md
 // B-4, D-2): the family grouping, the point assembly and the sensitivity
-// stamp. The grouping reads suite and case name, drops the trailing args
-// segment of the case name, and answers the families in first-appearance
-// order; one point stands one entry that measured the event, the aggregate
-// row's time per iteration first and the event's normalized rate second.
-// The stamp reads the standing statistics surface over the grouped points
+// stamp. The grouping reads the suite the registry registered, one suite's
+// cases standing its args or labeled sizes (D-2), and answers the families
+// in first-appearance order; one point stands one entry that measured the
+// event, the aggregate row's time per iteration first and the event's
+// normalized rate second. The stamp reads the standing statistics surface
+// over the grouped points
 // and fills the two sensitivity fields of every record of the event the
 // family's entries hold (FR-006, D-8, R-4).
 
@@ -34,29 +35,12 @@ namespace sg::detail
 namespace
 {
 
-// The prefix of the runner's args segment, the label an argument carries in
-// the instance name (E-04).
-constexpr std::string_view kArgsPrefix = "args:";
-
-// The family key of one entry: the suite and the case name with its trailing
-// args segment dropped, so the args entries of one case stand one family
-// (D-2). The suite derivation of family.cpp keeps every `/` out of the
-// suite, so `suite + '/' + case` names the family without a collision.
+// The family key of one entry: the suite the registry registered (D-2). One
+// suite's cases stand its args or labeled sizes, so the suite alone names
+// the family, and the case name carries the args or the labels.
 auto familyKey(const sg::BenchmarkResult& result) -> std::string
 {
-  const std::string& caseName = result.caseName;
-  const auto slash = caseName.rfind('/');
-  const auto segment =
-      (slash == std::string::npos) ? std::size_t {0} : slash + 1U;
-  const auto trailing = std::string_view(caseName).substr(segment);
-  if (trailing.starts_with(kArgsPrefix)) {
-    // An args segment that names the whole case drops with its `/`, so a
-    // case that stands its args alone groups under the suite (D-2).
-    return slash == std::string::npos
-        ? result.suite + '/'
-        : result.suite + '/' + caseName.substr(0, slash);
-  }
-  return result.suite + '/' + caseName;
+  return result.suite;
 }
 
 // The point's time figure: the aggregate row's median (D-2). The row of a

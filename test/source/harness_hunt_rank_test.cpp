@@ -1663,9 +1663,9 @@ auto familyGroupOneFamily() -> void
         "the beta points stand over the entries that measured the event");
 }
 
-// The grouping reads the suite and the case name (B-4): two cases of
-// one suite stand two families, and two suites stand two families
-// however their case names read.
+// The grouping reads the suite (B-4): two cases of one suite stand one
+// family, the suite standing its cases' args or labels (D-2), and two
+// suites stand two families however their case names read.
 auto familyGroupSuiteAndCase() -> void
 {
   const std::vector<sg::BenchmarkResult> cases {
@@ -1674,8 +1674,8 @@ auto familyGroupSuiteAndCase() -> void
       familyEntry("bmFixture", "caseB/args:1", 200.0,
                   {{"event.alpha", 500.0}}),
   };
-  check(sg::detail::familyGroups(cases).size() == 2,
-        "two cases of one suite stand two families");
+  check(sg::detail::familyGroups(cases).size() == 1,
+        "two cases of one suite stand one family");
 
   const std::vector<sg::BenchmarkResult> suites {
       familyEntry("bmOne", "args:1", 100.0, {{"event.alpha", 300.0}}),

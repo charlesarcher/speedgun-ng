@@ -46,7 +46,7 @@ surface carries none today).
 ## PD-03 The sensitivity points over one family
 
 **Decision**: the batch stamping pass groups the run's entries by
-suite and case name; one point per entry, the point carrying the
+suite; one point per entry, the point carrying the
 entry's aggregate row median time per iteration and the event's
 normalized rate under the run's settled norm; an event stands its
 figures over the entries that measured it, with the `n/a` disclosure
