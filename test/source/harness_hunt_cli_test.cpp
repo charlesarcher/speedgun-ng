@@ -2632,8 +2632,8 @@ auto scenarioBaselineRulesRunPath() -> void
   check(lineIndex(run, disclosure) < lineIndex(run, "hunt: rank "),
         "the disclosure stands above the first table it discloses (FR-004)");
 
-  // The delta cells fill beside --hunt-baseline, and the delta key ranks the
-  // events the stamp carries figures for (FR-003, FR-004, B-7).
+  // The delta cells fill beside `--hunt-baseline`, and the delta key ranks
+  // the events the stamp carries figures for (FR-003, FR-004, B-7).
   const auto risen = huntLines(run, "cpu/hunt000");
   check(risen.size() == 3,
         "each of the family's three entries ranks the matched event under "
