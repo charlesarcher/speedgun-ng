@@ -897,6 +897,67 @@ auto installTestMemoryBinder(std::optional<MemoryBindOps>) -> void;
                                  int contexts) -> PlacementPlan;
 
 /**
+ * @brief specs/039-context-groups data-model.md: one group of one
+ * instance's partition: the name its source spells beside the context
+ * positions that start and pace as one unit (FR-001, FR-002, D-4).
+ *
+ * \pre `name` stands unique within its partition and `slots` holds at
+ *      least one position of the instance (A-2)
+ * \post the slots of one partition's groups form the set `0` to
+ *       `contexts - 1` with no repeat (A-1)
+ */
+struct ContextGroup
+{
+  /// @brief the name the source spells: the unit and its ordinal for a
+  /// preset group, the entry's own text for a layout group (FR-008,
+  /// FR-015, A-6)
+  std::string name;
+  /// @brief the positions of the instance the group holds, ascending
+  /// (FR-002)
+  std::vector<std::size_t> slots;
+};
+
+/**
+ * @brief specs/039-context-groups FR-006 to FR-010, D-3, D-4: the
+ * partition the preset names for one instance, read off the plan
+ * `resolvePreset` wrote for that preset.
+ *
+ * The unit is the plan's node list under `node` and its L3 group list
+ * under `core`, `l3`, `smt` and `compact`. Each group takes the name of
+ * its unit beside the unit's ordinal, and holds its positions in plan
+ * order. No path here reads a clock, starts a thread, or opens a file
+ * (A-5).
+ *
+ * \pre `contexts >= 1`, and the unit list the preset reads answers
+ *      `contexts` entries, the plan standing from the resolver for this
+ *      preset, layout and count (B-1)
+ * \post the groups cover the positions once each, in the order the
+ *      first position of each group appears, and one plan with one
+ *      count answers one partition (A-1, A-4, FR-001, FR-002)
+ * \post `Preset::NONE`, one context, and a unit the read left at
+ *      `kNoGroup` answer the empty vector, the run keeping the
+ *      ungrouped shape (FR-004, FR-006, FR-007, FR-010)
+ * \post `plan` keeps the cpu list, the group list, the node list and
+ *      the place count the resolver wrote (FR-009)
+ */
+[[nodiscard]] auto groupPartition(Preset preset,
+                                  const PlacementPlan& plan,
+                                  std::size_t contexts)
+    -> std::vector<ContextGroup>;
+
+/**
+ * @brief specs/039-context-groups FR-022, B-2: the index of the group
+ * of `partition` that holds one context position.
+ *
+ * \pre `partition` satisfies A-1 and `position` stands below the count
+ *      of positions it covers (B-2)
+ * \post the answer stands below `partition.size()`, and the group it
+ *      names holds `position` (B-2)
+ */
+[[nodiscard]] auto groupOfContext(const std::vector<ContextGroup>& partition,
+                                  std::size_t position) -> std::size_t;
+
+/**
  * @brief specs/027 data-model.md D-4: the `idle` preset's resolution
  * over one layout (FR-016, FR-017, R-07).
  *
