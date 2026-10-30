@@ -562,7 +562,7 @@ carries. The partition, the group rounds, the publication route, the
 two disclosure channels, the 18 refusal shapes, the six records and the
 gates answer what the artifacts state.
 
-- [ ] T054 [P] [8] Refuse every layout path the harness cannot read,
+- [x] T054 [P] [8] Refuse every layout path the harness cannot read,
   with one line on standard error and exit status 2, at
   `source/harness/group_layout.cpp`: read the document through a route
   that answers the reader's own line when the open succeeds and the
@@ -587,7 +587,7 @@ gates answer what the artifacts state.
   answers one line at exit status 2 with no report file, and the same
   read answers the same line for `/proc/self/mem`.
 
-- [ ] T055 [P] [8] Carry the two pairings the hunt check refuses into
+- [x] T055 [P] [8] Carry the two pairings the hunt check refuses into
   the main page's hunt paragraph in `README.md` (partial). The sentence
   at `README.md:773` ends the run for a hunt beside `--counter`,
   `--metric` or `--compare`, and `validateHuntCombination` at
