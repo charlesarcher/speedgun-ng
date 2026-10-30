@@ -31,6 +31,10 @@ closes, and the verify command with an exit status.
 - **[Wave]**: the wave this task serves (the plan's wave list)
 - Every description names the exact file path, the requirements it
   closes, and the verify command
+- The `dev` preset the verify commands name is the machine-local loop
+  preset (constitution IX); a tree without `CMakeUserPresets.json`
+  drives the same rows with
+  `ctest --test-dir build --output-on-failure -R ...`
 
 ## Requirement coverage
 
@@ -87,7 +91,7 @@ module builds before this phase closes.
   `ctest --preset=dev -R harness_cli_table_test` red on the two rows.
 - [ ] T003 Add the two option rows to
   `source/harness/detail/options.hpp` and
-  `source/harness/detail/options.cpp` at values `281` and `282`,
+  `source/harness/options.cpp` at values `281` and `282`,
   named constants, long spelling only; values `283` to `289` stay
   free (FR-020, PC-4). Verify:
   `ctest --preset=dev -R harness_cli_table_test` green.
@@ -174,7 +178,7 @@ Phase 1 alone, so the two land beside each other.
 - [ ] T015 [P] Implement the writer keys in
   `source/harness/json_report.cpp`: `writeEntryHunt` appends
   `correlation`, `slope` and `delta` after `rank`, `putOrNull`
-  writing `null` for an empty figure (FR-030, D-7). Verify:
+  writing `null` for an empty figure (FR-030, B-9). Verify:
   `ctest --preset=dev -R harness_hunt_json_test` green.
 - [ ] T016 [P] Implement the reader keys in
   `source/harness/json_load.cpp`: the per-entry hunt object reads the
@@ -377,8 +381,10 @@ results directory, the way specs/029 and specs/033 recorded theirs.
   `LCOV_EXCL` marker and no new `--ignore-errors` entry, the
   `ci-sanitize` and `ci-tsan` presets, the release build
   (`cmake --preset=ci-ubuntu && cmake --build build`) once for the
-  analyzer findings, the suite under `taskset -c 0,1`, and
-  `cmake -P cmake/prose-lint.cmake` (FR-053, SC-006). Verify: every
+  analyzer findings, the suite under `taskset -c 0,1`,
+  `format-check`, `spell-check`, the dbc-gate,
+  `test/time_source_gate.sh`, and `cmake -P cmake/prose-lint.cmake`
+  (FR-053, SC-006). Verify: every
   gate green, and the coverage read recorded in the results
   directory.
 - [ ] T040 Confirm the standing surfaces stand untouched: the compare

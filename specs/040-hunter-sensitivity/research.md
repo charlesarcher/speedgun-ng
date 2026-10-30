@@ -5,7 +5,7 @@ the decision, the rationale, and the alternatives considered, per the
 plan workflow. The spec's Clarifications and Decisions stand behind
 the entries that cite them; nothing here reopens them.
 
-## D-1 The Spearman correlation with average ranks at ties
+## PD-01 The Spearman correlation with average ranks at ties
 
 **Decision**: `spearmanCorrelation` ranks each coordinate with
 average ranks at ties, computes the Pearson correlation of the rank
@@ -25,7 +25,7 @@ shortcut (rejected: it holds only with no ties, and tie-heavy counter
 rates make the tie case common); a combined score figure (rejected:
 out of scope, the `score` key stays refused).
 
-## D-2 The slope under one least-squares implementation
+## PD-02 The slope under one least-squares implementation
 
 **Decision**: `leastSquaresSlope` over the same point shape reuses
 the complexity fit's least-squares sums (`source/harness/complexity.cpp:69`),
@@ -43,7 +43,7 @@ one-implementation rule (D-8, PC-2).
 library (rejected: the figure is a harness rank figure, the counters
 surface carries none today).
 
-## D-3 The sensitivity points over one family
+## PD-03 The sensitivity points over one family
 
 **Decision**: the batch stamping pass groups the run's entries by
 suite and case name; one point per entry, the point carrying the
@@ -63,7 +63,7 @@ console and the JSON read the same figures (FR-030, FR-012).
 the spec binds one run); the mean time per iteration (rejected: the
 median stands the aggregate the report prints).
 
-## D-4 The baseline match through one matcher
+## PD-04 The baseline match through one matcher
 
 **Decision**: the compare mode's `matchPair` name rule moves to a
 shared detail helper; the compare calls it unchanged and the delta
@@ -81,7 +81,7 @@ hunt (rejected: R-2's one-name-twice rule); filter-scoped matching
 (rejected: the hunt names no filter; the standing rule pairs by full
 instance name).
 
-## D-5 The delta formula and its disclosures
+## PD-05 The delta formula and its disclosures
 
 **Decision**: `delta = 100 x (contender - baseline) / baseline` of
 the matched event's median rate, signed; the `n/a` disclosure for a
@@ -99,7 +99,7 @@ signed percent names the direction the rules file needs); a
 magnitude-only sort key with a signed document figure (rejected: one
 figure, one meaning, XI.7's one-term rule).
 
-## D-6 The emitted rule's threshold and direction
+## PD-06 The emitted rule's threshold and direction
 
 **Decision**: the threshold carries the run's noise threshold
 (`options.noise`, a percent), one figure for every promoted event;
@@ -119,7 +119,7 @@ promoted event.
 leaves the run nothing to emit); the mixed figure (rejected: two
 figures in one file against XI.7's one-term rule).
 
-## D-7 The JSON key names and the null rule
+## PD-07 The JSON key names and the null rule
 
 **Decision**: the per-entry hunt object gains `correlation`,
 `slope` and `delta`, in that order after `rank`; `putOrNull` writes
@@ -136,7 +136,7 @@ FR-032).
 `sensitivity_slope` (rejected: the node's context already names the
 entry, and the standing keys stand short: `rate`, `cv`, `rank`).
 
-## D-8 The CLI refusals join the standing shapes
+## PD-08 The CLI refusals join the standing shapes
 
 **Decision**: `--hunt-rank=delta` beside no `--hunt-baseline`,
 `--hunt-baseline` beside no hunt, an empty value, and the
