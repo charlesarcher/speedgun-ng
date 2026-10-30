@@ -275,8 +275,9 @@ promotion: toCompareRules(top, noise) -> N5 rule lines -> file
   the standing hunt files.
 - The test rows join the standing binaries:
   `harness_hunt_rank_test` carries the statistics and rank rows,
-  `harness_hunt_json_test`, `harness_json_load_test` and
-  `harness_json_schema_test` the document rows, and
+  `harness_hunt_json_test`, `harness_json_load_test`,
+  `harness_json_schema_test` and `harness_json_report_test` the
+  document rows, and
   `harness_hunt_cli_test` with `harness_cli_table_test` the CLI
   rows. The fixture documents stand under `test/data/hunt_ranks/`.
 - The example stands at `example/docs/hunt_ranks.cpp` with its
