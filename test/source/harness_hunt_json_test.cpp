@@ -519,8 +519,8 @@ constexpr std::string_view kHuntOpen = "\"hunt\":{";
 // The byte one hunt node opens at. The entry node opens inside the benchmark
 // array and the run node stands last, after it, so the first `"hunt":{` is the
 // entry's and the last is the run's.
-[[nodiscard]] auto nodeOpen(std::string_view text, const bool run)
-    -> std::size_t
+[[nodiscard]] auto nodeOpen(std::string_view text,
+                            const bool run) -> std::size_t
 {
   const auto at = run ? text.rfind(kHuntOpen) : text.find(kHuntOpen);
   check(at != std::string_view::npos, "the document carries the hunt node");
@@ -549,8 +549,8 @@ constexpr std::string_view kHuntOpen = "\"hunt\":{";
 // carry them. The document is compact, so a scan of quotes and braces at the
 // object's own depth reads the order the contract states and no reader
 // enforces.
-[[nodiscard]] auto keysOf(std::string_view text, std::size_t open)
-    -> std::vector<std::string>
+[[nodiscard]] auto keysOf(std::string_view text,
+                          std::size_t open) -> std::vector<std::string>
 {
   auto keys = std::vector<std::string> {};
   std::size_t depth = 0;
@@ -626,8 +626,8 @@ auto checkOrder(std::string_view text,
 // The byte past the value that starts at `value`. The writer escapes nothing
 // inside a hunt value, so a quote ends a string and a brace or bracket closes
 // an object at its own depth.
-[[nodiscard]] auto valueEnd(std::string_view text, std::size_t value)
-    -> std::size_t
+[[nodiscard]] auto valueEnd(std::string_view text,
+                            std::size_t value) -> std::size_t
 {
   check(value < text.size(), "the planted value stands in the document");
   if (text[value] == '"') {
@@ -674,8 +674,8 @@ struct Plant
   std::string_view message;
 };
 
-[[nodiscard]] auto plantSite(std::string_view text, std::string_view node)
-    -> std::size_t
+[[nodiscard]] auto plantSite(std::string_view text,
+                             std::string_view node) -> std::size_t
 {
   if (node == "hunt") {
     return nodeOpen(text, false);
@@ -690,8 +690,8 @@ struct Plant
   return elementOpen(text, owner, node);
 }
 
-[[nodiscard]] auto planted(std::string_view text, const Plant& plant)
-    -> std::string
+[[nodiscard]] auto planted(std::string_view text,
+                           const Plant& plant) -> std::string
 {
   const auto site = plantSite(text, plant.node);
   // The two `hunt` keys are the only place a hunt node stands, so planting
@@ -762,8 +762,8 @@ struct Plant
 }
 
 // The number of times one needle stands in the written bytes.
-[[nodiscard]] auto occurrences(std::string_view text, std::string_view needle)
-    -> std::size_t
+[[nodiscard]] auto occurrences(std::string_view text,
+                               std::string_view needle) -> std::size_t
 {
   auto count = std::size_t {0};
   for (auto at = text.find(needle); at != std::string_view::npos;

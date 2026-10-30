@@ -176,8 +176,8 @@ auto address(const std::size_t index) -> std::string
   return sg::test::huntAddress(sg::test::kHuntCpu, sg::test::huntEvent(index));
 }
 
-auto writeFile(const std::filesystem::path& path, const std::string& text)
-    -> void
+auto writeFile(const std::filesystem::path& path,
+               const std::string& text) -> void
 {
   std::ofstream file(path, std::ios::trunc);
   check(static_cast<bool>(file), "the scenario could write its @file fixture");
@@ -206,8 +206,8 @@ auto writeSelectionFiles() -> void
 
 // Refuse one anchor leaf on every core device that owns one: the leaf stays in
 // the catalog with its disclosure, the shape D-13 describes.
-auto refuseAnchor(sg::counters::FakeProvider& host, const std::string_view leaf)
-    -> void
+auto refuseAnchor(sg::counters::FakeProvider& host,
+                  const std::string_view leaf) -> void
 {
   for (const auto device : sg::test::huntDevices()) {
     if (device == sg::test::kHuntUncore) {
@@ -282,7 +282,8 @@ std::atomic<int> huntRuns {0};
 auto bmHuntCli(sg::State& state) -> void
 {
   ++huntRuns;
-  for (auto _ : state) {}
+  for (auto _ : state) {
+  }
 }
 
 auto registerCase(const char* name = "bmHuntCli") -> sg::BenchmarkHandle
@@ -431,8 +432,8 @@ auto checkRefusals(const std::vector<RefusalRow>& rows) -> void
 
 // The hunt lines of a captured run, in the spelling contracts/hunt-cli.md
 // states.
-auto lineHolding(const std::string& text, const std::string& needle)
-    -> std::string
+auto lineHolding(const std::string& text,
+                 const std::string& needle) -> std::string
 {
   std::istringstream stream(text);
   std::string line;
@@ -444,8 +445,8 @@ auto lineHolding(const std::string& text, const std::string& needle)
   return {};
 }
 
-auto huntLines(const std::string& text, const std::string& needle)
-    -> std::vector<std::string>
+auto huntLines(const std::string& text,
+               const std::string& needle) -> std::vector<std::string>
 {
   std::vector<std::string> found;
   std::istringstream stream(text);
@@ -1517,8 +1518,8 @@ auto scenarioOptionOrderRefusals() -> void
 // report, or `npos` when no line holds it. Where the report puts a line is
 // what the two cases below weigh, and a line position states it in the bytes
 // of the report itself, where a reader can see it.
-auto lineIndex(const std::string& text, const std::string& needle)
-    -> std::size_t
+auto lineIndex(const std::string& text,
+               const std::string& needle) -> std::size_t
 {
   const std::size_t hit = text.find(needle);
   if (hit == std::string::npos) {
@@ -1699,8 +1700,8 @@ auto scenarioCutLinePrintsTheRecordedReason() -> void
 // The JSON number that stands behind one key, scanned the way
 // `holdOutOverheadFloor` of `harness_json_report_test.cpp` scans it, or the
 // empty text when the document holds no such key.
-auto numberAfter(const std::string& text, const std::string_view key)
-    -> std::string
+auto numberAfter(const std::string& text,
+                 const std::string_view key) -> std::string
 {
   const auto at = text.find(key);
   if (at == std::string::npos) {
@@ -1956,8 +1957,8 @@ auto scenarioFilterSelectsTwoHuntedInstances() -> void
 // prints over it.
 // ---------------------------------------------------------------------------
 
-auto readerFile(const char* kind, const std::string& text)
-    -> std::filesystem::path
+auto readerFile(const char* kind,
+                const std::string& text) -> std::filesystem::path
 {
   const auto path = capturePath(kind);
   writeFile(path, text);

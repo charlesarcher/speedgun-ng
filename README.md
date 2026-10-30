@@ -749,6 +749,7 @@ auto rankCell(const std::optional<double>& figure) -> std::string
 {
   return figure.has_value() ? std::to_string(*figure) : std::string {"n/a"};
 }
+
 auto printRankCells(const sg::hunt::RankedEvent& event) -> void
 {
   std::printf("%s correlation=%s slope=%s delta=%s\n",
