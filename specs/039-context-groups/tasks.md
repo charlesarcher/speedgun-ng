@@ -547,3 +547,60 @@ commit block, so a lane stops cleanly at any checkpoint.
   states (FR-036, FR-038).
 - Contention: specs 031 and 037 stand in flight; T049 re-reads the four
   contested bindings before the lane closes (FR-032).
+
+---
+
+## Phase 9: Convergence
+
+**Purpose**: module M-J's read of the tree against `spec.md`,
+`plan.md`, the two contracts and the constitution, taken after T001 to
+T053 landed. The read judged 135 items: 40 functional requirements, 10
+success criteria, 22 acceptance scenarios, 12 decisions, 40 contract
+clauses and 11 constitution principles. FR-018 stands partly met, and
+one main-page sentence stands short of the refusal set the code
+carries. The partition, the group rounds, the publication route, the
+two disclosure channels, the 18 refusal shapes, the six records and the
+gates answer what the artifacts state.
+
+- [ ] T054 [P] [8] Refuse every layout path the harness cannot read,
+  with one line on standard error and exit status 2, at
+  `source/harness/group_layout.cpp`: read the document through a route
+  that answers the reader's own line when the open succeeds and the
+  read fails, and carry the reason the open answered beside the path in
+  the line for a path that never opened (contradicts).
+  `YAML::LoadAllFromFile` throws `std::__ios_failure` for a directory
+  and for a file whose read errors, and that type stands outside the
+  two catches, so `--group-layout=/tmp` and
+  `--group-layout=/proc/self/mem` end the process in `std::terminate`
+  today. `--options`, `--compare-rules` and `--json` answer one line at
+  status 2 for the same paths through `readTextFile`, the shape the
+  spec's edge case names. Land the two rows in
+  `test/source/harness_group_layout_test.cpp` and
+  `test/source/harness_group_cli_test.cpp`, and re-quote the case 01
+  line of `specs/039-context-groups/results/refusals.md` beside the
+  moved text. Traces to FR-018, FR-021, the unreadable-path edge case,
+  table C row 1 and A-1 of the layout contract, A-5 of the partition
+  contract, and Constitution II. Verify:
+  `ctest --test-dir build -R "harness_group_layout_test|harness_group_cli_test" --output-on-failure`
+  green, and
+  `build/example/docs_threads --threads=1 --iterations=1 --group-layout=/tmp`
+  answers one line at exit status 2 with no report file, and the same
+  read answers the same line for `/proc/self/mem`.
+
+- [ ] T055 [P] [8] Carry the two pairings the hunt check refuses into
+  the main page's hunt paragraph in `README.md` (partial). The sentence
+  at `README.md:773` ends the run for a hunt beside `--counter`,
+  `--metric` or `--compare`, and `validateHuntCombination` at
+  `source/harness/hunt_cli.cpp:722-758` refuses five pairings, so the
+  line carries `--placement` and `--group-layout` beside the three it
+  names. The `--placement` spelling stands pre-existing from specs/025,
+  and one line lands both spellings, so the paragraph reads equal to
+  the check and to the guide's refusal block. Traces to FR-019, IV.1
+  and SC-009. Verify:
+  `ctest --test-dir build -R "example_drift|example_drift_fixtures|snippet_compile" --output-on-failure`
+  green, and the paragraph names every pairing the check refuses.
+
+**Checkpoint**: the two lines above close the last partly-met clauses,
+and the convergence read stands recorded here: 135 items judged, 130
+met, three findings, two tasks appended, and no other gap found in the
+lane's scope.
