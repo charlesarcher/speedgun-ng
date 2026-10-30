@@ -253,6 +253,10 @@
               class <a href="classsg_1_1ContextBarrier.html" class="m-doc">ContextBarrier</a>
             </dt>
             <dd>The round a fixed set of participants meets on (E-04, FR-014, FR-015).</dd>
+            <dt>
+              struct <a href="structsg_1_1ViewSeries.html" class="m-doc">ViewSeries</a>
+            </dt>
+            <dd>The resolved series one view renders (specs/038 data-model.md).</dd>
           </dl>
         </section>
         <section id="enum-members">
@@ -496,6 +500,39 @@
               <span class="m-doc-wrap-bumper">auto <a href="#ad3d06112deede02f7594c60d0b39dc5f" class="m-doc">simulationStart</a>(</span><span class="m-doc-wrap">) -&gt; SPEEDGUN_NG_EXPORT void <span class="m-label m-flat m-success">noexcept</span></span>
             </dt>
             <dd>Emits the marker sequence an attached tracer watches for, so collection begins at this point in the run.</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a6ee4bf4af26a60f46beab168e5a2c9af" class="m-doc">viewSeries</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1ReportData.html" class="m-doc">ReportData</a>&amp; report,
+              std::string_view benchmark,
+              std::string_view column) -&gt; std::expected&lt; ViewSeries, std::string &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>Resolve the recorded values of one column of one benchmark (B-1, FR-004).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a05ce7656adfb1c99eddd39ac880250ba" class="m-doc">renderHistogram</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1ReportData.html" class="m-doc">ReportData</a>&amp; report,
+              std::string_view benchmark,
+              std::string_view column,
+              std::size_t binCount) -&gt; std::expected&lt; std::string, std::string &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>Render the SVG histogram of one column of one benchmark (B-2, FR-007).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a09e9febe63ce18a4ded3e0bf183a2bb4" class="m-doc">renderPlot</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1ReportData.html" class="m-doc">ReportData</a>&amp; report,
+              std::string_view benchmark,
+              std::string_view column) -&gt; std::expected&lt; std::string, std::string &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>Render the SVG plot of one column of one benchmark (B-3, FR-009).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ae6ab1cec5cf3165915c577bd058fed90" class="m-doc">renderPage</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1ReportData.html" class="m-doc">ReportData</a>&amp; report,
+              std::string_view benchmark,
+              std::string_view column,
+              std::size_t binCount) -&gt; std::expected&lt; std::string, std::string &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>Render one static HTML page carrying the run&#x27;s identity and the two figures (B-5, FR-011).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a345f0d297d562d38f71eb02c6f3f02ac" class="m-doc">renderText</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1ReportData.html" class="m-doc">ReportData</a>&amp; report,
+              std::string_view benchmark,
+              std::string_view column,
+              std::size_t binCount) -&gt; std::expected&lt; std::string, std::string &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>Render the terminal text of both figures (B-4, FR-013).</dd>
           </dl>
         </section>
         <section id="var-members">
@@ -900,6 +937,59 @@
             </h3>
             <p>Emits the marker sequence an attached tracer watches for, so collection begins at this point in the run.</p>
 <p>The marker has three properties a caller needs before placing it. It has no architectural effect: it executes as a register move followed by a prefixed one-byte no-operation, and it leaves no state a program can observe after the call returns. A call is safe with no tracer attached. It occupies two instructions and perturbs a measurement it sits inside, so place it at the region boundary, outside the timed window (FR-019).</p><p>The tag&#x27;s width matches the marker&#x27;s immediate operand. A build targeting a processor family with no marker instruction compiles, links, and returns, emitting no marker; the tag stays published so a caller can still pass it to a tracer (FR-018).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a6ee4bf4af26a60f46beab168e5a2c9af"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a6ee4bf4af26a60f46beab168e5a2c9af" class="m-doc-self">viewSeries</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1ReportData.html" class="m-doc">ReportData</a>&amp; report,
+              std::string_view benchmark,
+              std::string_view column) -&gt; std::expected&lt; ViewSeries, std::string &gt;</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="views_8hpp.html">&lt;speedgun-ng/views.hpp&gt;</a></div>
+            </h3>
+            <p>Resolve the recorded values of one column of one benchmark (B-1, FR-004).</p>
+<p>The column selector reads <code>time</code> for the primary time column, <code>cpu</code> for the CPU-time column, and a metric label of the benchmark for a metric column (A-3); a counter label stands outside the selector.</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>benchmark</code> and <code>column</code> name no empty string (an empty name is a contract violation)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>on the value form: <code>values</code> holds the column&#x27;s recorded values in document order, the unavailable rows filtered out and scaled per A-5, and <code>unit</code> names the unit the values print in; an empty <code>values</code> answers on the value form, since the column resolved and the run recorded no measured value for it</p><p>on the error form: <code>benchmark</code> matches no result, or <code>column</code> stands outside the selector enumeration; the string names the name and the document&#x27;s recorded set</p><p>the call throws nothing to the caller, aborts nothing, reads no file and writes no file (A-1)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a05ce7656adfb1c99eddd39ac880250ba"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a05ce7656adfb1c99eddd39ac880250ba" class="m-doc-self">renderHistogram</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1ReportData.html" class="m-doc">ReportData</a>&amp; report,
+              std::string_view benchmark,
+              std::string_view column,
+              std::size_t binCount) -&gt; std::expected&lt; std::string, std::string &gt;</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="views_8hpp.html">&lt;speedgun-ng/views.hpp&gt;</a></div>
+            </h3>
+            <p>Render the SVG histogram of one column of one benchmark (B-2, FR-007).</p>
+<p>The histogram answers one bar per bin beside its range and count label (clarify 2/Q3).</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>binCount</code> is at least 2 (a smaller count is a contract violation)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>on the value form: the bins cover the recorded value range with the last bin closed on the maximum, and the bars stand proportional to the counts (FR-007)</p><p>on the error form: fewer than two recorded values stand for the column; the string names <code>not available</code> and the sample count (FR-008, D-6)</p><p>the call throws nothing to the caller, aborts nothing, reads no file and writes no file (A-1)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a09e9febe63ce18a4ded3e0bf183a2bb4"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a09e9febe63ce18a4ded3e0bf183a2bb4" class="m-doc-self">renderPlot</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1ReportData.html" class="m-doc">ReportData</a>&amp; report,
+              std::string_view benchmark,
+              std::string_view column) -&gt; std::expected&lt; std::string, std::string &gt;</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="views_8hpp.html">&lt;speedgun-ng/views.hpp&gt;</a></div>
+            </h3>
+            <p>Render the SVG plot of one column of one benchmark (B-3, FR-009).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>on the value form: one point per recorded value in document order, the axes labeled with the row and the column names; a multipass run&#x27;s rows stand in pass order, and a single recorded value renders one point (FR-009, D-7)</p><p>on the error form: the series stands empty; the string names the column and the sample count of zero (FR-010)</p><p>the call throws nothing to the caller, aborts nothing, reads no file and writes no file (A-1)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ae6ab1cec5cf3165915c577bd058fed90"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ae6ab1cec5cf3165915c577bd058fed90" class="m-doc-self">renderPage</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1ReportData.html" class="m-doc">ReportData</a>&amp; report,
+              std::string_view benchmark,
+              std::string_view column,
+              std::size_t binCount) -&gt; std::expected&lt; std::string, std::string &gt;</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="views_8hpp.html">&lt;speedgun-ng/views.hpp&gt;</a></div>
+            </h3>
+            <p>Render one static HTML page carrying the run&#x27;s identity and the two figures (B-5, FR-011).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p><code>binCount</code> is at least 2 (a smaller count is a contract violation)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>on the value form: the identity fields as the document records them, the histogram and the plot inline as the two SVG figures, the text escaped, and no script; an identity field the document does not carry renders <code>not available</code> in its place, and a figure that answers the disclosure renders the disclosure text in the figure&#x27;s place (FR-011, FR-012, D-8); the embedded figure bytes stand equal to the standalone bytes (D-3)</p><p>the call throws nothing to the caller, aborts nothing, reads no file and writes no file (A-1)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a345f0d297d562d38f71eb02c6f3f02ac"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a345f0d297d562d38f71eb02c6f3f02ac" class="m-doc-self">renderText</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1ReportData.html" class="m-doc">ReportData</a>&amp; report,
+              std::string_view benchmark,
+              std::string_view column,
+              std::size_t binCount) -&gt; std::expected&lt; std::string, std::string &gt;</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="views_8hpp.html">&lt;speedgun-ng/views.hpp&gt;</a></div>
+            </h3>
+            <p>Render the terminal text of both figures (B-4, FR-013).</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p><code>binCount</code> is at least 2 (a smaller count is a contract violation)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>on the value form: the histogram as one line per bin naming the range and the count with a proportional character bar, the plot as one line per recorded value in row order; the view composes per part, a part whose figure answers the disclosure rendering the disclosure line in the part&#x27;s place (clarify 2/Q1)</p><p>the call throws nothing to the caller, aborts nothing, reads no file and writes no file (A-1)</p></aside>
           </div></section>
         </section>
         <section>
