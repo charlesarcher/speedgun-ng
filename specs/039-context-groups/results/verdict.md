@@ -23,8 +23,10 @@
   stand re-read at the head those fixes left. Each sanitizer row names
   the compiler behind every reading it carries, and the newest reading
   on each of the two stands taken on the `clang` compiler those two CI
-  jobs drive. The independent read of the same head is the pull
-  request's own CI matrix.
+  jobs drive. The independent read of the same head stands ahead of this
+  record in the pull request's own CI matrix: the run at the head the
+  review fixes left answered green on every leg except the entry wrinkle
+  4 names, and the run on this head stands in flight as this line lands.
 - Commits: a hash stands quoted only for the lane base. T051 rewrote one
   commit body, which moved every hash from
   `Meta: Clear the analysis round-3 findings` onward, so the lane's own
@@ -50,7 +52,7 @@
 | Build and test results are recorded with a verdict per change | `ls specs/039-context-groups/results/`, read through [quickstart.md](../quickstart.md) | the tree | six records stand under `results/`: five acceptance records beside the driver `run_groups.sh`, and this verdict; each names its commands, its exit codes and its artifacts, and the quickstart links every one of them (FR-038, SC-010) |
 | Weakening a gate configuration silently is forbidden | `git diff --name-only bea6af5b..HEAD`, read against `tools/`, `cmake/`, `.github/`, `.clang-tidy` and `.codespellrc` | the tree | one gate-side constant moved: `PAGE_LINE_CAP` from 940 to 957 at `tools/docs/example_drift.py:224-232`, each step carrying its measured reason beside it; no gate config, no check list, no spell skip and no ignored error class moved, so no gate's checks stand narrowed |
 
-## The three wrinkles
+## The four wrinkles
 
 1. The `ci-ubuntu` tree registers 147 entries where `ci-rocky` registers
    152. That preset leaves `SPEEDGUN_DBC_MATRIX` off, so the five
@@ -88,8 +90,21 @@
    clears it, while the `tsan` job of the pull request's run on that
    head answered success. The mechanism stands unproven between two readings: the
    observer takes the counter after the released participant has
-   parked, or the sanitizer's own thread bookkeeping moves it. Finding
-   4 below holds the sibling case of a flaky entry the host owns.
+   parked, or the sanitizer's own thread bookkeeping moves it. The
+   fourth finding below holds the sibling case, an entry this lane
+   likewise does not own.
+
+4. `harness_jitter_window_test` stands flaky on the runner and green
+   here. The `test` job of the pull request's run at the head the review
+   fixes left lost that entry while 151 of 152 entries passed, every
+   other job then standing reported success, and that run was superseded
+   when the branch moved. The run at the head before it
+   answered 152 of 152 on the same leg. Read on this host, 20 direct
+   runs on a quiet machine and 20 more while a loaded one carried two
+   sanitizer suites answered no failure. specs/022 owns the entry, its
+   assertions ride the FR-022 tolerance, and no commit in this lane's
+   range touches it, so the reading stands recorded and the host owns
+   the follow-up.
 
 ## The coverage claim in the lane's numbers
 
