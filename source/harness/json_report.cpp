@@ -528,6 +528,12 @@ void writeEntryHunt(Builder& builder, const hunt::EntryHunt& record)
       put(builder, entry, "noisy", ranked.noisy);
       put(builder, entry, "multiplexed", ranked.multiplexed);
       putOrNull(builder, entry, "rank", ranked.rank);
+      // specs/040 FR-030, B-9: the three rank figures stand in every hunt
+      // document; a figure the run measured none of writes `null`, the
+      // spelling the reader answers back as an empty optional (A-2).
+      putOrNull(builder, entry, "correlation", ranked.sensitivityCorrelation);
+      putOrNull(builder, entry, "slope", ranked.sensitivitySlope);
+      putOrNull(builder, entry, "delta", ranked.delta);
     }
   }
   object.key("skipped");

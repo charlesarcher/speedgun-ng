@@ -301,6 +301,85 @@ auto everyFieldOfTheDocumentLoads() -> void
         "the row answers the chunk columns of each context (E-09)");
 }
 
+// The three rank figures of specs/040 (T013, FR-031, B-9): the document
+// the writer carries loads back with `correlation`, `slope` and `delta`
+// equal, `null` for a figure the run did not measure. The input stands
+// through the record types, the round-trip form of this file.
+auto theHuntRankFieldsLoadBackEqual() -> void
+{
+  sg::detail::RunOptions options;
+  options.fixedIterations = sg::test::kWindowIterations;
+  auto run = sg::test::scriptedRun(options);
+
+  sg::hunt::EntryHunt hunt;
+  hunt.method = sg::MetricMethod::AUTO;
+  hunt.passCount = 1;
+  hunt.top = 8;
+  hunt.retriedPasses = 0;
+
+  sg::hunt::RankedEvent measured;
+  measured.address = "event.alpha";
+  measured.rate = 1000.0;
+  measured.cv = 0.5;
+  measured.multiplexed = false;
+  measured.rank = 1;
+  measured.sensitivityCorrelation = 0.75;
+  measured.sensitivitySlope = 2.5;
+  measured.delta = -12.5;
+  hunt.entries.push_back(measured);
+
+  // The figures the run did not measure: the writer spells them `null`
+  // (FR-030, B-9) and the reader answers the empty figure.
+  sg::hunt::RankedEvent unstamped;
+  unstamped.address = "event.beta";
+  unstamped.rate = 500.0;
+  unstamped.cv = 0.25;
+  unstamped.noisy = true;
+  unstamped.multiplexed = false;
+  hunt.entries.push_back(unstamped);
+
+  run.result.hunt = hunt;
+  sg::ReportData data;
+  data.results.push_back(run.result);
+  data.rowRaw = run.rowRaw;
+  data.contextRaw = run.contextRaw;
+
+  check(sg::detail::writeReport("harness_json_load_ranks.json", data),
+        "the writer wrote the document with the hunt (FR-030)");
+  const auto loaded = sg::loadReport("harness_json_load_ranks.json");
+  check(loaded.has_value(), "the reader read the written document (FR-031)");
+  if (!loaded.has_value()) {
+    std::printf("  %s\n", loaded.error().c_str());
+    return;
+  }
+
+  check(loaded->results.size() == 1 && loaded->results[0].hunt.has_value()
+            && loaded->results[0].hunt->entries.size() == 2,
+        "the loaded result answers the hunt record and its two events "
+        "(FR-031)");
+  if (loaded->results.size() != 1 || !loaded->results[0].hunt.has_value()
+      || loaded->results[0].hunt->entries.size() != 2) {
+    return;
+  }
+
+  const sg::hunt::RankedEvent& first = loaded->results[0].hunt->entries[0];
+  check(first.sensitivityCorrelation.has_value()
+            && sg::test::sameValue(*first.sensitivityCorrelation, 0.75),
+        "the correlation reads back the figure the run measured (FR-031, "
+        "B-9)");
+  check(first.sensitivitySlope.has_value()
+            && sg::test::sameValue(*first.sensitivitySlope, 2.5),
+        "the slope reads back the figure the run measured (FR-031, B-9)");
+  check(first.delta.has_value() && sg::test::sameValue(*first.delta, -12.5),
+        "the delta reads back the figure the run measured (FR-031, B-9)");
+
+  const sg::hunt::RankedEvent& second = loaded->results[0].hunt->entries[1];
+  check(!second.sensitivityCorrelation.has_value()
+            && !second.sensitivitySlope.has_value()
+            && !second.delta.has_value(),
+        "a figure the run did not measure reads back `null` (FR-031, B-9)");
+}
+
 // FR-024, SC-007: one planted disagreement per shape of the reader, each
 // refused with the JSON pointer of the field it stands in.
 struct Mutation
@@ -704,7 +783,7 @@ auto theRootListAndTheWarningKeyAnswerTheirOwnRules(const std::string& text)
 }
 
 constexpr Mutation kMutations[] = {
-    {"\"schemaVersion\":\"1.8\"", "\"schemaVersion\":1", "/schemaVersion"},
+    {"\"schemaVersion\":\"1.9\"", "\"schemaVersion\":1", "/schemaVersion"},
     {"\"name\":\"bmJsonWindow\"", "\"name\":[]", "/benchmarks/0/name"},
     // The two kinds the naming word has no other caller for: a document
     // that holds null, and one that holds a flag, at a name.
@@ -1544,6 +1623,7 @@ auto main() -> int
   roundTripClosesTheFormat();
   versionRuleGatesTheReader();
   everyFieldOfTheDocumentLoads();
+  theHuntRankFieldsLoadBackEqual();
   const std::string written = pinOverheadFloor(sg::test::readText(kWritten));
   theHeaderFieldsAndTheStoredWarningsLoad(written);
   eachExtensionErrorCodeRefuses(written);
