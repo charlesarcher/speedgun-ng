@@ -1637,16 +1637,35 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         ? std::optional<detail::PlacementPlan>(detail::resolvePreset(
               instance.placement, detail::layout(), instance.threadCount))
         : std::nullopt;
-    if (placePlan.has_value() && instance.placement == detail::Preset::NODE) {
-      detail::resolvedNodePlan() = *placePlan;
-    }
-    if (placePlan.has_value()) {
+    // FR-003, D-2: one source names this partition. The file the
+    // `--group-layout` row settled names it where the entry point left its
+    // path on the instance, and the preset's own plan names it otherwise, so
+    // one run reads one partition from one place.
+    if (!instance.groupLayout.empty()) {
+      // B-1, A-1: the reader answers the groups of this context count, and its
+      // postcondition is the coverage the rounds and the disclosures read.
+      // The fit walk opened this same path once, at the batch's count, and
+      // refused every fault the grammar names ahead of the first instance
+      // (FR-020), so this read answers the partition that walk accepted. A
+      // file rewritten between the two reads answers the reader's line as this
+      // run's own refusal: the attempt starts no context and paces by no
+      // partition the grammar refused, and its row carries that line.
+      auto file = detail::parseGroupLayout(
+          instance.groupLayout, static_cast<std::size_t>(instance.threadCount));
+      if (!file.has_value()) {
+        return fail(file.error());
+      }
+      partition = std::move(*file);
+    } else if (placePlan.has_value()) {
       // FR-006, FR-007: the preset answers the partition its own plan reads,
       // and the preset that names no unit answers none.
       partition = detail::groupPartition(
           instance.placement,
           *placePlan,
           static_cast<std::size_t>(instance.threadCount));
+    }
+    if (placePlan.has_value() && instance.placement == detail::Preset::NODE) {
+      detail::resolvedNodePlan() = *placePlan;
     }
     for (int position = 0; position < instance.threadCount; ++position) {
       const sg::ContextPolicy policy {

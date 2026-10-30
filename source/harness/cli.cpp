@@ -780,6 +780,14 @@ auto speedgunMain(int argc, char** argv) -> int
     return layoutOutcome.first;
   }
 
+  // specs/039-context-groups FR-003, D-2: the path the row settled travels to
+  // each instance this entry point runs, the way the settled preset travels to
+  // the expansion. The run reads its partition from that path, and an instance
+  // of a batch that named no row reads the preset's plan.
+  for (auto* instance : selected) {
+    instance->groupLayout = resolved->groupLayout;
+  }
+
   // One entry-point invocation owns one interrupt flag: a suite that
   // calls the entry point again starts with no pending interrupt.
   detail::interruptFlag().store(false);

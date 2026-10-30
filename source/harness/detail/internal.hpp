@@ -296,6 +296,12 @@ public:
   // for this instance: the handle name when the family stated one, the
   // command-line preset otherwise, `NONE` when neither stands.
   detail::Preset placement = detail::Preset::NONE;
+  // specs/039-context-groups FR-003, D-2: the layout path the entry point
+  // settled for the batch, empty when no source named the row. The runner
+  // reads this file for the partition beside the contexts it groups, the way
+  // it reads the preset above, and the fit walk opened it once already
+  // (FR-020).
+  std::string groupLayout;
   RegistryEntry* family = nullptr;
 
   // specs/029 data-model.md E-04, D-15: the plan of the hunt this instance
