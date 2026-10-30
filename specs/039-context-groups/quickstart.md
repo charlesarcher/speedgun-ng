@@ -16,6 +16,15 @@ test installs a shape no lane host states.
 | Does one layout file name a run's partition end to end, on any host? | [results/layout.md](./results/layout.md) | both runs exit 0: the file's four names pace eight contexts, two each, with no pin and no machine line |
 | Does every fault shape and forbidden pairing stop with one line and status 2? | [results/refusals.md](./results/refusals.md) | 18 of 18 cases answer one line, exit status 2 and no report file |
 | Does a run with no partition keep the bytes `master` prints and writes? | [results/ungrouped.md](./results/ungrouped.md) | the 157-byte disclosure line stands byte-identical on both trees, and neither document carries a group key |
+| Does every hard gate of Principle VIII read green on this branch? | [results/verdict.md](./results/verdict.md) | 15 rows, one per gate: 152 of 152 tests on `ci-rocky` and 147 of 147 on `ci-ubuntu`, zero findings on the sanitizer, thread-sanitizer, analyzer, naming, prose, spell, format, time-source, drift and DBC reads, and coverage at 100.0% lines with 7,343 of 7,360 branches inside the recorded allowance |
+
+The sixth record is the gate verdict,
+[results/verdict.md](./results/verdict.md). It stands beside the five
+acceptance records and reads the lane's gates one at a time: the
+command, the tree it ran in, and the reading in the gate's own numbers
+(VIII). It names the two wrinkles that move a count between two trees,
+states the coverage claim in the lane's numbers, and lists the findings
+that stand outside the lane (FR-038, SC-010).
 
 Each record names the host whose topology its host runs read: the
 recorded pass stands on `gary`, 16 cores over two L3 groups and one
