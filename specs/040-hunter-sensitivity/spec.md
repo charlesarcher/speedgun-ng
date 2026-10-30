@@ -338,14 +338,15 @@ line naming the value.
 A maintainer adds `--hunt-emit-rules=rules.txt` to the delta run. The
 run writes the promoted events as N5 rules in the standing grammar,
 one per line, and the next comparison reads the file again through
-`--compare-rules` with no edit.
+`--compare-rules` under the standing validation (FR-021).
 
 **Why this priority**: the promotion turns the hunt's figures into a
 gate input, and it rides the figures the first two stories compute.
 
 **Independent Test**: A run writes the file; a comparison reads the
-same file back and answers the verdicts the rules name; the round trip
-stands recorded under the results directory.
+file again under the standing validation and answers the verdicts the
+paired rules name; the round trip stands recorded under the results
+directory.
 
 **Acceptance Scenarios**:
 
