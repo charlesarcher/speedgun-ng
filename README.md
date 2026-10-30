@@ -608,6 +608,21 @@ beside the group and ends the field with it, `ctx0=SPIN/0@0@0/applied/node-0`,
 and `--topology` prints one line per node under the L3 lines. See [topology
 placement in detail](docs/pages/harness.md#topology-placement).
 
+### Context groups
+A group is the set of contexts that share one start round and one stop round, and the run names its one partition from the preset `--placement` settled on or from the file `--group-layout` points at.
+<!-- sg-example: example/docs/context_groups.cpp#groups -->
+```cpp
+auto bmGrouped(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.iterations());
+  }
+}
+
+SG_BENCHMARK(bmGrouped).threads(2).placement("compact");
+```
+The `bmGrouped/threads:2` row prints, and where the plan names a unit its disclosure line ends each context field with that group's name, `ctx0=SPIN/0@0/applied/l3-0`. A preset spells that name as the unit it reads and an ordinal, `l3-0` or `node-0`, and a file spells it as its entries state, `g0` standing for an entry that names none. A run with `--placement=none` and no file names no partition, and its context fields carry no group segment. The JSON context record carries the same text as its `group` key, present for a grouped run alone. A file beside a preset that names a partition for the machine read in hand, a file beside `--hunt`, and a batch whose instance counts disagree with the file's slots each stop the batch with one line and status 2 before any measurement. A preset above `none` that names no unit for that read runs on with its pins, and the file names the run's one partition. See [topology placement in detail](docs/pages/harness.md#topology-placement).
+
 ### Percentiles
 <!-- sg-example: example/docs/percentiles.cpp#percentiles -->
 ```cpp
@@ -890,6 +905,7 @@ The run writes its document at `--json=path`, loads it back with `loadReport`, a
 | `PrecheckTracerCpuRecord` | tracer type | One tracer cpu's five noise-by-source counts | [noise tracer](#noise-tracer) |
 | `PrecheckRecord::tracer` | tracer field | The optional record standing when the tracer ran | [noise tracer](#noise-tracer) |
 | `BenchmarkResult::contexts` | BenchmarkResult | The disclosures one run recorded for its contexts | [reading the report](#reading-the-report) |
+| `ContextDisclosure::group` | field | Names the group that holds the context, empty where the run carries no partition | [context groups](#context-groups) |
 | `viewSeries` | free function | Resolves one column's recorded values of one benchmark | [report views](#report-views) |
 | `renderHistogram` | free function | Renders one column's distribution as the SVG histogram | [report views](#report-views) |
 | `renderPlot` | free function | Renders one column's series as the SVG plot | [report views](#report-views) |

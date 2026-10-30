@@ -28,8 +28,8 @@ INFO_TOKEN = re.compile(r"^(sg-example|sg-sample-output)=(\S+)$")
 # adds (FR-028, FR-044, research D-13), the two specs/020 adds (FR-029), the
 # one specs/021 add (FR-027), the one specs/023 add (FR-037), the one
 # specs/025 add (FR-016), the one specs/026 add (FR-063), the one
-# specs/024 add (FR-027), the one specs/029 add (FR-070) and the one
-# specs/038 add (FR-022).
+# specs/024 add (FR-027), the one specs/029 add (FR-070), the one
+# specs/038 add (FR-022) and the one specs/039 add (FR-039).
 SECTIONS = (
     "The run loop",
     "Registration",
@@ -54,6 +54,7 @@ SECTIONS = (
     "Threads",
     "Topology placement",
     "Memory nodes",
+    "Context groups",
     "Percentiles",
     "JSON reports",
     "Regression gate",
@@ -91,6 +92,7 @@ SECTION_OWNERS = {
     "Threads": ("threads.cpp",),
     "Topology placement": ("topology_placement.cpp",),
     "Memory nodes": ("numa_placement.cpp",),
+    "Context groups": ("context_groups.cpp",),
     "Percentiles": ("percentiles.cpp",),
     "JSON reports": ("json_reports.cpp",),
     "Regression gate": ("regression_gate.cpp",),
@@ -228,7 +230,12 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # specs/039 FR-011 adds the `--group-layout` option row: one line moves
 # the cap from 947 to 948, the measured length of the page with the row
 # in place.
-PAGE_LINE_CAP = 948
+# specs/039 FR-039 measures its own move on top: the "Context groups"
+# section runs 15 lines and its quick-reference name row adds 1, so 16
+# lines move the cap from 948 to 964, the measured length of the page as
+# the feature lands. The section sits under the per-section budget of
+# FR-024, so no entry joins SECTION_LINE_CAPS.
+PAGE_LINE_CAP = 964
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that
