@@ -34,6 +34,14 @@
 // new rank fields empty, and `toCompareRules` declares beside
 // `toCounterSet` with the public signature FR-024 states (D-1).
 //
+// The baseline block of specs/040-hunter-sensitivity stands the rows
+// of the two compare-path functions the header declares: the extraction
+// of the matched entry's hunt rates from a loaded baseline document,
+// and the norm-pair check that answers the mismatch text the refusal
+// prints (B-5, D-6). The rows load the fixtures of
+// `test/data/hunt_ranks/` through `loadReport` and read the figures
+// the documents carry.
+//
 // The list at the bottom is what CTest runs, so an entry absent from it never
 // runs, and `argv[1]` selects one entry of it. Frameworkless check()/fail()
 // convention, the one `harness_pass_plan_test.cpp` carries.
@@ -46,6 +54,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -53,10 +63,24 @@
 #include <vector>
 
 #include "detail/hunt_fixture.hpp"
+#include "detail/hunt_ranks.hpp"
 #include "detail/statistics.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/hunt.hpp"
+
+// ---------------------------------------------------------------------------
+// The family surface of specs/040-hunter-sensitivity (T018, FR-001, FR-002;
+// contracts/hunt-ranks-api.md B-4, D-2)
+//
+// `detail/hunt_ranks.hpp` declares the family grouping, the sensitivity
+// stamp, the delta stamp, the baseline extraction, the norm check and
+// the rank assignment beside `detail/statistics.hpp`, and
+// `source/harness/hunt_ranks.cpp` defines them; T022 lifted the family
+// block of this file into the header, T023 lifted the baseline block,
+// T024 lifted the delta declaration and T025 lifted the rank
+// declaration, each with the signature the rows pinned.
+// ---------------------------------------------------------------------------
 
 namespace
 {
@@ -1426,6 +1450,802 @@ auto slopeSharedSums() -> void
         "the slope is not the quotient of two sums alone");
 }
 
+// ---------------------------------------------------------------------------
+// The family and stamp rows (specs/040-hunter-sensitivity T018, red;
+// FR-001, FR-002; contracts/hunt-ranks-api.md B-4, D-2)
+//
+// The surface stands declared beside the includes; its definitions land
+// with T022 and the link of this file answers the red until then. The
+// rows run the surface over records built in place, the figures the
+// fixture document `test/data/hunt_ranks/family.json` carries: the four
+// entries `bmHuntFamily/args:1` to `args:4`, the aggregate times 100.0
+// to 250.0 ns, the `event.alpha` rates 100.0 to 400.0 and the
+// `event.beta` rates of the three entries that measured it. The case
+// names stand in the spelling `deriveSuiteAndCase` answers, the args
+// segment included, the form the family of D-2 spans over distinct
+// args. The stamp rows derive the correlation and the slope from the
+// standing helpers over the points the grouping assembled, the way the
+// shared-summary row reads its figures (I-6), and the exact-line
+// figures of the fixture carry one bit pattern, so the rows read their
+// answers with no tolerance band.
+// ---------------------------------------------------------------------------
+
+// One family entry the rows read: the suite and the case name of the
+// record, one aggregate row at the time per iteration given, and one
+// hunt record per (address, rate) pair given. The shape is the shape
+// the run's stamping pass reads (B-4).
+[[nodiscard]] auto familyEntry(
+    const std::string& suite,
+    const std::string& caseName,
+    const double timePerIteration,
+    const std::vector<std::pair<std::string, double>>& events)
+    -> sg::BenchmarkResult
+{
+  auto result = sg::BenchmarkResult {};
+  result.name = suite + "/" + caseName;
+  result.suite = suite;
+  result.caseName = caseName;
+  auto aggregate = sg::ResultRow {};
+  aggregate.kind = sg::RowKind::AGGREGATE;
+  aggregate.timePerIterationNs = timePerIteration;
+  result.rows.push_back(aggregate);
+  auto hunt = sg::hunt::EntryHunt {};
+  for (const auto& [address, rate] : events) {
+    auto record = sg::hunt::RankedEvent {};
+    record.address = address;
+    record.rate = rate;
+    hunt.entries.push_back(record);
+  }
+  result.hunt = hunt;
+  return result;
+}
+
+// The four entries of the fixture document family.json, built in place
+// in entry order.
+[[nodiscard]] auto fixtureFamily() -> std::vector<sg::BenchmarkResult>
+{
+  return {familyEntry("bmHuntFamily",
+                      "args:1",
+                      100.0,
+                      {{"event.alpha", 100.0}, {"event.beta", 150.0}}),
+          familyEntry("bmHuntFamily", "args:2", 150.0, {{"event.alpha", 200.0}}),
+          familyEntry("bmHuntFamily",
+                      "args:3",
+                      200.0,
+                      {{"event.alpha", 300.0}, {"event.beta", 450.0}}),
+          familyEntry("bmHuntFamily",
+                      "args:4",
+                      250.0,
+                      {{"event.alpha", 400.0}, {"event.beta", 600.0}})};
+}
+
+// The points of one event address sorted by the time figure, the form
+// the row comparisons read.
+[[nodiscard]] auto pointsByTime(std::vector<std::pair<double, double>> points)
+    -> std::vector<std::pair<double, double>>
+{
+  std::ranges::sort(points, std::less<double> {},
+                    &std::pair<double, double>::first);
+  return points;
+}
+
+// The entries of one suite and case name group stand one family (B-4,
+// D-2): the fixture's four entries, whose case names carry the args the
+// family spans, answer one family whose alpha points cover every entry
+// and whose beta points stand over the three entries that measured the
+// event.
+auto familyGroupOneFamily() -> void
+{
+  const auto families = sg::detail::familyGroups(fixtureFamily());
+
+  check(families.size() == 1,
+        "the four entries of one family stand one family");
+  check(families.front().events.size() == 2,
+        "the family carries the two event addresses its entries measured");
+  const auto& alpha = families.front().events.at("event.alpha");
+  check(alpha.size() == 4,
+        "every entry that measured the event stands one point");
+  const std::vector<std::pair<double, double>> kAlphaPoints {
+      {100.0, 100.0}, {150.0, 200.0}, {200.0, 300.0}, {250.0, 400.0}};
+  check(pointsByTime(alpha) == kAlphaPoints,
+        "an alpha point carries the aggregate time and the rate of one entry");
+  const auto& beta = families.front().events.at("event.beta");
+  check(beta.size() == 3,
+        "the three entries that measured the event stand three points");
+  const std::vector<std::pair<double, double>> kBetaPoints {
+      {100.0, 150.0}, {200.0, 450.0}, {250.0, 600.0}};
+  check(pointsByTime(beta) == kBetaPoints,
+        "the beta points stand over the entries that measured the event");
+}
+
+// The grouping reads the suite and the case name (B-4): two cases of
+// one suite stand two families, and two suites stand two families
+// however their case names read.
+auto familyGroupSuiteAndCase() -> void
+{
+  const std::vector<sg::BenchmarkResult> cases {
+      familyEntry("bmFixture", "caseA/args:1", 100.0,
+                  {{"event.alpha", 300.0}}),
+      familyEntry("bmFixture", "caseB/args:1", 200.0,
+                  {{"event.alpha", 500.0}}),
+  };
+  check(sg::detail::familyGroups(cases).size() == 2,
+        "two cases of one suite stand two families");
+
+  const std::vector<sg::BenchmarkResult> suites {
+      familyEntry("bmOne", "args:1", 100.0, {{"event.alpha", 300.0}}),
+      familyEntry("bmTwo", "args:1", 200.0, {{"event.alpha", 500.0}}),
+  };
+  const auto families = sg::detail::familyGroups(suites);
+  check(families.size() == 2, "two suites stand two families");
+
+  auto points = std::vector<std::pair<double, double>> {};
+  for (const auto& family : families) {
+    const auto found = family.events.find("event.alpha");
+    check(found != family.events.end() && found->second.size() == 1,
+          "each family carries the one point its one entry measured");
+    points.push_back(found->second.front());
+  }
+  const std::vector<std::pair<double, double>> kTwoPoints {
+      {100.0, 300.0}, {200.0, 500.0}};
+  check(pointsByTime(points) == kTwoPoints,
+        "each family carries its own entry's figures");
+}
+
+// The stamp answers the family's figures on every record that measured
+// the event (FR-001, B-4): the alpha records of all four entries carry
+// the alpha figures and the beta records the beta figures, each the
+// figure the standing helpers answer over the points the grouping
+// assembled, and the fixture's exact lines answer one bit pattern.
+auto familyStampFigures() -> void
+{
+  const auto results = fixtureFamily();
+  const auto families = sg::detail::familyGroups(results);
+  const auto& alphaPoints = families.front().events.at("event.alpha");
+  const auto& betaPoints = families.front().events.at("event.beta");
+  const auto alphaCorrelation = sg::detail::spearmanCorrelation(alphaPoints);
+  const auto alphaSlope = sg::detail::leastSquaresSlope(alphaPoints);
+  const auto betaCorrelation = sg::detail::spearmanCorrelation(betaPoints);
+  const auto betaSlope = sg::detail::leastSquaresSlope(betaPoints);
+  check(alphaCorrelation.has_value() && alphaSlope.has_value(),
+        "the alpha point set answers both figures");
+  check(betaCorrelation.has_value() && betaSlope.has_value(),
+        "the beta point set answers both figures");
+
+  auto stamped = fixtureFamily();
+  sg::detail::stampSensitivity(stamped);
+  check(stamped.size() == results.size(),
+        "the stamp keeps the entries the run measured");
+  for (std::size_t index = 0; index < stamped.size(); ++index) {
+    const auto& source = results[index].hunt->entries;
+    auto& records = stamped[index].hunt->entries;
+    check(source.size() == records.size(),
+          "the stamp keeps the records of every entry");
+    for (std::size_t row = 0; row < records.size(); ++row) {
+      check(source[row].address == records[row].address,
+            "the stamp keeps the address of every record");
+      check(sameDouble(source[row].rate, records[row].rate),
+            "the stamp changes no rate of any record");
+      if (records[row].address == "event.alpha") {
+        check(records[row].sensitivityCorrelation == alphaCorrelation,
+              "the alpha record carries the family's correlation");
+        check(records[row].sensitivitySlope == alphaSlope,
+              "the alpha record carries the family's slope");
+        check(sameDouble(*records[row].sensitivityCorrelation, 1.0),
+              "the strictly monotone alpha points answer 1");
+        check(sameDouble(*records[row].sensitivitySlope, 2.0),
+              "the exact alpha line answers its slope 2");
+      }
+      if (records[row].address == "event.beta") {
+        check(records[row].sensitivityCorrelation == betaCorrelation,
+              "the beta record carries the family's correlation");
+        check(records[row].sensitivitySlope == betaSlope,
+              "the beta record carries the family's slope");
+        check(sameDouble(*records[row].sensitivitySlope, 3.0),
+              "the exact beta line answers its slope 3");
+      }
+    }
+  }
+}
+
+// A family under 3 points leaves both sensitivity fields empty (FR-002,
+// B-4): two entries of one family stand no figure on either record, and
+// an event two of four entries measured stands no figure beside the
+// filled alpha records of the same family.
+auto familyStampUnderThree() -> void
+{
+  auto pair = std::vector<sg::BenchmarkResult> {
+      familyEntry("bmHuntFamily", "args:1", 100.0, {{"event.alpha", 100.0}}),
+      familyEntry("bmHuntFamily", "args:2", 150.0, {{"event.alpha", 400.0}}),
+  };
+  sg::detail::stampSensitivity(pair);
+  for (const auto& result : pair) {
+    for (const auto& entry : result.hunt->entries) {
+      check(!entry.sensitivityCorrelation.has_value()
+                && !entry.sensitivitySlope.has_value(),
+            "two points stand both sensitivity fields empty");
+    }
+  }
+
+  auto four = std::vector<sg::BenchmarkResult> {
+      familyEntry("bmHuntFamily",
+                  "args:1",
+                  100.0,
+                  {{"event.alpha", 100.0}, {"event.gamma", 150.0}}),
+      familyEntry("bmHuntFamily",
+                  "args:2",
+                  150.0,
+                  {{"event.alpha", 200.0}, {"event.gamma", 450.0}}),
+      familyEntry("bmHuntFamily", "args:3", 200.0, {{"event.alpha", 300.0}}),
+      familyEntry("bmHuntFamily", "args:4", 250.0, {{"event.alpha", 400.0}}),
+  };
+  sg::detail::stampSensitivity(four);
+  for (const auto& result : four) {
+    for (const auto& entry : result.hunt->entries) {
+      if (entry.address == "event.gamma") {
+        check(!entry.sensitivityCorrelation.has_value()
+                  && !entry.sensitivitySlope.has_value(),
+              "two measured points stand the gamma fields empty");
+      }
+      if (entry.address == "event.alpha") {
+        check(entry.sensitivityCorrelation.has_value()
+                  && entry.sensitivitySlope.has_value(),
+              "the four alpha points stand filled beside the gamma empties");
+      }
+    }
+  }
+}
+
+// A point set with no spread in either coordinate stands both
+// sensitivity fields empty (FR-002, D-2): a family of four entries
+// whose alpha rates stand equal, and one whose alpha times stand equal,
+// each leave the fields of every alpha record empty.
+auto familyStampNoSpread() -> void
+{
+  auto flatRates = std::vector<sg::BenchmarkResult> {
+      familyEntry("bmHuntFamily", "args:1", 100.0, {{"event.alpha", 300.0}}),
+      familyEntry("bmHuntFamily", "args:2", 150.0, {{"event.alpha", 300.0}}),
+      familyEntry("bmHuntFamily", "args:3", 200.0, {{"event.alpha", 300.0}}),
+      familyEntry("bmHuntFamily", "args:4", 250.0, {{"event.alpha", 300.0}}),
+  };
+  sg::detail::stampSensitivity(flatRates);
+  for (const auto& result : flatRates) {
+    for (const auto& entry : result.hunt->entries) {
+      check(!entry.sensitivityCorrelation.has_value()
+                && !entry.sensitivitySlope.has_value(),
+            "a constant rate stands both sensitivity fields empty");
+    }
+  }
+
+  auto flatTimes = std::vector<sg::BenchmarkResult> {
+      familyEntry("bmHuntFamily", "args:1", 150.0, {{"event.alpha", 100.0}}),
+      familyEntry("bmHuntFamily", "args:2", 150.0, {{"event.alpha", 200.0}}),
+      familyEntry("bmHuntFamily", "args:3", 150.0, {{"event.alpha", 300.0}}),
+      familyEntry("bmHuntFamily", "args:4", 150.0, {{"event.alpha", 400.0}}),
+  };
+  sg::detail::stampSensitivity(flatTimes);
+  for (const auto& result : flatTimes) {
+    for (const auto& entry : result.hunt->entries) {
+      check(!entry.sensitivityCorrelation.has_value()
+                && !entry.sensitivitySlope.has_value(),
+            "a constant time stands both sensitivity fields empty");
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The baseline rows (specs/040-hunter-sensitivity T019, red; FR-003,
+// FR-005; contracts/hunt-ranks-api.md B-5, D-6)
+//
+// The surface stands declared beside the includes; its definitions land
+// with T023 in `source/harness/hunt_ranks.cpp` and the link of this file
+// answers the red until then. The rows load the T001 fixtures of
+// `test/data/hunt_ranks/` through `loadReport` and read the figures the
+// documents carry, the way the family rows read theirs.
+// ---------------------------------------------------------------------------
+
+// The directory the T001 fixtures stand in, reached from the compiled
+// path of this source file: the guard is the shape the
+// `dataPath` helper of `harness_hunt_json_test.cpp` runs, the schema
+// tail swapped for this file's own.
+[[nodiscard]] auto huntRanksFixturePath(const std::string& name)
+    -> std::string
+{
+  constexpr std::string_view kSourceTail =
+      "/test/source/harness_hunt_rank_test.cpp";
+  const std::string_view file = __FILE__;
+  check(file.size() > kSourceTail.size() && file.ends_with(kSourceTail),
+        "the compiled source path stands in the source tree");
+  const auto directory =
+      std::filesystem::path(file.substr(0, file.size() - kSourceTail.size()))
+      / "test" / "data" / "hunt_ranks";
+  return (directory / name).string();
+}
+
+// One loaded fixture document: the value `loadReport` answers for the
+// fixture `name`. A document the reader refuses fails the row at the
+// check above.
+[[nodiscard]] auto loadHuntRanksFixture(const std::string& name)
+    -> sg::ReportData
+{
+  auto loaded = sg::loadReport(huntRanksFixturePath(name));
+  if (!loaded.has_value()) {
+    std::fprintf(stderr, "FIXTURE LOAD ERROR [%s]: %s\n", name.c_str(),
+                 loaded.error().c_str());
+  }
+  check(loaded.has_value(), "the fixture loads through loadReport");
+  return std::move(loaded).value();
+}
+
+// The extraction reads the matched entry's hunt rates by catalog
+// address (B-5, FR-003): the three rates of the rates fixture stand the
+// document's own figures, and the match runs by the full instance name
+// the compare mode pairs under (R-2).
+auto baselineRatesByAddress() -> void
+{
+  const auto baseline = loadHuntRanksFixture("baseline_rates.json");
+  check(baseline.results.size() == 1,
+        "the document carries one benchmark");
+  const auto& matched = baseline.results.front();
+  check(matched.hunt.has_value(),
+        "the matched entry carries a hunt object");
+  const auto rates = sg::detail::baselineHuntRates(baseline, matched.name);
+  check(rates.size() == 3,
+        "the extraction reads every hunt entry the match carries");
+  check(sameDouble(rates.at("event.alpha"), 1000.0),
+        "the alpha rate stands the document's own figure");
+  check(sameDouble(rates.at("event.beta"), 2000.0),
+        "the beta rate stands the document's own figure");
+  check(sameDouble(rates.at("event.gamma"), 500.0),
+        "the gamma rate stands the document's own figure");
+}
+
+// A matched entry whose hunt object stands absent answers an empty map
+// (B-5, D-5): the document carries no rate for the extraction to read,
+// the shape the delta disclosure of B-6 reads.
+auto baselineRatesNoHunt() -> void
+{
+  const auto baseline = loadHuntRanksFixture("baseline_no_entry_hunt.json");
+  check(baseline.results.size() == 1,
+        "the document carries one benchmark");
+  check(!baseline.results.front().hunt.has_value(),
+        "the matched entry carries no hunt object");
+  const auto rates = sg::detail::baselineHuntRates(baseline, "bmHuntRanks");
+  check(rates.empty(), "no hunt object leaves no rate to read");
+}
+
+// A rate at zero stands read at its address (B-5, D-5): the figure the
+// delta stamp of B-6 leaves the field empty on, read here as the value
+// the document carries.
+auto baselineRatesZeroRate() -> void
+{
+  const auto baseline = loadHuntRanksFixture("baseline_zero_rate.json");
+  const auto rates = sg::detail::baselineHuntRates(baseline, "bmHuntRanks");
+  check(rates.size() == 2,
+        "the extraction reads both hunt entries the match carries");
+  check(sameDouble(rates.at("event.zero"), 0.0),
+        "the rate at zero stands the document's own figure");
+  check(sameDouble(rates.at("event.alpha"), 1000.0),
+        "the alpha rate stands the document's own figure");
+}
+
+// The norm-pair check answers the mismatch text the refusal prints
+// (B-5, FR-005): a baseline whose top-level hunt object names `cycle`
+// against a run that settled `instr` answers one line naming the
+// mismatch and both words, the pair that names the settled norm
+// answers empty, and the rates fixture pairs with the run that settled
+// its own norm.
+auto baselineNormMismatchText() -> void
+{
+  const auto mismatch = loadHuntRanksFixture("baseline_norm_mismatch.json");
+  check(mismatch.hunt.has_value()
+            && mismatch.hunt->options.norm.has_value()
+            && *mismatch.hunt->options.norm == sg::hunt::HuntNorm::CYCLE,
+        "the fixture's top-level hunt object names the cycle norm");
+  const auto text =
+      sg::detail::baselineNormMismatch(mismatch, sg::hunt::HuntNorm::INSTR);
+  check(text.has_value(), "the mismatched pair answers one line");
+  check(text->find("cycle") != std::string::npos
+            && text->find("instr") != std::string::npos,
+        "the mismatch line names both norms the pair carries");
+  check(!sg::detail::baselineNormMismatch(mismatch, sg::hunt::HuntNorm::CYCLE)
+             .has_value(),
+        "the pair that names the settled norm answers no mismatch");
+
+  const auto rates = loadHuntRanksFixture("baseline_rates.json");
+  check(!sg::detail::baselineNormMismatch(rates, sg::hunt::HuntNorm::INSTR)
+             .has_value(),
+        "the rates fixture pairs with the run that settled instr");
+}
+
+// ---------------------------------------------------------------------------
+// The delta rows (specs/040-hunter-sensitivity T020, red; FR-004;
+// contracts/hunt-ranks-api.md B-6, A-5, D-5)
+//
+// The stamp stands declared beside the includes; its definition lands
+// with T024 in `source/harness/hunt_ranks.cpp` and the link of this
+// file answers the red until then. The rows reuse the extraction of
+// T019 over the same T001 fixtures: the baseline side stands the map
+// `baselineHuntRates` answers, and the contender side stands built in
+// place the way the family rows build theirs.
+// ---------------------------------------------------------------------------
+
+// The matched pair stands the signed percent of A-5 (B-6, FR-003): the
+// alpha record stands above its baseline rate, the beta and the gamma
+// records stand below theirs, each delta the formula answers over the
+// two figures the pair carries, and every record of the matched
+// address the run's entries hold carries the figure.
+auto deltaStampMatchedPair() -> void
+{
+  const auto document = loadHuntRanksFixture("baseline_rates.json");
+  const auto baseline = sg::detail::baselineHuntRates(document, "bmHuntRanks");
+  check(baseline.size() == 3,
+        "the extraction reads the three rates the match carries");
+
+  auto stamped = std::vector<sg::BenchmarkResult> {
+      familyEntry("bmHuntRanks",
+                  "args:1",
+                  100.0,
+                  {{"event.alpha", 1500.0},
+                   {"event.beta", 1000.0},
+                   {"event.gamma", 750.0}}),
+      familyEntry("bmHuntRanks",
+                  "args:2",
+                  150.0,
+                  {{"event.alpha", 1500.0}, {"event.gamma", 750.0}}),
+  };
+  sg::detail::stampDelta(stamped, baseline);
+
+  for (const auto& result : stamped) {
+    for (const auto& record : result.hunt->entries) {
+      const double baselineRate = baseline.at(record.address);
+      check(record.delta.has_value(),
+            "the matched record carries the delta the pair answers");
+      check(sameDouble(*record.delta,
+                       kPercentScale * (record.rate - baselineRate)
+                           / baselineRate),
+            "the delta stands the signed percent of A-5");
+    }
+  }
+  const std::string kAlpha {"event.alpha"};
+  const std::string kBeta {"event.beta"};
+  check(*entryOf(stamped.front().hunt.value(), kAlpha).delta > 0.0,
+        "the contender above its baseline stands a positive delta");
+  check(*entryOf(stamped.front().hunt.value(), kBeta).delta < 0.0,
+        "the contender below its baseline stands a negative delta");
+}
+
+// A figure the match does not find stands the disclosure (B-6, D-5):
+// the contender address the baseline holds none of leaves its field
+// empty, the baseline address no contender record carries fills
+// nothing, and the call changes no other field of any record.
+auto deltaStampMissingMatch() -> void
+{
+  const auto document = loadHuntRanksFixture("baseline_rates.json");
+  const auto baseline = sg::detail::baselineHuntRates(document, "bmHuntRanks");
+
+  const auto source = std::vector<sg::BenchmarkResult> {
+      familyEntry("bmHuntRanks",
+                  "args:1",
+                  100.0,
+                  {{"event.alpha", 1500.0}, {"event.other", 400.0}}),
+  };
+  auto stamped = source;
+  auto widened = baseline;
+  widened["event.lonely"] = 900.0;
+  sg::detail::stampDelta(stamped, widened);
+
+  const double kBaselineAlpha = baseline.at("event.alpha");
+  const std::string kAlpha {"event.alpha"};
+  const std::string kOther {"event.other"};
+  const auto& other = entryOf(stamped.front().hunt.value(), kOther);
+  check(!other.delta.has_value(),
+        "the contender address the baseline holds none of stands empty");
+  const auto& alpha = entryOf(stamped.front().hunt.value(), kAlpha);
+  check(alpha.delta.has_value()
+            && sameDouble(*alpha.delta,
+                          kPercentScale * (1500.0 - kBaselineAlpha)
+                              / kBaselineAlpha),
+        "the matched address stands its delta beside the missing one");
+  for (std::size_t index = 0; index < stamped.size(); ++index) {
+    const auto& kept = source[index].hunt->entries;
+    auto& records = stamped[index].hunt->entries;
+    check(kept.size() == records.size(),
+          "the stamp keeps the records of every entry");
+    for (std::size_t row = 0; row < records.size(); ++row) {
+      check(kept[row].address == records[row].address,
+            "the stamp keeps the address of every record");
+      check(sameDouble(kept[row].rate, records[row].rate),
+            "the stamp changes no rate of any record");
+    }
+  }
+  check(stamped.front().hunt->entries.size() == 2,
+        "the baseline address no record carries adds none");
+}
+
+// The baseline side's missing figures stand the disclosure (B-6, D-5):
+// an extraction that answers no rate, the answer a matched entry
+// without a hunt object produces, leaves every delta empty, and a
+// baseline rate at or below zero leaves the delta of its record empty.
+auto deltaStampBaselineGaps() -> void
+{
+  const auto noHunt = loadHuntRanksFixture("baseline_no_entry_hunt.json");
+  const auto empty = sg::detail::baselineHuntRates(noHunt, "bmHuntRanks");
+  check(empty.empty(), "the extraction answers no rate for the match");
+  auto stamped = std::vector<sg::BenchmarkResult> {
+      familyEntry("bmHuntRanks", "args:1", 100.0, {{"event.alpha", 1500.0}}),
+  };
+  sg::detail::stampDelta(stamped, empty);
+  for (const auto& result : stamped) {
+    for (const auto& record : result.hunt->entries) {
+      check(!record.delta.has_value(),
+            "an empty baseline answer stands every delta empty");
+    }
+  }
+
+  const auto zeroed = loadHuntRanksFixture("baseline_zero_rate.json");
+  const auto baseline = sg::detail::baselineHuntRates(zeroed, "bmHuntRanks");
+  auto paired = std::vector<sg::BenchmarkResult> {
+      familyEntry("bmHuntRanks",
+                  "args:1",
+                  100.0,
+                  {{"event.alpha", 1500.0}, {"event.zero", 300.0}}),
+  };
+  sg::detail::stampDelta(paired, baseline);
+  const double kBaselineAlpha = baseline.at("event.alpha");
+  const std::string kAlpha {"event.alpha"};
+  const std::string kZero {"event.zero"};
+  const auto& alpha = entryOf(paired.front().hunt.value(), kAlpha);
+  check(alpha.delta.has_value()
+            && sameDouble(*alpha.delta,
+                          kPercentScale * (1500.0 - kBaselineAlpha)
+                              / kBaselineAlpha),
+        "the pair at a positive baseline rate stands its delta");
+  const auto& zero = entryOf(paired.front().hunt.value(), kZero);
+  check(!zero.delta.has_value(),
+        "the record at a baseline rate of zero stands its delta empty");
+
+  auto below = std::vector<sg::BenchmarkResult> {
+      familyEntry("bmHuntRanks", "args:1", 100.0, {{"event.alpha", 1500.0}}),
+  };
+  const std::map<std::string, double> negative {{"event.alpha", -500.0}};
+  sg::detail::stampDelta(below, negative);
+  check(!entryOf(below.front().hunt.value(), kAlpha).delta.has_value(),
+        "the record at a negative baseline rate stands its delta empty");
+}
+
+// ---------------------------------------------------------------------------
+// The rank rows (specs/040-hunter-sensitivity T021, T025; FR-011;
+// contracts/hunt-ranks-api.md B-7, A-3, A-4, D-3)
+//
+// The header declares the stamp and `source/harness/hunt_ranks.cpp`
+// defines it (T025). The rows run the rank stamp over
+// records built in place, the figures set on the records the way the
+// stamping pass of B-7 leaves them, and read the ranks the stamp
+// assigns. The standing `rankEvents` keeps its `rate` and `cv` keys,
+// so the rows pin the batch pass that ranks under the two new keys and
+// no change inside `rankEvents`.
+// ---------------------------------------------------------------------------
+
+// The nominal aggregate time of a rank-row entry: the batch pass reads
+// no time figure, so one value stands the row the entry shape carries.
+constexpr double kRankRowTime = 100.0;
+
+// One record of the rank rows: the address and the figures the record
+// carries, each field left empty when the case names none.
+struct RankCase
+{
+  std::string address;
+  std::optional<double> correlation;
+  std::optional<double> slope;
+  std::optional<double> delta;
+  bool noisy = false;
+};
+
+// One entry of the rank rows: one aggregate row at the nominal time,
+// and one record per case given, the figures the case names set on it.
+// The shape is the shape the batch pass reads (B-7).
+[[nodiscard]] auto rankEntry(const std::string& suite,
+                             const std::string& caseName,
+                             const std::vector<RankCase>& cases)
+    -> sg::BenchmarkResult
+{
+  auto result = familyEntry(suite, caseName, kRankRowTime, {});
+  auto& records = result.hunt.value().entries;
+  for (const auto& figure : cases) {
+    auto record = sg::hunt::RankedEvent {};
+    record.address = figure.address;
+    record.sensitivityCorrelation = figure.correlation;
+    record.sensitivitySlope = figure.slope;
+    record.delta = figure.delta;
+    record.noisy = figure.noisy;
+    records.push_back(record);
+  }
+  return result;
+}
+
+// The `sensitivity` key orders by the correlation descending, ties by
+// the slope and then the catalog address (B-7, D-3): two records carry
+// one correlation and one slope at two addresses, a third tie carries
+// the same correlation at a lower slope, and the lowest correlation
+// carries the highest slope, so neither the slope alone nor the
+// address order answers the table. The address both entries measured
+// carries its rank on both records, and the record that carries only
+// the delta figure stands unranked (A-4).
+auto rankSensitivityOrder() -> void
+{
+  const std::string kAlpha {"event.alpha"};
+  const std::string kBeta {"event.beta"};
+  const std::string kGamma {"event.gamma"};
+  const std::string kTheta {"event.theta"};
+  const std::string kIota {"event.iota"};
+  const std::string kKappa {"event.kappa"};
+
+  const auto results = std::vector<sg::BenchmarkResult> {
+      rankEntry("bmHuntRank",
+                "args:1",
+                {RankCase {kAlpha, 0.9, 1.0, std::nullopt},
+                 RankCase {kBeta, 0.5, 2.0, std::nullopt},
+                 RankCase {kGamma, 0.5, 2.0, std::nullopt},
+                 RankCase {kTheta, 0.5, 1.0, std::nullopt},
+                 RankCase {kIota, -0.5, 9.0, std::nullopt},
+                 RankCase {kKappa, std::nullopt, std::nullopt, 40.0}}),
+      rankEntry("bmHuntRank",
+                "args:2",
+                {RankCase {kAlpha, 0.9, 1.0, std::nullopt},
+                 RankCase {kKappa, std::nullopt, std::nullopt, 40.0}}),
+  };
+  auto stamped = results;
+  sg::detail::stampRank(stamped, sg::hunt::HuntRank::SENSITIVITY);
+
+  for (const auto& result : stamped) {
+    const auto& alpha = entryOf(result.hunt.value(), kAlpha);
+    check(alpha.rank.has_value() && *alpha.rank == 1,
+          "every record of the top address carries the first rank");
+  }
+  const std::vector<std::string> kOrder {kBeta, kGamma, kTheta, kIota};
+  const std::vector<std::size_t> kRanks {2, 3, 4, 5};
+  for (std::size_t index = 0; index < kOrder.size(); ++index) {
+    const auto& rank =
+        entryOf(stamped.front().hunt.value(), kOrder[index]).rank;
+    check(rank.has_value() && *rank == kRanks[index],
+          "the sensitivity order ranks the correlations descending, "
+          "ties by the slope and then the address");
+  }
+  check(!entryOf(stamped.front().hunt.value(), kKappa).rank.has_value(),
+        "the record that carries no correlation stands unranked");
+  check(*entryOf(stamped.front().hunt.value(), kBeta).rank == 2
+            && *entryOf(stamped.front().hunt.value(), kGamma).rank == 3,
+        "the tie on one correlation and one slope breaks by the address");
+  check(*entryOf(stamped.front().hunt.value(), kTheta).rank == 4,
+        "the tie on one correlation alone breaks by the slope");
+  check(*entryOf(stamped.front().hunt.value(), kIota).rank == 5,
+        "the lowest correlation ranks last beside the highest slope");
+  check(sameDouble(*entryOf(stamped.front().hunt.value(), kAlpha)
+                       .sensitivityCorrelation,
+                   0.9)
+            && sameDouble(*entryOf(stamped.back().hunt.value(), kKappa).delta,
+                          40.0),
+        "the stamp changes no figure of any record");
+}
+
+// The `delta` key orders by the magnitude of the delta descending,
+// ties by the catalog address (B-7, D-3): the largest magnitude
+// carries a negative delta, so the sign stands beside the magnitude
+// and the order reads the magnitude alone, and the tie pair carries
+// one magnitude at two addresses under opposite signs. The record
+// that carries only the sensitivity figures stands unranked (A-4).
+auto rankDeltaOrder() -> void
+{
+  const std::string kDrop {"event.drop"};
+  const std::string kRise {"event.rise"};
+  const std::string kTieFirst {"event.alpha"};
+  const std::string kTieSecond {"event.beta"};
+  const std::string kQuiet {"event.quiet"};
+
+  const auto results = std::vector<sg::BenchmarkResult> {
+      rankEntry("bmHuntRank",
+                "args:1",
+                {RankCase {kDrop, std::nullopt, std::nullopt, -75.0},
+                 RankCase {kRise, std::nullopt, std::nullopt, 50.0},
+                 RankCase {kTieFirst, 0.8, 2.0, 25.0},
+                 RankCase {kTieSecond, std::nullopt, std::nullopt, -25.0},
+                 RankCase {kQuiet, 0.8, 2.0, std::nullopt}}),
+  };
+  auto stamped = results;
+  sg::detail::stampRank(stamped, sg::hunt::HuntRank::DELTA);
+
+  const std::vector<std::string> kOrder {kDrop, kRise, kTieFirst, kTieSecond};
+  const std::vector<std::size_t> kRanks {1, 2, 3, 4};
+  for (std::size_t index = 0; index < kOrder.size(); ++index) {
+    const auto& rank =
+        entryOf(stamped.front().hunt.value(), kOrder[index]).rank;
+    check(rank.has_value() && *rank == kRanks[index],
+          "the delta order ranks the magnitudes descending");
+  }
+  check(!entryOf(stamped.front().hunt.value(), kQuiet).rank.has_value(),
+        "the record that carries no delta stands unranked");
+  check(*entryOf(stamped.front().hunt.value(), kTieFirst).rank == 3
+            && *entryOf(stamped.front().hunt.value(), kTieSecond).rank == 4,
+        "the tie on one magnitude breaks by the address");
+  check(sameDouble(*entryOf(stamped.front().hunt.value(), kDrop).delta, -75.0),
+        "the stamp changes no figure of any record");
+}
+
+// A noisy event stands unranked under both keys (A-3): the loud
+// record carries the top figure of either key, and both calls leave
+// its rank empty while the clean records carry the ranks 1 and 2 with
+// no gap, so the noisy event stands out of the ranked set entirely.
+auto rankNoisyUnranked() -> void
+{
+  const std::string kLoud {"event.loud"};
+  const std::string kFirst {"event.first"};
+  const std::string kSecond {"event.second"};
+
+  const auto results = std::vector<sg::BenchmarkResult> {
+      rankEntry("bmHuntRank",
+                "args:1",
+                {RankCase {kLoud, 0.99, 9.0, 90.0, true},
+                 RankCase {kFirst, 0.5, 1.0, 10.0},
+                 RankCase {kSecond, 0.1, 1.0, 5.0}}),
+  };
+
+  auto bySensitivity = results;
+  sg::detail::stampRank(bySensitivity, sg::hunt::HuntRank::SENSITIVITY);
+  auto byDelta = results;
+  sg::detail::stampRank(byDelta, sg::hunt::HuntRank::DELTA);
+
+  for (const auto& stamped : {bySensitivity, byDelta}) {
+    const auto& entries = stamped.front().hunt->entries;
+    check(entries.size() == 3, "the stamp keeps the records of the entry");
+    check(!entryOf(stamped.front().hunt.value(), kLoud).rank.has_value(),
+          "a noisy event stands unranked beside the top figure");
+    const auto& first = entryOf(stamped.front().hunt.value(), kFirst).rank;
+    const auto& second = entryOf(stamped.front().hunt.value(), kSecond).rank;
+    check(first.has_value() && *first == 1 && second.has_value()
+              && *second == 2,
+          "the clean records carry the ranks 1 to 2 with no gap");
+  }
+}
+
+// An event set that stands empty under the key answers the standing
+// order with empty rank fields (B-7): no record carries a figure of
+// either key, so both calls rank nothing and reorder nothing, the
+// shape the console prints in the standing order with exit 0.
+auto rankEmptySet() -> void
+{
+  const std::string kAlpha {"event.alpha"};
+  const std::string kBeta {"event.beta"};
+  const std::string kGamma {"event.gamma"};
+
+  const auto results = std::vector<sg::BenchmarkResult> {
+      rankEntry("bmHuntRank",
+                "args:1",
+                {RankCase {kAlpha, std::nullopt, std::nullopt, std::nullopt},
+                 RankCase {kBeta, std::nullopt, std::nullopt, std::nullopt}}),
+      rankEntry("bmHuntRank",
+                "args:2",
+                {RankCase {kGamma, std::nullopt, std::nullopt, std::nullopt}}),
+  };
+
+  auto bySensitivity = results;
+  sg::detail::stampRank(bySensitivity, sg::hunt::HuntRank::SENSITIVITY);
+  auto byDelta = results;
+  sg::detail::stampRank(byDelta, sg::hunt::HuntRank::DELTA);
+
+  for (const auto& stamped : {bySensitivity, byDelta}) {
+    for (std::size_t index = 0; index < results.size(); ++index) {
+      check(addressesOf(stamped[index].hunt.value())
+                == addressesOf(results[index].hunt.value()),
+            "the empty set stands the entries in the order they hold");
+      for (const auto& record : stamped[index].hunt->entries) {
+        check(!record.rank.has_value(),
+              "no record of an empty set carries a rank");
+      }
+    }
+  }
+}
+
 struct Scenario
 {
   std::string_view name;
@@ -1468,6 +2288,22 @@ struct Scenario
       Scenario {"correlation-under-three", correlationUnderThree},
       Scenario {"slope-exact-line", slopeExactLine},
       Scenario {"slope-shared-sums", slopeSharedSums},
+      Scenario {"family-group-one-family", familyGroupOneFamily},
+      Scenario {"family-group-suite-and-case", familyGroupSuiteAndCase},
+      Scenario {"family-stamp-figures", familyStampFigures},
+      Scenario {"family-stamp-under-three", familyStampUnderThree},
+      Scenario {"family-stamp-no-spread", familyStampNoSpread},
+      Scenario {"baseline-rates-by-address", baselineRatesByAddress},
+      Scenario {"baseline-rates-no-hunt", baselineRatesNoHunt},
+      Scenario {"baseline-rates-zero-rate", baselineRatesZeroRate},
+      Scenario {"baseline-norm-mismatch-text", baselineNormMismatchText},
+      Scenario {"delta-stamp-matched-pair", deltaStampMatchedPair},
+      Scenario {"delta-stamp-missing-match", deltaStampMissingMatch},
+      Scenario {"delta-stamp-baseline-gaps", deltaStampBaselineGaps},
+      Scenario {"rank-sensitivity-order", rankSensitivityOrder},
+      Scenario {"rank-delta-order", rankDeltaOrder},
+      Scenario {"rank-noisy-unranked", rankNoisyUnranked},
+      Scenario {"rank-empty-set", rankEmptySet},
   };
   return kList;
 }

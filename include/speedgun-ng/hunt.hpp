@@ -55,9 +55,7 @@ namespace sg::hunt
  * \pre none
  * \post `INSTR` divides by the instructions count of the same pass,
  *       `CYCLE` by the cycles count of the same pass, `ITER` by the
- *       iteration count of the attempt. No enumerator names
- *       `SENSITIVITY`, `DELTA` or `SCORE`: N14b adds those when its method
- *       exists (D-3)
+ *       iteration count of the attempt
  */
 enum class HuntNorm : std::uint8_t
 {
@@ -72,12 +70,18 @@ enum class HuntNorm : std::uint8_t
  * \pre none
  * \post `RATE` orders by median rate descending, `CV` by coefficient
  *       of variation ascending; both break a tie by catalog address,
- *       so one sample list gives one order
+ *       so one sample list gives one order. `SENSITIVITY` orders by
+ *       the correlation descending, ties by the slope and then the
+ *       catalog address; `DELTA` orders by the delta magnitude
+ *       descending, ties by the catalog address (specs/040 FR-010,
+ *       D-3); the batch stamp assigns the two new keys' ranks
  */
 enum class HuntRank : std::uint8_t
 {
   RATE,
-  CV
+  CV,
+  SENSITIVITY,
+  DELTA
 };
 
 /**

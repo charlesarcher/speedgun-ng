@@ -1328,9 +1328,6 @@ struct ScopedValue
   double contender = 0.0;
 };
 
-// The index of the result carrying the full instance name `name`, or the
-// end of the list when none does. A report holds a handful of benchmarks,
-// so the match scans the list directly (FR-008).
 auto indexOfResult(const std::vector<BenchmarkResult>& results,
                    std::string_view name) -> std::size_t
 {

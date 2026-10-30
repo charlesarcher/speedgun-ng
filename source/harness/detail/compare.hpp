@@ -1,6 +1,7 @@
 #ifndef SG_HARNESS_DETAIL_COMPARE_HPP
 #define SG_HARNESS_DETAIL_COMPARE_HPP
 
+#include <cstddef>
 #include <expected>
 #include <string>
 #include <string_view>
@@ -39,6 +40,27 @@ struct CompareExit
   int status;
   bool failed;
 };
+
+/**
+ * @brief The index of the result whose full instance name equals
+ *        `name`, or the size of `results` when none does
+ *        (specs/026 FR-002, FR-008; specs/040 R-2).
+ *
+ * The one name-pairing rule the compare mode and the baseline
+ * extraction of specs/040 share: a report holds a handful of
+ * benchmarks, so the match scans the list directly (FR-008).
+ *
+ * \pre `results` holds no two results under one name, which is what
+ *      the registry guarantees for a run and the reader for a
+ *      document
+ * \post the answer is the index of the one result of `results` whose
+ *       full instance name equals `name`, and stands
+ *       `results.size()` when none does; the call measures nothing
+ *       and reads no clock
+ */
+[[nodiscard]] auto indexOfResult(
+    const std::vector<BenchmarkResult>& results, std::string_view name)
+    -> std::size_t;
 
 /**
  * @brief The comparison core the public call wraps: the version pairing,

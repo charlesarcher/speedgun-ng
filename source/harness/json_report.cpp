@@ -68,12 +68,14 @@ constexpr std::array<std::string_view, 3> kHuntNormWords {
 static_assert(kHuntNormWords.size()
               == std::to_underlying(hunt::HuntNorm::ITER) + 1);
 
-constexpr std::array<std::string_view, 2> kHuntRankWords {
+constexpr std::array<std::string_view, 4> kHuntRankWords {
     "rate",
     "cv",
+    "sensitivity",
+    "delta",
 };
 static_assert(kHuntRankWords.size()
-              == std::to_underlying(hunt::HuntRank::CV) + 1);
+              == std::to_underlying(hunt::HuntRank::DELTA) + 1);
 
 constexpr std::array<std::string_view, 5> kSkippedKindWords {
     "permission-blocked",

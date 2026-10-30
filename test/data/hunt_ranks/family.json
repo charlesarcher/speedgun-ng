@@ -1,0 +1,364 @@
+{
+  "schemaVersion": "1.8",
+  "speedgun": {
+    "version": "0.25.0",
+    "buildType": "Release"
+  },
+  "benchmarks": [
+    {
+      "name": "bmHuntFamily/args:1",
+      "suite": "bmHuntFamily",
+      "case": "bmHuntFamily/args:1",
+      "outcome": "MEASURED",
+      "reason": null,
+      "hideRepetitionRows": false,
+      "timeUnit": "NANOSECONDS",
+      "primaryIsCpu": true,
+      "pauseSamplesFolded": false,
+      "percentilePoints": [],
+      "contexts": [],
+      "rows": [
+        {
+          "kind": "REPETITION",
+          "label": null,
+          "iterations": 8,
+          "timePerIterationNs": 100.0,
+          "cpuTimePerIterationNs": 100.0,
+          "endpointSamples": 8,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": null,
+          "overheadFloorNs": 0.0,
+          "percentiles": [],
+          "chunkCount": 0,
+          "chunkIterations": 0,
+          "timeStats": null,
+          "metricStats": []
+        },
+        {
+          "kind": "AGGREGATE",
+          "label": null,
+          "iterations": 8,
+          "timePerIterationNs": 100.0,
+          "cpuTimePerIterationNs": 100.0,
+          "endpointSamples": 8,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": null,
+          "overheadFloorNs": 0.0,
+          "percentiles": [],
+          "chunkCount": 0,
+          "chunkIterations": 0,
+          "timeStats": null,
+          "metricStats": []
+        }
+      ],
+      "metricLabels": [],
+      "counterLabels": [],
+      "counterStats": [],
+      "statisticValues": [],
+      "hunt": {
+        "method": "AUTO",
+        "pass_count": 1,
+        "top": 8,
+        "retried_passes": 0,
+        "entries": [
+          {
+            "address": "event.alpha",
+            "rate": 100.0,
+            "cv": 0.01,
+            "noisy": false,
+            "multiplexed": false,
+            "rank": 1
+          },
+          {
+            "address": "event.beta",
+            "rate": 150.0,
+            "cv": 0.02,
+            "noisy": false,
+            "multiplexed": false,
+            "rank": 2
+          }
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "name": "bmHuntFamily/args:2",
+      "suite": "bmHuntFamily",
+      "case": "bmHuntFamily/args:2",
+      "outcome": "MEASURED",
+      "reason": null,
+      "hideRepetitionRows": false,
+      "timeUnit": "NANOSECONDS",
+      "primaryIsCpu": true,
+      "pauseSamplesFolded": false,
+      "percentilePoints": [],
+      "contexts": [],
+      "rows": [
+        {
+          "kind": "REPETITION",
+          "label": null,
+          "iterations": 8,
+          "timePerIterationNs": 150.0,
+          "cpuTimePerIterationNs": 150.0,
+          "endpointSamples": 8,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": null,
+          "overheadFloorNs": 0.0,
+          "percentiles": [],
+          "chunkCount": 0,
+          "chunkIterations": 0,
+          "timeStats": null,
+          "metricStats": []
+        },
+        {
+          "kind": "AGGREGATE",
+          "label": null,
+          "iterations": 8,
+          "timePerIterationNs": 150.0,
+          "cpuTimePerIterationNs": 150.0,
+          "endpointSamples": 8,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": null,
+          "overheadFloorNs": 0.0,
+          "percentiles": [],
+          "chunkCount": 0,
+          "chunkIterations": 0,
+          "timeStats": null,
+          "metricStats": []
+        }
+      ],
+      "metricLabels": [],
+      "counterLabels": [],
+      "counterStats": [],
+      "statisticValues": [],
+      "hunt": {
+        "method": "AUTO",
+        "pass_count": 1,
+        "top": 8,
+        "retried_passes": 0,
+        "entries": [
+          {
+            "address": "event.alpha",
+            "rate": 200.0,
+            "cv": 0.01,
+            "noisy": false,
+            "multiplexed": false,
+            "rank": 1
+          }
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "name": "bmHuntFamily/args:3",
+      "suite": "bmHuntFamily",
+      "case": "bmHuntFamily/args:3",
+      "outcome": "MEASURED",
+      "reason": null,
+      "hideRepetitionRows": false,
+      "timeUnit": "NANOSECONDS",
+      "primaryIsCpu": true,
+      "pauseSamplesFolded": false,
+      "percentilePoints": [],
+      "contexts": [],
+      "rows": [
+        {
+          "kind": "REPETITION",
+          "label": null,
+          "iterations": 8,
+          "timePerIterationNs": 200.0,
+          "cpuTimePerIterationNs": 200.0,
+          "endpointSamples": 8,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": null,
+          "overheadFloorNs": 0.0,
+          "percentiles": [],
+          "chunkCount": 0,
+          "chunkIterations": 0,
+          "timeStats": null,
+          "metricStats": []
+        },
+        {
+          "kind": "AGGREGATE",
+          "label": null,
+          "iterations": 8,
+          "timePerIterationNs": 200.0,
+          "cpuTimePerIterationNs": 200.0,
+          "endpointSamples": 8,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": null,
+          "overheadFloorNs": 0.0,
+          "percentiles": [],
+          "chunkCount": 0,
+          "chunkIterations": 0,
+          "timeStats": null,
+          "metricStats": []
+        }
+      ],
+      "metricLabels": [],
+      "counterLabels": [],
+      "counterStats": [],
+      "statisticValues": [],
+      "hunt": {
+        "method": "AUTO",
+        "pass_count": 1,
+        "top": 8,
+        "retried_passes": 0,
+        "entries": [
+          {
+            "address": "event.alpha",
+            "rate": 300.0,
+            "cv": 0.01,
+            "noisy": false,
+            "multiplexed": false,
+            "rank": 1
+          },
+          {
+            "address": "event.beta",
+            "rate": 450.0,
+            "cv": 0.02,
+            "noisy": false,
+            "multiplexed": false,
+            "rank": 2
+          }
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "name": "bmHuntFamily/args:4",
+      "suite": "bmHuntFamily",
+      "case": "bmHuntFamily/args:4",
+      "outcome": "MEASURED",
+      "reason": null,
+      "hideRepetitionRows": false,
+      "timeUnit": "NANOSECONDS",
+      "primaryIsCpu": true,
+      "pauseSamplesFolded": false,
+      "percentilePoints": [],
+      "contexts": [],
+      "rows": [
+        {
+          "kind": "REPETITION",
+          "label": null,
+          "iterations": 8,
+          "timePerIterationNs": 250.0,
+          "cpuTimePerIterationNs": 250.0,
+          "endpointSamples": 8,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": null,
+          "overheadFloorNs": 0.0,
+          "percentiles": [],
+          "chunkCount": 0,
+          "chunkIterations": 0,
+          "timeStats": null,
+          "metricStats": []
+        },
+        {
+          "kind": "AGGREGATE",
+          "label": null,
+          "iterations": 8,
+          "timePerIterationNs": 250.0,
+          "cpuTimePerIterationNs": 250.0,
+          "endpointSamples": 8,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": null,
+          "overheadFloorNs": 0.0,
+          "percentiles": [],
+          "chunkCount": 0,
+          "chunkIterations": 0,
+          "timeStats": null,
+          "metricStats": []
+        }
+      ],
+      "metricLabels": [],
+      "counterLabels": [],
+      "counterStats": [],
+      "statisticValues": [],
+      "hunt": {
+        "method": "AUTO",
+        "pass_count": 1,
+        "top": 8,
+        "retried_passes": 0,
+        "entries": [
+          {
+            "address": "event.alpha",
+            "rate": 400.0,
+            "cv": 0.01,
+            "noisy": false,
+            "multiplexed": false,
+            "rank": 1
+          },
+          {
+            "address": "event.beta",
+            "rate": 600.0,
+            "cv": 0.02,
+            "noisy": false,
+            "multiplexed": false,
+            "rank": 2
+          }
+        ],
+        "skipped": []
+      }
+    }
+  ],
+  "hunt": {
+    "selection": "all",
+    "norm": "instr",
+    "rank": "rate",
+    "top": 8,
+    "noisePercent": 5.0,
+    "repeats": 3,
+    "seed": 7,
+    "budget": null,
+    "passes": 1,
+    "method": "AUTO",
+    "events": [
+      "event.alpha",
+      "event.beta"
+    ],
+    "stages": [
+      {
+        "first": 0,
+        "count": 2,
+        "repeats": 1
+      }
+    ],
+    "estimate_ns": null,
+    "planned_events": 2,
+    "ran_events": 2,
+    "stage_two_events": 0
+  }
+}
