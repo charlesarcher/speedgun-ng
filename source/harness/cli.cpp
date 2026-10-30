@@ -23,6 +23,7 @@
 
 #include "detail/cli_options.hpp"
 #include "detail/compare.hpp"
+#include "detail/hunt_ranks.hpp"
 #include "detail/internal.hpp"
 #include "detail/jitter_probe.hpp"
 #include "detail/json_report.hpp"
@@ -593,6 +594,27 @@ auto speedgunMain(int argc, char** argv) -> int
   // unknown address, a pattern that matches nothing and an unreadable `@path`
   // cost no measured time.
   detail::expandHuntSelection(options);
+
+  // specs/040 FR-003, FR-005, B-10, D-6: the baseline loads once, before the
+  // entries run, through `loadReport` alone (R-1). The settlement's load
+  // answered the loader refusal (B-8); this load answers the norm-pair check
+  // and the delta stamp the batch runs below the walk. A baseline whose hunt
+  // object names a norm outside the run's settled norm answers the one
+  // mismatch line and the usage status before any benchmark runs (FR-005).
+  std::optional<sg::ReportData> huntBaseline;
+  if (options.hunt.has_value() && !options.hunt->baseline.empty()) {
+    auto loaded = loadReport(options.hunt->baseline);
+    SG_ASSERT(loaded.has_value(),
+              "the settlement loaded the same document through the same "
+              "loader, so the value stands (B-8, D-6)");
+    const auto settled = options.hunt->norm.value_or(hunt::HuntNorm::INSTR);
+    if (const auto mismatch = detail::baselineNormMismatch(*loaded, settled))
+    {
+      std::fprintf(stderr, "%s\n", mismatch->c_str());
+      return 2;
+    }
+    huntBaseline = std::move(*loaded);
+  }
 
   // specs/026 FR-024, FR-050, FR-051: the batch filter pattern is compiled
   // where the row settles, so an invalid expression has already answered one
@@ -1197,7 +1219,10 @@ auto speedgunMain(int argc, char** argv) -> int
   // edge, so the per-benchmark attribution line reads the folds the
   // split fills after the stop; the printed order keeps the order the
   // streaming carries, and a probe-free run keeps today's bytes.
-  const bool consoleDeferred = jitterProbe.has_value() || !familyProbes.empty();
+  // specs/040 B-10: a hunt run joins the deferral, so the batch stamping
+  // pass stands before the console tables print and the document writes.
+  const bool consoleDeferred = jitterProbe.has_value() || !familyProbes.empty()
+      || options.hunt.has_value();
   // E-06, R-04: the windows each entry's runs stamped, one entry per
   // result of the batch in the order the results push, the alignment the
   // split reads below.
@@ -1525,6 +1550,60 @@ auto speedgunMain(int argc, char** argv) -> int
     report.contextRaw.emplace_back();
   }
 
+  // specs/040 FR-001, FR-003, FR-004, FR-011, FR-021, B-10: the batch
+  // stamping pass runs here, after every entry's hunt stands ranked and
+  // before the console tables print and the document writes. The stamp reads
+  // the run's records alone (FR-006): the sensitivity figures over the
+  // families the grouping assembles, the delta of every entry the match
+  // pairs with the baseline's entry under the full instance name (D-4, R-2),
+  // and the ranks under the key the run settled, the two new keys alone
+  // (B-7).
+  if (options.hunt.has_value()) {
+    // The records the stamp reads: the entries whose hunt stands ranked. A
+    // benchmark that failed carries no hunt, and the stamp's contract reads
+    // one record per hunted entry (B-4).
+    std::vector<sg::BenchmarkResult> hunted;
+    std::vector<std::size_t> huntedSlots;
+    for (std::size_t index = 0; index < report.results.size(); ++index) {
+      if (report.results[index].hunt.has_value()) {
+        huntedSlots.push_back(index);
+        hunted.push_back(std::move(report.results[index]));
+      }
+    }
+    detail::stampSensitivity(hunted);
+    if (huntBaseline.has_value()) {
+      // One extraction and one delta stamp per matched pair: the rates the
+      // match reads stand in the baseline entry the pair names, and the
+      // stamp fills the pair's records alone (D-4, D-5).
+      for (std::size_t index = 0; index < hunted.size(); ++index) {
+        const auto paired =
+            detail::indexOfResult(huntBaseline->results, hunted[index].name);
+        if (paired == huntBaseline->results.size()) {
+          continue;
+        }
+        const auto rates =
+            detail::baselineHuntRates(*huntBaseline, hunted[index].name);
+        auto pair = std::vector<sg::BenchmarkResult> {};
+        pair.push_back(std::move(hunted[index]));
+        detail::stampDelta(pair, rates);
+        hunted[index] = std::move(pair.front());
+      }
+    }
+    const auto key = options.hunt->rank;
+    if (key == hunt::HuntRank::SENSITIVITY || key == hunt::HuntRank::DELTA) {
+      detail::stampRank(hunted, key);
+    }
+    for (std::size_t index = 0; index < hunted.size(); ++index) {
+      report.results[huntedSlots[index]] = std::move(hunted[index]);
+    }
+    // FR-004, B-10: the matching-rules disclosure prints one time, above the
+    // tables the stamped figures stand in.
+    if (huntBaseline.has_value()) {
+      std::printf("hunt: baseline matched by full instance name, events by "
+                  "catalog address\n");
+    }
+  }
+
   // R-04, E-06: the split reads the buffers behind the join edge the
   // stop gives, folding each probe cpu's kept gaps into the windows
   // each entry's runs stamped, in ascending cpu order; an entry
@@ -1677,8 +1756,25 @@ auto speedgunMain(int argc, char** argv) -> int
     }
   }
 
+  // specs/040 FR-021, FR-022, B-10: the rules file stands beside the
+  // document, after the stamping pass, so the lines carry the stamped
+  // figures. The conflict check settled that a settled path has a hunt to
+  // fill it, and the hunt settled the `--hunt-top` and the `--hunt-noise`
+  // the lines read.
+  [[maybe_unused]] bool rulesFailed = false;
+  if (options.hunt.has_value() && !options.hunt->emitRules.empty()) {
+    rulesFailed = !detail::writeHuntEmitRules(options.hunt->emitRules,
+                                              report.results,
+                                              options.hunt->top,
+                                              options.hunt->noise);
+    if (rulesFailed) {
+      status = 2;
+    }
+  }
+
   SG_ENSURE((status != 0)
-                == (anyFailed || anyInterrupted || reportFailed || emitFailed),
+                == (anyFailed || anyInterrupted || reportFailed || emitFailed
+                    || rulesFailed),
             "the exit status follows the table of contracts/cli.md (FR-036)");
 
   // specs/035 FR-013, R-07: a bind that failed at a context start

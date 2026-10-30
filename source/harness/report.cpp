@@ -874,6 +874,37 @@ auto printHuntMuxLine(const sg::hunt::RunHunt& run) -> void
   std::printf("\n");
 }
 
+/// specs/040 FR-012: the three sensitivity cells of one ranked row, printed
+/// after the CV cell and before the trailing mark and the multiplexed flag.
+/// Each cell names its figure at a fixed precision, and a figure the run
+/// did not measure stands `n/a` in its cell. The correlation and the slope
+/// are unitless and share one precision; the delta is a percent, so it
+/// reads the precision the CV percent cell reads.
+///
+/// \pre none
+/// \post prints exactly one ` correlation=`, one ` slope=` and one
+///       ` delta=` cell; each cell carries the field's figure at its
+///       precision, and the word `n/a` where the field stands empty; the
+///       call measures nothing and reads no clock
+auto printSensitivityCells(const sg::hunt::RankedEvent& entry) -> void
+{
+  if (entry.sensitivityCorrelation.has_value()) {
+    std::printf(" correlation=%.4f", *entry.sensitivityCorrelation);
+  } else {
+    std::printf(" correlation=n/a");
+  }
+  if (entry.sensitivitySlope.has_value()) {
+    std::printf(" slope=%.4f", *entry.sensitivitySlope);
+  } else {
+    std::printf(" slope=n/a");
+  }
+  if (entry.delta.has_value()) {
+    std::printf(" delta=%.2f", *entry.delta);
+  } else {
+    std::printf(" delta=n/a");
+  }
+}
+
 // specs/029 D-7, D-8, PD-14: the word that names why an event stands out of
 // the top N. One sample carries no deviation, so an event that repeated and
 // stayed under `--hunt-noise` left the table on the size of the table alone.
@@ -1019,18 +1050,24 @@ auto printHuntRanking(const sg::hunt::EntryHunt& hunt,
                   huntNormName(norm),
                   entry.rate,
                   entry.cv);
+      // specs/040 FR-012: the sensitivity cells stand after the CV cell
+      // and before the flag, the column order the document pins (E-07).
+      printSensitivityCells(entry);
       if (entry.multiplexed) {
         std::printf(" multiplexed");
       }
       std::printf("\n");
       continue;
     }
-    std::printf("hunt: rank - %s %s=%.3f cv=%.2f mark=%s\n",
+    std::printf("hunt: rank - %s %s=%.3f cv=%.2f",
                 entry.address.c_str(),
                 huntNormName(norm),
                 entry.rate,
-                entry.cv,
-                excludedMarkOf(entry));
+                entry.cv);
+    // specs/040 FR-012: the beyond-top row carries the same cells the
+    // ranked row carries, and the mark closes the line (FR-012).
+    printSensitivityCells(entry);
+    std::printf(" mark=%s\n", excludedMarkOf(entry));
   }
 }
 

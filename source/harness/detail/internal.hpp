@@ -554,6 +554,30 @@ auto writeHuntEmitSet(const std::string& path,
                       std::size_t topN) -> bool;
 
 /**
+ * @brief Write the promoted events' comparison rules of the run to `path`,
+ * one rule line per promoted event (specs/040-hunter-sensitivity FR-021,
+ * FR-022, D-7).
+ *
+ * The entry point calls this after the batch stamping pass, beside the
+ * report writer, so the lines carry the stamped figures (B-10). The lines
+ * are the deduplicated union of each result's
+ * `toCompareRules(topN, noisePercent)`, in result order and, within a
+ * result, in rank order; the stamps leave one figure per address, so one
+ * address stands once.
+ *
+ * \pre `topN` is the `--hunt-top` and `noisePercent` the `--hunt-noise` the
+ *      run hunted under
+ * \post the file holds one rule line per promoted event and no header, a run
+ *       that promotes no event writing an empty file; on failure one stderr
+ *       line names the path and the reason the file system gave, and the
+ *       answer is false
+ */
+auto writeHuntEmitRules(const std::string& path,
+                        std::span<const BenchmarkResult> results,
+                        std::size_t topN,
+                        double noisePercent) -> bool;
+
+/**
  * @brief One counter address beside the origin of the source that named it
  * (FR-038, FR-087).
  *

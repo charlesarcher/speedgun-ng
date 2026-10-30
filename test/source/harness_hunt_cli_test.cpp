@@ -72,6 +72,7 @@ constexpr const char* kScriptNoInstr = "noinstr";
 // `seatrefuse` opens nothing at all: the scripted group ceiling of zero leaves
 // refuses every window the run asks for, the host the corsairone defect record
 // met at its first seat.
+constexpr const char* kScriptRankSpread = "rankspread";
 constexpr const char* kScriptSeatRefuse = "seatrefuse";
 // `narrowgiraffe` is the `narrow` host beside the out-of-tree device of the
 // giraffe provider of specs/007: a path two levels deep, so its address carries
@@ -111,6 +112,7 @@ auto blankFile() -> std::filesystem::path
 {
   return capturePath("_blank.txt");
 }
+
 
 auto rawFile() -> std::filesystem::path
 {
@@ -152,6 +154,24 @@ auto check(const bool condition, const char* what) -> void
     fail(what);
   }
 }
+
+// The baseline document the delta row reads: the T001 fixture under
+// `test/data/hunt_ranks/`, reached from the compiled path of this source file,
+// the guard the `huntRanksFixturePath` helper of `harness_hunt_rank_test.cpp`
+// runs.
+[[nodiscard]] auto huntBaselinePath() -> std::string
+{
+  constexpr std::string_view kSourceTail =
+      "/test/source/harness_hunt_cli_test.cpp";
+  const std::string_view file = __FILE__;
+  check(file.size() > kSourceTail.size() && file.ends_with(kSourceTail),
+        "the compiled source path stands in the source tree");
+  const auto directory =
+      std::filesystem::path(file.substr(0, file.size() - kSourceTail.size()))
+      / "test" / "data" / "hunt_ranks";
+  return (directory / "baseline_rates.json").string();
+}
+
 
 auto address(const std::size_t index) -> std::string
 {
@@ -233,6 +253,12 @@ auto registerHost(const std::string& script) -> void
                     sg::counters::Availability::COUNTABLE,
                     sg::counters::ReadMode::FAST_TSC)
         .setPoints("machine", "tsc", {}, 0, 1);
+  } else if (script == kScriptRankSpread) {
+    sg::test::huntHost(*provider, kFullLimit)
+        .setPoints("machine", "monotonic", {0}, 0, 7)
+        .setPoints("machine", "thread_cpu", {0}, 0, 7)
+        .setPoints("cpu", "hunt000", {0}, 0, 7)
+        .setPoints("cpu", "hunt001", {0}, 0, 7);
   } else if (script == kScriptSeatRefuse) {
     sg::test::huntHost(*provider, kFullLimit)
         .setGroupLeafLimit(sg::test::kHuntCpu, 0);
@@ -533,8 +559,8 @@ auto scenarioOptionValueRefusals() -> void
       {{"full",
         {"--hunt-norm=ipc"},
         "--hunt-norm: expected instr, cycle or iter, got 'ipc'"},
-       {"full", {"--hunt-rank=sensitivity"}, reservedRankLine("sensitivity")},
-       {"full", {"--hunt-rank=delta"}, reservedRankLine("delta")},
+       // FR-010: the sensitivity and the delta keys stand accepted in the
+       // accepted-forms scenario; `score` alone keeps this refusal.
        {"full", {"--hunt-rank=score"}, reservedRankLine("score")},
        {"full",
         {"--hunt-rank=rate2"},
@@ -1003,7 +1029,88 @@ auto scenarioAcceptedSelectionForms() -> void
   check(!planLine(rated).empty(),
         "a run whose rank option spells the word the default answers plans "
         "the same hunt (FR-032)");
+
+  // FR-010: the two keys N14b brings answer beside the standing pair. The
+  // delta key reads a baseline, so the row states the rates fixture and the
+  // norm the fixture's hunt object names (FR-005).
+  const auto sensitivity = captureRun(
+      withFilter({"--hunt=" + address(0), "--hunt-rank=sensitivity"}));
+  check(!planLine(sensitivity).empty(),
+        "a run whose rank option spells the sensitivity key plans the same "
+        "hunt (FR-010)");
+
+  const auto delta = captureRun(
+      withFilter({"--hunt=" + address(0), "--hunt-rank=delta",
+                  "--hunt-norm=instr",
+                  "--hunt-baseline=" + huntBaselinePath()}));
+  check(!planLine(delta).empty(),
+        "a run whose rank option spells the delta key beside its baseline "
+        "plans the same hunt (FR-010)");
   std::printf("accepted-forms: ok\n");
+}
+
+// The scratch paths of the baseline and rules refusals: the rules file the
+// option names beside no hunt, and the document the loader refuses (FR-022,
+// FR-023, FR-005).
+auto rulesPath() -> std::filesystem::path
+{
+  return capturePath("_rules.txt");
+}
+
+auto refusedBaselinePath() -> std::filesystem::path
+{
+  return capturePath("_refused.json");
+}
+
+// FR-022, FR-023, FR-005, B-8: the delta key beside no baseline, the two new
+// options beside no hunt, their empty values, an unwritable rules path and a
+// document the loader refuses, each answer one line naming the value at
+// status 2, before the entries run (B-8, D-6). The refused-document row reads
+// the loader's own fault text off the same bytes the child reads, so the
+// pinned line stands whole.
+auto scenarioBaselineAndRulesRefusals() -> void
+{
+  const std::string baseline = huntBaselinePath();
+  const std::string rules = rulesPath().string();
+  const std::string refused = refusedBaselinePath().string();
+  writeFile(refused, "{ not json\n");
+  const auto rejected = sg::loadReport(refused);
+  check(!rejected.has_value(),
+        "the scratch document stands refused by the loader (FR-005)");
+  const std::string rejectedLine = "--hunt-baseline: '" + refused
+      + "' was rejected: " + rejected.error();
+  checkRefusals({
+      // FR-011, FR-023: the delta key reads a baseline, so a run that names
+      // it beside none refuses the same way (B-8).
+      {"full",
+       {"--hunt=" + address(0), "--hunt-rank=delta"},
+       "--hunt-rank: 'delta' needs --hunt-baseline"},
+      // FR-023: the baseline option beside no hunt, and its empty value.
+      {"full",
+       {"--hunt-baseline=" + baseline},
+       "--hunt-baseline: '" + baseline + "' needs --hunt"},
+      {"full",
+       {"--hunt=" + address(0), "--hunt-baseline="},
+       "--hunt-baseline: the path the option names stands empty"},
+      // FR-022: the rules option beside no hunt, its empty value, and a path
+      // the file system refuses, each answer one line at status 2 (B-8).
+      {"full",
+       {"--hunt-emit-rules=" + rules},
+       "--hunt-emit-rules: '" + rules + "' needs --hunt"},
+      {"full",
+       {"--hunt=" + address(0), "--hunt-emit-rules="},
+       "--hunt-emit-rules: the path the option names stands empty"},
+      {"full",
+       {"--hunt=" + address(0),
+        "--hunt-emit-rules=/no/such/directory/rules.txt"},
+       "--hunt-emit-rules: '/no/such/directory/rules.txt' cannot be opened"},
+      // FR-005, D-6: a document the loader refuses stands named with the
+      // loader's fault, on one line, before the entries run.
+      {"full",
+       {"--hunt=" + address(0), "--hunt-baseline=" + refused},
+       rejectedLine},
+  });
+  std::printf("baseline-and-rules-refusals: ok\n");
 }
 
 auto scenarioBareHuntSelectsTheCatalog() -> void
@@ -1720,6 +1827,71 @@ auto scenarioThreadedHuntPrintsTheContextTail() -> void
 }
 
 // ---------------------------------------------------------------------------
+// The console columns of the two ranks (T030, FR-012): the ranked table
+// carries the correlation, the slope and the delta cells beside the standing
+// event, rate, CV and flag cells, an unmeasured figure prints `n/a` in its
+// cell, and the `--hunt-top` cap, the skipped list and the plan summary stand
+// unchanged
+// ---------------------------------------------------------------------------
+
+// One entry means a family of one point, so the sensitivity stamp leaves both
+// figures empty (FR-002), and the run names no baseline, which leaves the
+// delta empty (FR-004): every new cell below prints the `n/a` disclosure. The
+// scripted host folds the rate of the event at index k, so the rate cells of
+// the pinned rows are the fixture's own figures.
+auto scenarioRankTableCarriesTheNewColumns() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+
+  const std::string run =
+      captureRun(withFilter({"--hunt=" + address(0) + "," + address(1)}));
+  const auto rows = huntLines(run, "hunt: rank ");
+  const std::vector<std::string> wanted {
+      "hunt: rank 1 cpu/hunt001 instr=50.000 cv=0.00 correlation=n/a "
+          "slope=n/a delta=n/a",
+      "hunt: rank 2 cpu/hunt000 instr=25.000 cv=0.00 correlation=n/a "
+          "slope=n/a delta=n/a"};
+  check(rows == wanted,
+        "the table carries the correlation, the slope and the delta cells "
+        "beside the standing rate and CV cells, and an unmeasured figure "
+        "prints n/a in its cell (FR-012)");
+  check(countOf(run, "hunt: skipped ") == 0,
+        "the host refused nothing, so the skipped list stands empty beside "
+        "the new cells (D-12)");
+  check(countOf(run, "hunt: plan summary events=2/2 passes=1 budget=none") == 1,
+        "the summary prints the standing bytes the two planned columns name "
+        "(FR-012)");
+  check(lineIndex(run, "hunt: plan summary events=")
+            > lineIndex(run, "hunt: rank "),
+        "the summary closes the hunt block below the rows it summarizes "
+        "(FR-012)");
+
+  const std::string capped = captureRun(
+      withFilter({"--hunt=" + address(0) + "," + address(1) + ","
+                  + address(2) + "," + address(3),
+                  "--hunt-top=2"}));
+  const auto cappedRows = huntLines(capped, "hunt: rank ");
+  const std::vector<std::string> cappedWanted {
+      "hunt: rank 1 cpu/hunt003 instr=100.000 cv=0.00 correlation=n/a "
+          "slope=n/a delta=n/a",
+      "hunt: rank 2 cpu/hunt002 instr=75.000 cv=0.00 correlation=n/a "
+          "slope=n/a delta=n/a",
+      "hunt: rank - cpu/hunt000 instr=25.000 cv=0.00 correlation=n/a "
+          "slope=n/a delta=n/a mark=beyond-top",
+      "hunt: rank - cpu/hunt001 instr=50.000 cv=0.00 correlation=n/a "
+          "slope=n/a delta=n/a mark=beyond-top"};
+  check(cappedRows == cappedWanted,
+        "the cap leaves the top two rows ranked and the tail marked "
+        "beyond-top, every row carrying the new cells beside the standing "
+        "flag cell (FR-012)");
+  check(countOf(capped,
+                "hunt: plan summary events=4/4 passes=1 budget=none") == 1,
+        "the capped run closes with the standing summary (FR-012)");
+  std::printf("rank-table-columns: ok\n");
+}
+
+// ---------------------------------------------------------------------------
 // The scenario list CTest runs
 // ---------------------------------------------------------------------------
 
@@ -2115,6 +2287,455 @@ auto scenarioEmitSetSkipsAResultWithoutAHunt() -> void
   std::printf("emit-set-skips-a-result-without-a-hunt: ok\n");
 }
 
+
+// ---------------------------------------------------------------------------
+// The run path of the batch stamp (T031, FR-003, FR-004, FR-021, FR-030;
+// contracts/hunt-ranks-api.md B-10): the baseline loads once before the
+// entries run, the stamping pass runs after every entry's hunt stands ranked
+// and before the console table prints and the document writes, the rules
+// file writes after the stamping pass, and the matching-rules disclosure
+// prints one time beside the figures. Both scenarios run standalone, so the
+// seeded figures below are the run's own.
+// ---------------------------------------------------------------------------
+
+// The scratch documents of the two runs below: the baseline the delta stamps
+// against, and the same document with a norm the run settles none of.
+auto runBaselinePath() -> std::filesystem::path
+{
+  return capturePath("_runpath_baseline.json");
+}
+
+auto runMismatchPath() -> std::filesystem::path
+{
+  return capturePath("_runpath_mismatch.json");
+}
+
+// The baseline document the run below loads (D-6): the three instances the
+// family registers, each carrying the per-entry hunt object the match pairs
+// by name, at the rates the delta stamps against. The `hunt000` rates stand
+// half the contender's measured medians and the `hunt001` rates stand double,
+// so the stamped deltas read +100 and -50 and the rules' directions split.
+// The document carries no `hunt002` rate, so the event the match finds no
+// figure of stands the disclosure (D-5). The argument spells the norm the
+// top-level hunt object names: `instr` pairs with the run's settled norm,
+// and `iter` is the word the mismatch row reads.
+[[nodiscard]] auto runBaselineDocument(const std::string_view norm)
+    -> std::string
+{
+  auto text = std::string {R"({
+  "schemaVersion": "1.9",
+  "speedgun": {"version": "0.26.0", "buildType": "Release"},
+  "benchmarks": [
+    {
+      "name": "bmRankFamily/args:1",
+      "suite": "bmRankFamily",
+      "case": "args:1",
+      "outcome": "MEASURED",
+      "reason": null,
+      "hideRepetitionRows": false,
+      "timeUnit": "NANOSECONDS",
+      "primaryIsCpu": true,
+      "pauseSamplesFolded": false,
+      "percentilePoints": [],
+      "contexts": [],
+      "rows": [
+        {
+          "kind": "REPETITION",
+          "label": null,
+          "iterations": 1,
+          "timePerIterationNs": 1000.0,
+          "cpuTimePerIterationNs": 1000.0,
+          "endpointSamples": 2,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": null,
+          "overheadFloorNs": 0.0,
+          "percentiles": [],
+          "chunkCount": 0,
+          "chunkIterations": 0,
+          "timeStats": null,
+          "metricStats": []
+        }
+      ],
+      "metricLabels": [],
+      "counterLabels": [],
+      "counterStats": [],
+      "statisticValues": [],
+      "hunt": {
+        "method": "AUTO",
+        "pass_count": 1,
+        "top": 8,
+        "retried_passes": 0,
+        "entries": [
+          {"address": "cpu/hunt000", "rate": 7134.5, "cv": 0.01,
+           "noisy": false, "multiplexed": false, "rank": 1},
+          {"address": "cpu/hunt001", "rate": 28538.0, "cv": 0.02,
+           "noisy": false, "multiplexed": false, "rank": 2}
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "name": "bmRankFamily/args:2",
+      "suite": "bmRankFamily",
+      "case": "args:2",
+      "outcome": "MEASURED",
+      "reason": null,
+      "hideRepetitionRows": false,
+      "timeUnit": "NANOSECONDS",
+      "primaryIsCpu": true,
+      "pauseSamplesFolded": false,
+      "percentilePoints": [],
+      "contexts": [],
+      "rows": [
+        {
+          "kind": "REPETITION",
+          "label": null,
+          "iterations": 1,
+          "timePerIterationNs": 1000.0,
+          "cpuTimePerIterationNs": 1000.0,
+          "endpointSamples": 2,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": null,
+          "overheadFloorNs": 0.0,
+          "percentiles": [],
+          "chunkCount": 0,
+          "chunkIterations": 0,
+          "timeStats": null,
+          "metricStats": []
+        }
+      ],
+      "metricLabels": [],
+      "counterLabels": [],
+      "counterStats": [],
+      "statisticValues": [],
+      "hunt": {
+        "method": "AUTO",
+        "pass_count": 1,
+        "top": 8,
+        "retried_passes": 0,
+        "entries": [
+          {"address": "cpu/hunt000", "rate": 7130.0, "cv": 0.01,
+           "noisy": false, "multiplexed": false, "rank": 1},
+          {"address": "cpu/hunt001", "rate": 28520.0, "cv": 0.02,
+           "noisy": false, "multiplexed": false, "rank": 2}
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "name": "bmRankFamily/args:3",
+      "suite": "bmRankFamily",
+      "case": "args:3",
+      "outcome": "MEASURED",
+      "reason": null,
+      "hideRepetitionRows": false,
+      "timeUnit": "NANOSECONDS",
+      "primaryIsCpu": true,
+      "pauseSamplesFolded": false,
+      "percentilePoints": [],
+      "contexts": [],
+      "rows": [
+        {
+          "kind": "REPETITION",
+          "label": null,
+          "iterations": 1,
+          "timePerIterationNs": 1000.0,
+          "cpuTimePerIterationNs": 1000.0,
+          "endpointSamples": 2,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": null,
+          "overheadFloorNs": 0.0,
+          "percentiles": [],
+          "chunkCount": 0,
+          "chunkIterations": 0,
+          "timeStats": null,
+          "metricStats": []
+        }
+      ],
+      "metricLabels": [],
+      "counterLabels": [],
+      "counterStats": [],
+      "statisticValues": [],
+      "hunt": {
+        "method": "AUTO",
+        "pass_count": 1,
+        "top": 8,
+        "retried_passes": 0,
+        "entries": [
+          {"address": "cpu/hunt000", "rate": 1755.25, "cv": 0.01,
+           "noisy": false, "multiplexed": false, "rank": 1},
+          {"address": "cpu/hunt001", "rate": 7021.0, "cv": 0.02,
+           "noisy": false, "multiplexed": false, "rank": 2}
+        ],
+        "skipped": []
+      }
+    }
+  ],
+  "hunt": {
+    "selection": "all",
+    "norm": ")"};
+  text.append(norm);
+  text += R"(",
+    "rank": "rate",
+    "top": 8,
+    "noisePercent": 10.0,
+    "repeats": 3,
+    "seed": 7,
+    "budget": null,
+    "passes": 1,
+    "method": "AUTO",
+    "events": ["cpu/hunt000", "cpu/hunt001"],
+    "stages": [{"first": 0, "count": 2, "repeats": 1}],
+    "estimate_ns": null,
+    "planned_events": 2,
+    "ran_events": 2,
+    "stage_two_events": 0
+  }
+})";
+  return text;
+}
+
+// The family both scenarios register: three args instances of one case, so
+// the grouping reads one family of three points per event (D-2). The scripted
+// host seeds the clock leaves and the two events the rows hunt with the
+// per-sample delta of seed 7, so the entries stand spread times and rates;
+// the third event keeps the standing script, so its rate stands one figure
+// across the family and its stamp stays empty (B-2).
+auto registerRankFamily() -> void
+{
+  registerHost(kScriptRankSpread);
+  auto handle = sg::registerBenchmark(&bmHuntCli, "bmRankFamily");
+  handle.iterations(1);
+  handle.arg(1).arg(2).arg(3).argNames({"args"});
+}
+
+// The arguments both runs share: the whole family, three repetitions so the
+// entries carry the aggregate row the stamp's time figure reads (B-4), and a
+// noise threshold every scripted figure stands under, so no event stands
+// marked noisy (A-3).
+[[nodiscard]] auto runPathArguments() -> std::vector<std::string>
+{
+  return {"--filter", "bmRankFamily",
+          "--iterations=1",
+          "--repetitions=3",
+          "--hunt-noise=100",
+          "--hunt=" + address(0) + "," + address(1) + "," + address(2)};
+}
+
+// The batch stamp over the family (T031, FR-002, FR-030, B-10): the stamped
+// figures stand in the printed cells and in the document's per-entry hunt
+// objects, and a run that names no baseline stands the n/a disclosure in the
+// delta cell (FR-004).
+auto scenarioStampPassRunPath() -> void
+{
+  registerRankFamily();
+
+  auto arguments = runPathArguments();
+  arguments.push_back("--json=" + std::string(documentPath()));
+  const std::string run = captureRun(arguments);
+
+  const auto stamped = huntLines(run, "cpu/hunt000");
+  check(stamped.size() == 3,
+        "each of the family's three entries ranks the hunted event (FR-040)");
+  for (const auto& line : stamped) {
+    check(line.find("correlation=n/a") == std::string::npos
+              && line.find("slope=n/a") == std::string::npos,
+          "the stamped figures stand in the printed cells, a family of three "
+          "entries showing measured correlation and slope cells (FR-002, "
+          "B-10)");
+    check(line.find("delta=n/a") != std::string::npos,
+          "a run that names no baseline stands the n/a disclosure in the "
+          "delta cell (FR-004)");
+  }
+
+  const auto unmeasured = huntLines(run, "cpu/hunt002");
+  check(unmeasured.size() == 3,
+        "each of the family's three entries ranks the third event (FR-040)");
+  for (const auto& line : unmeasured) {
+    check(line.find("correlation=n/a slope=n/a delta=n/a")
+              != std::string::npos,
+          "a point set with no spread in the rate coordinate stands the n/a "
+          "disclosure beside the measured rows (FR-002)");
+  }
+
+  // The document wrote after the stamping pass: the per-entry hunt objects
+  // carry the figures the cells print, the correlation and the slope in the
+  // record's x-order (FR-030, B-10). The figures read the aggregate row
+  // medians the tables print, so the slope is the one the three points of
+  // the family answer.
+  const std::string document = readAll(documentPath());
+  check(countOf(document,
+                "\"rank\":1,\"correlation\":-0.5,"
+                "\"slope\":-0.10831968666350383,\"delta\":null")
+            == 3,
+        "every entry's ranked record carries the stamped correlation and "
+        "slope, and the delta stands null beside no baseline (FR-030, "
+        "FR-004, B-10)");
+  check(countOf(document,
+                "\"rank\":2,\"correlation\":-0.5,"
+                "\"slope\":-0.10831968666350383,\"delta\":null")
+            == 3,
+        "the second ranked event carries the same stamped figures (FR-030, "
+        "B-10)");
+  check(countOf(document,
+                "\"rank\":3,\"correlation\":null,\"slope\":null,"
+                "\"delta\":null")
+            == 3,
+        "the event whose points carry no spread stands null in the document "
+        "(FR-030, B-2)");
+  std::printf("stamp-pass-run-path: ok\n");
+}
+
+// The baseline, the delta stamp, the rules file and the disclosure over the
+// same family (T031, FR-003, FR-004, FR-021, B-10): the run loads the
+// baseline through `loadReport` once before the entries run, stamps the
+// delta of the matched events, ranks under the delta key, writes the rules
+// file after the stamping pass and prints the matching-rules disclosure one
+// time beside the figures.
+auto scenarioBaselineRulesRunPath() -> void
+{
+  registerRankFamily();
+
+  writeFile(runBaselinePath(), runBaselineDocument("instr"));
+  const auto loaded = sg::loadReport(runBaselinePath().string());
+  check(loaded.has_value(),
+        "the baseline document stands a value loadReport answered (D-6)");
+
+  auto arguments = runPathArguments();
+  arguments.push_back("--hunt-rank=delta");
+  arguments.push_back("--hunt-baseline=" + runBaselinePath().string());
+  arguments.push_back("--hunt-emit-rules=" + rulesPath().string());
+  arguments.push_back("--json=" + std::string(documentPath()));
+  const std::string run = captureRun(arguments);
+
+  // The disclosure prints one time beside the figures: three entries share
+  // one load and one disclosure, and the line stands above the first table
+  // it discloses (FR-004, B-10).
+  const std::string disclosure =
+      "hunt: baseline matched by full instance name, events by catalog "
+      "address";
+  check(countOf(run, disclosure) == 1,
+        "the matching-rules disclosure prints one time beside the figures, "
+        "three entries sharing one load and one disclosure (FR-004, B-10)");
+  check(lineIndex(run, disclosure) < lineIndex(run, "hunt: rank "),
+        "the disclosure stands above the first table it discloses (FR-004)");
+
+  // The delta cells fill beside --hunt-baseline, and the delta key ranks the
+  // events the stamp carries figures for (FR-003, FR-004, B-7).
+  const auto risen = huntLines(run, "cpu/hunt000");
+  check(risen.size() == 3,
+        "each of the family's three entries ranks the matched event under "
+        "the delta key (B-7)");
+  for (const auto& line : risen) {
+    check(line.rfind("hunt: rank 1 cpu/hunt000", 0) == 0,
+          "the delta key ranks the event the stamp carries a figure for "
+          "(FR-011, B-7)");
+    check(line.find("correlation=n/a") == std::string::npos
+              && line.find("slope=n/a") == std::string::npos,
+          "the stamped figures stand in the printed cells (FR-002, B-10)");
+    check(line.find("delta=n/a") == std::string::npos,
+          "the delta cells fill beside --hunt-baseline (FR-003, FR-004)");
+  }
+
+  const auto dropped = huntLines(run, "cpu/hunt001");
+  check(dropped.size() == 3,
+        "each of the family's three entries ranks the second matched event "
+        "(B-7)");
+  for (const auto& line : dropped) {
+    check(line.rfind("hunt: rank 2 cpu/hunt001", 0) == 0,
+          "the delta key ranks the second matched event after the first "
+          "(FR-011, B-7)");
+    check(line.find("delta=n/a") == std::string::npos,
+          "the delta cells fill beside --hunt-baseline (FR-003, FR-004)");
+  }
+
+  const auto unmatched = huntLines(run, "cpu/hunt002");
+  check(unmatched.size() == 3,
+        "each of the family's three entries prints the unmatched event's "
+        "row (FR-040)");
+  for (const auto& line : unmatched) {
+    check(line.rfind("hunt: rank - cpu/hunt002", 0) == 0,
+          "an event the stamp ranks none of stands unranked under the delta "
+          "key (A-4, B-7)");
+    check(line.find("delta=n/a") != std::string::npos,
+          "a figure the match does not find stands the n/a disclosure, and "
+          "the run exits 0 (FR-004, D-5)");
+  }
+
+  // The rules file wrote after the stamping pass: the lines carry the
+  // directions the stamped deltas' signs, the threshold carries the run's
+  // noise figure, and the event the stamp ranks none of holds no line; the
+  // standing key would have promoted it (FR-021, D-7, B-10).
+  const auto written = fileLines(rulesPath());
+  const std::vector<std::string> wanted {
+      "counter:cpu/hunt000@median:higher:100%",
+      "counter:cpu/hunt001@median:lower:100%"};
+  check(written == wanted,
+        "the rules file holds the promoted events' lines in rank order, each "
+        "direction the stamped delta's sign and the threshold the run's "
+        "noise figure (FR-021, D-7, B-10)");
+
+  // The document carries the stamped deltas on the ranked records (FR-030,
+  // B-10).
+  const std::string document = readAll(documentPath());
+  check(countOf(document,
+                "\"rank\":1,\"correlation\":-0.5,"
+                "\"slope\":-0.10831968666350383,\"delta\":100.0")
+            == 3,
+        "every entry's ranked record carries the stamped figures and the "
+        "delta of the matched rate (FR-030, FR-003, B-10)");
+  check(countOf(document,
+                "\"rank\":2,\"correlation\":-0.5,"
+                "\"slope\":-0.10831968666350383,\"delta\":-50.0")
+            == 3,
+        "the second ranked record carries its own stamped delta (FR-030, "
+        "FR-003, B-10)");
+  check(countOf(document,
+                "\"rank\":null,\"correlation\":null,\"slope\":null,"
+                "\"delta\":null")
+            == 3,
+        "the event the match finds no figure of stands null in the document "
+        "(FR-030, D-5)");
+
+  // The baseline's norm check stands before the entries run: the mismatched
+  // document answers one line and the run reaches no benchmark (FR-005,
+  // B-10).
+  writeFile(runMismatchPath(), runBaselineDocument("iter"));
+  std::string output;
+  const int status =
+      childRun(selfPath,
+               "hunt",
+               {"full",
+                "--hunt=" + address(0),
+                "--hunt-baseline=" + runMismatchPath().string()},
+               output);
+  check(WIFEXITED(status) && WEXITSTATUS(status) == 2,
+        "a baseline whose norm does not pair leaves the usage status "
+        "(FR-005)");
+  const auto refused = splitLines(output);
+  check(refused.size() == 2 && refused.back() == "BENCHMARK_NO_RUN",
+        "the norm refusal reaches no benchmark (FR-005, B-10)");
+  check(refused.size() == 2
+            && refused.front().find(
+                   "does not pair with the run's settled norm")
+                   != std::string::npos,
+        "the refusal names the mismatch on one line (FR-005, B-10)");
+
+  std::printf("baseline-rules-run-path: ok\n");
+}
+
 // ---------------------------------------------------------------------------
 // The `@`-file form of `--counter` (specs/033-hunter-budgets T007; FR-014,
 // R-09; contracts/counter-file.md). The addresses the file carries reach the
@@ -2320,6 +2941,8 @@ auto scenarioEmitSetRoundTrip() -> void
       Scenario {"norm-anchor-refusals", &scenarioNormAnchorRefusals},
       Scenario {"conflict-refusals", &scenarioConflictRefusals},
       Scenario {"accepted-forms", &scenarioAcceptedSelectionForms},
+      Scenario {"baseline-and-rules-refusals",
+                &scenarioBaselineAndRulesRefusals},
       Scenario {"bare-hunt-whole-catalog", &scenarioBareHuntSelectsTheCatalog},
       Scenario {"all-selection-count", &scenarioAllSelectionCount},
       Scenario {"list-carries-glob", &scenarioListCarriesAGlob},
@@ -2341,6 +2964,11 @@ auto scenarioEmitSetRoundTrip() -> void
                 &scenarioSingleContextHuntPrintsTheHuntWhole},
       Scenario {"threaded-hunt-context-tail",
                 &scenarioThreadedHuntPrintsTheContextTail},
+      Scenario {"rank-table-columns",
+                &scenarioRankTableCarriesTheNewColumns},
+      Scenario {"stamp-pass-run-path", &scenarioStampPassRunPath},
+      Scenario {"baseline-rules-run-path",
+                &scenarioBaselineRulesRunPath},
       Scenario {"filter-selects-two-hunted",
                 &scenarioFilterSelectsTwoHuntedInstances},
       Scenario {"shared-reader-rules", &scenarioSharedReaderRules},
