@@ -221,6 +221,20 @@ fit step that stops a layout the run cannot carry.
   placement field's `@node` tail already prints (D-4). One unit carries
   one number on the line.
 
+### Session 2026-10-30, round 3
+
+- Q: Does the pairing refusal key on the preset's name or on the
+  partition that preset names for the read in hand? → A: On the
+  partition. A preset above `none` that names no partition stands
+  allowed beside the file, the file stays the run's one partition
+  source, and the machine line keeps its single standing rule
+  (FR-019, FR-028, D-2). The refusal set FR-018 and FR-019 name stays 18
+  cases.
+- Q: Does that reading bring back the layout's cpu form? → A: It does
+  not. A partition-naming preset never stands beside the file, the file
+  names slots only, and a preset that pins while naming no partition
+  pins from its own plan (D-6, FR-014).
+
 ## Decisions
 
 - **D-1 (R-1)**: The barrier is the group's own. Each group stands
@@ -233,7 +247,10 @@ fit step that stops a layout the run cannot carry.
   the layout file. A layout file beside a preset that names groups
   refuses one line at exit status 2, the standing refusal shape
   (`hunt_cli.cpp:155` is the combination-refusal precedent). The
-  `none` preset names no partition, so it keeps the standing shape.
+  `none` preset names no partition, so it keeps the standing shape. A
+  preset above `none` that names no partition for the read in hand
+  names no groups either, so it stands allowed, and the file stays that
+  run's one partition source (FR-019).
 - **D-3**: The unit each preset groups by. A preset's groups are the
   units its own plan already names for its positions, read from the
   plan this lane finds in place:
@@ -267,11 +284,13 @@ fit step that stops a layout the run cannot carry.
   entry. A slot is a context position, `0` based, and the entries of
   one file cover the instance's contexts exactly once. The cpu form
   the lane prompt sketches stands outside this release: a plan cpu
-  exists only under a preset plan (`runner.cpp:1627-1631`), R-2 bars
-  a layout beside a preset, so no run that carries a layout has a cpu
-  to name. The key `cpus` refuses one line naming its reason, and a
-  later spec that lets a layout pin its contexts brings the form back
-  (FR-014, Out of scope).
+  exists only under a preset plan (`runner.cpp:1627-1631`), and R-2
+  leaves no partition-naming preset beside the file to carry one, so
+  the file has no cpu source of its own in this release. A preset that
+  stands beside the file while naming no partition pins from its own
+  plan, and the file still names slots only. The key `cpus` refuses one
+  line naming its reason, and a later spec that lets a layout pin its
+  contexts brings the form back (FR-014, Out of scope).
 - **D-7**: The fixture publication. The fixture pair stays where
   specs/016 fixed it: context 0 owns it, its setup half runs before any
   body's measured work, and its teardown half runs after the stop
@@ -539,6 +558,11 @@ prints; the drift and prose gates read no finding.
 - A mask that excludes the read's first node names the group by the
   number the plan carries, `node-1` beside a placement field that ends
   `@1` (D-4).
+- A preset above `none` that names no partition for the read, the
+  `core` plan over a read that states cores and no L3 unit, stands
+  allowed beside a layout file: the preset pins, the file groups, and
+  the machine line prints as the standing rule prints it (FR-019,
+  FR-028).
 - A user thread runner that returns with a group's member
   undispatched meets the standing ledger fault before the run waits
   on any round (FR-027).
@@ -643,14 +667,17 @@ prints; the drift and prose gates read no finding.
   named `cpus`; any key outside FR-017's grammar; a repeated group
   name; a `name` outside FR-015's characters or length (R-2, R-3).
 - **FR-019**: A layout file given beside a placement preset that names
-  a partition SHALL refuse one line naming both, with exit status 2; a
-  layout beside `--placement=none` SHALL stand allowed. The check reads
-  each selected instance's resolved preset, the name a handle stated
-  (`registry.cpp:552-563`, `family.cpp:374-386`) carrying the same
-  refusal as the name the option settled, and it reads at the standing
-  fit checkpoint before any instance runs (FR-020). A layout file given
-  beside `--hunt` SHALL refuse one line naming both, the shape
-  `--hunt cannot combine with --placement` keeps
+  a partition for the machine read in hand SHALL refuse one line naming
+  both, with exit status 2; a layout beside `--placement=none` SHALL
+  stand allowed, and so SHALL a layout beside a preset that names no
+  partition for that read, where the preset's pins stand and the file
+  names the run's one partition. The check reads each selected
+  instance's resolved preset: the name a handle stated
+  (`registry.cpp:552-563`, `family.cpp:374-386`) carries the same
+  refusal as the name the option settled. The check reads at the
+  standing fit checkpoint before any instance runs (FR-020). A layout
+  file given beside `--hunt` SHALL refuse one line naming both, the
+  shape `--hunt cannot combine with --placement` keeps
   (`source/harness/hunt_cli.cpp:720-748`) (D-2, D-11).
 - **FR-020**: The standing fit step SHALL read the layout before any
   instance runs and SHALL stop the batch, one line and exit status 2,
@@ -693,10 +720,10 @@ prints; the drift and prose gates read no finding.
 - **FR-028**: A grouped run's console line for one context SHALL name
   the group as its last segment, after the placement flag where that
   flag prints, and SHALL keep the standing segments in the standing
-  order (`report.cpp:168-191`). The standing machine line keeps its
+  order (`report.cpp:168-191`). The standing machine line keeps its one
   rule of printing where the fit step reports a preset in effect
-  (`cli.cpp:744-755`), and a run grouped by a layout SHALL print
-  none.
+  (`cli.cpp:744-755`), so a run grouped by a layout that carries no
+  preset prints none.
 - **FR-029**: The report's per-context record SHALL carry a `group`
   key naming the same text the console prints, and the key SHALL
   stand present only for a run that carries a partition (D-10).
@@ -825,8 +852,9 @@ prints; the drift and prose gates read no finding.
 - The lane ships the slot form of the layout and refuses the key
   `cpus`. The lane prompt's phrase "the cpus or the slots each group
   takes" names the cpu form beside it, and the form has no carrier on
-  this tree: a plan cpu exists only under a preset plan, and R-2 bars
-  the pairing. The deviation stands recorded in D-6 and in Out of
+  this tree: a plan cpu exists only under a preset plan, and R-2 leaves
+  no partition-naming preset to pair with the file. The deviation
+  stands recorded in D-6 and in Out of
   scope, and a later spec that lets a layout pin brings the form back
   (FR-014).
 - The lane host's L3 shape differs from the lane prompt's named host;

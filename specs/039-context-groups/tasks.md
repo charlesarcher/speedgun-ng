@@ -123,8 +123,10 @@ fit walk learns to stop a batch the layout cannot serve.
   one line at status 2, the pairing beside `--placement=l3` and beside
   `--hunt` refuses one line naming both, a handle that states
   `placement("l3")` beside an option that states `none` refuses at the
-  fit checkpoint, and the counts `2,4,8` beside a four-slot layout stop
-  the batch with no row printed (FR-011, FR-019, FR-020, FR-021, B-3). Verify:
+  fit checkpoint, the `core` preset over a read that states no L3 unit
+  stands allowed beside the file, and the counts `2,4,8` beside a
+  four-slot layout stop the batch with no row printed (FR-011, FR-019,
+  FR-020, FR-021, B-3). Verify:
   `ctest --test-dir build -R harness_group_cli_test --output-on-failure`
   red.
 - [ ] T011 [3] Move `test/source/harness_cli_table_test.cpp` to the
@@ -143,9 +145,10 @@ fit walk learns to stop a batch the layout cannot serve.
   green on the row and the help line.
 - [ ] T013 [3] Implement `groupLayoutFitStatus` in
   `source/harness/group_fit.cpp` and call it beside `placementFitStatus`
-  at `source/harness/cli.cpp:744`, reading the file once and comparing
-  its slot count against every selected instance's context count
-  (FR-020, B-3). Verify:
+  at `source/harness/cli.cpp:744`, reading the file once, comparing its
+  slot count against every selected instance's context count, and
+  reading each instance's partition for the pairing refusal (FR-019,
+  FR-020, B-3). Verify:
   `ctest --test-dir build -R harness_group_cli_test --output-on-failure`
   green on the batch stop.
 - [ ] T014 [3] Add the two pairing refusals beside the standing hunt
@@ -234,8 +237,9 @@ and the report unit own disjoint files and run together.
   group names the line for a pinned and an unpinned context, the
   standing segments keep their order, an ungrouped run's line stands
   byte-identical to the standing shape, the machine line stays absent
-  for a layout run, and the per-context percentile rows keep their flat
-  shape (FR-028, FR-033, FR-035, C of the partition contract). Verify:
+  for a layout run that carries no preset and prints for the allowed
+  pairing, and the per-context percentile rows keep their flat shape
+  (FR-028, FR-033, FR-035, C of the partition contract). Verify:
   `ctest --test-dir build -R harness_group_report_test --output-on-failure`
   red on the block.
 - [ ] T024 [P] [5] Print the group segment in
