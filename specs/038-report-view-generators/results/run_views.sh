@@ -3,7 +3,7 @@
 # specs/035 and the tracer reports of specs/036 render through the
 # driver, one record per run beside the views. The script runs on the
 # lane host from the repository root, the release build at build/ stood
-# first: cmake --preset=ci-rocky && cmake --build build.
+# first (the ci-rocky preset configure, then the build).
 set -u
 cd "$(dirname "$0")/../.." || exit 1
 R=specs/038-report-view-generators/results
