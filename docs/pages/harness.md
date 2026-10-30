@@ -1259,9 +1259,10 @@ that measured the value. `docs/schema/report-v1.json` states the whole shape.
 
 `schemaVersion` names the shape of the document. A document whose major stands
 at 1 loads, whatever its minor says; a later major is refused, and the refusal
-names the version the document carries. A run writes `1.4`, the shape that
-added the hunt keys; a `1.0` document, which carries neither the hunt keys nor
-the pass fields, loads through the same rule.
+names the version the document carries. The writer moves the minor for a key
+it adds inside major 1. A run writes `1.10`, the shape that added the `group`
+key of the context record; a `1.0` document, which carries neither the hunt
+keys nor the pass fields, loads through the same rule.
 
 ### The null rule
 
@@ -1888,12 +1889,14 @@ hunt: device 'cpu' publishes 2 slots and a hunt pass needs 3
 --hunt cannot combine with --metric
 --hunt cannot combine with --compare
 --hunt cannot combine with --placement
+--hunt cannot combine with --group-layout
 --hunt-emit-set: 'culprits.txt' needs --hunt
 ```
 
 The placement option is the scope option of this conflict family. This tree
-spells it `--placement`. A hunt beside it leaves with the one line and the
-status 2 the three conflicts above print.
+spells it `--placement`. A settled layout file joins the family, and a hunt
+beside either one leaves with the one line and the status 2 the other
+conflicts above print.
 
 ### The hunt lines
 
