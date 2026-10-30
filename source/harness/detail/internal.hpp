@@ -1138,6 +1138,32 @@ auto printTopologyListing(const MachineLayout&) -> void;
 [[nodiscard]] auto placementFitStatus(const std::vector<Instance*>& selected)
     -> std::pair<int, bool>;
 
+/**
+ * @brief specs/039-context-groups FR-019 to FR-021, D-2, D-8, B-3: the layout
+ * arm of the fit walk: the read of the one file the `--group-layout` row
+ * settled, beside the placement walk and ahead of the first instance.
+ *
+ * The file reads once, at the context count of the first selected instance.
+ * Nothing here runs a benchmark, reads a clock, or starts a thread.
+ *
+ * \pre `selected` stands non-empty, and `path` stands as the winning option
+ *      source spelled the row's value, empty when no source named the row. The
+ *      placement fit walk stood clear, so an instance that carries a preset
+ *      above `none` reads a layout the resolver can walk (B-3)
+ * \post the answer is 0 with an empty line when no source named a layout, when
+ *       the file's slot count answers every instance's context count, and when
+ *       no instance's preset names a partition beside it (FR-019, FR-020)
+ * \post the answer is 2 with the one line the entry point prints when the slot
+ *       count differs from an instance's count, when the file stands
+ *       unreadable, or when a preset names a partition beside the file; no
+ *       instance ran (FR-019, FR-020)
+ * \post the line names the layout path, and a line about a slot names the
+ *       count it failed against (FR-021)
+ */
+[[nodiscard]] auto groupLayoutFitStatus(const std::string& path,
+                                        const std::vector<Instance*>& selected)
+    -> std::pair<int, std::string>;
+
 /// @brief The disclosure text of one slot: `cpu@group` when the layout
 /// names a group for that cpu, the cpu index alone when it names none,
 /// `NO_PIN` for `kNoPin`; rendering only, with the text in storage that

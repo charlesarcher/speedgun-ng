@@ -11,12 +11,15 @@
 // 299 stands in the free block above the noise tracer's 297, and the block
 // comment of `detail/options.hpp` names the split that leaves it there.
 //
-// Nothing here opens the named file. The scan, the settle arm and the gather
-// keep their rule of reading no file of their own (specs/028 D-05), so each
-// case hands the row a path that stands uncreated and asserts what the row
-// answers. The file lines reach the gather as text, the way the entry point
-// hands them. No scenario reads `/sys` or the host topology, starts a thread or
-// reads a clock (FR-036, FR-037, R-5).
+// The six row cases open no file. The scan, the settle arm and the gather keep
+// their rule of reading no file of their own (specs/028 D-05), so each of them
+// hands the row a path that stands uncreated and asserts what the row answers.
+// The file lines reach the gather as text, the way the entry point hands them.
+// The nine entry-point cases run the entry point, because the fit walk is the
+// first reader of the settled path: each writes its layout file, hands the
+// entry point its path, and reads the two streams of a child. The machine
+// shapes those runs need stand installed. No case reads `/sys` or the host
+// topology, starts a thread or reads a clock (FR-036, FR-037, R-5).
 //
 // Check map:
 //   theWordNamesTheRowAndSettlesItsPath
@@ -44,8 +47,38 @@
 //   theLastFileLineHoldsThePath  two lines of one file settle the path of the
 //                                last of them, disclosed once (specs/028
 //                                FR-035, FR-040)
+//   theMissingFileRefusesOneLine a path no host opens answers the reader's
+//                                  one line naming it, at status 2, with no row
+//                                  (FR-018, FR-021)
+//   theLayoutThatFitsRuns        a file whose slot count matches the batch lets
+//                                  the run reach its row (FR-020)
+//   theRunThatNamesNoLayoutRuns  a run no source named a layout for reaches
+//                                  its row and names no partition (FR-007)
+//   theOneContextRunWithTheFileRuns
+//                                  one context reads the file that names its
+//                                  one slot, carries no group, and keeps the
+//                                  standing shape (FR-010, FR-019)
+//   thePresetThatNamesGroupsRefusesThePairing
+//                                  a layout beside `--placement=l3` refuses one
+//                                  line naming the row, the preset and the path
+//                                  (FR-019, FR-021, D-2)
+//   theHandlePresetRefusesThePairing
+//                                  a handle that states `l3` beside an option
+//                                  that states `none` refuses the same line at
+//                                  the fit checkpoint (FR-019)
+//   thePresetThatNamesNoGroupsStandsAllowed
+//                                  `--placement=core` over a read that names no
+//                                  L3 unit runs beside the file, and its pins
+//                                  stand (FR-019, FR-006)
+//   theHuntPairingRefusesOneLine a layout beside `--hunt` answers the standing
+//                                  combination line naming both (FR-019, D-2)
+//   theBatchThatDoesNotFitStops  the counts 4, 2 and 8 beside a four-slot file
+//                                  stop the batch one line naming the path and
+//                                  the count, with no row (FR-020, FR-021)
 // ============================================================================
 
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <expected>
@@ -57,6 +90,7 @@
 #include <string_view>
 #include <vector>
 
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "detail/internal.hpp"
@@ -365,6 +399,465 @@ auto theLastFileLineHoldsThePath() -> void
             + std::to_string(groupUses(*gathered)));
 }
 
+// The paths of this half. Two of them stand written below before the child
+// runs, and one of them stands uncreated on purpose: the case that reads the
+// unreadable path is the only reader of it (FR-018).
+const std::string kProcessTag = std::to_string(static_cast<long>(getpid()));
+const std::string kPairPath =
+    "/tmp/harness_group_cli_pair_" + kProcessTag + ".yaml";
+const std::string kSoloPath =
+    "/tmp/harness_group_cli_solo_" + kProcessTag + ".yaml";
+const std::string kFourPath =
+    "/tmp/harness_group_cli_four_" + kProcessTag + ".yaml";
+const std::string kMissingPath =
+    "/tmp/harness_group_cli_missing_" + kProcessTag + ".yaml";
+
+// Two contexts' worth of slots in the grammar FR-012 fixes: the file fits a
+// two-context instance and is the run's one partition source (FR-020).
+constexpr std::string_view kPairBody =
+    "groups:\n  - name: pair\n    slots: [0, 1]\n";
+
+// One context's worth of slots, the file the one-context instance reads
+// (FR-010).
+constexpr std::string_view kSoloBody =
+    "groups:\n  - name: solo\n    slots: [0]\n";
+
+// One group of four slots, the count the batch of 4, 2 and 8 cannot all
+// carry (FR-020, D-8).
+constexpr std::string_view kFourBody =
+    "groups:\n  - name: wide\n    slots: [0, 1, 2, 3]\n";
+
+auto bmGroupMissing(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmGroupFits(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmGroupNoLayout(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmGroupSolo(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmGroupPairing(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmGroupHandle(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmGroupNoL3(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmGroupHunt(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+auto bmGroupBatch(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+// The two-group read of the pairing runs: two L3 groups of one core and two
+// threads each, so `l3` seats its two contexts and names the partition the
+// pairing refuses (FR-019). The read states no memory node, which no case
+// here reads.
+auto l3Shape() -> sg::detail::MachineLayout
+{
+  sg::detail::MachineLayout installed;
+  installed.readable = true;
+  installed.packages = 1;
+  for (std::uint32_t group = 0; group < 2; ++group) {
+    sg::detail::LayoutCore layoutCore;
+    layoutCore.groupOrdinal = group;
+    for (std::uint32_t sibling = 0; sibling < 2; ++sibling) {
+      sg::detail::LayoutThread thread;
+      thread.cpuIndex = group * 2 + sibling;
+      thread.coreOrdinal = static_cast<std::uint32_t>(installed.cores.size());
+      thread.groupOrdinal = group;
+      layoutCore.threads.push_back(
+          static_cast<std::uint32_t>(installed.threads.size()));
+      installed.threads.push_back(thread);
+      installed.mask.push_back(thread.cpuIndex);
+    }
+    installed.cores.push_back(layoutCore);
+    sg::detail::LayoutGroup layoutGroup;
+    layoutGroup.lowestCpu = group * 2;
+    layoutGroup.cores.push_back(group);
+    installed.groups.push_back(layoutGroup);
+  }
+  return installed;
+}
+
+// The read that states cores and no L3 unit: four cores of two threads, the
+// group of every thread left at `kNoGroup` the way the read leaves it, so
+// `core` seats two contexts and names no partition (FR-006).
+auto noL3Shape() -> sg::detail::MachineLayout
+{
+  sg::detail::MachineLayout installed;
+  installed.readable = true;
+  installed.packages = 1;
+  for (std::uint32_t core = 0; core < 4; ++core) {
+    sg::detail::LayoutCore layoutCore;
+    for (std::uint32_t sibling = 0; sibling < 2; ++sibling) {
+      sg::detail::LayoutThread thread;
+      thread.cpuIndex = core * 2 + sibling;
+      thread.coreOrdinal = core;
+      layoutCore.threads.push_back(core * 2 + sibling);
+      installed.threads.push_back(thread);
+      installed.mask.push_back(thread.cpuIndex);
+    }
+    installed.cores.push_back(layoutCore);
+  }
+  return installed;
+}
+
+// Each child registers the one benchmark its scenario filters for and installs
+// the shape its scenario reads, so a stop line can only come from the input
+// that scenario names.
+auto setupMissing() -> void
+{
+  (void)sg::registerBenchmark(&bmGroupMissing, "bmGroupMissing");
+}
+
+auto setupFits() -> void
+{
+  sg::detail::installTestLayout(noL3Shape());
+  auto handle = sg::registerBenchmark(&bmGroupFits, "bmGroupFits");
+  handle.threads(2);
+}
+
+auto setupNoLayout() -> void
+{
+  (void)sg::registerBenchmark(&bmGroupNoLayout, "bmGroupNoLayout");
+}
+
+auto setupSolo() -> void
+{
+  (void)sg::registerBenchmark(&bmGroupSolo, "bmGroupSolo");
+}
+
+auto setupPairing() -> void
+{
+  sg::detail::installTestLayout(l3Shape());
+  auto handle = sg::registerBenchmark(&bmGroupPairing, "bmGroupPairing");
+  handle.threads(2);
+}
+
+auto setupHandle() -> void
+{
+  sg::detail::installTestLayout(l3Shape());
+  auto handle = sg::registerBenchmark(&bmGroupHandle, "bmGroupHandle");
+  handle.threads(2).placement("l3");
+}
+
+auto setupNoL3() -> void
+{
+  sg::detail::installTestLayout(noL3Shape());
+  auto handle = sg::registerBenchmark(&bmGroupNoL3, "bmGroupNoL3");
+  handle.threads(2);
+}
+
+auto setupHunt() -> void
+{
+  (void)sg::registerBenchmark(&bmGroupHunt, "bmGroupHunt");
+}
+
+auto setupBatch() -> void
+{
+  (void)sg::registerBenchmark(&bmGroupBatch, "bmGroupBatch");
+}
+
+auto writeLayout(const std::string& path, std::string_view body) -> void
+{
+  std::ofstream file(path, std::ios::trunc);
+  file << body;
+  file.flush();
+  check(static_cast<bool>(file), "the case can write its layout file " + path);
+}
+
+// The count of lines a captured stream printed: one line per newline.
+auto lineCount(const std::string& text) -> std::size_t
+{
+  std::size_t lines = 0;
+  for (const char letter : text) {
+    if (letter == '\n') {
+      ++lines;
+    }
+  }
+  return lines;
+}
+
+// The two streams of one entry-point run, captured to files beside this
+// process number so the child writes them and the parent reads them.
+struct Captured
+{
+  int status;
+  std::string out;
+  std::string err;
+};
+
+auto capturePath(const std::string& mode,
+                 const std::string& suffix) -> std::string
+{
+  return (std::filesystem::temp_directory_path()
+          / ("harness_group_cli_" + mode + "_" + kProcessTag + suffix))
+      .string();
+}
+
+// Fork a child that registers its benchmark, runs the entry point with
+// `arguments`, and leaves with its status: the hunt pairing refusal reaches
+// `std::exit` from inside the entry point, the way every rejected hunt value
+// does.
+auto runChild(const std::string& mode,
+              const std::vector<std::string>& arguments,
+              void (*setup)()) -> Captured
+{
+  const std::string outPath = capturePath(mode, ".out");
+  const std::string errPath = capturePath(mode, ".err");
+  const pid_t child = fork();
+  if (child < 0) {
+    fail("the case can fork a child");
+  }
+  if (child == 0) {
+    if (std::freopen(outPath.c_str(), "w", stdout) == nullptr
+        || std::freopen(errPath.c_str(), "w", stderr) == nullptr)
+    {
+      _exit(3);
+    }
+    setup();
+    std::vector<std::string> words {"harness_group_cli_test"};
+    for (const std::string& argument : arguments) {
+      words.push_back(argument);
+    }
+    std::vector<char*> argv;
+    for (std::string& word : words) {
+      argv.push_back(word.data());
+    }
+    const int status =
+        sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+    std::fflush(stdout);
+    std::fflush(stderr);
+    // std::exit runs the atexit handlers, and the coverage preset writes its
+    // counters from one, so the child's walk of the fit paths reaches that
+    // handler. The two streams stand flushed first, so the captured files hold
+    // exactly the child's bytes.
+    std::exit(status);
+  }
+  int waited = 0;
+  check(waitpid(child, &waited, 0) == child, "the case can wait for its child");
+  check(WIFEXITED(waited), "the child exited normally");
+  const Captured captured {
+      WEXITSTATUS(waited), readText(outPath), readText(errPath)};
+  std::filesystem::remove(outPath);
+  std::filesystem::remove(errPath);
+  return captured;
+}
+
+// FR-018, FR-021: a path no host opens answers the reader's own line naming
+// it, at status 2, ahead of every run.
+auto theMissingFileRefusesOneLine() -> void
+{
+  std::filesystem::remove(kMissingPath);
+  const Captured run = runChild(
+      "missing",
+      {"--group-layout=" + kMissingPath, "--filter", "^bmGroupMissing$"},
+      &setupMissing);
+  check(
+      run.status == 2,
+      "a layout no host opens exits 2 (FR-018): " + std::to_string(run.status));
+  check(lineCount(run.err) == 1,
+        "the unreadable path answers one line (FR-018): " + run.err);
+  check(run.err.find(kMissingPath) != std::string::npos,
+        "the line names the layout path (FR-021): " + run.err);
+  check(run.out.find("bmGroupMissing") == std::string::npos,
+        "no benchmark ran (FR-018): " + run.out);
+}
+
+// FR-020: the fit walk reads a file that fits and lets the run reach its row.
+auto theLayoutThatFitsRuns() -> void
+{
+  writeLayout(kPairPath, kPairBody);
+  const Captured run =
+      runChild("fits",
+               {"--group-layout=" + kPairPath, "--filter", "^bmGroupFits"},
+               &setupFits);
+  check(run.status == 0,
+        "a layout that fits the batch runs (FR-020): "
+            + std::to_string(run.status) + " " + run.err);
+  check(run.err.find("--group-layout") == std::string::npos,
+        "a file that fits answers no refusal line (FR-020): " + run.err);
+  check(run.out.find("bmGroupFits") != std::string::npos,
+        "the run reaches its row (FR-020): " + run.out);
+}
+
+// FR-007: a run no source named a layout for keeps its standing shape.
+auto theRunThatNamesNoLayoutRuns() -> void
+{
+  const Captured run =
+      runChild("noLayout", {"--filter", "^bmGroupNoLayout$"}, &setupNoLayout);
+  check(run.status == 0,
+        "a run with no layout word runs (FR-007): " + std::to_string(run.status)
+            + " " + run.err);
+  check(run.err.find("--group-layout") == std::string::npos,
+        "the fit arm reads no file the run did not name (FR-007): " + run.err);
+  check(run.out.find("bmGroupNoLayout") != std::string::npos,
+        "the run reaches its row (FR-007): " + run.out);
+}
+
+// FR-010, FR-019: a one-context instance reads the file that names its one
+// slot, carries no group, and keeps the standing shape.
+auto theOneContextRunWithTheFileRuns() -> void
+{
+  writeLayout(kSoloPath, kSoloBody);
+  const Captured run =
+      runChild("solo",
+               {"--group-layout=" + kSoloPath, "--filter", "^bmGroupSolo$"},
+               &setupSolo);
+  check(run.status == 0,
+        "a one-context instance runs beside the file (FR-010): "
+            + std::to_string(run.status) + " " + run.err);
+  check(run.err.find("--group-layout") == std::string::npos,
+        "one context answers no pairing line (FR-010): " + run.err);
+  check(run.out.find("bmGroupSolo") != std::string::npos,
+        "the run reaches its row (FR-010): " + run.out);
+}
+
+// FR-019, FR-021, D-2: the layout beside a preset that names a partition for
+// the read in hand refuses one line naming the row, the preset and the path.
+auto thePresetThatNamesGroupsRefusesThePairing() -> void
+{
+  writeLayout(kPairPath, kPairBody);
+  const Captured run = runChild("pairing",
+                                {"--group-layout=" + kPairPath,
+                                 "--placement=l3",
+                                 "--filter",
+                                 "^bmGroupPairing"},
+                                &setupPairing);
+  check(run.status == 2,
+        "the pairing with a partition-naming preset exits 2 (FR-019): "
+            + std::to_string(run.status));
+  checkText(run.err,
+            "--group-layout '" + kPairPath
+                + "' cannot combine with --placement='l3'\n",
+            "one line names the row, the path and the preset (FR-019, FR-021, "
+            "D-2)");
+  check(run.out.find("bmGroupPairing") == std::string::npos,
+        "no benchmark ran (FR-019): " + run.out);
+}
+
+// FR-019: the name a handle stated carries the same refusal as the name the
+// option settled, and the fit checkpoint is where the pair meets.
+auto theHandlePresetRefusesThePairing() -> void
+{
+  writeLayout(kPairPath, kPairBody);
+  const Captured run = runChild("handle",
+                                {"--group-layout=" + kPairPath,
+                                 "--placement=none",
+                                 "--filter",
+                                 "^bmGroupHandle"},
+                                &setupHandle);
+  check(run.status == 2,
+        "a handle that states `l3` exits 2 beside the file (FR-019): "
+            + std::to_string(run.status));
+  checkText(run.err,
+            "--group-layout '" + kPairPath
+                + "' cannot combine with --placement='l3'\n",
+            "the line names the preset the handle stated (FR-019, FR-021)");
+  check(run.out.find("bmGroupHandle") == std::string::npos,
+        "no benchmark ran (FR-019): " + run.out);
+}
+
+// FR-019, FR-006: a preset that names no partition for the read in hand keeps
+// its pins and stands allowed beside the file.
+auto thePresetThatNamesNoGroupsStandsAllowed() -> void
+{
+  writeLayout(kPairPath, kPairBody);
+  const Captured run = runChild("noL3",
+                                {"--group-layout=" + kPairPath,
+                                 "--placement=core",
+                                 "--filter",
+                                 "^bmGroupNoL3"},
+                                &setupNoL3);
+  check(run.status == 0,
+        "`core` over a read that states no L3 unit runs beside the file "
+        "(FR-019): "
+            + std::to_string(run.status) + " " + run.err);
+  check(run.err.find("--group-layout") == std::string::npos,
+        "a preset that names no partition answers no pairing line (FR-019): "
+            + run.err);
+  check(run.out.find("bmGroupNoL3") != std::string::npos,
+        "the run reaches its row (FR-019): " + run.out);
+}
+
+// FR-019, D-2: the layout beside `--hunt` answers the standing combination
+// line, the shape `--hunt cannot combine with --placement` keeps.
+auto theHuntPairingRefusesOneLine() -> void
+{
+  writeLayout(kPairPath, kPairBody);
+  const Captured run = runChild("hunt",
+                                {"--group-layout=" + kPairPath,
+                                 "--hunt=all",
+                                 "--filter",
+                                 "^bmGroupHunt$"},
+                                &setupHunt);
+  check(run.status == 2,
+        "the pairing with `--hunt` exits 2 (FR-019): "
+            + std::to_string(run.status));
+  checkText(run.err,
+            "--hunt cannot combine with --group-layout\n",
+            "the pairing keeps the standing combination line (FR-019, D-2)");
+  check(run.out.find("bmGroupHunt") == std::string::npos,
+        "no benchmark ran (FR-019): " + run.out);
+}
+
+// FR-020, FR-021: the slot count of the file is the count of one instance, so
+// a batch of differing counts stops at the fit step, one line naming the path
+// and the count it failed against, with no row printed.
+auto theBatchThatDoesNotFitStops() -> void
+{
+  writeLayout(kFourPath, kFourBody);
+  const Captured run = runChild("batch",
+                                {"--group-layout=" + kFourPath,
+                                 "--threads=4,2,8",
+                                 "--filter",
+                                 "^bmGroupBatch"},
+                                &setupBatch);
+  check(run.status == 2,
+        "a batch the slot count cannot carry exits 2 (FR-020): "
+            + std::to_string(run.status));
+  checkText(run.err,
+            "--group-layout '" + kFourPath
+                + "' names 4 slots, 'bmGroupBatch/threads:2' runs 2 contexts\n",
+            "one line names the path and the two counts it failed against "
+            "(FR-020, FR-021)");
+  check(run.out.find("bmGroupBatch") == std::string::npos,
+        "no benchmark ran (FR-020): " + run.out);
+}
+
 auto run() -> int
 {
   theWordNamesTheRowAndSettlesItsPath();
@@ -373,6 +866,18 @@ auto run() -> int
   theRowCarriesNoEnvironmentSource();
   theWordsHoldThePathOverTheFile();
   theLastFileLineHoldsThePath();
+  theMissingFileRefusesOneLine();
+  theLayoutThatFitsRuns();
+  theRunThatNamesNoLayoutRuns();
+  theOneContextRunWithTheFileRuns();
+  thePresetThatNamesGroupsRefusesThePairing();
+  theHandlePresetRefusesThePairing();
+  thePresetThatNamesNoGroupsStandsAllowed();
+  theHuntPairingRefusesOneLine();
+  theBatchThatDoesNotFitStops();
+  std::filesystem::remove(kPairPath);
+  std::filesystem::remove(kSoloPath);
+  std::filesystem::remove(kFourPath);
   std::printf("harness_group_cli_test PASS\n");
   return 0;
 }
@@ -389,12 +894,10 @@ auto main() -> int
   }
 }
 
-// The split the row's own reach fixes. The six cases above answer as far as
-// T012 carries the row: nothing reads the file the word names until the fit
-// walk of T013 stands. The refusals T010 names arrive with the code that
-// answers them, each written and seen red beside its implementation: a path
-// no host opens, the pairing beside a placement preset and beside `--hunt`
-// (FR-019, D-2), the batch a slot count stops (FR-020), and the one fault
-// line that names the path (FR-021). Those cases land in the T013 and T014
-// commit on the instruction of the orchestrating session, which fixes where
-// each refusal is born.
+// The split the row's own reach fixes. The six row cases answer at the scan,
+// the settle arm and the gather, which open nothing. The nine entry-point
+// cases answer at the fit walk, the first reader of the settled path: the
+// unreadable path, the file that fits, the run that named no layout, the
+// one-context instance, the two pairings a partition-naming preset meets, the
+// preset that names no partition for the read, the pairing beside `--hunt`,
+// and the batch the slot count stops (FR-018 to FR-021, D-2, B-3).
