@@ -375,7 +375,7 @@ commands and exit codes named, the artifacts beside them.
   that names four pairings and misses the `--group-layout` pairing
   FR-019 adds, and its version rule states a schema minor the writer no
   longer stamps. Land both lines with the values the code holds
-  (FR-022, FR-030, IV.1). Verify:
+  (FR-019, FR-030, FR-032, IV.1). Verify:
   `ctest --test-dir build -R "example_drift|report_shape" --output-on-failure`
   green, and the two blocks name what `source/harness/json_report.cpp`
   and `source/harness/hunt_cli.cpp` state.
