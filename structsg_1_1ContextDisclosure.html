@@ -92,7 +92,21 @@
               bool <a href="#a69ee4abcfbb8a17d776a3e39fa0170c8" class="m-doc-self">applied</a>
             </dt>
             <dd>Whether the installed placement function reported its slot as landed (FR-005). The report prints it beside <code><a href="#a9d838c0110e515aad09b8db3ee43e667" class="m-doc">placement</a></code>, so a pin that did not land shows whatever text its function returned (FR-025).</dd>
+            <dt>
+              std::string <a href="#a84e28e2ffd621c8e986cbe015fbc4b87" class="m-doc">group</a>
+            </dt>
+            <dd>The context group this context belongs to, empty where the run carries no partition (FR-005, FR-029).</dd>
           </dl>
+        </section>
+        <section>
+          <h2>Variable documentation</h2>
+          <section class="m-doc-details" id="a84e28e2ffd621c8e986cbe015fbc4b87"><div>
+            <h3>
+              std::string sg::<wbr />ContextDisclosure::<wbr /><a href="#a84e28e2ffd621c8e986cbe015fbc4b87" class="m-doc-self">group</a>
+            </h3>
+            <p>The context group this context belongs to, empty where the run carries no partition (FR-005, FR-029).</p>
+<p>The run&#x27;s partition names one text per group: <code>&lt;unit&gt;-&lt;ordinal&gt;</code> for the unit a preset plan reads, the text a layout entry states, or <code>g</code> beside the entry index where an entry named none (D-4). The console prints the name as the last segment of its context line and the report writes it as the record&#x27;s <code><a href="#a84e28e2ffd621c8e986cbe015fbc4b87" class="m-doc">group</a></code> key, so both read this one text (FR-028, FR-029).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>a name with text stands unique within the run&#x27;s partition and names the group holding this context (A-1, A-2 of the partition contract); an empty name states the ungrouped shape, the record a report document that carries no <code><a href="#a84e28e2ffd621c8e986cbe015fbc4b87" class="m-doc">group</a></code> key loads as (FR-004, FR-031, FR-033)</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p>the console segment and the report key print this one text, and the runner fills it from the instance&#x27;s partition as it fills the disclosure record, so both channels answer one name for one context (FR-028, FR-029, FR-033)</p></aside>
+          </div></section>
         </section>
       </div>
     </div>

@@ -85,6 +85,11 @@
               <span class="m-doc-wrap-bumper">auto <a href="#a58b9cd6827d2bdda5d5f6afaedb27469" class="m-doc">toCounterSet</a>(</span><span class="m-doc-wrap">std::size_t topN) const -&gt; std::vector&lt;std::string&gt;</span>
             </dt>
             <dd>The ranked addresses of this entry, best first, capped at <code>topN</code> (E-06, FR-013, FR-015).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#afa59ec1621c514b48919d467d974fb06" class="m-doc">toCompareRules</a>(</span><span class="m-doc-wrap">std::size_t topN,
+              double noisePercent) const -&gt; std::vector&lt;std::string&gt;</span>
+            </dt>
+            <dd>The rule texts of the promoted events, the top <code>topN</code> ranked entries in rank order (specs/040 FR-021, FR-024, D-7).</dd>
           </dl>
         </section>
         <section id="pub-attribs">
@@ -124,6 +129,14 @@
             </h3>
             <p>The ranked addresses of this entry, best first, capped at <code>topN</code> (E-06, FR-013, FR-015).</p>
 <p>The set the entry hands to a later run&#x27;s <code>--counter=@&lt;file&gt;</code>: the same top <code>--hunt-top</code> events the console ranks, in the order the rank table prints them.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the answer holds at most <code>topN</code> addresses, the ranked entries in ascending rank; <code>topN</code> above the ranked count answers them all and <code>topN</code> zero answers none; an entry whose <code>rank</code> stands empty holds no address, the event being noisy, excluded, skipped or unmeasured (I-5); the call measures nothing and reads no clock</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="afa59ec1621c514b48919d467d974fb06"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">std::vector&lt;std::string&gt; sg::<wbr />hunt::<wbr />EntryHunt::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#afa59ec1621c514b48919d467d974fb06" class="m-doc-self">toCompareRules</a>(</span><span class="m-doc-wrap">std::size_t topN,
+              double noisePercent) const</span></span>
+            </h3>
+            <p>The rule texts of the promoted events, the top <code>topN</code> ranked entries in rank order (specs/040 FR-021, FR-024, D-7).</p>
+<p>The set <code>--hunt-emit-rules</code> writes: the same set specs/033&#x27;s <code>--hunt-emit-set</code> promotes (D-7), one N5 rule line per promoted event, in the grammar <code>--compare-rules</code> reads again with no edit (R-3). The pair shape of <code><a href="#a58b9cd6827d2bdda5d5f6afaedb27469" class="m-doc">toCounterSet</a></code> stands the set and its order (FR-024).</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>noisePercent</code> stands above <code>0.0</code>, the range the <code>--hunt-noise</code> option states</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>each line reads <code>counter:&lt;event&gt;@median:&lt;lower|higher&gt;:&lt;n&gt;%</code>; the threshold carries <code>noisePercent</code> for every line; the direction stands <code>lower</code> for a negative delta, <code>higher</code> for a positive one, <code>lower</code> where the delta stands empty; an entry whose <code>rank</code> stands empty holds no line; the answer holds at most <code>topN</code> lines in ascending rank; the call measures nothing and reads no clock (FR-021, D-7, FR-006)</p></aside>
           </div></section>
         </section>
       </div>

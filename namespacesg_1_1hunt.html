@@ -153,7 +153,9 @@
             <dd>The denominator one hunt run normalizes an event count by (E-02, D-6).</dd>
             <dt>
               <span class="m-doc-wrap-bumper">enum class <a href="#ab223aff0ec1c6e4949001d63a7b661a7" class="m-doc">HuntRank</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#ab223aff0ec1c6e4949001d63a7b661a7a79521cdea3eff83f517d31c49f9082f5" class="m-doc">RATE</a>,
-              <a href="#ab223aff0ec1c6e4949001d63a7b661a7aa5c8c3544bc49ebacde4ffe04bf34de0" class="m-doc">CV</a> }</span>
+              <a href="#ab223aff0ec1c6e4949001d63a7b661a7aa5c8c3544bc49ebacde4ffe04bf34de0" class="m-doc">CV</a>,
+              <a href="#ab223aff0ec1c6e4949001d63a7b661a7a02e8090033d6c30b544e45d7bb4c9c4e" class="m-doc">SENSITIVITY</a>,
+              <a href="#ab223aff0ec1c6e4949001d63a7b661a7aa789408ec4ddae81bd2f72ad5ec6bf3b" class="m-doc">DELTA</a> }</span>
             </dt>
             <dd>The key one hunt run orders its ranks by (E-02, D-3).</dd>
             <dt>
@@ -199,7 +201,7 @@
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="hunt_8hpp.html">&lt;speedgun-ng/hunt.hpp&gt;</a></div>
             </h3>
             <p>The denominator one hunt run normalizes an event count by (E-02, D-6).</p>
-<p>The names are printed in lower case by the console and the JSON writer through one internal name table each, indexed by the enumerator (E-02).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p><code>INSTR</code> divides by the instructions count of the same pass, <code>CYCLE</code> by the cycles count of the same pass, <code>ITER</code> by the iteration count of the attempt. No enumerator names <code>SENSITIVITY</code>, <code>DELTA</code> or <code>SCORE</code>: N14b adds those when its method exists (D-3)</p></aside>
+<p>The names are printed in lower case by the console and the JSON writer through one internal name table each, indexed by the enumerator (E-02).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p><code>INSTR</code> divides by the instructions count of the same pass, <code>CYCLE</code> by the cycles count of the same pass, <code>ITER</code> by the iteration count of the attempt</p></aside>
           </div></section>
           <section class="m-doc-details" id="ab223aff0ec1c6e4949001d63a7b661a7"><div>
             <h3>
@@ -207,7 +209,7 @@
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="hunt_8hpp.html">&lt;speedgun-ng/hunt.hpp&gt;</a></div>
             </h3>
             <p>The key one hunt run orders its ranks by (E-02, D-3).</p>
-<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p><code>RATE</code> orders by median rate descending, <code>CV</code> by coefficient of variation ascending; both break a tie by catalog address, so one sample list gives one order</p></aside>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p><code>RATE</code> orders by median rate descending, <code>CV</code> by coefficient of variation ascending; both break a tie by catalog address, so one sample list gives one order. <code>SENSITIVITY</code> orders by the correlation descending, ties by the slope and then the catalog address; <code>DELTA</code> orders by the delta magnitude descending, ties by the catalog address (specs/040 FR-010, D-3); the batch stamp assigns the two new keys&#x27; ranks</p></aside>
           </div></section>
           <section class="m-doc-details" id="a329c1ae0ef9dc308643d4bc62401c11a"><div>
             <h3>
