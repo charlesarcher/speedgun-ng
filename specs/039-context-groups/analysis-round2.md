@@ -1,27 +1,26 @@
 # Analysis round 2: specs/039-context-groups
 
 Analyzed on 2026-10-30 on branch `039-context-groups` at HEAD `a4ceb8d8`
-(`Meta: Clear the analysis round-1 findings`). Its tree equals the tree
-of `1c0d22f3`, the remediation commit the parent named, and the read
-`git diff 1c0d22f3 HEAD` answers no difference. The read
+(`Meta: Clear the analysis round-1 findings`). That head stands the
+remediation commit the parent named, and the read
+`git diff a4ceb8d8 HEAD` answers no difference. The read
 `git diff master...HEAD` names thirteen files, all under
-`specs/039-context-groups/` beside
-`.specify/feature.json`, so the source tree stands as master's. Basis:
-the constitution, then the current `spec.md`, `plan.md`, `tasks.md`,
-`data-model.md`, the two files under `contracts/`,
-`checklists/requirements.md` and the four clarification rounds with their
-`## Reconciliation` sections, then a re-read of the cited source. Shape
-claims were measured: the harness topology walk
-(`source/harness/topology.cpp:132-212`) and the resolver arms
-(`source/harness/placement_preset.cpp:105-212`) were replayed against the
-vendored reader (`external/hwloc/hwloc/topology-synthetic.c` through the
-built `libhwloc_embedded.a`) for the synthetic descriptions the plan
-names. Gate reads at HEAD: `prose-lint` over `bea6af5b..HEAD` answers 21
-sources, 2981 units and 0 findings, and `example_drift` exits 0 with no
-flag and with `--options`. A citation sweep over the seven artifacts
-resolves 113 `path:line` reads across 29 files with no start line past an
-end of file, and a verify sweep resolves every CTest name the artifacts
-run against the 146 names `test/CMakeLists.txt` registers.
+`specs/039-context-groups/` beside `.specify/feature.json`, so the
+source tree stands as master's. Basis: the constitution, then the
+current `spec.md`, `plan.md`, `tasks.md`, `data-model.md`, the two files
+under `contracts/`, `checklists/requirements.md` and the four
+clarification rounds with their `## Reconciliation` sections, then a
+re-read of the cited source. Shape claims were measured: the harness
+topology walk (`source/harness/topology.cpp:132-212`) and the resolver
+arms (`source/harness/placement_preset.cpp:105-212`) were replayed
+against the vendored reader (`external/hwloc/hwloc/topology-synthetic.c`
+through the built `libhwloc_embedded.a` ) for the synthetic descriptions
+the plan names. Gate reads at HEAD: `prose-lint` over `bea6af5b..HEAD`
+answers 21 sources, 2981 units and 0 findings, and `example_drift` exits
+0 with no flag and with `--options`. A citation sweep over the seven
+artifacts resolves 113 `path:line` reads across 29 files with no start
+line past an end of file, and a verify sweep resolves every CTest name
+the artifacts run against the 146 names `test/CMakeLists.txt` registers.
 
 ## Closure of round 1
 
