@@ -239,16 +239,17 @@ auto run() -> int
   }
 
   // The version and the SOVERSION record of the move this task lands
-  // (specs/040-hunter-sensitivity FR-050): the project block reads
-  // 0.26.0, the harness target answers SOVERSION 17, and the archive
-  // target keeps SOVERSION 4.
+  // (specs/039-context-groups FR-005, FR-032, D-2): the project block
+  // reads 0.27.0, the harness target answers SOVERSION 18, and the
+  // archive target keeps SOVERSION 4. specs/040 took 0.26.0 and 17 on
+  // master while this lane stood open, so the lane takes the next pair.
   {
     auto const cmake = rootCMakeText();
     check(!cmake.empty(), "pass: the root CMakeLists.txt can be read");
-    check(projectVersion(cmake) == "0.26.0",
-          "pass: the project version reads 0.26.0");
-    check(cmake.find("SOVERSION 17") != std::string::npos,
-          "pass: the harness SOVERSION line reads SOVERSION 17");
+    check(projectVersion(cmake) == "0.27.0",
+          "pass: the project version reads 0.27.0");
+    check(cmake.find("SOVERSION 18") != std::string::npos,
+          "pass: the harness SOVERSION line reads SOVERSION 18");
     check(cmake.find("SOVERSION 4") != std::string::npos,
           "pass: the archive SOVERSION line reads SOVERSION 4");
   }

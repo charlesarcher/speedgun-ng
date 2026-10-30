@@ -32,7 +32,13 @@ project(
     # FR-090. RankedEvent gains the rank fields and EntryHunt gains
     # toCompareRules, so the harness SOVERSION is 17 and the archive
     # SOVERSION stays 4.
-    VERSION 0.26.0
+    # specs/039-context-groups FR-005, FR-032 (D-2): this feature takes
+    # the next free minor past specs/040, 0.27.0. The group name joins
+    # the exported ContextDisclosure record in
+    # include/speedgun-ng/benchmark.hpp, the public header that owns
+    # the context disclosure, so the exported layouts move again and
+    # the harness SOVERSION is 18.
+    VERSION 0.27.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -341,7 +347,13 @@ set_target_properties(
     # hand-kept number rises to 17 past the 16 specs/038 left. The
     # counters library surface moves nothing, so that archive keeps
     # its SOVERSION 4 (hard rule 12).
-    SOVERSION 17
+    # specs/039 FR-005, FR-032, D-2: ContextDisclosure gains the group
+    # name, a member of the exported record behind
+    # include/speedgun-ng/benchmark.hpp, so the exported layouts move
+    # again and the hand-kept number rises to 18 past the 17 specs/040
+    # landed. The counters library surface moves nothing, so that
+    # archive keeps its SOVERSION 4 (hard rule 12).
+    SOVERSION 18
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )
