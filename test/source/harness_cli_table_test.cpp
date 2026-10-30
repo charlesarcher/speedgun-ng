@@ -99,6 +99,11 @@
 //                                  `compare-strict` (FR-003, SC-001)
 //   theScanCarriesNoShortLetter    the option string of the scan holds no
 //                                  letter (FR-005)
+//   theVersionBindingsReadTheMovedNumbers
+//                                  the project block reads 0.26.0, the
+//                                  harness target answers SOVERSION 17,
+//                                  and the archive target keeps
+//                                  SOVERSION 4 (FR-050)
 //   theHelpAnswerPrintsOneLinePerRow
 //                                  `--help` prints one line per table row
 //                                  in table order, each the two leading
@@ -162,6 +167,8 @@
 #include "detail/cli_table_fixture.hpp"
 #include "detail/options.hpp"
 #include "speedgun-ng/benchmark.hpp"
+
+#include "speedgun-ng/dbc.hpp"
 
 namespace
 {
@@ -1160,37 +1167,70 @@ auto helpLine(const sg::detail::OptionRow& row) -> std::string
       + row.help;
 }
 
-// The project version the build defines: the `VERSION` of the `project(`
-// block of the root `CMakeLists.txt`, the same text the build hands the
-// harness as `SG_PROJECT_VERSION` for the console line. The walk starts
-// at the table directory and climbs, so the version is read the way the
-// table itself is read.
-auto projectVersion(const std::filesystem::path& start) -> std::string
+/// The root `CMakeLists.txt` text: the walk starts at the table directory
+/// and climbs, so the version bindings are read the way the table itself
+/// is read.
+///
+/// \pre none
+/// \post the answer is empty or carries the `project(` block
+auto rootCMakeText(const std::filesystem::path& start) -> std::string
 {
   std::filesystem::path directory = std::filesystem::absolute(start);
+  std::string answer;
   for (int hop = 0; hop <= 8 && !directory.empty(); ++hop) {
     const std::string text = readText(directory / "CMakeLists.txt");
     if (text.find("project(") != std::string::npos) {
-      std::istringstream lines(text);
-      std::string line;
-      while (std::getline(lines, line)) {
-        const std::size_t word = line.find_first_not_of(" \t");
-        if (word == std::string::npos || line.compare(word, 8, "VERSION ") != 0)
-        {
-          continue;
-        }
-        std::istringstream value(line.substr(word + 8));
-        std::string version;
-        if ((value >> version) && !version.empty()
-            && std::isdigit(static_cast<unsigned char>(version[0])))
-        {
-          return version;
-        }
-      }
+      answer = text;
+      break;
     }
     directory = directory.parent_path();
   }
+  SG_ENSURE(answer.empty() || answer.find("project(") != std::string::npos,
+            "post: the answer is empty or carries the project block");
+  return answer;
+}
+
+// The project version the build defines: the `VERSION` of the `project(`
+// block of the root `CMakeLists.txt`, the same text the build hands the
+// harness as `SG_PROJECT_VERSION` for the console line.
+auto projectVersion(const std::filesystem::path& start) -> std::string
+{
+  std::istringstream lines(rootCMakeText(start));
+  std::string line;
+  while (std::getline(lines, line)) {
+    const std::size_t word = line.find_first_not_of(" \t");
+    if (word == std::string::npos || line.compare(word, 8, "VERSION ") != 0)
+    {
+      continue;
+    }
+    std::istringstream value(line.substr(word + 8));
+    std::string version;
+    if ((value >> version) && !version.empty()
+        && std::isdigit(static_cast<unsigned char>(version[0])))
+    {
+      return version;
+    }
+  }
   return {};
+}
+
+// FR-050: the version bindings read the numbers the version move lands:
+// the project version `0.26.0`, the harness `SOVERSION 17` and the
+// archive `SOVERSION 4`. The rows stand red until T007 moves the block.
+///
+/// \pre the root `CMakeLists.txt` can be read
+/// \post the three rows answer the numbers FR-050 moves
+auto theVersionBindingsReadTheMovedNumbers(const std::filesystem::path& start)
+    -> void
+{
+  const std::string cmake = rootCMakeText(start);
+  SG_ASSERT(!cmake.empty(), "pre: the root CMakeLists.txt can be read");
+  check(projectVersion(start) == "0.26.0",
+        "the project version reads 0.26.0 (FR-050)");
+  check(cmake.find("SOVERSION 17") != std::string::npos,
+        "the harness SOVERSION line reads SOVERSION 17 (FR-050)");
+  check(cmake.find("SOVERSION 4") != std::string::npos,
+        "the archive SOVERSION line reads SOVERSION 4 (FR-050)");
 }
 
 // FR-015, FR-018, SC-008: one line per table row, in table order, each
@@ -1748,6 +1788,7 @@ auto main(int argc, char** argv) -> int
   const std::string version = projectVersion(*directory);
   check(!version.empty(),
         "the project version of the build can be read (FR-016)");
+  theVersionBindingsReadTheMovedNumbers(*directory);
 
   theHelpAnswerPrintsOneLinePerRow();
   theVersionAnswerPrintsTheProjectVersion(version);

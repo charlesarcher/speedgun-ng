@@ -27,7 +27,12 @@ project(
     # the next free minor, 0.25.0. The view functions join the exported
     # harness surface behind include/speedgun-ng/views.hpp, so the
     # harness SOVERSION is 16 and the archive SOVERSION stays 4.
-    VERSION 0.25.0
+    # specs/040-hunter-sensitivity FR-050 (PD-20): this feature takes
+    # the next free minor, 0.26.0, the reservation rule of specs/029
+    # FR-090. RankedEvent gains the rank fields and EntryHunt gains
+    # toCompareRules, so the harness SOVERSION is 17 and the archive
+    # SOVERSION stays 4.
+    VERSION 0.26.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -330,7 +335,13 @@ set_target_properties(
     # layouts move and the hand-kept number rises to 16 past the 15
     # specs/033 left. The counters library surface moves nothing, so
     # that archive keeps its SOVERSION 4 (hard rule 12).
-    SOVERSION 16
+    # specs/040 FR-024, D-1: RankedEvent gains the rank figures
+    # sensitivityCorrelation, sensitivitySlope and delta, and EntryHunt
+    # gains toCompareRules, so the exported layouts move and the
+    # hand-kept number rises to 17 past the 16 specs/038 left. The
+    # counters library surface moves nothing, so that archive keeps
+    # its SOVERSION 4 (hard rule 12).
+    SOVERSION 17
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )
