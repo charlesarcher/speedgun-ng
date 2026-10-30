@@ -16,7 +16,8 @@
 // answers (FR-012 to FR-015, A-6).
 //
 // Table C of contracts/group-layout.md stands covered row by row:
-//   unreadable path                     absent path, spelled with `$HOME`
+//   unreadable path                     absent path, spelled with `$HOME`,
+//                                       a directory, and a path below a file
 //   unparsable document                 the reader's own reason
 //   root mapping with no `groups`       plus the empty document
 //   root node that is a sequence        one case
@@ -261,12 +262,39 @@ auto run() -> int
   // ---- The fault rows of table C (FR-018, FR-021, A-1, A-3) ----
 
   // Row 1, an unreadable path. The path spells a shell variable the reader
-  // expands nowhere (FR-018, A-4).
+  // expands nowhere (FR-018, A-4), and the line carries the reason the open
+  // answered, the text the standing file reader answers for `--options`.
   {
     const auto absent =
         std::filesystem::path("$HOME") / "absent-group-layout.yaml";
-    checkFaultLine(
-        "absent-path", absent, readLayout(absent, kFour), {"cannot open"});
+    checkFaultLine("absent-path",
+                   absent,
+                   readLayout(absent, kFour),
+                   {"cannot be opened", "No such file or directory"});
+  }
+
+  // Row 1, a path that opens and then fails to read: the open of a directory
+  // succeeds and the read answers its own reason. The reader owns the read,
+  // so the fault answers a line here and no stream failure leaves the file
+  // (FR-018, the unreadable-path edge case).
+  {
+    const auto directory = std::filesystem::temp_directory_path();
+    checkFaultLine("directory-path",
+                   directory,
+                   readLayout(directory, kFour),
+                   {"cannot be read", "Is a directory"});
+  }
+
+  // Row 1, a path the host refuses for a reason besides its absence: no
+  // directory stands above it to open (FR-018).
+  {
+    const auto held = writeLayout("path-below-a-file", "groups: []\n");
+    const auto blocked = held / "blocked.yaml";
+    checkFaultLine("path-below-a-file",
+                   blocked,
+                   readLayout(blocked, kFour),
+                   {"cannot be opened", "Not a directory"});
+    std::filesystem::remove(held);
   }
 
   // Row 2, a document the reader rejects: the reader's own reason travels

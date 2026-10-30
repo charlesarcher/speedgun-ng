@@ -15,7 +15,7 @@
 // their rule of reading no file of their own (specs/028 D-05), so each of them
 // hands the row a path that stands uncreated and asserts what the row answers.
 // The file lines reach the gather as text, the way the entry point hands them.
-// The nine entry-point cases run the entry point, because the fit walk is the
+// The ten entry-point cases run the entry point, because the fit walk is the
 // first reader of the settled path: each writes its layout file, hands the
 // entry point its path, and reads the two streams of a child. The machine
 // shapes those runs need stand installed. No case reads `/sys` or the host
@@ -48,8 +48,12 @@
 //                                last of them, disclosed once (specs/028
 //                                FR-035, FR-040)
 //   theMissingFileRefusesOneLine a path no host opens answers the reader's
-//                                  one line naming it, at status 2, with no row
-//                                  (FR-018, FR-021)
+//                                  one line naming it and the reason the open
+//                                  answered, at status 2, with no row (FR-018,
+//                                  FR-021)
+//   theDirectoryRefusesOneLine   a path that opens and then fails to read
+//                                  answers the same shape with its reason, at
+//                                  status 2, with no row (FR-018, FR-021)
 //   theLayoutThatFitsRuns        a file whose slot count matches the batch lets
 //                                  the run reach its row (FR-020)
 //   theRunThatNamesNoLayoutRuns  a run no source named a layout for reaches
@@ -433,6 +437,12 @@ auto bmGroupMissing(sg::State& state) -> void
   }
 }
 
+auto bmGroupDirectory(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
 auto bmGroupFits(sg::State& state) -> void
 {
   for (auto _ : state) {
@@ -541,6 +551,11 @@ auto noL3Shape() -> sg::detail::MachineLayout
 auto setupMissing() -> void
 {
   (void)sg::registerBenchmark(&bmGroupMissing, "bmGroupMissing");
+}
+
+auto setupDirectory() -> void
+{
+  (void)sg::registerBenchmark(&bmGroupDirectory, "bmGroupDirectory");
 }
 
 auto setupFits() -> void
@@ -693,7 +708,32 @@ auto theMissingFileRefusesOneLine() -> void
         "the unreadable path answers one line (FR-018): " + run.err);
   check(run.err.find(kMissingPath) != std::string::npos,
         "the line names the layout path (FR-021): " + run.err);
+  check(run.err.find("No such file or directory") != std::string::npos,
+        "the line carries the reason the open answered (FR-018): " + run.err);
   check(run.out.find("bmGroupMissing") == std::string::npos,
+        "no benchmark ran (FR-018): " + run.out);
+}
+
+// FR-018, FR-021: a path the host opens and then fails to read answers the
+// reader's own line naming it and the reason that read answered, at status 2,
+// ahead of every run. The document stands behind that read, so no stream
+// failure of the loader reaches the entry point.
+auto theDirectoryRefusesOneLine() -> void
+{
+  const Captured run =
+      runChild("directory",
+               {"--group-layout=/tmp", "--filter", "^bmGroupDirectory$"},
+               &setupDirectory);
+  check(
+      run.status == 2,
+      "a layout no host reads exits 2 (FR-018): " + std::to_string(run.status));
+  check(lineCount(run.err) == 1,
+        "the unreadable path answers one line (FR-018): " + run.err);
+  check(run.err.find("/tmp") != std::string::npos,
+        "the line names the layout path (FR-021): " + run.err);
+  check(run.err.find("Is a directory") != std::string::npos,
+        "the line carries the reason the read answered (FR-018): " + run.err);
+  check(run.out.find("bmGroupDirectory") == std::string::npos,
         "no benchmark ran (FR-018): " + run.out);
 }
 
@@ -867,6 +907,7 @@ auto run() -> int
   theWordsHoldThePathOverTheFile();
   theLastFileLineHoldsThePath();
   theMissingFileRefusesOneLine();
+  theDirectoryRefusesOneLine();
   theLayoutThatFitsRuns();
   theRunThatNamesNoLayoutRuns();
   theOneContextRunWithTheFileRuns();
@@ -895,9 +936,10 @@ auto main() -> int
 }
 
 // The split the row's own reach fixes. The six row cases answer at the scan,
-// the settle arm and the gather, which open nothing. The nine entry-point
+// the settle arm and the gather, which open nothing. The ten entry-point
 // cases answer at the fit walk, the first reader of the settled path: the
-// unreadable path, the file that fits, the run that named no layout, the
-// one-context instance, the two pairings a partition-naming preset meets, the
-// preset that names no partition for the read, the pairing beside `--hunt`,
-// and the batch the slot count stops (FR-018 to FR-021, D-2, B-3).
+// path no host opens, the path no host reads, the file that fits, the run
+// that named no layout, the one-context instance, the two pairings a
+// partition-naming preset meets, the preset that names no partition for the
+// read, the pairing beside `--hunt`, and the batch the slot count stops
+// (FR-018 to FR-021, D-2, B-3).

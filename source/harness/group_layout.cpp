@@ -12,8 +12,11 @@
 // caller spelled it, the entry the fault stands in by its name where it has
 // one, and the reason (FR-018, FR-021, A-3). The partition travels as the
 // value, so a fault leaves none behind (A-1) and nothing throws past this
-// file. The reader trims no text, folds no case, expands no path and reads
-// no environment variable (A-4).
+// file. The document's bytes arrive through the harness's own file reader, so
+// a path that opens and then fails to read answers that line with the reason
+// that read answered, the shape `--options` keeps for the same path. The
+// reader trims no text, folds no case, expands no path and reads no
+// environment variable (A-4).
 // ============================================================================
 
 #include <algorithm>
@@ -104,12 +107,20 @@ auto parseGroupLayout(const std::string& path, const std::size_t contexts)
 {
   SG_REQUIRE(contexts >= 1, "the reader names the slots of one instance (B-1)");
 
+  // FR-018, table C row 1: the path stands unreadable as it stands, and the
+  // line carries the reason the open or the read answered. The bytes come
+  // through the harness's own file reader, the one reader that answers a read
+  // that fails after a successful open, so the loader's stream reaches no
+  // caller and the reader still opens the layout path alone (A-5 of the
+  // partition contract, the unreadable-path edge case).
+  const auto fileText = readTextFile(path);
+  if (!fileText.has_value()) {
+    return std::unexpected(refusal(path, "", fileText.error()));
+  }
+
   std::vector<YAML::Node> documents;
   try {
-    documents = YAML::LoadAllFromFile(path);
-  } catch (const YAML::BadFile&) {
-    // FR-018, table C row 1: the path stands unreadable as it stands.
-    return std::unexpected(refusal(path, "", "cannot open the file"));
+    documents = YAML::LoadAll(*fileText);
   } catch (const YAML::Exception& reader) {
     // FR-018, table C row 2: the reader's own reason travels beside it.
     return std::unexpected(
