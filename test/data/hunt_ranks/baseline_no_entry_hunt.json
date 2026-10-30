@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "1.8",
+  "speedgun": {
+    "version": "0.25.0",
+    "buildType": "Release"
+  },
+  "benchmarks": [
+    {
+      "name": "bmHuntRanks",
+      "suite": "bmHuntRanks",
+      "case": "bmHuntRanks",
+      "outcome": "MEASURED",
+      "reason": null,
+      "hideRepetitionRows": false,
+      "timeUnit": "NANOSECONDS",
+      "primaryIsCpu": true,
+      "pauseSamplesFolded": false,
+      "percentilePoints": [],
+      "contexts": [],
+      "rows": [
+        {
+          "kind": "REPETITION",
+          "label": null,
+          "iterations": 8,
+          "timePerIterationNs": 1000.0,
+          "cpuTimePerIterationNs": 990.0,
+          "endpointSamples": 8,
+          "pauseSamplesFolded": false,
+          "timeAvailability": "COUNTABLE",
+          "metrics": [],
+          "counters": [],
+          "counterDisclosure": null,
+          "fit": null,
+          "overheadFloorNs": 0.0,
+          "percentiles": [],
+          "chunkCount": 0,
+          "chunkIterations": 0,
+          "timeStats": null,
+          "metricStats": []
+        }
+      ],
+      "metricLabels": [],
+      "counterLabels": [],
+      "counterStats": [],
+      "statisticValues": []
+    }
+  ],
+  "hunt": {
+    "selection": "all",
+    "norm": "instr",
+    "rank": "rate",
+    "top": 8,
+    "noisePercent": 5.0,
+    "repeats": 3,
+    "seed": 7,
+    "budget": null,
+    "passes": 1,
+    "method": "AUTO",
+    "events": [
+      "event.alpha",
+      "event.beta",
+      "event.gamma"
+    ],
+    "stages": [
+      {
+        "first": 0,
+        "count": 3,
+        "repeats": 1
+      }
+    ],
+    "estimate_ns": null,
+    "planned_events": 3,
+    "ran_events": 3,
+    "stage_two_events": 0
+  }
+}
