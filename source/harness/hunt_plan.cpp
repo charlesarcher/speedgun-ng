@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <expected>
 #include <limits>
 #include <optional>
@@ -43,6 +44,15 @@ constexpr std::size_t kAnchorLeaves = 2;
 [[nodiscard]] auto refusal(const std::string& message) -> counters::Error
 {
   return counters::Error {.message = message, .suggestions = {}};
+}
+
+// The shortest figure form that reads the value back (R-3), the form
+// `reasonNumber` prints beside the same figure in compare.cpp.
+[[nodiscard]] auto ruleThreshold(const double percent) -> std::string
+{
+  char text[32];
+  std::snprintf(text, sizeof text, "%g", percent);
+  return text;
 }
 
 // specs/033-hunter-budgets FR-003, R-04, N-04: the widths of the consecutive
@@ -452,11 +462,10 @@ auto EntryHunt::toCounterSet(std::size_t topN) const -> std::vector<std::string>
 
 // specs/040 FR-021, FR-024, contracts/hunt-ranks-api.md B-1, D-7: the pair
 // shape `toCounterSet` carries: the entries with a rank sort into rank order
-// and at most `topN` of them stand the lines. A line reads the stamped
-// figures of its entry, and no stamping pass fills them yet, so the walk
-// answers a figure-less record empty; the lines land beside the delta work
-// (shortcut: T027 emits the promoted-set lines in this walk, under the cap
-// and the rank order it stands).
+// and at most `topN` of them stand the lines. Each line reads the grammar
+// R-3 spells: the event named by its address, the direction from the
+// measured delta's sign, `lower` where the delta stands empty, and the
+// threshold spelled the short form of `ruleThreshold`.
 auto EntryHunt::toCompareRules(std::size_t topN, double noisePercent) const
     -> std::vector<std::string>
 {
@@ -474,6 +483,16 @@ auto EntryHunt::toCompareRules(std::size_t topN, double noisePercent) const
                     [](const auto& pair) { return pair.first; });
 
   auto rules = std::vector<std::string> {};
+  for (const auto& pair : ranked) {
+    if (rules.size() == topN) {
+      break;
+    }
+    const auto* entry = pair.second;
+    const auto direction =
+        entry->delta.has_value() && *entry->delta > 0.0 ? "higher" : "lower";
+    rules.push_back(std::string {"counter:"} + entry->address + "@median:"
+                    + direction + ":" + ruleThreshold(noisePercent) + "%");
+  }
   SG_ENSURE(rules.size() <= topN,
             "the answer holds at most topN lines, the ranked entries in "
             "rank order (B-1)");

@@ -1303,8 +1303,8 @@ auto surfaceDefaultFields() -> void
 // answer to `std::vector<std::string>`, so a `detail/` type in the
 // signature breaks the compile of this call, which is the red the pair
 // shape asks for. The record carries one unranked entry, so the empty
-// answer is the pair rule's verdict and the grammar rows of the CLI wave
-// pin the line texts.
+// answer is the pair rule's verdict and the rules block below pins the
+// line texts.
 auto surfaceCompareRules() -> void
 {
   const auto record = []
@@ -1316,6 +1316,111 @@ auto surfaceCompareRules() -> void
 
   const std::vector<std::string> rules = record.toCompareRules(kWideTop, 10.0);
   check(rules.empty(), "a record with no ranked entry answers no rule line");
+}
+
+// ---------------------------------------------------------------------------
+// The rules rows of specs/040-hunter-sensitivity (T026, red; FR-021, FR-024;
+// D-7; contracts/hunt-ranks-api.md B-1)
+//
+// `toCompareRules` answers one N5 rule line per promoted event: the same
+// promoted set `toCounterSet` answers, capped at `topN` in rank order
+// (FR-024, D-7). The line reads the grammar of R-3,
+// `counter:<event>@median:<lower|higher>:<n>%`, with the event named by the
+// record's address; the threshold figure carries `noisePercent` on every
+// line, spelled in the shortest form that reads the figure back, the form
+// `reasonNumber` prints beside the same figure in compare.cpp, so `10.0`
+// reads `10%` and `2.5` reads `2.5%`. The direction stands from the stamped
+// delta's sign, `lower` where the delta stands empty. The definition that
+// stands answers an empty vector from every call, so every row below fails
+// while the walk emits nothing; the emission stands for T027's green half.
+// ---------------------------------------------------------------------------
+
+// One row of a rules record: the address of fixture event `index` under the
+// rank the scenario states, with the delta figure the scenario stamps. The
+// rate and the deviation stay at their defaults, because the rule line reads
+// the rank, the address and the delta alone (B-1).
+[[nodiscard]] auto ruleRow(const std::size_t index,
+                           const std::optional<std::size_t> rank,
+                           const std::optional<double> delta)
+    -> sg::hunt::RankedEvent
+{
+  auto entry = rankRow(index, rank);
+  entry.delta = delta;
+  return entry;
+}
+
+// The line grammar of R-3 (FR-021, B-1): a negative delta stands `lower`, a
+// positive one stands `higher`, an empty delta stands `lower`, and the
+// threshold figure carries `noisePercent` on every line. The three ranks
+// stand scrambled in the record, so the rank order alone answers the line
+// order, and a line built from any other field fails the exact text.
+auto rulesLineGrammar() -> void
+{
+  const auto record = []
+  {
+    auto hunt = sg::hunt::EntryHunt {};
+    hunt.entries = {ruleRow(2, std::size_t {2}, 50.0),
+                    ruleRow(14, std::size_t {1}, -75.0),
+                    ruleRow(9, std::size_t {3}, std::nullopt)};
+    return hunt;
+  }();
+
+  const auto rules = record.toCompareRules(kWideTop, 10.0);
+  check(rules.size() == 3, "every promoted event answers one line");
+  check(rules[0] == "counter:" + cpuAddressOf(14) + "@median:lower:10%",
+        "a negative delta stands lower");
+  check(rules[1] == "counter:" + cpuAddressOf(2) + "@median:higher:10%",
+        "a positive delta stands higher");
+  check(rules[2] == "counter:" + cpuAddressOf(9) + "@median:lower:10%",
+        "an empty delta stands lower");
+  const auto fractional = record.toCompareRules(kWideTop, 2.5);
+  check(fractional[0] == "counter:" + cpuAddressOf(14) + "@median:lower:2.5%",
+        "the threshold carries noisePercent on every line (B-1)");
+}
+
+// A `topN` below the ranked count answers exactly the leading `topN` lines
+// of the ascending rank order, the pair rule of `toCounterSet` (FR-024, B-1).
+// Three ranked entries carry deltas that each name a line, so a third line
+// stands in the answer when the cap fails.
+auto rulesCapAndOrder() -> void
+{
+  const auto record = []
+  {
+    auto hunt = sg::hunt::EntryHunt {};
+    hunt.entries = {ruleRow(9, std::size_t {3}, -40.0),
+                    ruleRow(1, std::size_t {1}, -75.0),
+                    ruleRow(4, std::size_t {2}, 50.0)};
+    return hunt;
+  }();
+
+  const std::vector<std::string> kExpected {
+      "counter:" + cpuAddressOf(1) + "@median:lower:10%",
+      "counter:" + cpuAddressOf(4) + "@median:higher:10%",
+  };
+  check(record.toCompareRules(kTopLimit, 10.0) == kExpected,
+        "the answer holds at most topN lines in ascending rank (B-1)");
+  check(record.toCompareRules(0, 10.0).empty(),
+        "topN zero answers no line, the cap rule of the pair (FR-024)");
+}
+
+// An entry whose rank stands empty holds no line, the rank field standing
+// for the promoted-set membership itself (I-5, B-1): the unranked record
+// carries a delta that would name a line, so a line for it stands in the
+// answer when the walk drops the rank test.
+auto rulesUnrankedNoLine() -> void
+{
+  const auto record = []
+  {
+    auto hunt = sg::hunt::EntryHunt {};
+    hunt.entries = {ruleRow(4, std::nullopt, -75.0),
+                    ruleRow(1, std::size_t {1}, 50.0)};
+    return hunt;
+  }();
+
+  const auto rules = record.toCompareRules(kWideTop, 10.0);
+  check(rules.size() == 1, "one promoted event answers one line");
+  check(rules.front() == "counter:" + cpuAddressOf(1) + "@median:higher:10%",
+        "an entry whose rank stands empty holds no line");
 }
 
 // ---------------------------------------------------------------------------
@@ -1769,10 +1874,6 @@ auto familyStampNoSpread() -> void
     -> sg::ReportData
 {
   auto loaded = sg::loadReport(huntRanksFixturePath(name));
-  if (!loaded.has_value()) {
-    std::fprintf(stderr, "FIXTURE LOAD ERROR [%s]: %s\n", name.c_str(),
-                 loaded.error().c_str());
-  }
   check(loaded.has_value(), "the fixture loads through loadReport");
   return std::move(loaded).value();
 }
@@ -2281,6 +2382,9 @@ struct Scenario
       Scenario {"counter-set-repeat", counterSetRepeat},
       Scenario {"surface-default-fields", surfaceDefaultFields},
       Scenario {"surface-compare-rules", surfaceCompareRules},
+      Scenario {"rules-line-grammar", rulesLineGrammar},
+      Scenario {"rules-cap-and-order", rulesCapAndOrder},
+      Scenario {"rules-unranked-no-line", rulesUnrankedNoLine},
       Scenario {"correlation-monotone", correlationMonotone},
       Scenario {"correlation-anti-monotone", correlationAntiMonotone},
       Scenario {"correlation-tie-ranks", correlationTieRanks},
