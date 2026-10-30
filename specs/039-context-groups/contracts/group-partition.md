@@ -74,8 +74,8 @@ the row, and the selection arrives as pointers, the shape
 | --- | --- | --- |
 | a layout that fits the batch | none | run proceeds |
 | a slot count beside an instance of another count | stderr, one line | 2 |
-| a layout beside a partition-naming preset | stderr, one line | 2 |
-| a layout beside `--hunt` | stderr, one line | 2 |
+| a layout beside a partition-naming preset | stderr, one line naming the path and the preset value | 2 |
+| a layout beside `--hunt` | stderr, one line naming both option names | 2 |
 | a grouped run's context line | stdout, the group segment last | 0 |
 | an ungrouped run's context line | stdout, byte-identical to master | 0 |
 | a report of a grouped run | the `group` key per context | 0 |

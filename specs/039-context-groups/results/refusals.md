@@ -165,9 +165,10 @@ two L3 groups as a partition, and one run carries one partition source
 Case 18 reads the pairing with `--hunt`, the shape
 `--hunt cannot combine with --placement` keeps
 (`source/harness/hunt_cli.cpp:153-155`). Its line names both option names
-and carries no layout path, while FR-021 states every refusal line names
-the layout path. The record quotes the bytes as they stand and leaves the
-reading of the two clauses to the verdict record (T050).
+and carries no layout path. FR-021 reaches the refusals whose subject is
+the file, and a combination refusal names the two options that cannot
+share one run, so the bytes stand as the standing shape prints them
+(FR-019, D-11, round 4 of the clarifications).
 
 ## The two streams
 
