@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "detail/complexity.hpp"
+#include "detail/statistics.hpp"
 
 #include "speedgun-ng/benchmark.hpp"
 
@@ -63,24 +64,6 @@ constexpr std::string_view
         "the quantity does not stand in every instance of the family, so it "
         "holds " "no fit pair (FR-023)";
 
-// The least-squares sums of one curve over the instances: `first` holds
-// sum(t * f(N)), the numerator of the closed form, and `second` holds
-// sum(f(N)^2), its denominator (FR-021, research D-08).
-auto leastSquaresSums(const std::vector<std::int64_t>& sizes,
-                      const std::vector<double>& values,
-                      const std::function<double(double)>& curve)
-    -> std::pair<double, double>
-{
-  double cross = 0.0;
-  double square = 0.0;
-  for (std::size_t index = 0; index < values.size(); ++index) {
-    const double shape = curve(static_cast<double>(sizes[index]));
-    cross += values[index] * shape;
-    square += shape * shape;
-  }
-  return {cross, square};
-}
-
 // The coefficient and the relative root-mean-square error of one curve: the
 // coefficient is the least-squares solution sum(t * f(N)) / sum(f(N)^2), and
 // the RMS is the root-mean of the residuals t - coefficient * f(N) divided by
@@ -93,11 +76,21 @@ auto fitCurve(const std::vector<std::int64_t>& sizes,
               const std::function<double(double)>& curve)
     -> std::pair<double, double>
 {
-  const auto [cross, square] = leastSquaresSums(sizes, values, curve);
-  if (square <= 0.0) {
+  // The sums stand in the shared helper beside the statistics surface
+  // (PD-02, D-8): the fit reads the cross and the square sums over the
+  // curve values of one curve, so its coefficient and its error stand as
+  // they did when the sums lived here.
+  auto points = std::vector<std::pair<double, double>> {};
+  points.reserve(values.size());
+  for (std::size_t index = 0; index < values.size(); ++index) {
+    points.emplace_back(curve(static_cast<double>(sizes[index])),
+                        values[index]);
+  }
+  const auto sums = leastSquaresSums(points);
+  if (sums.square <= 0.0) {
     return {0.0, std::numeric_limits<double>::infinity()};
   }
-  const double coefficient = cross / square;
+  const double coefficient = sums.cross / sums.square;
 
   double squared = 0.0;
   double total = 0.0;
