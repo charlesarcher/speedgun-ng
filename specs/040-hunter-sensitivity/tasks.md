@@ -308,7 +308,7 @@ the batch stamping pass.
   `ctest --preset=dev -R harness_hunt_cli_test` red on the block.
 - [ ] T032 Implement the CLI settlement in
   `source/harness/hunt_cli.cpp` and
-  `source/harness/detail/options.cpp`: the rank keys accepted, the
+  `source/harness/options.cpp`: the rank keys accepted, the
   refusal family of T029, and `include/speedgun-ng/hunt.hpp` gaining
   the `HuntOptions` baseline path the CLI settles, empty when the run
   named none (FR-010, FR-011, FR-022, FR-023, FR-005, B-8). Verify:

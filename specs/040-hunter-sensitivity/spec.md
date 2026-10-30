@@ -604,8 +604,8 @@ names at least one test (FR-051).
 ## Constraints
 
 - The shared files the lanes touch stand
-  `source/harness/detail/options.hpp` and `options.cpp`, the CLI
-  table test, `docs/schema/report-v1.json`,
+  `source/harness/detail/options.hpp` and `source/harness/options.cpp`,
+  the CLI table test, `docs/schema/report-v1.json`,
   `source/harness/json_report.cpp` and `json_load.cpp`, the
   `CMakeLists.txt` version block and the README quick-reference; the
   landings serialize on these files, and every binding stands measured
