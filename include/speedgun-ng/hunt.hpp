@@ -447,6 +447,14 @@ struct RankedEvent
   bool repeated = false;
   bool multiplexed = false;
   std::optional<std::size_t> rank;
+  // specs/040-hunter-sensitivity FR-030, D-1: the rank figures the run
+  // measured, each empty exactly when the run measured none (A-2): the
+  // correlation and the slope over one family's points, the delta against
+  // the baseline's matched rate (D-2, D-4). The console, the document and
+  // the rank order read them.
+  std::optional<double> sensitivityCorrelation;
+  std::optional<double> sensitivitySlope;
+  std::optional<double> delta;
 };
 
 /**
@@ -483,6 +491,29 @@ struct SPEEDGUN_NG_EXPORT EntryHunt
    *       measures nothing and reads no clock
    */
   [[nodiscard]] auto toCounterSet(std::size_t topN) const
+      -> std::vector<std::string>;
+
+  /**
+   * @brief The rule texts of the promoted events, the top `topN` ranked
+   * entries in rank order (specs/040 FR-021, FR-024, D-7).
+   *
+   * The set `--hunt-emit-rules` writes: the same set specs/033's
+   * `--hunt-emit-set` promotes (D-7), one N5 rule line per promoted
+   * event, in the grammar `--compare-rules` reads again with no edit
+   * (R-3). The pair shape of `toCounterSet` stands the set and its
+   * order (FR-024).
+   *
+   * \pre `noisePercent` stands above `0.0`, the range the
+   *      `--hunt-noise` option states
+   * \post each line reads `counter:<event>@median:<lower|higher>:<n>%`;
+   *       the threshold carries `noisePercent` for every line; the
+   *       direction stands `lower` for a negative delta, `higher` for a
+   *       positive one, `lower` where the delta stands empty; an entry
+   *       whose `rank` stands empty holds no line; the answer holds at
+   *       most `topN` lines in ascending rank; the call measures nothing
+   *       and reads no clock (FR-021, D-7, FR-006)
+   */
+  [[nodiscard]] auto toCompareRules(std::size_t topN, double noisePercent) const
       -> std::vector<std::string>;
 };
 
