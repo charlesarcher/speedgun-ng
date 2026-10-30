@@ -332,19 +332,20 @@ and on a 2-cpu host.
   `ctest --preset=dev -R 'harness_hunt|harness_cli_table'`, plus
   the version and schema assertion rows.
 - **Wave 2 (M-B, M-D in parallel)**: the statistics rows and the
-  JSON round-trip rows. Verify: `ctest --preset=dev -R
-  'harness_hunt|harness_json'`, red first, then green.
+  JSON round-trip rows. Verify:
+  `ctest --preset=dev -R 'harness_hunt|harness_json'`, red first,
+  then green.
 - **Wave 3 (M-C)**: the rank rows: the family points, the 3-point
   rule, the stamps, the delta formula and its disclosures, the
   norm check, the rank assignment. Verify:
   `ctest --preset=dev -R harness_hunt_rank_test`.
 - **Wave 4 (M-E)**: the CLI and run-path rows: the rank keys, the
   refusals, the columns, the rules file, the batch stamping through
-  the scripted seam. Verify: `ctest --preset=dev -R
-  'harness_hunt_cli_test|harness_hunt_rank_test'`.
-- **Wave 5 (M-F)**: the docs gates. Verify: `ctest --preset=dev -R
-  'example_drift|snippet_compile|example_run'` and
-  `cmake -P cmake/prose-lint.cmake`.
+  the scripted seam. Verify:
+  `ctest --preset=dev -R 'harness_hunt_cli_test|harness_hunt_rank_test'`.
+- **Wave 5 (M-F)**: the docs gates. Verify:
+  `ctest --preset=dev -R 'example_drift|snippet_compile|example_run'`
+  and `cmake -P cmake/prose-lint.cmake`.
 - **Wave 6 (M-G)**: the evidence records on gary. Verify: the
   records' exit codes stand 0 and the quickstart links resolve.
 - **Wave 7 (convergence)**: the full suite, the coverage gate, the
