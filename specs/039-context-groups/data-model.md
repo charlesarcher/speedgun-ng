@@ -14,8 +14,9 @@ standing plan and layout records carry everything else it reads.
   order of slot `0`, then the next slot no earlier group holds. An
   empty vector states no partition, the shape FR-004 keeps.
 - **`sg::ContextDisclosure::group`**
-  (`include/speedgun-ng/benchmark.hpp:454-462`): the group name of one
-  context, empty where the run carries no partition. The record stays
+  (`include/speedgun-ng/benchmark.hpp`, the last member of
+  `ContextDisclosure`): the group name of one context, empty where the run
+  carries no partition. The record stays
   an aggregate; the member rides last (FR-005, FR-029).
 
 ## The standing types the feature reads
