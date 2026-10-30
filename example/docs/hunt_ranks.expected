@@ -1,0 +1,15 @@
+# sg-example:begin report
+speedgun-ng 0.26.0 build=Release
+bmHuntRanks/16           iterations= 237404849  real time/iter (ns)=    2.950  cpu time/iter (ns)=    2.947  overhead floor (ns)=  100.000  endpoint samples=2
+hunt_ranks: --hunt-rank=sensitivity
+hunt: rank 1 cpu/hunt_branches instr=3000.000 cv=0.00 correlation=1.0000 slope=20.0000 delta=20.00
+hunt: rank 2 cpu/hunt_loads instr=3000.000 cv=0.00 correlation=0.5000 slope=15.0000 delta=0.00
+hunt: rank - cpu/hunt_stores instr=2000.000 cv=0.00 correlation=n/a slope=n/a delta=100.00 mark=beyond-top
+hunt_ranks: --hunt-rank=delta
+hunt: rank 2 cpu/hunt_branches instr=3000.000 cv=0.00 correlation=1.0000 slope=20.0000 delta=20.00
+hunt: rank 3 cpu/hunt_loads instr=3000.000 cv=0.00 correlation=0.5000 slope=15.0000 delta=0.00
+hunt: rank 1 cpu/hunt_stores instr=2000.000 cv=0.00 correlation=n/a slope=n/a delta=100.00
+counter:cpu/hunt_stores@median:higher:10%
+counter:cpu/hunt_branches@median:higher:10%
+counter:cpu/hunt_loads@median:lower:10%
+# sg-example:end report
