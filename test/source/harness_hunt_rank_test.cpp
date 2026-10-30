@@ -2309,6 +2309,63 @@ auto rankNoisyUnranked() -> void
   }
 }
 
+// One address two entries carry, one record clean and one noisy,
+// stands the rank on the clean record alone (A-3): the candidate set
+// excludes the noisy record, so the write of the ranked address leaves
+// the noisy record's rank empty, the clean record carries the rank,
+// and no figure of either record changes.
+auto rankNoisySplitAddress() -> void
+{
+  const std::string kSplit {"event.split"};
+  const std::string kOther {"event.other"};
+
+  const auto results = std::vector<sg::BenchmarkResult> {
+      rankEntry("bmHuntRank",
+                "args:1",
+                {RankCase {kSplit, 0.8, 2.0, 30.0},
+                 RankCase {kOther, 0.4, 1.0, 20.0}}),
+      rankEntry("bmHuntRank",
+                "args:2",
+                {RankCase {kSplit, 0.8, 2.0, 30.0, true}}),
+  };
+
+  auto bySensitivity = results;
+  sg::detail::stampRank(bySensitivity, sg::hunt::HuntRank::SENSITIVITY);
+  auto byDelta = results;
+  sg::detail::stampRank(byDelta, sg::hunt::HuntRank::DELTA);
+
+  for (const auto* stamped : {&bySensitivity, &byDelta}) {
+    const auto& clean = entryOf(stamped->front().hunt.value(), kSplit);
+    const auto& loud = entryOf(stamped->back().hunt.value(), kSplit);
+    check(clean.rank.has_value() && *clean.rank == 1,
+          "the clean record of the split address carries the rank");
+    check(!loud.rank.has_value(),
+          "the noisy record of the split address stands unranked");
+    const auto& other = entryOf(stamped->front().hunt.value(), kOther);
+    check(other.rank.has_value() && *other.rank == 2,
+          "the second address ranks beside the split one with no gap");
+    for (std::size_t index = 0; index < stamped->size(); ++index) {
+      const auto& source = results[index].hunt->entries;
+      auto& records = (*stamped)[index].hunt->entries;
+      check(source.size() == records.size(),
+            "the stamp keeps the records of every entry");
+      for (std::size_t row = 0; row < records.size(); ++row) {
+        check(source[row].address == records[row].address,
+              "the stamp keeps the address of every record");
+        if (records[row].address == kSplit) {
+          check(records[row].sensitivityCorrelation
+                    == source[row].sensitivityCorrelation,
+                "the stamp keeps the correlation of the split address");
+          check(records[row].sensitivitySlope == source[row].sensitivitySlope,
+                "the stamp keeps the slope of the split address");
+          check(records[row].delta == source[row].delta,
+                "the stamp keeps the delta of the split address");
+        }
+      }
+    }
+  }
+}
+
 // An event set that stands empty under the key answers the standing
 // order with empty rank fields (B-7): no record carries a figure of
 // either key, so both calls rank nothing and reorder nothing, the
@@ -2407,6 +2464,7 @@ struct Scenario
       Scenario {"rank-sensitivity-order", rankSensitivityOrder},
       Scenario {"rank-delta-order", rankDeltaOrder},
       Scenario {"rank-noisy-unranked", rankNoisyUnranked},
+    Scenario {"rank-noisy-split-address", rankNoisySplitAddress},
       Scenario {"rank-empty-set", rankEmptySet},
   };
   return kList;
