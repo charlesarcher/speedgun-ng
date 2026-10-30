@@ -1506,8 +1506,9 @@ auto twoStageDocument() -> void
 auto schemaConformance() -> void
 {
   const auto text = huntDocumentText(singleStageHunt());
-  check(text.starts_with("{\"schemaVersion\":\"1.9\""),
-        "the hunt document stamps schema minor 1.9 (FR-032)");
+  check(text.starts_with("{\"schemaVersion\":\"1.10\""),
+        "the hunt document stamps the minor 1.10 the writer carries "
+        "(FR-032, specs/039 FR-032)");
   const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, text);
   if (!clean.has_value()) {
     failed("the hunt document disagrees with the schema: " + clean.error());

@@ -153,9 +153,9 @@ auto plantedDisagreementsAreNamedByPointer() -> void
 
 // The schema's per-entry hunt entry node (specs/040; FR-032, B-9): the
 // node stands closed, so its `x-order` names the three rank keys after
-// `rank`, and the document the writer produces pairs the schema at minor
-// `1.9`.
-auto entryHuntKeysPairAtMinorOneNine(const std::string& documentText) -> void
+// `rank`, and the document the writer produces pairs the schema at the
+// minor the writer stamps, `1.10` since specs/039 added the `group` key.
+auto entryHuntKeysPairAtStampedMinor(const std::string& documentText) -> void
 {
   const std::string schemaText = sg::test::readText(SG_SCHEMA_PATH);
 
@@ -183,8 +183,9 @@ auto entryHuntKeysPairAtMinorOneNine(const std::string& documentText) -> void
         "the entry node names the three rank keys after `rank` in its "
         "`x-order` (FR-032, B-9)");
 
-  check(documentText.find("\"schemaVersion\":\"1.9\"") != std::string::npos,
-        "the document the writer produces stands at minor 1.9 (FR-032)");
+  check(documentText.find("\"schemaVersion\":\"1.10\"") != std::string::npos,
+        "the document the writer produces stands at the stamped minor 1.10 "
+        "(FR-032, specs/039 FR-032)");
 }
 
 // The checker reads the schema file as a document of its own: a schema it
@@ -300,7 +301,7 @@ auto theOpenShapesOfTheSchemaLanguagePass(const std::string& text) -> void
 auto main() -> int
 {
   plantedDisagreementsAreNamedByPointer();
-  entryHuntKeysPairAtMinorOneNine(
+  entryHuntKeysPairAtStampedMinor(
       sg::test::readText("harness_json_schema.json"));
   brokenSchemasAreRefused(sg::test::readText("harness_json_schema.json"));
   theOpenShapesOfTheSchemaLanguagePass(
