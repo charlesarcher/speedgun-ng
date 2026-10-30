@@ -36,7 +36,7 @@ fit step that stops a layout the run cannot carry.
   takes the next free minor, `0.26.0`. Spec 037 takes a minor at its
   own merge, so the landing that moves second re-reads the line and
   takes the next free value, and the commit records the check
-  (FR-032, D-2).
+  (FR-032).
 - Harness `SOVERSION`: master stands at `16` (`CMakeLists.txt:333`).
   The group record joins the public header, the exported layouts
   move, and the harness `SOVERSION` rises to `17`. The archive
@@ -613,7 +613,7 @@ prints; the drift and prose gates read no finding.
   join the public header that owns the context disclosure, and the
   project version, the harness `SOVERSION` and the archive
   `SOVERSION` SHALL stand at the values FR-032 records, with the ABI
-  check named in the commit that moves them (D-2).
+  check named in the commit that moves them (FR-032, D-10).
 
 ### The preset as a source (B)
 
