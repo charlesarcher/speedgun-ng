@@ -277,6 +277,16 @@ target_link_libraries(
     PRIVATE $<BUILD_INTERFACE:simdjson::simdjson>
 )
 
+# specs/039 FR-016, R-3: the group layout reader parses a layout file with
+# the vendored reader, so source/harness/group_layout.cpp includes
+# <yaml-cpp/yaml.h> beside the gate unit. The link is PRIVATE and
+# BUILD_INTERFACE: the public headers name nothing of it, and the purity
+# scan and nm proof of specs/006 keep their readings.
+target_link_libraries(
+    speedgun-ng_harness
+    PRIVATE $<BUILD_INTERFACE:yaml-cpp::yaml-cpp>
+)
+
 # The build type is a build fact the counters library publishes nowhere,
 # so the build writes it and the report reads it as a literal (R-14).
 # The project version travels the same way: the report prints it beside
@@ -773,8 +783,10 @@ endfunction()
 
 import_yaml_cpp()
 
-# The gate TU is the only TU that includes <yaml-cpp/yaml.h> (FR-014);
-# its link-proof reference is the object-level proof (FR-007, SC-009).
+# Two translation units include <yaml-cpp/yaml.h>: the gate TU here, and
+# source/harness/group_layout.cpp on the harness target (specs/039 FR-016,
+# R-3). The gate's link-proof reference is the object-level proof
+# (FR-007, SC-009).
 # The version tripwire lives at configure time in the bracket above
 # (R-002). BUILD_INTERFACE keeps the vendored name out of the exported
 # package files: the merged members ship inside libspeedgun-ng.a, so

@@ -1054,6 +1054,19 @@ target_compile_features(harness_group_report_test PRIVATE cxx_std_23)
 add_test(NAME harness_group_report_test
          COMMAND harness_group_report_test)
 
+# The group layout reader: the partitions the grammar accepts and every fault
+# of the layout contract's table C (specs/039-context-groups T007, T008;
+# FR-012 to FR-018, FR-021). The reader reads one file it is handed, so the
+# test needs the harness internal header and no topology seam.
+add_executable(harness_group_layout_test
+               source/harness_group_layout_test.cpp)
+target_link_libraries(harness_group_layout_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_group_layout_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_group_layout_test PRIVATE cxx_std_23)
+add_test(NAME harness_group_layout_test
+         COMMAND harness_group_layout_test)
+
 # The partition of one instance's contexts into the groups one preset
 # names, over the installed shapes and the reads that name no unit
 # (specs/039 T005, T006; FR-001 to FR-010, A-1 to A-6, B-1, B-2).
