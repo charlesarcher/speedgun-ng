@@ -178,7 +178,35 @@ fit step that stops a layout the run cannot carry.
   one token (D-4).
 - Console disclosure lines are folded by the `report_shape` gate and
   quoted in `docs/pages/harness.md`, so a shape change touches the
-  samples and the drift gate (FR-023, FR-026).
+  samples and the drift gate (FR-028, FR-033).
+
+## Clarifications
+
+### Session 2026-10-30
+
+- Q: A `cpus` layout entry has no run that can carry it: a plan cpu
+  stands only under a preset plan, and R-2 bars a layout beside a
+  preset. → A: The release names slots, and the key `cpus` refuses one
+  line naming its reason (D-6, FR-014). Grammar no legal run can read
+  is the shape X.2 bars, and a later spec that lets a layout pin its
+  contexts brings the form back.
+- Q: What does a run with more than one start round keep of the
+  fixture pair's ordering, where the standing round carried both the
+  setup publication and the teardown's place behind every window? → A:
+  Context 0 keeps the pair, the setup outcome publishes through a route
+  that crosses no round, and the teardown runs on context 0 after every
+  body of the attempt has settled (D-7, FR-026). The pair keeps its
+  owner and both orderings.
+- Q: What partition does a preset name where the machine read states
+  no L3 unit? → A: None: the run keeps the ungrouped shape, the way
+  the standing disclosure prints no unit for `kNoGroup` (FR-004,
+  FR-006).
+- Q: `--group-layout` beside `--hunt`? → A: The standing combination
+  refusal grows to carry the layout, one line and exit status 2
+  (FR-019).
+- Q: Does a run the layout groups print the standing machine line? →
+  A: It prints none: the line keeps its preset-in-effect rule, and a
+  slots layout pins nothing (FR-028).
 
 ## Decisions
 
@@ -218,18 +246,22 @@ fit step that stops a layout the run cannot carry.
   whole vocabulary; no new dependency joins; the include stays inside
   `source/` and the specs/006 purity and nm gates stay green
   (FR-014).
-- **D-6**: The layout file names groups by slots or by cpus, one
-  group per entry. Slots are context positions, `0` based. Cpus are
-  machine cpu indices, and a context joins the entry naming the cpu
-  the run's plan placed it on. An entry naming neither form, or both,
-  refuses.
-- **D-7**: The fixture publication. A grouped run publishes context
-  0's fixture outcome to every context before any body's measured
-  work, and the route carries no round across groups: the harness
-  dispatches the setup node to context 0, waits for that node to
-  reach its done state, and only then dispatches the bodies. The
-  ungrouped run keeps the standing route, where the start round
-  carries the publication (FR-021).
+- **D-6**: The layout file names groups by slots, one group per
+  entry. A slot is a context position, `0` based, and the entries of
+  one file cover the instance's contexts exactly once. The cpu form
+  the lane prompt sketches stands outside this release: a plan cpu
+  exists only under a preset plan (`runner.cpp:1627-1631`), R-2 bars
+  a layout beside a preset, so no run that carries a layout has a cpu
+  to name. The key `cpus` refuses one line naming its reason, and a
+  later spec that lets a layout pin its contexts brings the form back
+  (FR-014, Out of scope).
+- **D-7**: The fixture publication. The fixture pair stays where
+  specs/016 fixed it: context 0 owns it, its setup half runs before any
+  body's measured work, and its teardown half runs after the stop
+  round. A grouped run publishes context 0's setup outcome to every
+  body through a route that carries no round across groups, and the
+  ungrouped run keeps the standing route where its start round carries
+  the publication (FR-021, FR-026).
 - **D-8**: The batch fit. A layout names the slots of one instance.
   The standing fit step reads the layout before any instance runs and
   stops the batch when the layout's slot count differs from the
@@ -269,8 +301,11 @@ fit step that stops a layout the run cannot carry.
 - A layout grammar that nests, inherits, spans several files, or
   states a cadence, a rate, or a pin. Pins stay the presets' work
   (specs/025, specs/035).
-- Groups inside the jitter probe, the hunt path, the noise tracers or
-  the placement of memory.
+- Groups inside the jitter probe, the noise tracers or the placement
+  of memory.
+- A layout entry naming cpus, and a layout that pins its own
+  contexts: the cpu stands only where specs/025 and specs/035 place
+  it, so a layout run has none to name (D-6).
 - A public handle API that names a group or dispatches by group. The
   `ThreadRun` view keeps `contextCount`, `context` and `dispatch` as
   specs/020 fixed them.
@@ -335,9 +370,10 @@ absent `name` entries take the document-order default.
 2. **Given** a layout file whose entries carry no `name`, **When**
    the run starts, **Then** the groups take `g0` and `g1` in document
    order.
-3. **Given** a layout file of `cpus` entries over a run whose plan
-   pins those cpus, **When** the run starts, **Then** each context
-   joins the entry naming the cpu its plan named.
+3. **Given** a layout file whose one entry names every context,
+   **When** the run starts, **Then** the run carries one group naming
+   every context, and its rounds carry the standing participant set
+   (D-9).
 
 ### User Story 3 - A malformed layout refuses one line (Priority: P1)
 
@@ -361,9 +397,9 @@ runs one command, and each answers one line and exit status 2.
 3. **Given** a document with no `groups` key, an empty sequence, or
    an entry naming no member, **When** the run starts, **Then** one
    line names the fault and the exit status is 2.
-4. **Given** an entry naming both `cpus` and `slots`, or either twice,
-   **When** the run starts, **Then** one line names the entry and the
-   exit status is 2.
+4. **Given** an entry with no `slots` key, or a key named `cpus`,
+   **When** the run starts, **Then** one line names the entry or the
+   key and the exit status is 2.
 5. **Given** a slot named twice, a slot above the context count, or a
    context no entry names, **When** the run starts, **Then** one line
    names the fault and the exit status is 2.
@@ -434,9 +470,9 @@ layout answers one line and exit status 2 with no row printed.
 1. **Given** a batch of context counts `2,4,8` and a four-slot
    layout, **When** the run starts, **Then** one line names the
    counts and the exit status is 2.
-2. **Given** a cpu layout beside `--placement=none`, **When** the run
-   starts, **Then** one line names the cpu no context runs on and the
-   exit status is 2.
+2. **Given** a layout file beside `--hunt`, **When** the run starts,
+   **Then** one line names both names and the exit status is 2
+   (FR-019).
 
 ### User Story 7 - The evidence stands recorded and the docs teach groups (Priority: P3)
 
@@ -470,20 +506,24 @@ prints; the drift and prose gates read no finding.
 - A layout entry naming one slot is legal: that context's round has
   one participant and releases on its own arrival.
 - A batch whose instances all share one context count carries one
-  layout; a batch of differing counts refuses (FR-017).
+  layout; a batch of differing counts refuses (FR-020).
 - A one-context instance of a batch carries no threaded round, so the
   layout names one group of that one context and the disclosure
   prints no context lines for it.
-- A `cpus` entry naming a cpu the plan does not place refuses at the
-  fit step, and an unpinned run has no such cpu (FR-013).
+- A `cpus` key refuses at the grammar, one line naming the key and
+  its reason, before the fit step reads the file (FR-014).
+- A machine read that states no L3 unit leaves the L3-keyed presets
+  naming no partition, and those runs keep the ungrouped shape
+  (FR-006).
 - A user thread runner that returns with a group's member
   undispatched meets the standing ledger fault before the run waits
-  on any round (FR-022).
+  on any round (FR-027).
 - A multipass or multi-repetition run builds its group rounds once
-  per attempt; the partition stands fixed for the instance (FR-029).
+  per attempt; the partition stands fixed for the instance (FR-001,
+  FR-034).
 - A grouped run whose fixture setup fails publishes the failure to
   every body, discards the attempt and prints the standing setup
-  fault (FR-021).
+  fault, and its teardown half stands skipped (FR-026).
 - A name the file states with a trailing space or an empty string
   refuses; the reader trims no text.
 - A layout file of zero bytes, and one whose root node is a sequence,
@@ -520,7 +560,10 @@ prints; the drift and prose gates read no finding.
 - **FR-006**: A preset that names a partition SHALL group the
   contexts by the topology unit its own plan names at each position,
   read from the plan in place: the L3 group under `core`, `l3`, `smt`
-  and `compact`, the memory node under `node` (D-3).
+  and `compact`, the memory node under `node` (D-3). Where the
+  machine read states no such unit, the plan carries `kNoGroup`
+  (`source/harness/detail/internal.hpp:51-52`), and the preset SHALL
+  name no partition: the run keeps the ungrouped shape of FR-004.
 - **FR-007**: The `none` preset SHALL name no partition, and a run
   with no preset stated and no layout stated SHALL name no partition
   (D-2).
@@ -542,17 +585,17 @@ prints; the drift and prose gates read no finding.
   reference the way the table drives both. The row SHALL carry no
   environment source, the shape `--compare-rules` keeps.
 - **FR-012**: The file SHALL read as a YAML mapping whose root key
-  `groups` holds a sequence of entries, one entry per group. Each
-  entry SHALL be a mapping with an optional `name` and exactly one of
-  `cpus` or `slots`, each a sequence of at least one member
+  `groups` holds a sequence of at least one entry, one entry per
+  group. Each entry SHALL be a mapping with an optional `name` and one
+  `slots` key holding a sequence of at least one member
   (R-3, D-5, D-6).
 - **FR-013**: A `slots` member SHALL name a context position, `0`
   based, within the instance's context count, and the entries' slots
   SHALL cover every context of the instance exactly once (D-6).
-- **FR-014**: A `cpus` member SHALL name a machine cpu index, and a
-  context SHALL join the entry naming the cpu the run's plan placed
-  it on; an entry naming a cpu that context's plan does not name
-  SHALL refuse (D-6).
+- **FR-014**: A key named `cpus` SHALL refuse one line on standard
+  error with exit status 2, naming the key, the entry and the reason:
+  this release names slots, because a layout run carries no plan cpu
+  to group by (D-6, Out of scope).
 - **FR-015**: A `name` SHALL stand 1 to 32 characters drawn from
   letters, digits, `-`, `_` and `.`, SHALL stand unique across the
   entries, and an entry naming none SHALL take `g` plus its
@@ -568,17 +611,19 @@ prints; the drift and prose gates read no finding.
 
 - **FR-018**: Each fault below SHALL refuse one line on standard
   error with exit status 2 before any instance runs: an unreadable
-  path; a document the reader rejects; a root node that is a mapping
-  without `groups` or a sequence; an empty `groups` sequence; an entry
-  that is not a mapping; an entry naming neither `cpus` nor `slots`;
-  an entry naming both; a member sequence that is empty or holds a
-  value of the wrong kind or outside its range; a repeated slot; a
-  context no entry names; a repeated group name; a `name` outside
-  FR-015's characters or length; a `cpus` entry naming a cpu no
-  context of the run's plan runs on (R-2, R-3).
+  path; a document the reader rejects; a root mapping with no `groups`
+  key; a root node that is a sequence; an empty `groups` sequence; an
+  entry that is not a mapping; an entry with no `slots` key; a `slots`
+  sequence that is empty; a member of the wrong kind; a member outside
+  the context range; a repeated slot; a context no entry names; a key
+  named `cpus`; any key outside FR-017's grammar; a repeated group
+  name; a `name` outside FR-015's characters or length (R-2, R-3).
 - **FR-019**: A layout file given beside a placement preset that names
-  a partition SHALL refuse one line naming both, with exit status 2;
-  a layout beside `--placement=none` SHALL stand allowed (D-2).
+  a partition SHALL refuse one line naming both, with exit status 2; a
+  layout beside `--placement=none` SHALL stand allowed. A layout file
+  given beside `--hunt` SHALL refuse one line naming both, the shape
+  `--hunt cannot combine with --placement` keeps
+  (`source/harness/hunt_cli.cpp:720-748`) (D-2, D-11).
 - **FR-020**: The standing fit step SHALL read the layout before any
   instance runs and SHALL stop the batch, one line and exit status 2,
   when the layout's slot count differs from the context count of any
@@ -604,9 +649,13 @@ prints; the drift and prose gates read no finding.
 - **FR-025**: An ungrouped run SHALL keep the standing pair of rounds
   over every context of the instance, byte-shaped as master runs it
   (R-1, D-1).
-- **FR-026**: A grouped run SHALL publish context 0's fixture setup
-  outcome to every body before any body's measured work, and the
-  publication route SHALL carry no round across groups (D-7).
+- **FR-026**: A run whose contexts meet more than one start round
+  SHALL publish context 0's fixture setup outcome to every body before
+  any body's measured work through a route that carries no round
+  across groups, and SHALL run context 0's fixture teardown after
+  every body of the attempt has settled, on context 0's own thread
+  (D-7). A run whose contexts meet one round keeps the standing
+  publication and the standing teardown point.
 - **FR-027**: A thread runner that returns with a group member
   undispatched SHALL meet the standing ledger fault before the run
   waits on any group round (FR-024).
@@ -616,7 +665,10 @@ prints; the drift and prose gates read no finding.
 - **FR-028**: A grouped run's console line for one context SHALL name
   the group as its last segment, after the placement flag where that
   flag prints, and SHALL keep the standing segments in the standing
-  order (`report.cpp:168-191`).
+  order (`report.cpp:168-191`). The standing machine line keeps its
+  rule of printing where the fit step reports a preset in effect
+  (`cli.cpp:744-755`), and a run grouped by a layout SHALL print
+  none.
 - **FR-029**: The report's per-context record SHALL carry a `group`
   key naming the same text the console prints, and the key SHALL
   stand present only for a run that carries a partition (D-10).
@@ -705,13 +757,13 @@ prints; the drift and prose gates read no finding.
   proves each group's rounds released with exactly that group's
   participant count; the suite's grouped scenario count stands at
   twelve or more across the two sources (FR-022, FR-037).
-- **SC-004**: Each of the fifteen refusal shapes FR-018 names answers
-  one line on standard error with exit status 2 and writes no report
-  file: 15 of 15 cases (FR-018, FR-021).
+- **SC-004**: Each refusal shape FR-018 names, with the two pairings
+  FR-019 names, answers one line on standard error with exit status 2
+  and writes no report file: 18 of 18 cases (FR-018, FR-019, FR-021).
 - **SC-005**: A layout file run names exactly the groups, names and
-  memberships the file states, for both the slot form and the cpu
-  form and for the default-name case: 3 of 3 cases (FR-012 to
-  FR-015).
+  memberships the file states, for the explicit-name case, the
+  default-name case and the one-group case: 3 of 3 cases (FR-012 to
+  FR-015, D-9).
 - **SC-006**: The same fixture run without a partition prints
   console bytes identical to the bytes master prints, apart from the
   schema stamp, and its report carries no `group` key: 0 differing
@@ -742,9 +794,13 @@ prints; the drift and prose gates read no finding.
 - A grouped run's measured rows stay flat: the group is a pacing and
   disclosure fact, a column-shape change stands a separate item
   (FR-035).
-- The `cpus` form of the layout pairs with a preset that pins: an
-  unpinned run names no cpu per context, so a `cpus` entry over it
-  refuses (FR-014, FR-018).
+- The lane ships the slot form of the layout and refuses the key
+  `cpus`. The lane prompt's phrase "the cpus or the slots each group
+  takes" names the cpu form beside it, and the form has no carrier on
+  this tree: a plan cpu exists only under a preset plan, and R-2 bars
+  the pairing. The deviation stands recorded in D-6 and in Out of
+  scope, and a later spec that lets a layout pin brings the form back
+  (FR-014).
 - The lane host's L3 shape differs from the lane prompt's named host;
   the synthetic seam carries the four-group and two-node shapes on
   either, and the records name the host that ran them (FR-036,
