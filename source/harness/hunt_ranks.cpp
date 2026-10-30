@@ -11,7 +11,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <compare>
 #include <cstddef>
 #include <map>
 #include <optional>
@@ -125,14 +124,13 @@ auto stampSensitivity(std::vector<sg::BenchmarkResult>& results) -> void
     for (const auto& [address, points] : family.events) {
       const auto correlation = spearmanCorrelation(points);
       const auto slope = leastSquaresSlope(points);
-      if (!correlation.has_value() || !slope.has_value()) {
-        continue;
-      }
-      for (const auto entry : family.entries) {
-        for (auto& record : results[entry].hunt->entries) {
-          if (record.address == address) {
-            record.sensitivityCorrelation = correlation;
-            record.sensitivitySlope = slope;
+      if (correlation.has_value() && slope.has_value()) {
+        for (const auto entry : family.entries) {
+          for (auto& record : results[entry].hunt->entries) {
+            if (record.address == address) {
+              record.sensitivityCorrelation = correlation;
+              record.sensitivitySlope = slope;
+            }
           }
         }
       }

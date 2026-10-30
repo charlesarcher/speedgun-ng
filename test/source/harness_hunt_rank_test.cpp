@@ -1833,6 +1833,46 @@ auto familyStampNoSpread() -> void
   }
 }
 
+// The stamp's walk reads every address of the family in address order,
+// so an address whose figures stand empty does not end the walk: the
+// alpha records of four entries stand flat, the beta records carry the
+// spread, and the beta fields stand filled beside the empty alpha
+// fields (FR-001, FR-002, B-4).
+auto familyStampResumesAfterAnEmptyAddress() -> void
+{
+  auto mixed = std::vector<sg::BenchmarkResult> {
+      familyEntry("bmHuntFamily", "args:1", 100.0, {{"event.alpha", 300.0}}),
+      familyEntry("bmHuntFamily",
+                  "args:2",
+                  150.0,
+                  {{"event.alpha", 300.0}, {"event.beta", 100.0}}),
+      familyEntry("bmHuntFamily",
+                  "args:3",
+                  200.0,
+                  {{"event.alpha", 300.0}, {"event.beta", 200.0}}),
+      familyEntry("bmHuntFamily",
+                  "args:4",
+                  250.0,
+                  {{"event.alpha", 300.0}, {"event.beta", 400.0}}),
+  };
+  sg::detail::stampSensitivity(mixed);
+  for (const auto& result : mixed) {
+    for (const auto& entry : result.hunt->entries) {
+      if (entry.address == "event.alpha") {
+        check(!entry.sensitivityCorrelation.has_value()
+                  && !entry.sensitivitySlope.has_value(),
+              "the flat alpha records stand both fields empty");
+      }
+      if (entry.address == "event.beta") {
+        check(entry.sensitivityCorrelation.has_value()
+                  && entry.sensitivitySlope.has_value(),
+              "the beta records stand filled beside the empty alpha fields");
+      }
+    }
+  }
+  std::printf("family-stamp-resumes-after-an-empty-address: ok\n");
+}
+
 // ---------------------------------------------------------------------------
 // The baseline rows (specs/040-hunter-sensitivity T019, red; FR-003,
 // FR-005; contracts/hunt-ranks-api.md B-5, D-6)
@@ -1942,6 +1982,20 @@ auto baselineNormNoHuntNode() -> void
   check(!sg::detail::baselineNormMismatch(bare, sg::hunt::HuntNorm::INSTR)
              .has_value(),
         "a baseline without a hunt node answers no mismatch");
+}
+
+// A baseline whose top-level hunt object names no norm answers the same
+// empty answer (B-5, D-6): the pair reads the norm the object names, and
+// an object without one stands nothing to mismatch the settled norm
+// against.
+auto baselineNormNoNorm() -> void
+{
+  auto baseline = loadHuntRanksFixture("baseline_rates.json");
+  baseline.hunt->options.norm.reset();
+  check(!sg::detail::baselineNormMismatch(baseline, sg::hunt::HuntNorm::INSTR)
+             .has_value(),
+        "a baseline whose hunt object names no norm answers no mismatch");
+  std::printf("baseline-norm-no-norm: ok\n");
 }
 
 // The time a family aggregates with: one entry's rows carry a repetition row
@@ -2234,13 +2288,17 @@ auto rankSensitivityOrder() -> void
   const std::string kIota {"event.iota"};
   const std::string kKappa {"event.kappa"};
 
+  // The case order stands the candidates' vector order, so the sort's
+  // walk meets both directions of every comparison: the lower
+  // correlation first, the tie at the lower slope before the tie at
+  // the higher one.
   const auto results = std::vector<sg::BenchmarkResult> {
       rankEntry("bmHuntRank",
                 "args:1",
-                {RankCase {kAlpha, 0.9, 1.0, std::nullopt},
-                 RankCase {kBeta, 0.5, 2.0, std::nullopt},
-                 RankCase {kGamma, 0.5, 2.0, std::nullopt},
+                {RankCase {kBeta, 0.5, 2.0, std::nullopt},
+                 RankCase {kAlpha, 0.9, 1.0, std::nullopt},
                  RankCase {kTheta, 0.5, 1.0, std::nullopt},
+                 RankCase {kGamma, 0.5, 2.0, std::nullopt},
                  RankCase {kIota, -0.5, 9.0, std::nullopt},
                  RankCase {kKappa, std::nullopt, std::nullopt, 40.0}}),
       rankEntry("bmHuntRank",
@@ -2511,7 +2569,10 @@ struct Scenario
       Scenario {"baseline-rates-zero-rate", baselineRatesZeroRate},
       Scenario {"baseline-rates-unmatched-name", baselineRatesUnmatchedName},
       Scenario {"baseline-norm-no-hunt-node", baselineNormNoHuntNode},
+      Scenario {"baseline-norm-no-norm", baselineNormNoNorm},
       Scenario {"family-stamp-time-rows", familyStampTimeRows},
+      Scenario {"family-stamp-resumes-after-an-empty-address",
+                familyStampResumesAfterAnEmptyAddress},
       Scenario {"baseline-norm-mismatch-text", baselineNormMismatchText},
       Scenario {"delta-stamp-matched-pair", deltaStampMatchedPair},
       Scenario {"delta-stamp-missing-match", deltaStampMissingMatch},
