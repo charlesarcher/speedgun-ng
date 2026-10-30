@@ -105,7 +105,7 @@ the reading the pairings section records.
 
 | case | the row it reads | the one line | status | report file |
 | --- | --- | --- | --- | --- |
-| `01-unreadable-path` | table C row 1, an unreadable path (FR-018) | `group layout specs/039-context-groups/results/reports/fixtures/unreadable-path.yml: cannot open the file` | 2 | none |
+| `01-unreadable-path` | table C row 1, an unreadable path (FR-018) | `group layout specs/039-context-groups/results/reports/fixtures/unreadable-path.yml: the file 'specs/039-context-groups/results/reports/fixtures/unreadable-path.yml' cannot be opened: No such file or directory` | 2 | none |
 | `02-unparsable-document` | table C row 2, a document the reader rejects (FR-018) | `group layout specs/039-context-groups/results/reports/fixtures/unparsable-document.yml: the reader refuses the document: illegal block entry` | 2 | none |
 | `03-no-groups-key` | table C row 3, a root mapping with no `groups` key (FR-018) | `group layout specs/039-context-groups/results/reports/fixtures/no-groups-key.yml: the root holds no 'groups' sequence` | 2 | none |
 | `04-root-sequence` | table C row 4, a root node that is a sequence (FR-018) | `group layout specs/039-context-groups/results/reports/fixtures/root-sequence.yml: the root holds no 'groups' sequence` | 2 | none |
@@ -125,8 +125,11 @@ the reading the pairings section records.
 | `18-beside-hunt` | FR-019, a file beside `--hunt` | `--hunt cannot combine with --group-layout` | 2 | none |
 
 Case 01 reads the open fault, so its document stands at a fixture name no
-pass writes. Rows 3 and 4 answer one line text, and each row names the
-path, which is what the contract states for both.
+pass writes. T054 moved that row's line to carry the reason the open
+answered, and the capture of case 01 stands re-produced from this branch's
+release tree, so it quotes the moved text. The other seventeen captures
+stand as the driver wrote them. Rows 3 and 4 answer one line text, and each
+row names the path, which is what the contract states for both.
 
 ## The readings the set shares
 
