@@ -577,8 +577,9 @@ auto speedgunMain(int argc, char** argv) -> int
   // specs/029 FR-081, D-16: the conflict check reads the settled members of the
   // scan, so a `--counter` that stands after `--hunt` is the same conflict as
   // one that stands before it. It stands ahead of the compare mode, which reads
-  // no catalog and runs no benchmark.
-  detail::validateHuntCombination(options);
+  // no catalog and runs no benchmark. The settled layout path is one of those
+  // members (specs/039 FR-019, D-2).
+  detail::validateHuntCombination(options, resolved->groupLayout);
 
   // specs/036 FR-011, R-07: the missing-window refusal stands beside
   // the standing combination check, after the gather and ahead of the
@@ -765,6 +766,18 @@ auto speedgunMain(int argc, char** argv) -> int
   const auto fitOutcome = detail::placementFitStatus(selected);
   if (fitOutcome.first != 0) {
     return fitOutcome.first;
+  }
+
+  // specs/039-context-groups FR-019 to FR-021, D-2, B-3: the layout arm reads
+  // the file the row settled at the same checkpoint, ahead of the context
+  // block and the first run. It hands back the line the reader spelled, or the
+  // line of the pairing or the batch stop, and the entry point prints it whole
+  // at the usage status.
+  const auto layoutOutcome =
+      detail::groupLayoutFitStatus(resolved->groupLayout, selected);
+  if (layoutOutcome.first != 0) {
+    std::fprintf(stderr, "%s\n", layoutOutcome.second.c_str());
+    return layoutOutcome.first;
   }
 
   // One entry-point invocation owns one interrupt flag: a suite that

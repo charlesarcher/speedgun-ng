@@ -430,7 +430,10 @@ auto parseHuntEmitSet(const char* text, RunOptions& options) -> void;
 auto parseHuntEmitRules(const char* text, RunOptions& options) -> void;
 auto parseHuntBaseline(const char* text, RunOptions& options) -> void;
 auto expandHuntSelection(RunOptions& options) -> void;
-auto validateHuntCombination(const RunOptions& options) -> void;
+// specs/039-context-groups FR-019, D-2: the settled layout path joins the
+// check, so a hunt beside a layout file answers the same combination line.
+auto validateHuntCombination(const RunOptions& options,
+                             const std::string& groupLayout) -> void;
 
 /**
  * @brief Print the help answer of `--help`: one line per table row in

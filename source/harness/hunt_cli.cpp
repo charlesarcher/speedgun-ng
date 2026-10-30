@@ -748,20 +748,24 @@ auto expandHuntSelection(RunOptions& options) -> void
 }
 
 // \pre the option scan has ended, so `options` holds every value it read;
-//      a record the scan parked is not a hunt.
+//      a record the scan parked is not a hunt. `groupLayout` stands as the
+//      winning source of the `--group-layout` row spelled it, empty when no
+//      source named the row.
 // \post a hunt together with a counter list, a metric list, a compare
-//       baseline or a placement preset leaves with one line naming both
-//       options and status 2, the same refusal for either order on the
-//       command line (D-16, FR-081); a settled emit path beside no hunt,
-//       `--hunt=none` among the ways to carry none, leaves with one line
-//       naming the value and status 2 (specs/033 FR-012, R-08); a settled
-//       rules path or baseline path beside no hunt, a delta rank beside no
-//       baseline, a rules file the system refuses to open and a baseline
-//       document the loader refuses, each leave with one line naming the
-//       value and status 2 (specs/040 FR-005, FR-011, FR-022, FR-023, B-8);
-//       a run that carries no hunt, or a hunt beside `--list`, `--catalog`
-//       or `--topology`, is not a refusal.
-auto validateHuntCombination(const RunOptions& options) -> void
+//       baseline, a placement preset or a settled group layout leaves with
+//       one line naming both options and status 2, the same refusal for
+//       either order on the command line (D-16, FR-081; specs/039 FR-019,
+//       D-2); a settled emit path beside no hunt, `--hunt=none` among the
+//       ways to carry none, leaves with one line naming the value and
+//       status 2 (specs/033 FR-012, R-08); a settled rules path or
+//       baseline path beside no hunt, a delta rank beside no baseline, a
+//       rules file the system refuses to open and a baseline document the
+//       loader refuses, each leave with one line naming the value and
+//       status 2 (specs/040 FR-005, FR-011, FR-022, FR-023, B-8); a run
+//       that carries no hunt, or a hunt beside `--list`, `--catalog` or
+//       `--topology`, is not a refusal.
+auto validateHuntCombination(const RunOptions& options,
+                             const std::string& groupLayout) -> void
 {
   // specs/033-hunter-budgets FR-012, R-08: the promoted set is a hunt's output,
   // so a path with no hunt to fill it is read ahead of the unset-hunt return
@@ -835,6 +839,14 @@ auto validateHuntCombination(const RunOptions& options) -> void
       rejectHuntSelection("--hunt-baseline: '" + baselinePath
                           + "' was rejected: " + loaded.error());
     }
+  }
+
+  // The layout file names the run's partition and a hunt plans the counter
+  // passes of that run, so one run carries one of the two (specs/039 FR-019,
+  // D-2). The settled path is the whole conflict, and the file stays unread
+  // here: the fit walk reads it.
+  if (!groupLayout.empty()) {
+    rejectHuntCombination("--group-layout");
   }
 }
 
