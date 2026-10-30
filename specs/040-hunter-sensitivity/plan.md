@@ -27,8 +27,8 @@ new runtime dependency).
 **Storage**: N/A (documents in, documents out).
 **Testing**: CTest, the `dev` preset for the loop, the coverage,
 sanitizer and tsan presets for the gates.
-**Target Platform**: Linux, GCC and Clang; the acceptance host gary
-(AMD Zen 5).
+**Target Platform**: Linux, GCC and Clang; the acceptance host
+thrawn (AMD Zen 5, 24 cores).
 **Project Type**: library plus CLI (the standing layout).
 **Performance Goals**: the ranks add no pass, run no second
 collection and read no clock; the rank computation stands pure over
@@ -84,7 +84,7 @@ specs/040-hunter-sensitivity/
 │   └── hunt-ranks-api.md
 ├── checklists/          # the spec quality checklist (landed)
 ├── tasks.md             # Phase 2 output (/speckit.tasks)
-└── results/             # the gary evidence records (FR-052)
+└── results/             # the thrawn evidence records (FR-052)
 ```
 
 ### Source Code (repository root)
@@ -228,7 +228,7 @@ brace marks a parallel group.
   the drift gates carry the region and the rows (FR-041). Test plan:
   the drift gates (wave 6). Depends on M-E.
 - **M-G the evidence records** (`specs/040-hunter-sensitivity/results/`).
-  One record per run on gary naming the commands, the exit codes and
+  One record per run on thrawn naming the commands, the exit codes and
   the artifacts, the quickstart linking each (FR-052). Test plan:
   the records' exit codes stand 0 and the links resolve (wave 6).
   Depends on M-F.
@@ -348,7 +348,7 @@ and on a 2-cpu host.
 - **Wave 5 (M-F)**: the docs gates. Verify:
   `ctest --preset=dev -R 'example_drift|snippet_compile|example_run'`
   and `cmake -P cmake/prose-lint.cmake`.
-- **Wave 6 (M-G)**: the evidence records on gary. Verify: the
+- **Wave 6 (M-G)**: the evidence records on thrawn. Verify: the
   records' exit codes stand 0 and the quickstart links resolve.
 - **Wave 7 (convergence)**: the full suite, the coverage gate, the
   sanitizer and tsan presets, the release build (`ci-ubuntu` once

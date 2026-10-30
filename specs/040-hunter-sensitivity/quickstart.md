@@ -8,7 +8,7 @@ the shapes in [data-model.md](./data-model.md).
 ## Prerequisites
 
 - A Linux host with PMU access for the acceptance runs; the
-  acceptance host stands gary (AMD Zen 5). The scripted rows run
+  acceptance host stands thrawn (AMD Zen 5). The scripted rows run
   anywhere: the tests build the records directly, no PMU needed.
 - The `dev` presets configured: `cmake --preset=ci-rocky` drives the
   release build into `build` on a fresh clone.
@@ -74,7 +74,7 @@ disclosures, the JSON rows cover the round trip at schema minor
 
 ## The acceptance records
 
-The gary acceptance runs stand recorded under
+The thrawn acceptance runs stand recorded under
 [results/](./results/), one record per run naming the commands, the
 exit codes and the artifacts (FR-052). Each record below links when
 it lands:
