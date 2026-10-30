@@ -74,13 +74,13 @@ fit step that stops a layout the run cannot carry.
   disclosure names one group per unit the plan touches. The suite
   stays host-agnostic: every layout a test exercises stands built on
   the synthetic seam, and the suite passes under `taskset -c 0,1` and
-  on a two-cpu host (FR-030).
+  on a two-cpu host (FR-036).
 - The lane prompt names thrawn as the evidence host (24 cores, 48
   threads, several CCDs with one L3 each, an NPS BIOS setting). The
   host this branch was cut on is `gary` (Ryzen 9 9950X3D, 16 cores,
-  32 threads, two L3 groups, one socket). The recorded runs name the
-  host that ran them, and the synthetic seam carries the multi-group
-  shapes on either host (R-5, FR-032).
+  32 threads, two L3 groups, one socket, one memory node). The recorded
+  runs name the host that ran them, and each record states whether the
+  host carried its shape or a test installed it (R-5, FR-036, FR-038).
 
 ## Audit point
 
@@ -299,10 +299,13 @@ fit step that stops a layout the run cannot carry.
 - **D-7**: The fixture publication. The fixture pair stays where
   specs/016 fixed it: context 0 owns it, its setup half runs before any
   body's measured work, and its teardown half runs after the stop
-  round. A grouped run publishes context 0's setup outcome to every
-  body through a route that carries no round across groups, and the
-  ungrouped run keeps the standing route where its start round carries
-  the publication (FR-021, FR-026).
+  round. The route turns on the partition's group count: a run whose
+  partition holds more than one group publishes context 0's setup
+  outcome to every body through a route that carries no round across
+  groups, and waits on per-context settlement flags inside context 0's
+  own body before the teardown half. A run with no partition, and a run
+  whose single group holds every context, keeps the standing route
+  where its start round carries the publication (FR-021, FR-026).
 - **D-8**: The batch fit. A layout names the slots of one instance.
   The standing fit step reads the layout before any instance runs and
   stops the batch when the layout's slot count differs from the
@@ -715,13 +718,13 @@ prints; the drift and prose gates read no finding.
 - **FR-025**: An ungrouped run SHALL keep the standing pair of rounds
   over every context of the instance, byte-shaped as master runs it
   (R-1, D-1).
-- **FR-026**: A run whose contexts meet more than one start round
-  SHALL publish context 0's fixture setup outcome to every body before
-  any body's measured work through a route that carries no round
-  across groups, and SHALL run context 0's fixture teardown after
-  every body of the attempt has settled, on context 0's own thread
-  (D-7). A run whose contexts meet one round keeps the standing
-  publication and the standing teardown point.
+- **FR-026**: A run whose partition holds more than one group SHALL
+  publish context 0's fixture setup outcome to every body before any
+  body's measured work through a route that carries no round across
+  groups, and SHALL run context 0's fixture teardown after every body
+  of the attempt has settled, on context 0's own thread (D-7). A run
+  that carries no partition, or one group holding every context, keeps
+  the standing publication and the standing teardown point.
 - **FR-027**: A thread runner that returns with a group member
   undispatched SHALL meet the standing ledger fault before the run
   waits on any group round (FR-024).
@@ -775,12 +778,15 @@ prints; the drift and prose gates read no finding.
   over the code this lane adds with no exclusion marker and no new
   ignored error class (VI), and SHALL carry no sleep and no clock
   read in a test.
-- **FR-038**: The lane SHALL record its acceptance runs on the lane
-  host under the results directory, one record per run naming the
-  commands, the exit codes and the artifacts: the preset grouping
-  over a multi-group shape, the `node` grouping over a multi-node
-  shape, the layout run end to end, the refusal set, and the
-  ungrouped comparison; the quickstart SHALL link every record.
+- **FR-038**: The lane SHALL record its acceptance runs under the
+  results directory, one record per run naming the commands, the exit
+  codes and the artifacts, and naming its kind: a host run carries a
+  shape the lane host's own topology states, and a seam run names the
+  test that installs a shape no host on the lane states. The records
+  cover the preset grouping over a multi-group shape, the `node`
+  grouping over a multi-node shape, the layout run end to end, the
+  refusal set, and the ungrouped comparison; the quickstart SHALL link
+  every record.
 - **FR-039**: The main page SHALL gain the groups section, its
   example region and its quick-reference rows in the same change as
   the behavior, and the example SHALL build and run and print the

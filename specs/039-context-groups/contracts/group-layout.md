@@ -51,9 +51,11 @@ Answers `std::expected<std::vector<ContextGroup>, std::string>`.
 | empty `groups` sequence | the path | 2 |
 | entry that is not a mapping | the path, the index | 2 |
 | entry with no `slots` | the path, the entry | 2 |
-| empty `slots`, wrong member kind | the path, the entry | 2 |
+| empty `slots` sequence | the path, the entry | 2 |
+| a `slots` member of the wrong kind | the path, the entry | 2 |
 | member outside the context range | the path, the entry, the value | 2 |
-| repeated slot, or a context no entry names | the path, the slot | 2 |
+| a repeated slot | the path, the slot | 2 |
+| a context no entry names | the path, the slot | 2 |
 | the key `cpus` | the path, the entry, the key | 2 |
 | any key outside the grammar | the path, the entry, the key | 2 |
 | repeated group name | the path, the name | 2 |

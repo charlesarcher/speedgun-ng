@@ -325,10 +325,10 @@ resolvePreset(preset, layout, n) ──> PlacementPlan { cpu[], group[], node[] 
                  attempt: one ContextBarrier per group, per point
                                           │
    ctx0 ──setup──┐            ┌── start(g0) ── body ── stop(g0) ──┐
-   ctx4 ─────────┤  publish   │                                   ├──┐
-                 ▼            ▼                                   │  │  poll all DONE
-   ctx1 ─────────┐            ┌── start(g1) ── body ── stop(g1) ──┘  │
-   ctx5 ─────────┘                                                     │
+   ctx1 ─────────┤            │                                   ├──┤
+                 │  publish   ▼                                   │  │  poll all DONE
+   ctx2 ─────────┤            ┌── start(g1) ── body ── stop(g1) ──┘  │
+   ctx3 ─────────┘                                                     │
    ctx0: teardown after each settled flag  <───────────────────┘
 ```
 
