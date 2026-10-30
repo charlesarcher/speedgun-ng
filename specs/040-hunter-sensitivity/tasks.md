@@ -357,10 +357,10 @@ with the feature, and the drift gates hold them equal to the code.
 
 ## Phase 6: The evidence records (module M-G, wave 6)
 
-**Purpose**: the acceptance runs on gary stand recorded under the
+**Purpose**: the acceptance runs on thrawn stand recorded under the
 results directory, the way specs/029 and specs/033 recorded theirs.
 
-- [ ] T037 Run the acceptance evidence on gary: record one document
+- [ ] T037 Run the acceptance evidence on thrawn: record one document
   per run under `specs/040-hunter-sensitivity/results/`: the
   sensitivity run of the quickstart's scenario 2, the delta run with
   the matching-rules disclosure, and the rules round trip of scenario
@@ -411,7 +411,7 @@ results directory, the way specs/029 and specs/033 recorded theirs.
   `toCompareRules` of T027.
 - Phase 5 (M-F) depends on Phase 4: the example prints the columns
   the CLI carries.
-- Phase 6 (M-G) depends on the built feature and the lane host gary.
+- Phase 6 (M-G) depends on the built feature and the lane host thrawn.
 - Phase 7 closes the feature and stands last.
 
 ### Parallel Blocks
@@ -457,7 +457,7 @@ node moves once.
   standing sections (`Harness: ...` for the hunt, the documents and
   the CLI, `CMake: ...`, `Docs: ...`, `Meta: ...`), the `Refs:`
   footer naming `specs/040-hunter-sensitivity`.
-- The evidence runs ride the lane host gary and stand a script beside
+- The evidence runs ride the lane host thrawn and stand a script beside
   the records, no CI gate (FR-052).
 - The compare tests stand the guard of the matcher move (R-2): the
   compare rows run unchanged in every wave's full-suite pass.

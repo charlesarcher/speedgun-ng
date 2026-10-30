@@ -80,9 +80,13 @@ and contention notes stand carried in the sections that read them.
   source. No standing name or value moves, and the name and value
   uniqueness test (`test/source/harness_cli_table_test.cpp`) carries
   the rows.
-- Lane host: `gary`, the AMD Zen 5 acceptance host (Ryzen 9 9950X3D)
-  the lane table names. The acceptance runs stand recorded on gary the
-  way specs/029 and specs/033 recorded theirs (R-5).
+- Lane host: `thrawn` (AMD Threadripper 9960X, Zen 5, 24 cores, 48
+  threads, one socket), the machine this lane stands self-contained
+  on per the owner's ruling of 2026-10-30: gary stands another
+  lane's host and stays out of this one. The acceptance runs stand
+  recorded on thrawn, one record per run naming the commands, the
+  exit codes and the artifacts, the way specs/029 and specs/033
+  recorded theirs (R-5 as this lane binds it).
 
 ## Roadmap position
 
@@ -270,7 +274,7 @@ the figures and the disclosures stands reached with no PMU (R-5).
 ### User Story 1 - Rank the events by what they do to the run (Priority: P1)
 
 A maintainer measures one registered benchmark over a family of at
-least 3 arg points on gary with `--hunt=all` and
+least 3 arg points on thrawn with `--hunt=all` and
 `--hunt-rank=sensitivity`. The ranked table gains the sensitivity
 column: each cell carries the Spearman rank correlation and the slope
 of that event's rate against the time per iteration over the family's
@@ -548,7 +552,7 @@ names at least one test (FR-051).
   round trip and the JSON round trip shall stand tested on the
   scripted seam (`FakeProvider`, R-5), each requirement of (A) to (E)
   carrying at least one test.
-- **FR-052**: The acceptance runs on gary shall stand recorded under
+- **FR-052**: The acceptance runs on thrawn shall stand recorded under
   `specs/040-hunter-sensitivity/results/`, one record per run naming
   the commands, the exit codes and the artifacts, the way specs/029
   and specs/033 recorded theirs; the quickstart shall link each
@@ -578,7 +582,7 @@ names at least one test (FR-051).
 
 ### Measurable Outcomes
 
-- **SC-001**: On gary, one run over a family with at least 3 arg
+- **SC-001**: On thrawn, one run over a family with at least 3 arg
   points prints the sensitivity column filled for the shared events
   and orders the table by it on request; the record stands under the
   results directory with the commands, the exit codes and the ranked
