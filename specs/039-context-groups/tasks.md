@@ -46,15 +46,17 @@ builds on. Nothing else lands before this phase closes.
   meaning (FR-005, FR-040). Verify:
   `ctest --test-dir build -R harness_group_report_test --output-on-failure`
   green, and the DBC gate reads no finding.
-- [x] T003 [1] Move the project version `0.25.0` to `0.26.0` in
-  `CMakeLists.txt:30` and the harness `SOVERSION` `16` to `17` in
-  `CMakeLists.txt:333`, the archive `SOVERSION` staying `4` at
+- [x] T003 [1] Move the project version `0.26.0` to `0.27.0` in
+  `CMakeLists.txt:30` and the harness `SOVERSION` `17` to `18` in
+  `CMakeLists.txt:333`, the numbers moved one step at the rebase
+  because specs/040 landed `0.26.0` and `17` first, the archive
+  `SOVERSION` staying `4` at
   `CMakeLists.txt:95`, the comment beside the block naming the moved
   public layout, and the three checks of
   `test/source/views_test.cpp:241-254` with the comment above them
   (FR-005, FR-032). Verify:
   `cmake --preset=ci-rocky && cmake --build build` green, and the
-  configure log names `0.26.0`.
+  configure log names `0.27.0`.
 - [x] T004 [1] Read the wave on the release preset with the analyzers
   wired in: `cmake --preset=ci-ubuntu && cmake --build build`, the
   touched translation units recompiled, and collect findings the way the
