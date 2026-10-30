@@ -8,7 +8,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <compare>
 #include <cstddef>
 #include <cstdint>
 #include <numeric>
@@ -77,12 +76,13 @@ auto rankInPlace(std::vector<std::pair<double, double>>& points,
                     std::less<double> {},
                     [&points, coordinate](const std::size_t index)
                     { return points[index].*coordinate; });
+  const std::less<double> less {};
   std::size_t start = 0;
   while (start < order.size()) {
     auto end = start + 1U;
-    while (end < order.size()
-           && std::is_eq(points[order[end]].*coordinate
-                         <=> points[order[start]].*coordinate))
+    const double value = points[order[start]].*coordinate;
+    while (end < order.size() && !less(points[order[end]].*coordinate, value)
+           && !less(value, points[order[end]].*coordinate))
     {
       ++end;
     }
