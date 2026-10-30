@@ -76,11 +76,13 @@ disclosures, the JSON rows cover the round trip at schema minor
 
 The thrawn acceptance runs stand recorded under
 [results/](./results/), one record per run naming the commands, the
-exit codes and the artifacts (FR-052). Each record below links when
-it lands:
+exit codes and the artifacts (FR-052). Each record below links:
 
 - The sensitivity record: the family run of scenario 1 and 2 with
-  the ranked table.
+  the ranked table: [sensitivity.md](./results/sensitivity.md).
 - The delta record: the baseline pair of scenario 2 with the
-  disclosure.
-- The round-trip record: scenario 3 with the comparison verdicts.
+  disclosure: [delta.md](./results/delta.md).
+- The round-trip record: scenario 3 with the comparison verdicts:
+  [round-trip.md](./results/round-trip.md).
+- The refusal record: the delta rank beside no baseline:
+  [refusal.md](./results/refusal.md).
