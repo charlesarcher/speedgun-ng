@@ -1,0 +1,1 @@
+group layout specs/039-context-groups/results/reports/fixtures/root-sequence.yml: the root holds no 'groups' sequence

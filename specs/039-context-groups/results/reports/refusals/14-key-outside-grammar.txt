@@ -1,0 +1,1 @@
+group layout specs/039-context-groups/results/reports/fixtures/key-outside-grammar.yml: entry 'first' carries the key 'nodes', outside the grammar

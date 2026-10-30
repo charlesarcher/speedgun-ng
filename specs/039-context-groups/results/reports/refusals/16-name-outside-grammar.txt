@@ -1,0 +1,1 @@
+group layout specs/039-context-groups/results/reports/fixtures/name-outside-grammar.yml: entry 0 carries the name 'bad name', outside the allowed characters and length

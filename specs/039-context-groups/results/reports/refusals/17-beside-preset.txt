@@ -1,0 +1,1 @@
+--group-layout 'specs/039-context-groups/results/reports/fixtures/four-groups.yml' cannot combine with --placement='core'

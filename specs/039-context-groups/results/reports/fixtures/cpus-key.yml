@@ -1,0 +1,4 @@
+groups:
+  - name: first
+    cpus: [0]
+    slots: [0, 1, 2, 3, 4, 5, 6, 7]
