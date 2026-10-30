@@ -1053,6 +1053,9 @@ auto scenarioRankRowMarks() -> void
           .repeated = true,
           .multiplexed = true,
           .rank = 1,
+          .sensitivityCorrelation = std::nullopt,
+          .sensitivitySlope = std::nullopt,
+          .delta = std::nullopt,
       },
       sg::hunt::RankedEvent {
           .address = address(2),
@@ -1063,6 +1066,9 @@ auto scenarioRankRowMarks() -> void
           .repeated = true,
           .multiplexed = false,
           .rank = std::nullopt,
+          .sensitivityCorrelation = std::nullopt,
+          .sensitivitySlope = std::nullopt,
+          .delta = std::nullopt,
       },
       sg::hunt::RankedEvent {
           .address = address(3),
@@ -1073,6 +1079,9 @@ auto scenarioRankRowMarks() -> void
           .repeated = false,
           .multiplexed = false,
           .rank = std::nullopt,
+          .sensitivityCorrelation = std::nullopt,
+          .sensitivitySlope = std::nullopt,
+          .delta = std::nullopt,
       },
       sg::hunt::RankedEvent {
           .address = address(4),
@@ -1083,6 +1092,9 @@ auto scenarioRankRowMarks() -> void
           .repeated = true,
           .multiplexed = false,
           .rank = std::nullopt,
+          .sensitivityCorrelation = std::nullopt,
+          .sensitivitySlope = std::nullopt,
+          .delta = std::nullopt,
       },
   };
 
@@ -1206,6 +1218,9 @@ auto scenarioPlanLineAbsentRun() -> void
           .repeated = true,
           .multiplexed = false,
           .rank = 1,
+          .sensitivityCorrelation = std::nullopt,
+          .sensitivitySlope = std::nullopt,
+          .delta = std::nullopt,
       },
   };
   result.hunt = table;
