@@ -97,6 +97,11 @@ auto renderText(const ReportData& report,
     text += '\n' + plot.error();
   }
 
+  // The view names the column it renders, the identity the two parts
+  // stand under; the document-derived name stands escaped where the
+  // markup fixture's label reads as markup (A-6, B-4).
+  SG_ENSURE(text.find(detail::escapeMarkup(column)) != std::string::npos,
+            "renderText: the view names its column (B-4)");
   return text;
 }
 

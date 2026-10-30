@@ -110,6 +110,10 @@ auto renderPlot(const ReportData& report,
   svg += "<text x=\"4\" y=\"192\">row</text>";
   svg += labels;
   svg += "</svg>";
+  // The figure carries the polyline the series answers, one point per
+  // recorded value (B-3).
+  SG_ENSURE(svg.find("<polyline") != std::string::npos,
+            "renderPlot: the figure carries the series polyline (B-3)");
   return svg;
 }
 

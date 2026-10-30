@@ -369,15 +369,15 @@ auto run() -> int
   // counter-label-shaped name stands outside the selector (A-3).
   {
     auto const markup = loadedFixture("markup.json");
-    auto const labelled =
+    auto const labeled =
         sg::viewSeries(markup, "bmViewsMarkup", "branch<miss>&rate");
-    check(labelled.has_value(), "resolver: the markup label resolves");
-    check(labelled->values.size() == 4,
+    check(labeled.has_value(), "resolver: the markup label resolves");
+    check(labeled->values.size() == 4,
           "resolver: the markup label keeps the four countable rows");
-    check(sameDouble(labelled->values[0], 0.4)
-              && sameDouble(labelled->values[1], 0.6)
-              && sameDouble(labelled->values[2], 0.7)
-              && sameDouble(labelled->values[3], 1.1),
+    check(sameDouble(labeled->values[0], 0.4)
+              && sameDouble(labeled->values[1], 0.6)
+              && sameDouble(labeled->values[2], 0.7)
+              && sameDouble(labeled->values[3], 1.1),
           "resolver: the markup label resolves the stored values");
 
     auto const counter = sg::viewSeries(multi, "bmViews/threads:2", "cycles");
@@ -980,6 +980,116 @@ auto run() -> int
   // the value or the error form, the document value arrives by const
   // reference as the whole input surface, and no exception escapes the
   // try of main.
+
+  // ---- The refusal and edge rows (specs/038 T023; the branches the
+  // coverage gate reads) ----
+
+  // The two-benchmark document: the refusal of an unmatched benchmark
+  // names the recorded set with the separator, the metric-labels
+  // refusal names both labels, and the equal-values range stands one
+  // bin covering the value. The second repetition row carries no
+  // metric slot for the label, so the row stands out of the metric
+  // series the way an unavailable row stands out (D-6).
+  {
+    auto const scratch =
+        std::filesystem::temp_directory_path() / "views_test_edge_cases.json";
+    {
+      std::ofstream out(scratch);
+      out << R"({"schemaVersion":"1.8","benchmarks":[
+          {"name":"bmEdge","suite":"bmEdge","case":"bmEdge",
+           "outcome":"MEASURED","reason":null,"hideRepetitionRows":false,
+           "timeUnit":"NANOSECONDS","primaryIsCpu":false,
+           "pauseSamplesFolded":false,"percentilePoints":[],"contexts":[],
+           "rows":[
+            {"kind":"REPETITION","label":null,"iterations":8,
+             "timePerIterationNs":50.0,"cpuTimePerIterationNs":60.0,
+             "endpointSamples":8,"pauseSamplesFolded":false,
+             "timeAvailability":"COUNTABLE",
+             "metrics":[{"label":"m1","value":1.0,"runningRatio":1.0,
+                         "scaled":false,"availability":"COUNTABLE",
+                         "pass":null}],"counters":[],
+             "counterDisclosure":null,"fit":null,"overheadFloorNs":0.0,
+             "percentiles":[],"chunkCount":0,"chunkIterations":0,
+             "timeStats":null,"metricStats":[]},
+            {"kind":"REPETITION","label":null,"iterations":8,
+             "timePerIterationNs":50.0,"cpuTimePerIterationNs":60.0,
+             "endpointSamples":8,"pauseSamplesFolded":false,
+             "timeAvailability":"COUNTABLE","metrics":[],
+             "counters":[],"counterDisclosure":null,"fit":null,
+             "overheadFloorNs":0.0,"percentiles":[],"chunkCount":0,
+             "chunkIterations":0,"timeStats":null,"metricStats":[]}],
+           "metricLabels":["m1","m2"],"counterLabels":[],
+           "counterStats":[],"statisticValues":[]},
+          {"name":"bmOther","suite":"bmOther","case":"bmOther",
+           "outcome":"MEASURED","reason":null,"hideRepetitionRows":false,
+           "timeUnit":"NANOSECONDS","primaryIsCpu":false,
+           "pauseSamplesFolded":false,"percentilePoints":[],"contexts":[],
+           "rows":[{"kind":"REPETITION","label":null,"iterations":8,
+                    "timePerIterationNs":70.0,
+                    "cpuTimePerIterationNs":70.0,
+                    "endpointSamples":8,"pauseSamplesFolded":false,
+                    "timeAvailability":"COUNTABLE","metrics":[],
+                    "counters":[],"counterDisclosure":null,"fit":null,
+                    "overheadFloorNs":0.0,"percentiles":[],
+                    "chunkCount":0,"chunkIterations":0,
+                    "timeStats":null,"metricStats":[]}],
+           "metricLabels":[],"counterLabels":[],"counterStats":[],
+           "statisticValues":[]}]})";
+    }
+    auto const edge = sg::loadReport(scratch.string());
+    check(edge.has_value(), "edge: the two-benchmark document loads");
+
+    check(!sg::viewSeries(*edge, "absent", "time").has_value()
+              && sg::viewSeries(*edge, "absent", "time")
+                      .error()
+                      .find("bmEdge, bmOther")
+                  != std::string::npos,
+          "edge: the benchmark refusal names both recorded names");
+    check(
+        !sg::viewSeries(*edge, "bmEdge", "cycles").has_value()
+            && sg::viewSeries(*edge, "bmEdge", "cycles").error().find("m1, m2")
+                != std::string::npos,
+        "edge: the column refusal names both recorded labels");
+    check(!sg::viewSeries(*edge, "bmOther", "cycles").has_value()
+              && sg::viewSeries(*edge, "bmOther", "cycles").error().find("none")
+                  != std::string::npos,
+          "edge: the column refusal over no labels names none");
+    auto const equal = sg::viewSeries(*edge, "bmEdge", "time");
+    check(equal.has_value() && equal->values.size() == 2
+              && sameDouble(equal->values.front(), 50.0),
+          "edge: the equal-values series answers the value form");
+    auto const oneBin = sg::renderHistogram(*edge, "bmEdge", "time", 4);
+    check(oneBin.has_value(), "edge: the equal-values histogram renders");
+    check(oneBin->find("50-50 ns: 2") != std::string::npos,
+          "edge: the equal-values range stands one bin covering the value");
+    auto const shortMetrics = sg::viewSeries(*edge, "bmEdge", "m1");
+    check(shortMetrics.has_value() && shortMetrics->values.size() == 1,
+          "edge: the row without the metric slot stands out of the series");
+    std::error_code edgeIgnored;
+    std::filesystem::remove(scratch, edgeIgnored);
+  }
+
+  // The renderer error forms name the resolver's refusal: a benchmark
+  // the document does not carry rides the one error shape to every
+  // view's answer (FR-005, A-2).
+  {
+    auto const report = loadedFixture("multi.json");
+    const auto histogram = sg::renderHistogram(report, "absent", "time", 4);
+    check(!histogram.has_value()
+              && histogram.error().find("absent") != std::string::npos,
+          "edge: the histogram answers the resolver's refusal");
+    const auto plot = sg::renderPlot(report, "absent", "time");
+    check(!plot.has_value() && plot.error().find("absent") != std::string::npos,
+          "edge: the plot answers the resolver's refusal");
+    const auto text = sg::renderText(report, "absent", "time", 4);
+    check(!text.has_value() && text.error().find("absent") != std::string::npos,
+          "edge: the text view answers the resolver's refusal");
+    const auto page = sg::renderPage(report, "absent", "time", 4);
+    check(page.has_value(),
+          "edge: the page answers the value form over a refused request");
+    check(page->find("absent") != std::string::npos,
+          "edge: the page carries the refusals in the figures' places");
+  }
 
   std::printf("views_test PASS\n");
   return 0;
