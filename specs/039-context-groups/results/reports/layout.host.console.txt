@@ -1,0 +1,3 @@
+speedgun-ng 0.26.0 build=Release
+bmSharded/threads:8      iterations=         8  real time/iter (ns)=  876.250  cpu time/iter (ns)=  625.000  overhead floor (ns)=   90.000  endpoint samples=16
+  contexts=8  ctx0=SPIN/NO_PIN/first  ctx1=SPIN/NO_PIN/first  ctx2=SPIN/NO_PIN/second  ctx3=SPIN/NO_PIN/second  ctx4=SPIN/NO_PIN/third  ctx5=SPIN/NO_PIN/third  ctx6=SPIN/NO_PIN/fourth  ctx7=SPIN/NO_PIN/fourth

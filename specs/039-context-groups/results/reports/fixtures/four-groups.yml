@@ -1,0 +1,9 @@
+groups:
+  - name: first
+    slots: [0, 1]
+  - name: second
+    slots: [2, 3]
+  - name: third
+    slots: [4, 5]
+  - name: fourth
+    slots: [6, 7]

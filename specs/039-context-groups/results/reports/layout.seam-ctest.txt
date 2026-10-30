@@ -1,0 +1,39 @@
+UpdateCTestConfiguration  from :/home/archerc/code/speedgun-ng/build-w7a/DartConfiguration.tcl
+Parse Config file:/home/archerc/code/speedgun-ng/build-w7a/DartConfiguration.tcl
+Test project /home/archerc/code/speedgun-ng/build-w7a
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 97
+    Start 97: harness_group_run_test
+
+97: Test command: /home/archerc/code/speedgun-ng/build-w7a/test/harness_group_run_test
+97: Working Directory: /home/archerc/code/speedgun-ng/build-w7a/test
+97: Test timeout computed to be: 300
+97: harness_group_run_test core-four-groups: ok
+97: harness_group_run_test node-two-nodes: ok
+97: harness_group_run_test one-group: ok
+97: harness_group_run_test l3-single-groups: ok
+97: harness_group_run_test single-context: ok
+97: harness_group_run_test ungrouped: ok
+97: harness_group_run_test file-four-groups: ok
+97: harness_group_run_test file-defaults: ok
+97: harness_group_run_test file-preset-pace: ok
+97: harness_group_run_test file-refused: ok
+97: harness_group_run_test setup-failure: ok
+97: harness_group_run_test teardown-order: ok
+97: harness_group_run_test: ok
+1/1 Test #97: harness_group_run_test ...........   Passed    0.09 sec
+
+The following tests passed:
+	harness_group_run_test
+
+100% tests passed out of 1
+
+Label Time Summary:
+quick    =   0.73 sec*proc (1 test)
+
+Total Test time (real) =   0.09 sec
