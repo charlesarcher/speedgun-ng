@@ -79,6 +79,7 @@
 #include <string_view>
 #include <vector>
 
+#include "detail/group_shape_fixture.hpp"
 #include "detail/internal.hpp"
 
 namespace
@@ -95,59 +96,6 @@ auto check(bool const cond, char const* const what) -> void
   if (!cond) {
     fail(what);
   }
-}
-
-// The shape of `groups` L3 groups with `coresPerGroup` cores of
-// `siblings` threads each, cpus ascending within the group order, beside
-// `memoryNodes` memory nodes that split the cpu range in equal slices.
-// The nodes stand unfiltered, the way the read states them, so the mask
-// filters them at plan time (specs/035 data-model.md).
-auto machineShape(std::uint32_t const groups,
-                  std::uint32_t const coresPerGroup,
-                  std::uint32_t const siblings,
-                  std::uint32_t const memoryNodes) -> sg::detail::MachineLayout
-{
-  sg::detail::MachineLayout installed;
-  installed.readable = true;
-  installed.memoryReadable = memoryNodes > 0;
-  installed.packages = 1;
-  const std::uint32_t perGroup = coresPerGroup * siblings;
-  for (std::uint32_t group = 0; group < groups; ++group) {
-    for (std::uint32_t core = 0; core < coresPerGroup; ++core) {
-      sg::detail::LayoutCore layoutCore;
-      layoutCore.groupOrdinal = group;
-      for (std::uint32_t sibling = 0; sibling < siblings; ++sibling) {
-        sg::detail::LayoutThread thread;
-        thread.cpuIndex = group * perGroup + core * siblings + sibling;
-        thread.coreOrdinal = static_cast<std::uint32_t>(installed.cores.size());
-        thread.groupOrdinal = group;
-        layoutCore.threads.push_back(
-            static_cast<std::uint32_t>(installed.threads.size()));
-        installed.threads.push_back(thread);
-        installed.mask.push_back(thread.cpuIndex);
-      }
-      installed.cores.push_back(layoutCore);
-    }
-    sg::detail::LayoutGroup layoutGroup;
-    layoutGroup.lowestCpu = group * perGroup;
-    for (std::uint32_t core = 0; core < coresPerGroup; ++core) {
-      layoutGroup.cores.push_back(group * coresPerGroup + core);
-    }
-    installed.groups.push_back(layoutGroup);
-  }
-  const std::uint32_t total = groups * perGroup;
-  for (std::uint32_t node = 0; node < memoryNodes; ++node) {
-    sg::detail::LayoutNode layoutNode;
-    layoutNode.number = node;
-    for (std::uint32_t cpu = (node * total) / memoryNodes;
-         cpu < ((node + 1) * total) / memoryNodes;
-         ++cpu)
-    {
-      layoutNode.cpus.push_back(cpu);
-    }
-    installed.nodes.push_back(layoutNode);
-  }
-  return installed;
 }
 
 // The narrow-mask shape: four threads at cpus 4 to 7 over two cores and
@@ -223,13 +171,13 @@ auto noL3Shape() -> sg::detail::MachineLayout
 auto shapeOf(std::string_view const name) -> sg::detail::MachineLayout
 {
   if (name == "fourGroups") {
-    return machineShape(4, 2, 2, 0);
+    return sg::test::machineShape(4, 2, 2, 0);
   }
   if (name == "twoNodes") {
-    return machineShape(4, 2, 2, 2);
+    return sg::test::machineShape(4, 2, 2, 2);
   }
   if (name == "oneGroup") {
-    return machineShape(1, 4, 2, 1);
+    return sg::test::machineShape(1, 4, 2, 1);
   }
   if (name == "narrowMask") {
     return narrowMaskShape();

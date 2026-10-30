@@ -94,6 +94,7 @@
 #include <unistd.h>
 
 #include "detail/gcov_flush.hpp"
+#include "detail/group_shape_fixture.hpp"
 #include "detail/internal.hpp"
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
@@ -120,60 +121,6 @@ auto check(const bool condition, const std::string_view what) -> void
   if (!condition) {
     fail(what);
   }
-}
-
-// The shape of `groups` L3 groups with `coresPerGroup` cores of `siblings`
-// threads each, cpus ascending within the group order, beside `memoryNodes`
-// memory nodes that split the cpu range in equal slices. The nodes stand
-// unfiltered, the way the read states them, so the mask filters them at plan
-// time, and the builder is the miniature of `fourGroupShape` at
-// test/source/harness_cli_placement_test.cpp:260-297 (FR-036).
-auto machineShape(const std::uint32_t groups,
-                  const std::uint32_t coresPerGroup,
-                  const std::uint32_t siblings,
-                  const std::uint32_t memoryNodes) -> sg::detail::MachineLayout
-{
-  sg::detail::MachineLayout installed;
-  installed.readable = true;
-  installed.memoryReadable = memoryNodes > 0;
-  installed.packages = 1;
-  const std::uint32_t perGroup = coresPerGroup * siblings;
-  for (std::uint32_t group = 0; group < groups; ++group) {
-    for (std::uint32_t core = 0; core < coresPerGroup; ++core) {
-      sg::detail::LayoutCore layoutCore;
-      layoutCore.groupOrdinal = group;
-      for (std::uint32_t sibling = 0; sibling < siblings; ++sibling) {
-        sg::detail::LayoutThread thread;
-        thread.cpuIndex = group * perGroup + core * siblings + sibling;
-        thread.coreOrdinal = static_cast<std::uint32_t>(installed.cores.size());
-        thread.groupOrdinal = group;
-        layoutCore.threads.push_back(
-            static_cast<std::uint32_t>(installed.threads.size()));
-        installed.threads.push_back(thread);
-        installed.mask.push_back(thread.cpuIndex);
-      }
-      installed.cores.push_back(layoutCore);
-    }
-    sg::detail::LayoutGroup layoutGroup;
-    layoutGroup.lowestCpu = group * perGroup;
-    for (std::uint32_t core = 0; core < coresPerGroup; ++core) {
-      layoutGroup.cores.push_back(group * coresPerGroup + core);
-    }
-    installed.groups.push_back(layoutGroup);
-  }
-  const std::uint32_t total = groups * perGroup;
-  for (std::uint32_t node = 0; node < memoryNodes; ++node) {
-    sg::detail::LayoutNode layoutNode;
-    layoutNode.number = node;
-    for (std::uint32_t cpu = (node * total) / memoryNodes;
-         cpu < ((node + 1) * total) / memoryNodes;
-         ++cpu)
-    {
-      layoutNode.cpus.push_back(cpu);
-    }
-    installed.nodes.push_back(layoutNode);
-  }
-  return installed;
 }
 
 // Install the shape and state its cpus online, so the context start of a
@@ -405,7 +352,7 @@ auto reportGroups(const std::vector<std::string>& groups) -> void
 // reach both of them (FR-001, FR-022).
 auto scenarioCoreFourGroups() -> int
 {
-  installShape(machineShape(4, 2, 1, 0));
+  installShape(sg::test::machineShape(4, 2, 1, 0));
   scriptProvider();
   auto handle = sg::registerBenchmark(&bmGroupBody, "bmGroupCore");
   handle.threads(8).placement("core");
@@ -435,7 +382,7 @@ auto scenarioCoreFourGroups() -> int
 // names spell the node number the plan carries.
 auto scenarioNodeTwoNodes() -> int
 {
-  installShape(machineShape(4, 2, 2, 2));
+  installShape(sg::test::machineShape(4, 2, 2, 2));
   installBinder();
   scriptProvider();
   auto handle = sg::registerBenchmark(&bmGroupBody, "bmGroupNode");
@@ -460,7 +407,7 @@ auto scenarioNodeTwoNodes() -> int
 // standing shape carries, and the run completes with one name disclosed.
 auto scenarioOneGroup() -> int
 {
-  installShape(machineShape(1, 4, 1, 0));
+  installShape(sg::test::machineShape(1, 4, 1, 0));
   scriptProvider();
   auto handle = sg::registerBenchmark(&bmGroupBody, "bmGroupOne");
   handle.threads(4).placement("core");
@@ -482,7 +429,7 @@ auto scenarioOneGroup() -> int
 // one arrival.
 auto scenarioL3SingleGroups() -> int
 {
-  installShape(machineShape(4, 2, 1, 0));
+  installShape(sg::test::machineShape(4, 2, 1, 0));
   scriptProvider();
   auto handle = sg::registerBenchmark(&bmGroupBody, "bmGroupL3");
   handle.threads(4).placement("l3");
@@ -505,7 +452,7 @@ auto scenarioL3SingleGroups() -> int
 // the standing single-context shape and discloses no context record.
 auto scenarioSingleContext() -> int
 {
-  installShape(machineShape(4, 2, 1, 0));
+  installShape(sg::test::machineShape(4, 2, 1, 0));
   scriptProvider();
   auto handle = sg::registerBenchmark(&bmGroupBody, "bmGroupSingle");
   handle.threads(1).placement("core");
@@ -525,7 +472,7 @@ auto scenarioSingleContext() -> int
 // name on any of its records.
 auto scenarioUngrouped() -> int
 {
-  installShape(machineShape(4, 2, 1, 0));
+  installShape(sg::test::machineShape(4, 2, 1, 0));
   scriptProvider();
   auto handle = sg::registerBenchmark(&bmGroupBody, "bmGroupPlain");
   handle.threads(4);
@@ -548,7 +495,7 @@ auto scenarioUngrouped() -> int
 // pair released by its own two arrivals (D-1).
 auto scenarioFileFourGroups() -> int
 {
-  installShape(machineShape(4, 2, 1, 0));
+  installShape(sg::test::machineShape(4, 2, 1, 0));
   scriptProvider();
   writeLayout(kFourPath,
               "groups:\n"
@@ -581,7 +528,7 @@ auto scenarioFileFourGroups() -> int
 // and the run discloses that name for the slots the entry holds.
 auto scenarioFileDefaults() -> int
 {
-  installShape(machineShape(4, 2, 1, 0));
+  installShape(sg::test::machineShape(4, 2, 1, 0));
   scriptProvider();
   writeLayout(kDefaultsPath, "groups:\n  - slots: [0, 2]\n  - slots: [1, 3]\n");
   auto handle = sg::registerBenchmark(&bmGroupBody, "bmGroupFileDefaults");
@@ -607,7 +554,7 @@ auto scenarioFileDefaults() -> int
 // names, the one partition the row settled (FR-003).
 auto scenarioFilePresetPace() -> int
 {
-  installShape(machineShape(4, 2, 1, 0));
+  installShape(sg::test::machineShape(4, 2, 1, 0));
   scriptProvider();
   writeLayout(kPacePath,
               "groups:\n"
@@ -650,7 +597,7 @@ auto scenarioFilePresetPace() -> int
 // grammar refused.
 auto scenarioFileRefused() -> int
 {
-  installShape(machineShape(4, 2, 1, 0));
+  installShape(sg::test::machineShape(4, 2, 1, 0));
   scriptProvider();
   writeLayout(kRefusedPath,
               "groups:\n"
@@ -682,7 +629,7 @@ auto scenarioFileRefused() -> int
 // the block its four contexts stand in.
 auto childEntryPointFile() -> int
 {
-  installShape(machineShape(4, 2, 1, 0));
+  installShape(sg::test::machineShape(4, 2, 1, 0));
   auto handle = sg::registerBenchmark(&bmGroupBody, "bmGroupEntryPoint");
   handle.threads(4);
   std::vector<std::string> words {"harness_group_run_test",
@@ -758,7 +705,7 @@ auto readEntryPointFile(const std::string& self) -> void
 // rounds that carry no context of another group.
 auto scenarioSetupFailure() -> int
 {
-  installShape(machineShape(4, 2, 1, 0));
+  installShape(sg::test::machineShape(4, 2, 1, 0));
   scriptProvider();
   auto handle = sg::registerFixtureBenchmark(
       &bmGroupBody,
@@ -788,7 +735,7 @@ auto scenarioSetupFailure() -> int
 // bodies that had returned their work reads full when that half runs.
 auto scenarioTeardownOrder() -> int
 {
-  installShape(machineShape(4, 2, 1, 0));
+  installShape(sg::test::machineShape(4, 2, 1, 0));
   scriptProvider();
   auto handle = sg::registerFixtureBenchmark(
       &bmGroupBody,
@@ -823,7 +770,7 @@ auto leaveTheLastIndex(sg::ThreadRun& run) -> void
 
 auto childStrandedLedger() -> int
 {
-  installShape(machineShape(4, 2, 1, 0));
+  installShape(sg::test::machineShape(4, 2, 1, 0));
   scriptProvider();
   auto handle = sg::registerBenchmark(&bmGroupBody, "bmGroupStranded");
   handle.threads(4).placement("core").threadRunner(&leaveTheLastIndex);

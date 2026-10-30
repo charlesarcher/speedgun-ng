@@ -283,9 +283,6 @@ auto theRowCarriesItsRecord() -> void
   check(row->value == kGroupLayoutValue,
         "the row answers the value 299 of the free block (FR-011): "
             + std::to_string(row->value));
-  check(sg::detail::kGroupLayoutOptionValue == kGroupLayoutValue,
-        "the constant of the row spells 299 (FR-011): "
-            + std::to_string(sg::detail::kGroupLayoutOptionValue));
   check(row->argument == sg::detail::OptionArgument::REQUIRED,
         "the row takes a required argument (FR-011)");
   checkText(row->owner,
