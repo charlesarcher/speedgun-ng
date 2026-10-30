@@ -74,8 +74,8 @@ disclosures, the JSON rows cover the round trip at schema minor
 
    The hunt document itself carries its rates in the per-entry hunt
    objects and no counter columns, so the comparison of the hunt
-   documents stands refused (FR-036), and a rule whose event
-   measures zero stands the zero-baseline refusal (FR-031).
+   documents stands refused (specs/026 FR-036), and a rule whose event
+   measures zero stands the zero-baseline refusal (specs/026 FR-031).
 
 ## The refusal scenarios
 

@@ -180,7 +180,7 @@ brace marks a parallel group.
 - **M-C the rank figures** (`source/harness/detail/hunt_ranks.hpp`,
   `source/harness/hunt_ranks.cpp`). Detail surface, all pure
   functions over the collected records: the family grouping of the
-  run's entries by suite and case name; the point assembly per event
+  run's entries by suite (D-2); the point assembly per event
   address (FR-001, D-2); the sensitivity stamp
   (`sensitivityCorrelation`, `sensitivitySlope`, `n/a` under 3
   points, FR-002); the baseline rate extraction from a loaded
@@ -235,7 +235,7 @@ brace marks a parallel group.
 
 ### Risks
 
-- The family grouping rides the standing suite/case fields of the
+- The family grouping rides the standing suite field of the
   run's results; a family of one entry stands the `n/a` disclosure,
   never an error (FR-002).
 - The matcher move (R-2) touches `compare.cpp`; the compare tests
@@ -253,7 +253,7 @@ brace marks a parallel group.
 per entry:  runHunt(entry, options)      -> EntryHunt (rate, cv,
                                             noisy, standing ranks)
 after the batch:
-  familyPoints(entries of one suite+case, address)
+  familyPoints(entries of one suite, address)
       -> [(timePerIter, rate)] per shared address
   spearmanCorrelation(points), leastSquaresSlope(points)
       -> sensitivityCorrelation, sensitivitySlope  (n/a < 3 points)
