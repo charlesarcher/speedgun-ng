@@ -67,7 +67,7 @@ design.*
 
 | Principle | Gate | Status |
 | --- | --- | --- |
-| I. Standard-first | `ci-ubuntu` clang-tidy and cppcheck, pinned C++23 | PASS |
+| I. Standard-first | `ci-ubuntu` clang-tidy and cppcheck, gate check `readability-identifier-naming`, pinned C++23 | PASS |
 | II. DBC | new interfaces carry `\pre`, `\post`, `\invariant` and `SG_REQUIRE`, `SG_ENSURE`; `dbc-gate` | PASS |
 | III. R-DCUT | this plan carries the logical and physical views and the test plan; TDD recorded | PASS |
 | IV.1 Main page | the groups section, its region and its rows land with the behavior (M-H) | PASS |
@@ -431,7 +431,8 @@ scenarios carry `PROCESSORS` and stay in the `quick` tier.
   `ctest --test-dir build --output-on-failure`, the sanitizer and tsan
   presets, `taskset -c 0,1 ctest --preset prepush-quick -j 2`, the
   coverage target at 100 percent lines and branches, `ci-ubuntu` with
-  clang-tidy and cppcheck at zero findings, `prose-lint`, `spell-check`,
+  clang-tidy and cppcheck at zero findings on the gate checks,
+`prose-lint`, `spell-check`,
   `format-check`, the DBC gate, the time-source gate, the yaml purity
   scan and nm proof.
 

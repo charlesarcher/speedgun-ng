@@ -56,8 +56,12 @@ builds on. Nothing else lands before this phase closes.
   `cmake --preset=ci-rocky && cmake --build build` green, and the
   configure log names `0.26.0`.
 - [ ] T004 [1] Read the wave on the release preset with the analyzers
-  wired in: `cmake --preset=ci-ubuntu && cmake --build build` (IX).
-  Verify: zero clang-tidy and cppcheck findings.
+  wired in: `cmake --preset=ci-ubuntu && cmake --build build`, the
+  touched translation units recompiled, and collect findings the way the
+  CI `Fail on gate findings` step does (crib sheet, "The analyzer
+  gate"). Verify: zero findings on the gate checks named by
+  `.clang-tidy`'s `WarningsAsErrors`, today `readability-identifier-naming`;
+  findings outside that list stand outside the gate.
 
 **Checkpoint**: the field, the version and the `SOVERSION` stand, the
 suite green.
@@ -178,7 +182,7 @@ fit walk learns to stop a batch the layout cannot serve.
   green.
 - [ ] T016 [3] Read the wave on the release preset:
   `cmake --preset=ci-ubuntu && cmake --build build`. Verify: zero
-  analyzer findings, the full suite green.
+  findings on the gate checks, the full suite green.
 
 **Checkpoint**: both sources reach the run, every refusal answers one
 line at status 2, and no measured work has run.
@@ -304,7 +308,7 @@ and the report unit own disjoint files and run together.
   green.
 - [ ] T028 [5] Read the wave on the release preset:
   `cmake --preset=ci-ubuntu && cmake --build build`. Verify: zero
-  analyzer findings, the full suite green.
+  findings on the gate checks, the full suite green.
 
 **Checkpoint**: the disclosure carries the group on both channels, and an
 ungrouped run answers master's bytes.
@@ -413,9 +417,11 @@ bindings re-read against the base, the verdict recorded.
   `group_layout.cpp`, `group_fit.cpp` and the changed hunks, no
   `LCOV_EXCL` marker and no new ignored error class.
 - [ ] T045 [P] [8] Read the static-analysis gate on the release preset
-  with the analyzers wired in, and the naming gate
-  (`readability-identifier-naming`) with it (I, V.1, VIII). Verify: zero
-  findings, and every suppression names the V.2 entry it applies.
+  with the analyzers wired in over the whole tree, collecting findings as
+  the CI step does and counting them against `.clang-tidy`'s
+  `WarningsAsErrors` list, the naming check the lane lives under (I, V.1,
+  VIII). Verify: zero gate findings, and every `NOLINT` this lane adds
+  names the V.2 entry it applies.
 - [ ] T046 [P] [8] Remove the lane's side build directories, the trees
   named at `build-w*`, so the spell and format reads see tracked sources
   only, then read the prose, spell, format, DBC and time-source gates
