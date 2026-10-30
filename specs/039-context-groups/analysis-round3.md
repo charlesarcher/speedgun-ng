@@ -1,7 +1,6 @@
 # Analysis round 3: specs/039-context-groups
 
-Analyzed on 2026-10-30 on branch `039-context-groups` at HEAD `c941b627`
-(`Meta: Clear the analysis round-2 findings`), the commit that answers
+Analyzed on 2026-10-30 on branch `039-context-groups` at HEAD `Meta: Clear the analysis round-2 findings`, the commit that answers
 round 2's nine findings and states the claim this pass tests:
 
 > Two more would have misled a reader or a task. The CLI table test admits

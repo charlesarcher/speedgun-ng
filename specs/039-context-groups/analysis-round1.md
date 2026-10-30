@@ -1,6 +1,6 @@
 # Analysis round 1: specs/039-context-groups
 
-Analyzed on 2026-10-30 on branch `039-context-groups` at `c46a45e1`.
+Analyzed on 2026-10-30 on branch `039-context-groups` at `Meta: Record the round-3 clarifications`.
 `git diff master...HEAD` names eleven files, all under
 `specs/039-context-groups/`, so the source tree matches `master`. Basis:
 the constitution, then `spec.md`, `plan.md`, `tasks.md`, `data-model.md`,
@@ -434,7 +434,7 @@ change.
 ## Round 2 recheck
 
 Re-read on 2026-10-30. This checkout holds no later text. The commit
-list ahead of `master` holds seven entries, HEAD stands at `c46a45e1`,
+list ahead of `master` holds seven entries, HEAD stands at `Meta: Record the round-3 clarifications`,
 `git status` reports no modified tracked file, and the working copy of
 `specs/039-context-groups/tasks.md` hashes equal to
 `git show HEAD:specs/039-context-groups/tasks.md`, at that head.

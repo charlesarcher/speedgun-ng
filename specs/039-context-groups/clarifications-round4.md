@@ -4,8 +4,7 @@ Feature: `039-context-groups`, branch `039-context-groups`. Method: the
 speckit-clarify discipline, a fourth pass over the spec the three
 earlier rounds amended, no spec edit at the pass itself. The split this
 pass reopened stands answered in the spec's Clarifications section under
-`Session 2026-10-30, round 4`, landed with `30aacbac`
-(`Meta: Scope the refusal line's named path`), so this file records no
+`Session 2026-10-30, round 4`, landed with `Meta: Scope the refusal line's named path`, so this file records no
 question while the spec carries the answer. Round 1's five answers,
 round 2's two and round 3's one stand in the spec's Clarifications
 section, carry the weight of a Decision, and stand unasked here. Each of
