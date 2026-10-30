@@ -234,8 +234,11 @@ M-A  (version, header field)
   `test/base_cli/run_matrix.py`; `harness_cli_table_test` moves to 39
   rows and re-checks the guide table. Depends on M-B and M-C.
 - **M-E the runner's rounds** (`source/harness/runner.cpp`). Public
-  surface: none. The partition is computed once per instance beside the
-  context build (`:1626-1644`); a partitioned run builds one start
+  surface: none. The partition reads one source per run beside the
+  context build (`:1626-1644`): the layout's groups when
+  `ResolvedOptions::groupLayout` carries a path, that path reaching the
+  runner the way the preset text does, and the preset's plan otherwise.
+  A partitioned run builds one start
   barrier and one stop barrier per group in place of the two whole-run
   barriers (`:2066-2067`), and a run that carries no partition keeps
   that standing pair; the body arrives at its own group's rounds
@@ -441,8 +444,8 @@ scenarios carry `PROCESSORS` and stay in the `quick` tier.
 | FR | Wave | Test |
 | --- | --- | --- |
 | FR-001 | 2, 4 | `harness_group_partition_test`, `harness_group_run_test` |
-| FR-002 | 2, 3 | `harness_group_partition_test`, `harness_group_layout_test` |
-| FR-003 | 3 | `harness_group_cli_test` |
+| FR-002 | 2, 3, 4 | `harness_group_partition_test`, `harness_group_layout_test`, `harness_group_run_test` |
+| FR-003 | 3, 4 | `harness_group_cli_test`, `harness_group_run_test` |
 | FR-004 | 2, 4 | partition ungrouped rows, `harness_group_run_test` |
 | FR-005 | 1 | `harness_group_report_test`, the version read |
 | FR-006 | 2 | `harness_group_partition_test` |

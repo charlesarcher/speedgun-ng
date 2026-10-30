@@ -242,6 +242,19 @@ groups.
   standing contract message in its own process (FR-027, FR-024). Verify:
   `ctest --test-dir build -R harness_group_run_test --output-on-failure`
   green on the ledger case.
+- [ ] T052 [4] Carry the file's partition into the attempt: read
+  `ResolvedOptions::groupLayout` at the entry point, carry the path to
+  the instance the way the preset text travels, and let the runner's
+  partition read take the layout's groups when the path stands non-empty
+  and the preset's plan otherwise (`source/harness/runner.cpp`,
+  `source/harness/cli.cpp`, `source/harness/detail/internal.hpp` if a
+  declaration moves). Add the scenarios that pace by a file to
+  `test/source/harness_group_run_test.cpp`: the four groups and their
+  names and memberships the file states, the disclosure carrying those
+  names, and a grouped-by-file run whose pacing matches the preset run's
+  on the same shape (FR-002, FR-003, FR-005, D-1, D-2). Verify:
+  `ctest --test-dir build -R harness_group_run_test --output-on-failure`
+  green, and a layout run's console block names the file's groups.
 - [ ] T022 [4] Read the wave for the round rules: no arrival, wait or
   dispatch sits inside a measured window, the participant counts come
   from the partition, and no clock joins the attempt
@@ -465,7 +478,9 @@ bindings re-read against the base, the verdict recorded.
 - Phase 3 (M-D) depends on Phase 2: the row stores what the reader
   parses and the fit walk calls.
 - Phase 4 (M-E) depends on Phase 3: the runner reads the partition the
-  option and fit steps settled.
+  option and fit steps settled. T052 closes the route the file's
+  partition travels; wave 5's segment reads names the runner already
+  carries.
 - Phase 5 (M-F, M-G) depends on Phase 4. Its two modules own
   `report.cpp` and the `json_*` files and run together.
 - Phase 6 (M-H) depends on Phase 5: the page quotes the bytes the run
