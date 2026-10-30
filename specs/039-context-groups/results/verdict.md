@@ -15,8 +15,9 @@
   the coverage row, and the vendor-proof row. The prose read counts the
   sources this record adds, so its source count grows and its finding
   count stays at zero. The convergence pass that followed this record
-  moved one source file, so the coverage row stands re-read again after
-  that fix, in the section that states the claim.
+  moved one source file, so the coverage row and the two sanitizer rows
+  stand re-read again after that fix: the trace in the section that
+  states the claim, the suites on rebuilt trees.
 - Commits: a hash stands quoted only for the lane base. T051 rewrote one
   commit body, which moved every hash from
   `Meta: Clear the analysis round-3 findings` onward, so the lane's own
@@ -28,8 +29,8 @@
 | --- | --- | --- | --- |
 | Builds succeed for developer and CI presets on Linux | `cmake --preset=ci-rocky`, `cmake --preset=ci-ubuntu`, each followed by `cmake --build build` over a clean tree | `build` | 271 translation units compiled on each preset, 0 warnings on the `ci-rocky` read; `ci-sanitize`, `ci-tsan` and `ci-coverage` each configured and built the suite, read in their own rows below; the host compiler is GCC 16.2.1 at `/usr/bin/c++`, and CI drives Clang on the `sanitize` and `tsan` jobs (`.github/workflows/ci.yml`), so both families stand read |
 | All tests pass (`ctest`) | `ctest --test-dir build --output-on-failure` after each clean rebuild | `build` | `ci-rocky`: 152 of 152 in 299.42 s; `ci-ubuntu`: 147 of 147 in 139.33 s, and re-read at this record's tree at `-j 24`: 100 percent tests passed out of 147 in 22.80 s; the five-entry difference between the two counts is the first wrinkle below, no failing entry stands in either tree |
-| Sanitizer-clean: ASan and UBSan | `cmake --preset=ci-sanitize`, `cmake --build build`, `ctest --test-dir build/sanitize --output-on-failure` | `build/sanitize` | 147 of 147 in 183.78 s; 0 AddressSanitizer, UBSan, leak and SEGV lines in the run log |
-| Thread-sanitizer-clean | `cmake --preset=ci-tsan`, `cmake --build build`, `ctest --test-dir build/tsan --output-on-failure` | `build/tsan` | 148 of 148 in 484.60 s; 0 ThreadSanitizer lines; the grouped run, barrier, threads and fixture tests stand named green inside that read |
+| Sanitizer-clean: ASan and UBSan | `cmake --preset=ci-sanitize`, `cmake --build build`, `ctest --test-dir build/sanitize --output-on-failure` | `build/sanitize` | 147 of 147 in 183.78 s; 0 AddressSanitizer, UBSan, leak and SEGV lines in the run log; re-read after the convergence fix on a rebuilt tree at `-j 6`: 147 of 147 in 37.81 s, 0 such lines |
+| Thread-sanitizer-clean | `cmake --preset=ci-tsan`, `cmake --build build`, `ctest --test-dir build/tsan --output-on-failure` | `build/tsan` | 148 of 148 in 484.60 s; 0 ThreadSanitizer lines; the grouped run, barrier, threads and fixture tests stand named green inside that read; re-read after the convergence fix on a rebuilt tree at `-j 6`: 148 of 148 in 98.35 s, 0 such lines |
 | Static-analysis-clean: clang-tidy and cppcheck | `cmake --preset=ci-ubuntu`, a clean rebuild, and the collection forms the CI `Fail on gate findings` step uses | `build` | 271 translation units, 16,482 distinct findings over 132 checks, 0 findings on the gate list; the one cppcheck line of error severity stands off that list and stands named below with the branch that carries it |
 | Name-check-clean: `readability-identifier-naming` | the same rebuild, counted against `.clang-tidy:21`, which names `readability-identifier-naming` alone under `WarningsAsErrors` | `build` | 0 findings on the naming check; the zero stands proven live against a scratch file that does carry a naming finding, so the reading cannot come from a scan that inspects nothing |
 | `format-check` and `spell-check` pass | `cmake --build build --target spell-check`, `cmake --build build --target format-check` | `build` | both exit 0; the spell read loads `.codespellrc`, and the lane's 17 side build directories stood removed first so the two reads see tracked sources only; re-read at this record's tree, both exit 0 |
