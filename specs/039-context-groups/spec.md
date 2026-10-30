@@ -208,6 +208,19 @@ fit step that stops a layout the run cannot carry.
   A: It prints none: the line keeps its preset-in-effect rule, and a
   slots layout pins nothing (FR-028).
 
+### Session 2026-10-30, round 2
+
+- Q: Which preset does the pairing refusal read when a family states
+  one on the handle and the option states `none`? → A: The instance's
+  resolved preset, read at the standing fit checkpoint before any
+  instance runs (FR-019, FR-020). The fit walk already reads the
+  resolved instances, so the handle name and the option name carry one
+  rule.
+- Q: Which number does a `node` group name carry when the mask excludes
+  the read's first node? → A: The plan's own node number, the value the
+  placement field's `@node` tail already prints (D-4). One unit carries
+  one number on the line.
+
 ## Decisions
 
 - **D-1 (R-1)**: The barrier is the group's own. Each group stands
@@ -235,7 +248,11 @@ fit step that stops a layout the run cannot carry.
   in force byte for byte).
 - **D-4**: The group's name. A preset-named group takes `<unit>-<ordinal>`:
   `l3-0`, `l3-1` for the L3 unit, `node-0`, `node-1` for the memory
-  node. A layout-named group takes the `name` text of its entry, or
+  node. The number is the plan's own unit value, the read's L3 ordinal
+  and the read's node number (`topology.cpp:112-125`,
+  `topology.cpp:225`), so a mask that excludes the first node names its
+  group `node-1`, the number the placement field's `@node` tail already
+  prints (`placement_preset.cpp:607-618`). A layout-named group takes the `name` text of its entry, or
   `g<index>` in document order where the entry names none. One name
   is unique within the run. A name stands 1 to 32 characters of
   letters, digits, `-`, `_` and `.`, so it cannot collide with the
@@ -515,6 +532,13 @@ prints; the drift and prose gates read no finding.
 - A machine read that states no L3 unit leaves the L3-keyed presets
   naming no partition, and those runs keep the ungrouped shape
   (FR-006).
+- A family that states `placement("l3")` on the handle beside a layout
+  refuses at the fit checkpoint, the case the option states
+  `--placement=none` and the expansion lets the handle name win
+  (`family.cpp:374-386`).
+- A mask that excludes the read's first node names the group by the
+  number the plan carries, `node-1` beside a placement field that ends
+  `@1` (D-4).
 - A user thread runner that returns with a group's member
   undispatched meets the standing ledger fault before the run waits
   on any round (FR-027).
@@ -620,8 +644,12 @@ prints; the drift and prose gates read no finding.
   name; a `name` outside FR-015's characters or length (R-2, R-3).
 - **FR-019**: A layout file given beside a placement preset that names
   a partition SHALL refuse one line naming both, with exit status 2; a
-  layout beside `--placement=none` SHALL stand allowed. A layout file
-  given beside `--hunt` SHALL refuse one line naming both, the shape
+  layout beside `--placement=none` SHALL stand allowed. The check reads
+  each selected instance's resolved preset, the name a handle stated
+  (`registry.cpp:552-563`, `family.cpp:374-386`) carrying the same
+  refusal as the name the option settled, and it reads at the standing
+  fit checkpoint before any instance runs (FR-020). A layout file given
+  beside `--hunt` SHALL refuse one line naming both, the shape
   `--hunt cannot combine with --placement` keeps
   (`source/harness/hunt_cli.cpp:720-748`) (D-2, D-11).
 - **FR-020**: The standing fit step SHALL read the layout before any

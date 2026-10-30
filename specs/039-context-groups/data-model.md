@@ -38,7 +38,7 @@ standing plan and layout records carry everything else it reads.
 | Source | Key per context | Name | Example |
 | --- | --- | --- | --- |
 | `core`, `l3`, `smt`, `compact` | `plan.group` | `l3-` plus the ordinal | `l3-2` |
-| `node` | `plan.node` | `node-` plus the number | `node-1` |
+| `node` | `plan.node` | `node-` plus the read's node number | `node-1` |
 | layout entry | the entry's `slots` | the entry's `name`, else `g<index>` | `fast`, `g0` |
 | `none`, `kNoGroup`, one context | none | no partition | none |
 
