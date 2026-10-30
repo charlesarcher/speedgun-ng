@@ -353,10 +353,12 @@ behavior landed in (IV.1).
   `docs/pages/harness.md` beside the placement section, naming the two
   sources, the refusals and the disclosure segment (FR-039). Verify:
   `ctest --test-dir build -R example_drift --output-on-failure` green.
-- [ ] T032 [6] Read the docs target on the grown public header: the new
+- [ ] T032 [6] Read the docs pass on the grown public header: the new
   member's doxygen and the header's contract block stand processed
-  (FR-040, II, IV). Verify: `cmake --build build --target docs` green
-  with no doxygen warning for `benchmark.hpp`.
+  (FR-040, II, IV). Verify: `cmake -P cmake/docs-ci.cmake` green with no
+  doxygen warning for `benchmark.hpp`. The `docs` target names m.css
+  release-1, which cannot read the `Doxyfile.xml` doxygen 1.18 writes on
+  this host, so the CI command stands as the read.
 
 **Checkpoint**: the page, the region, the rows and the guide stand equal,
 the gates read no finding.
@@ -368,6 +370,15 @@ the gates read no finding.
 **Purpose**: what a later lane reads: one record per acceptance run, the
 commands and exit codes named, the artifacts beside them.
 
+- [ ] T053 [6] Equal the guide's standing blocks the feature touched:
+  `docs/pages/harness.md` lists the combination refusals in one block
+  that names four pairings and misses the `--group-layout` pairing
+  FR-019 adds, and its version rule states a schema minor the writer no
+  longer stamps. Land both lines with the values the code holds
+  (FR-022, FR-030, IV.1). Verify:
+  `ctest --test-dir build -R "example_drift|report_shape" --output-on-failure`
+  green, and the two blocks name what `source/harness/json_report.cpp`
+  and `source/harness/hunt_cli.cpp` state.
 - [ ] T033 [7] Write `specs/039-context-groups/results/run_groups.sh`,
   the script that drives the five acceptance runs in their two kinds:
   the host runs, CLI commands over the shape the lane host states, and
