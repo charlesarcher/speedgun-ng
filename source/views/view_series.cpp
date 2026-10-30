@@ -36,12 +36,10 @@ static_assert(kUnitScales.size() == std::to_underlying(TimeUnit::SECONDS) + 1);
 
 auto unitScaleOf(const TimeUnit timeUnit) -> const UnitScale&
 {
-  // The nanosecond scale answers a value outside the closed enumeration,
-  // the one divisor that cannot divide by zero.
+  // The reader's enum parse admits the four words the table carries, so
+  // the index stands inside the array by the reader's own postcondition
+  // (source/harness/json_load.cpp asEnum, the kTimeUnitWords list).
   const auto index = std::to_underlying(timeUnit);
-  if (index >= kUnitScales.size()) {
-    return kUnitScales[0];
-  }
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   return kUnitScales[index];
 }
@@ -110,7 +108,11 @@ auto viewSeries(const ReportData& report,
 
   auto values = std::vector<double> {};
   auto unit = std::string {};
-  if (column == "time" || column == "cpu") {
+  // The selector reads the two time columns before any label, so a
+  // metric label cannot carry the reserved words and the unit stands
+  // empty exactly when the resolution took the metric path (A-5).
+  const bool timeColumn = column == "time" || column == "cpu";
+  if (timeColumn) {
     const auto& scale = unitScaleOf(result->timeUnit);
     for (const auto& row : result->rows) {
       if (row.kind != RowKind::REPETITION) {
@@ -124,6 +126,9 @@ auto viewSeries(const ReportData& report,
                            : row.cpuTimePerIterationNs / scale.divisor);
     }
     unit = scale.label;
+    SG_ENSURE(timeColumn != unit.empty(),
+              "viewSeries: the unit names the scale of a time column alone"
+              " and stands empty for a metric column (A-5)");
     return ViewSeries {std::move(values), std::move(unit)};
   }
 

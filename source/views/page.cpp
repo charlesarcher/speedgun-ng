@@ -68,6 +68,12 @@ auto renderPage(const ReportData& report,
   page += figureBytes(plot);
   page += "</body>";
   page += "</html>";
+  // The page stands one static document: the identity names the
+  // request, and no script element joins the shell (B-5, D-8).
+  SG_ENSURE(
+      page.find("<script") == std::string::npos
+          && page.find(detail::escapeMarkup(benchmark)) != std::string::npos,
+      "renderPage: the page carries the identity and no script (B-5)");
   return page;
 }
 

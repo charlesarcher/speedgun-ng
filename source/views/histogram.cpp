@@ -62,6 +62,14 @@ auto renderHistogram(const ReportData& report,
         + "</text>";
   }
   svg += "</svg>";
+  // The bars stand one per bin, the count the argument bounds (B-2).
+  auto bars = std::size_t {};
+  for (auto pos = svg.find("<rect"); pos != std::string::npos;
+       pos = svg.find("<rect", pos + 1))
+  {
+    ++bars;
+  }
+  SG_ENSURE(bars == binCount, "renderHistogram: one bar stands per bin (B-2)");
   return svg;
 }
 
