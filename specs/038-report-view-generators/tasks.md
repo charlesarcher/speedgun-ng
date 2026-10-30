@@ -33,7 +33,7 @@ it closes, and the verify command with an exit status.
 **Purpose**: the surface every story stands on, and the version record
 the lane stands on. No other module builds before this phase closes.
 
-- [ ] T001 [P] Register the test executable `views_test` in
+- [X] T001 [P] Register the test executable `views_test` in
   `test/CMakeLists.txt` beside the standing harness tests
   (`add_executable`, link `speedgun-ng::harness`, `add_test`), then
   write the public-surface tests in `test/source/views_test.cpp`
@@ -45,7 +45,7 @@ the lane stands on. No other module builds before this phase closes.
   `ctest --test-dir build -R views_test --output-on-failure`, red
   on the missing header, green once the header lands (the release
   build configured).
-- [ ] T002 Move the version and record the ABI check: `VERSION
+- [X] T002 Move the version and record the ABI check: `VERSION
   0.25.0` in `CMakeLists.txt` with the comment recording it (the
   view functions join the exported harness surface, so the harness
   `SOVERSION` stands `16` and the archive `SOVERSION` stands `4`),
@@ -61,7 +61,7 @@ the lane stands on. No other module builds before this phase closes.
 
 ## Phase 2: The resolver and the escaper in parallel (modules M-B and M-C, wave 2)
 
-- [ ] T003 [P] Write the fixture documents under
+- [X] T003 [P] Write the fixture documents under
   `test/data/report_views/`: one multi-repetition document with a
   metric column and mixed availability, one single-repetition
   document, one multipass document, one document whose `speedgun`
@@ -69,7 +69,7 @@ the lane stands on. No other module builds before this phase closes.
   character (FR-006, FR-018, the fixture rows of the test plan).
   Verify: the files load through `loadReport` in a temporary check
   run of `views_test`.
-- [ ] T004 Write the failing resolver tests in
+- [X] T004 Write the failing resolver tests in
   `test/source/views_test.cpp` (the resolver block): the three
   column kinds resolve the recorded values in document order, the
   time columns scale by `timeUnit` with the unit named, the metric
@@ -80,27 +80,27 @@ the lane stands on. No other module builds before this phase closes.
   the contract). Verify:
   `ctest --test-dir build -R views_test --output-on-failure` red on
   the block.
-- [ ] T005 Implement `viewSeries` in
+- [X] T005 Implement `viewSeries` in
   `source/views/view_series.cpp` with the contracts of B-1:
   resolution over `results`, the availability filter, the unit
   scale, and the error forms naming the name and the recorded set;
   enforce the contracts with the project facility (FR-020). Verify:
   `ctest --test-dir build -R views_test --output-on-failure` green.
-- [ ] T006 [P] Write the failing escaper tests in
+- [X] T006 [P] Write the failing escaper tests in
   `test/source/views_test.cpp` (the escape block): the markup
   characters stand escaped, the plain text stands byte-identical,
   and the fixture's markup metric label stands escaped through the
   escaper (A-6, D-8). Verify:
   `ctest --test-dir build -R views_test --output-on-failure` red on
   the block.
-- [ ] T007 [P] Implement the shared escaper at
+- [X] T007 [P] Implement the shared escaper at
   `source/views/escape.hpp` (A-6). Verify:
   `ctest --test-dir build -R views_test --output-on-failure` green
   on the block.
 
 ## Phase 3: The three renderers in parallel (modules M-D, M-E, M-F, wave 3)
 
-- [ ] T008 [P] Write the failing histogram tests in
+- [X] T008 [P] Write the failing histogram tests in
   `test/source/views_test.cpp` (the histogram block): the SVG bytes
   carry one bar per bin beside its range and count label, the bins
   cover the recorded value range with the last bin closed on the
@@ -110,11 +110,11 @@ the lane stands on. No other module builds before this phase closes.
   rows (FR-007, FR-008, B-2). Verify:
   `ctest --test-dir build -R views_test --output-on-failure` red on
   the block.
-- [ ] T009 [P] Implement `renderHistogram` in
+- [X] T009 [P] Implement `renderHistogram` in
   `source/views/histogram.cpp`, the label text through the shared
   escaper (FR-007, FR-008). Verify:
   `ctest --test-dir build -R views_test --output-on-failure` green.
-- [ ] T010 [P] Write the failing plot tests in
+- [X] T010 [P] Write the failing plot tests in
   `test/source/views_test.cpp` (the plot block): one point per
   recorded value in document order, the multipass order, the axis
   labels naming the row and the column, the single-point case, the
@@ -122,11 +122,11 @@ the lane stands on. No other module builds before this phase closes.
   (FR-009, FR-010, B-3). Verify:
   `ctest --test-dir build -R views_test --output-on-failure` red on
   the block.
-- [ ] T011 [P] Implement `renderPlot` in `source/views/plot.cpp`,
+- [X] T011 [P] Implement `renderPlot` in `source/views/plot.cpp`,
   the axis label text through the shared escaper (FR-009, FR-010).
   Verify: `ctest --test-dir build -R views_test --output-on-failure`
   green.
-- [ ] T012 [P] Write the failing text-view tests in
+- [X] T012 [P] Write the failing text-view tests in
   `test/source/views_test.cpp` (the text block): one line per bin
   with the proportional character bar, one line per recorded value
   in row order, the one-repetition composition with the disclosure
@@ -134,13 +134,13 @@ the lane stands on. No other module builds before this phase closes.
   (FR-013, B-4). Verify:
   `ctest --test-dir build -R views_test --output-on-failure` red on
   the block.
-- [ ] T013 [P] Implement `renderText` in
+- [X] T013 [P] Implement `renderText` in
   `source/views/text_view.cpp` (FR-013). Verify:
   `ctest --test-dir build -R views_test --output-on-failure` green.
 
 ## Phase 4: The HTML page (module M-G, wave 4)
 
-- [ ] T014 Write the failing page tests in
+- [X] T014 Write the failing page tests in
   `test/source/views_test.cpp` (the page block): the identity
   fields name the document's values, the absent-field disclosure,
   the embedded figure bytes standing equal to the standalone
@@ -148,18 +148,18 @@ the lane stands on. No other module builds before this phase closes.
   no-script shape (FR-011, FR-012, B-5). Verify:
   `ctest --test-dir build -R views_test --output-on-failure` red on
   the block.
-- [ ] T015 Implement `renderPage` in `source/views/page.cpp`
+- [X] T015 Implement `renderPage` in `source/views/page.cpp`
   composing the identity, the two inline figures and the shared
   escaper (FR-011, FR-012). Verify:
   `ctest --test-dir build -R views_test --output-on-failure` green.
 
 ## Phase 5: The driver (module M-H, wave 5)
 
-- [ ] T016 Add the driver target: `tools/CMakeLists.txt` with the
+- [X] T016 Add the driver target: `tools/CMakeLists.txt` with the
   `report_view` executable linking `speedgun-ng::harness`, and the
   `add_subdirectory` seam in the top-level `CMakeLists.txt` (D-2,
   FR-014). Verify: `cmake --build build` builds `report_view`.
-- [ ] T017 [P] Write the failing CLI tests at
+- [X] T017 [P] Write the failing CLI tests at
   `test/report_view_cli.sh`, the standing gate-script pattern
   (`test/time_source_gate.sh`): registered with CTest, the script
   drives the built binary over the fixture documents and asserts
@@ -171,7 +171,7 @@ the lane stands on. No other module builds before this phase closes.
   FR-017, B-6). Verify:
   `ctest --test-dir build -R report_view_cli_test --output-on-failure`
   red.
-- [ ] T018 Implement the driver at `tools/report_view.cpp`: the
+- [X] T018 Implement the driver at `tools/report_view.cpp`: the
   argument parse, the load, the request pre-check against the
   loaded document, the view call, the exit mapping, and the help
   lines (FR-014 to FR-017). Verify:
@@ -181,7 +181,7 @@ the lane stands on. No other module builds before this phase closes.
 
 ## Phase 6: The docs teach the views (module M-I, wave 6)
 
-- [ ] T019 [P] Write the docs example at
+- [X] T019 [P] Write the docs example at
   `example/docs/report_views.cpp`: one registered benchmark the
   `example_run` gate drives (the `--list` flag names it, the run
   carries `--min-time=0.01`, the rows print), the run writing its
@@ -192,7 +192,7 @@ the lane stands on. No other module builds before this phase closes.
   page's result sentence quotes it) (FR-022, IV.1). Verify:
   `ctest --test-dir build -R example_run --output-on-failure` runs
   the binary and the rows print.
-- [ ] T020 [P] Add the main-page section to `README.md`: one purpose
+- [X] T020 [P] Add the main-page section to `README.md`: one purpose
   sentence, the marked snippet quoting the example region with its
   own `views.hpp` include, one result sentence, and the
   quick-reference rows naming `sg::renderHistogram` to
@@ -206,7 +206,7 @@ the lane stands on. No other module builds before this phase closes.
 
 ## Phase 7: The evidence records (module M-J, wave 7)
 
-- [ ] T021 Run the acceptance evidence on thrawn: land the script
+- [X] T021 Run the acceptance evidence on thrawn: land the script
   that drove the runs beside the records
   (`specs/038-report-view-generators/results/run_views.sh`), re-run
   the placement commands the specs/035 records name with the
@@ -218,14 +218,14 @@ the lane stands on. No other module builds before this phase closes.
   report documents under `results/reports/` (FR-021, D-5). Verify:
   every recorded command exits 0, every record names the report
   and the views, and the script runs end to end.
-- [ ] T022 [P] Write `specs/038-report-view-generators/quickstart.md`
+- [X] T022 [P] Write `specs/038-report-view-generators/quickstart.md`
   linking every record and the standing feature docs, the way the
   specs/036 quickstart links its records (FR-021). Verify: every
   link resolves on the checked-out tree.
 
 ## Phase 8: Polish, gates and convergence
 
-- [ ] T023 Run the full suite and the hard gates:
+- [X] T023 Run the full suite and the hard gates:
   `ctest --test-dir build --output-on-failure`, the coverage preset
   read at 100.0% lines, 100.0% branches and 100.0% DBC with no
   `LCOV_EXCL` marker and no new `--ignore-errors` entry, the
@@ -235,7 +235,7 @@ the lane stands on. No other module builds before this phase closes.
   `taskset -c 0,1` suite run (FR-018, FR-019, SC-005 to SC-007).
   Verify: every gate green, the coverage read recorded in the
   results directory's verdict record.
-- [ ] T024 Confirm the standing surfaces stand untouched: the
+- [X] T024 Confirm the standing surfaces stand untouched: the
   harness CLI byte-identity, the schema at `1.8` with no key moved
   (`docs/schema/report-v1.json` stands unchanged), the option block
   `298` to `319` free, and the doxygen `docs` target documents the
