@@ -4,10 +4,10 @@
   VIII with the reading the lane took, the task ledger marked, and this
   record linked from the quickstart beside the five acceptance records
   (FR-038, VIII, X.4).
-- Branch: `039-context-groups`, 51 commits over the lane base
-  `bea6af5b` once this record's correction stands, read on 2026-10-30
-  on the lane host `gary`, 16 cores over two L3 groups and one memory
-  node.
+- Branch: `039-context-groups` over the lane base `bea6af5b`: 45
+  commits when this record first printed, 52 with the convergence work
+  and its records, read on 2026-10-30 on the lane host `gary`, 16 cores
+  over two L3 groups and one memory node.
 - Reads: each gate unit took its reading on the tree named beside it.
   Seven rows stand re-read on this record's tree the same day and match
   what they answered then: the suite row, the page-drift row, the prose
