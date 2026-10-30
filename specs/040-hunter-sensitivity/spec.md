@@ -22,6 +22,23 @@ and contention notes stand carried in the sections that read them.
 > and the library answers them through
 > `sg::hunt::HuntResult::toCompareRules`.
 
+## Clarifications
+
+### Session 2026-10-30
+
+- Q: What figure shall the threshold of an emitted rule carry? → A:
+  the run's noise threshold, the same figure for every promoted
+  event; the rule's direction stands from the measured delta's sign
+  (`lower` for a drop, `higher` for a rise), and a promoted event
+  with no measured delta stands `lower` (FR-021, D-7).
+- Q: What shall a run with `--hunt-rank=delta` and no
+  `--hunt-baseline` do? → A: print one line naming the value and exit
+  2, the standing refusal shape (FR-011).
+- Q: What shall the run do when the baseline document's top-level
+  hunt object names a normalization different from the contender's
+  norm? → A: print one line naming the mismatch and exit 2, beside
+  the schema-pairing refusal of FR-005.
+
 ## Spec identity and run-time binding
 
 - Spec number: `040`. `specs/` on master `bea6af5b` holds `001`
@@ -156,13 +173,16 @@ reading it settles.
   joins a missing figure.
 - **D-6 The baseline loads through `loadReport` alone.** The path the
   `--hunt-baseline=<file>` value names is the one input (R-1). A file
-  `loadReport` refuses, and a schema pairing the comparison refuses,
-  exit 2 with one line naming the value.
+  `loadReport` refuses, a schema pairing the comparison refuses, and
+  a baseline whose hunt object names a norm different from the
+  contender's norm, exit 2 with one line naming the value or the
+  mismatch (FR-005).
 - **D-7 The promoted events stand the ranked set.** `--hunt-emit-rules`
   promotes the same set specs/033's `--hunt-emit-set` promotes, the
   top `--hunt-top` ranked events in rank order, expressed as N5 rules
-  in the standing grammar (R-3). The figure the rule's threshold
-  carries stands open at FR-021's marker.
+  in the standing grammar (R-3). The rule's threshold carries the
+  run's noise threshold, and its direction stands from the measured
+  delta's sign, `lower` where no delta stands (FR-021).
 - **D-8 The statistics stand one surface.** The correlation joins the
   standing statistics surface beside `statisticsOf`, and the slope
   reuses the standing least-squares sums of the complexity fit or a
@@ -390,6 +410,11 @@ example runs, and the rows match the option table.
 - A `--hunt-rank=sensitivity` run whose events all stand `n/a` prints
   the table in the standing order with empty rank fields and exits 0
   (D-3).
+- A `--hunt-rank=delta` run beside no `--hunt-baseline` prints one
+  line naming the value and ends with status 2 (FR-011).
+- A baseline whose hunt object names a normalization different from
+  the contender's norm ends the run with status 2 and one line naming
+  the mismatch (FR-005).
 - A rules file path that cannot be opened or written prints one line
   naming the value and ends with status 2 (FR-022).
 - The standing refusals stand unchanged: a hunt beside `--counter`,
@@ -425,9 +450,11 @@ names at least one test (FR-051).
   or below zero, shall stand the `n/a` disclosure with the run exiting
   0; the run shall print the matching rules beside the figures one
   time, and no error shall join a missing figure (D-5, R-1).
-- **FR-005**: A baseline file `loadReport` refuses, and a schema
-  pairing the comparison refuses, shall print one stderr line naming
-  the value and exit 2 (D-6).
+- **FR-005**: A baseline file `loadReport` refuses, a schema pairing
+  the comparison refuses, and a baseline whose top-level hunt object
+  names a normalization different from the contender's norm, shall
+  each print one stderr line naming the value or the mismatch and
+  exit 2 (D-6).
 - **FR-006**: The correlation and the slope shall run through the
   standing statistics surface: the correlation joins the surface
   beside `statisticsOf`, the slope reuses the standing least-squares
@@ -447,6 +474,9 @@ names at least one test (FR-051).
   the relative change descending, ties by the catalog address. Only an
   event that carries the key's figure shall carry a rank under that
   key, and the noisy events shall stand unranked under both keys (D-3).
+  A run that names `--hunt-rank=delta` beside no `--hunt-baseline`
+  shall print one line naming the value and exit 2, the standing
+  refusal shape of FR-023.
 - **FR-012**: The ranked table shall carry the sensitivity column
   (the correlation and the slope) and the delta column beside the
   standing event, rate, CV and noisy flag; an unmeasured figure shall
@@ -464,11 +494,12 @@ names at least one test (FR-051).
   write the promoted events, the top `--hunt-top` ranked events in
   rank order (D-7), as N5 rules in the standing grammar, one per
   line, for example `counter:<event>@median:lower:<n>%`; the file
-  `--compare-rules` reads again with no edit (R-3).
-  [NEEDS CLARIFICATION: the figure the rule's threshold carries: the
-  event's measured delta magnitude, the run's noise threshold, or the
-  delta where one stands and the noise threshold where none stands.
-  Each reading changes which runs can emit a file at all.]
+  `--compare-rules` reads again with no edit (R-3). The rule's
+  threshold shall carry the run's noise threshold, the figure
+  `--hunt-noise` states, the same value for every promoted event. The
+  rule's direction shall stand from the measured delta's sign:
+  `lower` for a drop, `higher` for a rise; a promoted event with no
+  measured delta shall stand `lower` (D-7).
 - **FR-022**: `--hunt-emit-rules` beside no hunt, an empty value, and
   a file that cannot be opened or written shall each print one line
   naming the value and exit 2 (PC-4, the standing refusal shape of
@@ -594,9 +625,9 @@ names at least one test (FR-051).
 - The baseline's rates stand in the baseline document's per-entry hunt
   objects; a baseline without a hunt object in the matched entry
   stands the disclosure for every event of the match (D-5).
-- The threshold figure of the emitted rules stands open at FR-021's
-  marker; the clarify phase settles it before the plan reads the
-  feature.
+- The emitted rule's threshold carries the run's noise threshold, and
+  its direction stands from the measured delta's sign, `lower` where
+  no delta stands (FR-021, D-7).
 
 ## Dependencies
 
@@ -622,8 +653,9 @@ names at least one test (FR-051).
 
 ## Open questions
 
-- FR-021's threshold figure (the one [NEEDS CLARIFICATION] marker).
-  The clarify phase settles it; no other open question stands.
+- None. The clarify session of 2026-10-30 settled FR-021's threshold
+  figure, the delta-rank refusal and the norm-mismatch refusal; no
+  other open question stands.
 
 ## Budget note
 
