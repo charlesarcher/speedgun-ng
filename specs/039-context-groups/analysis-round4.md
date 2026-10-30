@@ -1,31 +1,37 @@
 # Analysis round 4: specs/039-context-groups
 
-Read on 2026-10-30 on branch `039-context-groups`, judging the tree that stood as
-`9a7c20b6` while this pass read and stands as `2362a4d5`
-(`Harness: Add group to the disclosure record`) now, the lane having split that head
-into `318abf6e` (`Meta: Task the message re-read`) and `2362a4d5` mid-pass. That
-tree stands three commits past `1b209c2f`
-(`Meta: Clear the analysis round-3 findings`), the commit that answered round 3's
-open G4 and its five minors. `2e9bcf5a` (`CMake: Move the version to 0.26.0`) landed
-wave 1's version unit, `2362a4d5` landed wave 1's disclosure unit, and `318abf6e`
-carries two task edits: `T046` now clears the side build trees before the spell and
-format reads, and `T051` re-reads every lane commit message. The `tasks.md` numbers
-below are read at that tree, and the next landing, `d58b0a22`
-(`Meta: Name the analyzer gate`), widened `T004` and `T045` and moves a number
-written after `T004` by four lines and one written after `T045` by six. The tree no
-longer stands as master's, the fact round 3's provenance recorded the other way:
-`git diff master...HEAD` names 20 files, 14 under `specs/039-context-groups/` beside
+Read on 2026-10-30 on branch `039-context-groups`, judging the head the
+lane held mid-pass, which stands now as `840caf31`
+(`Harness: Add group to the disclosure record`): the split landed after
+this pass read, and it left `12a3e3ec`
+(`Meta: Task the message re-read`) beside that disclosure unit. That
+tree stands three commits past `5d244efa`
+(`Meta: Clear the analysis round-3 findings`), the commit that answered
+round 3's open G4 and its five minors. `14ffeb2a`
+(`CMake: Move the version to 0.26.0`) landed wave 1's version unit,
+`840caf31` landed wave 1's disclosure unit, and `12a3e3ec` carries two
+task edits: `T046` now clears the side build trees before the spell and
+format reads, and `T051` re-reads every lane commit message. The
+`tasks.md` numbers below are read at that tree, and the next landing,
+`e93655f7` (`Meta: Name the analyzer gate`), widened `T004` and `T045`
+and moves a number written after `T004` by four lines and one written
+after `T045` by six. The tree no longer stands as master's, the fact
+round 3's provenance recorded the other way: `git diff master...HEAD`
+names 20 files, 14 under `specs/039-context-groups/` beside
 `.specify/feature.json`, `CMakeLists.txt`, `test/CMakeLists.txt`,
-`include/speedgun-ng/benchmark.hpp` and `test/source/harness_group_report_test.cpp`.
-Basis: the constitution, then `spec.md`, `plan.md` and `tasks.md` read whole, the
-two files under `contracts/`, then a re-read of every cited site in the source, the
-docs, the schema, the gate scripts and `/sys`, then the code of the two landed
-units. Gate reads: the prose check over `bea6af5b` to the judged tree answers 19
-sources, 3563 units and 0 findings; the commit check over the same range exits 1
-with one finding, `XI2.CONTRASTIVE` on `1b209c2`, which the open `T051` owns. Wave
-1's two touched tests pass in the green side tree (`views_test`,
-`harness_group_report_test`), and the red side tree holds the test object with no
-binary, the shape the plan's Execution mode asks for.
+`include/speedgun-ng/benchmark.hpp` and
+`test/source/harness_group_report_test.cpp`. Basis: the constitution,
+then `spec.md`, `plan.md` and `tasks.md` read whole, the two files under
+`contracts/`, then a re-read of every cited site in the source, the
+docs, the schema, the gate scripts and `/sys`, then the code of the two
+landed units. Gate reads: the prose check over `bea6af5b` to the judged
+tree answers 19 sources, 3563 units and 0 findings; the commit check
+over the same range exits 1 with one finding, `XI2.CONTRASTIVE` on the
+body `Meta: Clear the analysis round-3 findings` carried before `T051`
+rewrote it, which the open `T051` owns. Wave 1's two touched tests pass
+in the green side tree (`views_test`, `harness_group_report_test` ), and
+the red side tree holds the test object with no binary, the shape the
+plan's Execution mode asks for.
 
 ## Closure of round 3
 
@@ -93,10 +99,11 @@ states the rule of the sentence that cites it. Line 39 is one of the six
 passages round 3's remediation rewrote, and the rewrite moved the `FR` half
 of the pair and left the `D` half.
 
-Remediation: read the version bullet's pair as `(FR-032)` and FR-005's tail with no
-decision citation; `D-10` (`spec.md:320-325`) is the decision that names the
-per-context record, should FR-005 want one there. The fix landed with this record:
-`8ec32154` (`Meta: Close the analysis loop`) reads the version bullet's pair as
+Remediation: read the version bullet's pair as `(FR-032)` and FR-005's
+tail with no decision citation; `D-10` (`spec.md:320-325`) is the
+decision that names the per-context record, should FR-005 want one
+there. The fix landed with this record: `214a3189`
+(`Meta: Close the analysis loop`) reads the version bullet's pair as
 `(FR-032)` and FR-005's tail as `(FR-032, D-10)`.
 
 Nothing else stands. The three files hold no clause that contradicts another clause,
@@ -215,6 +222,7 @@ red on the readings measured below.
 
 ## Verdict
 
-The lane is ready to implement: round 3's six sites stand closed, wave 1 has landed
-green with its two tests passing on the judged tree, and the one minor citation this
-pass filed is cleared in `8ec32154`, so the three artifacts carry no open defect.
+The lane is ready to implement: round 3's six sites stand closed, wave 1
+has landed green with its two tests passing on the judged tree, and the
+one minor citation this pass filed is cleared in `214a3189`, so the
+three artifacts carry no open defect.

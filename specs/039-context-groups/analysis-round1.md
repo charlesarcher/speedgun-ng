@@ -437,7 +437,7 @@ Re-read on 2026-10-30. This checkout holds no later text. The commit
 list ahead of `master` holds seven entries, HEAD stands at `c46a45e1`,
 `git status` reports no modified tracked file, and the working copy of
 `specs/039-context-groups/tasks.md` hashes equal to
-`git show HEAD:specs/039-context-groups/tasks.md`, both `239d549328d0`.
+`git show HEAD:specs/039-context-groups/tasks.md`, at that head.
 `specs/039-context-groups/clarifications-round4.md` is new and
 untracked. It records no answer. It drops two candidates that match F5
 and F7, and reads both as wording with no decision behind them.

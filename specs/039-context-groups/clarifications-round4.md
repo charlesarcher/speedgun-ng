@@ -1,17 +1,21 @@
 # Spec 039 clarification questions, round 4
 
-Feature: `039-context-groups`, branch `039-context-groups`. Method:
-the speckit-clarify discipline, a fourth pass over the spec the three
-earlier rounds amended, no spec edit. Round 1's five answers, round 2's
-two and round 3's one stand in the spec's Clarifications section, carry
-the weight of a Decision, and stand unasked here. Each of the three
-round files carries its Reconciliation record, and the readings they
-settled stand closed: the slots-only grammar with the key `cpus`
-refused, the fixture pair on context 0 with a publication that crosses
-no round and a teardown after the last settled body, `kNoGroup` naming
-no partition, the pairing refusal beside `--hunt` and beside a resolved
-preset that names a partition, a preset above `none` that names no
-partition standing allowed beside the file, the machine line keeping
+Feature: `039-context-groups`, branch `039-context-groups`. Method: the
+speckit-clarify discipline, a fourth pass over the spec the three
+earlier rounds amended, no spec edit at the pass itself. The split this
+pass reopened stands answered in the spec's Clarifications section under
+`Session 2026-10-30, round 4`, landed with `30aacbac`
+(`Meta: Scope the refusal line's named path`), so this file records no
+question while the spec carries the answer. Round 1's five answers,
+round 2's two and round 3's one stand in the spec's Clarifications
+section, carry the weight of a Decision, and stand unasked here. Each of
+the three round files carries its Reconciliation record, and the
+readings they settled stand closed: the slots-only grammar with the key
+`cpus` refused, the fixture pair on context 0 with a publication that
+crosses no round and a teardown after the last settled body, `kNoGroup`
+naming no partition, the pairing refusal beside `--hunt` and beside a
+resolved preset that names a partition, a preset above `none` that names
+no partition standing allowed beside the file, the machine line keeping
 its one standing rule, a group name carrying the plan's own unit value,
 and no group spanning a round. The further candidates rounds 1, 2 and 3
 dropped stay dropped and return nowhere here.
