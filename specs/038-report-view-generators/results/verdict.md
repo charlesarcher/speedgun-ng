@@ -19,6 +19,7 @@
 | The format gate | `cmake --build build --target format-check` | 0 findings under the pinned formatter; the standing files the host's newer formatter reads divergent stand the recorded version split of specs/009 T033, no file of this lane among them |
 | The dbc gate | `cmake --build build --target dbc-gate` | 318 interfaces, 0 gaps |
 | The harness CLI byte identity | `ctest --test-dir build -R harness_cli_table_test` | green; no option row joined, the value block `298` to `319` free |
+| The docs build | `cmake --build build --target docs` | the header's XML stands processed and the mcss render completes; the host's doxygen reads 1.18.0, which writes its own configuration XML the vendored mcss copy reads none of, so the run stands the machine-local skip the render needs; the reference warnings the README's region markers share stand the standing pages' own class (`docs/pages/harness.md:1632`, the `jitter-probe` marker) |
 
 The coverage readings stand the trace of the whole suite at
 `build/coverage/coverage.info`; the shortfall's accepted classes stand
