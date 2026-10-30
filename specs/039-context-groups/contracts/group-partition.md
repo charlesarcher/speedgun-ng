@@ -48,17 +48,25 @@ Answers the index of the group holding `position`.
 - `\post` The answer stands below `partition.size()`, and the group it
   names holds `position` (FR-022).
 
-### B-3 the fit entry `groupLayoutFitStatus(const OptionSet& options, const std::vector<Instance>& selected)`
+### B-3 the fit entry `groupLayoutFitStatus(const std::string& path, const std::vector<Instance*>& selected)`
 
 Answers `std::pair<int, std::string>`: a status of `0` with an empty
 line, or the usage status `2` with the one line the entry point prints.
+The path is `ResolvedOptions::groupLayout`, empty when no source named
+the row, and the selection arrives as pointers, the shape
+`placementFitStatus` takes beside it.
 
 - `\pre` The option scan settled, so the layout path stands as the
-  winning source spelled it.
+  winning source spelled it, and the selection holds one instance at
+  least.
 - `\post` No instance ran and no measurement started when the answer
   names a status of `2` (FR-020).
 - `\post` The line names the layout path, and a line about a slot names
   the count it failed against (FR-021).
+- `\post` The file reads once, at the first selected instance's count: a
+  count that first instance fails answers the reader's fault line
+  (FR-018), and a later instance's count answers the batch line
+  (FR-020).
 
 ## C. The refusal and disclosure table
 
