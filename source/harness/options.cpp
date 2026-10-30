@@ -35,7 +35,7 @@
 /**
  * @file options.cpp
  * @brief The one option table of specs/028-full-command-line and the scan
- * that walks it: the 37 rows `detail::optionRows()` answers in the order
+ * that walks it: the 40 rows `detail::optionRows()` answers in the order
  * `specs/028-full-command-line/contracts/option-table.md` fixes, the
  * `getopt_long` array built from those rows, the walk of one command
  * line that `detail::scanCommandLine` answers, and the two answers that
@@ -453,7 +453,7 @@ auto argumentText(const OptionArgument argument) -> const char*
 }  // namespace
 
 /**
- * @brief The one option table: the 37 rows in the order the contract
+ * @brief The one option table: the 40 rows in the order the contract
  * fixes them, each with its name, internal value, argument kind,
  * environment flag, help text and owning requirement (FR-001, FR-002,
  * FR-003, FR-004, FR-079, SC-001).
@@ -709,6 +709,22 @@ auto optionRows() -> std::span<const OptionRow>
        false,
        "Writes the ranked hunt events to that file",
        "specs/033"},
+      // specs/040-hunter-sensitivity FR-020, PC-4: the two rows the
+      // sensitivity lane adds, on the free constants 281 and 282 the hunt
+      // block comment names. The command line owns them, the way it owns
+      // every row of the family.
+      {"hunt-emit-rules",
+       kHuntEmitRulesOption,
+       OptionArgument::REQUIRED,
+       false,
+       "Writes the promoted hunt events as comparison rules to that file",
+       "FR-020"},
+      {"hunt-baseline",
+       kHuntBaselineOption,
+       OptionArgument::REQUIRED,
+       false,
+       "Sets the baseline document the delta rank matches against",
+       "FR-020"},
   });
   return kRows;
 }

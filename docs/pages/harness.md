@@ -703,6 +703,8 @@ variable.
 | `hunt-budget` | required |  | Sets the hunt budget: `<n>s`, `<n>p`, `<n>e` or `<n>g` clauses |
 | `hunt-seed` | required |  | Sets the seed the hunt repeats draw from |
 | `hunt-emit-set` | required |  | Writes the ranked hunt events to that file |
+| `hunt-emit-rules` | required |  | Writes the promoted hunt events as comparison rules to that file |
+| `hunt-baseline` | required |  | Sets the baseline document the delta rank matches against |
 
 The highest source that sets an option wins: the command line, then the option
 file, then the environment, then the built-in default. A repeatable option from

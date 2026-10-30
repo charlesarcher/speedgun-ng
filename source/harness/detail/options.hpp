@@ -95,7 +95,8 @@ inline constexpr int kOsNoiseOptionValue = 297;
 // specs/029-hunter-core FR-080 to FR-082, D-22: the value each hunt option
 // answers. The hunt lane reserves the block 270 to 279: 278 and 279 stay
 // unused this release. specs/033-hunter-budgets FR-010 takes 280 for
-// `--hunt-emit-set`, and 281 to 289 stay free for the next feature.
+// `--hunt-emit-set`, specs/040-hunter-sensitivity FR-020 takes 281 and 282,
+// and 283 to 289 stay free (PC-4).
 inline constexpr int kHuntOption = 270;
 inline constexpr int kHuntNormOption = 271;
 inline constexpr int kHuntRankOption = 272;
@@ -105,6 +106,11 @@ inline constexpr int kHuntRepeatsOption = 275;
 inline constexpr int kHuntBudgetOption = 276;
 inline constexpr int kHuntSeedOption = 277;
 inline constexpr int kHuntEmitSetOption = 280;
+
+// specs/040-hunter-sensitivity FR-020, PC-4: the value each sensitivity
+// option answers, on the free constants the hunt block comment holds.
+inline constexpr int kHuntEmitRulesOption = 281;
+inline constexpr int kHuntBaselineOption = 282;
 
 /**
  * @brief One row of the one option table (E-01, FR-001).
