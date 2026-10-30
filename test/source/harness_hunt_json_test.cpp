@@ -937,7 +937,15 @@ auto huntKeysInOrder() -> void
   checkOrder(text, entryNode, kEntryKeys, "/benchmarks/0/hunt");
   checkOrder(text,
              elementOpen(text, entryNode, "entries"),
-             {"address", "rate", "cv", "noisy", "multiplexed", "rank"},
+             {"address",
+              "rate",
+              "cv",
+              "noisy",
+              "multiplexed",
+              "rank",
+              "correlation",
+              "slope",
+              "delta"},
              "/benchmarks/0/hunt/entries/0");
   checkOrder(text,
              elementOpen(text, entryNode, "skipped"),
@@ -977,6 +985,17 @@ auto huntRoundTrip() -> void
         "an absent estimate is written as null");
   check(text.find("\"rank\":null") != std::string::npos,
         "an unranked event is written with a null rank");
+
+  // The three rank figures the scripted run never stamps: every row carries
+  // the keys, null for the figure the run measured none of (FR-030, PC-5).
+  for (const std::string_view key :
+       {"\"correlation\":null", "\"slope\":null", "\"delta\":null"})
+  {
+    checked(occurrences(text, key) == hunted.entry.entries.size(),
+            "every rank row writes the key, null for a figure the run did "
+            "not measure: "
+                + std::string(key));
+  }
 
   const auto loaded = sg::loadReport(scratchDocument);
   if (!loaded.has_value()) {
@@ -1421,6 +1440,18 @@ auto twoStageDocument() -> void
       "a column only stage 1 measured stands in entries with no rank");
   checked(entry.entries.front().rank == 1,
           "the column stage 2 repeated reads back its rank");
+
+  // The three rank-figure keys stand in every hunt document, the two-stage
+  // record included: the figures stand empty here, so the keys write null
+  // (FR-030, PC-5).
+  for (const std::string_view key :
+       {"\"correlation\":null", "\"slope\":null", "\"delta\":null"})
+  {
+    checked(occurrences(text, key) == kColumns,
+            "every rank row of the two-stage document writes the key: "
+                + std::string(key));
+  }
+
   check(sg::test::sameReport(written, *loaded),
         "every field of the two-stage record survives the round trip");
 

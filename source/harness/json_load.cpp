@@ -1510,8 +1510,6 @@ auto readRankedEvent(Element value, const std::string& where)
       .repeated = false,
       .multiplexed = *multiplexed,
       .rank = std::nullopt,
-      // specs/040 B-9: the three rank figures read back with the document
-      // keys task; a document read today stands them empty.
       .sensitivityCorrelation = std::nullopt,
       .sensitivitySlope = std::nullopt,
       .delta = std::nullopt,
@@ -1525,6 +1523,34 @@ auto readRankedEvent(Element value, const std::string& where)
       return std::unexpected(number.error());
     }
     event.rank = static_cast<std::size_t>(*number);
+  }
+  // The three rank figures of specs/040 (FR-030, B-9): the writer stands
+  // each key in every hunt document at minor 1.9, `null` for a figure the
+  // run did not measure. A document an older build wrote carries none of
+  // them, so an absent key leaves its member empty, the reading of a run
+  // that stamped no figure, and a key that stands present keeps its own
+  // kind and its own refusal (FR-031).
+  const auto readFigure = [&](std::string_view key,
+                              std::optional<double>* into)
+      -> std::expected<void, std::string>
+  {
+    const auto found = optionalField(value, key);
+    if (!found.has_value() || found->is_null()) {
+      return {};
+    }
+    auto number = asDouble(*found, where + "/" + std::string(key));
+    if (!number.has_value()) {
+      return std::unexpected(number.error());
+    }
+    *into = *number;
+    return {};
+  };
+  auto settledFigures =
+      allSettled(readFigure("correlation", &event.sensitivityCorrelation),
+                 readFigure("slope", &event.sensitivitySlope),
+                 readFigure("delta", &event.delta));
+  if (!settledFigures.has_value()) {
+    return std::unexpected(settledFigures.error());
   }
   return event;
 }

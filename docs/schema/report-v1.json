@@ -793,7 +793,10 @@
                     "cv",
                     "noisy",
                     "multiplexed",
-                    "rank"
+                    "rank",
+                    "correlation",
+                    "slope",
+                    "delta"
                   ],
                   "required": [
                     "address",
@@ -810,7 +813,10 @@
                     "cv": { "type": "number" },
                     "noisy": { "type": "boolean" },
                     "multiplexed": { "type": "boolean" },
-                    "rank": { "type": ["integer", "null"] }
+                    "rank": { "type": ["integer", "null"] },
+                    "correlation": { "type": ["number", "null"] },
+                    "slope": { "type": ["number", "null"] },
+                    "delta": { "type": ["number", "null"] }
                   }
                 }
               },

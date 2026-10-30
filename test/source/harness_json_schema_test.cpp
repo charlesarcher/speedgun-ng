@@ -150,6 +150,44 @@ auto plantedDisagreementsAreNamedByPointer() -> void
   }
 }
 
+// The schema's per-entry hunt entry node (specs/040; FR-032, B-9): the
+// node stands closed, so its `x-order` names the three rank keys after
+// `rank`, and the document the writer produces pairs the schema at minor
+// `1.9`.
+auto entryHuntKeysPairAtMinorOneNine(const std::string& documentText)
+    -> void
+{
+  const std::string schemaText = sg::test::readText(SG_SCHEMA_PATH);
+
+  // The `entries` array stands once in the schema file, under the
+  // per-entry `hunt` object of a benchmark; the entry node is its item
+  // schema.
+  const auto entriesAt = schemaText.find("\"entries\": {");
+  check(entriesAt != std::string::npos,
+        "the schema carries the per-entry hunt entries array (FR-032)");
+  const auto itemsAt = schemaText.find("\"items\": {", entriesAt);
+  const auto orderAt = schemaText.find("\"x-order\"", itemsAt);
+  const auto open = schemaText.find('[', orderAt);
+  const auto close = schemaText.find(']', open);
+  const std::string order = schemaText.substr(open, close - open);
+
+  const auto rankAt = order.find("\"rank\"");
+  const auto correlationAt = order.find("\"correlation\"");
+  const auto slopeAt = order.find("\"slope\"");
+  const auto deltaAt = order.find("\"delta\"");
+  check(rankAt != std::string::npos
+            && correlationAt != std::string::npos
+            && slopeAt != std::string::npos && deltaAt != std::string::npos
+            && rankAt < correlationAt && correlationAt < slopeAt
+            && slopeAt < deltaAt,
+        "the entry node names the three rank keys after `rank` in its "
+        "`x-order` (FR-032, B-9)");
+
+  check(documentText.find("\"schemaVersion\":\"1.9\"")
+            != std::string::npos,
+        "the document the writer produces stands at minor 1.9 (FR-032)");
+}
+
 // The checker reads the schema file as a document of its own: a schema it
 // cannot read is refused with the place that broke, and so is a document it
 // cannot read (FR-008, SC-008).
@@ -263,6 +301,8 @@ auto theOpenShapesOfTheSchemaLanguagePass(const std::string& text) -> void
 auto main() -> int
 {
   plantedDisagreementsAreNamedByPointer();
+  entryHuntKeysPairAtMinorOneNine(
+      sg::test::readText("harness_json_schema.json"));
   brokenSchemasAreRefused(sg::test::readText("harness_json_schema.json"));
   theOpenShapesOfTheSchemaLanguagePass(
       sg::test::readText("harness_json_schema.json"));
