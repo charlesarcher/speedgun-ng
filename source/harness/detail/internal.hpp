@@ -959,6 +959,12 @@ struct ContextGroup
  *      of positions it covers (B-2)
  * \post the answer stands below `partition.size()`, and the group it
  *      names holds `position` (B-2)
+ *
+ * A partition that breaks the pre ends the run at a precondition of B-2:
+ * an empty partition answers a checked violation, and a partition that
+ * names no group holding `position` answers an always-on one, so the
+ * `ignore` semantic stops where the checked semantics stop, ahead of any
+ * read outside the vector.
  */
 [[nodiscard]] auto groupOfContext(const std::vector<ContextGroup>& partition,
                                   std::size_t position) -> std::size_t;

@@ -86,16 +86,24 @@ auto groupPartition(const Preset preset,
   return partition;
 }
 
-// FR-022, B-2: the group of one position. The partition covers the
-// position once, so the walk stops at the group that names it.
+// FR-022, B-2: the group of one position. A partition that holds A-1 covers
+// the position once, so the bounded search answers the group that names it.
+// Two fuses keep the walk inside the vector: the partition carries groups, and
+// the search ends on the group that holds the position. The second stands
+// always on, so the `ignore` semantic answers it as every other semantic does
+// and no caller reads a group the partition does not carry.
 auto groupOfContext(const std::vector<ContextGroup>& partition,
                     const std::size_t position) -> std::size_t
 {
-  std::size_t group = 0;
-  while (!holdsPosition(partition[group], position)) {
-    ++group;
-  }
-  return group;
+  SG_REQUIRE(!partition.empty(),
+             "the caller reaches the walk with groups to read (B-2)");
+  const auto holder = std::find_if(partition.begin(),
+                                   partition.end(),
+                                   [position](const ContextGroup& group)
+                                   { return holdsPosition(group, position); });
+  SG_REQUIRE_ALWAYS(holder != partition.end(),
+                    "a group of the partition holds the position (B-2)");
+  return static_cast<std::size_t>(holder - partition.begin());
 }
 
 }  // namespace detail
