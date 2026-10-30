@@ -100,8 +100,8 @@
 //   theScanCarriesNoShortLetter    the option string of the scan holds no
 //                                  letter (FR-005)
 //   theVersionBindingsReadTheMovedNumbers
-//                                  the project block reads 0.26.0, the
-//                                  harness target answers SOVERSION 17,
+//                                  the project block reads 0.27.0, the
+//                                  harness target answers SOVERSION 18,
 //                                  and the archive target keeps
 //                                  SOVERSION 4 (FR-050)
 //   theHelpAnswerPrintsOneLinePerRow
@@ -1213,7 +1213,7 @@ auto projectVersion(const std::filesystem::path& start) -> std::string
 }
 
 // FR-050: the version bindings read the numbers the version move lands:
-// the project version `0.26.0`, the harness `SOVERSION 17` and the
+// the project version `0.27.0`, the harness `SOVERSION 18` and the
 // archive `SOVERSION 4`. The rows stand red until T007 moves the block.
 ///
 /// \pre the root `CMakeLists.txt` can be read
@@ -1223,10 +1223,10 @@ auto theVersionBindingsReadTheMovedNumbers(const std::filesystem::path& start)
 {
   const std::string cmake = rootCMakeText(start);
   SG_ASSERT(!cmake.empty(), "pre: the root CMakeLists.txt can be read");
-  check(projectVersion(start) == "0.26.0",
-        "the project version reads 0.26.0 (FR-050)");
-  check(cmake.find("SOVERSION 17") != std::string::npos,
-        "the harness SOVERSION line reads SOVERSION 17 (FR-050)");
+  check(projectVersion(start) == "0.27.0",
+        "the project version reads 0.27.0 (FR-050)");
+  check(cmake.find("SOVERSION 18") != std::string::npos,
+        "the harness SOVERSION line reads SOVERSION 18 (FR-050)");
   check(cmake.find("SOVERSION 4") != std::string::npos,
         "the archive SOVERSION line reads SOVERSION 4 (FR-050)");
 }
