@@ -416,8 +416,10 @@ bindings re-read against the base, the verdict recorded.
   with the analyzers wired in, and the naming gate
   (`readability-identifier-naming`) with it (I, V.1, VIII). Verify: zero
   findings, and every suppression names the V.2 entry it applies.
-- [ ] T046 [P] [8] Read the prose, spell, format, DBC and time-source
-  gates over the lane range:
+- [ ] T046 [P] [8] Remove the lane's side build directories, the trees
+  named at `build-w*`, so the spell and format reads see tracked sources
+  only, then read the prose, spell, format, DBC and time-source gates
+  over the lane range:
   `cmake -DPROSE_BASE=bea6af5b -P cmake/prose-lint.cmake`, the spell and
   format checks, the DBC gate,
   `test/time_source_gate.sh` (VIII, XI). Verify: zero findings on each.
@@ -432,6 +434,10 @@ bindings re-read against the base, the verdict recorded.
   stands at: the version line, the harness `SOVERSION`, the schema minor,
   the option value. Move each one step where a landing took it, and name
   the read in the commit that moves it (FR-032).
+- [ ] T051 [8] Re-read every lane commit message with
+  `python3 tools/prose/prose_gate.py --check commit --base bea6af5b`,
+  and rewrite each message a finding names while no unit sits mid-commit
+  (Pull Request Quality, XI.2). Verify: the commit check exits 0.
 - [ ] T050 [8] Record `results/verdict.md` with one row per gate and its
   reading, link it from the quickstart beside the five records, and mark
   the landed tasks in this file (FR-038, X.4). Verify: the verdict names
