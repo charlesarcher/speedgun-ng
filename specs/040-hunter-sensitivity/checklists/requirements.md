@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -31,16 +31,16 @@
 
 ## Notes
 
-- One [NEEDS CLARIFICATION] marker stands at FR-021: the figure the
-  emitted rule's threshold carries. The clarify phase settles it
-  before the plan reads the feature; the checklist item stands
-  unchecked until then.
+- The clarify session of 2026-10-30 settled FR-021's threshold
+  figure, the delta-rank refusal and the norm-mismatch refusal; no
+  [NEEDS CLARIFICATION] marker remains.
 - The spec names file paths, header names, type names and the
   version, schema and option-value bindings where the lane prompt
   fixes them; the house style of the merged specs records those
   bindings in the spec, and the requirements themselves stay at the
   behavior level.
-- Validation pass 1 (2026-10-30): all items pass beside the marker
-  above. The prose gate stands clean over the changed range.
+- Validation pass 2 (2026-10-30, after clarify session
+  2026-10-30): all items pass. The prose gate stands clean over the
+  changed range.
 - Items marked incomplete require spec updates before
   `/speckit-clarify` or `/speckit-plan`.
