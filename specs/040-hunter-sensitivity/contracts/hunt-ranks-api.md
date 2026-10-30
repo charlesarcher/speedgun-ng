@@ -40,7 +40,8 @@ pin. The doxygen contracts of the headers govern on disagreement
   `counter:<event>@median:<lower|higher>:<n>%`; the threshold
   carries `noisePercent` for every line; the direction stands
   `lower` for a negative delta, `higher` for a positive one,
-  `lower` where the delta stands empty; an entry whose `rank`
+  `lower` where the delta stands empty or at an exact zero, a zero
+  standing no rise; an entry whose `rank`
   stands empty holds no line; the call measures nothing and reads
   no clock (FR-021, D-7).
 - The pair shape of `toCounterSet(topN)`: the same cap rule, the
