@@ -162,3 +162,25 @@ from zero, so both readings agree there.
 - Groups across instances, across families or across runs in one report: the
   Out of scope rows keep one partition per instance, and FR-001 fixes that
   partition for the instance.
+
+## Reconciliation
+
+The orchestrator weighed both recommendations against the tree and the
+lane rulings. Both stand as recommended.
+
+- Q1: Option A, adopted. The pairing refusal reads each selected
+  instance's resolved preset at the standing fit checkpoint, so a name
+  a handle stated carries the same refusal as the name the option
+  settled (FR-019, FR-020). The fit walk already reads the resolved
+  instances before any run, so the rule costs one branch and keeps the
+  refusal ahead of any measured work.
+- Q2: Option A, adopted. A `node` group name carries the read's own
+  node number, the number the placement field's `@node` tail already
+  prints (`placement_preset.cpp:607-618`), so one unit states one
+  number on the line (D-4). The L3 half needs no ruling: the read
+  numbers L3 units from zero inside the mask.
+
+The Q1 recommendation's aside, that the allowed pairing then reads as
+every selected instance resolving to `none`, does not stand. Round 3
+takes the reading, and the allowed case keys on the partition rather
+than on the name.
