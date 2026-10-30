@@ -972,14 +972,18 @@ and each context of a threaded run discloses its planned pair,
 `ctx0=SPIN/0@0/applied`: the cpu it ran on, `@`, and the ordinal of
 its L3 group. A context the node plan binds names the node beside
 the group, `ctx0=SPIN/0@0@0/applied`. A pair longer than the field
-meets the standing cut mark.
+meets the standing cut mark. A run whose plan names a group for its
+contexts ends each of those fields with that group's name, behind the
+placement flag, as in `ctx0=SPIN/0@0/applied/l3-0`. A run that
+carries no partition prints no group segment, and a layout file
+grouped run names the file's own text there.
 
 <!-- sg-sample-output: example/docs/numa_placement.expected#report -->
 ```text
 speedgun-ng 0.22.0 build=Release
 topology: packages=1 l3-groups=4 cores=24 threads=48
 bmSharded/threads:2      iterations=2469929012  real time/iter (ns)=    0.212  cpu time/iter (ns)=    0.211  overhead floor (ns)=  100.000  endpoint samples=4
-  contexts=2  ctx0=SPIN/0@0@0/applied  ctx1=SPIN/1@0@0/applied
+  contexts=2  ctx0=SPIN/0@0@0/applied/node-0  ctx1=SPIN/1@0@0/applied/node-0
 ```
 
 `--topology` prints the layout the plans come from and exits: the
@@ -1568,7 +1572,7 @@ irq affinity: cpu 1 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,22,23,29,30,31,32,3
 tracer: not available
 pinning candidates: cpu 0 0.00 cpu 24 0.00
 bmMeasured/threads:2     iterations=1895944730  real time/iter (ns)=    0.376  cpu time/iter (ns)=    0.375  overhead floor (ns)=  100.000  endpoint samples=4
-  contexts=2  ctx0=SPIN/0@0/applied  ctx1=SPIN/24@0/applied
+  contexts=2  ctx0=SPIN/0@0/applied/l3-0  ctx1=SPIN/24@0/applied/l3-0
 jitter probe: cpus 0,24,1
 gapCount: 0 0 0
 gapsPerSecond: 0.00 0.00 0.00

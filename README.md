@@ -601,11 +601,11 @@ auto bmSharded(sg::State& state) -> void
 
 SG_BENCHMARK(bmSharded).threads(2).placement("node");
 ```
-The `node` preset deals one cpu per context over the memory nodes the
-process mask touches, in the order the machine read states them, and
-binds each context's memory to its node at the context start; the
-report names the node beside the group, `ctx0=SPIN/0@0@0/applied`, and
-`--topology` prints one line per node under the L3 lines. See [topology
+The `node` preset deals one cpu per context over the memory nodes the process
+mask touches, in the order the machine read states them, and binds each
+context's memory to its node at the context start; the report names the node
+beside the group and ends the field with it, `ctx0=SPIN/0@0@0/applied/node-0`,
+and `--topology` prints one line per node under the L3 lines. See [topology
 placement in detail](docs/pages/harness.md#topology-placement).
 
 ### Percentiles

@@ -142,7 +142,9 @@ auto waitModeName(const sg::WaitMode waitMode) -> const char*
 // FR-025: the one line a threaded result prints after its rows. It names
 // the number of contexts and, for each context, the wait mode and the
 // placement that context ran under. A context whose slot named no cpu
-// prints those two fields. The line formats the records of
+// prints those two fields. specs/039-context-groups FR-028: the group the
+// run's partition named for that context closes its field, behind the flag
+// where that flag prints. The line formats the records of
 // `result.contexts` and adds nothing to them.
 // The flag names of the placement account: whether the installed placement
 // function reported its slot as landed. The line prints one for a slot
@@ -179,13 +181,20 @@ auto printContextDisclosure(const BenchmarkResult& result) -> void
                   index,
                   waitModeName(context.waitMode),
                   field.c_str());
-      continue;
+    } else {
+      std::printf("  ctx%zu=%s/%s/%s",
+                  index,
+                  waitModeName(context.waitMode),
+                  field.c_str(),
+                  context.applied ? kAppliedFlag : kUnappliedFlag);
     }
-    std::printf("  ctx%zu=%s/%s/%s",
-                index,
-                waitModeName(context.waitMode),
-                field.c_str(),
-                context.applied ? kAppliedFlag : kUnappliedFlag);
+    // FR-028: the group stands last among the segments of one context,
+    // behind the flag where that flag prints. A run that carries no
+    // partition names no group, and its line keeps the bytes it printed
+    // before the segment existed (FR-033).
+    if (!context.group.empty()) {
+      std::printf("/%s", context.group.c_str());
+    }
   }
   std::printf("\n");
 }
