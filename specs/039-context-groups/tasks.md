@@ -132,19 +132,27 @@ fit walk learns to stop a batch the layout cannot serve.
   `ctest --test-dir build -R harness_group_cli_test --output-on-failure`
   red.
 - [ ] T011 [3] Move `test/source/harness_cli_table_test.cpp` to the
-  thirty-ninth row: the contract literal at `:209-248`, the row-count
+  thirty-ninth row: the contract literal at `:209-248`, the block
+  constants and bounds at `:250-268` with the `inNewBlock` predicate at
+  `:832-848` so the lane block holds the value `299`, the row-count
   check at `:681-689`, the block-disjointness partition at `:858-939`,
   and the guide table byte-compare at `:1498-1583` (FR-011). Verify:
   `ctest --test-dir build -R harness_cli_table_test --output-on-failure`
   red on the row count.
 - [ ] T012 [3] Add `kGroupLayoutOptionValue = 299` beside the free-block
   comment in `source/harness/detail/options.hpp:81-93`, add the row to
-  `optionRows()` in `source/harness/options.cpp:470-714` with
-  `OptionArgument::REQUIRED`, no environment source and
-  `"specs/039"` as its owner, and carry the path through the resolved
-  option set (FR-011). Verify:
-  `ctest --test-dir build -R "harness_group_cli_test|harness_cli_table_test" --output-on-failure`
-  green on the row and the help line.
+  `optionRows()` in `source/harness/options.cpp:470-714` ahead of `hunt`
+  beside `os-noise` with `OptionArgument::REQUIRED`, no environment
+  source and `"specs/039"` as its owner, carry the path through the
+  resolved option set, and land the two table rows the standing checks
+  byte-compare in the same commit: the guide row beside `--placement` in
+  `docs/pages/harness.md:680` and the `| Option |` row in `README.md`
+  that `cli_options` drives (`tools/docs/example_drift.py:763-776`),
+  with the `PAGE_LINE_CAP` move the added line forces
+  (`example_drift.py:222`) and its reason beside it (FR-011, FR-039).
+  Verify:
+  `ctest --test-dir build -R "harness_group_cli_test|harness_cli_table_test|example_drift" --output-on-failure`
+  green on the row, the help line and the drift read.
 - [ ] T013 [3] Implement `groupLayoutFitStatus` in
   `source/harness/group_fit.cpp` and call it beside `placementFitStatus`
   at `source/harness/cli.cpp:744`, reading the file once, comparing its
@@ -159,12 +167,13 @@ fit walk learns to stop a batch the layout cannot serve.
   names, status 2 (FR-019, D-2). Verify:
   `ctest --test-dir build -R "harness_group_cli_test|base_cli_matrix" --output-on-failure`
   green.
-- [ ] T015 [3] Add the option-reference row for `--group-layout` to
-  `docs/pages/harness.md` beside the `--placement` row at `:680`, the
-  text the table's help string copies, and the matching `| Option |`
-  row in `README.md` that `table_rows` compares against
-  `cli_options` (`example_drift.py:763-776`) (FR-011, FR-039). Verify:
-  `ctest --test-dir build -R "harness_cli_table_test|example_drift" --output-on-failure`
+- [ ] T015 [3] Read the option surface the new row touches:
+  `test/source/harness_cli_sources_test.cpp` for the source table, the
+  `--help` bytes of `test/source/harness_cli_test.cpp`, and the standing
+  replay of `test/base_cli/run_matrix.py`; move any expectation the row
+  changes and record that the row carries no environment source
+  (FR-011). Verify:
+  `ctest --test-dir build -R "harness_cli_sources_test|harness_cli_test|base_cli_matrix" --output-on-failure`
   green.
 - [ ] T016 [3] Read the wave on the release preset:
   `cmake --preset=ci-ubuntu && cmake --build build`. Verify: zero
@@ -259,9 +268,14 @@ and the report unit own disjoint files and run together.
   `test/source/harness_group_report_test.cpp` (the document block) and
   move the `1.8` literals to `1.10` in
   `test/source/harness_json_report_test.cpp:546`,
-  `test/source/harness_json_load_test.cpp:707` and its `1.9` plant at
-  `:1076`, and `test/source/harness_noise_report_test.cpp:423` and
-  `:453` with the comments at `:411` and `:451`: the writer names
+  `test/source/harness_json_load_test.cpp:707`, and
+  `test/source/harness_noise_report_test.cpp:423` and `:453` with the
+  comments at `:411` and `:451`; move the three reads that cut the
+  stamped value by the width of `1.8` to a read of the value's own
+  extent, at `test/source/harness_json_load_test.cpp:99` and `:1076` and
+  `test/source/harness_json_schema_test.cpp:79`; and move the `1.9`
+  later-minor plants at `test/source/harness_json_load_test.cpp:103` and
+  `:1079` to `1.11`, the later minor `1.10` leaves behind. The writer names
   `group` per context, the schema accepts the
   document and refuses a group name outside it, the reader answers the
   name, and an ungrouped document carries no key (FR-029 to FR-032,
@@ -331,21 +345,29 @@ the gates read no finding.
 commands and exit codes named, the artifacts beside them.
 
 - [ ] T033 [7] Write `specs/039-context-groups/results/run_groups.sh`,
-  the script that drives the five acceptance runs, captures each exit
-  code, and copies the reports it writes into `results/reports/`
-  (FR-038). Verify: `bash specs/039-context-groups/results/run_groups.sh`
-  exits 0.
-- [ ] T034 [7] Record the `core` grouping over the eight-core,
-  four-L3-group shape in `results/preset-core.md`, and the `l3`
-  grouping's single-member groups beside it: the commands, the exit
-  codes, the console blocks naming the groups, and the report documents
-  beside them (FR-038, SC-001).
-- [ ] T035 [7] Record the `node` grouping over a multi-node shape in
-  `results/preset-node.md`, the alternating memberships named
-  (FR-038, SC-002).
-- [ ] T036 [7] Record the layout run end to end in `results/layout.md`:
-  the file, the command, the exit code, the disclosure, and the report
-  (FR-038, SC-005).
+  the script that drives the five acceptance runs in their two kinds:
+  the host runs, CLI commands over the shape the lane host states, and
+  the seam runs, named `ctest` invocations whose tests install a shape
+  no lane host states. It captures each exit code, keeps each command
+  line, and copies the reports and the captured test output into
+  `results/reports/` (FR-038). Verify:
+  `bash specs/039-context-groups/results/run_groups.sh` exits 0.
+- [ ] T034 [7] Record the preset grouping in `results/preset-core.md`,
+  both kinds named: the host run, `--placement=core` over the host's own
+  two L3 groups, sixteen contexts, disclosing two groups of eight, and
+  `--placement=l3` disclosing two single-member groups; and the seam
+  run, the named test and installed shape that carries SC-001's four
+  groups of two. Each run stands with its command, its exit code, its
+  console block and its report (FR-038, SC-001).
+- [ ] T035 [7] Record the `node` grouping in `results/preset-node.md`:
+  the seam run over the installed two-node shape, the `fourGroupShape`
+  precedent at `test/source/harness_cli_placement_test.cpp:260-297`, with
+  the alternating memberships named; and the host run beside it, where
+  the host's one memory node names one group (FR-038, SC-002).
+- [ ] T036 [7] Record the host run of the layout end to end in
+  `results/layout.md`: the file, the command, the exit code, the
+  disclosure, and the report; the four-entry file over eight contexts
+  stands on any host, the lane host included (FR-038, SC-005).
 - [ ] T037 [7] Record the refusal set in `results/refusals.md`: all
   eighteen cases of FR-018 and FR-019 with their one line and status 2,
   and no report file written (FR-038, SC-004).
@@ -469,8 +491,10 @@ commit block, so a lane stops cleanly at any checkpoint.
   lands in the same commit, the pair closing one red-to-green step
   (III, TDD).
 - The lane host for the wave 7 records stands named in each record: the
-  branch host is `gary` (16 cores, 32 threads, two L3 groups), the lane
-  prompt names thrawn. The synthetic and installed seams carry the
-  four-group and two-node shapes on either host (FR-036, FR-038).
+  branch host is `gary` (16 cores, 32 threads, two L3 groups, one memory
+  node), the lane prompt names thrawn. Each record names its kind: a
+  host run carries the shape `gary` states, and a seam run names the
+  test that installs the four-group and two-node shapes no lane host
+  states (FR-036, FR-038).
 - Contention: specs 031 and 037 stand in flight; T049 re-reads the four
   contested bindings before the lane closes (FR-032).
