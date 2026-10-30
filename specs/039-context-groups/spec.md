@@ -36,7 +36,7 @@ fit step that stops a layout the run cannot carry.
   takes the next free minor, `0.26.0`. Spec 037 takes a minor at its
   own merge, so the landing that moves second re-reads the line and
   takes the next free value, and the commit records the check
-  (FR-002, D-2).
+  (FR-032, D-2).
 - Harness `SOVERSION`: master stands at `16` (`CMakeLists.txt:333`).
   The group record joins the public header, the exported layouts
   move, and the harness `SOVERSION` rises to `17`. The archive
@@ -47,14 +47,14 @@ fit step that stops a layout the run cannot carry.
   land beside the context disclosure, so the document gains a key and
   the minor moves. Spec 037's graph record moves the same minor at
   its own merge, and that lane cut first, so this lane takes the next
-  value past its `1.9`: the schema minor lands at `1.10` (R-4,
-  FR-025). A landing that finds `1.9` or `1.10` taken moves one step
+  value past its `1.9`: the schema minor lands at `1.10` (R-4, FR-030,
+  FR-032). A landing that finds `1.9` or `1.10` taken moves one step
   higher and records the reading.
 - Option values: the free block `298` to `319` stands open
   (`source/harness/detail/options.hpp:78-80`, `kOsNoiseOptionValue`
   holds `297` at `:93`). Spec 037's `--graph` row takes `298` at its
   own merge, so this lane's one new row takes `299` and the block
-  comment names the split (FR-010). The hunt block `280` to `289`
+  comment names the split (FR-011). The hunt block `280` to `289`
   stands specs/033's.
 
 ## Roadmap position
@@ -284,7 +284,7 @@ fit step that stops a layout the run cannot carry.
   `yaml-cpp` parses the layout; the grammar this spec names is the
   whole vocabulary; no new dependency joins; the include stays inside
   `source/` and the specs/006 purity and nm gates stay green
-  (FR-014).
+  (FR-016).
 - **D-6**: The layout file names groups by slots, one group per
   entry. A slot is a context position, `0` based, and the entries of
   one file cover the instance's contexts exactly once. The cpu form
@@ -305,7 +305,7 @@ fit step that stops a layout the run cannot carry.
   groups, and waits on per-context settlement flags inside context 0's
   own body before the teardown half. A run with no partition, and a run
   whose single group holds every context, keeps the standing route
-  where its start round carries the publication (FR-021, FR-026).
+  where its start round carries the publication (FR-026).
 - **D-8**: The batch fit. A layout names the slots of one instance.
   The standing fit step reads the layout before any instance runs and
   stops the batch when the layout's slot count differs from the
@@ -430,7 +430,7 @@ instance runs, naming the file and the entry the fault stands in.
 that decides how a run paces, and a silent misread would pace a run
 wrong.
 
-**Independent Test**: each refusal shape in the list FR-016 names
+**Independent Test**: each refusal shape in the list FR-018 names
 runs one command, and each answers one line and exit status 2.
 
 **Acceptance Scenarios**:

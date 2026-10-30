@@ -167,13 +167,14 @@ fit walk learns to stop a batch the layout cannot serve.
   names, status 2 (FR-019, D-2). Verify:
   `ctest --test-dir build -R "harness_group_cli_test|base_cli_matrix" --output-on-failure`
   green.
-- [ ] T015 [3] Read the option surface the new row touches:
-  `test/source/harness_cli_sources_test.cpp` for the source table, the
-  `--help` bytes of `test/source/harness_cli_test.cpp`, and the standing
+- [ ] T015 [3] Read the option surface the new row touches: the source
+  table of `test/source/harness_cli_sources_test.cpp` and the standing
   replay of `test/base_cli/run_matrix.py`; move any expectation the row
-  changes and record that the row carries no environment source
-  (FR-011). Verify:
-  `ctest --test-dir build -R "harness_cli_sources_test|harness_cli_test|base_cli_matrix" --output-on-failure`
+  changes and record that the row carries no environment source. The
+  `--help` expectation builds itself from `optionRows()`
+  (`test/source/harness_cli_table_test.cpp:1183-1206`), so T012 covers
+  it and no move is owed here (FR-011). Verify:
+  `ctest --test-dir build -R "harness_cli_sources_test|base_cli_matrix" --output-on-failure`
   green.
 - [ ] T016 [3] Read the wave on the release preset:
   `cmake --preset=ci-ubuntu && cmake --build build`. Verify: zero
@@ -222,8 +223,11 @@ groups.
   order before it copies the text, each body raises its own settlement
   flag after its stop arrival, and context 0's teardown half waits on
   those flags inside its own body, where `Fixture` and `callbackState`
-  stand locals (`runner.cpp:2115-2118`), so the pair keeps its owner
-  (FR-026, D-7). Verify:
+  stand locals (`runner.cpp:2115-2118`), so the pair keeps its owner.
+  The slot route stands only where the partition holds more than one
+  group: a run with no partition, or one group holding every context,
+  keeps the standing publication and teardown point (FR-026, D-7).
+  Verify:
   `ctest --test-dir build -R "harness_group_run_test|harness_fixture_test" --output-on-failure`
   green.
 - [ ] T021 [4] Confirm the ledger fault precedes every wait the harness
@@ -355,7 +359,8 @@ commands and exit codes named, the artifacts beside them.
 - [ ] T034 [7] Record the preset grouping in `results/preset-core.md`,
   both kinds named: the host run, `--placement=core` over the host's own
   two L3 groups, sixteen contexts, disclosing two groups of eight, and
-  `--placement=l3` disclosing two single-member groups; and the seam
+  `--placement=l3` with two contexts disclosing two single-member
+  groups; and the seam
   run, the named test and installed shape that carries SC-001's four
   groups of two. Each run stands with its command, its exit code, its
   console block and its report (FR-038, SC-001).
@@ -377,8 +382,8 @@ commands and exit codes named, the artifacts beside them.
   SC-006).
 - [ ] T039 [7] Write `specs/039-context-groups/quickstart.md`, the
   record index naming the question each record answers, and the re-run
-  commands (FR-038, SC-010). Verify: every file under `results/` stands
-  linked from the quickstart.
+  commands (FR-038, SC-010). Verify: T033's script and the five records
+  of T034 to T038 all stand linked from the quickstart.
 
 **Checkpoint**: the lane's readings stand recorded and re-creable.
 
@@ -428,8 +433,9 @@ bindings re-read against the base, the verdict recorded.
   the option value. Move each one step where a landing took it, and name
   the read in the commit that moves it (FR-032).
 - [ ] T050 [8] Record `results/verdict.md` with one row per gate and its
-  reading, and mark the landed tasks in this file (FR-038, X.4). Verify:
-  the verdict names every gate of Principle VIII.
+  reading, link it from the quickstart beside the five records, and mark
+  the landed tasks in this file (FR-038, X.4). Verify: the verdict names
+  every gate of Principle VIII, and the quickstart links it.
 
 ---
 
