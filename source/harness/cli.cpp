@@ -604,16 +604,14 @@ auto speedgunMain(int argc, char** argv) -> int
   // mismatch line and the usage status before any benchmark runs (FR-005).
   std::optional<sg::ReportData> huntBaseline;
   if (options.hunt.has_value() && !options.hunt->baseline.empty()) {
-    auto loaded = loadReport(options.hunt->baseline);
-    SG_ASSERT(loaded.has_value(),
-              "the settlement loaded the same document through the same "
-              "loader, so the value stands (B-8, D-6)");
+    huntBaseline = detail::loadHuntBaseline(options.hunt->baseline);
     const auto settled = options.hunt->norm.value_or(hunt::HuntNorm::INSTR);
-    if (const auto mismatch = detail::baselineNormMismatch(*loaded, settled)) {
+    if (const auto mismatch =
+            detail::baselineNormMismatch(*huntBaseline, settled))
+    {
       std::fprintf(stderr, "%s\n", mismatch->c_str());
       return 2;
     }
-    huntBaseline = std::move(*loaded);
   }
 
   // specs/026 FR-024, FR-050, FR-051: the batch filter pattern is compiled

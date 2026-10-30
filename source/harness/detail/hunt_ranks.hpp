@@ -125,6 +125,21 @@ auto stampSensitivity(std::vector<sg::BenchmarkResult>& results) -> void;
     -> std::optional<std::string>;
 
 /**
+ * @brief The delta stamp's baseline document, loaded once before the
+ *        entries run (FR-003, B-10).
+ *
+ * \pre the settlement of the option table loaded the same document
+ *      through the same loader, so the load answers a value (B-8, D-6)
+ * \post returns the document value the settlement read, and the call
+ *      measures nothing beyond the read the settlement already priced
+ *      (FR-005)
+ * \invariant the answer reads `path` alone: no clock and no counter
+ *            enters it (FR-006)
+ */
+[[nodiscard]] auto loadHuntBaseline(const std::string& path)
+    -> std::optional<sg::ReportData>;
+
+/**
  * @brief The delta stamp of B-6 (FR-004, D-5): the signed percent of
  *        A-5 on the records the baseline rates match.
  *

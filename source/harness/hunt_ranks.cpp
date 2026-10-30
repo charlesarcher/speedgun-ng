@@ -215,6 +215,15 @@ auto baselineNormMismatch(const sg::ReportData& baseline,
   return line;
 }
 
+auto loadHuntBaseline(const std::string& path) -> std::optional<sg::ReportData>
+{
+  auto loaded = loadReport(path);
+  SG_REQUIRE(loaded.has_value(),
+             "the settlement loaded the same document through the same "
+             "loader, so the value stands (B-8, D-6)");
+  return std::move(loaded).value();
+}
+
 // specs/040-hunter-sensitivity T024 (FR-004; contracts/hunt-ranks-api.md
 // B-6, A-5, D-5): the delta stamp. The stamp reads the map the extraction
 // of B-5 answers for the matched entry and fills the signed percent of
@@ -303,14 +312,22 @@ auto stampRank(std::vector<sg::BenchmarkResult>& results,
                     [bySensitivity](const Candidate& lhs, const Candidate& rhs)
                     {
                       if (bySensitivity) {
-                        if (lhs.correlation != rhs.correlation) {
-                          return lhs.correlation > rhs.correlation;
+                        if (lhs.correlation > rhs.correlation) {
+                          return true;
                         }
-                        if (lhs.slope != rhs.slope) {
-                          return lhs.slope > rhs.slope;
+                        if (lhs.correlation < rhs.correlation) {
+                          return false;
                         }
-                      } else if (std::abs(lhs.delta) != std::abs(rhs.delta)) {
-                        return std::abs(lhs.delta) > std::abs(rhs.delta);
+                        if (lhs.slope > rhs.slope) {
+                          return true;
+                        }
+                        if (lhs.slope < rhs.slope) {
+                          return false;
+                        }
+                      } else if (std::abs(lhs.delta) > std::abs(rhs.delta)) {
+                        return true;
+                      } else if (std::abs(lhs.delta) < std::abs(rhs.delta)) {
+                        return false;
                       }
                       return lhs.address < rhs.address;
                     });
