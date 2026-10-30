@@ -694,6 +694,7 @@ variable.
 | `version` | none |  | Prints the project version and stops |
 | `jitter-probe` | required |  | Runs the jitter probe over the batch by that value |
 | `os-noise` | required |  | Runs the named noise tracer across the pre-check window |
+| `group-layout` | required |  | Reads the run's context groups from a file |
 | `hunt` | optional |  | Hunts the selected catalog events and ranks them |
 | `hunt-norm` | required |  | Sets the hunt score normaliser: instr, cycle or iter |
 | `hunt-rank` | required |  | Sets the hunt ranking: rate or cv |
