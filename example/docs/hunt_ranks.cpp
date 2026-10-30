@@ -28,6 +28,7 @@ auto printRankCells(const sg::hunt::RankedEvent& event) -> void
               rankCell(event.sensitivitySlope).c_str(),
               rankCell(event.delta).c_str());
 }
+
 // sg-example:end hunt-ranks
 
 auto bmHuntRanks(sg::State& state) -> void

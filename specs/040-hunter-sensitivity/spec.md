@@ -80,6 +80,16 @@ and contention notes stand carried in the sections that read them.
   source. No standing name or value moves, and the name and value
   uniqueness test (`test/source/harness_cli_table_test.cpp`) carries
   the rows.
+- Contention, measured 2026-10-30 at the push: specs/039's pushed
+  branch (`origin/039-context-groups`, cut from the same master
+  `bea6af5b`) stands at version `0.26.0`, harness `SOVERSION` `17`
+  and schema `1.10`, and its option comment leaves `281` to `289`
+  free. The two lanes claim `0.26.0` and `SOVERSION` `17` each, and
+  the schema minors split (`1.9` here, `1.10` there). The
+  reservation rule covers the second merge: the lane that merges
+  first keeps its values, and the other takes the next free minor,
+  the next free schema value and the next `SOVERSION` at its rebase,
+  the commit that moves the numbers recording the check.
 - Lane host: `thrawn` (AMD Threadripper 9960X, Zen 5, 24 cores, 48
   threads, one socket), the machine this lane stands self-contained
   on per the owner's ruling of 2026-10-30: gary stands another

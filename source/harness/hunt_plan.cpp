@@ -469,18 +469,18 @@ auto EntryHunt::toCounterSet(std::size_t topN) const -> std::vector<std::string>
 auto EntryHunt::toCompareRules(std::size_t topN, double noisePercent) const
     -> std::vector<std::string>
 {
-  SG_REQUIRE(noisePercent > 0.0,
-             "the threshold stands above zero in the range the option "
-             "states (B-1)");
+  SG_REQUIRE(
+      noisePercent > 0.0,
+      "the threshold stands above zero in the range the option " "states "
+                                                                 "(B-1)");
   std::vector<std::pair<std::size_t, const RankedEvent*>> ranked;
   for (const auto& entry : entries) {
     if (entry.rank.has_value()) {
       ranked.emplace_back(*entry.rank, &entry);
     }
   }
-  std::ranges::sort(ranked,
-                    std::less<> {},
-                    [](const auto& pair) { return pair.first; });
+  std::ranges::sort(
+      ranked, std::less<> {}, [](const auto& pair) { return pair.first; });
 
   auto rules = std::vector<std::string> {};
   for (const auto& pair : ranked) {

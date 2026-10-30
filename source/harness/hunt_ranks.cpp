@@ -1,13 +1,12 @@
-// specs/040-hunter-sensitivity T022 (FR-001, FR-002; contracts/hunt-ranks-api.md
-// B-4, D-2): the family grouping, the point assembly and the sensitivity
-// stamp. The grouping reads the suite the registry registered, one suite's
-// cases standing its args or labeled sizes (D-2), and answers the families
-// in first-appearance order; one point stands one entry that measured the
-// event, the aggregate row's time per iteration first and the event's
-// normalized rate second. The stamp reads the standing statistics surface
-// over the grouped points
-// and fills the two sensitivity fields of every record of the event the
-// family's entries hold (FR-006, D-8, R-4).
+// specs/040-hunter-sensitivity T022 (FR-001, FR-002;
+// contracts/hunt-ranks-api.md B-4, D-2): the family grouping, the point
+// assembly and the sensitivity stamp. The grouping reads the suite the registry
+// registered, one suite's cases standing its args or labeled sizes (D-2), and
+// answers the families in first-appearance order; one point stands one entry
+// that measured the event, the aggregate row's time per iteration first and the
+// event's normalized rate second. The stamp reads the standing statistics
+// surface over the grouped points and fills the two sensitivity fields of every
+// record of the event the family's entries hold (FR-006, D-8, R-4).
 
 #include <algorithm>
 #include <array>
@@ -21,10 +20,10 @@
 #include <utility>
 #include <vector>
 
-#include "detail/compare.hpp"
 #include "detail/hunt_ranks.hpp"
-#include "detail/statistics.hpp"
 
+#include "detail/compare.hpp"
+#include "detail/statistics.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/dbc.hpp"
 #include "speedgun-ng/hunt.hpp"
@@ -49,8 +48,7 @@ auto familyKey(const sg::BenchmarkResult& result) -> std::string
 // statistics, so the flat field stands for it. A run whose stage measured
 // one repetition carries no aggregate row, so the entry's last repetition
 // row stands the figure; an entry no row prices stands no point.
-auto aggregateTime(const sg::BenchmarkResult& result)
-    -> std::optional<double>
+auto aggregateTime(const sg::BenchmarkResult& result) -> std::optional<double>
 {
   const auto found = std::ranges::find(
       result.rows, sg::RowKind::AGGREGATE, &sg::ResultRow::kind);
@@ -90,8 +88,7 @@ auto groupEntries(const std::vector<sg::BenchmarkResult>& results)
     SG_ASSERT(result.hunt.has_value(),
               "the entry carries its hunt record, the stamping pass running "
               "after every entry's hunt stands ranked");
-    auto [slot, fresh] =
-        index.try_emplace(familyKey(result), families.size());
+    auto [slot, fresh] = index.try_emplace(familyKey(result), families.size());
     if (fresh) {
       families.emplace_back();
     }
@@ -201,9 +198,9 @@ auto baselineNormMismatch(const sg::ReportData& baseline,
                           const sg::hunt::HuntNorm settled)
     -> std::optional<std::string>
 {
-  if (!baseline.hunt.has_value()
-      || !baseline.hunt->options.norm.has_value()
-      || *baseline.hunt->options.norm == settled) {
+  if (!baseline.hunt.has_value() || !baseline.hunt->options.norm.has_value()
+      || *baseline.hunt->options.norm == settled)
+  {
     return std::nullopt;
   }
   const auto baselineNorm = *baseline.hunt->options.norm;
@@ -267,6 +264,7 @@ auto stampRank(std::vector<sg::BenchmarkResult>& results,
     double slope = 0.0;
     double delta = 0.0;
   };
+
   std::vector<Candidate> candidates;
   std::map<std::string, std::size_t> indexOf;
   for (const auto& result : results) {
@@ -274,9 +272,9 @@ auto stampRank(std::vector<sg::BenchmarkResult>& results,
               "the entry carries its hunt record, the stamping pass "
               "running after every entry's hunt stands ranked");
     for (const auto& record : result.hunt->entries) {
-      const bool carries =
-          bySensitivity ? record.sensitivityCorrelation.has_value()
-                        : record.delta.has_value();
+      const bool carries = bySensitivity
+          ? record.sensitivityCorrelation.has_value()
+          : record.delta.has_value();
       if (record.noisy || !carries) {
         continue;
       }
@@ -288,12 +286,11 @@ auto stampRank(std::vector<sg::BenchmarkResult>& results,
       const auto [slot, fresh] =
           indexOf.try_emplace(record.address, candidates.size());
       if (fresh) {
-        candidates.push_back(Candidate {record.address,
-                                        record.sensitivityCorrelation
-                                            .value_or(0.0),
-                                        record.sensitivitySlope
-                                            .value_or(0.0),
-                                        record.delta.value_or(0.0)});
+        candidates.push_back(
+            Candidate {record.address,
+                       record.sensitivityCorrelation.value_or(0.0),
+                       record.sensitivitySlope.value_or(0.0),
+                       record.delta.value_or(0.0)});
       }
     }
   }
@@ -302,20 +299,21 @@ auto stampRank(std::vector<sg::BenchmarkResult>& results,
   // the slope and then the address breaking a tie under
   // `SENSITIVITY`, the delta magnitude descending with the address
   // breaking a tie under `DELTA`.
-  std::ranges::sort(candidates, [bySensitivity](const Candidate& lhs,
-                                                const Candidate& rhs) {
-    if (bySensitivity) {
-      if (!std::is_eq(lhs.correlation <=> rhs.correlation)) {
-        return lhs.correlation > rhs.correlation;
-      }
-      if (!std::is_eq(lhs.slope <=> rhs.slope)) {
-        return lhs.slope > rhs.slope;
-      }
-    } else if (!std::is_eq(std::abs(lhs.delta) <=> std::abs(rhs.delta))) {
-      return std::abs(lhs.delta) > std::abs(rhs.delta);
-    }
-    return lhs.address < rhs.address;
-  });
+  std::ranges::sort(candidates,
+                    [bySensitivity](const Candidate& lhs, const Candidate& rhs)
+                    {
+                      if (bySensitivity) {
+                        if (lhs.correlation != rhs.correlation) {
+                          return lhs.correlation > rhs.correlation;
+                        }
+                        if (lhs.slope != rhs.slope) {
+                          return lhs.slope > rhs.slope;
+                        }
+                      } else if (std::abs(lhs.delta) != std::abs(rhs.delta)) {
+                        return std::abs(lhs.delta) > std::abs(rhs.delta);
+                      }
+                      return lhs.address < rhs.address;
+                    });
 
   std::map<std::string, std::size_t> rankOf;
   for (std::size_t index = 0; index < candidates.size(); ++index) {

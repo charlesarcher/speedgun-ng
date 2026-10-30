@@ -61,8 +61,7 @@ struct HuntFamily
  *       (FR-006)
  * \invariant no entry of `results` stands in two families
  */
-[[nodiscard]] auto familyGroups(
-    const std::vector<sg::BenchmarkResult>& results)
+[[nodiscard]] auto familyGroups(const std::vector<sg::BenchmarkResult>& results)
     -> std::vector<HuntFamily>;
 
 /**

@@ -58,9 +58,8 @@ struct CompareExit
  *       `results.size()` when none does; the call measures nothing
  *       and reads no clock
  */
-[[nodiscard]] auto indexOfResult(
-    const std::vector<BenchmarkResult>& results, std::string_view name)
-    -> std::size_t;
+[[nodiscard]] auto indexOfResult(const std::vector<BenchmarkResult>& results,
+                                 std::string_view name) -> std::size_t;
 
 /**
  * @brief The comparison core the public call wraps: the version pairing,

@@ -154,8 +154,7 @@ auto plantedDisagreementsAreNamedByPointer() -> void
 // node stands closed, so its `x-order` names the three rank keys after
 // `rank`, and the document the writer produces pairs the schema at minor
 // `1.9`.
-auto entryHuntKeysPairAtMinorOneNine(const std::string& documentText)
-    -> void
+auto entryHuntKeysPairAtMinorOneNine(const std::string& documentText) -> void
 {
   const std::string schemaText = sg::test::readText(SG_SCHEMA_PATH);
 
@@ -183,8 +182,7 @@ auto entryHuntKeysPairAtMinorOneNine(const std::string& documentText)
         "the entry node names the three rank keys after `rank` in its "
         "`x-order` (FR-032, B-9)");
 
-  check(documentText.find("\"schemaVersion\":\"1.9\"")
-            != std::string::npos,
+  check(documentText.find("\"schemaVersion\":\"1.9\"") != std::string::npos,
         "the document the writer produces stands at minor 1.9 (FR-032)");
 }
 

@@ -1294,8 +1294,7 @@ auto surfaceDefaultFields() -> void
         "a default record answers the sensitivity correlation empty");
   check(!row.sensitivitySlope.has_value(),
         "a default record answers the sensitivity slope empty");
-  check(!row.delta.has_value(),
-        "a default record answers the delta empty");
+  check(!row.delta.has_value(), "a default record answers the delta empty");
 }
 
 // `toCompareRules` declares beside `toCounterSet` (FR-024, D-1): the call
@@ -1445,8 +1444,7 @@ auto correlationMonotone() -> void
 {
   std::vector<std::pair<double, double>> points;
   for (std::size_t step = 1; step <= 8; ++step) {
-    points.push_back(
-        {static_cast<double>(step), static_cast<double>(step)});
+    points.push_back({static_cast<double>(step), static_cast<double>(step)});
   }
   const auto answer = sg::detail::spearmanCorrelation(points);
   check(answer.has_value(), "a monotone set answers a correlation");
@@ -1480,8 +1478,7 @@ auto correlationTieRanks() -> void
       {1.0, 2.0}, {2.0, 1.0}, {2.0, 3.0}};
   const auto answer = sg::detail::spearmanCorrelation(points);
   check(answer.has_value(), "a tied set answers a correlation");
-  check(sameDouble(*answer, 0.0),
-        "the tied time figures average their ranks");
+  check(sameDouble(*answer, 0.0), "the tied time figures average their ranks");
   check(!sameDouble(*answer, 0.5),
         "the tied set does not read the ordinal ranks");
 }
@@ -1505,8 +1502,7 @@ auto correlationNoSpread() -> void
 // stand below the count the contract correlates, whatever their figures.
 auto correlationUnderThree() -> void
 {
-  const std::vector<std::pair<double, double>> points {
-      {1.0, 1.0}, {2.0, 3.0}};
+  const std::vector<std::pair<double, double>> points {{1.0, 1.0}, {2.0, 3.0}};
   check(!sg::detail::spearmanCorrelation(points).has_value(),
         "a set under three points answers no correlation");
 }
@@ -1609,19 +1605,20 @@ auto slopeSharedSums() -> void
 // in entry order.
 [[nodiscard]] auto fixtureFamily() -> std::vector<sg::BenchmarkResult>
 {
-  return {familyEntry("bmHuntFamily",
-                      "args:1",
-                      100.0,
-                      {{"event.alpha", 100.0}, {"event.beta", 150.0}}),
-          familyEntry("bmHuntFamily", "args:2", 150.0, {{"event.alpha", 200.0}}),
-          familyEntry("bmHuntFamily",
-                      "args:3",
-                      200.0,
-                      {{"event.alpha", 300.0}, {"event.beta", 450.0}}),
-          familyEntry("bmHuntFamily",
-                      "args:4",
-                      250.0,
-                      {{"event.alpha", 400.0}, {"event.beta", 600.0}})};
+  return {
+      familyEntry("bmHuntFamily",
+                  "args:1",
+                  100.0,
+                  {{"event.alpha", 100.0}, {"event.beta", 150.0}}),
+      familyEntry("bmHuntFamily", "args:2", 150.0, {{"event.alpha", 200.0}}),
+      familyEntry("bmHuntFamily",
+                  "args:3",
+                  200.0,
+                  {{"event.alpha", 300.0}, {"event.beta", 450.0}}),
+      familyEntry("bmHuntFamily",
+                  "args:4",
+                  250.0,
+                  {{"event.alpha", 400.0}, {"event.beta", 600.0}})};
 }
 
 // The points of one event address sorted by the time figure, the form
@@ -1629,8 +1626,8 @@ auto slopeSharedSums() -> void
 [[nodiscard]] auto pointsByTime(std::vector<std::pair<double, double>> points)
     -> std::vector<std::pair<double, double>>
 {
-  std::ranges::sort(points, std::less<double> {},
-                    &std::pair<double, double>::first);
+  std::ranges::sort(
+      points, std::less<double> {}, &std::pair<double, double>::first);
   return points;
 }
 
@@ -1669,10 +1666,8 @@ auto familyGroupOneFamily() -> void
 auto familyGroupSuiteAndCase() -> void
 {
   const std::vector<sg::BenchmarkResult> cases {
-      familyEntry("bmFixture", "caseA/args:1", 100.0,
-                  {{"event.alpha", 300.0}}),
-      familyEntry("bmFixture", "caseB/args:1", 200.0,
-                  {{"event.alpha", 500.0}}),
+      familyEntry("bmFixture", "caseA/args:1", 100.0, {{"event.alpha", 300.0}}),
+      familyEntry("bmFixture", "caseB/args:1", 200.0, {{"event.alpha", 500.0}}),
   };
   check(sg::detail::familyGroups(cases).size() == 1,
         "two cases of one suite stand one family");
@@ -1691,8 +1686,8 @@ auto familyGroupSuiteAndCase() -> void
           "each family carries the one point its one entry measured");
     points.push_back(found->second.front());
   }
-  const std::vector<std::pair<double, double>> kTwoPoints {
-      {100.0, 300.0}, {200.0, 500.0}};
+  const std::vector<std::pair<double, double>> kTwoPoints {{100.0, 300.0},
+                                                           {200.0, 500.0}};
   check(pointsByTime(points) == kTwoPoints,
         "each family carries its own entry's figures");
 }
@@ -1853,8 +1848,7 @@ auto familyStampNoSpread() -> void
 // path of this source file: the guard is the shape the
 // `dataPath` helper of `harness_hunt_json_test.cpp` runs, the schema
 // tail swapped for this file's own.
-[[nodiscard]] auto huntRanksFixturePath(const std::string& name)
-    -> std::string
+[[nodiscard]] auto huntRanksFixturePath(const std::string& name) -> std::string
 {
   constexpr std::string_view kSourceTail =
       "/test/source/harness_hunt_rank_test.cpp";
@@ -1885,11 +1879,9 @@ auto familyStampNoSpread() -> void
 auto baselineRatesByAddress() -> void
 {
   const auto baseline = loadHuntRanksFixture("baseline_rates.json");
-  check(baseline.results.size() == 1,
-        "the document carries one benchmark");
+  check(baseline.results.size() == 1, "the document carries one benchmark");
   const auto& matched = baseline.results.front();
-  check(matched.hunt.has_value(),
-        "the matched entry carries a hunt object");
+  check(matched.hunt.has_value(), "the matched entry carries a hunt object");
   const auto rates = sg::detail::baselineHuntRates(baseline, matched.name);
   check(rates.size() == 3,
         "the extraction reads every hunt entry the match carries");
@@ -1907,8 +1899,7 @@ auto baselineRatesByAddress() -> void
 auto baselineRatesNoHunt() -> void
 {
   const auto baseline = loadHuntRanksFixture("baseline_no_entry_hunt.json");
-  check(baseline.results.size() == 1,
-        "the document carries one benchmark");
+  check(baseline.results.size() == 1, "the document carries one benchmark");
   check(!baseline.results.front().hunt.has_value(),
         "the matched entry carries no hunt object");
   const auto rates = sg::detail::baselineHuntRates(baseline, "bmHuntRanks");
@@ -1930,6 +1921,68 @@ auto baselineRatesZeroRate() -> void
         "the alpha rate stands the document's own figure");
 }
 
+// A matched name the document carries not answers an empty map (B-5, D-5):
+// the extraction finds no benchmark the name pairs with, and no rate stands
+// behind the map the delta stamp reads.
+auto baselineRatesUnmatchedName() -> void
+{
+  const auto baseline = loadHuntRanksFixture("baseline_rates.json");
+  const auto rates =
+      sg::detail::baselineHuntRates(baseline, "bmHuntRanks/args:404");
+  check(rates.empty(),
+        "a name the document carries not leaves no rate to read");
+}
+
+// A baseline that carries no hunt node at all answers the mismatch check's
+// empty answer (B-5, D-6): the pair reads the norm the top-level hunt object
+// names, and a document with none stands no norm to mismatch.
+auto baselineNormNoHuntNode() -> void
+{
+  const sg::ReportData bare;
+  check(!sg::detail::baselineNormMismatch(bare, sg::hunt::HuntNorm::INSTR)
+             .has_value(),
+        "a baseline without a hunt node answers no mismatch");
+}
+
+// The time a family aggregates with: one entry's rows carry a repetition row
+// and no aggregate, so the reverse walk answers the repetition row's figure,
+// and an entry whose rows carry neither kind joins its family with no time,
+// the family it opens standing without events (FR-001, B-4). No record of
+// the time-less entry stands a figure (B-4).
+auto familyStampTimeRows() -> void
+{
+  auto repeated = familyEntry("bmHuntFamily", "args:1", 100.0, {});
+  repeated.rows.clear();
+  auto repetition = sg::ResultRow {};
+  repetition.kind = sg::RowKind::REPETITION;
+  repetition.timePerIterationNs = 250.0;
+  repeated.rows.push_back(repetition);
+  auto record = sg::hunt::RankedEvent {};
+  record.address = "event.alpha";
+  record.rate = 300.0;
+  repeated.hunt->entries.push_back(record);
+
+  auto timeless = familyEntry("bmHuntOther", "args:1", 100.0, {});
+  timeless.rows.clear();
+  auto fit = sg::ResultRow {};
+  fit.kind = sg::RowKind::BIG_O;
+  fit.timePerIterationNs = 900.0;
+  timeless.rows.push_back(fit);
+  auto next = sg::hunt::RankedEvent {};
+  next.address = "event.alpha";
+  next.rate = 500.0;
+  timeless.hunt->entries.push_back(next);
+
+  const std::vector<sg::BenchmarkResult> results {timeless, repeated};
+  const auto families = sg::detail::familyGroups(results);
+  check(families.size() == 2, "each suite stands its own family");
+  check(families.front().events.empty(),
+        "the time-less entry stands its family without events");
+  const auto& alpha = families.back().events.at("event.alpha");
+  check(alpha.size() == 1 && sameDouble(alpha.front().first, 250.0),
+        "the repetition row stands the family's time the stamp reads");
+}
+
 // The norm-pair check answers the mismatch text the refusal prints
 // (B-5, FR-005): a baseline whose top-level hunt object names `cycle`
 // against a run that settled `instr` answers one line naming the
@@ -1939,8 +1992,7 @@ auto baselineRatesZeroRate() -> void
 auto baselineNormMismatchText() -> void
 {
   const auto mismatch = loadHuntRanksFixture("baseline_norm_mismatch.json");
-  check(mismatch.hunt.has_value()
-            && mismatch.hunt->options.norm.has_value()
+  check(mismatch.hunt.has_value() && mismatch.hunt->options.norm.has_value()
             && *mismatch.hunt->options.norm == sg::hunt::HuntNorm::CYCLE,
         "the fixture's top-level hunt object names the cycle norm");
   const auto text =
@@ -2002,9 +2054,9 @@ auto deltaStampMatchedPair() -> void
       const double baselineRate = baseline.at(record.address);
       check(record.delta.has_value(),
             "the matched record carries the delta the pair answers");
-      check(sameDouble(*record.delta,
-                       kPercentScale * (record.rate - baselineRate)
-                           / baselineRate),
+      check(sameDouble(
+                *record.delta,
+                kPercentScale * (record.rate - baselineRate) / baselineRate),
             "the delta stands the signed percent of A-5");
     }
   }
@@ -2044,9 +2096,9 @@ auto deltaStampMissingMatch() -> void
         "the contender address the baseline holds none of stands empty");
   const auto& alpha = entryOf(stamped.front().hunt.value(), kAlpha);
   check(alpha.delta.has_value()
-            && sameDouble(*alpha.delta,
-                          kPercentScale * (1500.0 - kBaselineAlpha)
-                              / kBaselineAlpha),
+            && sameDouble(
+                *alpha.delta,
+                kPercentScale * (1500.0 - kBaselineAlpha) / kBaselineAlpha),
         "the matched address stands its delta beside the missing one");
   for (std::size_t index = 0; index < stamped.size(); ++index) {
     const auto& kept = source[index].hunt->entries;
@@ -2098,9 +2150,9 @@ auto deltaStampBaselineGaps() -> void
   const std::string kZero {"event.zero"};
   const auto& alpha = entryOf(paired.front().hunt.value(), kAlpha);
   check(alpha.delta.has_value()
-            && sameDouble(*alpha.delta,
-                          kPercentScale * (1500.0 - kBaselineAlpha)
-                              / kBaselineAlpha),
+            && sameDouble(
+                *alpha.delta,
+                kPercentScale * (1500.0 - kBaselineAlpha) / kBaselineAlpha),
         "the pair at a positive baseline rate stands its delta");
   const auto& zero = entryOf(paired.front().hunt.value(), kZero);
   check(!zero.delta.has_value(),
@@ -2222,12 +2274,13 @@ auto rankSensitivityOrder() -> void
         "the tie on one correlation alone breaks by the slope");
   check(*entryOf(stamped.front().hunt.value(), kIota).rank == 5,
         "the lowest correlation ranks last beside the highest slope");
-  check(sameDouble(*entryOf(stamped.front().hunt.value(), kAlpha)
-                       .sensitivityCorrelation,
-                   0.9)
-            && sameDouble(*entryOf(stamped.back().hunt.value(), kKappa).delta,
-                          40.0),
-        "the stamp changes no figure of any record");
+  check(
+      sameDouble(
+          *entryOf(stamped.front().hunt.value(), kAlpha).sensitivityCorrelation,
+          0.9)
+          && sameDouble(*entryOf(stamped.back().hunt.value(), kKappa).delta,
+                        40.0),
+      "the stamp changes no figure of any record");
 }
 
 // The `delta` key orders by the magnitude of the delta descending,
@@ -2303,9 +2356,9 @@ auto rankNoisyUnranked() -> void
           "a noisy event stands unranked beside the top figure");
     const auto& first = entryOf(stamped.front().hunt.value(), kFirst).rank;
     const auto& second = entryOf(stamped.front().hunt.value(), kSecond).rank;
-    check(first.has_value() && *first == 1 && second.has_value()
-              && *second == 2,
-          "the clean records carry the ranks 1 to 2 with no gap");
+    check(
+        first.has_value() && *first == 1 && second.has_value() && *second == 2,
+        "the clean records carry the ranks 1 to 2 with no gap");
   }
 }
 
@@ -2324,9 +2377,8 @@ auto rankNoisySplitAddress() -> void
                 "args:1",
                 {RankCase {kSplit, 0.8, 2.0, 30.0},
                  RankCase {kOther, 0.4, 1.0, 20.0}}),
-      rankEntry("bmHuntRank",
-                "args:2",
-                {RankCase {kSplit, 0.8, 2.0, 30.0, true}}),
+      rankEntry(
+          "bmHuntRank", "args:2", {RankCase {kSplit, 0.8, 2.0, 30.0, true}}),
   };
 
   auto bySensitivity = results;
@@ -2457,6 +2509,9 @@ struct Scenario
       Scenario {"baseline-rates-by-address", baselineRatesByAddress},
       Scenario {"baseline-rates-no-hunt", baselineRatesNoHunt},
       Scenario {"baseline-rates-zero-rate", baselineRatesZeroRate},
+      Scenario {"baseline-rates-unmatched-name", baselineRatesUnmatchedName},
+      Scenario {"baseline-norm-no-hunt-node", baselineNormNoHuntNode},
+      Scenario {"family-stamp-time-rows", familyStampTimeRows},
       Scenario {"baseline-norm-mismatch-text", baselineNormMismatchText},
       Scenario {"delta-stamp-matched-pair", deltaStampMatchedPair},
       Scenario {"delta-stamp-missing-match", deltaStampMissingMatch},
@@ -2464,7 +2519,7 @@ struct Scenario
       Scenario {"rank-sensitivity-order", rankSensitivityOrder},
       Scenario {"rank-delta-order", rankDeltaOrder},
       Scenario {"rank-noisy-unranked", rankNoisyUnranked},
-    Scenario {"rank-noisy-split-address", rankNoisySplitAddress},
+      Scenario {"rank-noisy-split-address", rankNoisySplitAddress},
       Scenario {"rank-empty-set", rankEmptySet},
   };
   return kList;

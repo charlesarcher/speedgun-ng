@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "detail/complexity.hpp"
-#include "detail/statistics.hpp"
 
+#include "detail/statistics.hpp"
 #include "speedgun-ng/benchmark.hpp"
 
 namespace sg::detail

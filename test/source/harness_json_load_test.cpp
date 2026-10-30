@@ -358,15 +358,17 @@ auto theHuntRankFieldsLoadBackEqual() -> void
         "the loaded result answers the hunt record and its two events "
         "(FR-031)");
   if (loaded->results.size() != 1 || !loaded->results[0].hunt.has_value()
-      || loaded->results[0].hunt->entries.size() != 2) {
+      || loaded->results[0].hunt->entries.size() != 2)
+  {
     return;
   }
 
   const sg::hunt::RankedEvent& first = loaded->results[0].hunt->entries[0];
-  check(first.sensitivityCorrelation.has_value()
-            && sg::test::sameValue(*first.sensitivityCorrelation, 0.75),
-        "the correlation reads back the figure the run measured (FR-031, "
-        "B-9)");
+  check(
+      first.sensitivityCorrelation.has_value()
+          && sg::test::sameValue(*first.sensitivityCorrelation, 0.75),
+      "the correlation reads back the figure the run measured (FR-031, " "B-"
+                                                                         "9)");
   check(first.sensitivitySlope.has_value()
             && sg::test::sameValue(*first.sensitivitySlope, 2.5),
         "the slope reads back the figure the run measured (FR-031, B-9)");

@@ -69,20 +69,21 @@ namespace
 // ranks it spans, the formulation research PD-01 pins, so a tie-heavy set
 // reads no ordinal tie-break.
 auto rankInPlace(std::vector<std::pair<double, double>>& points,
-                 double std::pair<double, double>::* coordinate) -> void
+                 double std::pair<double, double>::*coordinate) -> void
 {
   auto order = std::vector<std::size_t>(points.size());
   std::iota(order.begin(), order.end(), std::size_t {0});
-  std::ranges::sort(order, std::less<double> {},
-                    [&points, coordinate](const std::size_t index) {
-                      return points[index].*coordinate;
-                    });
+  std::ranges::sort(order,
+                    std::less<double> {},
+                    [&points, coordinate](const std::size_t index)
+                    { return points[index].*coordinate; });
   std::size_t start = 0;
   while (start < order.size()) {
     auto end = start + 1U;
     while (end < order.size()
            && std::is_eq(points[order[end]].*coordinate
-                         <=> points[order[start]].*coordinate)) {
+                         <=> points[order[start]].*coordinate))
+    {
       ++end;
     }
     const auto group = static_cast<double>(end - start);
@@ -117,18 +118,19 @@ auto spearmanCorrelation(std::vector<std::pair<double, double>> points)
     firstSpread += firstRank * firstRank;
     secondSpread += secondRank * secondRank;
   }
-  SG_ASSERT(firstSpread >= 0.0 && secondSpread >= 0.0,
-            "the rank deviations are squares, so their sums stand "
-            "non-negative");
+  SG_ASSERT(
+      firstSpread >= 0.0 && secondSpread >= 0.0,
+      "the rank deviations are squares, so their sums stand " "non-negative");
   if (std::fpclassify(firstSpread) == FP_ZERO
-      || std::fpclassify(secondSpread) == FP_ZERO) {
+      || std::fpclassify(secondSpread) == FP_ZERO)
+  {
     return std::nullopt;
   }
   return covariance / std::sqrt(firstSpread * secondSpread);
 }
 
-auto leastSquaresSums(
-    const std::vector<std::pair<double, double>>& points) -> LeastSquaresSums
+auto leastSquaresSums(const std::vector<std::pair<double, double>>& points)
+    -> LeastSquaresSums
 {
   auto sums = LeastSquaresSums {};
   for (const auto& [first, second] : points) {
@@ -151,8 +153,7 @@ auto leastSquaresSlope(std::vector<std::pair<double, double>> points)
   }
   const auto count = static_cast<double>(points.size());
   const auto sums = leastSquaresSums(points);
-  const double denominator =
-      (count * sums.square) - (sums.xSum * sums.xSum);
+  const double denominator = (count * sums.square) - (sums.xSum * sums.xSum);
   if (std::fpclassify(denominator) == FP_ZERO) {
     return std::nullopt;
   }

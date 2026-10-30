@@ -806,9 +806,10 @@ auto validateHuntCombination(const RunOptions& options) -> void
   // FR-011, the clarify Q2 ruling: the delta rank reads a baseline, so a run
   // that names it beside none refuses one line at status 2, before the
   // entries run (B-8).
-  const bool deltaRank = options.hunt.has_value()
-      ? options.hunt->rank == hunt::HuntRank::DELTA
-      : false;
+  SG_REQUIRE(options.hunt.has_value(),
+             "the unset-hunt return above answers every hunt-less option "
+             "set, so the rank check reads a settled hunt");
+  const bool deltaRank = options.hunt->rank == hunt::HuntRank::DELTA;
   if (deltaRank && baselinePath.empty()) {
     rejectHuntSelection("--hunt-rank: 'delta' needs --hunt-baseline");
   }
