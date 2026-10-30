@@ -1054,6 +1054,19 @@ target_compile_features(harness_group_report_test PRIVATE cxx_std_23)
 add_test(NAME harness_group_report_test
          COMMAND harness_group_report_test)
 
+# The partition of one instance's contexts into the groups one preset
+# names, over the installed shapes and the reads that name no unit
+# (specs/039 T005, T006; FR-001 to FR-010, A-1 to A-6, B-1, B-2).
+add_executable(harness_group_partition_test
+               source/harness_group_partition_test.cpp)
+target_link_libraries(harness_group_partition_test
+                      PRIVATE speedgun-ng::harness)
+target_include_directories(harness_group_partition_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_group_partition_test PRIVATE cxx_std_23)
+add_test(NAME harness_group_partition_test
+         COMMAND harness_group_partition_test)
+
 # The barrier codegen shape at -O2 in every compiler present (T036; US6,
 # FR-029, FR-030).
 add_test(NAME barrier_shape
