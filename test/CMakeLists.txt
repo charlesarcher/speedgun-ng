@@ -1042,6 +1042,18 @@ target_compile_features(harness_placement_report_test PRIVATE cxx_std_23)
 add_test(NAME harness_placement_report_test
          COMMAND harness_placement_report_test)
 
+# The group name of the public disclosure record, read off the aggregate
+# the header owns (specs/039 T001, T002; FR-005, FR-031, FR-040, A-1 of
+# the partition contract). Wave 5 adds the console segment and the report
+# key to this same entry (FR-028, FR-029).
+add_executable(harness_group_report_test
+               source/harness_group_report_test.cpp)
+target_link_libraries(harness_group_report_test
+                      PRIVATE speedgun-ng::harness)
+target_compile_features(harness_group_report_test PRIVATE cxx_std_23)
+add_test(NAME harness_group_report_test
+         COMMAND harness_group_report_test)
+
 # The barrier codegen shape at -O2 in every compiler present (T036; US6,
 # FR-029, FR-030).
 add_test(NAME barrier_shape
