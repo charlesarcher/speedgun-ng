@@ -902,6 +902,15 @@ auto scanCommandLine(int argc, char** argv)
       case kHuntEmitSetOption:
         parseHuntEmitSet(optarg, options);
         break;
+      // specs/040-hunter-sensitivity FR-020, PC-4: the two rows of the
+      // sensitivity lane, each body standing in `hunt_cli.cpp` beside the
+      // bodies of the rows above it.
+      case kHuntEmitRulesOption:
+        parseHuntEmitRules(optarg, options);
+        break;
+      case kHuntBaselineOption:
+        parseHuntBaseline(optarg, options);
+        break;
       case ':':
         return std::unexpected(missingValueLine(optopt));
       case '?': {

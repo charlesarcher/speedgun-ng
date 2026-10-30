@@ -148,6 +148,16 @@ struct HuntOptions
   // to 10000, so a plan may split on this figure directly. Nothing caps a run
   // whose multiplex budget stands empty.
   std::optional<std::size_t> multiplexCap = std::nullopt;
+  // specs/040-hunter-sensitivity FR-023, D-1: the path `--hunt-baseline=`
+  // settled, empty when the run named none. The CLI refuses the delta rank
+  // beside no path and a document the loader refuses before this record
+  // reaches the run (FR-005, FR-011).
+  std::string baseline = {};
+  // specs/040-hunter-sensitivity FR-022: the path `--hunt-emit-rules=`
+  // settled, empty when the run writes no comparison rules. The CLI refuses
+  // the path beside no hunt and a file the system refuses to open before this
+  // record reaches the run.
+  std::string emitRules = {};
 };
 
 // E-06's refusal kinds stand ahead of E-01 because

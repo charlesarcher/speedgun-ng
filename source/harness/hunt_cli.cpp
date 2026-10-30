@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <ios>
 #include <optional>
 #include <span>
 #include <string>
@@ -25,6 +26,7 @@
 #include "detail/hunt_selection.hpp"
 #include "detail/internal.hpp"
 #include "detail/options.hpp"
+#include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_system.hpp"
 #include "speedgun-ng/dbc.hpp"
 
@@ -46,10 +48,10 @@ namespace
   std::exit(2);
 }
 
-// D-3, FR-032: `sensitivity`, `delta` and `score` are the rank keys N14b
-// brings, so the refusal for one of those three words names the work that owns
-// it beside the words this option takes. Any other word is a malformed value
-// and keeps the refusal above.
+// D-3, FR-032, specs/040 FR-010: `score` is the rank key N14b brings, so the
+// refusal for that word names the work that owns it beside the words this
+// option takes. Any other word is a malformed value and keeps the refusal
+// above.
 [[noreturn]] auto rejectHuntRankReserved(const char* text) -> void
 {
   std::fprintf(stderr,
@@ -324,10 +326,10 @@ auto parseHuntNorm(const char* text, RunOptions& options) -> void
 }
 
 // \pre `text` is the value getopt_long read for a required-argument row.
-// \post the rank is the word named; `sensitivity`, `delta` and `score` are the
-//       keys N14b brings and leave with the refusal naming N14b, and a word
-//       outside the five leaves with the refusal naming the accepted words
-//       (D-3, FR-032, FR-081).
+// \post the rank is the word named; `sensitivity` and `delta` are the keys
+//       specs/040 adds (FR-010), `score` is the key N14b brings and leaves
+//       with the refusal naming N14b, and a word outside the five leaves with
+//       the refusal naming the accepted words (D-3, FR-032, FR-081).
 auto parseHuntRank(const char* text, RunOptions& options) -> void
 {
   SG_ASSERT(text != nullptr,
@@ -339,7 +341,11 @@ auto parseHuntRank(const char* text, RunOptions& options) -> void
     rank = hunt::HuntRank::RATE;
   } else if (word == "cv") {
     rank = hunt::HuntRank::CV;
-  } else if (word == "sensitivity" || word == "delta" || word == "score") {
+  } else if (word == "sensitivity") {
+    rank = hunt::HuntRank::SENSITIVITY;
+  } else if (word == "delta") {
+    rank = hunt::HuntRank::DELTA;
+  } else if (word == "score") {
     rejectHuntRankReserved(text);
   } else {
     rejectHuntValue("--hunt-rank", "expected rate or cv", text);
@@ -530,6 +536,40 @@ auto parseHuntEmitSet(const char* text, RunOptions& options) -> void
   options.huntEmitSet = text;
 }
 
+// \pre `text` is the value getopt_long read for a required-argument row.
+// \post the settled path names the file the run writes the promoted events'
+//       comparison rules to; an empty value leaves with the one empty-path
+//       line of the path rows (FR-022). The guards that ask for a hunt beside
+//       the path and for a file the system opens stand in
+//       `validateHuntCombination`, where the whole line has settled.
+auto parseHuntEmitRules(const char* text, RunOptions& options) -> void
+{
+  SG_ASSERT(text != nullptr,
+            "the option row is a required-argument row, so getopt_long answers "
+            "a value for it (FR-082)");
+  if (text[0] == '\0') {
+    rejectHuntSelection(emptyPathFault("--hunt-emit-rules"));
+  }
+  huntValues(options).emitRules = text;
+}
+
+// \pre `text` is the value getopt_long read for a required-argument row.
+// \post the settled path names the document the delta rank reads its baseline
+//       rates from; an empty value leaves with the one empty-path line of the
+//       path rows (FR-023). The guards that ask for a hunt beside the path and
+//       for a document the loader takes stand in `validateHuntCombination`,
+//       where the whole line has settled.
+auto parseHuntBaseline(const char* text, RunOptions& options) -> void
+{
+  SG_ASSERT(text != nullptr,
+            "the option row is a required-argument row, so getopt_long answers "
+            "a value for it (FR-082)");
+  if (text[0] == '\0') {
+    rejectHuntSelection(emptyPathFault("--hunt-baseline"));
+  }
+  huntValues(options).baseline = text;
+}
+
 // \pre the clock and PMU providers stand registered, so the catalog answers
 //      (FR-006); the option scan has ended, so `options` carries the hunt
 //      values the scan read, whether `--hunt` named them or parked them.
@@ -714,9 +754,13 @@ auto expandHuntSelection(RunOptions& options) -> void
 //       options and status 2, the same refusal for either order on the
 //       command line (D-16, FR-081); a settled emit path beside no hunt,
 //       `--hunt=none` among the ways to carry none, leaves with one line
-//       naming the value and status 2 (specs/033 FR-012, R-08); a run that
-//       carries no hunt, or a hunt beside `--list`, `--catalog` or
-//       `--topology`, is not a refusal.
+//       naming the value and status 2 (specs/033 FR-012, R-08); a settled
+//       rules path or baseline path beside no hunt, a delta rank beside no
+//       baseline, a rules file the system refuses to open and a baseline
+//       document the loader refuses, each leave with one line naming the
+//       value and status 2 (specs/040 FR-005, FR-011, FR-022, FR-023, B-8);
+//       a run that carries no hunt, or a hunt beside `--list`, `--catalog`
+//       or `--topology`, is not a refusal.
 auto validateHuntCombination(const RunOptions& options) -> void
 {
   // specs/033-hunter-budgets FR-012, R-08: the promoted set is a hunt's output,
@@ -725,6 +769,19 @@ auto validateHuntCombination(const RunOptions& options) -> void
   if (!options.huntEmitSet.empty() && !huntRequested(options)) {
     rejectHuntSelection("--hunt-emit-set: '" + options.huntEmitSet
                         + "' needs --hunt");
+  }
+  // specs/040 FR-022, FR-023: the rules file and the baseline document are a
+  // hunt's output and input, so each path with no hunt beside it refuses the
+  // same way the promoted-set path above does.
+  const std::string baselinePath =
+      options.hunt.has_value() ? options.hunt->baseline : std::string {};
+  const std::string rulesPath =
+      options.hunt.has_value() ? options.hunt->emitRules : std::string {};
+  if (!rulesPath.empty() && !huntRequested(options)) {
+    rejectHuntSelection("--hunt-emit-rules: '" + rulesPath + "' needs --hunt");
+  }
+  if (!baselinePath.empty() && !huntRequested(options)) {
+    rejectHuntSelection("--hunt-baseline: '" + baselinePath + "' needs --hunt");
   }
   if (!huntRequested(options)) {
     return;
@@ -744,6 +801,39 @@ auto validateHuntCombination(const RunOptions& options) -> void
   // reaches this refusal and the value stays unread here.
   if (options.placement.has_value()) {
     rejectHuntCombination("--placement");
+  }
+
+  // FR-011, the clarify Q2 ruling: the delta rank reads a baseline, so a run
+  // that names it beside none refuses one line at status 2, before the
+  // entries run (B-8).
+  const bool deltaRank = options.hunt.has_value()
+      ? options.hunt->rank == hunt::HuntRank::DELTA
+      : false;
+  if (deltaRank && baselinePath.empty()) {
+    rejectHuntSelection("--hunt-rank: 'delta' needs --hunt-baseline");
+  }
+
+  // FR-022, B-8: the rules path refuses at settlement when the file system
+  // answers the open with a failure, so a run that cannot write its rules
+  // stops before the entries run. The probe opens for appending, so a file
+  // that stands keeps its bytes.
+  if (!rulesPath.empty()) {
+    std::ofstream probe(rulesPath, std::ios::app);
+    if (!probe.is_open()) {
+      rejectHuntSelection("--hunt-emit-rules: '" + rulesPath
+                          + "' cannot be opened");
+    }
+  }
+
+  // FR-005, R-1: the baseline reaches the run through `loadReport` alone, so
+  // a document the loader refuses stands named with the loader's own fault at
+  // settlement, before the entries run (B-8, D-6).
+  if (!baselinePath.empty()) {
+    const auto loaded = loadReport(baselinePath);
+    if (!loaded.has_value()) {
+      rejectHuntSelection("--hunt-baseline: '" + baselinePath
+                          + "' was rejected: " + loaded.error());
+    }
   }
 }
 
@@ -784,6 +874,51 @@ auto writeHuntEmitSet(const std::string& path,
   if (stream.fail()) {
     std::fprintf(stderr,
                  "error: the counter set file '%s' could not be written: %s\n",
+                 quotedText(path).c_str(),
+                 quotedText(std::strerror(errno)).c_str());
+    return false;
+  }
+  return true;
+}
+
+// specs/040-hunter-sensitivity FR-021, FR-022, B-10, D-7: the promoted
+// events' comparison rules, the file the `--compare-rules` option reads. The
+// union shape of the counter set writer above: each hunted entry contributes
+// `toCompareRules(topN, noisePercent)` and the union keeps the first line of
+// an address, so the lines stand in entry order and, within an entry, in
+// rank order, with the figures the batch stamping pass left.
+auto writeHuntEmitRules(const std::string& path,
+                        std::span<const BenchmarkResult> results,
+                        std::size_t topN,
+                        double noisePercent) -> bool
+{
+  std::vector<std::string> lines;
+  for (const auto& result : results) {
+    if (!result.hunt.has_value()) {
+      continue;
+    }
+    for (const auto& line : result.hunt->toCompareRules(topN, noisePercent)) {
+      if (std::ranges::find(lines, line) == lines.end()) {
+        lines.push_back(line);
+      }
+    }
+  }
+
+  std::ofstream stream(path, std::ios::binary | std::ios::trunc);
+  if (!stream.is_open()) {
+    std::fprintf(stderr,
+                 "error: the rules file '%s' cannot be opened: %s\n",
+                 quotedText(path).c_str(),
+                 quotedText(std::strerror(errno)).c_str());
+    return false;
+  }
+  for (const auto& line : lines) {
+    stream << line << '\n';
+  }
+  stream.close();
+  if (stream.fail()) {
+    std::fprintf(stderr,
+                 "error: the rules file '%s' could not be written: %s\n",
                  quotedText(path).c_str(),
                  quotedText(std::strerror(errno)).c_str());
     return false;

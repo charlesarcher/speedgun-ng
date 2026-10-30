@@ -59,17 +59,28 @@ auto familyKey(const sg::BenchmarkResult& result) -> std::string
   return result.suite + '/' + caseName;
 }
 
-// The point's time figure: the aggregate row's time per iteration (D-2). The
-// stamping pass runs after the entries stand measured, so every entry of the
-// run carries its aggregate row.
-auto aggregateTime(const sg::BenchmarkResult& result) -> double
+// The point's time figure: the aggregate row's median (D-2). The row of a
+// run carries its median in `timeStats` and the flat field stands zero
+// there; a record built in place carries the flat figure and no
+// statistics, so the flat field stands for it. A run whose stage measured
+// one repetition carries no aggregate row, so the entry's last repetition
+// row stands the figure; an entry no row prices stands no point.
+auto aggregateTime(const sg::BenchmarkResult& result)
+    -> std::optional<double>
 {
   const auto found = std::ranges::find(
       result.rows, sg::RowKind::AGGREGATE, &sg::ResultRow::kind);
-  SG_ASSERT(found != result.rows.end(),
-            "the entry carries its aggregate row, the stamping pass running "
-            "after the entries stand measured");
-  return found->timePerIterationNs;
+  if (found != result.rows.end()) {
+    const auto& row = *found;
+    return row.timeStats.samples > 0 ? std::optional(row.timeStats.median)
+                                     : std::optional(row.timePerIterationNs);
+  }
+  for (auto row = result.rows.rbegin(); row != result.rows.rend(); ++row) {
+    if (row->kind == sg::RowKind::REPETITION) {
+      return std::optional(row->timePerIterationNs);
+    }
+  }
+  return std::nullopt;
 }
 
 // One family under construction: the entry indices that stand in it, in the
@@ -101,10 +112,13 @@ auto groupEntries(const std::vector<sg::BenchmarkResult>& results)
       families.emplace_back();
     }
     auto& family = families[slot->second];
+    const auto time = aggregateTime(result);
+    if (!time.has_value()) {
+      continue;
+    }
     family.entries.push_back(entry);
-    const double time = aggregateTime(result);
     for (const auto& record : result.hunt->entries) {
-      family.events[record.address].emplace_back(time, record.rate);
+      family.events[record.address].emplace_back(*time, record.rate);
     }
   }
   return families;

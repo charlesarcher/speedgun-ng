@@ -417,6 +417,10 @@ auto parseHuntBudget(const char* text, RunOptions& options) -> void;
 auto parseHuntSeed(const char* text, RunOptions& options) -> void;
 // specs/033-hunter-budgets FR-010, FR-012: the path `--hunt-emit-set` names.
 auto parseHuntEmitSet(const char* text, RunOptions& options) -> void;
+// specs/040-hunter-sensitivity FR-020 to FR-023: the comparison-rules file
+// and the baseline document the sensitivity lane's two rows name.
+auto parseHuntEmitRules(const char* text, RunOptions& options) -> void;
+auto parseHuntBaseline(const char* text, RunOptions& options) -> void;
 auto expandHuntSelection(RunOptions& options) -> void;
 auto validateHuntCombination(const RunOptions& options) -> void;
 
