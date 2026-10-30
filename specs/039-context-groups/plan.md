@@ -48,7 +48,7 @@ hidden symbol visibility with the public surface in
 `include/speedgun-ng/` only; yaml-cpp stays out of `include/`
 (specs/006 FR-014, A8).
 
-**Scale/Scope**: 40 requirements, 10 success criteria. Two new harness
+**Scale/Scope**: 40 requirements, 10 success criteria. Three new harness
 translation units, one new harness header block, one new CLI option
 row, one new public member, five new test executables, three existing
 test files moved by the schema literal.
@@ -68,12 +68,12 @@ design.*
 | Principle | Gate | Status |
 | --- | --- | --- |
 | I. Standard-first | `ci-ubuntu` clang-tidy and cppcheck, pinned C++23 | PASS |
-| II. DBC | new interfaces carry `\pre`, `\post`, `\invariant` and `SG_REQUIRE`, `SG_ENSURE`; `dbc_gate` | PASS |
+| II. DBC | new interfaces carry `\pre`, `\post`, `\invariant` and `SG_REQUIRE`, `SG_ENSURE`; `dbc-gate` | PASS |
 | III. R-DCUT | this plan carries the logical and physical views and the test plan; TDD recorded | PASS |
 | IV.1 Main page | the groups section, its region and its rows land with the behavior (M-H) | PASS |
 | V. Style | `format-check`; N-1 to N-12 spellings, `ContextGroup`, `groupOfContext`, `m_` free public members | PASS |
 | VI. Coverage | 100 percent line, branch and DBC over the added code, no exclusion marker | PASS |
-| VII. Performance | rounds stand outside every window; the round count per attempt rides the disclosure | PASS |
+| VII. Performance | rounds and the publication slot stand outside every window | PASS |
 | VIII. Hard gates | build, ctest, sanitize, tsan, static analysis, naming, format, spell, prose, drift, time-source, coverage, two-cpu | PASS |
 | IX. Spec-driven | spec, plan, tasks, implementation, all four present | PASS |
 | X. Anti-slop | no grouping switch, one partition function, one reader, no group dimension in the row shape | PASS |
@@ -158,7 +158,7 @@ keep their readings.
 | Ruling / question | Decision |
 | --- | --- |
 | R-1 the barrier is the group's own | D-1: the two standing rounds split by group, none spans |
-| R-2 two sources, one partition | D-2: preset or file, the pairing refuses |
+| R-2 two sources, one partition | D-2: preset or file, the partition-naming pairing refuses |
 | R-3 the vendored reader | D-5, FR-016: `source/harness/group_layout.cpp` |
 | R-4 the report carries the groups | D-10, FR-029 to FR-031: the per-context key |
 | R-5 the synthetic seam | FR-036: the seam, plus `installTestLayout` for exact counts |
@@ -169,6 +169,9 @@ keep their readings.
 | Round 1/Q3 no L3 unit | FR-006: `kNoGroup` names no partition |
 | Round 1/Q4 the hunt pairing | FR-019: the standing combination refusal grows |
 | Round 1/Q5 the machine line | FR-028: the preset-in-effect rule holds |
+| Round 2/Q1 the pairing read | FR-019: the resolved preset, read at the fit checkpoint |
+| Round 2/Q2 the node number | D-4: the plan's own unit value |
+| Round 3/Q1 the pairing key | FR-019, D-2: the partition the preset names, the line keeps one rule |
 | P-1 how the publication travels | the per-attempt publication slot below, section "The attempt" |
 | P-2 how the rounds are stored | one `std::vector<std::unique_ptr<sg::ContextBarrier>>` per point |
 | P-3 where the yaml reader lives | harness TU, PRIVATE `BUILD_INTERFACE` link |
@@ -215,9 +218,9 @@ M-A  (version, header field)
   answering `std::expected<std::vector<ContextGroup>, std::string>`
   (FR-012 to FR-018, FR-021). yaml-cpp reads the document; every fault
   answers the one-line text the CLI prints. Test plan:
-  `harness_group_layout_test` (wave 2): the accept set, the fifteen
-  fault shapes, the fault text's path and entry naming. Depends on M-B
-  for the record type.
+  `harness_group_layout_test` (wave 2): the accept set, the 16 fault
+  shapes of FR-018, the fault text's path and entry naming. Depends on
+  M-B for the record type.
 - **M-D the option row, the pairings and the fit walk**
   (`source/harness/detail/options.hpp`, `source/harness/options.cpp`,
   `source/harness/cli.cpp`, `source/harness/hunt_cli.cpp`,
@@ -225,7 +228,8 @@ M-A  (version, header field)
   `docs/pages/harness.md`). Public surface: the CLI row
   `--group-layout` on the value `299`, no environment source, the
   `--help` line the table generates. The fit walk gains the layout arm
-  (FR-011, FR-019 to FR-021). Test plan: `harness_group_cli_test`
+  and the partition read the pairing refusal needs (FR-011, FR-019 to
+  FR-021). Test plan: `harness_group_cli_test`
   (wave 3): the row, the pairing refusals, the batch stop, the replay of
   `test/base_cli/run_matrix.py`; `harness_cli_table_test` moves to 39
   rows and re-checks the guide table. Depends on M-B and M-C.
@@ -234,9 +238,12 @@ M-A  (version, header field)
   context build (`:1626-1644`); the attempt builds one start barrier and one
   stop barrier per group, and the two whole-run barriers take their
   place (`:2066-2067`); the body arrives at its own group's rounds
-  (`:2126`, `:2149`); the fixture setup publishes through the
-  publication slot; the teardown runs on context 0 after every body
-  settled when the run carries more than one group (FR-022 to FR-027).
+  (`:2126`, `:2149`); the fixture pair stays on context 0 inside its
+  own body, where `Fixture` and `callbackState` stand locals
+  (`:2115-2118`): the setup outcome travels on the publication slot,
+  and after its own stop arrival context 0 waits on the settlement
+  flags of the other bodies before the teardown half runs (FR-022 to
+  FR-027).
   Test plan: `harness_group_run_test` (wave 4): the four-group run, the
   two-node run, the one-group run, the stranded-ledger case, the fixture
   failure case, the ungrouped comparison. Depends on M-D.
@@ -254,8 +261,8 @@ M-A  (version, header field)
   at the context item, and the reader answers an empty name for a
   document without it. Test plan: `harness_group_report_test` and the
   moved literals of `harness_json_report_test`,
-  `harness_json_load_test`, `harness_json_schema_test`,
-  `harness_noise_report_test` (FR-030, FR-031). Depends on M-F.
+  `harness_json_load_test` and `harness_noise_report_test`
+  (FR-030, FR-031). Depends on M-F.
 - **M-H the docs** (`README.md`, `example/docs/context_groups.cpp`,
   `tools/docs/example_drift.py`, `docs/pages/harness.md`). The main page
   gains the groups section, its region and its quick-reference rows;
@@ -291,8 +298,11 @@ M-A  (version, header field)
   test reads the installed package: all three run in M-J. The link stays
   `BUILD_INTERFACE` PRIVATE, and the comment at `CMakeLists.txt:753`
   restates the includer count.
-- **The schema literal moves.** Four tests stamp `1.8`; the task moves
-  each of them in the same commit as the constant (FR-030).
+- **The schema literal moves.** Three test files stamp `1.8` in four
+  places (`harness_json_report_test.cpp:546`,
+  `harness_json_load_test.cpp:707`, `harness_noise_report_test.cpp:423`
+  and `:453`); the task moves each in the same commit as the constant
+  (FR-030).
 - **The page stands at its cap.** `README.md` holds 940 lines and
   `PAGE_LINE_CAP` is 940 (`example_drift.py:222`); M-H moves the cap in
   the same change and records the reason beside it.
@@ -308,8 +318,9 @@ resolvePreset(preset, layout, n) ──> PlacementPlan { cpu[], group[], node[] 
                                           │
                               groupPartition(preset, plan, n)
                                           ▼
-                        partition = [ Group{name:"l3-0", slots:[0,4]},
-                                      Group{name:"l3-1", slots:[1,5]} ]
+      the core arm over four L3 groups that hold eight cores:
+                        partition = [ Group{name:"l3-0", slots:[0,1]},
+                                      Group{name:"l3-1", slots:[2,3]} ]
                                           │
                  attempt: one ContextBarrier per group, per point
                                           │
@@ -318,12 +329,13 @@ resolvePreset(preset, layout, n) ──> PlacementPlan { cpu[], group[], node[] 
                  ▼            ▼                                   │  │  poll all DONE
    ctx1 ─────────┐            ┌── start(g1) ── body ── stop(g1) ──┘  │
    ctx5 ─────────┘                                                     │
-                 harness: teardown node to ctx0  <────────────────────┘
+   ctx0: teardown after each settled flag  <───────────────────┘
 ```
 
-The publication slot carries context 0's setup outcome to every body;
-the group rounds carry only their own members; the teardown runs after
-the last body settled.
+The publication slot carries context 0's setup outcome to every body,
+and each body raises a settlement flag after its stop arrival; the
+group rounds carry only their own members, and context 0's teardown
+half waits on those flags inside its own body.
 
 ### Physical view
 
@@ -463,7 +475,7 @@ scenarios carry `PROCESSORS` and stay in the `quick` tier.
 | FR-037 | 8 | the coverage target, the suite run |
 | FR-038 | 7 | the records and the quickstart links |
 | FR-039 | 6 | `example_drift`, `example_run`, `snippet_compile` |
-| FR-040 | 1, 8 | the docs target, `dbc_gate` |
+| FR-040 | 1, 8 | the docs target, `dbc-gate` |
 
 ## Constitution Check (re-check after design)
 
@@ -490,9 +502,10 @@ scenarios carry `PROCESSORS` and stay in the `quick` tier.
   configurability, no comparator, no serialization of its own.
 - `parseGroupLayout`: one file, one grammar, one answer type. No
   streaming, no schema object, no writer.
-- The publication slot: one per-attempt object carrying one string and
-  one ready flag, because a partition leaves the standing round unable
-  to publish context 0's setup (D-7, FR-026). No mutex, no condition
+- The publication slot: one per-attempt object carrying one string, one
+  ready flag and one settlement flag per context, because a partition
+  leaves the standing round unable to publish context 0's setup or to
+  order its teardown (D-7, FR-026). No mutex, no condition
   variable, no queue.
 - The per-group barrier vectors: the existing `sg::ContextBarrier` does
   the work, one object per group per point. No new synchronization type

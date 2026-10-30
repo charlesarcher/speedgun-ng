@@ -16,8 +16,8 @@ disagreement (Constitution II).
   shape of FR-004.
 - A-4: A partition answer is deterministic: one plan and one count give
   one partition, in first-appearance order of the slots.
-- A-5: Neither entry point reads a clock, allocates a thread, opens a
-  file besides the layout path it was handed, or throws to its caller.
+- A-5: No entry point reads a clock, allocates a thread, opens a file
+  besides the layout path it was handed, or throws to its caller.
 - A-6: A name spells `<unit>-<ordinal>` for a preset unit, the file's
   text for a layout entry, or `g<index>` where an entry named none
   (D-4).
