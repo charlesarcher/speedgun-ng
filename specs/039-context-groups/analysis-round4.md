@@ -1,19 +1,15 @@
 # Analysis round 4: specs/039-context-groups
 
 Read on 2026-10-30 on branch `039-context-groups`, judging the head the
-lane held mid-pass, which stands now as `840caf31`
-(`Harness: Add group to the disclosure record`): the split landed after
-this pass read, and it left `12a3e3ec`
-(`Meta: Task the message re-read`) beside that disclosure unit. That
-tree stands three commits past `5d244efa`
-(`Meta: Clear the analysis round-3 findings`), the commit that answered
-round 3's open G4 and its five minors. `14ffeb2a`
-(`CMake: Move the version to 0.26.0`) landed wave 1's version unit,
-`840caf31` landed wave 1's disclosure unit, and `12a3e3ec` carries two
+lane held mid-pass, which stands now as `Harness: Add group to the disclosure record`: the split landed after
+this pass read, and it left `Meta: Task the message re-read` beside that disclosure unit. That
+tree stands three commits past `Meta: Clear the analysis round-3 findings`, the commit that answered
+round 3's open G4 and its five minors. `CMake: Move the version to 0.27.0` landed wave 1's version unit,
+`Harness: Add group to the disclosure record` landed wave 1's disclosure unit, and `Meta: Task the message re-read` carries two
 task edits: `T046` now clears the side build trees before the spell and
 format reads, and `T051` re-reads every lane commit message. The
 `tasks.md` numbers below are read at that tree, and the next landing,
-`e93655f7` (`Meta: Name the analyzer gate`), widened `T004` and `T045`
+`Meta: Name the analyzer gate`, widened `T004` and `T045`
 and moves a number written after `T004` by four lines and one written
 after `T045` by six. The tree no longer stands as master's, the fact
 round 3's provenance recorded the other way: `git diff master...HEAD`
@@ -102,8 +98,7 @@ of the pair and left the `D` half.
 Remediation: read the version bullet's pair as `(FR-032)` and FR-005's
 tail with no decision citation; `D-10` (`spec.md:320-325`) is the
 decision that names the per-context record, should FR-005 want one
-there. The fix landed with this record: `214a3189`
-(`Meta: Close the analysis loop`) reads the version bullet's pair as
+there. The fix landed with this record: `Meta: Close the analysis loop` reads the version bullet's pair as
 `(FR-032)` and FR-005's tail as `(FR-032, D-10)`.
 
 Nothing else stands. The three files hold no clause that contradicts another clause,
@@ -224,5 +219,5 @@ red on the readings measured below.
 
 The lane is ready to implement: round 3's six sites stand closed, wave 1
 has landed green with its two tests passing on the judged tree, and the
-one minor citation this pass filed is cleared in `214a3189`, so the
+one minor citation this pass filed is cleared in `Meta: Close the analysis loop`, so the
 three artifacts carry no open defect.

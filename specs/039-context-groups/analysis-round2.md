@@ -1,7 +1,6 @@
 # Analysis round 2: specs/039-context-groups
 
-Analyzed on 2026-10-30 on branch `039-context-groups` at HEAD `a4ceb8d8`
-(`Meta: Clear the analysis round-1 findings`). That head stands the
+Analyzed on 2026-10-30 on branch `039-context-groups` at HEAD `Meta: Clear the analysis round-1 findings`. That head stands the
 remediation commit the parent named, and the read
 `git diff a4ceb8d8 HEAD` answers no difference. The read
 `git diff master...HEAD` names thirteen files, all under

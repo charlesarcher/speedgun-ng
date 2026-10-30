@@ -96,7 +96,7 @@ review and in the branch's own spec commit.
 **Recommended:** Option A. It keeps D-7's owner and R-1's rule that no
 round spans groups, keeps both standing guarantees, and reuses the wait
 the harness thread already performs at
-`source/harness/runner.cpp:1970-1979`. The spec commit `faa05ddd`
+`source/harness/runner.cpp:1970-1979`. The spec commit `Meta: Specify the context groups`
 carried that route for the setup half, and that clause stands absent
 now.
 
