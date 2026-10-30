@@ -1,7 +1,7 @@
 // ============================================================================
 // TDD test for the rounds of a grouped threaded attempt
-// (specs/039-context-groups T017; FR-001, FR-004, FR-010, FR-022, FR-024 to
-// FR-027, D-7, D-9).
+// (specs/039-context-groups T017, T052; FR-001 to FR-005, FR-010, FR-022,
+// FR-024 to FR-027, D-1, D-2, D-7, D-9).
 //
 // An attempt of a run that carries a partition meets on one start round and
 // one stop round per group, each pair standing at its own group's member count,
@@ -31,6 +31,14 @@
 // a signal and the parent reads that the fault came before any round was waited
 // on (FR-027).
 //
+// T052 adds the scenarios that pace by a file. The path the `--group-layout`
+// row settled reaches the instance the way the preset text does, so the
+// groups, the names and the memberships one file states pace the attempt and
+// reach the disclosure records the console block prints from (FR-002, FR-003,
+// FR-005, D-2). The run reads that file itself: the fit checkpoint read it
+// first, and a file that changed between the two reads ends that run with the
+// reader's own line, so no run paces by a partition no reader accepted.
+//
 // Scenario map:
 //   core-four-groups eight contexts over four L3 groups of two cores each,
 //                    under `core`, over two repetitions: the run completes and
@@ -48,6 +56,18 @@
 //   ungrouped        four contexts with no preset stated complete behind the
 //                    standing pair of rounds and name no group (FR-004,
 //                    FR-007, FR-025)
+//   file-four-groups eight contexts of no preset over the four groups one
+//                    file states: the run completes and discloses the file's
+//                    names and memberships (FR-002, FR-003, FR-005, D-2)
+//   file-defaults    four contexts over two entries that name none disclose
+//                    `g0` and `g1` in document order (FR-003, D-4)
+//   file-preset-pace the same read paces in the same four groups of two under
+//                    `core` and under the file that states them (FR-002,
+//                    FR-003, D-1, D-2)
+//   file-refused     a file the run's own read cannot parse ends that run
+//                    with the reader's line and starts no body
+//   entry-point-file the entry point hands the settled path to the instance it
+//                    runs, and that run reaches its console block (FR-003)
 //   setup-failure    a setup half that throws reaches every body of every
 //                    group, leaves no body in the measured work, and skips the
 //                    second half (FR-026, D-7)
@@ -86,13 +106,16 @@ constexpr std::uint64_t kIterations = 4;
 constexpr std::uint64_t kMonotonicStep = 1000;
 constexpr std::uint64_t kThreadCpuStep = 800;
 
-auto fail(const char* const what) -> void
+auto fail(const std::string_view what) -> void
 {
-  std::fprintf(stderr, "SPEEDGUN-NG TEST FAIL: %s\n", what);
+  std::fprintf(stderr,
+               "SPEEDGUN-NG TEST FAIL: %.*s\n",
+               static_cast<int>(what.size()),
+               what.data());
   std::exit(1);
 }
 
-auto check(const bool condition, const char* const what) -> void
+auto check(const bool condition, const std::string_view what) -> void
 {
   if (!condition) {
     fail(what);
@@ -190,6 +213,70 @@ auto scriptProvider() -> void
   check(registered.has_value(), "the scripted provider registers");
 }
 
+// The layout files the file scenarios write, each beside this process number,
+// so two readers of one name never share a file.
+const std::string kProcessTag = std::to_string(static_cast<long>(getpid()));
+const std::string kFourPath =
+    "/tmp/harness_group_run_four_" + kProcessTag + ".yaml";
+const std::string kDefaultsPath =
+    "/tmp/harness_group_run_defaults_" + kProcessTag + ".yaml";
+const std::string kPacePath =
+    "/tmp/harness_group_run_pace_" + kProcessTag + ".yaml";
+const std::string kRefusedPath =
+    "/tmp/harness_group_run_refused_" + kProcessTag + ".yaml";
+
+// The three names of the entry-point case: the file the parent writes before
+// the fork and the two streams the exec'd child writes, the way the stranded
+// child's ledger line reaches its parent.
+constexpr const char* kEntryPath = "harness_group_run_entry.yaml";
+constexpr const char* kEntryOutPath = "harness_group_run_entry.out";
+constexpr const char* kEntryErrPath = "harness_group_run_entry.err";
+
+// One layout file of the grammar FR-012 fixes, written whole.
+auto writeLayout(const std::string& path, const std::string_view body) -> void
+{
+  std::ofstream file(path, std::ios::trunc);
+  file << body;
+  if (!file) {
+    fail("the scenario can write its layout file " + path);
+  }
+}
+
+// The whole text of one file.
+auto readText(const std::string& path) -> std::string
+{
+  std::ifstream file(path);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  return buffer.str();
+}
+
+// The disclosure block of one console capture: the line that names the count
+// of contexts, empty when the run printed none.
+auto disclosureLine(const std::string& text) -> std::string
+{
+  std::istringstream stream(text);
+  for (std::string line; std::getline(stream, line);) {
+    if (line.contains("contexts=")) {
+      return line;
+    }
+  }
+  return {};
+}
+
+// The count of times one text stands inside another.
+auto countText(const std::string& text,
+               const std::string_view needle) -> std::size_t
+{
+  std::size_t found = 0;
+  for (auto at = text.find(needle); at != std::string::npos;
+       at = text.find(needle, at + needle.size()))
+  {
+    ++found;
+  }
+  return found;
+}
+
 // The bodies whose callables returned, one arrival per body. The arrival
 // stands past the body's own timed work, so a reader that finds the count
 // full stands past every body of the attempt.
@@ -254,7 +341,9 @@ auto needInstance(const std::string_view family) -> sg::Instance*
   return nullptr;
 }
 
-// One run of one instance, with the group name each context disclosed.
+// One run of one instance, with the group name each context disclosed. The
+// layout path stands on the instance the way the entry point leaves it, so the
+// scenario of a file run hands the runner the file it reads (FR-003).
 struct GroupRun
 {
   sg::BenchmarkResult result;
@@ -262,19 +351,42 @@ struct GroupRun
 };
 
 auto runInstance(const std::string_view family,
-                 const std::uint64_t repetitions) -> GroupRun
+                 const std::uint64_t repetitions,
+                 const std::string& layout = {}) -> GroupRun
 {
   sg::detail::RunOptions options;
   options.fixedIterations = kIterations;
   options.repetitions = repetitions;
   sg::detail::Runner runner(options);
 
+  auto* instance = needInstance(family);
+  instance->groupLayout = layout;
+
   GroupRun run;
-  run.result = runner.run(*needInstance(family));
+  run.result = runner.run(*instance);
   for (const auto& context : run.result.contexts) {
     run.groups.push_back(context.group);
   }
   return run;
+}
+
+// The partition shape the disclosed names answer: each position reads as the
+// ordinal of its group among the names first met, so two runs of one partition
+// shape read as equal whatever names their two sources spell (D-2).
+auto paceShape(const std::vector<std::string>& names) -> std::vector<int>
+{
+  std::vector<std::string> seen;
+  std::vector<int> shape;
+  for (const auto& name : names) {
+    const auto found = std::ranges::find(seen, name);
+    if (found == seen.end()) {
+      shape.push_back(static_cast<int>(seen.size()));
+      seen.push_back(name);
+      continue;
+    }
+    shape.push_back(static_cast<int>(found - seen.begin()));
+  }
+  return shape;
 }
 
 // The names one run disclosed, printed where a check fails, so a wrong
@@ -428,6 +540,217 @@ auto scenarioUngrouped() -> int
   return 0;
 }
 
+// FR-002, FR-003, FR-005, D-2: one file is this run's one partition source.
+// The eight contexts stand with no preset stated, so the groups, the names and
+// the memberships the file spells are the ones the attempt paces behind, and
+// each name reaches the disclosure record of the two contexts that stand in
+// its group (FR-002). The run completes over the four pairs of rounds, each
+// pair released by its own two arrivals (D-1).
+auto scenarioFileFourGroups() -> int
+{
+  installShape(machineShape(4, 2, 1, 0));
+  scriptProvider();
+  writeLayout(kFourPath,
+              "groups:\n"
+              "  - name: west\n"
+              "    slots: [0, 4]\n"
+              "  - name: east\n"
+              "    slots: [1, 5]\n"
+              "  - name: north\n"
+              "    slots: [2, 6]\n"
+              "  - name: south\n"
+              "    slots: [3, 7]\n");
+  auto handle = sg::registerBenchmark(&bmGroupBody, "bmGroupFileFour");
+  handle.threads(8);
+
+  const auto run = runInstance("bmGroupFileFour", 1, kFourPath);
+  check(run.result.outcome == sg::RunOutcome::MEASURED,
+        "the run one file groups measured its row (FR-003)");
+  const std::vector<std::string> expected {
+      "west", "east", "north", "south", "west", "east", "north", "south"};
+  if (run.groups != expected) {
+    reportGroups(run.groups);
+    fail("the file's four groups and their memberships reach no run "
+         "(FR-002, FR-003)");
+  }
+  std::puts("harness_group_run_test file-four-groups: ok");
+  return 0;
+}
+
+// FR-003, D-4: an entry that names none takes `g` beside its document index,
+// and the run discloses that name for the slots the entry holds.
+auto scenarioFileDefaults() -> int
+{
+  installShape(machineShape(4, 2, 1, 0));
+  scriptProvider();
+  writeLayout(kDefaultsPath, "groups:\n  - slots: [0, 2]\n  - slots: [1, 3]\n");
+  auto handle = sg::registerBenchmark(&bmGroupBody, "bmGroupFileDefaults");
+  handle.threads(4);
+
+  const auto run = runInstance("bmGroupFileDefaults", 1, kDefaultsPath);
+  check(run.result.outcome == sg::RunOutcome::MEASURED,
+        "the run of the default-named groups measured its row (FR-003)");
+  const std::vector<std::string> expected {"g0", "g1", "g0", "g1"};
+  if (run.groups != expected) {
+    reportGroups(run.groups);
+    fail("the entries that name none carry no document order (D-4)");
+  }
+  std::puts("harness_group_run_test file-defaults: ok");
+  return 0;
+}
+
+// FR-002, FR-003, D-1, D-2: the two sources name one partition shape. The same
+// read of four L3 groups over eight contexts paces in four groups of two under
+// the `core` arm, and paces the same way under the file that states those four
+// groups, so the two attempts build rounds of the same participant counts and
+// each completes on its own arrivals (D-1). The file's run carries the file's
+// names, the one partition the row settled (FR-003).
+auto scenarioFilePresetPace() -> int
+{
+  installShape(machineShape(4, 2, 1, 0));
+  scriptProvider();
+  writeLayout(kPacePath,
+              "groups:\n"
+              "  - name: pair-a\n"
+              "    slots: [0, 1]\n"
+              "  - name: pair-b\n"
+              "    slots: [2, 3]\n"
+              "  - name: pair-c\n"
+              "    slots: [4, 5]\n"
+              "  - name: pair-d\n"
+              "    slots: [6, 7]\n");
+  auto presetHandle = sg::registerBenchmark(&bmGroupBody, "bmGroupPresetPace");
+  presetHandle.threads(8).placement("core");
+  auto fileHandle = sg::registerBenchmark(&bmGroupBody, "bmGroupFilePace");
+  fileHandle.threads(8);
+
+  const auto presetRun = runInstance("bmGroupPresetPace", 1);
+  const auto fileRun = runInstance("bmGroupFilePace", 1, kPacePath);
+  check(presetRun.result.outcome == sg::RunOutcome::MEASURED,
+        "the preset run of the shared shape measured its row");
+  check(fileRun.result.outcome == sg::RunOutcome::MEASURED,
+        "the file run of the shared shape measured its row (FR-003, D-1)");
+  const std::vector<int> fourPairsOfTwo {0, 0, 1, 1, 2, 2, 3, 3};
+  check(paceShape(presetRun.groups) == fourPairsOfTwo,
+        "the `core` arm paces the four groups its plan names (D-3)");
+  check(paceShape(fileRun.groups) == fourPairsOfTwo,
+        "the file paces the same four groups of two on the same read "
+        "(FR-002, D-2)");
+  check(std::ranges::none_of(fileRun.groups,
+                             [](const std::string& name)
+                             { return name.starts_with("l3-"); }),
+        "the run the file groups names no preset unit (FR-003)");
+  std::puts("harness_group_run_test file-preset-pace: ok");
+  return 0;
+}
+
+// The run's own read of a file the fit checkpoint never saw in this state: the
+// state a file that changed after that read leaves behind. The reader's line
+// ends the run, no body starts, and the attempt paces by no partition the
+// grammar refused.
+auto scenarioFileRefused() -> int
+{
+  installShape(machineShape(4, 2, 1, 0));
+  scriptProvider();
+  writeLayout(kRefusedPath,
+              "groups:\n"
+              "  - name: wide\n"
+              "    slots: [0, 1, 2]\n"
+              "  - name: twice\n"
+              "    slots: [2, 3]\n");
+  auto handle = sg::registerBenchmark(&bmGroupBody, "bmGroupFileRefused");
+  handle.threads(4);
+
+  const auto run = runInstance("bmGroupFileRefused", 1, kRefusedPath);
+  check(run.result.outcome == sg::RunOutcome::FAILED,
+        "the run whose file no longer answers the grammar ends failed");
+  check(run.result.reason.contains(kRefusedPath)
+            && run.result.reason.contains("two entries"),
+        "the failed run carries the reader's line naming the file and the "
+        "slot: "
+        + run.result.reason);
+  check(bodyReturns.load(std::memory_order_acquire) == 0,
+        "the file the run cannot read starts no body of its attempt");
+  check(run.groups.empty(),
+        "the run the reader refused discloses no context of its own");
+  std::puts("harness_group_run_test file-refused: ok");
+  return 0;
+}
+
+// FR-003: the child runs the entry point with the settled row, so the path
+// reaches the instance through the entry point, and the run it groups reaches
+// the block its four contexts stand in.
+auto childEntryPointFile() -> int
+{
+  installShape(machineShape(4, 2, 1, 0));
+  auto handle = sg::registerBenchmark(&bmGroupBody, "bmGroupEntryPoint");
+  handle.threads(4);
+  std::vector<std::string> words {"harness_group_run_test",
+                                  std::string("--group-layout=") + kEntryPath,
+                                  "--iterations=4",
+                                  "--filter",
+                                  "^bmGroupEntryPoint"};
+  std::vector<char*> argv;
+  for (auto& word : words) {
+    argv.push_back(word.data());
+  }
+  const int status =
+      sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+  std::fflush(stdout);
+  std::fflush(stderr);
+  return status;
+}
+
+// The entry point's file run as the parent reads it: the row settled, the run
+// completed, and the disclosure block of its four contexts stands in the
+// captured output. The names the block prints stand read off the same
+// partition in `file-four-groups`.
+auto readEntryPointFile(const std::string& self) -> void
+{
+  writeLayout(kEntryPath,
+              "groups:\n"
+              "  - name: front\n"
+              "    slots: [0, 2]\n"
+              "  - name: back\n"
+              "    slots: [1, 3]\n");
+  const pid_t pid = fork();
+  if (pid < 0) {
+    fail("cannot fork the entry-point child");
+  }
+  if (pid == 0) {
+    if (std::freopen(kEntryOutPath, "w", stdout) == nullptr
+        || std::freopen(kEntryErrPath, "w", stderr) == nullptr)
+    {
+      _exit(2);
+    }
+    char* const execArgv[] = {const_cast<char*>(self.c_str()),
+                              const_cast<char*>("entry-point-file"),
+                              nullptr};
+    (void)execv(self.c_str(), execArgv);
+    _exit(2);
+  }
+  int status = 0;
+  if (waitpid(pid, &status, 0) < 0) {
+    fail("cannot wait for the entry-point child");
+  }
+  const std::string out = readText(kEntryOutPath);
+  const std::string err = readText(kEntryErrPath);
+  check(WIFEXITED(status) && WEXITSTATUS(status) == 0,
+        "the entry point runs the file its row settled: " + err);
+  check(out.contains("bmGroupEntryPoint"),
+        "the run the entry point grouped reaches its row: " + err);
+  check(!err.contains("group layout"),
+        "a file that fits the batch answers no refusal line: " + err);
+  const std::string block = disclosureLine(out);
+  check(block.starts_with("  contexts=4"),
+        "the grouped run prints the block of its four contexts: " + block);
+  check(countText(block, "ctx") == 4,
+        "the block carries one field for each context of the run: " + block);
+  std::remove(kEntryPath);
+  std::remove(kEntryOutPath);
+  std::remove(kEntryErrPath);
+}
+
 // FR-026, D-7: the first half of the pair runs on context 0 before any body's
 // measured work, so its failure reaches every body of the attempt, every body
 // stands out of the measured work, and the second half never runs. The eight
@@ -575,6 +898,21 @@ auto main(const int argc, char** argv) -> int
   if (mode == "ungrouped") {
     return scenarioUngrouped();
   }
+  if (mode == "file-four-groups") {
+    return scenarioFileFourGroups();
+  }
+  if (mode == "file-defaults") {
+    return scenarioFileDefaults();
+  }
+  if (mode == "file-preset-pace") {
+    return scenarioFilePresetPace();
+  }
+  if (mode == "file-refused") {
+    return scenarioFileRefused();
+  }
+  if (mode == "entry-point-file") {
+    return childEntryPointFile();
+  }
   if (mode == "setup-failure") {
     return scenarioSetupFailure();
   }
@@ -595,6 +933,10 @@ auto main(const int argc, char** argv) -> int
                                "l3-single-groups",
                                "single-context",
                                "ungrouped",
+                               "file-four-groups",
+                               "file-defaults",
+                               "file-preset-pace",
+                               "file-refused",
                                "setup-failure",
                                "teardown-order"})
   {
@@ -605,6 +947,7 @@ auto main(const int argc, char** argv) -> int
   }
 
   readStrandedLedger(self);
+  readEntryPointFile(self);
 
   std::puts("harness_group_run_test: ok");
   return 0;
