@@ -235,6 +235,19 @@ fit step that stops a layout the run cannot carry.
   names slots only, and a preset that pins while naming no partition
   pins from its own plan (D-6, FR-014).
 
+### Session 2026-10-30, round 4
+
+- Q: FR-021 said every refusal line names the layout path, while FR-019
+  gave the `--hunt` pairing the standing combination shape, whose line
+  names the two option names and carries no path (`refusals.md` case 18
+  recorded both texts). Which clause moves? → A: Neither line moves. The
+  path belongs to the refusals whose subject is the file: the reader's
+  faults, the batch the slot count stops, and the pairing beside a
+  preset, whose line names the path beside the preset value. A
+  combination refusal names the two options that cannot share a run, the
+  way `--hunt` and `--placement` already do, and the file's path stands
+  no part of that reason. FR-021 now states its own scope (D-11).
+
 ## Decisions
 
 - **D-1 (R-1)**: The barrier is the group's own. Each group stands
@@ -697,8 +710,11 @@ prints; the drift and prose gates read no finding.
   instance runs and SHALL stop the batch, one line and exit status 2,
   when the layout's slot count differs from the context count of any
   instance the batch runs (D-8, specs/025 FR-018).
-- **FR-021**: Every refusal line SHALL name the layout path, and a
-  line naming one entry SHALL name the entry's index or name.
+- **FR-021**: A refusal line the layout read answers SHALL name the
+  layout path, and a line naming one entry SHALL name the entry's index
+  or name. The pairing refusal names the path beside the preset value it
+  refuses, and the `--hunt` refusal keeps the standing combination shape
+  that names both option names (FR-019, D-11).
 
 ### The group's own rounds (E)
 
