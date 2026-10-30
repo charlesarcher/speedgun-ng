@@ -4,12 +4,14 @@
   threads, kernel `7.3.0-5-cachyos`; `/proc/sys/kernel/perf_event_paranoid`
   reads `2`.
 - Date: 2026-10-30.
-- Build: the release build at `build/`, the tree at `11d09477` on branch
+- Build: the release build at `build/`, the tree at `2a378f37` on branch
   `040-hunter-sensitivity`; the build command below stands at exit 0.
 - Family: `bmScanBlocks` of `example/docs/labels.cpp`, run through
   `build/example/docs_labels`; three arg points, `cells:256`,
   `cells:512` and `cells:4096`; three repetitions per instance; the
-  aggregate row's median prices each point.
+  aggregate row\'s median prices each point. The suite groups the
+  family (D-2), so the delta stamp and the sensitivity stamp read the
+  same three points.
 
 ## The commands
 
@@ -27,7 +29,7 @@ $ build/example/docs_labels --filter='bmScanBlocks' --min-time=0.2 \
 exit 0
 ```
 
-The first command records the baseline document, the quickstart's
+The first command records the baseline document, the quickstart\'s
 scenario 1; the second reruns beside it under the delta rank, with the
 rules file, scenario 2. Both end at status 0.
 
@@ -36,33 +38,38 @@ rules file, scenario 2. Both end at status 0.
 ```
 speedgun-ng 0.26.0 build=Release
 hunt: baseline matched by full instance name, events by catalog address
-hunt: plan events=353 passes=89 method=PASSES estimate=88288ns budget=60s stage1=353 stage2=60
+hunt: plan events=353 passes=89 method=PASSES estimate=79388ns budget=60s stage1=353 stage2=60
 ...
-hunt: rank 1 cpu/bp_l1_tlb_fetch_hit.if2m instr=15.344 cv=7.35 correlation=n/a slope=n/a delta=262.50
-hunt: rank 2 cpu/ls_bad_status2.stli_other instr=1.587 cv=0.00 correlation=n/a slope=n/a delta=200.00
-hunt: rank 3 cpu/bp_redirects.resync instr=0.000 cv=173.21 correlation=n/a slope=n/a delta=n/a
+hunt: rank 1 cpu/l2_cache_req_stat.ls_rd_blk_x instr=0.000 cv=173.21 correlation=0.8660 slope=0.0001 delta=-100.00
+hunt: rank 2 cpu/ls_misal_loads.ma64 instr=0.000 cv=0.00 correlation=n/a slope=n/a delta=-100.00
+hunt: rank 3 cpu/bp_redirects.all instr=1.587 cv=21.65 correlation=-1.0000 slope=-0.0013 delta=-25.00
+hunt: rank 4 cpu/bp_redirects.ex_redir instr=1.058 cv=0.00 correlation=-1.0000 slope=-0.0011 delta=-33.33
+hunt: rank 5 cpu/l2_cache_req_stat.all instr=20.106 cv=11.75 correlation=-0.5000 slope=-0.0205 delta=11.76
+...
+hunt: rank - cpu/bp_dyn_ind_pred instr=0.000 cv=0.00 correlation=n/a slope=n/a delta=n/a mark=beyond-top
 ...
 hunt: plan summary events=341/353 passes=89 budget=60s
 ```
 
 The disclosure prints once, above the tables. The delta column carries
-the signed percent against the matched event's baseline rate, and the
-delta key orders by the delta's magnitude; the first entry's table
-ranks `bp_l1_tlb_fetch_hit.if2m` first at `262.50`. The sensitivity
-cells stand `n/a`, the standing registry limitation the sensitivity
-record names.
+the signed percent against the matched event\'s baseline rate, and the
+delta key orders by the delta\'s magnitude; the first entry\'s table
+ranks `l2_cache_req_stat.ls_rd_blk_x` first at `-100.00`, and the tie
+at `100` breaks by the catalog address. The sensitivity cells stand
+measured beside the delta cells, the figures the family\'s three
+points carry.
 
 ## The rules file
 
-`rules.txt` holds 23 lines, one `counter:` rule per promoted event in
-rank order, each threshold the run's noise figure `10%`:
+`rules.txt` holds 35 lines, one `counter:` rule per promoted event in
+rank order, each threshold the run\'s noise figure `10%`:
 
 ```
-counter:cpu/bp_l1_tlb_fetch_hit.if2m@median:higher:10%
-counter:cpu/ls_bad_status2.stli_other@median:higher:10%
-counter:cpu/bp_redirects.resync@median:lower:10%
+counter:cpu/l2_cache_req_stat.ls_rd_blk_x@median:lower:10%
+counter:cpu/ls_misal_loads.ma64@median:lower:10%
+counter:cpu/ls_any_fills_from_sys.local_ccx@median:lower:10%
 ...
-counter:cpu/l2_cache_req_stat.ls_rd_blk_l_hit_x@median:higher:10%
+counter:cpu/de_dispatch_stall_cycle_dynamic_tokens_part2.al_tokens@median:higher:10%
 ```
 
 ## The artifacts
@@ -71,4 +78,4 @@ counter:cpu/l2_cache_req_stat.ls_rd_blk_l_hit_x@median:higher:10%
   the rank key `rate`, three entries.
 - `reports/contender-delta.json`: schema minor `1.9`, the norm
   `instr`, the rank key `delta`, three entries.
-- `rules.txt`: the promoted events' rule lines, 23 of them.
+- `rules.txt`: the promoted events\' rule lines, 35 of them.

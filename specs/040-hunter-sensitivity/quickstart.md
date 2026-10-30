@@ -52,16 +52,30 @@ disclosures, the JSON rows cover the round trip at schema minor
    disclosure prints once beside the figures; `rules.txt` holds one
    N5 rule line per promoted event.
 
-3. Read the rules file again through the comparison:
+3. Measure the promoted events as counter columns and read the gate:
+
+   The rules file\'s lines name catalog addresses, and
+   `promoted.txt` carries them one per line for the `--counter=@`
+   form. The follow-up runs measure the promoted events as counter
+   columns, and the comparison of the two follow-up documents
+   answers the verdicts under the gate file the record derives, the
+   lines of `rules.txt` under the `metric:` prefix the `--counter`
+   columns carry (FR-021, the round trip of SC-003):
 
    ```
-   $ build/speedgun-ng --compare=baseline.json,contender.json \
-         --compare-rules=rules.txt
+   $ build/speedgun-ng --benchmark=<family regex> --args=... \
+         --counter=@promoted.txt --json=contender.json
    exit 0
+
+   $ build/speedgun-ng --compare=baseline.json,contender.json \
+         --compare-rules=gate-measured.txt
+   exit 0 or 1, the gate\'s verdict
    ```
 
-   The comparison reads the file with no edit and answers the
-   verdicts the rules name (FR-021, the round trip of SC-003).
+   The hunt document itself carries its rates in the per-entry hunt
+   objects and no counter columns, so the comparison of the hunt
+   documents stands refused (FR-036), and a rule whose event
+   measures zero stands the zero-baseline refusal (FR-031).
 
 ## The refusal scenarios
 
