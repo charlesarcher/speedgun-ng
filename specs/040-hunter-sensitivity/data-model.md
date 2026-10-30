@@ -41,7 +41,7 @@ shapes the feature adds and the fields it reads.
   normalized rate stands from (specs/029's records, unchanged).
 - `sg::ReportData` and `sg::BenchmarkResult`
   (`include/speedgun-ng/benchmark.hpp`): `results` carries one entry
-  per benchmark; `suite` and `caseName` group the family; the
+  per benchmark; `suite` groups the family (D-2); the
   aggregate row's `timePerIterationNs` median stands the point's
   time figure; `hunt` carries the entry's `EntryHunt`.
 - `loadReport` (`include/speedgun-ng/benchmark.hpp:2878`): the one

@@ -352,7 +352,10 @@ stands recorded under the results directory.
 1. **Given** a delta run with promoted events, **When** the run
    carries `--hunt-emit-rules=rules.txt`, **Then** the file holds one
    `counter:<event>@median:<lower|higher>:<n>%` line per promoted
-   event and the comparison reads it again.
+   event, and the comparison reads the file again under the standing
+   validation: the compared documents pair the prefix with the value
+   space their rows carry, the pairing the evidence record measures
+   and the open question records.
 2. **Given** `--hunt-emit-rules` beside no hunt, **When** the run
    starts, **Then** one line names the value and the run ends with
    status 2.
@@ -434,7 +437,8 @@ names at least one test (FR-051).
 ### Ranks (A)
 
 - **FR-001**: When a run with a hunt measures one benchmark family
-  across 3 or more entries that share the suite and case name, the run
+  across 3 or more entries of one suite, the registered family (D-2),
+  the run
   shall compute, per event address the measured entries share, a
   sensitivity figure: the Spearman rank correlation and the
   least-squares slope of the event's normalized rate against the
@@ -499,7 +503,11 @@ names at least one test (FR-051).
   write the promoted events, the top `--hunt-top` ranked events in
   rank order (D-7), as N5 rules in the standing grammar, one per
   line, for example `counter:<event>@median:lower:<n>%`; the file
-  `--compare-rules` reads again with no edit (R-3). The rule's
+  stands the comparison's input, and `--compare-rules` reads it
+  again under the standing validation (R-3): the compared documents
+  pair the rules' prefix with the value space the compared rows
+  carry, a pairing the evidence record measures and the open
+  question records. The rule's
   threshold shall carry the run's noise threshold, the figure
   `--hunt-noise` states, the same value for every promoted event. The
   rule's direction shall stand from the measured delta's sign:
@@ -593,8 +601,10 @@ names at least one test (FR-051).
   disclosure beside the figures; the record stands under the results
   directory.
 - **SC-003**: `--hunt-emit-rules` writes a file the comparison reads
-  again with no edit; the round trip stands recorded under the results
-  directory.
+  again under the standing validation; the round trip stands recorded
+  under the results directory, the measured pairing of the rules'
+  prefix with the compared documents' value space beside it and the
+  open question carrying the ruling.
 - **SC-004**: A run under 3 arg points stands the `n/a` column and no
   rank under the key; the noisy events stand unranked under both keys.
 - **SC-005**: A written document loads back with the rank fields
@@ -668,9 +678,16 @@ names at least one test (FR-051).
 
 ## Open questions
 
-- None. The clarify session of 2026-10-30 settled FR-021's threshold
-  figure, the delta-rank refusal and the norm-mismatch refusal; no
-  other open question stands.
+- The emitted rules' prefix versus the comparison's value space
+  (FR-021): the emitted lines name `counter:`, the prefix the prompt's
+  example fixes, and the comparison pairs `counter:` with the State
+  user counters, while the hunt's promoted events measured through
+  `--counter` stand under the `metric:` namespace. The measured
+  arrangements therefore refuse the emitted file at the value
+  resolution, and the derived gate file the evidence record derives
+  answers the verdicts. The prefix choice, the comparison's value
+  space, or both stand the owner's call; the lane ships the prompt's
+  form and records the measured pairing.
 
 ## Budget note
 

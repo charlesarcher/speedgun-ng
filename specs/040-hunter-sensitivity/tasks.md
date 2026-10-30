@@ -198,7 +198,7 @@ rank assignment, all over the collected records alone.
 
 - [ ] T018 [P] Write the failing family and stamp rows in
   `test/source/harness_hunt_rank_test.cpp` (the family block): the
-  entries of one suite and case name group as one family, one point
+  entries of one suite group as one family (D-2), one point
   per entry carries the aggregate row's median time per iteration and
   the event's normalized rate under the settled norm, a family under
   three entries and a no-spread point set leave both sensitivity
