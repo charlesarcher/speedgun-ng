@@ -1052,8 +1052,13 @@ target_link_libraries(harness_group_report_test
                       PRIVATE speedgun-ng::harness)
 # The console block reads the printers, the fit walk and the layout reader at
 # the internal seam, and installs the machine layout the machine line names.
+# The document block reads a written document against the shipped schema.
 target_include_directories(harness_group_report_test
                            PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_definitions(
+    harness_group_report_test
+    PRIVATE SG_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/docs/schema/report-v1.json"
+)
 target_compile_features(harness_group_report_test PRIVATE cxx_std_23)
 add_test(NAME harness_group_report_test
          COMMAND harness_group_report_test)

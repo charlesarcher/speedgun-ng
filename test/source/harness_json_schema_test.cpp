@@ -76,7 +76,8 @@ auto plantedDisagreementsAreNamedByPointer() -> void
   extra.replace(extra.find("\"speedgun\":{") + 12, 0, "\"extra\":true,");
   const std::string outOfOrder = swappedSpeedgun(text);
   std::string wrongKind = text;
-  wrongKind.replace(wrongKind.find("\"schemaVersion\":") + 16, 5, "1");
+  const auto stamp = wrongKind.find("\"schemaVersion\":") + 16;
+  wrongKind.replace(stamp, wrongKind.find('"', stamp + 1) + 1 - stamp, "1");
   std::string badEnum = text;
   badEnum.replace(
       badEnum.find("\"outcome\":\"MEASURED\"") + 10, 10, "\"measured\"");

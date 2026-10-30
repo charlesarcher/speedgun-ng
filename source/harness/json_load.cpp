@@ -1921,10 +1921,24 @@ auto readEntry(Element value,
     if (!settledFields.has_value()) {
       return std::unexpected(settledFields.error());
     }
+    // specs/039 FR-031: the name of the group that holds this context stands
+    // optional, so the document of a run that carries no partition, and every
+    // document written before the key, loads as the record naming no group. A
+    // name that stands present keeps its own kind and its own refusal
+    // (specs/024 FR-038).
+    auto group = std::string();
+    if (const auto named = optionalField(item, "group"); named.has_value()) {
+      auto spelled = asString(*named, here + "/group");
+      if (!spelled.has_value()) {
+        return std::unexpected(spelled.error());
+      }
+      group = *spelled;
+    }
     result.contexts.push_back(sg::ContextDisclosure {
         .waitMode = *mode,
         .placement = *text,
         .applied = *flag,
+        .group = group,
     });
     ++position;
   }
