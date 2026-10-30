@@ -4,20 +4,24 @@
   VIII with the reading the lane took, the task ledger marked, and this
   record linked from the quickstart beside the five acceptance records
   (FR-038, VIII, X.4).
-- Branch: `039-context-groups` over the lane base `bea6af5b`: 45
-  commits when this record first printed, 52 with the convergence work
-  and its records, read on 2026-10-30 on the lane host `gary`, 16 cores
-  over two L3 groups and one memory node.
+- Branch: `039-context-groups` over the lane base `bea6af5b`. A count
+  of this branch's commits goes stale at the commit that carries it, so
+  the readings stand taken at the head the review fixes left, titled
+  `test: Share the group shape, drop the tautology`, read on 2026-10-30
+  on the lane host `gary`, 16 cores over two L3 groups and one memory
+  node.
 - Reads: each gate unit took its reading on the tree named beside it.
   Seven rows stand re-read on this record's tree the same day and match
   what they answered then: the suite row, the page-drift row, the prose
   row, the spell and format row, the time-source row, the DBC leg inside
   the coverage row, and the vendor-proof row. The prose read counts the
   sources this record adds, so its source count grows and its finding
-  count stays at zero. The convergence pass that followed this record
-  moved one source file, so the coverage row and the two sanitizer rows
-  stand re-read again after that fix: the trace in the section that
-  states the claim, the suites on rebuilt trees.
+  count stays at zero. Two passes followed this record and moved source, the
+  convergence fix and the review fixes after it, so the suite row, the
+  two sanitizer rows, the static-analysis row, the prose, spell, format
+  and time-source rows, the doc-facing subset and the coverage claim all
+  stand re-read at the head those fixes left. The independent read of
+  the same head is the pull request's own CI matrix.
 - Commits: a hash stands quoted only for the lane base. T051 rewrote one
   commit body, which moved every hash from
   `Meta: Clear the analysis round-3 findings` onward, so the lane's own
@@ -28,15 +32,15 @@
 | Gate of Principle VIII | The command | The tree | The reading |
 | --- | --- | --- | --- |
 | Builds succeed for developer and CI presets on Linux | `cmake --preset=ci-rocky`, `cmake --preset=ci-ubuntu`, each followed by `cmake --build build` over a clean tree | `build` | 271 translation units compiled on each preset, 0 warnings on the `ci-rocky` read; `ci-sanitize`, `ci-tsan` and `ci-coverage` each configured and built the suite, read in their own rows below; the host compiler is GCC 16.2.1 at `/usr/bin/c++`, and CI drives Clang on the `sanitize` and `tsan` jobs (`.github/workflows/ci.yml`), so both families stand read |
-| All tests pass (`ctest`) | `ctest --test-dir build --output-on-failure` after each clean rebuild | `build` | `ci-rocky`: 152 of 152 in 299.42 s; `ci-ubuntu`: 147 of 147 in 139.33 s, and re-read at this record's tree at `-j 24`: 100 percent tests passed out of 147 in 22.80 s; the five-entry difference between the two counts is the first wrinkle below, no failing entry stands in either tree |
-| Sanitizer-clean: ASan and UBSan | `cmake --preset=ci-sanitize`, `cmake --build build`, `ctest --test-dir build/sanitize --output-on-failure` | `build/sanitize` | 147 of 147 in 183.78 s; 0 AddressSanitizer, UBSan, leak and SEGV lines in the run log; re-read after the convergence fix on a rebuilt tree at `-j 6`: 147 of 147 in 37.81 s, 0 such lines |
-| Thread-sanitizer-clean | `cmake --preset=ci-tsan`, `cmake --build build`, `ctest --test-dir build/tsan --output-on-failure` | `build/tsan` | 148 of 148 in 484.60 s; 0 ThreadSanitizer lines; the grouped run, barrier, threads and fixture tests stand named green inside that read; re-read after the convergence fix on a rebuilt tree at `-j 6`: 148 of 148 in 98.35 s, 0 such lines |
-| Static-analysis-clean: clang-tidy and cppcheck | `cmake --preset=ci-ubuntu`, a clean rebuild, and the collection forms the CI `Fail on gate findings` step uses | `build` | 271 translation units, 16,482 distinct findings over 132 checks, 0 findings on the gate list; the one cppcheck line of error severity stands off that list and stands named below with the branch that carries it |
+| All tests pass (`ctest`) | `ctest --test-dir build --output-on-failure` after each clean rebuild | `build` | `ci-rocky`: 152 of 152 in 299.42 s; `ci-ubuntu`: 147 of 147 in 139.33 s, and re-read at this record's tree at `-j 24`: 100 percent tests passed out of 147 in 22.80 s; re-read at the head the review fixes left: 152 of 152 on `ci-rocky` in 68.87 s at `-j 8`, and 147 of 147 on `ci-ubuntu` in 21.14 s at `-j 6`; the five-entry difference between the two presets' counts is the first wrinkle below, no failing entry stands in either tree |
+| Sanitizer-clean: ASan and UBSan | `cmake --preset=ci-sanitize`, `cmake --build build`, `ctest --test-dir build/sanitize --output-on-failure` | `build/sanitize` | 147 of 147 in 183.78 s; 0 AddressSanitizer, UBSan, leak and SEGV lines in the run log; re-read at the head the review fixes left, on a rebuilt tree at `-j 6`: 147 of 147 in 33.29 s, 0 such lines |
+| Thread-sanitizer-clean | `cmake --preset=ci-tsan`, `cmake --build build`, `ctest --test-dir build/tsan --output-on-failure` | `build/tsan` | 148 of 148 in 484.60 s; 0 ThreadSanitizer lines; the grouped run, barrier, threads and fixture tests stand named green inside that read; re-read at that head, on a rebuilt tree at `-j 6`: 148 of 148 in 115.50 s, 0 such lines |
+| Static-analysis-clean: clang-tidy and cppcheck | `cmake --preset=ci-ubuntu`, a clean rebuild, and the collection forms the CI `Fail on gate findings` step uses | `build` | 271 translation units, 16,482 distinct findings over 132 checks, 0 findings on the gate list; re-read at the head the review fixes left: 271 translation units, 16,491 findings over 132 checks, 0 on the gate; the one cppcheck line of error severity stands off that list and stands named below with the branch that carries it |
 | Name-check-clean: `readability-identifier-naming` | the same rebuild, counted against `.clang-tidy:21`, which names `readability-identifier-naming` alone under `WarningsAsErrors` | `build` | 0 findings on the naming check; the zero stands proven live against a scratch file that does carry a naming finding, so the reading cannot come from a scan that inspects nothing |
-| `format-check` and `spell-check` pass | `cmake --build build --target spell-check`, `cmake --build build --target format-check` | `build` | both exit 0; the spell read loads `.codespellrc`, and the lane's 17 side build directories stood removed first so the two reads see tracked sources only; re-read at this record's tree, both exit 0 |
-| Generated prose satisfies XI | `python3 tools/prose/prose_gate.py --check all --base bea6af5b`, the kernel `cmake -P cmake/prose-lint.cmake` drives | the tree, and the commit range `bea6af5b..HEAD` | 95 sources, 6,701 units, 0 findings, after T051 rewrote the one body a finding named, in `Meta: Clear the analysis round-3 findings`; re-read at this record's tree: 98 sources, 0 findings |
-| Time-source-clean | `bash test/time_source_gate.sh .` | the tree | clean, and its planted-call self-check reports the call in both placements it plants, so a clean read cannot come from a scan that inspects nothing; re-read at this record's tree |
-| Page-drift-clean: the page equals the code it quotes | `ctest --test-dir build -R "example_drift|example_drift_fixtures|snippet_compile|example_run|example_run_fixtures|report_shape"` | `build` | 13 of 13 in 39.19 s at this record's tree, the family the gate names whole: the drift read, its fixtures, the snippet compile, the run gate, its fixtures, and the seven report-shape goldens; the wave 5 and wave 6 checkpoints read the same family after the console segment, the option row, the page section and the cap move to 957 landed; the `lint` job drives the drift read directly in a tree that configures no examples |
+| `format-check` and `spell-check` pass | `cmake --build build --target spell-check`, `cmake --build build --target format-check` | `build` | both exit 0; the spell read loads `.codespellrc`, and the lane's 17 side build directories stood removed first so the two reads see tracked sources only; re-read at the head the review fixes left, both exit 0 |
+| Generated prose satisfies XI | `python3 tools/prose/prose_gate.py --check all --base bea6af5b`, the kernel `cmake -P cmake/prose-lint.cmake` drives | the tree, and the commit range `bea6af5b..HEAD` | 95 sources, 6,701 units, 0 findings, after T051 rewrote the one body a finding named, in `Meta: Clear the analysis round-3 findings`; re-read at the head the review fixes left: 110 sources, 7,133 units, 0 findings |
+| Time-source-clean | `bash test/time_source_gate.sh .` | the tree | clean, and its planted-call self-check reports the call in both placements it plants, so a clean read cannot come from a scan that inspects nothing; re-read at the head the review fixes left |
+| Page-drift-clean: the page equals the code it quotes | `ctest --test-dir build -R "example_drift|example_drift_fixtures|snippet_compile|example_run|example_run_fixtures|report_shape"` | `build` | 13 of 13 in 39.19 s at this record's tree, and 13 of 13 again at the head the review fixes left, the family the gate names whole: the drift read, its fixtures, the snippet compile, the run gate, its fixtures, and the seven report-shape goldens; the wave 5 and wave 6 checkpoints read the same family after the console segment, the option row, the page section and the cap move to 957 landed; the `lint` job drives the drift read directly in a tree that configures no examples |
 | Coverage gates of VI pass: lines, branches and DBC | `cmake --preset=ci-coverage`, `cmake --build build`, the suite, then `cmake --build build/coverage --target coverage` | `build/coverage` | the suite reads 147 of 147 there; lines 100.0% on 14,158 of 14,158 lines; branches 7,343 of 7,360, 99.8%, a shortfall of 17 rows inside the D-14 recorded allowance of 19 rows, none of the 17 standing on a line this branch moved; no `LCOV_EXCL` marker stands in any lane file and no new ignored error class joined the route; `doc-gate` and `pair-gate` read 318 interfaces with 0 gaps, re-read at this record's tree; the second wrinkle below names the target's exit code |
 | Critical-path performance metrics stay within baseline | none stands owed while the gate's own condition is unmet | n/a | the repository holds no per-platform baseline store and no CI job that compares one, so this gate names no reading to take; what this branch owed instead stands read at T022: no arrival, wait or dispatch sits inside a measured window, and no clock joins the attempt, with `harness_context_barrier_test` and `harness_group_run_test` green |
 | Code is designed for debug and tracing | `cmake --build build --target dbc-gate`, beside the 18 refusal lines and the two disclosure channels the records quote | `build` | the release, sanitizer, tsan and coverage presets the lane read all inherit `dev-mode`, so the reads above ran with the standing diagnostics on; every new path answers with a line a reader sees, a refusal at status 2, the group segment on the console row, or the `group` key in the document; `doc-gate` and `pair-gate` read 318 interfaces with 0 gaps, so no new interface stands without its contract and no new path stands silent |
@@ -69,15 +73,21 @@
 ## The coverage claim in the lane's numbers
 
 Lines stand at 100.0% over the tree and on every lane file, and all 268
-gcov-recorded added lines answer a positive count. The trace stands
+gcov-recorded added lines answer a positive count (266 at the trace this
+record closes on). The trace stands
 re-read after the convergence fix `Harness: Refuse a layout path that
 fails to read`, its counters purged and the CI suite route run again
 (147 of 147), and the totals answer the same: the fix moved a branch
 site from a caught exception to a checked value, so
 `source/harness/group_layout.cpp:117` carries the two arcs the removed
 `catch` gave up and answers them taken 5 and 50 times. Branches stand at
-7,343 of 7,360, 99.8%, a shortfall of 17 rows inside the recorded D-14
-allowance of 19 rows. The lane owned one of those rows, and
+7,341 of 7,358, 99.8%, a shortfall of 17 rows inside the recorded D-14
+allowance of 19 rows. The review fuse that bounded
+`groupOfContext` moved the totals by two positions on each side: the
+unbounded `while` contributed two branch positions that a bounded search
+and a contract line do not reproduce, so 7,360 became 7,358 and 7,343
+became 7,341, and the shortfall count stands unchanged with no row inside
+a file this branch moved. The lane owned one of those rows, and
 `test: Feed the partly numeric slot` cleared it. The third arc at
 `source/harness/group_layout.cpp:91`, the second operand of the `slotOf`
 guard, answered zero taken until the row 9 case fed a partly numeric
@@ -90,7 +100,7 @@ the branch count from 7,342 to 7,343 and the shortfall from 18 rows to
 
 | The lane file | Branches taken |
 | --- | --- |
-| `source/harness/group_partition.cpp` | 14 of 14 |
+| `source/harness/group_partition.cpp` | 12 of 12 |
 | `source/harness/group_fit.cpp` | 14 of 14 |
 | `source/harness/group_layout.cpp` | 112 of 112 |
 | `source/harness/runner.cpp` | 764 of 764 |
