@@ -387,7 +387,7 @@ auto readGraphFile(std::string_view path,
     }
   }
 
-  auto dependencies = std::size_t {0};
+  [[maybe_unused]] auto dependencies = std::size_t {0};
   for (const auto& node : graph.nodes) {
     dependencies += node.deps.size();
   }
