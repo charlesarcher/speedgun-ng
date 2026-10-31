@@ -370,6 +370,16 @@ the mapfile spells for that identity, and it carries the CPUID identity, the
 catalog directory that mapfile selects, the machine layout, and the evidence
 rows naming the file, command, exit and line each claim was read from.
 
+The pre-push run carries one step for the record set: `tools/ci/prepush.sh`
+builds the `validate` target at its step 11, and a failing target stops the
+run with the status the target answers. CI carries the committed-record
+check of the same set: the `test` job runs the reader alone over the records
+under `validation/` against the schema under `docs/schema`, through
+`tools/ci/host_record_gate.sh`. The check writes no record and reads no
+host, so it stands free of the runner's CPU, and a record that does not
+validate fails the check with the one line that quotes the file and the
+reason.
+
 The reader guards each file against `docs/schema/host-record-v1.json` and
 asks four staleness rules in order: a record version behind the version that
 schema names, an evidence path absent under the tree, a cited line absent in

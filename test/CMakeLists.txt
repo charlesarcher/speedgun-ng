@@ -1766,6 +1766,26 @@ set_tests_properties(
              "error: the option '--bogus' names no arm of the write path"
 )
 
+# The committed-record check of the 031 ruling: the gate script runs the
+# reader the two entries above build over the records the fixture plants
+# under a scratch root, one entry with a good fake record and one with a bad
+# one, so the check stands proven at the fail and the pass it answers
+# (specs/031-host-validation FR-035; the gate writes no record and reads no
+# host). The scratch root stands under the temp directory the fixture owns,
+# and the schema and the mapfile rows it plants stand the pinned tree's.
+add_test(
+  NAME host_record_gate_good_record
+  COMMAND python3
+          ${CMAKE_SOURCE_DIR}/test/host-record-gate-fixture/run_host_record_gate_fixture.py
+          good $<TARGET_FILE:host_record_check> ${CMAKE_SOURCE_DIR}
+)
+add_test(
+  NAME host_record_gate_bad_record
+  COMMAND python3
+          ${CMAKE_SOURCE_DIR}/test/host-record-gate-fixture/run_host_record_gate_fixture.py
+          bad $<TARGET_FILE:host_record_check> ${CMAKE_SOURCE_DIR}
+)
+
 # ---- Main-page documentation gates (feature 018) ----
 
 # The root README.md teaches the harness surface, and every code block it

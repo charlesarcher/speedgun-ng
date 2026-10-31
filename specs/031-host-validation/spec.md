@@ -755,6 +755,14 @@ page.
   carry the identity (FR-024 of specs/032). A cited evidence path reads
   as the repository spells it, because renaming a recorded run would
   break the trace a record exists to carry.
+- **FR-043** (the ruling of 2026-10-30): The pre-push run shall carry
+  one step that builds the `validate` target and fails the run with the
+  status that target answers. CI shall check the committed records with
+  the reader alone: the check runs the reader over the records under
+  `validation/` against the schema under `docs/schema`, it writes no
+  record and reads no host (FR-035), and it stands inside a job that
+  builds the tests. A record that does not validate fails the check
+  with the one line that quotes the file and the reason.
 
 ## Key Entities *(include if feature involves data)*
 

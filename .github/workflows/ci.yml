@@ -561,6 +561,12 @@ jobs:
     - name: Test
       working-directory: build
       run: ctest --output-on-failure --no-tests=error -C Release -j "$(nproc)"
+    # The committed-record check of the 031 ruling (R-9): the gate runs the
+    # reader over the records under validation/ against the schema under
+    # docs/schema. It writes no record and reads no host, so it stands free
+    # of the runner's CPU (FR-035); there is no hardware CI tier.
+    - name: Check the committed host records
+      run: bash tools/ci/host_record_gate.sh build/test/host_record_check . validation
     - name: Save ccache
       if: github.event_name == 'push'
       uses: actions/cache/save@v4
