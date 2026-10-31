@@ -522,10 +522,10 @@ auto readNarrowingMask(cpu_set_t& saved) noexcept -> void
   entry.benchmark = benchmark;
   entry.nodes.reserve(settlement.size());
   for (const auto& fact : settlement) {
-    entry.nodes.push_back(GraphNodeRecord {
-        .name = fact.name,
-        .slot = fact.slot,
-        .outcome = std::string(detail::nodeOutcomeName(fact.outcome))});
+    auto outcome = std::string(detail::nodeOutcomeName(fact.outcome));
+    auto node = GraphNodeRecord {
+        .name = fact.name, .slot = fact.slot, .outcome = std::move(outcome)};
+    entry.nodes.push_back(std::move(node));
     if (fact.outcome == detail::NodeOutcome::HELD) {
       entry.held.push_back(
           GraphHeldRecord {.node = fact.name, .reason = fact.reason});
