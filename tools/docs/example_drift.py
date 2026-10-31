@@ -247,6 +247,15 @@ PAGE_LINE_CAP = 964
 # measured length of the page as the section lands. The section sits under
 # the per-section budget of FR-024, so no entry joins SECTION_LINE_CAPS.
 PAGE_LINE_CAP = 994
+# specs/031-host-validation FR-036 measures its own move on top of that
+# page: the `example/quickstart.sh#validate` region runs 2 lines and its
+# marker comment and two fences add 3, and the purpose sentence, the result
+# sentence and the three blank lines that set them add 5, so 10 lines move
+# the cap from 994 to 1004, the measured length of the page with the block
+# in place beside the graph section (2026-10-31). The block stands in
+# "Quick start", which the per-section budgets do not inspect, so
+# SECTION_LINE_CAP and SECTION_LINE_CAPS keep their values.
+PAGE_LINE_CAP = 1004
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that

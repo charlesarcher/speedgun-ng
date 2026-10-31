@@ -4,7 +4,7 @@
 CLI::
 
     python3 tools/dbc/dbc_pair_gate.py \\
-        --src <header-dir> --src2 <source-dir> --registry tools/dbc/macros.yaml \\
+        --src <header-dir> --src2 <source-dir>... --registry tools/dbc/macros.yaml \\
         --doc-matrix <path> --out <matrix>
 
 Takes the documentation-presence matrix (``--doc-matrix``) and fills
@@ -166,8 +166,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--src2",
         type=Path,
-        default=Path("source"),
-        help="directory of implementation TUs (default: source/)",
+        nargs="+",
+        default=[Path("source")],
+        metavar="DIR",
+        help="directories of implementation TUs (default: source/)",
     )
     parser.add_argument(
         "--registry",
@@ -852,15 +854,16 @@ def evaluate(
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     src = args.src.expanduser().resolve()
-    src2 = args.src2.expanduser()
-    if not src2.is_absolute():
-        src2 = src2.resolve()
+    src2 = [root.expanduser().resolve() for root in args.src2]
     registry_path = args.registry.expanduser().resolve()
     doc_path = args.doc_matrix.expanduser().resolve()
     out_path = args.out.expanduser().resolve()
 
     if not src.is_dir():
         die(f"header directory not found: {src}")
+    for root in src2:
+        if not root.is_dir():
+            die(f"implementation directory not found: {root}")
 
     entries = load_registry(registry_path)
     macro_to_kind = {entry["macro"]: entry["kind"] for entry in entries}
@@ -868,7 +871,7 @@ def main(argv: list[str] | None = None) -> int:
         die("registry does not define any macros")
 
     doc = read_matrix(doc_path)
-    scan = scan_tree([src, src2], macro_to_kind)
+    scan = scan_tree([src, *src2], macro_to_kind)
     rows, diagnostics = evaluate(doc, scan, registry_kinds(entries))
     payload = {
         "gate": "pair",

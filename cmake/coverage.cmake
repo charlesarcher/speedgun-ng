@@ -73,6 +73,7 @@ set(
     -d "${PROJECT_BINARY_DIR}"
     CACHE STRING
     "; separated command to generate a trace for the 'coverage' target"
+    FORCE
 )
 
 # Keep application code only. include/* does not match nested
@@ -84,6 +85,26 @@ set(
 # caller, so no code runs at the brace). The source returns its local
 # plainly and this filter removes the false record; no copy is built in
 # source to move a coverage count.
+# `tools/hostcheck/*` joins the two application roots, because specs/031 puts
+# the mapfile matcher and the chooser builder there, outside the library on
+# the ruling that keeps the chooser away from the library internals
+# (plan R-04). A branch the measure cannot see is a branch no gate reads, so
+# the four answers of the chooser stand inside the measure from here. The
+# pattern `--extract` keeps is what a pattern names, which leaves
+# `tools/dbc/overhead.cpp` and `tools/quill/quill_dependency_check.cpp` out of
+# the trace: no test of this suite runs either tool.
+#
+# The two `main` units of that directory leave by name, and the omit below
+# names them. Carrying a run of either program past its argument parse reads
+# CPUID and the installed layout, which no test of this repository may read
+# (FR-031, FR-035), so the suite drives no line past that parse and the 100.0%
+# bar has no run to stand on for code no test reaches. What such a run owes
+# the reader and the writer is pinned instead by the CTest entries
+# `host_record_check` and `host_record_write`: one malformed argument, the
+# line the parse prints, and status 2, all of it before any host read stands
+# (FR-010, FR-037). Both names stand in the trace of a full suite run, where
+# each program entry runs its parse refusal.
+#
 set(
     COVERAGE_EXTRACT_COMMAND
     "${LCOV_EXECUTABLE}" --branch-coverage
@@ -93,9 +114,23 @@ set(
     --extract "${PROJECT_BINARY_DIR}/coverage.raw.info"
     "${PROJECT_SOURCE_DIR}/include/speedgun-ng/*"
     "${PROJECT_SOURCE_DIR}/source/*"
+    "${PROJECT_SOURCE_DIR}/tools/hostcheck/*"
     -o "${PROJECT_BINARY_DIR}/coverage.info"
     CACHE STRING
     "; separated command to keep application sources in the coverage trace"
+    FORCE
+)
+
+set(
+    COVERAGE_OMIT_COMMAND
+    "${LCOV_EXECUTABLE}" --branch-coverage
+    --remove "${PROJECT_BINARY_DIR}/coverage.info"
+    "${PROJECT_SOURCE_DIR}/tools/hostcheck/host_record_check.cpp"
+    "${PROJECT_SOURCE_DIR}/tools/hostcheck/host_record_write.cpp"
+    -o "${PROJECT_BINARY_DIR}/coverage.info"
+    CACHE STRING
+    "; separated command to drop the two program entry units from the trace"
+    FORCE
 )
 
 set(
@@ -105,6 +140,7 @@ set(
     "${PROJECT_BINARY_DIR}/coverage.info"
     CACHE STRING
     "; separated command to fail the 'coverage' target under 100%"
+    FORCE
 )
 
 set(
@@ -115,6 +151,7 @@ set(
     -o "${PROJECT_BINARY_DIR}/coverage_html"
     CACHE STRING
     "; separated command to generate an HTML report for the 'coverage' target"
+    FORCE
 )
 
 # ---- Coverage target ----
@@ -123,6 +160,7 @@ add_custom_target(
     coverage
     COMMAND ${COVERAGE_TRACE_COMMAND}
     COMMAND ${COVERAGE_EXTRACT_COMMAND}
+    COMMAND ${COVERAGE_OMIT_COMMAND}
     COMMAND ${LCOV_EXECUTABLE} --branch-coverage --list
             "${PROJECT_BINARY_DIR}/coverage.info"
     COMMAND ${COVERAGE_SUMMARY_COMMAND}

@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://speedgun-ng.dev/schema/host-record-v1.json",
+  "title": "speedgun-ng host-record",
+  "description": "The document one host writes for one CPU type (specs/031 FR-019 to FR-021, data model E-25). The record names the format version it speaks in recordVersion, and this file speaks 1.0, so a record that carries an older version reads stale (FR-025). Key order is normative and stands in x-order; the harness checker reads this file and compares the key set, the key order and the value kinds of every written record against it. Every object stands closed, and every object that carries keys states its own required list, so a key stays present with its unanswered value: the unanswered value writes null. cpu.stepping reads null where the host answers no leaf 1, and machine.nodes reads null where the machine memory reads unavailable (FR-013). The record carries no date, no host name and no pid, so two runs on one host write the same bytes (FR-023, FR-033, FR-042).",
+  "type": "object",
+  "x-order": ["recordVersion", "cpu", "machine", "evidence"],
+  "required": ["recordVersion", "cpu", "machine", "evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "recordVersion": {
+      "type": "string"
+    },
+    "cpu": {
+      "type": "object",
+      "x-order": ["vendor", "family", "model", "stepping", "key", "directory"],
+      "required": ["vendor", "family", "model", "stepping", "key", "directory"],
+      "additionalProperties": false,
+      "properties": {
+        "vendor": { "type": "string" },
+        "family": { "type": "integer" },
+        "model": { "type": "integer" },
+        "stepping": { "type": ["integer", "null"] },
+        "key": { "type": "string" },
+        "directory": { "type": "string" }
+      }
+    },
+    "machine": {
+      "type": "object",
+      "x-order": [
+        "packages",
+        "l3Groups",
+        "cores",
+        "threads",
+        "mask",
+        "l3",
+        "nodes"
+      ],
+      "required": [
+        "packages",
+        "l3Groups",
+        "cores",
+        "threads",
+        "mask",
+        "l3",
+        "nodes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "packages": { "type": "integer" },
+        "l3Groups": { "type": "integer" },
+        "cores": { "type": "integer" },
+        "threads": { "type": "integer" },
+        "mask": { "type": "string" },
+        "l3": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "x-order": ["ordinal", "cpus"],
+            "required": ["ordinal", "cpus"],
+            "additionalProperties": false,
+            "properties": {
+              "ordinal": { "type": "integer" },
+              "cpus": { "type": "string" }
+            }
+          }
+        },
+        "nodes": {
+          "type": ["array", "null"],
+          "items": {
+            "type": "object",
+            "x-order": ["number", "cpus"],
+            "required": ["number", "cpus"],
+            "additionalProperties": false,
+            "properties": {
+              "number": { "type": "integer" },
+              "cpus": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "x-order": ["path", "command", "exit", "line"],
+        "required": ["path", "command", "exit", "line"],
+        "additionalProperties": false,
+        "properties": {
+          "path": { "type": "string" },
+          "command": { "type": "string" },
+          "exit": { "type": "integer" },
+          "line": { "type": "string" }
+        }
+      }
+    }
+  }
+}

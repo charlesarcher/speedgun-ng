@@ -2523,7 +2523,7 @@ auto checkNode(const SchemaNode& node,
   {
     for (const auto& key : node.required) {
       if (!object[key].has_value()) {
-        return std::unexpected(here(pointer) + ": " + missing("", key));
+        return std::unexpected(missing(here(pointer), key));
       }
     }
     std::size_t previous = 0;
