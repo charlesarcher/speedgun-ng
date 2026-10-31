@@ -20,6 +20,7 @@
 
 #include <cctype>
 #include <cstring>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -103,7 +104,7 @@ auto versionRuleGatesTheReader() -> void
     return mutated;
   };
 
-  sg::test::writeText("harness_json_load_minor.json", withVersion("\"1.11\""));
+  sg::test::writeText("harness_json_load_minor.json", withVersion("\"1.12\""));
   check(sg::loadReport("harness_json_load_minor.json").has_value(),
         "a later minor of the same major loads (FR-010)");
 
@@ -393,6 +394,43 @@ struct Mutation
   const char* replace;
   const char* pointer;
 };
+
+// Every plant of one record, driven in turn: the planted text stands in the
+// written document, the reader refuses the document it writes, and the
+// refusal names the pointer of the field the plant stands at (FR-024,
+// FR-029, SC-007).
+auto plantsRefuseAtTheirPointers(const std::string& text,
+                                 const std::span<const Mutation>& plants,
+                                 const char* const fr) -> void
+{
+  for (const Mutation& plant : plants) {
+    const std::size_t at = text.find(plant.find);
+    if (at == std::string::npos) {
+      std::printf("  no '%s' in the written document\n", plant.find);
+      sg::test::fail("the planted field has no place to stand");
+      continue;
+    }
+    std::string broken = text;
+    broken.replace(at, std::strlen(plant.find), plant.replace);
+    sg::test::writeText(kAgain, broken);
+    const auto refused = sg::loadReport(kAgain);
+    if (refused.has_value()) {
+      std::printf("  '%s' loaded\n", plant.find);
+      sg::test::fail(
+          ("the planted field loads anyway (" + std::string(fr) + ")").c_str());
+      continue;
+    }
+    if (refused.error().find(plant.pointer) == std::string::npos) {
+      std::printf("  '%s' refused without '%s': %s\n",
+                  plant.find,
+                  plant.pointer,
+                  refused.error().c_str());
+      sg::test::fail(("the refusal names no pointer for the field ("
+                      + std::string(fr) + ")")
+                         .c_str());
+    }
+  }
+}
 
 // One planted field per position of every conversion chain the reader
 // runs, planted on the document that carries every optional field: each
@@ -957,9 +995,8 @@ auto valueEnd(const std::string& text, std::size_t valueAt) -> std::size_t
   return end;
 }
 
-auto replaceValue(std::string& text,
-                  const char* key,
-                  const char* replacement) -> bool
+auto replaceValue(std::string& text, const char* key, const char* replacement)
+    -> bool
 {
   const std::string needle = std::string("\"") + key + "\":";
   const std::size_t at = text.find(needle);
@@ -1158,10 +1195,10 @@ auto theHeaderFieldsAndTheStoredWarningsLoad(const std::string& text) -> void
   // number in the field.
   std::string other = text;
   const auto stamp = other.find("\"schemaVersion\":") + 16;
-  other.replace(stamp, other.find('"', stamp + 1) + 1 - stamp, "\"1.11\"");
+  other.replace(stamp, other.find('"', stamp + 1) + 1 - stamp, "\"1.12\"");
   sg::test::writeText("harness_json_load_headertext.json", other);
   const auto minor = sg::loadReport("harness_json_load_headertext.json");
-  check(minor.has_value() && minor->schemaVersion == "1.11",
+  check(minor.has_value() && minor->schemaVersion == "1.12",
         "the field answers the version of a later minor (FR-070, FR-010)");
 
   // A document that omits the speedgun object entirely stays readable and
@@ -1597,31 +1634,108 @@ auto thePrecheckRefusalsNameTheirFields() -> void
        "\"skippedGroups\":[\"x\"]",
        "/precheck/skippedGroups/0"},
   };
-  for (const Mutation& plant : plants) {
-    const std::size_t at = text.find(plant.find);
-    if (at == std::string::npos) {
-      std::printf("  no '%s' in the written document\n", plant.find);
-      sg::test::fail("the planted field has no place to stand");
-      continue;
-    }
-    std::string broken = text;
-    broken.replace(at, std::strlen(plant.find), plant.replace);
-    sg::test::writeText(kAgain, broken);
-    const auto refused = sg::loadReport(kAgain);
-    if (refused.has_value()) {
-      std::printf("  '%s' loaded\n", plant.find);
-      sg::test::fail("the planted field loads anyway (FR-024)");
-      continue;
-    }
-    if (refused.error().find(plant.pointer) == std::string::npos) {
-      std::printf("  '%s' refused without '%s': %s\n",
-                  plant.find,
-                  plant.pointer,
-                  refused.error().c_str());
-      sg::test::fail(
-          "the refusal names no pointer for the field " "(FR-024, FR-029)");
-    }
+  plantsRefuseAtTheirPointers(text, plants, "FR-024, FR-029");
+}
+
+// specs/037-execution-graphs FR-023, FR-028, FR-029, SC-007: every key of the
+// graph record refuses its own missing presence, its own wrong kind and its
+// own container kind, and every refusal names the pointer of the field it
+// answers, the shape the standing pre-check arms give. The record of one
+// threaded run stands written whole first, so each plant moves one key of the
+// written bytes and the reader answers the record's own read.
+auto theGraphRefusalsNameTheirFields() -> void
+{
+  const std::string nodesArray =
+      R"json([{"name":"a","slot":0,"outcome":"finished"},{"name":"b","slot":1,"outcome":"failed"},{"name":"c","slot":2,"outcome":"held"},{"name":"d","slot":3,"outcome":"stopped"}])json";
+  const std::string edgesArray =
+      R"json([{"from":"a","to":"b"},{"from":"b","to":"c"}])json";
+  const std::string heldArray = R"json([{"node":"c","reason":"b"}])json";
+  const std::string stoppedArray = R"json(["d"])json";
+  const std::string runsArray = "[{\"benchmark\":\"bmGraphLoad\",\"nodes\":"
+      + nodesArray + ",\"edges\":" + edgesArray + ",\"held\":" + heldArray
+      + ",\"stopped\":" + stoppedArray + "}]";
+
+  auto run = sg::GraphRunRecord {};
+  run.benchmark = "bmGraphLoad";
+  run.nodes = {
+      sg::GraphNodeRecord {.name = "a", .slot = 0U, .outcome = "finished"},
+      sg::GraphNodeRecord {.name = "b", .slot = 1U, .outcome = "failed"},
+      sg::GraphNodeRecord {.name = "c", .slot = 2U, .outcome = "held"},
+      sg::GraphNodeRecord {.name = "d", .slot = 3U, .outcome = "stopped"},
+  };
+  run.edges = {
+      sg::GraphEdgeRecord {.from = "a", .to = "b"},
+      sg::GraphEdgeRecord {.from = "b", .to = "c"},
+  };
+  run.held = {sg::GraphHeldRecord {.node = "c", .reason = "b"}};
+  run.stopped = {"d"};
+  auto record = sg::GraphRecord {};
+  record.runs.push_back(run);
+
+  auto data = sg::ReportData {};
+  data.graph = record;
+  check(sg::detail::writeReport(
+            kAgain, data, {}, std::nullopt, std::nullopt, record),
+        "the writer wrote the document with the graph record (FR-023)");
+  const std::string text = sg::test::readText(kAgain);
+  check(text.find("\"graph\":{\"runs\":" + runsArray) != std::string::npos,
+        "the written bytes carry the record every plant stands in (FR-023)");
+  const auto loaded = sg::loadReport(kAgain);
+  check(loaded.has_value() && loaded->graph.has_value(),
+        "the reader reads the record back (FR-023)");
+  if (loaded.has_value() && loaded->graph.has_value()) {
+    const auto& entry = loaded->graph->runs[0];
+    check(loaded->graph->runs.size() == 1 && entry.nodes.size() == 4
+              && entry.edges.size() == 2 && entry.held.size() == 1
+              && entry.stopped.size() == 1,
+          "every array of the run reads back (FR-023)");
   }
+
+  const std::string runsKey = "\"runs\":" + runsArray;
+  const std::string nodesKey = "\"nodes\":" + nodesArray;
+  const std::string edgesKey = "\"edges\":" + edgesArray;
+  const std::string heldKey = "\"held\":" + heldArray;
+  const std::string stoppedKey = "\"stopped\":" + stoppedArray;
+  // The plants that drop one key stand at the key plus its separator, and
+  // the separator lives in the row for as long as the row does.
+  const std::string nodesComma = nodesKey + ",";
+  const std::string edgesComma = edgesKey + ",";
+  const std::string heldComma = heldKey + ",";
+  const std::string commaStopped = "," + stoppedKey;
+  const Mutation plants[] = {
+      {runsKey.c_str(), "", "/graph"},
+      {runsKey.c_str(), "\"runs\":1", "/graph/runs"},
+      {"\"benchmark\":\"bmGraphLoad\",", "", "/graph/runs/0"},
+      {"\"benchmark\":\"bmGraphLoad\"",
+       "\"benchmark\":1",
+       "/graph/runs/0/benchmark"},
+      {nodesComma.c_str(), "", "/graph/runs/0"},
+      {nodesKey.c_str(), "\"nodes\":1", "/graph/runs/0/nodes"},
+      {edgesComma.c_str(), "", "/graph/runs/0"},
+      {edgesKey.c_str(), "\"edges\":1", "/graph/runs/0/edges"},
+      {heldComma.c_str(), "", "/graph/runs/0"},
+      {heldKey.c_str(), "\"held\":1", "/graph/runs/0/held"},
+      {commaStopped.c_str(), "", "/graph/runs/0"},
+      {stoppedKey.c_str(), "\"stopped\":1", "/graph/runs/0/stopped"},
+      {stoppedKey.c_str(), "\"stopped\":[1]", "/graph/runs/0/stopped/0"},
+      {"\"name\":\"a\",", "", "/graph/runs/0/nodes/0"},
+      {"\"name\":\"a\"", "\"name\":1", "/graph/runs/0/nodes/0/name"},
+      {"\"slot\":0,", "", "/graph/runs/0/nodes/0"},
+      {"\"slot\":0", "\"slot\":\"x\"", "/graph/runs/0/nodes/0/slot"},
+      {",\"outcome\":\"finished\"", "", "/graph/runs/0/nodes/0"},
+      {"\"outcome\":\"finished\"",
+       "\"outcome\":1",
+       "/graph/runs/0/nodes/0/outcome"},
+      {"\"from\":\"a\",", "", "/graph/runs/0/edges/0"},
+      {"\"from\":\"a\"", "\"from\":1", "/graph/runs/0/edges/0/from"},
+      {",\"to\":\"b\"", "", "/graph/runs/0/edges/0"},
+      {"\"to\":\"b\"", "\"to\":1", "/graph/runs/0/edges/0/to"},
+      {"\"node\":\"c\",", "", "/graph/runs/0/held/0"},
+      {"\"node\":\"c\"", "\"node\":1", "/graph/runs/0/held/0/node"},
+      {",\"reason\":\"b\"", "", "/graph/runs/0/held/0"},
+      {"\"reason\":\"b\"", "\"reason\":1", "/graph/runs/0/held/0/reason"},
+  };
+  plantsRefuseAtTheirPointers(text, plants, "FR-023, FR-029");
 }
 
 auto main() -> int
@@ -1643,6 +1757,7 @@ auto main() -> int
   theContextSpansRefuseWithPointers();
   thePrecheckRecordRoundTrips();
   thePrecheckRefusalsNameTheirFields();
+  theGraphRefusalsNameTheirFields();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;

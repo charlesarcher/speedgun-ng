@@ -93,6 +93,11 @@ inline constexpr int kCompareRulesOptionValue = 294;
 inline constexpr int kHelpOptionValue = 295;
 inline constexpr int kVersionOptionValue = 296;
 inline constexpr int kOsNoiseOptionValue = 297;
+// specs/037-execution-graphs FR-002, R-01: the graph row takes 298, the
+// first value the block above leaves free. The contract fixes 297, and the
+// reservation rule of the Spec identity section moves the lane to the next
+// free value at branch time, the way T032 records the version values.
+inline constexpr int kGraphOptionValue = 298;
 inline constexpr int kGroupLayoutOptionValue = 299;
 
 // specs/029-hunter-core FR-080 to FR-082, D-22: the value each hunt option

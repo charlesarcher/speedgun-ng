@@ -34,12 +34,13 @@ using Builder = simdjson::builder::string_builder;
 // since specs/036 added the optional `tracer` object of the `precheck`
 // record, at 1.8 since specs/033 added the four budget keys inside the
 // root `hunt` object, at 1.9 since specs/040 added the three rank fields
-// inside the per-entry `hunt` object, and at 1.10 since specs/039 added
-// the optional `group` key of the context record. The minor moves as
-// specs/023/contracts/schema-file.md states for a key added inside major
-// 1 (specs/027 FR-026, specs/028 FR-086, specs/033 FR-022, specs/040
-// FR-032, PC-6, specs/039 FR-030, FR-032).
-constexpr std::string_view kSchemaVersion = "1.10";
+// inside the per-entry `hunt` object, at 1.10 since specs/039 added the
+// optional `group` key of the context record, and at 1.11 since specs/037
+// added the top-level `graph` record, the move specs/023/contracts/
+// schema-file.md states for a key added inside major 1 (specs/027 FR-026,
+// specs/028 FR-086, specs/033 FR-022, specs/040 FR-032, PC-6, specs/039
+// FR-030, FR-032, specs/037 FR-005).
+constexpr std::string_view kSchemaVersion = "1.11";
 
 // The `source` word of one disclosed use, spelled as the enum of
 // `docs/schema/report-v1.json` states it (specs/028 E-04, FR-040). The
@@ -825,6 +826,26 @@ auto runnableCpuCount() -> std::uint64_t
       static_cast<std::uint64_t>(std::thread::hardware_concurrency()));
 }
 
+// specs/037-execution-graphs FR-023: the nodes of one run of the `graph`
+// record stand in ascending slot order, the order the record's `x-order`
+// fixes.
+auto runListsNodesBySlot(const GraphRunRecord& entry) noexcept -> bool
+{
+  return std::ranges::is_sorted(entry.nodes, {}, &GraphNodeRecord::slot);
+}
+
+// Whether every run of the record lists its nodes that way. A function here,
+// where `SG_REQUIRE` reaches it by name: a closure inside the predicate of
+// that macro gains a coverage record whose only line the standing extract
+// filter of `cmake/coverage.cmake` removes, and lcov refuses the whole trace
+// over a hit function that carries no hit line. Only that requirement calls
+// this, so a build whose contracts are ignored calls nothing.
+[[nodiscard]] [[maybe_unused]] auto everyRunListsNodesBySlot(
+    const std::vector<GraphRunRecord>& runs) -> bool
+{
+  return std::ranges::all_of(runs, &runListsNodesBySlot);
+}
+
 }  // namespace
 
 auto noiseWarningOf(const BenchmarkResult& result)
@@ -894,11 +915,63 @@ auto writeRunObject(Builder& builder, const RunDisclosure& disclosure) -> void
   }
 }
 
+// specs/037-execution-graphs FR-023, D-5: one threaded run's entry of the
+// `graph` record. The five keys stand in the order the entry's `x-order`
+// states, and each array keeps the order the run settled it: the nodes by
+// ascending slot, the edges by the file, the held nodes by ascending slot.
+// The entry carries no figure of the timed report: the graph times nothing
+// (FR-024).
+auto writeGraphRun(Builder& builder, const GraphRunRecord& entry) -> void
+{
+  JsonObjectWriter run(builder);
+  put(builder, run, "benchmark", entry.benchmark);
+  run.key("nodes");
+  {
+    JsonArrayWriter nodes(builder);
+    for (const auto& node : entry.nodes) {
+      nodes.item();
+      JsonObjectWriter nodeWriter(builder);
+      put(builder, nodeWriter, "name", node.name);
+      put(builder, nodeWriter, "slot", std::uint64_t {node.slot});
+      put(builder, nodeWriter, "outcome", node.outcome);
+    }
+  }
+  run.key("edges");
+  {
+    JsonArrayWriter edges(builder);
+    for (const auto& edge : entry.edges) {
+      edges.item();
+      JsonObjectWriter edgeWriter(builder);
+      put(builder, edgeWriter, "from", edge.from);
+      put(builder, edgeWriter, "to", edge.to);
+    }
+  }
+  run.key("held");
+  {
+    JsonArrayWriter held(builder);
+    for (const auto& gate : entry.held) {
+      held.item();
+      JsonObjectWriter heldWriter(builder);
+      put(builder, heldWriter, "node", gate.node);
+      put(builder, heldWriter, "reason", gate.reason);
+    }
+  }
+  run.key("stopped");
+  {
+    JsonArrayWriter stopped(builder);
+    for (const auto& name : entry.stopped) {
+      stopped.item();
+      builder.escape_and_append_with_quotes(name);
+    }
+  }
+}
+
 auto writeReport(const std::string& path,
                  const ReportData& data,
                  const RunDisclosure& disclosure,
                  const std::optional<JitterReportRecord>& jitter,
-                 const std::optional<PrecheckRecord>& precheck) -> bool
+                 const std::optional<PrecheckRecord>& precheck,
+                 const std::optional<GraphRecord>& graph) -> bool
 {
   SG_REQUIRE(!path.empty(),
              "writeReport takes the path the option scanner settled "
@@ -909,6 +982,9 @@ auto writeReport(const std::string& path,
              "(specs/023 E-01)");
   SG_REQUIRE(!jitter.has_value() || jitter->cpus.size() == jitter->stats.size(),
              "the jitter record carries one stats object per probe cpu (E-07)");
+  SG_REQUIRE(!graph.has_value() || everyRunListsNodesBySlot(graph->runs),
+             "the graph record lists each run's nodes in ascending slot order "
+             "(specs/037 FR-023)");
   Builder builder;
   {
     JsonObjectWriter root(builder);
@@ -1088,6 +1164,23 @@ auto writeReport(const std::string& path,
             putAttributionFigure(
                 builder, tracerCpu, "hardware", entry.hardware);
           }
+        }
+      }
+    }
+    if (graph.has_value()) {
+      // specs/037 FR-023, D-5: the graph object stands after `precheck` and
+      // before `benchmarks`, the placement the pre-check record set. A run
+      // with no `--graph` writes no key, so its document keeps the bytes it
+      // wrote before the record existed apart from the `schemaVersion` value
+      // (FR-006, SC-005).
+      root.key("graph");
+      JsonObjectWriter graphWriter(builder);
+      graphWriter.key("runs");
+      {
+        JsonArrayWriter runs(builder);
+        for (const auto& entry : graph->runs) {
+          runs.item();
+          writeGraphRun(builder, entry);
         }
       }
     }

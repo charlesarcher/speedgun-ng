@@ -49,9 +49,8 @@ auto kindName(Element value) -> const char*
   return "object";
 }
 
-auto wrongKind(const std::string& where,
-               Element value,
-               std::string_view want) -> std::string
+auto wrongKind(const std::string& where, Element value, std::string_view want)
+    -> std::string
 {
   return where + ": expected " + std::string(want) + ", found "
       + kindName(value);
@@ -62,9 +61,8 @@ auto missing(const std::string& where, std::string_view key) -> std::string
   return where + ": the key '" + std::string(key) + "' stands missing";
 }
 
-auto field(Element object,
-           const std::string& where,
-           std::string_view key) -> std::expected<Element, std::string>
+auto field(Element object, const std::string& where, std::string_view key)
+    -> std::expected<Element, std::string>
 {
   auto found = object[key];
   if (found.has_value()) {
@@ -82,8 +80,8 @@ auto field(Element object,
 // key that stands absent reads as nothing and leaves its member at the
 // default of a run that collected no pass. A key that stands present keeps
 // its own kind and its own refusal (specs/024 FR-038).
-auto optionalField(Element object,
-                   std::string_view key) noexcept -> std::optional<Element>
+auto optionalField(Element object, std::string_view key) noexcept
+    -> std::optional<Element>
 {
   auto found = object[key];
   if (!found.has_value()) {
@@ -94,9 +92,10 @@ auto optionalField(Element object,
 
 // The keys a record must hold, reported once: the first key that stands
 // missing names the record and itself (FR-024).
-auto settled(const std::vector<
-             std::pair<std::string, std::expected<Element, std::string>>>&
-                 parts) -> std::expected<void, std::string>
+auto settled(
+    const std::vector<
+        std::pair<std::string, std::expected<Element, std::string>>>& parts)
+    -> std::expected<void, std::string>
 {
   for (const auto& part : parts) {
     if (!part.second.has_value()) {
@@ -142,8 +141,8 @@ auto asString(Element value, const std::string& where)
   return std::string(text);
 }
 
-auto asDouble(Element value,
-              const std::string& where) -> std::expected<double, std::string>
+auto asDouble(Element value, const std::string& where)
+    -> std::expected<double, std::string>
 {
   double number = 0.0;
   if (const auto code = value.get_double().get(number);
@@ -169,8 +168,8 @@ auto asUnsigned(Element value, const std::string& where)
   return static_cast<std::uint64_t>(number);
 }
 
-auto asBool(Element value,
-            const std::string& where) -> std::expected<bool, std::string>
+auto asBool(Element value, const std::string& where)
+    -> std::expected<bool, std::string>
 {
   bool flag = false;
   if (const auto code = value.get_bool().get(flag); code != simdjson::SUCCESS) {
@@ -179,8 +178,8 @@ auto asBool(Element value,
   return flag;
 }
 
-auto asArray(Element value,
-             const std::string& where) -> std::expected<JsonArray, std::string>
+auto asArray(Element value, const std::string& where)
+    -> std::expected<JsonArray, std::string>
 {
   JsonArray items;
   if (const auto code = value.get_array().get(items); code != simdjson::SUCCESS)
@@ -193,9 +192,8 @@ auto asArray(Element value,
 // One word of a closed enumeration, or the error naming the word the
 // document held (FR-024).
 template<class Enum>
-auto asEnum(const auto& words,
-            Element value,
-            const std::string& where) -> std::expected<Enum, std::string>
+auto asEnum(const auto& words, Element value, const std::string& where)
+    -> std::expected<Enum, std::string>
 {
   auto text = asString(value, where);
   if (!text.has_value()) {
@@ -271,7 +269,7 @@ auto readPercentileCell(Element value, const std::string& where)
       parts {
           {"available", field(value, where, "available")},
           {"value", field(value, where, "value")},
-      };
+  };
   if (!settled(parts).has_value()) {
     return std::unexpected(settled(parts).error());
   }
@@ -367,7 +365,7 @@ auto readMetricValue(Element value, const std::string& where)
           {"runningRatio", field(value, where, "runningRatio")},
           {"scaled", field(value, where, "scaled")},
           {"availability", field(value, where, "availability")},
-      };
+  };
   auto keys = settled(parts);
   if (!keys.has_value()) {
     return std::unexpected(keys.error());
@@ -406,8 +404,8 @@ auto readMetricValue(Element value, const std::string& where)
   };
 }
 
-auto readFit(Element value,
-             const std::string& where) -> std::expected<sg::FitRow, std::string>
+auto readFit(Element value, const std::string& where)
+    -> std::expected<sg::FitRow, std::string>
 {
   std::vector<std::pair<std::string, std::expected<Element, std::string>>>
       parts {
@@ -417,7 +415,7 @@ auto readFit(Element value,
           {"rmsPercent", field(value, where, "rmsPercent")},
           {"scalesWithUnit", field(value, where, "scalesWithUnit")},
           {"reason", field(value, where, "reason")},
-      };
+  };
   auto keys = settled(parts);
   if (!keys.has_value()) {
     return std::unexpected(keys.error());
@@ -1031,6 +1029,210 @@ auto readPrecheckRecord(Element value, const std::string& where)
   return read;
 }
 
+// specs/037-execution-graphs FR-023, D-5: one node of the record. The three
+// keys of a `nodes` entry stand in the order the schema's `x-order` states,
+// and each is read and kind-checked in that order, so a wrong kind names
+// itself before a later key's absence does (FR-029).
+auto readGraphNode(Element value, const std::string& where)
+    -> std::expected<sg::GraphNodeRecord, std::string>
+{
+  auto name = field(value, where, "name");
+  if (!name.has_value()) {
+    return std::unexpected(name.error());
+  }
+  auto nameText = asString(*name, where + "/name");
+  if (!nameText.has_value()) {
+    return std::unexpected(nameText.error());
+  }
+  auto slot = field(value, where, "slot");
+  if (!slot.has_value()) {
+    return std::unexpected(slot.error());
+  }
+  auto slotValue = asUnsigned(*slot, where + "/slot");
+  if (!slotValue.has_value()) {
+    return std::unexpected(slotValue.error());
+  }
+  auto outcome = field(value, where, "outcome");
+  if (!outcome.has_value()) {
+    return std::unexpected(outcome.error());
+  }
+  auto outcomeText = asString(*outcome, where + "/outcome");
+  if (!outcomeText.has_value()) {
+    return std::unexpected(outcomeText.error());
+  }
+  return sg::GraphNodeRecord {
+      .name = std::move(*nameText),
+      .slot = static_cast<std::uint32_t>(*slotValue),
+      .outcome = std::move(*outcomeText),
+  };
+}
+
+// One dependency pair of the record: the two keys of an `edges` entry, the
+// pair of node names the graph file states (FR-014, FR-023).
+auto readGraphEdge(Element value, const std::string& where)
+    -> std::expected<sg::GraphEdgeRecord, std::string>
+{
+  auto from = field(value, where, "from");
+  if (!from.has_value()) {
+    return std::unexpected(from.error());
+  }
+  auto fromText = asString(*from, where + "/from");
+  if (!fromText.has_value()) {
+    return std::unexpected(fromText.error());
+  }
+  auto to = field(value, where, "to");
+  if (!to.has_value()) {
+    return std::unexpected(to.error());
+  }
+  auto toText = asString(*to, where + "/to");
+  if (!toText.has_value()) {
+    return std::unexpected(toText.error());
+  }
+  return sg::GraphEdgeRecord {.from = std::move(*fromText),
+                              .to = std::move(*toText)};
+}
+
+// One held node of the record: the two keys of a `held` entry, the node and
+// the failed node that gates it (FR-020, FR-023).
+auto readGraphHeld(Element value, const std::string& where)
+    -> std::expected<sg::GraphHeldRecord, std::string>
+{
+  auto node = field(value, where, "node");
+  if (!node.has_value()) {
+    return std::unexpected(node.error());
+  }
+  auto nodeText = asString(*node, where + "/node");
+  if (!nodeText.has_value()) {
+    return std::unexpected(nodeText.error());
+  }
+  auto reason = field(value, where, "reason");
+  if (!reason.has_value()) {
+    return std::unexpected(reason.error());
+  }
+  auto reasonText = asString(*reason, where + "/reason");
+  if (!reasonText.has_value()) {
+    return std::unexpected(reasonText.error());
+  }
+  return sg::GraphHeldRecord {.node = std::move(*nodeText),
+                              .reason = std::move(*reasonText)};
+}
+
+// One `runs` entry: the five keys of the entry in the order the schema's
+// `x-order` states, the run named by its benchmark and its four arrays
+// keeping the order the writer wrote them (specs/037 FR-023, D-5).
+auto readGraphRun(Element value, const std::string& where)
+    -> std::expected<sg::GraphRunRecord, std::string>
+{
+  sg::GraphRunRecord read {};
+  auto benchmark = field(value, where, "benchmark");
+  if (!benchmark.has_value()) {
+    return std::unexpected(benchmark.error());
+  }
+  auto benchmarkText = asString(*benchmark, where + "/benchmark");
+  if (!benchmarkText.has_value()) {
+    return std::unexpected(benchmarkText.error());
+  }
+  read.benchmark = std::move(*benchmarkText);
+  auto nodes = field(value, where, "nodes");
+  if (!nodes.has_value()) {
+    return std::unexpected(nodes.error());
+  }
+  auto nodeItems = asArray(*nodes, where + "/nodes");
+  if (!nodeItems.has_value()) {
+    return std::unexpected(nodeItems.error());
+  }
+  std::size_t index = 0;
+  for (const auto item : *nodeItems) {
+    auto entry = readGraphNode(item, where + "/nodes/" + std::to_string(index));
+    if (!entry.has_value()) {
+      return std::unexpected(entry.error());
+    }
+    read.nodes.push_back(std::move(*entry));
+    ++index;
+  }
+  auto edges = field(value, where, "edges");
+  if (!edges.has_value()) {
+    return std::unexpected(edges.error());
+  }
+  auto edgeItems = asArray(*edges, where + "/edges");
+  if (!edgeItems.has_value()) {
+    return std::unexpected(edgeItems.error());
+  }
+  index = 0;
+  for (const auto item : *edgeItems) {
+    auto entry = readGraphEdge(item, where + "/edges/" + std::to_string(index));
+    if (!entry.has_value()) {
+      return std::unexpected(entry.error());
+    }
+    read.edges.push_back(std::move(*entry));
+    ++index;
+  }
+  auto held = field(value, where, "held");
+  if (!held.has_value()) {
+    return std::unexpected(held.error());
+  }
+  auto heldItems = asArray(*held, where + "/held");
+  if (!heldItems.has_value()) {
+    return std::unexpected(heldItems.error());
+  }
+  index = 0;
+  for (const auto item : *heldItems) {
+    auto entry = readGraphHeld(item, where + "/held/" + std::to_string(index));
+    if (!entry.has_value()) {
+      return std::unexpected(entry.error());
+    }
+    read.held.push_back(std::move(*entry));
+    ++index;
+  }
+  auto stopped = field(value, where, "stopped");
+  if (!stopped.has_value()) {
+    return std::unexpected(stopped.error());
+  }
+  auto stoppedItems = asArray(*stopped, where + "/stopped");
+  if (!stoppedItems.has_value()) {
+    return std::unexpected(stoppedItems.error());
+  }
+  index = 0;
+  for (const auto item : *stoppedItems) {
+    auto name = asString(item, where + "/stopped/" + std::to_string(index));
+    if (!name.has_value()) {
+      return std::unexpected(name.error());
+    }
+    read.stopped.push_back(std::move(*name));
+    ++index;
+  }
+  return read;
+}
+
+// The run-level graph record of specs/037: the object's one key `runs`, an
+// array with one entry per threaded run in the batch's order (FR-023, D-5).
+// The reader checks the record and lets the values go, the shape the
+// pre-check record read takes; each key is read and kind-checked in order,
+// so a wrong kind names itself before a later key's absence does (FR-029).
+auto readGraphRecord(Element value, const std::string& where)
+    -> std::expected<sg::GraphRecord, std::string>
+{
+  sg::GraphRecord read {};
+  auto runs = field(value, where, "runs");
+  if (!runs.has_value()) {
+    return std::unexpected(runs.error());
+  }
+  auto runItems = asArray(*runs, where + "/runs");
+  if (!runItems.has_value()) {
+    return std::unexpected(runItems.error());
+  }
+  std::size_t index = 0;
+  for (const auto item : *runItems) {
+    auto entry = readGraphRun(item, where + "/runs/" + std::to_string(index));
+    if (!entry.has_value()) {
+      return std::unexpected(entry.error());
+    }
+    read.runs.push_back(std::move(*entry));
+    ++index;
+  }
+  return read;
+}
+
 // The run-level jitter record: the seven keys of E-07 in the kinds the
 // schema states. The reader checks the record and lets the values go,
 // the shape the noise warning read uses (E-07, E-08, FR-029); each key
@@ -1452,7 +1654,7 @@ auto readStageRange(Element value, const std::string& where)
           {"first", field(value, where, "first")},
           {"count", field(value, where, "count")},
           {"repeats", field(value, where, "repeats")},
-      };
+  };
   auto keys = settled(parts);
   if (!keys.has_value()) {
     return std::unexpected(keys.error());
@@ -1489,7 +1691,7 @@ auto readRankedEvent(Element value, const std::string& where)
           {"noisy", field(value, where, "noisy")},
           {"multiplexed", field(value, where, "multiplexed")},
           {"rank", field(value, where, "rank")},
-      };
+  };
   auto keys = settled(parts);
   if (!keys.has_value()) {
     return std::unexpected(keys.error());
@@ -1570,7 +1772,7 @@ auto readSkippedEvent(Element value, const std::string& where)
       parts {
           {"address", field(value, where, "address")},
           {"kind", field(value, where, "kind")},
-      };
+  };
   auto keys = settled(parts);
   if (!keys.has_value()) {
     return std::unexpected(keys.error());
@@ -1606,7 +1808,7 @@ auto readEntryHunt(Element value, const std::string& where)
           {"retried_passes", field(value, where, "retried_passes")},
           {"entries", field(value, where, "entries")},
           {"skipped", field(value, where, "skipped")},
-      };
+  };
   auto keys = settled(parts);
   if (!keys.has_value()) {
     return std::unexpected(keys.error());
@@ -2251,8 +2453,8 @@ auto parseSchema(Element value, const std::string& where)
   return node;
 }
 
-auto propertyOf(const SchemaNode& node,
-                std::string_view key) noexcept -> const SchemaNode*
+auto propertyOf(const SchemaNode& node, std::string_view key) noexcept
+    -> const SchemaNode*
 {
   for (const auto& property : node.properties) {
     if (property.first == key) {
@@ -2406,8 +2608,8 @@ auto firstDuplicateKey(const simdjson::dom::element& root)
 namespace detail
 {
 
-auto checkReport(std::string_view schemaPath,
-                 std::string_view document) -> std::expected<void, std::string>
+auto checkReport(std::string_view schemaPath, std::string_view document)
+    -> std::expected<void, std::string>
 {
   auto schemaText = detail::readTextFile(std::string(schemaPath));
   if (!schemaText.has_value()) {
@@ -2525,6 +2727,20 @@ auto loadReport(const std::string& path)
       return std::unexpected(record.error());
     }
     data.precheck = std::move(*record);
+  }
+  // specs/037 FR-023, D-5: the root graph object, the key the writer stands
+  // after `precheck` and before `benchmarks`. A run with no `--graph`, and
+  // every document the builds before specs/037 wrote, carries no key: the
+  // member stays empty, which is the reading of a run that gated no graph
+  // (FR-006, FR-023). A key that stands present keeps its own kind and its
+  // own refusal, so a malformed record names itself before the benchmarks
+  // array reads.
+  if (const auto graph = optionalField(root, "graph"); graph.has_value()) {
+    auto record = readGraphRecord(*graph, "/graph");
+    if (!record.has_value()) {
+      return std::unexpected(record.error());
+    }
+    data.graph = std::move(*record);
   }
   auto entries = field(root, "", "benchmarks");
   if (!entries.has_value()) {

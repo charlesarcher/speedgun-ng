@@ -4,7 +4,7 @@
   "title": "speedgun-ng benchmark report",
   "description": "The document the harness writes for one batch (specs/023 FR-008). Key order is normative and stands in x-order; the harness checker reads this file and compares the key set, the key order and the value kinds of every written document against it.",
   "type": "object",
-  "x-order": ["schemaVersion", "speedgun", "run", "jitter", "precheck", "benchmarks", "hunt"],
+  "x-order": ["schemaVersion", "speedgun", "run", "jitter", "precheck", "graph", "benchmarks", "hunt"],
   "required": ["schemaVersion", "speedgun", "benchmarks"],
   "additionalProperties": true,
   "properties": {
@@ -307,6 +307,70 @@
                   "hardware": { "type": ["integer", "null"] }
                 }
               }
+            }
+          }
+        }
+      }
+    },
+    "graph": {
+      "type": "object",
+      "x-order": ["runs"],
+      "required": ["runs"],
+      "additionalProperties": false,
+      "properties": {
+        "runs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "x-order": ["benchmark", "nodes", "edges", "held", "stopped"],
+            "required": ["benchmark", "nodes", "edges", "held", "stopped"],
+            "additionalProperties": false,
+            "properties": {
+              "benchmark": { "type": "string" },
+              "nodes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "x-order": ["name", "slot", "outcome"],
+                  "required": ["name", "slot", "outcome"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": { "type": "string" },
+                    "slot": { "type": "integer" },
+                    "outcome": {
+                      "type": "string",
+                      "enum": ["finished", "failed", "held", "stopped"]
+                    }
+                  }
+                }
+              },
+              "edges": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "x-order": ["from", "to"],
+                  "required": ["from", "to"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "from": { "type": "string" },
+                    "to": { "type": "string" }
+                  }
+                }
+              },
+              "held": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "x-order": ["node", "reason"],
+                  "required": ["node", "reason"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "node": { "type": "string" },
+                    "reason": { "type": "string" }
+                  }
+                }
+              },
+              "stopped": { "type": "array", "items": { "type": "string" } }
             }
           }
         }

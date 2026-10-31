@@ -125,8 +125,8 @@ static_assert(kMetricMethodWords.size()
 // one function for every table: two instantiations inlined into one caller
 // read as one subscript over another table's storage under the sanitizer
 // build, which is a warning this tree carries as an error.
-inline auto enumWord(std::span<const std::string_view> words,
-                     std::size_t index) -> std::string_view
+inline auto enumWord(std::span<const std::string_view> words, std::size_t index)
+    -> std::string_view
 {
   if (index >= words.size()) {
     return "UNKNOWN";
@@ -279,6 +279,11 @@ struct JitterReportRecord
  *      line (specs/028 E-05)
  * @pre `jitter`, when filled, carries one stats object per probe cpu,
  *      the cpus ascending (E-07)
+ * @pre `graph`, when filled, carries one entry per threaded run of the
+ *      batch, in the batch's order, each entry naming its run by the
+ *      benchmark name and carrying that run's nodes in ascending slot
+ *      order, its edges in the file's order, its held nodes with their
+ *      reasons and its stopped nodes (specs/037 FR-023, D-5)
  * @post true when the file holds the whole document, false when the file
  *       system refused it; the call reports the refusal on stderr and
  *       throws nothing (FR-030)
@@ -298,13 +303,21 @@ struct JitterReportRecord
  *       no such key, so a run that requests no tracer and a run whose
  *       tracer stands not available write the same bytes apart from the
  *       `schemaVersion` value (specs/036 FR-015, R-10)
+ * @post a filled `graph` writes the root `graph` object after
+ *       `precheck` and before `benchmarks`, with one entry of the
+ *       `runs` array per threaded run in the batch's order (specs/037
+ *       FR-023, R-11); an empty one writes no key, so a run with no
+ *       graph writes the same bytes apart from the `schemaVersion`
+ *       value (specs/037 FR-006, SC-005). A single-context run gains
+ *       no entry (specs/037 FR-012).
  */
 [[nodiscard]] auto writeReport(
     const std::string& path,
     const ReportData& data,
     const RunDisclosure& disclosure = {},
     const std::optional<JitterReportRecord>& jitter = std::nullopt,
-    const std::optional<PrecheckRecord>& precheck = std::nullopt) -> bool;
+    const std::optional<PrecheckRecord>& precheck = std::nullopt,
+    const std::optional<GraphRecord>& graph = std::nullopt) -> bool;
 
 /**
  * @brief Check one written document against the schema file at

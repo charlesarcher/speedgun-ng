@@ -43,6 +43,17 @@ built-in fields print today keeps its bytes. The "Reading the report"
 section of `README.md` and the example that owns it show a `/threads:N`
 row with its disclosure (FR-032).
 
+The warning's presence is one of the host's answers, the class specs/033
+FR-042 folds out: FR-026 fires the line on the cpus this process may run on,
+and FR-027 fixes that count as one host fact the report reads once. The fold
+reads it out of both sides beside the cpu multiplicity of the pre-check
+block, so a block recorded on a wide host describes a run pinned to two cpus
+and a block recorded on a pinned host describes a run whose host had cpus to
+spare. The fixed wording keeps its bytes, so a renamed warning token fails by
+its own name, and the disclosure line keeps its place.
+`test/example-drift-fixture/run_report_shape_fixtures.py` pins the presence
+pair in both directions beside the planted token.
+
 ## Consumers
 
 `test/source/harness_context_report_test.cpp` covers all four FR-026

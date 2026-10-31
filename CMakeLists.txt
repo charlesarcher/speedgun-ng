@@ -38,7 +38,11 @@ project(
     # include/speedgun-ng/benchmark.hpp, the public header that owns
     # the context disclosure, so the exported layouts move again and
     # the harness SOVERSION is 18.
-    VERSION 0.27.0
+    # specs/037-execution-graphs FR-003, FR-004 (R-13): a rebase onto
+    # the tree that has taken 0.27.0 takes the next free minor, 0.28.0.
+    # The graph record joins the public loaded-report struct, so the
+    # harness SOVERSION is 19 and the archive SOVERSION stays 4 (D-8).
+    VERSION 0.28.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -361,9 +365,14 @@ set_target_properties(
     # name, a member of the exported record behind
     # include/speedgun-ng/benchmark.hpp, so the exported layouts move
     # again and the hand-kept number rises to 18 past the 17 specs/040
-    # landed. The counters library surface moves nothing, so that
-    # archive keeps its SOVERSION 4 (hard rule 12).
-    SOVERSION 18
+    # landed.
+    # specs/037 FR-004, FR-023, D-8: GraphRecord, GraphRunRecord,
+    # GraphNodeRecord, GraphEdgeRecord and GraphHeldRecord join the
+    # public header, and ReportData gains its graph member, so the
+    # exported layouts move again and the hand-kept number rises to 19
+    # past the 18 specs/039 left. The counters library surface moves
+    # nothing, so that archive keeps its SOVERSION 4.
+    SOVERSION 19
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )

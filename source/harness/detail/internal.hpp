@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "graph.hpp"
 #include "jitter_probe.hpp"
 #include "memory_bind.hpp"
 #include "speedgun-ng/benchmark.hpp"
@@ -418,15 +419,14 @@ struct RecorderReservation
 /// out of order, and a lower bound below one, name no count: the require of
 /// the call answers that mistake where contracts stand, and this account
 /// holds what a build without contracts reaches (FR-024).
-[[nodiscard]] auto buildThreadCounts(int minCount,
-                                     int maxCount) -> std::vector<int>;
+[[nodiscard]] auto buildThreadCounts(int minCount, int maxCount)
+    -> std::vector<int>;
 
 /// @brief The thread counts `denseThreadRange` states for these bounds: one
 /// count per step that stays within them (FR-016, FR-024). A step below one
 /// and bounds out of order name no count, for the same reason (FR-024).
-[[nodiscard]] auto buildDenseThreadCounts(int minCount,
-                                          int maxCount,
-                                          int step) -> std::vector<int>;
+[[nodiscard]] auto buildDenseThreadCounts(int minCount, int maxCount, int step)
+    -> std::vector<int>;
 
 /// @brief FR-006, FR-050: the dispatch account of one context: every accept
 /// stands matched by its dispatch, either linked into the inbox or refused
@@ -446,8 +446,8 @@ struct RecorderReservation
 /// @brief FR-020: the skip rule of the threaded merge: the merged record
 /// takes the skip of a skipped record where it carries no skip of its own,
 /// so the reason of the first skipped context of the attempt stands.
-[[nodiscard]] auto takesSkip(bool recordSkipped,
-                             bool mergedSkipped) noexcept -> bool;
+[[nodiscard]] auto takesSkip(bool recordSkipped, bool mergedSkipped) noexcept
+    -> bool;
 
 // FR-003, D-01: the outcome of one pass of the private drain head's walk.
 // `NODE` names a successor to take, `EMPTY` the inbox that provably stands
@@ -493,8 +493,9 @@ enum class WalkStep : std::uint8_t
 /// @brief The disclosure account of one pin attempt: the slot text the pin
 /// landed on where the platform accepted it, the unapplied text where it
 /// did not (FR-005, FR-025).
-[[nodiscard]] auto selectPlacementAccount(
-    bool landed, std::string_view landedText) -> PlacementResult;
+[[nodiscard]] auto selectPlacementAccount(bool landed,
+                                          std::string_view landedText)
+    -> PlacementResult;
 
 /// @brief The placement field of the disclosure line: the text whole where
 /// it fits the field, cut to the field with a mark of the cut where it does
@@ -690,6 +691,14 @@ struct RunOptions
   // The write is a run-level union over every entry's list, so the path rides
   // the run record.
   std::string huntEmitSet;
+
+  // specs/037 FR-009, R-02: the path `--graph=` settled. An absent optional
+  // is the row standing given nowhere, and an empty text is the bare row,
+  // given with no path of its own, whose path the entry point takes from the
+  // standing lower source, the option file line of specs/028 FR-035, and
+  // reads no environment variable for the row. The entry point reads the
+  // named file once, ahead of the first context (FR-011).
+  std::optional<std::string> graphPath;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it
@@ -721,6 +730,18 @@ public:
   [[nodiscard]] auto takeRunWindows() -> std::vector<sg::detail::TimedWindow>
   {
     return std::move(m_runWindows);
+  }
+
+  /// @brief specs/037 FR-019, FR-023, D-5 (T023): the settlement the runs of
+  /// this runner last left, moved out: one entry per node of the attempt's
+  /// graph in the ascending slot order FR-023 fixes, and empty for a run that
+  /// gated no attempt. The drain-once read shape `takeRunWindows` gives the
+  /// windows: the entry point reads the words of its own run here and threads
+  /// them into the record entry the console and the document carry (R-11).
+  [[nodiscard]] auto takeGraphSettlement()
+      -> std::vector<sg::detail::GraphSettlement>
+  {
+    return std::move(m_graphSettlement);
   }
 
   /// @brief The complexity fit of the family the runner has been collecting,
@@ -799,6 +820,12 @@ private:
   std::uint64_t m_repetition = 0;
   bool m_windowStamping = false;
 
+  // specs/037 FR-019, FR-023, D-5 (T023): the settlement of the last threaded
+  // attempt of this runner's run, the words the entry point's record entry
+  // reads: filled beside the merged record and drained by
+  // `takeGraphSettlement`. A run that gates no attempt leaves it empty.
+  std::vector<sg::detail::GraphSettlement> m_graphSettlement;
+
   void noteFitSample(const Instance& instance,
                      const BenchmarkResult& result,
                      std::optional<std::int64_t> statedSize);
@@ -869,6 +896,28 @@ auto installTestMemoryBinder(std::optional<MemoryBindOps>) -> void;
 /// that follows it (Q-5).
 [[nodiscard]] auto memoryBinder() -> const MemoryBindOps&;
 
+/// @brief specs/037 FR-025, R-12, D-7: install (or clear, with an empty
+/// optional) a synthetic graph the run reads in place of the file, the way
+/// `installTestMemoryBinder` replaces the binder and `installTestLayout`
+/// stands in for the layout read.
+///
+/// \pre none
+/// \post the slot the runner reads at each threaded attempt holds the
+///       installed graph, and an empty install restores the file read
+///       (FR-025)
+auto installTestGraph(std::optional<Graph>) -> void;
+
+/// @brief specs/037 FR-011, FR-025, R-12, D-7: the graph slot behind the
+/// seam: the installed graph when one stands, and the graph the entry point
+/// read once, ahead of the first context, when none stands. The entry point
+/// installs the graph it read into this same slot, so the runner reads one
+/// source and an install decides the threaded attempt that follows it.
+///
+/// \pre none
+/// \post the answer names the graph of the threaded attempt that follows,
+///       and stands empty for a run that reads no graph file (FR-011)
+[[nodiscard]] auto graphInput() -> const std::optional<Graph>&;
+
 /// @brief specs/035 FR-011, R-08: the resolved node plan of the run in
 /// flight, the runner installs ahead of the contexts it spawns and
 /// clears for every other run. The bind at the context start reads the
@@ -898,9 +947,8 @@ auto installTestMemoryBinder(std::optional<MemoryBindOps>) -> void;
 /// @brief The plan of one preset over one layout for one context count:
 /// the ordered walk of the resolver contract, an empty `cpu` when the
 /// count exceeds the place count (FR-008 to FR-014, FR-018).
-[[nodiscard]] auto resolvePreset(Preset,
-                                 const MachineLayout&,
-                                 int contexts) -> PlacementPlan;
+[[nodiscard]] auto resolvePreset(Preset, const MachineLayout&, int contexts)
+    -> PlacementPlan;
 
 /**
  * @brief specs/039-context-groups data-model.md: one group of one
@@ -1020,8 +1068,8 @@ struct IdleResolution
 /// @brief The `idle` resolution: the lowest free cpu of each L3 group
 /// the planned cpus name, with the skip record (FR-016, FR-017, R-07).
 [[nodiscard]] auto resolveIdleCpus(
-    const MachineLayout& machine,
-    const std::vector<std::uint32_t>& plannedCpus) -> IdleResolution;
+    const MachineLayout& machine, const std::vector<std::uint32_t>& plannedCpus)
+    -> IdleResolution;
 
 /// @brief specs/027 data-model.md D-3: one probe cpu the plans refuse,
 /// with the benchmark whose plan it meets (FR-018, D-9).
@@ -1090,8 +1138,8 @@ struct MaskNarrowing
 /// reads: every planned cpu names a thread the layout's mask holds
 /// (R-07).
 [[maybe_unused]] [[nodiscard]] auto plannedCpusResolve(
-    const MachineLayout& machine,
-    const std::vector<std::uint32_t>& plannedCpus) -> bool;
+    const MachineLayout& machine, const std::vector<std::uint32_t>& plannedCpus)
+    -> bool;
 
 /// @brief The duration-division relation of data-model.md E-03: the
 /// derived fields the fold filled answer the covered span, read against
@@ -1113,8 +1161,9 @@ struct MaskNarrowing
 /// predicate, read only inside the SG_ENSURE contract of the resolver:
 /// every planned cpu stands inside the mask and stands on the node the
 /// context binds to, and the cpus stand pairwise distinct.
-[[maybe_unused]] [[nodiscard]] auto planNodesBind(
-    const MachineLayout& layout, const PlacementPlan& plan) -> bool;
+[[maybe_unused]] [[nodiscard]] auto planNodesBind(const MachineLayout& layout,
+                                                  const PlacementPlan& plan)
+    -> bool;
 
 /// @brief The overlap answer's postcondition predicate, read only
 /// inside the SG_ENSURE contract of the overlap check: the answer
@@ -1201,9 +1250,17 @@ auto printContext(bool placementInEffect) -> void;
  * that built `result.hunt`. The record stands empty for a result that
  * carried no hunt, and such a result prints the bytes it printed before
  * the hunt existed (I-8).
+ *
+ * specs/037 FR-022, FR-023, D-6: `graph` carries the record entry of the
+ * threaded run that gated a graph, and the block then stands directly
+ * after that run's `contexts=` line, naming the nodes in the ascending
+ * slot order FR-023 fixes. An empty entry prints no block, so a run with
+ * no `--graph` prints the bytes it printed before the record existed
+ * (FR-006, SC-001).
  */
 auto printResult(const BenchmarkResult& result,
-                 const std::optional<hunt::RunHunt>& run = std::nullopt)
+                 const std::optional<hunt::RunHunt>& run = std::nullopt,
+                 const std::optional<GraphRunRecord>& graph = std::nullopt)
     -> void;
 
 /// @brief Print the console probe block, one column per probe cpu in the
@@ -1309,8 +1366,9 @@ struct MetricColumn
 /// @brief The one line `--metric` prints for a name that carries nothing:
 /// the name, the lookup's message, and its near-miss names in parentheses
 /// when it has any (FR-028, FR-042).
-[[nodiscard]] auto metricNameFailureLine(
-    const std::string& name, const sg::counters::Error& error) -> std::string;
+[[nodiscard]] auto metricNameFailureLine(const std::string& name,
+                                         const sg::counters::Error& error)
+    -> std::string;
 
 /**
  * @brief Walk the counter addresses every source named and print the first

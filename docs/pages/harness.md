@@ -694,6 +694,7 @@ variable.
 | `version` | none |  | Prints the project version and stops |
 | `jitter-probe` | required |  | Runs the jitter probe over the batch by that value |
 | `os-noise` | required |  | Runs the named noise tracer across the pre-check window |
+| `graph` | optional |  | Orders the context starts of every threaded run by that graph file |
 | `group-layout` | required |  | Reads the run's context groups from a file |
 | `hunt` | optional |  | Hunts the selected catalog events and ranks them |
 | `hunt-norm` | required |  | Sets the hunt score normaliser: instr, cycle or iter |
@@ -1080,6 +1081,141 @@ segment existed. The topology line follows a preset in effect, so a run grouped
 by a file alone prints none. The JSON context record carries the same text as
 its `group` key, present for a grouped run alone, and a document that names no
 key loads as the record naming no group.
+
+## Execution graphs
+
+`--graph=<file>` orders the context starts of every threaded run of the
+process. The file names one node per context of the run, and each node
+names the nodes it waits for. The graph gates the start of a context and
+touches nothing inside it: no measured window opens, closes or shifts
+because of the graph, the graph reads no clock, and no placement, pin,
+memory bind, wait mode, plan or recorder changes beside it.
+
+<!-- sg-example: example/docs/execution_graphs.cpp#execution-graphs -->
+```cpp
+auto bmChain(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.threadIndex());
+  }
+}
+
+SG_BENCHMARK(bmChain).threads(3);
+```
+
+The chain of the example starts `a`, then `b`, then `c`, and the run
+prints one graph block under the run's `contexts=` line:
+
+<!-- sg-sample-output: example/docs/execution_graphs.expected#report -->
+```text
+speedgun-ng 0.25.0 build=Release
+bmChain/threads:3        iterations=1758710658  real time/iter (ns)=    0.390  cpu time/iter (ns)=    0.390  overhead floor (ns)=  110.000  endpoint samples=6
+  contexts=3  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN  ctx2=SPIN/NO_PIN
+  graph nodes=a,b,c edges=a->b,b->c
+```
+
+### The option
+
+| Form | Behavior |
+| --- | --- |
+| `--graph=<file>` | the run reads the named file |
+| `--graph` | the path stands taken from the standing lower source, the `--options` file line; the row reads no environment variable |
+| `--graph` with no path in any source | one line names the row and the empty path, and the run ends with status 2 before any context starts |
+| `graph=<file>` in an option file | the row settles under the same value rules as the command line |
+| `--graph` beside a placement preset | the preset plans the cpus, the graph orders the starts, and each disclosure keeps its own line |
+| `--topology` beside `--graph` | the listing prints and the run exits 0 |
+
+The graph parses once, before the first context starts. A threaded run whose
+context count differs from the node count ends with status 2 on one line naming
+both counts, and a batch with no threaded run ends with status 2 on one line. A
+single-context run gains no graph and no record entry.
+
+### The file
+
+The file is one JSON document, and `docs/schema/graph-v1.json` names its shape:
+
+```json
+{
+  "nodes": [
+    { "name": "a", "slot": 0, "deps": [] },
+    { "name": "b", "slot": 1, "deps": ["a"] },
+    { "name": "c", "slot": 2, "deps": ["b"] }
+  ]
+}
+```
+
+| Key | Kind | Rule |
+| --- | --- | --- |
+| `nodes` | array | one entry per node, in the file's order; the top level carries no key beside it |
+| `name` | string | unique across the nodes |
+| `slot` | integer | one context slot counted from `0` |
+| `deps` | array of strings | the dependencies, named by node name; empty for a source node |
+
+The key order is normative: the top level lists `nodes`, and one node lists
+`name`, `slot` and `deps`. The file carries no benchmark name, no preset, no
+cpu index and no timing figure, and the schema admits no key beside the four.
+The reader checks the file in a fixed order and prints the first fault it meets
+alone, one line, with exit status 2, before any context starts: an unreadable
+path, a rejected parse, a document that breaks the shape, a repeated name, a
+node with no slot, a slot outside the run's context count, an edge naming no
+node, a self-edge, a cycle, and a dependency the run cannot satisfy.
+
+### The start rule
+
+A node starts when every node it depends on has finished. A node with no
+dependency starts at the standing start of the run: the point where the run has
+dispatched every body index and every context has arrived at the start round.
+Among the nodes ready to start, the gate releases the lowest slot first. A
+finished node releases every node that depends on it alone, and a node with
+several dependencies starts after the last of them finishes. Every context of a
+graph run starts its thread and stands both barrier rounds. A node that never
+starts settles its context's arrival at both rounds with no body run and no
+measured window open, so no barrier round strands.
+
+### The held node and the stopped node
+
+A node whose dependency settled `failed` never starts and settles `held`, and
+the transitive closure of its dependents holds with it. The record names each
+held node with its reason: the nearest failed node on the dependency chain. A
+node whose dependency stands held settles `held` too, and its reason names the
+same failed node.
+
+A node the stop request refuses settles `stopped`, and its dependents settle
+`stopped` with it. The record names each stopped node with no reason.
+
+### The console block and the record
+
+One block stands directly after a threaded run's `contexts=` line, and a run
+with no graph prints no block:
+
+```text
+  graph nodes=a,b,c edges=a->b,b->c
+  graph held=c(b)
+  graph stopped=d
+```
+
+The `nodes` line names the run's nodes in ascending slot order and its edges as
+`from->to` pairs in the file's order. The `held` line names each held node with
+the failed node that gates it in parentheses, and the `stopped` line names each
+stopped node; each list stands in ascending slot order on one line. The two
+lines stand only for a run that holds or stops a node.
+
+The JSON document carries the same facts as the top-level `graph` object, after
+`precheck` and before `benchmarks`. Its `runs` array carries one entry per
+threaded run, in batch order, and one entry carries:
+
+| Key | Kind | Meaning |
+| --- | --- | --- |
+| `benchmark` | string | the run's benchmark name |
+| `nodes` | array | one entry per node, in ascending slot order, each with `name`, `slot` and `outcome` |
+| `edges` | array | one entry per dependency, in the file's order, each with `from` and `to` |
+| `held` | array | one entry per held node, in ascending slot order, each with `node` and `reason` |
+| `stopped` | array | the stopped node names, in ascending slot order |
+
+The `outcome` word is one of `finished`, `failed`, `held` and `stopped`. The
+record carries no timing figure. `loadReport` reads the record into the `graph`
+member of `ReportData`, and the empty optional stands for a document with no
+record. A run with no `--graph` writes no `graph` key.
 
 ## Percentiles
 

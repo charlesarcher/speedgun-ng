@@ -11,6 +11,11 @@
 // run that takes one option from an option file, with and without
 // `--interleave` given (FR-039, FR-040, FR-041).
 //
+// T052 of specs/037-execution-graphs adds `versionPrintsPlannedMinor`: the
+// version line of `--version` and the `speedgun.version` value of the written
+// document both carry the project version the tree records (FR-003, FR-006,
+// R-13).
+//
 // A scripted FakeProvider owns the machine time leaves and one events leaf,
 // so the option effects are read as exact numbers in the captured report and
 // no run can grow into a long calibration. The usage-error cases exit the
@@ -78,26 +83,22 @@ int alphaRuns = 0;
 auto bmAlpha(sg::State& state) -> void
 {
   ++alphaRuns;
-  for (auto _ : state) {
-  }
+  for (auto _ : state) {}
 }
 
 auto bmBeta(sg::State& state) -> void
 {
-  for (auto _ : state) {
-  }
+  for (auto _ : state) {}
 }
 
 auto bmFixed(sg::State& state) -> void
 {
-  for (auto _ : state) {
-  }
+  for (auto _ : state) {}
 }
 
 auto bmMetric(sg::State& state) -> void
 {
-  for (auto _ : state) {
-  }
+  for (auto _ : state) {}
 }
 
 // The four fixture pairs the `--metric-method` scenarios attach: at the
@@ -112,21 +113,18 @@ int methodRuns = 0;
 auto bmMethod(sg::State& state) -> void
 {
   ++methodRuns;
-  for (auto _ : state) {
-  }
+  for (auto _ : state) {}
 }
 
 auto bmSkips(sg::State& state) -> void
 {
-  for (auto _ : state) {
-  }
+  for (auto _ : state) {}
   state.skipWithMessage("the scripted reason");
 }
 
 auto bmThrows(sg::State& state) -> void
 {
-  for (auto _ : state) {
-  }
+  for (auto _ : state) {}
   throw std::runtime_error("the scripted failure");
 }
 
@@ -135,15 +133,13 @@ int interruptRuns = 0;
 auto bmInterrupts(sg::State& state) -> void
 {
   ++interruptRuns;
-  for (auto _ : state) {
-  }
+  for (auto _ : state) {}
   (void)std::raise(SIGINT);
 }
 
 auto bmAfter(sg::State& state) -> void
 {
-  for (auto _ : state) {
-  }
+  for (auto _ : state) {}
 }
 
 int skipBeforePasses = 0;
@@ -259,12 +255,11 @@ auto scratchName(std::string_view stem, std::string_view suffix) -> std::string
 // FR-020, FR-023: a family that asked for the tail, for the precedence pair.
 auto bmAsked(sg::State& state) -> void
 {
-  for (auto _ : state) {
-  }
+  for (auto _ : state) {}
 }
 
-auto captureRun(const std::vector<std::string>& arguments,
-                int expected = 0) -> std::string
+auto captureRun(const std::vector<std::string>& arguments, int expected = 0)
+    -> std::string
 {
   std::vector<char*> argv;
   argv.push_back(const_cast<char*>("harness_cli_test"));
@@ -297,8 +292,8 @@ auto captureRun(const std::vector<std::string>& arguments,
   return buffer.str();
 }
 
-auto linesOf(const std::string& report,
-             const std::string& name) -> std::vector<std::string>
+auto linesOf(const std::string& report, const std::string& name)
+    -> std::vector<std::string>
 {
   std::vector<std::string> found;
   std::istringstream stream(report);
@@ -764,6 +759,87 @@ auto counterAddressesOfEverySourceExitTwo(const std::string& self) -> void
     check(WEXITSTATUS(status) == 0 && out.find("bmAlpha") != std::string::npos,
           "the listing answers before any address is walked (FR-087, FR-009)");
   }
+}
+
+// The project version the build hands the harness as `SG_PROJECT_VERSION`: the
+// `VERSION` of the `project(` block of the root `CMakeLists.txt`, read from the
+// tree the way `projectVersion` at
+// `test/source/harness_cli_table_test.cpp:1234` reads it. The check names the
+// value the tree carries, so it stands binary at any value the version commit
+// records (FR-003, R-13).
+auto treeProjectVersion() -> std::string
+{
+  const auto fromText = [](const std::string& body) -> std::string
+  {
+    if (body.find("project(") == std::string::npos) {
+      return {};
+    }
+    std::istringstream lines(body);
+    std::string line;
+    while (std::getline(lines, line)) {
+      const std::size_t word = line.find_first_not_of(" \t");
+      if (word == std::string::npos || line.compare(word, 8, "VERSION ") != 0) {
+        continue;
+      }
+      std::istringstream value(line.substr(word + 8));
+      std::string version;
+      if ((value >> version) && !version.empty()
+          && std::isdigit(static_cast<unsigned char>(version[0])) != 0)
+      {
+        return version;
+      }
+    }
+    return {};
+  };
+  const std::vector<std::filesystem::path> starts {
+      std::filesystem::current_path(),
+      std::filesystem::path {__FILE__},
+  };
+  for (auto start : starts) {
+    for (int hop = 0; hop <= 8 && !start.empty(); ++hop) {
+      std::ifstream file(start / "CMakeLists.txt");
+      std::ostringstream text;
+      text << file.rdbuf();
+      const std::string version = fromText(text.str());
+      if (!version.empty()) {
+        return version;
+      }
+      start = start.parent_path();
+    }
+  }
+  return {};
+}
+
+// FR-003, FR-006, R-13: the version the lane records reaches the console and
+// the document. `--version` prints the project version the build hands the
+// harness as `SG_PROJECT_VERSION`, and the written document carries the same
+// text in its `speedgun.version` value. The expected text reads from the tree,
+// so the check stands binary at any value the version commit records.
+auto versionPrintsPlannedMinor() -> void
+{
+  const std::string version = treeProjectVersion();
+  check(!version.empty(), "the project version of the tree reads (FR-003)");
+
+  const std::string printed = captureRun({"--version"});
+  const std::vector<std::string> lines = linesOf(printed, "speedgun-ng ");
+  check(lines.size() == 1,
+        "the version answer prints one version line (FR-003)");
+  check(lines.front() == "speedgun-ng " + version,
+        "the version line prints the project version of the tree (FR-003)");
+
+  const std::string document = scratchName("harness_cli_version", ".json");
+  std::remove(document.c_str());
+  captureRun({"--filter", "^bmAlpha$", "--iterations=1", "--json=" + document});
+  std::ifstream file(document);
+  std::ostringstream text;
+  text << file.rdbuf();
+  check(text.str().find("\"speedgun\":{\"version\":\"" + version + "\"")
+            != std::string::npos,
+        "the document carries the same text in its speedgun version (FR-006)");
+  const auto loaded = sg::loadReport(document);
+  check(loaded.has_value() && loaded->speedgunVersion == version,
+        "loadReport reads back the version the document carries (FR-006)");
+  std::remove(document.c_str());
 }
 
 }  // namespace
@@ -1607,7 +1683,8 @@ auto main(const int argc, char** argv) -> int
   // the proof that the refusal came before any benchmark output. The settled
   // method is read off the `passes` line of the scripted family
   // (`contracts/pass-disclosure.md`, E-07).
-  const auto refusalText = [](const std::string& word) {
+  const auto refusalText = [](const std::string& word)
+  {
     return "--metric-method '" + word + "' is not auto, passes or multiplex\n";
   };
 
@@ -1884,6 +1961,10 @@ auto main(const int argc, char** argv) -> int
   check(documentText.str().find("\"--repetitions\"") != std::string::npos,
         "and the option that file set beside that seed (FR-040)");
   std::remove(disclosedPath.c_str());
+
+  // FR-003, FR-006, R-13: the version the lane records reaches the console line
+  // and the document.
+  versionPrintsPlannedMinor();
 
   std::puts("harness_cli_test: ok");
   return 0;
