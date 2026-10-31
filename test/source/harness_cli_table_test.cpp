@@ -300,7 +300,6 @@ constexpr int kJitterProbeValue = 260;
 constexpr int kOsNoiseValue = 297;
 constexpr int kGroupLayoutValue = 299;
 
-
 // specs/037-execution-graphs T019, FR-002, R-01: the graph row's value. The
 // contract fixes 297, and the reservation rule of the Spec identity section
 // moves the lane to the next free value when pull request #58 lands first.
@@ -461,8 +460,8 @@ auto argumentKindOf(std::string_view entry) -> char
 // constant and a bare number is a value spelled as a literal. Quoted text
 // is read ahead of the words, so a help sentence cannot reach the value.
 // The terminator row carries no name and answers nothing.
-auto parseRow(std::string_view entry, const Constants& constants)
-    -> std::optional<Row>
+auto parseRow(std::string_view entry,
+              const Constants& constants) -> std::optional<Row>
 {
   Row row;
   row.argument = argumentKindOf(entry);
@@ -570,8 +569,8 @@ auto closingBrace(std::string_view text, std::size_t open) -> std::size_t
 
 // The rows of the table in source order, from the row that names `filter`
 // to the terminator that carries no name.
-auto parseRows(std::string_view text, const Constants& constants)
-    -> std::vector<Row>
+auto parseRows(std::string_view text,
+               const Constants& constants) -> std::vector<Row>
 {
   std::vector<Row> rows;
   const std::size_t anchor = text.find("\"filter\"");
@@ -1417,8 +1416,8 @@ auto liveRow(const std::string_view name) -> const sg::detail::OptionRow*
 
 // The first printed line that opens with `prefix`, or an empty answer
 // when the printed text holds none.
-auto lineWith(const std::vector<std::string>& lines, const std::string& prefix)
-    -> std::string
+auto lineWith(const std::vector<std::string>& lines,
+              const std::string& prefix) -> std::string
 {
   for (const std::string& line : lines) {
     if (line.compare(0, prefix.size(), prefix) == 0) {
@@ -1724,14 +1723,15 @@ auto thePageAndTheTableAgreeInBothDirections(const std::filesystem::path& start)
 // short at either count.
 auto bmTwoCounts(sg::State& state) -> void
 {
-  for (auto _ : state) {}
+  for (auto _ : state) {
+  }
 }
 
 SG_BENCHMARK(bmTwoCounts);
 
 // The printed lines that name `name`, joined for a failure reading.
-auto namingLines(const std::vector<std::string>& lines, const std::string& name)
-    -> std::vector<std::string>
+auto namingLines(const std::vector<std::string>& lines,
+                 const std::string& name) -> std::vector<std::string>
 {
   std::vector<std::string> found;
   for (const std::string& line : lines) {

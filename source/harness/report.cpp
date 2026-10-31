@@ -426,8 +426,8 @@ auto percentileColumnLabel(const BenchmarkResult& result,
 
 // specs/021 FR-002: the two time columns print their values divided by the
 // unit scale; a metric column prints the value its own fold reached.
-auto percentileColumnDivisor(const std::size_t column, const double timeDivisor)
-    -> double
+auto percentileColumnDivisor(const std::size_t column,
+                             const double timeDivisor) -> double
 {
   return column <= 1 ? timeDivisor : 1.0;
 }

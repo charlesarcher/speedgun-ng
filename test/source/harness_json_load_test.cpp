@@ -995,8 +995,9 @@ auto valueEnd(const std::string& text, std::size_t valueAt) -> std::size_t
   return end;
 }
 
-auto replaceValue(std::string& text, const char* key, const char* replacement)
-    -> bool
+auto replaceValue(std::string& text,
+                  const char* key,
+                  const char* replacement) -> bool
 {
   const std::string needle = std::string("\"") + key + "\":";
   const std::size_t at = text.find(needle);

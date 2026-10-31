@@ -690,8 +690,8 @@ namespace sg::detail
 // first context that skipped. The declaration stands in
 // detail/internal.hpp, where the gap test drives the rule's whole input
 // table beside the threaded run.
-auto takesSkip(const bool recordSkipped, const bool mergedSkipped) noexcept
-    -> bool
+auto takesSkip(const bool recordSkipped,
+               const bool mergedSkipped) noexcept -> bool
 {
   return recordSkipped && !mergedSkipped;
 }
@@ -880,8 +880,8 @@ auto ThreadRun::dispatch(const int index) -> void
 // sixteen-name cap trip as `SG_REQUIRE` preconditions at the call. The
 // rule that names an offending name writes a runtime reason into the
 // state, because an `SG_REQUIRE` message is a string literal (FR-008).
-auto State::setCounter(const std::string_view name, const Counter& counter)
-    -> void
+auto State::setCounter(const std::string_view name,
+                       const Counter& counter) -> void
 {
   SG_REQUIRE(name.size() < kMaxCounterNameBytes,
              "a counter name longer than kMaxCounterNameBytes minus one "
@@ -946,8 +946,8 @@ namespace
 // store, and whether the store can still carry the call. A template over the
 // container keeps the slot type out of the exported header.
 template<class Store>
-auto counterIndexOf(const Store& counters, const std::string_view name)
-    -> std::size_t
+auto counterIndexOf(const Store& counters,
+                    const std::string_view name) -> std::size_t
 {
   for (std::size_t index = 0; index < counters.size(); ++index) {
     const auto& slot = counters[index];

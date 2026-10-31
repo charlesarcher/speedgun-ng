@@ -125,8 +125,8 @@ static_assert(kMetricMethodWords.size()
 // one function for every table: two instantiations inlined into one caller
 // read as one subscript over another table's storage under the sanitizer
 // build, which is a warning this tree carries as an error.
-inline auto enumWord(std::span<const std::string_view> words, std::size_t index)
-    -> std::string_view
+inline auto enumWord(std::span<const std::string_view> words,
+                     std::size_t index) -> std::string_view
 {
   if (index >= words.size()) {
     return "UNKNOWN";

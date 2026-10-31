@@ -75,8 +75,8 @@ namespace
 
 // The one line of a node-rule fault: the file, then the fact. The table of
 // contracts/graph-file.md names what each line carries.
-[[nodiscard]] auto nodeFault(std::string_view path, const std::string& fact)
-    -> std::string
+[[nodiscard]] auto nodeFault(std::string_view path,
+                             const std::string& fact) -> std::string
 {
   return "the graph file '" + quotedText(std::string(path)) + "': " + fact;
 }

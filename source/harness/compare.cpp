@@ -106,8 +106,9 @@ auto labelPrefixOf(std::string_view name) -> std::string_view
 
 // The index of `character` at or after `from`, or the end of the text
 // when it stands nowhere in the rest.
-auto findOrEnd(std::string_view text, char character, std::size_t from)
-    -> std::size_t
+auto findOrEnd(std::string_view text,
+               char character,
+               std::size_t from) -> std::size_t
 {
   const std::size_t found = text.find(character, from);
   return found == std::string_view::npos ? text.size() : found;
@@ -179,8 +180,9 @@ auto readAggregate(std::string_view word) -> std::optional<Aggregate>
 // unescaped colon or at sign. Inside a label a backslash stands for the
 // character it escapes, and the name the rule keeps is the unescaped
 // one (FR-020, FR-021, D-06, spec D-15).
-auto scanName(std::string_view text, std::size_t from, bool label)
-    -> std::pair<std::string, std::size_t>
+auto scanName(std::string_view text,
+              std::size_t from,
+              bool label) -> std::pair<std::string, std::size_t>
 {
   std::string name;
   std::size_t cursor = from;
@@ -508,8 +510,8 @@ auto labelIndexOf(const std::vector<std::string>& labels,
 
 // The index of a percentile point in the points one result reports, or the
 // end of the list when it holds the point nowhere (FR-014, D-10, FR-038).
-auto pointIndexOf(const std::vector<double>& points, const double point)
-    -> std::size_t
+auto pointIndexOf(const std::vector<double>& points,
+                  const double point) -> std::size_t
 {
   for (std::size_t index = 0; index < points.size(); ++index) {
     if (std::abs(points[index] - point) <= kPercentilePointTolerance) {
@@ -520,8 +522,8 @@ auto pointIndexOf(const std::vector<double>& points, const double point)
 }
 
 // The number one statistics record answers for one aggregate word (FR-016).
-auto aggregateValueOf(const Statistics& stats, const Aggregate aggregate)
-    -> double
+auto aggregateValueOf(const Statistics& stats,
+                      const Aggregate aggregate) -> double
 {
   if (aggregate == Aggregate::MEAN) {
     return stats.mean;
@@ -722,8 +724,8 @@ auto isTimeColumnName(std::string_view name) -> bool
 // report carries unscaled (FR-055): the unit the baseline report declares
 // for that benchmark, the way the console row scales its own time fields,
 // and the statistic's own unit for a `stat:` name.
-auto entryScaleOf(const BenchmarkResult* unitSource, std::string_view valueName)
-    -> const UnitScale*
+auto entryScaleOf(const BenchmarkResult* unitSource,
+                  std::string_view valueName) -> const UnitScale*
 {
   if (unitSource == nullptr) {
     return nullptr;
@@ -935,11 +937,11 @@ auto hasState(const std::vector<CompareEntry>& entries,
                      entries.end(),
                      [&applied](const CompareEntry& entry)
                      {
-                       return std::any_of(
-                           applied.begin(),
-                           applied.end(),
-                           [&entry](const CompareRule& rule)
-                           { return rule.text == entry.ruleText; });
+                       return std::any_of(applied.begin(),
+                                          applied.end(),
+                                          [&entry](const CompareRule& rule) {
+                                            return rule.text == entry.ruleText;
+                                          });
                      });
 }
 
@@ -1046,8 +1048,8 @@ auto selectCompareRow(const BenchmarkResult& result) -> const ResultRow*
  *       result holds no readable row or the name matches no value of it; the
  *       call reads no file, runs no benchmark and repairs no value
  */
-auto resolveCompareValue(const BenchmarkResult& result, const CompareRule& rule)
-    -> std::optional<double>
+auto resolveCompareValue(const BenchmarkResult& result,
+                         const CompareRule& rule) -> std::optional<double>
 {
   const ResultRow* const row = selectCompareRow(result);
   if (row == nullptr) {
@@ -1169,8 +1171,8 @@ struct NoiseAccount
  *       value of it, or the report summarizes that column nowhere (spec
  *       D-18, FR-046)
  */
-auto noiseAccountOf(const BenchmarkResult& result, const CompareRule& rule)
-    -> NoiseAccount
+auto noiseAccountOf(const BenchmarkResult& result,
+                    const CompareRule& rule) -> NoiseAccount
 {
   const ResultRow* const row = selectCompareRow(result);
   if (row == nullptr) {
@@ -1356,8 +1358,8 @@ auto indexOfResult(const std::vector<BenchmarkResult>& results,
 
 // The warning one report carried for one result, or nothing when it
 // carried none for it (E-07, FR-070).
-auto noiseWarningAt(const ReportData& report, const std::size_t index)
-    -> const NoiseWarning*
+auto noiseWarningAt(const ReportData& report,
+                    const std::size_t index) -> const NoiseWarning*
 {
   if (index >= report.noiseWarnings.size()
       || !report.noiseWarnings[index].has_value())
@@ -1378,8 +1380,8 @@ auto noiseWarningAt(const ReportData& report, const std::size_t index)
  *       and the names the contender adds after them in the contender's own
  *       order, whichever order the two documents hold their benchmarks in
  */
-auto matchPair(const ReportData& baseline, const ReportData& contender)
-    -> std::vector<PairSite>
+auto matchPair(const ReportData& baseline,
+               const ReportData& contender) -> std::vector<PairSite>
 {
   std::vector<PairSite> matched;
   matched.reserve(baseline.results.size() + contender.results.size());

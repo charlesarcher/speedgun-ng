@@ -59,8 +59,8 @@ namespace
 constexpr std::uint32_t kReleased = std::numeric_limits<std::uint32_t>::max();
 
 // The slot of the node of `graph` that names `name`.
-[[nodiscard]] auto slotNamed(const Graph& graph, const std::string_view name)
-    -> std::uint32_t
+[[nodiscard]] auto slotNamed(const Graph& graph,
+                             const std::string_view name) -> std::uint32_t
 {
   auto slot = std::uint32_t {0};
   auto found = false;
@@ -76,8 +76,8 @@ constexpr std::uint32_t kReleased = std::numeric_limits<std::uint32_t>::max();
 }
 
 // A node of `graph` names `name`.
-[[nodiscard]] auto namesNode(const Graph& graph, const std::string_view name)
-    -> bool
+[[nodiscard]] auto namesNode(const Graph& graph,
+                             const std::string_view name) -> bool
 {
   auto found = false;
   for (const auto& node : graph.nodes) {
@@ -91,8 +91,8 @@ constexpr std::uint32_t kReleased = std::numeric_limits<std::uint32_t>::max();
 // The node at `slot` stands ready: every dependency has finished, and no word
 // has settled it.
 template<class States>
-[[nodiscard]] auto readyAt(const States& states, const std::uint32_t slot)
-    -> bool
+[[nodiscard]] auto readyAt(const States& states,
+                           const std::uint32_t slot) -> bool
 {
   return !states[slot].settled.has_value() && states[slot].remaining == 0;
 }

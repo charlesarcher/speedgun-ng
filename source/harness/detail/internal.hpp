@@ -419,14 +419,15 @@ struct RecorderReservation
 /// out of order, and a lower bound below one, name no count: the require of
 /// the call answers that mistake where contracts stand, and this account
 /// holds what a build without contracts reaches (FR-024).
-[[nodiscard]] auto buildThreadCounts(int minCount, int maxCount)
-    -> std::vector<int>;
+[[nodiscard]] auto buildThreadCounts(int minCount,
+                                     int maxCount) -> std::vector<int>;
 
 /// @brief The thread counts `denseThreadRange` states for these bounds: one
 /// count per step that stays within them (FR-016, FR-024). A step below one
 /// and bounds out of order name no count, for the same reason (FR-024).
-[[nodiscard]] auto buildDenseThreadCounts(int minCount, int maxCount, int step)
-    -> std::vector<int>;
+[[nodiscard]] auto buildDenseThreadCounts(int minCount,
+                                          int maxCount,
+                                          int step) -> std::vector<int>;
 
 /// @brief FR-006, FR-050: the dispatch account of one context: every accept
 /// stands matched by its dispatch, either linked into the inbox or refused
@@ -446,8 +447,8 @@ struct RecorderReservation
 /// @brief FR-020: the skip rule of the threaded merge: the merged record
 /// takes the skip of a skipped record where it carries no skip of its own,
 /// so the reason of the first skipped context of the attempt stands.
-[[nodiscard]] auto takesSkip(bool recordSkipped, bool mergedSkipped) noexcept
-    -> bool;
+[[nodiscard]] auto takesSkip(bool recordSkipped,
+                             bool mergedSkipped) noexcept -> bool;
 
 // FR-003, D-01: the outcome of one pass of the private drain head's walk.
 // `NODE` names a successor to take, `EMPTY` the inbox that provably stands
@@ -493,9 +494,8 @@ enum class WalkStep : std::uint8_t
 /// @brief The disclosure account of one pin attempt: the slot text the pin
 /// landed on where the platform accepted it, the unapplied text where it
 /// did not (FR-005, FR-025).
-[[nodiscard]] auto selectPlacementAccount(bool landed,
-                                          std::string_view landedText)
-    -> PlacementResult;
+[[nodiscard]] auto selectPlacementAccount(
+    bool landed, std::string_view landedText) -> PlacementResult;
 
 /// @brief The placement field of the disclosure line: the text whole where
 /// it fits the field, cut to the field with a mark of the cut where it does
@@ -947,8 +947,9 @@ auto installTestGraph(std::optional<Graph>) -> void;
 /// @brief The plan of one preset over one layout for one context count:
 /// the ordered walk of the resolver contract, an empty `cpu` when the
 /// count exceeds the place count (FR-008 to FR-014, FR-018).
-[[nodiscard]] auto resolvePreset(Preset, const MachineLayout&, int contexts)
-    -> PlacementPlan;
+[[nodiscard]] auto resolvePreset(Preset,
+                                 const MachineLayout&,
+                                 int contexts) -> PlacementPlan;
 
 /**
  * @brief specs/039-context-groups data-model.md: one group of one
@@ -1068,8 +1069,8 @@ struct IdleResolution
 /// @brief The `idle` resolution: the lowest free cpu of each L3 group
 /// the planned cpus name, with the skip record (FR-016, FR-017, R-07).
 [[nodiscard]] auto resolveIdleCpus(
-    const MachineLayout& machine, const std::vector<std::uint32_t>& plannedCpus)
-    -> IdleResolution;
+    const MachineLayout& machine,
+    const std::vector<std::uint32_t>& plannedCpus) -> IdleResolution;
 
 /// @brief specs/027 data-model.md D-3: one probe cpu the plans refuse,
 /// with the benchmark whose plan it meets (FR-018, D-9).
@@ -1138,8 +1139,8 @@ struct MaskNarrowing
 /// reads: every planned cpu names a thread the layout's mask holds
 /// (R-07).
 [[maybe_unused]] [[nodiscard]] auto plannedCpusResolve(
-    const MachineLayout& machine, const std::vector<std::uint32_t>& plannedCpus)
-    -> bool;
+    const MachineLayout& machine,
+    const std::vector<std::uint32_t>& plannedCpus) -> bool;
 
 /// @brief The duration-division relation of data-model.md E-03: the
 /// derived fields the fold filled answer the covered span, read against
@@ -1161,9 +1162,8 @@ struct MaskNarrowing
 /// predicate, read only inside the SG_ENSURE contract of the resolver:
 /// every planned cpu stands inside the mask and stands on the node the
 /// context binds to, and the cpus stand pairwise distinct.
-[[maybe_unused]] [[nodiscard]] auto planNodesBind(const MachineLayout& layout,
-                                                  const PlacementPlan& plan)
-    -> bool;
+[[maybe_unused]] [[nodiscard]] auto planNodesBind(
+    const MachineLayout& layout, const PlacementPlan& plan) -> bool;
 
 /// @brief The overlap answer's postcondition predicate, read only
 /// inside the SG_ENSURE contract of the overlap check: the answer
@@ -1373,9 +1373,8 @@ struct MetricColumn
 /// @brief The one line `--metric` prints for a name that carries nothing:
 /// the name, the lookup's message, and its near-miss names in parentheses
 /// when it has any (FR-028, FR-042).
-[[nodiscard]] auto metricNameFailureLine(const std::string& name,
-                                         const sg::counters::Error& error)
-    -> std::string;
+[[nodiscard]] auto metricNameFailureLine(
+    const std::string& name, const sg::counters::Error& error) -> std::string;
 
 /**
  * @brief Walk the counter addresses every source named and print the first

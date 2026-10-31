@@ -22,6 +22,7 @@ auto bmChain(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmChain).threads(3);
+
 // sg-example:end execution-graphs
 
 namespace

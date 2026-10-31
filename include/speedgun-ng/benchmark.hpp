@@ -144,9 +144,8 @@ enum class CounterFlag : std::uint32_t
  * \pre none
  * \post none
  */
-[[nodiscard]] constexpr auto operator&(const CounterFlag left,
-                                       const CounterFlag right) noexcept
-    -> CounterFlag
+[[nodiscard]] constexpr auto operator&(
+    const CounterFlag left, const CounterFlag right) noexcept -> CounterFlag
 {
   return static_cast<CounterFlag>(static_cast<std::uint32_t>(left)
                                   & static_cast<std::uint32_t>(right));
@@ -158,9 +157,8 @@ enum class CounterFlag : std::uint32_t
  * \pre none
  * \post none
  */
-[[nodiscard]] constexpr auto operator|(const CounterFlag left,
-                                       const CounterFlag right) noexcept
-    -> CounterFlag
+[[nodiscard]] constexpr auto operator|(
+    const CounterFlag left, const CounterFlag right) noexcept -> CounterFlag
 {
   return static_cast<CounterFlag>(static_cast<std::uint32_t>(left)
                                   | static_cast<std::uint32_t>(right));
@@ -2657,8 +2655,9 @@ public:
    *       `createDenseRange(low, high, step)`, and the returned handle
    *       is this handle (FR-005)
    */
-  auto denseRange(std::int64_t low, std::int64_t high, std::int64_t step = 1)
-      -> BenchmarkHandle&;
+  auto denseRange(std::int64_t low,
+                  std::int64_t high,
+                  std::int64_t step = 1) -> BenchmarkHandle&;
 
   /**
    * @brief Append the product of `lists`: one instance per combination
@@ -2840,8 +2839,9 @@ public:
    *       place of any set an earlier thread call stated, and the
    *       returned handle is this handle (FR-016)
    */
-  auto denseThreadRange(int minCount, int maxCount, int step)
-      -> BenchmarkHandle&;
+  auto denseThreadRange(int minCount,
+                        int maxCount,
+                        int step) -> BenchmarkHandle&;
 
   /**
    * @brief Attach the dispatch function of this family's threaded runs

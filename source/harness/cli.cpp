@@ -237,9 +237,8 @@ auto timeSourcePresent(counters::System& sys) -> bool
 // walk is in the order the sources named the names and states the first
 // failure, with its near-miss names on the same line behind the origin of the
 // source that held the name (FR-033, FR-038).
-[[nodiscard]] auto metricNameFailureLine(const std::string& name,
-                                         const counters::Error& error)
-    -> std::string
+[[nodiscard]] auto metricNameFailureLine(
+    const std::string& name, const counters::Error& error) -> std::string
 {
   std::string line =
       "--metric " + quotedText(name) + ": " + quotedText(error.message);
@@ -400,13 +399,12 @@ auto applyNarrowedMask(const cpu_set_t& narrowed) noexcept -> void
 // the fold reads (R-04). The record block is one unit of the report,
 // and the entry point below stands more than seven hundred lines, so
 // the build stands in a function of its own.
-auto buildJitterReportRecord(
-    const JitterProbeOptions& probe,
-    bool unavailable,
-    bool rawGaps,
-    const std::string& placementTail,
-    const std::vector<const detail::ProbeCpuState*>& states)
-    -> detail::JitterReportRecord
+auto buildJitterReportRecord(const JitterProbeOptions& probe,
+                             bool unavailable,
+                             bool rawGaps,
+                             const std::string& placementTail,
+                             const std::vector<const detail::ProbeCpuState*>&
+                                 states) -> detail::JitterReportRecord
 {
   detail::JitterReportRecord record;
   record.mode = probe.mode;

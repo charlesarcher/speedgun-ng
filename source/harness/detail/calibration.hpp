@@ -244,8 +244,8 @@ auto growUntilQualified(const std::uint64_t start,
   return {GrowOutcome::BOUND_EXHAUSTED, {}, boundText(phase, runBound)};
 }
 
-inline auto boundText(const PhaseText& phase, const std::uint64_t runBound)
-    -> std::string
+inline auto boundText(const PhaseText& phase,
+                      const std::uint64_t runBound) -> std::string
 {
   return std::string(phase.name) + " did not qualify within "
       + std::to_string(runBound) + " runs (" + std::string(phase.citation)

@@ -83,22 +83,26 @@ int alphaRuns = 0;
 auto bmAlpha(sg::State& state) -> void
 {
   ++alphaRuns;
-  for (auto _ : state) {}
+  for (auto _ : state) {
+  }
 }
 
 auto bmBeta(sg::State& state) -> void
 {
-  for (auto _ : state) {}
+  for (auto _ : state) {
+  }
 }
 
 auto bmFixed(sg::State& state) -> void
 {
-  for (auto _ : state) {}
+  for (auto _ : state) {
+  }
 }
 
 auto bmMetric(sg::State& state) -> void
 {
-  for (auto _ : state) {}
+  for (auto _ : state) {
+  }
 }
 
 // The four fixture pairs the `--metric-method` scenarios attach: at the
@@ -113,18 +117,21 @@ int methodRuns = 0;
 auto bmMethod(sg::State& state) -> void
 {
   ++methodRuns;
-  for (auto _ : state) {}
+  for (auto _ : state) {
+  }
 }
 
 auto bmSkips(sg::State& state) -> void
 {
-  for (auto _ : state) {}
+  for (auto _ : state) {
+  }
   state.skipWithMessage("the scripted reason");
 }
 
 auto bmThrows(sg::State& state) -> void
 {
-  for (auto _ : state) {}
+  for (auto _ : state) {
+  }
   throw std::runtime_error("the scripted failure");
 }
 
@@ -133,13 +140,15 @@ int interruptRuns = 0;
 auto bmInterrupts(sg::State& state) -> void
 {
   ++interruptRuns;
-  for (auto _ : state) {}
+  for (auto _ : state) {
+  }
   (void)std::raise(SIGINT);
 }
 
 auto bmAfter(sg::State& state) -> void
 {
-  for (auto _ : state) {}
+  for (auto _ : state) {
+  }
 }
 
 int skipBeforePasses = 0;
@@ -255,11 +264,12 @@ auto scratchName(std::string_view stem, std::string_view suffix) -> std::string
 // FR-020, FR-023: a family that asked for the tail, for the precedence pair.
 auto bmAsked(sg::State& state) -> void
 {
-  for (auto _ : state) {}
+  for (auto _ : state) {
+  }
 }
 
-auto captureRun(const std::vector<std::string>& arguments, int expected = 0)
-    -> std::string
+auto captureRun(const std::vector<std::string>& arguments,
+                int expected = 0) -> std::string
 {
   std::vector<char*> argv;
   argv.push_back(const_cast<char*>("harness_cli_test"));
@@ -292,8 +302,8 @@ auto captureRun(const std::vector<std::string>& arguments, int expected = 0)
   return buffer.str();
 }
 
-auto linesOf(const std::string& report, const std::string& name)
-    -> std::vector<std::string>
+auto linesOf(const std::string& report,
+             const std::string& name) -> std::vector<std::string>
 {
   std::vector<std::string> found;
   std::istringstream stream(report);
@@ -1683,8 +1693,7 @@ auto main(const int argc, char** argv) -> int
   // the proof that the refusal came before any benchmark output. The settled
   // method is read off the `passes` line of the scripted family
   // (`contracts/pass-disclosure.md`, E-07).
-  const auto refusalText = [](const std::string& word)
-  {
+  const auto refusalText = [](const std::string& word) {
     return "--metric-method '" + word + "' is not auto, passes or multiplex\n";
   };
 

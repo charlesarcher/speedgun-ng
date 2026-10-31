@@ -49,8 +49,9 @@ auto kindName(Element value) -> const char*
   return "object";
 }
 
-auto wrongKind(const std::string& where, Element value, std::string_view want)
-    -> std::string
+auto wrongKind(const std::string& where,
+               Element value,
+               std::string_view want) -> std::string
 {
   return where + ": expected " + std::string(want) + ", found "
       + kindName(value);
@@ -61,8 +62,9 @@ auto missing(const std::string& where, std::string_view key) -> std::string
   return where + ": the key '" + std::string(key) + "' stands missing";
 }
 
-auto field(Element object, const std::string& where, std::string_view key)
-    -> std::expected<Element, std::string>
+auto field(Element object,
+           const std::string& where,
+           std::string_view key) -> std::expected<Element, std::string>
 {
   auto found = object[key];
   if (found.has_value()) {
@@ -80,8 +82,8 @@ auto field(Element object, const std::string& where, std::string_view key)
 // key that stands absent reads as nothing and leaves its member at the
 // default of a run that collected no pass. A key that stands present keeps
 // its own kind and its own refusal (specs/024 FR-038).
-auto optionalField(Element object, std::string_view key) noexcept
-    -> std::optional<Element>
+auto optionalField(Element object,
+                   std::string_view key) noexcept -> std::optional<Element>
 {
   auto found = object[key];
   if (!found.has_value()) {
@@ -92,10 +94,9 @@ auto optionalField(Element object, std::string_view key) noexcept
 
 // The keys a record must hold, reported once: the first key that stands
 // missing names the record and itself (FR-024).
-auto settled(
-    const std::vector<
-        std::pair<std::string, std::expected<Element, std::string>>>& parts)
-    -> std::expected<void, std::string>
+auto settled(const std::vector<
+             std::pair<std::string, std::expected<Element, std::string>>>&
+                 parts) -> std::expected<void, std::string>
 {
   for (const auto& part : parts) {
     if (!part.second.has_value()) {
@@ -141,8 +142,8 @@ auto asString(Element value, const std::string& where)
   return std::string(text);
 }
 
-auto asDouble(Element value, const std::string& where)
-    -> std::expected<double, std::string>
+auto asDouble(Element value,
+              const std::string& where) -> std::expected<double, std::string>
 {
   double number = 0.0;
   if (const auto code = value.get_double().get(number);
@@ -168,8 +169,8 @@ auto asUnsigned(Element value, const std::string& where)
   return static_cast<std::uint64_t>(number);
 }
 
-auto asBool(Element value, const std::string& where)
-    -> std::expected<bool, std::string>
+auto asBool(Element value,
+            const std::string& where) -> std::expected<bool, std::string>
 {
   bool flag = false;
   if (const auto code = value.get_bool().get(flag); code != simdjson::SUCCESS) {
@@ -178,8 +179,8 @@ auto asBool(Element value, const std::string& where)
   return flag;
 }
 
-auto asArray(Element value, const std::string& where)
-    -> std::expected<JsonArray, std::string>
+auto asArray(Element value,
+             const std::string& where) -> std::expected<JsonArray, std::string>
 {
   JsonArray items;
   if (const auto code = value.get_array().get(items); code != simdjson::SUCCESS)
@@ -192,8 +193,9 @@ auto asArray(Element value, const std::string& where)
 // One word of a closed enumeration, or the error naming the word the
 // document held (FR-024).
 template<class Enum>
-auto asEnum(const auto& words, Element value, const std::string& where)
-    -> std::expected<Enum, std::string>
+auto asEnum(const auto& words,
+            Element value,
+            const std::string& where) -> std::expected<Enum, std::string>
 {
   auto text = asString(value, where);
   if (!text.has_value()) {
@@ -269,7 +271,7 @@ auto readPercentileCell(Element value, const std::string& where)
       parts {
           {"available", field(value, where, "available")},
           {"value", field(value, where, "value")},
-  };
+      };
   if (!settled(parts).has_value()) {
     return std::unexpected(settled(parts).error());
   }
@@ -365,7 +367,7 @@ auto readMetricValue(Element value, const std::string& where)
           {"runningRatio", field(value, where, "runningRatio")},
           {"scaled", field(value, where, "scaled")},
           {"availability", field(value, where, "availability")},
-  };
+      };
   auto keys = settled(parts);
   if (!keys.has_value()) {
     return std::unexpected(keys.error());
@@ -404,8 +406,8 @@ auto readMetricValue(Element value, const std::string& where)
   };
 }
 
-auto readFit(Element value, const std::string& where)
-    -> std::expected<sg::FitRow, std::string>
+auto readFit(Element value,
+             const std::string& where) -> std::expected<sg::FitRow, std::string>
 {
   std::vector<std::pair<std::string, std::expected<Element, std::string>>>
       parts {
@@ -415,7 +417,7 @@ auto readFit(Element value, const std::string& where)
           {"rmsPercent", field(value, where, "rmsPercent")},
           {"scalesWithUnit", field(value, where, "scalesWithUnit")},
           {"reason", field(value, where, "reason")},
-  };
+      };
   auto keys = settled(parts);
   if (!keys.has_value()) {
     return std::unexpected(keys.error());
@@ -1654,7 +1656,7 @@ auto readStageRange(Element value, const std::string& where)
           {"first", field(value, where, "first")},
           {"count", field(value, where, "count")},
           {"repeats", field(value, where, "repeats")},
-  };
+      };
   auto keys = settled(parts);
   if (!keys.has_value()) {
     return std::unexpected(keys.error());
@@ -1691,7 +1693,7 @@ auto readRankedEvent(Element value, const std::string& where)
           {"noisy", field(value, where, "noisy")},
           {"multiplexed", field(value, where, "multiplexed")},
           {"rank", field(value, where, "rank")},
-  };
+      };
   auto keys = settled(parts);
   if (!keys.has_value()) {
     return std::unexpected(keys.error());
@@ -1772,7 +1774,7 @@ auto readSkippedEvent(Element value, const std::string& where)
       parts {
           {"address", field(value, where, "address")},
           {"kind", field(value, where, "kind")},
-  };
+      };
   auto keys = settled(parts);
   if (!keys.has_value()) {
     return std::unexpected(keys.error());
@@ -1808,7 +1810,7 @@ auto readEntryHunt(Element value, const std::string& where)
           {"retried_passes", field(value, where, "retried_passes")},
           {"entries", field(value, where, "entries")},
           {"skipped", field(value, where, "skipped")},
-  };
+      };
   auto keys = settled(parts);
   if (!keys.has_value()) {
     return std::unexpected(keys.error());
@@ -2453,8 +2455,8 @@ auto parseSchema(Element value, const std::string& where)
   return node;
 }
 
-auto propertyOf(const SchemaNode& node, std::string_view key) noexcept
-    -> const SchemaNode*
+auto propertyOf(const SchemaNode& node,
+                std::string_view key) noexcept -> const SchemaNode*
 {
   for (const auto& property : node.properties) {
     if (property.first == key) {
@@ -2608,8 +2610,8 @@ auto firstDuplicateKey(const simdjson::dom::element& root)
 namespace detail
 {
 
-auto checkReport(std::string_view schemaPath, std::string_view document)
-    -> std::expected<void, std::string>
+auto checkReport(std::string_view schemaPath,
+                 std::string_view document) -> std::expected<void, std::string>
 {
   auto schemaText = detail::readTextFile(std::string(schemaPath));
   if (!schemaText.has_value()) {

@@ -153,8 +153,8 @@ auto checked(const bool condition, const std::string& what) -> void
 // gives the block something to stand behind, and the contexts give it the
 // `contexts=` line it stands after. A `contexts` count of zero names a
 // single-context run, the run that has no threaded context to order.
-auto threadedResult(const std::string& name, const std::size_t contexts)
-    -> sg::BenchmarkResult
+auto threadedResult(const std::string& name,
+                    const std::size_t contexts) -> sg::BenchmarkResult
 {
   auto result = sg::BenchmarkResult {};
   result.name = name;
@@ -321,8 +321,8 @@ auto printCaptured(const std::vector<Run>& runs) -> std::vector<std::string>
 
 // The index of the first line that starts with `prefix`, and `npos` where no
 // line does.
-auto indexOf(const std::vector<std::string>& lines, std::string_view prefix)
-    -> std::size_t
+auto indexOf(const std::vector<std::string>& lines,
+             std::string_view prefix) -> std::size_t
 {
   for (std::size_t index = 0; index < lines.size(); ++index) {
     if (lines[index].starts_with(prefix)) {
@@ -332,8 +332,8 @@ auto indexOf(const std::vector<std::string>& lines, std::string_view prefix)
   return std::string::npos;
 }
 
-auto countWith(const std::vector<std::string>& lines, std::string_view prefix)
-    -> std::size_t
+auto countWith(const std::vector<std::string>& lines,
+               std::string_view prefix) -> std::size_t
 {
   auto count = std::size_t {0};
   for (const auto& line : lines) {
@@ -369,8 +369,8 @@ auto joined(const std::vector<std::string>& lines) -> std::string
 
 // The line at `index`, or the text that states its absence: the message of a
 // red fold reads the line the print answered.
-auto lineAt(const std::vector<std::string>& lines, const std::size_t index)
-    -> std::string
+auto lineAt(const std::vector<std::string>& lines,
+            const std::size_t index) -> std::string
 {
   return index < lines.size() ? lines[index] : std::string("<absent>");
 }
@@ -554,8 +554,8 @@ auto balancedFrom(const std::string& text, const std::size_t at) -> std::string
 // The keys of one object, in the order they stand, at one depth: the order
 // the `x-order` lists state, read from the written bytes. A `want` of zero
 // takes the keys of every object the text holds, at every depth.
-auto objectKeys(std::string_view object, const std::size_t want = 1)
-    -> std::vector<std::string>
+auto objectKeys(std::string_view object,
+                const std::size_t want = 1) -> std::vector<std::string>
 {
   auto keys = std::vector<std::string> {};
   auto depth = std::size_t {0};
@@ -656,8 +656,8 @@ auto allKeys(std::string_view text) -> std::vector<std::string>
 
 // The value of one integer key of one object, in the order the keys stand:
 // the `slot` figures of a `nodes` array, read in written order.
-auto numberValues(std::string_view object, std::string_view key)
-    -> std::vector<std::int64_t>
+auto numberValues(std::string_view object,
+                  std::string_view key) -> std::vector<std::int64_t>
 {
   auto values = std::vector<std::int64_t> {};
   const auto needle = std::string("\"") + std::string(key) + "\":";
@@ -722,8 +722,8 @@ auto settlementRecord() -> sg::GraphRecord
 
 // The record the run wrote, folded against the record the reader read: every
 // key of the contract, in the order the arrays carry it (FR-023, SC-006).
-auto foldRuns(const sg::GraphRunRecord& read, const sg::GraphRunRecord& wrote)
-    -> void
+auto foldRuns(const sg::GraphRunRecord& read,
+              const sg::GraphRunRecord& wrote) -> void
 {
   checked(read.benchmark == wrote.benchmark,
           "the entry names its run by the benchmark name, read '"
@@ -770,8 +770,8 @@ auto foldRuns(const sg::GraphRunRecord& read, const sg::GraphRunRecord& wrote)
           "order and with no reason");
 }
 
-auto foldRecord(const sg::GraphRecord& read, const sg::GraphRecord& wrote)
-    -> void
+auto foldRecord(const sg::GraphRecord& read,
+                const sg::GraphRecord& wrote) -> void
 {
   checked(read.runs.size() == wrote.runs.size(),
           "the record carries one entry per threaded run in batch order, read "

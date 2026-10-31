@@ -215,8 +215,8 @@ auto parsePercentileList(const char* text,
   return {};
 }
 
-auto parseCount(const char* text, const char* option)
-    -> std::expected<std::uint64_t, std::string>
+auto parseCount(const char* text,
+                const char* option) -> std::expected<std::uint64_t, std::string>
 {
   errno = 0;
   char* end = nullptr;
@@ -353,8 +353,10 @@ auto typedWord(std::string_view word) -> std::string_view
 // it names an earlier option there and the group itself stands one word
 // ahead; a letter a long row answers with belongs to no single-dash word,
 // so the search answers nothing and the base line stays (FR-007, T063).
-auto groupWord(int argc, char** argv, int optind, char letter)
-    -> std::string_view
+auto groupWord(int argc,
+               char** argv,
+               int optind,
+               char letter) -> std::string_view
 {
   const std::string head {'-', letter};
   for (const int index : {optind - 1, optind}) {
@@ -414,8 +416,8 @@ auto unknownOptionLine(std::string_view word) -> std::string
 // The ambiguous line, when the typed name starts two or more row names:
 // the candidates in table order, which the scan computes itself because
 // the scanner names no list once `opterr` stands at 0 (FR-009, D-25).
-auto ambiguousOptionLine(std::string_view word, std::string_view name)
-    -> std::optional<std::string>
+auto ambiguousOptionLine(std::string_view word,
+                         std::string_view name) -> std::optional<std::string>
 {
   if (name.empty()) {
     // A word of dashes alone carries no name, so no row of the table is a
@@ -1181,8 +1183,8 @@ auto readSeed(const std::string_view text)
 //
 //     count 12, seed 7: 4 0 2 6 10 9 1 5 11 8 7 3
 //     count 12, seed 8: 7 0 6 10 8 2 11 5 9 4 3 1
-auto shuffledOrder(const std::size_t count, const std::uint64_t seed)
-    -> std::vector<std::size_t>
+auto shuffledOrder(const std::size_t count,
+                   const std::uint64_t seed) -> std::vector<std::size_t>
 {
   SG_REQUIRE(count > 0,
              "the walk order belongs to a selection of at least one");
@@ -1372,8 +1374,8 @@ auto splitItems(const std::string& text) -> std::vector<std::string_view>
 // command line hand the whole of their text to the reader of the row, the
 // rule FR-035 gives the file, so the same value faults the same way from
 // either (FR-024, FR-035).
-auto sourceItems(const std::string& text, const OptionSource source)
-    -> std::vector<std::string_view>
+auto sourceItems(const std::string& text,
+                 const OptionSource source) -> std::vector<std::string_view>
 {
   if (source != OptionSource::ENVIRONMENT) {
     return {std::string_view(text)};

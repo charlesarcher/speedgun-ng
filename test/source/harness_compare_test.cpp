@@ -159,8 +159,8 @@ namespace sg::detail
 // The batch filter of the compare mode (D-12, FR-050), defined in
 // `source/harness/compare.cpp` by T022: the four position-indexed lists
 // of a loaded value move together.
-auto applyBatchFilter(sg::ReportData& report, const std::regex& pattern)
-    -> void;
+auto applyBatchFilter(sg::ReportData& report,
+                      const std::regex& pattern) -> void;
 
 // The table of FR-053 to FR-056, the node the compare mode calls; its
 // declaration stands in `detail/compare.hpp`.
@@ -1472,8 +1472,9 @@ auto recorded(const char* name,
 
 // One measured run carrying one metric column whose value stands at `value`
 // beside the running ratio the disclosure carries (FR-043).
-auto metricRun(const char* name, const double value, const double runningRatio)
-    -> sg::BenchmarkResult
+auto metricRun(const char* name,
+               const double value,
+               const double runningRatio) -> sg::BenchmarkResult
 {
   auto result = makeResult();
   result.name = name;
@@ -1730,8 +1731,8 @@ struct MatrixRecords
 // time columns, the 99 point of the primary column, one counter column, one
 // metric column and the two attached statistics with their units (E-08,
 // FR-013, FR-014, FR-015).
-auto matrixResult(const char* name, const MatrixValues& values)
-    -> sg::BenchmarkResult
+auto matrixResult(const char* name,
+                  const MatrixValues& values) -> sg::BenchmarkResult
 {
   auto result = makeResult();
   result.name = name;
@@ -1752,8 +1753,8 @@ auto matrixResult(const char* name, const MatrixValues& values)
 
 // The single-row shape: one measured row and no aggregate row, so every
 // aggregate answers that row's value (FR-017, D-09).
-auto singleMatrix(const char* name, const MatrixValues& values)
-    -> sg::BenchmarkResult
+auto singleMatrix(const char* name,
+                  const MatrixValues& values) -> sg::BenchmarkResult
 {
   return matrixResult(name, values);
 }

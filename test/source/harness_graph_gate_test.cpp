@@ -389,8 +389,8 @@ auto releaseInOrder(Slots& slots, const sg::detail::Graph& graph) -> void
 // on. The gate's release order is a fact inside the gate's mutex, and a
 // driver records its start after that mutex opens, so two slots that stand
 // ready together record in either order (FR-013, FR-014, D-10).
-auto checkStartsFollowGraph(const DriveLog& log, const sg::detail::Graph& graph)
-    -> void
+auto checkStartsFollowGraph(const DriveLog& log,
+                            const sg::detail::Graph& graph) -> void
 {
   check(log.starts.size() == graph.nodes.size(),
         "the gate starts every node of the graph once (FR-013)");
@@ -1165,8 +1165,8 @@ auto rowOf(const std::string& report, const std::string& name) -> std::string
 
 // The first line of the report that names the instance: the measured row,
 // the failed row, or the skip line.
-auto namedLineOf(const std::string& report, const std::string& name)
-    -> std::string
+auto namedLineOf(const std::string& report,
+                 const std::string& name) -> std::string
 {
   auto stream = std::istringstream(report);
   auto line = std::string {};
@@ -1301,9 +1301,8 @@ auto driveGateOpensNoWindow(const std::string& self,
 // of specs/025 and specs/035 stand unchanged beside a graph. The standing
 // disclosure names the wait mode and the placement of every context of the
 // run, and the graph changes none of it.
-auto drivePlacementBytesUnchangedBesideGraph(const std::string& self,
-                                             const std::string_view name)
-    -> void
+auto drivePlacementBytesUnchangedBesideGraph(
+    const std::string& self, const std::string_view name) -> void
 {
   auto graphStatus = 0;
   const auto graphReport = runReportChild(self, "chain3", name, graphStatus);

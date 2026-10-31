@@ -153,8 +153,8 @@ auto check(const bool condition, const char* what) -> void
 // answers the check from its own spelling and the check proves nothing. One
 // name per scenario stands here too, so no scenario plants over a file
 // another scenario planted.
-[[nodiscard]] auto plant(const std::string& name, std::string_view text)
-    -> std::string
+[[nodiscard]] auto plant(const std::string& name,
+                         std::string_view text) -> std::string
 {
   std::filesystem::create_directories(plantDirectory());
   const std::filesystem::path path = plantDirectory() / name;
