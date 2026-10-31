@@ -63,7 +63,7 @@ constexpr std::uint32_t kReleased = std::numeric_limits<std::uint32_t>::max();
                              const std::string_view name) -> std::uint32_t
 {
   auto slot = std::uint32_t {0};
-  auto found = false;
+  [[maybe_unused]] auto found = false;
   for (const auto& node : graph.nodes) {
     if (node.name == name) {
       slot = node.slot;
@@ -75,9 +75,10 @@ constexpr std::uint32_t kReleased = std::numeric_limits<std::uint32_t>::max();
   return slot;
 }
 
-// A node of `graph` names `name`.
-[[nodiscard]] auto namesNode(const Graph& graph,
-                             const std::string_view name) -> bool
+// A node of `graph` names `name`. The one caller stands inside a contract,
+// so the contracts-ignored build carries the helper unread.
+[[nodiscard]] [[maybe_unused]] auto namesNode(
+    const Graph& graph, const std::string_view name) -> bool
 {
   auto found = false;
   for (const auto& node : graph.nodes) {
@@ -234,7 +235,7 @@ GraphGate::GraphGate(const Graph& graph)
         static_cast<std::uint32_t>(node.deps.size());
   }
   for (const auto& node : graph.nodes) {
-    for (const auto& dependency : node.deps) {
+    for ([[maybe_unused]] const auto& dependency : node.deps) {
       SG_REQUIRE(namesNode(graph, dependency),
                  "every dependency names a node of the graph (FR-010 rule 7)");
     }
@@ -244,7 +245,7 @@ GraphGate::GraphGate(const Graph& graph)
   // graph that holds one.
   SG_ASSERT(startOrder(graph).size() == m_states.size(),
             "the graph the gate stands over holds no cycle (FR-010 rule 9)");
-  for (const auto& node : graph.nodes) {
+  for ([[maybe_unused]] const auto& node : graph.nodes) {
     SG_ENSURE(m_states[node.slot].remaining
                   == static_cast<std::uint32_t>(node.deps.size()),
               "every node of the graph leaves the count of the dependencies "
