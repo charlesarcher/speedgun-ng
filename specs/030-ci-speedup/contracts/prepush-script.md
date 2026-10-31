@@ -27,11 +27,12 @@ FR-050.
 | 8 | quick tier, full affinity | `test` `Test` | `ctest --preset prepush-quick -j "$(nproc)"` |
 | 9 | quick tier, two cpus | the same tier under a runner's pinning | `taskset -c 0,1 ctest --preset prepush-quick -j 2` |
 | 10 | naming check on the changed units | `static-analysis` | `clang-tidy --checks=-*,readability-identifier-naming` over the units `git diff --name-only origin/master` names |
-| 11 | slow tier | the CI suite | `ctest --preset prepush-full -j "$(nproc)"` (with `--full`) |
-| 12 | consumer release build | `consumer-release` | the job's configure and build (with `--full`) |
-| 13 | tsan configure and link | `tsan` | `cmake --preset=ci-tsan` and its build (with `--full`) |
+| 11 | validate | the committed-record check of `test` | `cmake --build build/prepush -t validate` |
+| 12 | slow tier | the CI suite | `ctest --preset prepush-full -j "$(nproc)"` (with `--full`) |
+| 13 | consumer release build | `consumer-release` | the job's configure and build (with `--full`) |
+| 14 | tsan configure and link | `tsan` | `cmake --preset=ci-tsan` and its build (with `--full`) |
 
-Steps 11 to 13 run only under `--full`.
+Step 11 stands in every run; steps 12 to 14 run only under `--full`.
 
 ## Output line
 
@@ -82,5 +83,5 @@ tools/ci/prepush.sh --full                   # the three extra lines
 ```
 
 The unknown option exits 2 and runs nothing. The plain run prints one line
-for each of steps 1 to 10, and `--full` adds three more. The bound of
+for each of steps 1 to 11, and `--full` adds three more. The bound of
 SC-007 is read on the named lane host with a warm cache.
