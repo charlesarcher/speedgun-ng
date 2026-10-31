@@ -31,3 +31,8 @@ ctest --preset prepush-quick -j "$(nproc)"
 taskset -c 0,1 ctest --preset prepush-quick -j 2
 ctest --preset prepush-full -j "$(nproc)"
 # sg-example:end tiers
+
+# sg-example:begin validate
+cmake --build build --target validate
+./build/test/host_record_check --root . --records validation
+# sg-example:end validate

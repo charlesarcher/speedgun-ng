@@ -1627,6 +1627,145 @@ target_include_directories(harness_graph_model_test PRIVATE ${CMAKE_SOURCE_DIR}/
 target_compile_features(harness_graph_model_test PRIVATE cxx_std_23)
 add_test(NAME harness_graph_model_test COMMAND harness_graph_model_test)
 
+# ---- Host validation (feature 031) ----
+
+# The pinned record schema over the document the contract pins and over the
+# planted breaks contracts/record-schema-file.md names (T002, T001; M-A,
+# FR-019, FR-020, FR-021, SC-005). The schema path enters the way
+# harness_hunt_json_test takes it, and the label and timeout loops below
+# hand the entry the quick label and the 300 s ceiling.
+add_executable(harness_host_record_schema_test
+               source/harness_host_record_schema_test.cpp)
+target_link_libraries(harness_host_record_schema_test
+                      PRIVATE speedgun-ng::harness)
+target_include_directories(harness_host_record_schema_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_host_record_schema_test PRIVATE cxx_std_23)
+target_compile_definitions(
+    harness_host_record_schema_test
+    PRIVATE SG_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/docs/schema/host-record-v1.json"
+)
+add_test(NAME harness_host_record_schema_test
+         COMMAND harness_host_record_schema_test)
+
+# The machine block of a planted layout, read through the standing topology
+# seam: the four counts, the mask text, the L3 rows and the node rows the
+# listing prints (T006; US1, M-B, FR-012, FR-013, FR-014, FR-032, SC-001).
+# Each planted layout rides a process of its own, the shape
+# harness_topology_test gives its installed layouts, and the label and
+# timeout loops below hand the entry the quick label and the 300 s ceiling.
+# The schema path enters the way harness_host_record_schema_test takes it, so a
+# planted tree can hold the pinned schema beside the record a write reads
+# before it refreshes that record (T018; FR-006, FR-020, FR-022).
+add_executable(harness_host_record_test source/harness_host_record_test.cpp)
+target_link_libraries(harness_host_record_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_host_record_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_host_record_test PRIVATE cxx_std_23)
+target_compile_definitions(
+    harness_host_record_test
+    PRIVATE SG_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/docs/schema/host-record-v1.json"
+)
+add_test(NAME harness_host_record_test COMMAND harness_host_record_test)
+
+# The record one planted file holds against the pinned schema: planted valid
+# bytes answer a record, and each planted key-set, order and kind break
+# answers none (T007; US2, M-C, FR-020, FR-024, FR-030, SC-003). The schema
+# path enters the way harness_json_schema_test takes it, so each planted tree
+# can hold the pinned bytes beside its record, and the label and timeout
+# loops below hand the entry the quick label and the 300 s ceiling.
+add_executable(harness_host_record_check_test
+               source/harness_host_record_check_test.cpp)
+target_link_libraries(harness_host_record_check_test
+                      PRIVATE speedgun-ng::harness)
+target_include_directories(harness_host_record_check_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_definitions(
+    harness_host_record_check_test
+    PRIVATE SG_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/docs/schema/host-record-v1.json"
+)
+target_compile_features(harness_host_record_check_test PRIVATE cxx_std_23)
+add_test(NAME harness_host_record_check_test
+         COMMAND harness_host_record_check_test)
+
+# The reader program: one call into the library entry point and one exit, with
+# the chooser builder of `tools/hostcheck/mapfile.hpp` handed over as the
+# factory, the one place a counters internal header may stand (T026, T027; US2,
+# M-E, FR-026, FR-028, FR-037, R-04, R-06). The binary stands at
+# `build/test/host_record_check`, where the developer build puts every target.
+# A record root that holds no `.json` entry answers status 2, so the
+# committed-set entry stays a lane run beside T050's record (R-11).
+add_executable(host_record_check ../tools/hostcheck/host_record_check.cpp)
+target_link_libraries(host_record_check
+                      PRIVATE speedgun-ng::harness speedgun-ng::speedgun-ng)
+target_compile_features(host_record_check PRIVATE cxx_std_23)
+
+# The reader over the committed set: the schema under `docs/schema`, the mapfile
+# under the `external/` submodule, and the one record the lane commits under
+# `validation/` (T027, T031, T045; FR-002, FR-005, FR-031, FR-037). The rule 4
+# answers come from the mapfile rows read against the identity inside each
+# record, so this entry reads no CPUID and stands free of the runner's CPU
+# (FR-035). The pattern pins the per-file line of that record, which carries its
+# path, its identity and its status word: a broken or a stale line does not
+# match it, and a refusal prints no per-file line at all.
+add_test(
+  NAME host_record_check
+  COMMAND host_record_check --root ${CMAKE_SOURCE_DIR}
+          --records ${CMAKE_SOURCE_DIR}/validation
+)
+set_tests_properties(
+  host_record_check
+  PROPERTIES PASS_REGULAR_EXPRESSION
+             "validation/GenuineIntel-6-C6-2\\.json +GenuineIntel-6-C6-2 +valid"
+)
+
+# The one invocation the reader answers before it builds a chooser: an option the
+# parse cannot use is refused ahead of the chooser factory, so this entry stands
+# free of any record root (T042, T056; FR-010, FR-035, FR-037). The pattern pins
+# the printed line, the shape the writer's entry below sets, and the failing
+# status belongs to the refusal path the library arms of T042 read in process.
+add_test(
+  NAME host_record_check_bogus_option
+  COMMAND host_record_check --bogus
+)
+set_tests_properties(
+  host_record_check_bogus_option
+  PROPERTIES PASS_REGULAR_EXPRESSION
+             "error: the option '--bogus' names no arm of the reader"
+)
+
+# The writer program: one call into the library entry point, with the seam that
+# reads the host handed over, the one place the counters internal header stands
+# outside the counters library (T019, T020; US1, M-D, M-E, FR-003, FR-007,
+# FR-008, FR-012, FR-037, R-04, R-06). The binary stands at
+# `build/test/host_record_write`, where the developer build puts every target.
+# The entry below runs its argument parse, and the `validate` target names it in
+# its `DEPENDS` for the record that target reads, which arrives with T031 (R-10,
+# R-11).
+add_executable(host_record_write ../tools/hostcheck/host_record_write.cpp)
+target_link_libraries(host_record_write
+                      PRIVATE speedgun-ng::harness speedgun-ng::speedgun-ng)
+target_compile_features(host_record_write PRIVATE cxx_std_23)
+
+# The one invocation the writer answers without reading its host: an option the
+# parse cannot use is refused ahead of the seam, so the line this entry demands
+# stands free of the runner's CPU and of any record root (T045; FR-004, FR-035,
+# FR-037). The pattern pins the printed line, because CMake reads matching
+# output as a pass whatever status the process exits with, and the failing
+# status belongs to the refusal path the library arms of T038 read in process.
+# The file holds no `WILL_FAIL` row anywhere. The mapfile-open refusal cannot
+# join this entry, because an invocation past the argument parse reads CPUID on
+# the runner: that refusal stands recorded as a lane run beside T050's record.
+add_test(
+  NAME host_record_write
+  COMMAND host_record_write --bogus
+)
+set_tests_properties(
+  host_record_write
+  PROPERTIES PASS_REGULAR_EXPRESSION
+             "error: the option '--bogus' names no arm of the write path"
+)
+
 # ---- Main-page documentation gates (feature 018) ----
 
 # The root README.md teaches the harness surface, and every code block it

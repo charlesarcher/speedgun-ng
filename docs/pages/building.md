@@ -354,3 +354,29 @@ Without the module, `cmake --build build/coverage -t coverage` exits
 non-zero after the coverage summary has printed its verdict. The exit
 code then reports the missing module, and the gate keeps its own
 verdict.
+
+### Validating the host record
+
+The `validate` target of a developer build writes the record of the running
+host and reads the set back, and the reader answers over any record root:
+
+```sh
+cmake --build build --target validate
+./build/test/host_record_check --root . --records validation
+```
+
+One record stands per CPU type at `validation/<key>.json`, named by the key
+the mapfile spells for that identity, and it carries the CPUID identity, the
+catalog directory that mapfile selects, the machine layout, and the evidence
+rows naming the file, command, exit and line each claim was read from.
+
+The reader guards each file against `docs/schema/host-record-v1.json` and
+asks four staleness rules in order: a record version behind the version that
+schema names, an evidence path absent under the tree, a cited line absent in
+that file, and a mapfile that answers no row for that identity.
+
+Each program answers 0 or 2. The writer answers 0 once its file stands
+written, and the reader 0 with one line per record carrying the word
+`valid`. Either answers 2 with the one line that names its case: an unusable
+argument, an absent schema, an unreadable mapfile, a root with no `.json`
+entry, or a reading that reads `broken` or `stale`.

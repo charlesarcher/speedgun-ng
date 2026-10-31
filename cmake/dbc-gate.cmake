@@ -49,7 +49,7 @@ add_custom_target(
     COMMAND "${Python3_EXECUTABLE}"
         "${PROJECT_SOURCE_DIR}/tools/dbc/dbc_pair_gate.py"
         --src "${PROJECT_SOURCE_DIR}/include/speedgun-ng"
-        --src2 "${PROJECT_SOURCE_DIR}/source"
+        --src2 "${PROJECT_SOURCE_DIR}/source" "${PROJECT_SOURCE_DIR}/tools"
         --registry "${PROJECT_SOURCE_DIR}/tools/dbc/macros.yaml"
         --doc-matrix "${_dbc_gate_doc_matrix}"
         --out "${_dbc_gate_pair_matrix}"

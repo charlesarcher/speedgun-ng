@@ -82,6 +82,16 @@ Its output on one host's run, with the numbers of that machine:
 speedgun-ng 0.9.0 build=Release
 bmSum                    iterations=   1066261  real time/iter (ns)=  657.575  cpu time/iter (ns)=  656.663  overhead floor (ns)=  684.000  endpoint samples=2
 ```
+
+Check the machine the numbers come from: developer mode (`-D speedgun-ng_DEVELOPER_MODE=ON`) adds the `validate` target, which writes a record of the running host and reads it back.
+<!-- sg-example: example/quickstart.sh#validate -->
+```sh
+cmake --build build --target validate
+./build/test/host_record_check --root . --records validation
+```
+
+The reader prints one line per record and answers 0 when every record reads `valid`, 2 when a reading says `broken` or `stale` or a refusal names the schema, the mapfile or the record root; `docs/pages/building.md` carries the record path and the four staleness rules.
+
 Run `tools/ci/prepush.sh` before you push: [docs/pages/prepush.md](docs/pages/prepush.md) carries the two tiers and the step map.
 
 ## How you do it

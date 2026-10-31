@@ -1189,6 +1189,13 @@ struct MaskNarrowing
     const std::vector<std::uint32_t>& maskCpus,
     const MaskNarrowing& narrowing) -> bool;
 
+/// @brief The comma-joined range spelling of a cpu set, consecutive cpus
+/// folded into one `low-high` span (FR-036). The listing prints its mask and
+/// its group and node lines through it, and specs/031's host record renders
+/// the same fields through it (FR-012, R-05).
+auto appendRangeText(std::string& text,
+                     std::vector<std::uint32_t> cpus) -> void;
+
 /// @brief Print the layout listing `--topology` states (FR-036).
 auto printTopologyListing(const MachineLayout&) -> void;
 

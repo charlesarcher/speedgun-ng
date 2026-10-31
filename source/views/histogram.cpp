@@ -63,7 +63,7 @@ auto renderHistogram(const ReportData& report,
   }
   svg += "</svg>";
   // The bars stand one per bin, the count the argument bounds (B-2).
-  auto bars = std::size_t {};
+  [[maybe_unused]] auto bars = std::size_t {};
   for (auto pos = svg.find("<rect"); pos != std::string::npos;
        pos = svg.find("<rect", pos + 1))
   {

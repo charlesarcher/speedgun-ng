@@ -45,3 +45,8 @@ harness_precheck_fake_root_/
 # harness_json_load_test, harness_json_report_test, the run fixtures).
 /harness_jitter_cli_*
 /harness_json_*
+
+# The record roots, the stream captures and the planted schema copy the two
+# host-record suites write and read back in the working directory
+# (harness_host_record_test, harness_host_record_schema_test).
+/harness_host_record_*
