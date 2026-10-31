@@ -1,9 +1,10 @@
 # The pre-push run
 
 `tools/ci/prepush.sh` with no option runs the five gates, the build, the
-quick tier of 132 entries twice and the naming check, and
-`tools/ci/prepush.sh --full` adds the slow tier of 2 entries, the
-release build of the installed package and the tsan configure and link.
+quick tier of 132 entries twice, the naming check and the validate target
+of the host record, and `tools/ci/prepush.sh --full` adds the slow tier of
+2 entries, the release build of the installed package and the tsan
+configure and link.
 
 ## Quick start
 

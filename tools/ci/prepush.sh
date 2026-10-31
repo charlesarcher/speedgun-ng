@@ -7,7 +7,8 @@
 #
 # Usage: tools/ci/prepush.sh [--full] [--self-check]
 #   no option     the steps through the quick tier, the two cpu
-#                 pinning runs and the naming check
+#                 pinning runs, the naming check and the validate
+#                 target of the host record
 #   full          also the slow tier, the consumer-release build and
 #                 the tsan configure and link
 #   self-check    drive each fault path in place and print one
@@ -49,7 +50,8 @@ Run the CI checks locally, one timed line per step.
 
 Options:
   (none)       the steps through the quick tier, the two cpu pinning
-               runs and the naming check
+               runs, the naming check and the validate target of the
+               host record
   --full       also the slow tier, the consumer-release build and the
                tsan configure and link
   --self-check drive each fault path in place, one self-check line
@@ -128,18 +130,31 @@ check_fault() {
 
 # The fault-path proof the Test Plan names for shell code: each fault
 # of FR-030 driven for real, the script run against a bad option, an
-# empty PATH, a clang-format stub of another version and a python3
-# stub that fails step 1 on purpose. The stubs live in a scratch
+# empty PATH, a clang-format stub of another version, a python3
+# stub that fails step 1 on purpose, and a cmake stub that fails the
+# validate target of step 11. The stubs live in a scratch
 # directory, so no repository file is touched, and the formatter and
 # step faults stop the child runs before any step could write.
 self_check() {
   local stub fail=0
   stub=$(mktemp -d)
-  mkdir "$stub/empty" "$stub/old-format" "$stub/step-failure"
+  mkdir "$stub/empty" "$stub/old-format" "$stub/step-failure" \
+    "$stub/no-validate"
   printf '#!/bin/sh\necho "clang-format version 9.9.9"\n' \
     > "$stub/old-format/clang-format"
   printf '#!/bin/sh\nexit 3\n' > "$stub/step-failure/python3"
-  chmod +x "$stub/old-format/clang-format" "$stub/step-failure/python3"
+  # The validate fault path runs the gates of steps 1 to 5 for real and
+  # stubs the build tree of steps 6 to 10: the configure, the build and
+  # the naming check's reconfigure answer nothing, the two tier runs and
+  # the naming analysis answer nothing, and the validate-shaped call of
+  # step 11 fails with 3 (FR-030).
+  printf '#!/bin/sh\ncase "$*" in *"-t validate"*) exit 3 ;; esac\n' \
+    > "$stub/no-validate/cmake"
+  printf '#!/bin/sh\nexit 0\n' > "$stub/no-validate/ctest"
+  printf '#!/bin/sh\nexit 0\n' > "$stub/no-validate/clang-tidy"
+  chmod +x "$stub/old-format/clang-format" "$stub/step-failure/python3" \
+    "$stub/no-validate/cmake" "$stub/no-validate/ctest" \
+    "$stub/no-validate/clang-tidy"
 
   check_fault 'unknown option' "$PATH" 2 'unknown option: --nope' --nope \
     || fail=1
@@ -149,6 +164,9 @@ self_check() {
     'version found 9.9.9' || fail=1
   check_fault 'failing step' "$stub/step-failure:$PATH" 3 \
     'drift gate failed with 3: python3 tools/docs/example_drift.py .' \
+    || fail=1
+  check_fault 'validate step' "$stub/no-validate:$PATH" 3 \
+    'validate failed with 3: cmake --build build/prepush -t validate' \
     || fail=1
 
   rm -rf "$stub"
@@ -230,8 +248,15 @@ naming_check() {
 }
 step 'naming check on the changed units' naming_check
 
+# Step 11, the host record of specs/031: the validate target writes the
+# record of this host and reads the set back, and a failing target stops the
+# run with the status the target answers (R-9). The build tree of step 6
+# holds the two programs the target depends on, so the build of step 7 keeps
+# them current and this step rebuilds what it needs.
+step 'validate' cmake --build build/prepush -t validate
+
 if [ "$FULL" = 1 ]; then
-  # Steps 11 to 13, only with the full option, in the order of the
+  # Steps 12 to 14, only with the full option, in the order of the
   # contract table, one timing line each. The two build pairs are
   # functions for that reason, the shape of the naming check above.
   #

@@ -172,7 +172,7 @@ purpose. D-6 names it as the one exception. A port onto the counters
 library would remove that independence.
 
 **Alternatives considered**: a port of `tools/dbc/overhead.cpp` onto
-the counters library, rejected by Charles; a scope that leaves
+the counters library, rejected by the owner; a scope that leaves
 `tools/` outside the rule, rejected because it opens every future tool
 to the banned list; a clang-tidy custom check, rejected
 because the project carries no custom analyzer module and the pin is

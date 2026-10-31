@@ -687,9 +687,10 @@ page.
   resolve under the standing file root of `proc_root.hpp`, and no new
   file-root seam shall join the tree.
 - **FR-032**: The machine facts of a test shall read through the
-  standing topology seams, and the record writing of a test shall take
-  the identity as a value, because no seam installs a CPU identity and
-  none shall join.
+  standing topology seams, and the host facts of a test shall reach the
+  write path as values or as the readers the options struct of the write
+  path scripts, because no test reads the CPUID or the installed layout
+  of its host.
 - **FR-033** (AC-1): No test shall sleep, no test shall read a clock,
   the record shall carry no wall-clock instant, and where the feature
   reads time it shall read the injected counters time source.
@@ -724,9 +725,9 @@ page.
   lines and 100% branches, the figure `tools/dbc/coverage_gate.sh`
   reports for them: lines at the full figure and any branch shortfall
   inside the standing allowance, while the files this feature adds read
-  100.0% on both. The two thin program entry points under `tools/` stand
-  outside those roots by the standing globs and shall each run as a CTest
-  entry: the reader over the committed records, the writer over one
+  100.0% on both. The two thin programs under `tools/` stand inside those
+  roots beside the library entry points they call, and shall each run as a
+  CTest entry: the reader over the committed records, the writer over one
   malformed-argument invocation pinned by a passing pattern. Each entry
   point shall stand in `source/harness/detail/` and shall parse its
   arguments before any host read, so every usage arm of either program
@@ -754,6 +755,14 @@ page.
   carry the identity (FR-024 of specs/032). A cited evidence path reads
   as the repository spells it, because renaming a recorded run would
   break the trace a record exists to carry.
+- **FR-043** (the ruling of 2026-10-30): The pre-push run shall carry
+  one step that builds the `validate` target and fails the run with the
+  status that target answers. CI shall check the committed records with
+  the reader alone: the check runs the reader over the records under
+  `validation/` against the schema under `docs/schema`, it writes no
+  record and reads no host (FR-035), and it stands inside a job that
+  builds the tests. A record that does not validate fails the check
+  with the one line that quotes the file and the reason.
 
 ## Key Entities *(include if feature involves data)*
 

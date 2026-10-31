@@ -55,6 +55,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "../../tools/hostcheck/host_facts.hpp"
 #include "detail/host_record.hpp"
 #include "detail/internal.hpp"
 #include "detail/json_fixture.hpp"
@@ -1480,6 +1481,181 @@ auto scenarioWriteRefusals() -> void
         "and writes no record (FR-011, SC-004)");
 }
 
+// ============================================================================
+// The host facts of one tree root, read through the options struct the write
+// path hands over (specs/031-host-validation; FR-007, FR-008, FR-012,
+// FR-031, FR-032, FR-035; the ruling of 2026-10-30).
+//
+// `hostFacts` asks the two readers the options struct carries and opens the
+// mapfile of the root the run names, so this scenario scripts both readers
+// and plants the mapfile under a scratch root: no arm reads CPUID, the
+// installed layout or a clock (FR-031, FR-033, FR-035). The identity stands
+// the fixture's, the mapfile rows stand the shape the pinned
+// `external/pmu-events/arch/x86/mapfile.csv` spells, and each case rewrites
+// the mapfile or stands a root without one, so the three answers of the
+// matcher and the unreadable file each stand read (FR-004, FR-008).
+// ============================================================================
+
+// One scratch root for the facts scenarios, the mktemp -d shape: one
+// directory per scenario, removed when the scenario ends, so no case reads
+// another case's files (FR-032).
+auto scratchRoot() -> std::filesystem::path
+{
+  auto pattern = std::string {"harness_host_record_facts_XXXXXX"};
+  if (::mkdtemp(pattern.data()) == nullptr) {
+    fail("the scratch root of the facts scenarios stands created");
+    return {};
+  }
+  return std::filesystem::path(pattern);
+}
+
+// The mapfile of one tree root, at the path the chooser the reader builds
+// opens at its first question (FR-008, FR-025).
+auto mapfileOf(const std::filesystem::path& root) -> std::filesystem::path
+{
+  return root / "external" / "pmu-events" / "arch" / "x86" / "mapfile.csv";
+}
+
+// The mapfile one scenario plants, its rows beside the directories the path
+// needs, so the read opens the file the path names (FR-008).
+auto plantMapfile(const std::filesystem::path& root,
+                  const std::string& rows) -> void
+{
+  const auto mapfile = mapfileOf(root);
+  std::filesystem::create_directories(mapfile.parent_path());
+  sg::test::writeText(mapfile.string(), rows);
+}
+
+// The scripted reads of the facts scenarios: the identity the fixture plants,
+// with its leaf-1 stepping or without it, beside the layout the machine-block
+// scenarios plant, each behind a reader this test owns (FR-032, FR-035).
+auto scriptedReads(const bool withStepping) -> sg::tools::HostFactsOptions
+{
+  auto reads = sg::tools::HostFactsOptions {};
+  reads.pmuIdent = [withStepping]
+  {
+    auto pmu = sg::counters::detail::PmuIdent {};
+    pmu.vendor = "GenuineIntel";
+    pmu.family = 6;
+    pmu.model = 198;
+    pmu.stepping = withStepping ? 2 : -1;
+    return pmu;
+  };
+  reads.layout = []() -> const sg::detail::MachineLayout&
+  {
+    static const sg::detail::MachineLayout kPlanted = plantedLayout(true);
+    return kPlanted;
+  };
+  return reads;
+}
+
+// The four counts and the mask of the layout the scripted reader answers, the
+// fields the record's machine block carries (FR-012, FR-014).
+auto layoutFactsDiffer(const sg::detail::HostFacts& facts) -> bool
+{
+  const auto& planted = plantedLayout(true);
+  return facts.layout.packages != planted.packages
+      || facts.layout.groups.size() != planted.groups.size()
+      || facts.layout.threads.size() != planted.threads.size()
+      || facts.layout.mask != planted.mask;
+}
+
+auto scenarioHostFactsReads() -> void
+{
+  // FR-007, FR-008, FR-012: the identity the scripted reader answers stands
+  // the record's, the key `mapfileKey` renders, the directory the mapfile row
+  // selects stands the record's, and the layout stands the scripted one.
+  const auto root = scratchRoot();
+  plantMapfile(root,
+               "Family-model,Version,Filename,EventType\n"
+               "GenuineIntel-6-C[56],v1.17,arrowlake,core\n");
+  const auto facts = sg::tools::hostFacts(root, scriptedReads(true));
+  check(facts.ident.vendor == "GenuineIntel",
+        "the identity carries the vendor the reader answers (FR-007)");
+  check(facts.ident.family == 6 && facts.ident.model == 198,
+        "the identity carries the family and the model (FR-007)");
+  check(facts.ident.stepping.has_value() && *facts.ident.stepping == 2,
+        "the stepping the host answers stands in the identity (FR-007)");
+  check(facts.ident.key == "GenuineIntel-6-C6-2",
+        "the record key is the key mapfileKey renders (FR-009)");
+  check(facts.ident.directory == "arch/x86/arrowlake/",
+        "the directory is the one the mapfile row selects (FR-008)");
+  check(facts.mapfileReadable,
+        "rows the matcher weighed answer a readable mapfile (FR-008)");
+  check(!layoutFactsDiffer(facts),
+        "the layout stands the one the scripted reader answers (FR-012)");
+
+  // FR-007, FR-013: a host that answers no leaf 1 leaves the stepping out of
+  // the identity, and the key spells no stepping class, while the row the
+  // model key matches still answers the directory.
+  const auto bareFacts = sg::tools::hostFacts(root, scriptedReads(false));
+  check(!bareFacts.ident.stepping.has_value(),
+        "the identity carries no stepping where the host answers none "
+        "(FR-007, FR-013)");
+  check(bareFacts.ident.key == "GenuineIntel-6-C6",
+        "the key spells no stepping class beside the absent stepping "
+        "(FR-007, FR-009)");
+  check(bareFacts.ident.directory == "arch/x86/arrowlake/",
+        "the row the model key matches answers the directory (FR-008)");
+  std::filesystem::remove_all(root);
+
+  // FR-004, FR-008: a mapfile no read opens weighs no rows and names no
+  // directory, and the identity stands the scripted one beside it.
+  const auto unreadable = scratchRoot();
+  const auto closedFacts =
+      sg::tools::hostFacts(unreadable, scriptedReads(true));
+  check(!closedFacts.mapfileReadable,
+        "a mapfile no read open answers an unreadable mapfile (FR-004)");
+  check(closedFacts.ident.directory.empty(),
+        "an unreadable mapfile names no directory (FR-004, FR-008)");
+  check(closedFacts.ident.key == "GenuineIntel-6-C6-2",
+        "the identity stands the scripted one beside the unreadable mapfile "
+        "(FR-007)");
+  std::filesystem::remove_all(unreadable);
+
+  // FR-004, FR-008: a row whose pattern the matcher cannot compile weighs no
+  // rows, the unreadable-mapfile answer the reader names in its refusal.
+  const auto broken = scratchRoot();
+  plantMapfile(broken,
+               "Family-model,Version,Filename,EventType\n"
+               "GenuineIntel-6-C[,v1.17,arrowlake,core\n");
+  const auto brokenFacts = sg::tools::hostFacts(broken, scriptedReads(true));
+  check(!brokenFacts.mapfileReadable,
+        "a row the matcher cannot compile answers an unreadable mapfile "
+        "(FR-004, FR-008)");
+  check(brokenFacts.ident.directory.empty(),
+        "a mapfile that weighed no rows names no directory (FR-004)");
+  std::filesystem::remove_all(broken);
+
+  // FR-008: rows that stand read and name no directory for this identity
+  // weigh clean, so the readable mark stands while the directory stands
+  // empty, the two answers the reader reads apart (FR-004).
+  const auto unmapped = scratchRoot();
+  plantMapfile(unmapped,
+               "Family-model,Version,Filename,EventType\n"
+               "AuthenticAMD-23-(1|17|25|31),v1.10,amdzen1,core\n");
+  const auto unmappedFacts =
+      sg::tools::hostFacts(unmapped, scriptedReads(true));
+  check(unmappedFacts.mapfileReadable,
+        "rows that weigh with no directory named answer a readable mapfile "
+        "(FR-008)");
+  check(unmappedFacts.ident.directory.empty(),
+        "no row for this identity names no directory (FR-008)");
+  std::filesystem::remove_all(unmapped);
+
+  // FR-037: the seam the write path asks for answers the facts of the root
+  // it is handed, so the program and a test hand the same assembly its roots.
+  const auto reads = scriptedReads(false);
+  const auto seam = sg::tools::hostFactsSeam(reads);
+  const auto direct = sg::tools::hostFacts(root, reads);
+  const auto through = seam(root);
+  check(through.ident.key == direct.ident.key
+            && through.ident.directory == direct.ident.directory
+            && through.mapfileReadable == direct.mapfileReadable
+            && !layoutFactsDiffer(through),
+        "the seam answers the facts of the root it is handed (FR-037)");
+}
+
 }  // namespace
 
 auto main(int argc, char** argv) -> int
@@ -1532,6 +1708,7 @@ auto main(int argc, char** argv) -> int
   scenarioUnwrittenRecord();
   scenarioInvalidStandingRecord();
   scenarioWriteRefusals();
+  scenarioHostFactsReads();
 
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);

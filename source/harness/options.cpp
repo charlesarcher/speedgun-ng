@@ -483,8 +483,8 @@ auto argumentText(const OptionArgument argument) -> const char*
  * codes and never short options: the scan's option string carries none
  * (FR-005). Exactly the 12 rows FR-020 names carry the environment flag,
  * and the name of such a row's variable follows from the row (FR-019).
- * The noise tracer's row takes the constant 297 (specs/036 FR-001), and
- * the layout row the constant 299 (specs/039 FR-011).
+ * The noise tracer's row takes the constant 320 (specs/036 FR-001), and
+ * the layout row the constant 340 (specs/039 FR-011).
  */
 auto optionRows() -> std::span<const OptionRow>
 {
@@ -664,8 +664,8 @@ auto optionRows() -> std::span<const OptionRow>
        "Runs the named noise tracer across the pre-check window",
        "specs/036-osnoise-timerlat-tracers"},
       // specs/037-execution-graphs FR-001, FR-002, FR-009, R-01, R-02: the
-      // graph row, on the first value the constants block of
-      // `detail/options.hpp` leaves free. The row carries the environment flag
+      // graph row, in the graph block the constants of `detail/options.hpp`
+      // hold at 330 to 339. The row carries the environment flag
       // off, so the environment list stays the twelve rows FR-020 names and
       // the bare row reads no variable. Its value may stand absent: the bare
       // form takes its path from the standing lower source, the option file
@@ -677,7 +677,7 @@ auto optionRows() -> std::span<const OptionRow>
        false,
        "Orders the context starts of every threaded run by that graph file",
        "specs/037"},
-      // run's context groups. The row takes the constant 299 the free block
+      // run's context groups. The row takes the constant 340 the layout block
       // leaves this lane, carries no environment name the way `--compare-rules`
       // keeps none, and hands the path to the fit walk, which is the reader
       // that opens it (D-05).

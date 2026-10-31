@@ -72,14 +72,14 @@ enum class StopKind
 // The internal value each option answers from the scan. A long option
 // with no letter of its own takes a number of 256 or more, so it cannot
 // collide with a short option, and no option a later feature adds can
-// reach a switch arm by claiming a letter. The four carried values keep
-// the options master gives them, the jitter probe's lane block holds
-// 260 to 269, the eight hunt names take the block 270 to 279
-// specs/029-hunter-core reserves, the seven names the command-line lane
-// brings take 290 to 296, the noise tracer's name takes 297, the graph
-// row of specs/037 takes 298 at its own merge, the layout row of
-// specs/039 takes 299, and 300 to 319 stay free (FR-001, FR-004, FR-005,
-// D-24; specs/029 FR-080, D-22; specs/039 FR-011).
+// reach a switch arm by claiming a letter. The blocks stand apart: the
+// four carried values hold 256 to 259 (FR-001, FR-004, FR-005, D-24),
+// the jitter probe holds 260 to 269, the hunt names hold 270 to 279
+// (specs/029 FR-080, D-22), the hunt budgets hold 280 to 289, the
+// command-line lane holds 290 to 296, 297 to 319 stay free, the tracer
+// block holds 320 to 329 with `--os-noise` at 320 and 321 to 329 free
+// for tracers (specs/036 FR-001), the graph row holds 330 to 339, and
+// the layout row holds 340 to 349 (specs/039 FR-011).
 inline constexpr int kMetricMethodOption = 256;
 inline constexpr int kCompareOptionValue = 257;
 inline constexpr int kCompareRuleOptionValue = 258;
@@ -92,13 +92,9 @@ inline constexpr int kInterleaveOptionValue = 293;
 inline constexpr int kCompareRulesOptionValue = 294;
 inline constexpr int kHelpOptionValue = 295;
 inline constexpr int kVersionOptionValue = 296;
-inline constexpr int kOsNoiseOptionValue = 297;
-// specs/037-execution-graphs FR-002, R-01: the graph row takes 298, the
-// first value the block above leaves free. The contract fixes 297, and the
-// reservation rule of the Spec identity section moves the lane to the next
-// free value at branch time, the way T032 records the version values.
-inline constexpr int kGraphOptionValue = 298;
-inline constexpr int kGroupLayoutOptionValue = 299;
+inline constexpr int kOsNoiseOptionValue = 320;
+inline constexpr int kGraphOptionValue = 330;
+inline constexpr int kGroupLayoutOptionValue = 340;
 
 // specs/029-hunter-core FR-080 to FR-082, D-22: the value each hunt option
 // answers. The hunt lane reserves the block 270 to 279: 278 and 279 stay

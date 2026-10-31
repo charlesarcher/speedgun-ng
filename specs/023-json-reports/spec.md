@@ -53,7 +53,7 @@ it records here.
   through `specs/021`, and 021 belongs to the merged N1 spec. The open
   pull request #41 branch `021-metric-formulas` carries
   `specs/021-metric-formulas`, which collides with that merged number;
-  Charles directed on 2026-10-20 that PR #41 rebase onto `c7f1769` and
+  The owner directed on 2026-10-20 that PR #41 rebase onto `c7f1769` and
   take spec number 022, so 022 stays reserved for N2 and 023 is the
   next number free on `master` and on every open pull request branch.
   A rebase that finds 023 taken takes the next free number and records
@@ -68,10 +68,10 @@ it records here.
 
 ## Decisions
 
-Charles accepted D-1 to D-11 and D-13 on 2026-10-20 as recommendations
+The owner accepted D-1 to D-11 and D-13 on 2026-10-20 as recommendations
 of the prompt this spec comes from. They are governance for this
 feature, and each is recorded again at the FR that carries it. D-12 is
-derived at this audit point from D-6 and the code fact PC-3; Charles has
+derived at this audit point from D-6 and the code fact PC-3; the owner has
 not ruled on it, and it stands as a recommendation he can overturn.
 
 - **D-1 Library**: the vendored simdjson writes the report and reads it
@@ -994,7 +994,7 @@ Symbol and section anchors, each read at the audit point `c7f1769`.
 
 ## Open questions
 
-The prompt carried its open items as recommendations, and Charles
+The prompt carried its open items as recommendations, and the owner
 accepted each on 2026-10-20, so the decisions stand at D-1 to D-11 and
 D-13 and again at the FR that carries them.
 
@@ -1005,12 +1005,12 @@ clarification session answered both, so neither is open any more:
   inside the runner at the base (PC-3), so `--json-raw=chunks` needs a
   home for them. The answer is that they travel beside the result in a
   record the runner answers the writer, and the public result layout
-  keeps its fields (FR-018, FR-044). Charles can overturn it.
+  keeps its fields (FR-018, FR-044). The owner can overturn it.
 - **FR-050 exit status**: a report write that fails exits with status
   2, and the entry point's postcondition and the status table of
   `contracts/cli.md` carry no such row today (PC-4). The answer is that
   the row joins the contract in the same change, and status 2 takes
-  precedence over a failed benchmark (FR-030). Charles can overturn it.
+  precedence over a failed benchmark (FR-030). The owner can overturn it.
 
 Three code-level names still wait for the plan, and none is an open
 question of behavior: the spelling of the load call, the name of the

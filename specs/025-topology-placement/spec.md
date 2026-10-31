@@ -80,7 +80,7 @@ with more contexts than places exits with status 2; NUMA stays out."
 
 ## Decisions
 
-Charles accepted these five on 2026-10-19 as recommendations for this
+The owner accepted these five on 2026-10-19 as recommendations for this
 prompt. They are governance for this feature; each lands in the
 requirement named beside it.
 
@@ -699,7 +699,7 @@ at the feature head.
   50 characters or fewer, a why-body wrapped at 72, blank lines between
   body paragraphs, and one footer block (`Approved-by:` then `Refs:`)
   with no blank line inside. `Approved-by:` appears only for a decision
-  Charles made; the decisions of this spec are recommendations Charles
+  the owner made; the decisions of this spec are recommendations the owner
   accepted.
 - hwloc stays a private dependency: the link stays `PRIVATE`, the
   imported target stays unexported, and no public header names it

@@ -386,7 +386,7 @@ Task: "Extend test/loop_shape.sh with a setCounter body (T015)"
 Appended by the converge pass over pull request #37 on 2026-10-14. Each item
 traces to a reviewed defect (D-n) or nit (N-n) on the branch head, and the
 gap type is the relation between the current code and the artifact that owns
-it. Q-10 was decided on 2026-10-14: Charles accepted the
+it. Q-10 was decided on 2026-10-14: the owner accepted the
 recommendation, and the spec entry records that decision.
 
 - [X] T046 Enforce the documented pre and post clauses of State::setBytesProcessed and State::setItemsProcessed with SG_REQUIRE and SG_ENSURE in the definitions in source/harness/runner.cpp, and report 0 drifted interfaces from the pair gate per D-1, Constitution II (contradicts)
@@ -412,7 +412,7 @@ recommendation, and the spec entry records that decision.
 - [X] T066 Keep README.md at 550 lines or fewer after the section fixes, trimming prose and never a snippet, and report the final count per N-6, FR-044 (partial)
 - [X] T067 Run quickstart.md sections 5 through 7, record the evidence, and check T042 only when it passes per D-2 (partial)
 - [X] T068 Build the ci-coverage preset, hold 100 percent line and branch coverage, keep zero LCOV_EXCL markers under source/harness, record the evidence, and check T044 only when it passes per D-2 (partial)
-- [X] T069 Write /tmp/019-rebase-plan.txt listing every pushed commit that fails the commit lint with its hash, old subject, new subject and the footer it gains, without running the rebase or force-pushing, and hold it for Charles to approve per D-1 (contradicts)
+- [X] T069 Write /tmp/019-rebase-plan.txt listing every pushed commit that fails the commit lint with its hash, old subject, new subject and the footer it gains, without running the rebase or force-pushing, and hold it for the owner to approve per D-1 (contradicts)
 - [X] T070 Run the verification set on the new head: developer build with the full suite, the pair gate at 0 drift, the prose gate and codespell at 0 findings on changed files, the commit lint on new commits, the coverage, sanitize and tsan presets, the two hand spot checks on cells=64 and the throughput rate, and the CI result per item (missing)
 
 ## Convergence Evidence
@@ -471,7 +471,7 @@ command that showed it.
 - T069: `/tmp/019-rebase-plan.txt` lists every pushed commit that fails
   the commit lint with its old subject, its new subject and the footer
   it gains. No rebase was run and nothing was force-pushed: the plan
-  waits on Charles.
+  waits on the owner.
 - T059: the gate compares the declared instance and its message as one
   pair and names the half that disagreed; example/docs/skips.cpp registers
   a fixture method that skips its zero argument, so a name the fixture
@@ -518,7 +518,7 @@ command that showed it.
   .specify/memory/constitution.md` reports the sync impact line, the
   version-history row and the footer. T067 makes the check of this box
   depend on its own pass, and that pass is the record above.
-- T061, T066 (`c7648f5`): Charles chose to hold both budgets, so the main
+- T061, T066 (`c7648f5`): the owner chose to hold both budgets, so the main
   page keeps the 550-line page cap and the 25-line section cap that
   `tools/docs/example_drift.py` enforces. A section counts its fenced
   blocks, and the tool rejects any `### ` section outside the eighteen

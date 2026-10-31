@@ -123,7 +123,7 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # The page carries six more capability sections and their snippets (FR-044);
 # the per-section budget of FR-024 holds, which is what keeps a section a
 # section rather than a second page.
-# D-A of the PR #37 final pass (Charles, 2026-10-15): Registration teaches
+# D-A of the PR #37 final pass (the owner, 2026-10-15): Registration teaches
 # all three registration forms and Fixtures all three fixture macros, which
 # adds 32 lines (25 to 38 and 24 to 43). No prose elsewhere on the page can
 # give back 20 lines without gutting a result sentence, so the page cap rose
@@ -138,7 +138,7 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # specs/021 FR-027 measures its own move: the "Percentiles" section runs 19
 # lines and the two quick-reference option rows add 2, so 21 lines move the
 # cap from 638 to 659, the measured length of the page as the feature lands.
-# D-15 of the PR #41 owner review (Charles, 2026-10-19): the metric section
+# D-15 of the PR #41 owner review (the owner, 2026-10-19): the metric section
 # grew to 59 lines under a recorded raise, and the review keeps one snippet
 # on the main page. The addMetric walk and the fold-and-read flow move to
 # docs/pages/harness.md, the section keeps the metric-lookup region with one
@@ -231,35 +231,17 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # the cap from 940 to 947, the measured length of the page as the feature
 # lands. The section spans 24 lines, under the per-section budget of
 # FR-024, so no entry joins SECTION_LINE_CAPS.
-# specs/039 FR-011 adds the `--group-layout` option row: one line moves
-# the cap from 947 to 948, the measured length of the page with the row
-# in place.
-# specs/039 FR-039 measures its own move on top: the "Context groups"
-# section runs 15 lines and its quick-reference name row adds 1, so 16
-# lines move the cap from 948 to 964, the measured length of the page as
-# the feature lands. The section sits under the per-section budget of
-# FR-024, so no entry joins SECTION_LINE_CAPS.
-PAGE_LINE_CAP = 964
 # ---- Execution graphs (M7) ----
-# specs/037-execution-graphs FR-032 measures its own move: the "Execution
-# graphs" section runs 23 lines, the six quick-reference name rows and the
-# one option row add 7, so 30 lines move the cap from 964 to 994, the
-# measured length of the page as the section lands. The section sits under
-# the per-section budget of FR-024, so no entry joins SECTION_LINE_CAPS.
-PAGE_LINE_CAP = 994
-# specs/031-host-validation FR-036 measures its own move on top of that
-# page: the `example/quickstart.sh#validate` region runs 2 lines and its
-# marker comment and two fences add 3, and the purpose sentence, the result
-# sentence and the three blank lines that set them add 5, so 10 lines move
-# the cap from 994 to 1004, the measured length of the page with the block
-# in place beside the graph section (2026-10-31). The block stands in
-# "Quick start", which the per-section budgets do not inspect, so
-# SECTION_LINE_CAP and SECTION_LINE_CAPS keep their values.
+# Each measured move of the cap, in the order the features landed:
+# specs/039 moves it from 947 to 964, the `--group-layout` option row
+# and the context-groups section; specs/037 from 964 to 994, the
+# execution-graphs section and its rows; specs/031 FR-036 from 994 to
+# 1004, the quick-start block of 10 lines (2026-10-31).
 PAGE_LINE_CAP = 1004
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that
-# holds its copied regions (D-A, Charles, 2026-10-15). Fixtures counts the
+# holds its copied regions (D-A, the owner, 2026-10-15). Fixtures counts the
 # sg-requires line the snippet gate reads beside the macro block.
 SECTION_LINE_CAPS = {
     "Registration": 38,

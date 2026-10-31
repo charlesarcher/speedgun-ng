@@ -8,7 +8,7 @@
 // the word, the settle arm carries the path through the resolved option set,
 // the help answer prints the line the row builds, and the row carries no
 // environment source, the shape `--compare-rules` keeps (FR-011). The value
-// 299 stands in the free block above the noise tracer's 297, and the block
+// 340 stands in the layout block the constants set aside, and the block
 // comment of `detail/options.hpp` names the split that leaves it there.
 //
 // The six row cases open no file. The scan, the settle arm and the gather keep
@@ -28,7 +28,7 @@
 //                                clean, and the resolved option set carries
 //                                that path (FR-011, specs/028 FR-008)
 //   theRowCarriesItsRecord       the row of the live table carries the value
-//                                299, a required argument and the owner this
+//                                340, a required argument and the owner this
 //                                feature names (FR-011, specs/028 FR-001,
 //                                FR-004)
 //   theHelpAnswerCarriesTheRowLine
@@ -107,7 +107,7 @@ namespace
 using Scan = std::expected<sg::detail::CommandLineOptions, std::string>;
 using Gathered = std::expected<sg::detail::ResolvedOptions, std::string>;
 
-constexpr int kGroupLayoutValue = 299;
+constexpr int kGroupLayoutValue = 340;
 constexpr std::string_view kGroupName = "group-layout";
 constexpr std::string_view kGroupEnvironment = "SPEEDGUN_GROUP_LAYOUT";
 
@@ -281,7 +281,7 @@ auto theRowCarriesItsRecord() -> void
     return;
   }
   check(row->value == kGroupLayoutValue,
-        "the row answers the value 299 of the free block (FR-011): "
+        "the row answers the value 340 of the layout block (FR-011): "
             + std::to_string(row->value));
   check(row->argument == sg::detail::OptionArgument::REQUIRED,
         "the row takes a required argument (FR-011)");

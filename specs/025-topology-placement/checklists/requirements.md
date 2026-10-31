@@ -32,7 +32,7 @@
 ## Notes
 
 - No [NEEDS CLARIFICATION] marker was raised. The five open points the
-  request carried arrived as recommendations Charles accepted, so they
+  request carried arrived as recommendations the owner accepted, so they
   stand as D-1 to D-5 with the requirement each one lands in, and the
   spec's Open questions section carries no owner decision. Two points
   were left to the plan inside those bounds: the option spellings, now
