@@ -31,7 +31,7 @@ modify them.
 ## Requirement Completeness
 
 - [x] No [NEEDS CLARIFICATION] markers remain. The prompt carried every
-  open point as a recommendation Charles accepted, so the spec records
+  open point as a recommendation the owner accepted, so the spec records
   them at D-1 to D-11 and D-13. The two points the prompt left open were
   answered in the 2026-10-20 clarification session and stand at D-12,
   FR-018, FR-030 and FR-050.

@@ -41,7 +41,7 @@ requirement text.
 - [x] No [NEEDS CLARIFICATION] markers remain: the prompt carried every
   open item as an accepted recommendation, and the five points the prompt
   left open are recorded as D-15 to D-19 with a recommendation each and
-  listed again under Open questions for Charles to overturn.
+  listed again under Open questions for the owner to overturn.
 - [x] Requirements are testable and unambiguous: each `FR-0nn` states one
   observable answer, and the fault forms name the line and the exit status
   they answer.
@@ -94,11 +94,11 @@ requirement text.
 ## Notes
 
 - The prompt's recommendations are recorded as D-1 to D-14, dated
-  2026-10-20 and attributed to Charles, who accepted them in the prompt.
+  2026-10-20 and attributed to the owner, who accepted them in the prompt.
   D-15 to D-19 come from this session's audit of `aec8fce` and carry no
   approval. The clarification session of 2026-10-20 settled D-17 and D-19
   and added D-20 to D-22, all as this session's decisions; D-15, D-16 and
-  D-18 stay listed in Open questions for Charles to overturn.
+  D-18 stay listed in Open questions for the owner to overturn.
 - Three prompt statements needed a code fact to become testable, and the
   spec records the resolution the wording needs: the schema
   version pairing (the reader accepts any minor of major 1, so the pairing

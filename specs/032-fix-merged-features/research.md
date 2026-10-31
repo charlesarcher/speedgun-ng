@@ -86,7 +86,7 @@ measurements, confirmed.
 `--omit-lines` patterns and `tools/dbc/coverage_gate.sh:60` holds
 `allowance=19`, as PC-8 measures. The comments at `cmake/coverage.cmake:57`
 and `:85` to `:86` carry a person's name and a decision record
-(`Charles`, `D-16 in specs/022-metric-formulas/plan.md`), the targets
+(`D-16 in specs/022-metric-formulas/plan.md`), the targets
 FR-025 rewrites. `:82` names the `brace` rule as a known gcc record,
 the shape D-13's proof works in.
 

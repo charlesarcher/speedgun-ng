@@ -50,7 +50,7 @@ this feature and not copied.
 
 ## Decisions
 
-Charles accepted these as recommendations for this prompt on 2026-10-20.
+The owner accepted these as recommendations for this prompt on 2026-10-20.
 They are recorded here per X.1 so that no implementer reopens them, and
 each one names the reading it settles.
 
@@ -791,7 +791,7 @@ gate does the same in CI.
   the major stands at 1.
 - Commit messages follow the constitution template: blank lines between
   body paragraphs, one footer block with `Approved-by:` then `Refs:`, an
-  `Approved-by:` line only for a decision Charles approved, and
+  `Approved-by:` line only for a decision the owner approved, and
   `Refs: specs/024-multipass-collection`.
 
 ## Scope

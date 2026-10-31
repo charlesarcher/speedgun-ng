@@ -123,7 +123,7 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # The page carries six more capability sections and their snippets (FR-044);
 # the per-section budget of FR-024 holds, which is what keeps a section a
 # section rather than a second page.
-# D-A of the PR #37 final pass (Charles, 2026-10-15): Registration teaches
+# D-A of the PR #37 final pass (the owner, 2026-10-15): Registration teaches
 # all three registration forms and Fixtures all three fixture macros, which
 # adds 32 lines (25 to 38 and 24 to 43). No prose elsewhere on the page can
 # give back 20 lines without gutting a result sentence, so the page cap rose
@@ -138,7 +138,7 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # specs/021 FR-027 measures its own move: the "Percentiles" section runs 19
 # lines and the two quick-reference option rows add 2, so 21 lines move the
 # cap from 638 to 659, the measured length of the page as the feature lands.
-# D-15 of the PR #41 owner review (Charles, 2026-10-19): the metric section
+# D-15 of the PR #41 owner review (the owner, 2026-10-19): the metric section
 # grew to 59 lines under a recorded raise, and the review keeps one snippet
 # on the main page. The addMetric walk and the fold-and-read flow move to
 # docs/pages/harness.md, the section keeps the metric-lookup region with one
@@ -259,7 +259,7 @@ PAGE_LINE_CAP = 1004
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that
-# holds its copied regions (D-A, Charles, 2026-10-15). Fixtures counts the
+# holds its copied regions (D-A, the owner, 2026-10-15). Fixtures counts the
 # sg-requires line the snippet gate reads beside the macro block.
 SECTION_LINE_CAPS = {
     "Registration": 38,

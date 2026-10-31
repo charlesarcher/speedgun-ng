@@ -37,7 +37,7 @@ An empty `rules` list applies the default rule
 verdict only: a `NOISY` row fails the run when it stands and passes when
 it does not, and the state word never changes for it (FR-044, FR-045).
 The settings stand in `CompareOptions`, so a later setting grows the call
-with the exported signature unchanged (Charles, 2026-10-21).
+with the exported signature unchanged (the owner, 2026-10-21).
 
 ## Validation before the comparison
 
