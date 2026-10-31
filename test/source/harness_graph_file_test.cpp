@@ -366,41 +366,40 @@ auto parserRejectRefuses() -> void
              "the parser line names the path and the fault (FR-010 rule 2)");
 }
 
+// One shape arm: the file it plants, the refusal it must answer, and the
+// words that refusal line carries. The braced list of words stands at the
+// call, where the backing array of an `initializer_list` lives as long as
+// the call, the way the two rules above hand their words to `faultNames`.
+auto shapeArmBreaks(const char* file,
+                    std::string_view text,
+                    std::initializer_list<std::string_view> names,
+                    const char* what) -> void
+{
+  sg::detail::installTestGraph(std::nullopt);
+  const std::string path = plant(file, text);
+  const auto answer = sg::detail::readGraphFile(path, std::span(kRunOfTwo));
+  const std::string fault = refusalOf(answer, what);
+  faultNames(fault, names, what);
+}
+
 // FR-010 rule 3: the three shape breaks the schema file names. A key the
 // schema admits never, a key out of the `x-order`, and a `slot` spelled as a
 // string (FR-007, FR-008).
 auto schemaShapeBreakRefuses() -> void
 {
-  struct Arm
-  {
-    const char* name;
-    std::string_view text;
-    std::initializer_list<std::string_view> names;
-    const char* what;
-  };
-
-  const std::array<Arm, 3> arms {
-      Arm {"extra-key.json",
-           kExtraKey,
-           {"preset", "lists no key"},
-           "a key the schema admits never names the key (FR-007, FR-008)"},
-      Arm {"order.json",
-           kOrderBreak,
-           {"name", "out of the order"},
-           "a key out of the x-order names the order break (FR-007)"},
-      Arm {"kind.json",
-           kSlotAsText,
-           {"slot", "integer", "string"},
-           "a slot spelled as a string names the kind (FR-007)"},
-  };
-
-  for (const auto& arm : arms) {
-    sg::detail::installTestGraph(std::nullopt);
-    const std::string path = plant(arm.name, arm.text);
-    const auto answer = sg::detail::readGraphFile(path, std::span(kRunOfTwo));
-    const std::string fault = refusalOf(answer, arm.what);
-    faultNames(fault, arm.names, arm.what);
-  }
+  shapeArmBreaks(
+      "extra-key.json",
+      kExtraKey,
+      {"preset", "lists no key"},
+      "a key the schema admits never names the key (FR-007, FR-008)");
+  shapeArmBreaks("order.json",
+                 kOrderBreak,
+                 {"name", "out of the order"},
+                 "a key out of the x-order names the order break (FR-007)");
+  shapeArmBreaks("kind.json",
+                 kSlotAsText,
+                 {"slot", "integer", "string"},
+                 "a slot spelled as a string names the kind (FR-007)");
 }
 
 // FR-007: the shape check of `docs/schema/graph-v1.json` finishes before
