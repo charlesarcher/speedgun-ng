@@ -180,7 +180,7 @@ block and the record through the gate arm, the assembly arm and the
 console arm, the way [quickstart.md](./quickstart.md) records.
 
 The production drive of the stop path answers the same way. The docs
-example over the chain, signalled two seconds into a long iteration
+example over the chain, signaled two seconds into a long iteration
 count, exits 1 with the skip line
 `bmChain/threads:3 SKIPPED: interrupted by the user (SIGINT)`, prints
 no `contexts=` line, so no graph block stands beside it, and its
