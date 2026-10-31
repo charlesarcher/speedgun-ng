@@ -15,6 +15,7 @@
 
 #include "detail/calibration.hpp"
 #include "detail/complexity.hpp"
+#include "detail/graph.hpp"
 #include "detail/hunt_plan.hpp"
 #include "detail/internal.hpp"
 #include "detail/options.hpp"
@@ -689,8 +690,8 @@ namespace sg::detail
 // first context that skipped. The declaration stands in
 // detail/internal.hpp, where the gap test drives the rule's whole input
 // table beside the threaded run.
-auto takesSkip(const bool recordSkipped,
-               const bool mergedSkipped) noexcept -> bool
+auto takesSkip(const bool recordSkipped, const bool mergedSkipped) noexcept
+    -> bool
 {
   return recordSkipped && !mergedSkipped;
 }
@@ -879,8 +880,8 @@ auto ThreadRun::dispatch(const int index) -> void
 // sixteen-name cap trip as `SG_REQUIRE` preconditions at the call. The
 // rule that names an offending name writes a runtime reason into the
 // state, because an `SG_REQUIRE` message is a string literal (FR-008).
-auto State::setCounter(const std::string_view name,
-                       const Counter& counter) -> void
+auto State::setCounter(const std::string_view name, const Counter& counter)
+    -> void
 {
   SG_REQUIRE(name.size() < kMaxCounterNameBytes,
              "a counter name longer than kMaxCounterNameBytes minus one "
@@ -945,8 +946,8 @@ namespace
 // store, and whether the store can still carry the call. A template over the
 // container keeps the slot type out of the exported header.
 template<class Store>
-auto counterIndexOf(const Store& counters,
-                    const std::string_view name) -> std::size_t
+auto counterIndexOf(const Store& counters, const std::string_view name)
+    -> std::size_t
 {
   for (std::size_t index = 0; index < counters.size(); ++index) {
     const auto& slot = counters[index];
@@ -2075,6 +2076,69 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     }
   };
 
+  // specs/037-execution-graphs FR-020, FR-023: the failed node that gates a
+  // held node, the nearest one on its dependency chain. The walk steps down
+  // the held dependencies named on the node and answers the first failed
+  // word it meets, the shape the held spread of FR-020 leaves behind.
+  auto gatingNodeOf = [](const Graph& graph,
+                         const std::vector<std::optional<NodeOutcome>>& words,
+                         const GraphNode& node) -> std::string
+  {
+    auto cursor = &node;
+    auto gater = static_cast<const GraphNode*>(nullptr);
+    while (gater == nullptr) {
+      for (const auto& dependency : cursor->deps) {
+        const auto named =
+            std::ranges::find(graph.nodes, dependency, &GraphNode::name);
+        SG_REQUIRE(named != graph.nodes.end(),
+                   "every dependency names a node (FR-010 rule 7)");
+        const auto& word = words[named->slot];
+        SG_REQUIRE(word.has_value(),
+                   "the joined attempt leaves one word for every node of its "
+                   "graph (FR-019)");
+        if (*word == NodeOutcome::FAILED) {
+          gater = &*named;
+          break;
+        }
+        cursor = &*named;
+      }
+    }
+    return gater->name;
+  };
+
+  // specs/037-execution-graphs FR-019, FR-023, D-5: the settlement the record
+  // carries for one threaded graph attempt: one entry per node in the
+  // ascending slot order FR-023 fixes, each naming the word the gate settled
+  // and, for a held node, the failed node that gates it. The graph's nodes
+  // and edges stay in the graph slot, so the record carries settlement facts
+  // alone.
+  auto graphSettlementOf =
+      [&gatingNodeOf](GraphGate& gate) -> std::vector<GraphSettlement>
+  {
+    const auto& graph = *graphInput();
+    const auto words = gate.outcomes();
+    auto settled = std::vector<GraphSettlement> {};
+    settled.reserve(graph.nodes.size());
+    for (std::uint32_t slot = 0; slot < graph.nodes.size(); ++slot) {
+      const auto named = std::ranges::find(graph.nodes, slot, &GraphNode::slot);
+      SG_REQUIRE(named != graph.nodes.end(),
+                 "the slot names a node of the graph (FR-010 rule 6)");
+      const auto& word = words[named->slot];
+      SG_REQUIRE(word.has_value(),
+                 "the joined attempt leaves one word for every node of its "
+                 "graph (FR-019)");
+      auto fact = GraphSettlement {.name = named->name,
+                                   .slot = named->slot,
+                                   .outcome = *word,
+                                   .reason = {}};
+      if (*word == NodeOutcome::HELD) {
+        fact.reason = gatingNodeOf(graph, words, *named);
+      }
+      settled.push_back(fact);
+    }
+    return settled;
+  };
+
   // The threaded attempt (E-05, D-05, FR-018, FR-020, FR-023, D-07):
   // one body per body index, each dispatched to the context that owns
   // that index, so every timed loop runs on its own context's thread
@@ -2147,6 +2211,17 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       for (std::size_t position = 0; position < count; ++position) {
         settled.push_back(std::make_unique<std::atomic<bool>>(false));
       }
+    }
+
+    // specs/037-execution-graphs D-3, FR-013: one gate per threaded attempt,
+    // standing beside the two barriers over the graph the seam names. The
+    // gate reads no clock, opens no measured window and moves no barrier
+    // round: it gates the start of each context between the rounds (FR-016).
+    // A run with no graph carries no gate, and its attempt keeps the raw
+    // path (FR-012).
+    auto gate = std::optional<GraphGate> {};
+    if (graphInput().has_value()) {
+      gate.emplace(*graphInput());
     }
 
     // FR-018, PC-1: the body of one body index, running on that
@@ -2243,7 +2318,16 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
         outcome.error = outcomes.front().setupError;
       }
 
-      if (outcome.error.empty()) {
+      // specs/037-execution-graphs FR-013, FR-015, D-4: the gate's answer
+      // stands after the start round and before the callable, beside the
+      // standing setup-failure skip. A node whose dependency never finishes
+      // answers skip: this context runs no body, opens no measured window,
+      // and arrives at the stop round, so no round strands.
+      const bool starts = !gate
+          || gate->awaitStart(static_cast<std::uint32_t>(index))
+              == StartAnswer::RUN;
+
+      if (starts && outcome.error.empty()) {
         try {
           entry.callable(state);
         } catch (const std::exception& error) {
@@ -2254,6 +2338,20 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
           outcome.error = "the benchmark threw an unknown exception";
         }
         state.topUpWindow();
+      }
+
+      if (gate.has_value() && starts) {
+        // specs/037-execution-graphs FR-019, D-5: the body settles its node's
+        // word after the callable: failed where the context recorded an
+        // error, finished elsewhere. The settle stands before the stop round,
+        // so a dependent starts while this context still runs, and the
+        // completion state of specs/020 FR-049 follows it as the last write
+        // of this node (D-10).
+        if (outcome.error.empty()) {
+          gate->nodeFinished(static_cast<std::uint32_t>(index));
+        } else {
+          gate->nodeFailed(static_cast<std::uint32_t>(index));
+        }
       }
 
       stopBarriers[group]->arriveAndWait();
@@ -2327,6 +2425,24 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
       });
     }
 
+    // specs/037-execution-graphs FR-019, FR-023, D-5: the gate's words stand
+    // read ahead of the attempt's answer, so the words of a failed attempt
+    // ride the channel too. The closure of a failed node is the shape that
+    // settles a node held (FR-020), and FR-023 names the failed node that
+    // gates each held node in the entry the entry point builds from these
+    // words, so the attempt that fails is the one attempt whose words carry a
+    // held node. The answer the attempt gives keeps the shape it had: the
+    // failure and the bind refusal return ahead of the merged record, and the
+    // failed run prints no row.
+    const auto settlement = gate.has_value() ? graphSettlementOf(*gate)
+                                             : std::vector<GraphSettlement> {};
+    // specs/037 FR-019, FR-023, D-5 (T023): the words ride the runner's
+    // per-run channel beside the windows. The entry point drains them at its
+    // own run's print, where the record entry names each node's word. The
+    // last attempt of the run leaves the words, the attempt whose row the
+    // console prints, and a run that gates no attempt leaves none.
+    m_graphSettlement = settlement;
+
     if (const auto failure = firstThreadedError(outcomes)) {
       return std::unexpected(*failure);
     }
@@ -2340,6 +2456,11 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
 
     // E-06, FR-020: the merged record; the label is context 0's.
     RunRecord merged = mergeThreadedRecords(outcomes, count);
+
+    // specs/037 FR-019, FR-023, D-5: the settlement rides the merged row: the
+    // gate's word for every node of the attempt, beside the row the merged
+    // record prints. A run with no graph settles nothing.
+    merged.graphSettlement = settlement;
     // specs/021 FR-005: the summed decision seconds over the summed
     // iterations is the per-iteration time of one context, and it
     // calibrates the chunk size of the next attempt.

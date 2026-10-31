@@ -21,9 +21,9 @@ The disclosure line and the noise warning of a threaded result ride the same
 fold (020 FR-025, FR-026, SC-11): the context count, the context index, a cpu
 index and the two counts inside the warning are values the run owns, so they
 fold equal, while the mode words, the `contexts=` field and the fixed warning
-wording are letters, so a change folds different. A block that leaves either
-line out cannot describe a threaded run, and a single-context block keeps its
-exact bytes.
+wording are letters, so a change folds different. A block that leaves the
+disclosure line out cannot describe a threaded run, and a single-context
+block keeps its exact bytes.
 The pre-check block and the probe disclosure print one unit per cpu the host
 gives the run, and a host that leaves no candidate cpu discloses that once
 beside the host settings instead of printing a candidate unit (034 console
@@ -31,10 +31,12 @@ contract, the empty-candidate-set answer). A recorded block is one host's
 run, so the comparison reads the host's cpu multiplicity out of both sides
 before it compares: a repeated governor, irq affinity or probe line folds to
 one, a candidate unit stands beside the line that discloses none, a per-cpu
-value list and a cpu index list fold to one entry, and the skipped-group
-disclosure stands on either side. What is left is the shape the program
-owns: every field name, every line class and their order. The fold is what
-lets a run under an affinity mask describe a block recorded on a wider host
+value list and a cpu index list fold to one entry, the skipped-group
+disclosure stands on either side, and the noise warning of a threaded run
+stands on either side because the cpus the host gives the run set whether it
+prints (020 FR-026, FR-027). What is left is the shape the program owns:
+every field name, every line class and their order. The fold is what lets a
+run under an affinity mask describe a block recorded on a wider host
 (033 FR-042). Exit 0 clean, 1 with any finding, 2 on a usage error.
 """
 
@@ -107,12 +109,17 @@ PER_CPU_LINE = (
     re.compile(r"^jitter: cpu # kept # dropped #$"),
 )
 # A host with no candidate cpu prints this line beside the host settings
-# instead of a candidate unit, and a host with an L3 group that leaves no cpu
-# free prints the skipped-group disclosure (034 console contract, the empty
-# candidate set answer; 027 FR-035). Whether each of the two stands is the
-# host's answer, not the shape the program owns.
+# instead of a candidate unit, a host with an L3 group that leaves no cpu
+# free prints the skipped-group disclosure, and a host that gives a threaded
+# run fewer cpus than its spinning contexts prints the noise warning
+# (034 console contract, the empty candidate set answer; 027 FR-035;
+# 020 FR-026). Whether each of the three stands is the host's answer, not the
+# shape the program owns.
 NO_CANDIDATES = "precheck candidates: none"
-HOST_CONDITION = (re.compile(r"^jitter: skipped L# group\(s\) #"),)
+HOST_CONDITION = (
+    re.compile(r"^jitter: skipped L# group\(s\) #"),
+    re.compile(r"^warning: spinning contexts oversubscribed \(# spin, # cpus\)$"),
+)
 # The probe fold block: one value per probe cpu on every field line, and the
 # cpu indexes the block and its disclosure name.
 PROBE_HEAD = re.compile(r"^jitter probe: cpus ")
@@ -200,9 +207,9 @@ def fold_host(side: list[Folded], no_candidates: bool) -> list[Folded]:
     set cannot stand against it: a repeated per-cpu line reads as one, a
     per-cpu value or cpu list reads as one entry, a candidate unit stands
     where the other side discloses that its host left one out, and the
-    skipped-group disclosure stands on either side. Every other line keeps its
-    place, so a field name, a line class or an order that changes still reads
-    different.
+    skipped-group disclosure and the noise warning stand on either side. Every
+    other line keeps its place, so a field name, a line class or an order that
+    changes still reads different.
     """
     folded: list[Folded] = []
     in_fold = False

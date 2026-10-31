@@ -1612,6 +1612,21 @@ add_test(NAME harness_hunt_json_test_no_hunt
          COMMAND harness_hunt_json_test no-hunt-bytes
                  ${CMAKE_SOURCE_DIR}/test/data)
 
+# ---- Execution graphs: model (M1) ----
+
+# The graph model, the four outcome words, the start order and the
+# slot-to-node map (specs/037-execution-graphs T001; US1; FR-008, FR-013,
+# FR-019, FR-020; R-04, R-06). The model is data and pure rules, so no
+# scenario runs a benchmark, registers a provider, starts a thread or
+# reads a clock (FR-026). The model header is internal to the harness
+# archive, so the target carries the source/harness include directory the
+# way harness_pass_plan_test does.
+add_executable(harness_graph_model_test source/harness_graph_model_test.cpp)
+target_link_libraries(harness_graph_model_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_graph_model_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_graph_model_test PRIVATE cxx_std_23)
+add_test(NAME harness_graph_model_test COMMAND harness_graph_model_test)
+
 # ---- Main-page documentation gates (feature 018) ----
 
 # The root README.md teaches the harness surface, and every code block it
@@ -1806,6 +1821,100 @@ add_test(
       ${CMAKE_CURRENT_SOURCE_DIR}/example-run-fixture/run_example_run_fixtures.sh
       ${CMAKE_SOURCE_DIR}
 )
+
+# ---- Execution graphs: file (M2) ----
+
+# The graph file, its schema and the refusal arms of FR-010
+# (specs/037-execution-graphs T005; US3; FR-007, FR-009, FR-010; SC-003;
+# R-03, D-1). Every arm plants one file under the system temporary
+# directory and hands the reader its path, so the file system stands the
+# reader's real input and no scenario starts a context (FR-011). The reader
+# is internal to the harness archive, so the target carries the
+# source/harness include directory the way harness_graph_model_test does.
+add_executable(harness_graph_file_test source/harness_graph_file_test.cpp)
+target_link_libraries(harness_graph_file_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_graph_file_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_graph_file_test PRIVATE cxx_std_23)
+add_test(NAME harness_graph_file_test COMMAND harness_graph_file_test)
+
+# ---- Execution graphs: gate (M4) ----
+
+# The start gate of one threaded attempt: the release rule, the settlement
+# words, and the two barrier rounds (specs/037-execution-graphs T010 to T018;
+# US1, US2, US4; FR-013 to FR-021, FR-026, FR-027; R-06 to R-09, R-16; D-3,
+# D-4, D-10). The gate-level scenarios drive `detail::GraphGate` with one
+# thread per slot and no clock, and the run-level scenarios fork a child that
+# installs a graph through the test seam, registers one threaded benchmark,
+# and runs the entry point, so the parent reads the report the child wrote.
+# The gate is internal to the harness archive, so the target carries the
+# source/harness include directory the way harness_graph_model_test does.
+add_executable(harness_graph_gate_test source/harness_graph_gate_test.cpp)
+target_link_libraries(harness_graph_gate_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_graph_gate_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_graph_gate_test PRIVATE cxx_std_23)
+add_test(NAME harness_graph_gate_test COMMAND harness_graph_gate_test)
+
+# ---- Execution graphs: record (M5) ----
+
+# The graph record and the console block: the console block beside the
+# `contexts=` line, the record's keys, order and read-back, the schema arms,
+# the byte identity and the ABI fact (specs/037-execution-graphs T024 to T031;
+# US2; FR-004, FR-005, FR-006, FR-022, FR-023, FR-024, FR-028; SC-001, SC-002,
+# SC-005, SC-006; R-10, R-11, R-13; D-5, D-6). The console scenarios print
+# through `detail::printResult` in this process, the record scenarios write and
+# read through `detail::writeReport` and `sg::loadReport`, and the schema arms
+# run the standing checker over planted documents, so the schema path enters
+# the way harness_hunt_json_test takes it. The record types and the printers
+# stand in the harness archive, so the target carries the source/harness
+# include directory the way harness_graph_model_test does.
+add_executable(harness_graph_report_test source/harness_graph_report_test.cpp)
+target_link_libraries(harness_graph_report_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_graph_report_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_graph_report_test PRIVATE cxx_std_23)
+target_compile_definitions(
+    harness_graph_report_test
+    PRIVATE SG_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/docs/schema/report-v1.json"
+)
+add_test(NAME harness_graph_report_test COMMAND harness_graph_report_test)
+
+# ---- Execution graphs: cli (M3) ----
+
+# The `--graph` row of the option table: the grammar, the bare form, the
+# option-file source, the count refusals and the parse-once rule
+# (specs/037-execution-graphs T020, T021; US3; FR-001, FR-002, FR-009, FR-011,
+# FR-012; SC-003; R-01, R-02, R-05, R-11; contracts/cli-graph.md). Every
+# scenario runs the entry point in a forked child with both streams captured to
+# files the parent reads, and the graph stands in a planted file under the
+# system temporary directory, so the reader reads the file system it reads in
+# production and no scenario installs a graph through the seam. The row lookup
+# is internal to the harness archive, so the target carries the source/harness
+# include directory the way harness_graph_model_test does.
+add_executable(harness_cli_graph_test source/harness_cli_graph_test.cpp)
+target_link_libraries(harness_cli_graph_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_cli_graph_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_cli_graph_test PRIVATE cxx_std_23)
+add_test(NAME harness_cli_graph_test COMMAND harness_cli_graph_test)
+
+# ---- Execution graphs: example (M7) ----
+
+# The recorded run of the graph example (specs/037-execution-graphs T035;
+# US6; FR-034, IV.1 of the constitution, R-15). The guide page quotes the run
+# of the example whose file states a three-node chain over three contexts, so
+# the fold checks the recorded block against a real run of the example, which
+# is what fails the suite when a graph line is renamed or dropped while the
+# page still quotes it. The example writes its own graph file and hands the
+# entry point its path, so the fold runs the binary with no option beside it.
+if(TARGET docs_execution_graphs)
+  add_test(
+      NAME report_shape_execution_graphs_sample
+      COMMAND
+        python3 ${CMAKE_SOURCE_DIR}/tools/docs/report_shape.py
+        --binary $<TARGET_FILE:docs_execution_graphs>
+        --readme ${CMAKE_SOURCE_DIR}/docs/pages/harness.md
+        --example execution_graphs
+  )
+  set_tests_properties(report_shape_execution_graphs_sample PROPERTIES TIMEOUT 120)
+endif()
 
 # ---- Tier labels and budgets ----
 

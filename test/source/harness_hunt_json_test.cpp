@@ -1171,6 +1171,16 @@ const auto kPlants = std::vector<Plant> {
            .remove = true,
            .pointer = "/benchmarks/0/hunt",
            .message = "the key 'retried_passes' stands missing"},
+    // The key stands and its value is of another kind, so the key pass settles
+    // and the fold over the entry record's values stops at its last part: the
+    // three counts before it read, and the refusal names this one (E-08,
+    // FR-024, FR-025).
+    Plant {.what = "a string where the entry retried pass count stands",
+           .node = "hunt",
+           .key = "retried_passes",
+           .body = "\"3\"",
+           .pointer = "/benchmarks/0/hunt/retried_passes",
+           .message = "expected an integer, found string"},
     Plant {.what = "an object where the rank table stands",
            .node = "hunt",
            .key = "entries",
@@ -1361,6 +1371,24 @@ const auto kPlants = std::vector<Plant> {
            .body = "true",
            .pointer = "/hunt/ran_events",
            .message = "expected an integer, found boolean"},
+    // The last part of the run record's own fold: the eleven counts, words and
+    // enums before it read, and the fold stops at the stage-two count (E-06,
+    // FR-024, FR-025).
+    Plant {.what = "a string where the stage-two event count stands",
+           .node = "run",
+           .key = "stage_two_events",
+           .body = "\"42\"",
+           .pointer = "/hunt/stage_two_events",
+           .message = "expected an integer, found string"},
+    // The bound whose unit letter stands and whose amount does not: the digits
+    // stop short of the letter, so the text states a unit and no amount, the
+    // second of the two-stage refusal (FR-012, FR-051).
+    Plant {.what = "a budget text whose unit stands and whose amount does not",
+           .node = "run",
+           .key = "budget",
+           .body = "\"1x2s\"",
+           .pointer = "/hunt/budget",
+           .message = "states no budget amount"},
 };
 
 // One case per refused reader code, each naming the pointer of its position
@@ -1506,9 +1534,9 @@ auto twoStageDocument() -> void
 auto schemaConformance() -> void
 {
   const auto text = huntDocumentText(singleStageHunt());
-  check(text.starts_with("{\"schemaVersion\":\"1.10\""),
-        "the hunt document stamps the minor 1.10 the writer carries "
-        "(FR-032, specs/039 FR-032)");
+  check(text.starts_with("{\"schemaVersion\":\"1.11\""),
+        "the hunt document stamps the minor 1.11 the writer carries "
+        "(FR-032, specs/039 FR-032, specs/037 FR-005)");
   const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, text);
   if (!clean.has_value()) {
     failed("the hunt document disagrees with the schema: " + clean.error());

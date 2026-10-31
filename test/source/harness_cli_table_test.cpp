@@ -11,15 +11,16 @@
 // seven new names take the constants 290 to 296 that spec D-24 reserves.
 // The expected rows stand here as literals, the master name to value
 // mapping of FR-013 among them.
-// The contract fixes 41 rows in one order. The 20 rows master carries keep
+// The contract fixes 42 rows in one order. The 20 rows master carries keep
 // their spelling, their argument kind and their internal value, the seven
 // new names take the constants 290 to 296 that spec D-24 reserves, the
-// noise tracer's name takes 297, the layout row takes the 299 the free
-// block leaves this lane, and the eleven hunt names take the block 270 to
-// 289 the hunt lane reserves: the eight of specs/029-hunter-core at 270 to
-// 277, `hunt-emit-set` of specs/033-hunter-budgets at 280, and the two of
-// specs/040-hunter-sensitivity at 281 and 282. The expected rows stand
-// here as literals, the master name to value mapping of FR-013 among them.
+// noise tracer's name takes 297, the graph row takes 298 under the
+// reservation rule of specs/037 FR-002, the layout row takes 299, and the
+// eleven hunt names take the block 270 to 289 the hunt lane reserves: the
+// eight of specs/029-hunter-core at 270 to 277, `hunt-emit-set` of
+// specs/033-hunter-budgets at 280, and the two of specs/040-hunter-
+// sensitivity at 281 and 282. The expected rows stand here as literals,
+// the master name to value mapping of FR-013 among them.
 //
 // The seam the contract names, `detail::optionRows()`, is declared at T006
 // and written at T007, so this file reads the rows out of the source that
@@ -51,7 +52,7 @@
 //
 // Check map:
 //   theTableAnswersARowList        one source file yields rows
-//   theTableHoldsFortyOneRows     the row count is the contract's 41
+//   theTableHoldsFortyTwoRows     the row count is the contract's 42
 //                                  (FR-001, FR-004, SC-001)
 //   theNamesStandInTheContractOrder
 //                                  the names in table order equal the
@@ -94,6 +95,15 @@
 //                                  share no number, and no name or
 //                                  value repeats across them
 //                                  (FR-004, FR-079)
+//   graphRowValueBlockAndUniqueness
+//                                  the table carries one row named `graph`
+//                                  at the value 298, the first free value of
+//                                  the block 298 to 319 at branch time, the
+//                                  standing name and value rules cover it,
+//                                  the row takes an optional argument and
+//                                  carries the environment flag off, and the
+//                                  header's block comment names 299 to 319
+//                                  free (FR-001, FR-002, FR-009, R-01)
 //   theCarriedConstantsNameTheirOptions
 //                                  256 to 259 name `metric-method`,
 //                                  `compare`, `compare-rule` and
@@ -220,7 +230,7 @@ constexpr char kNoArgument = 'n';
 constexpr int kHuntEmitRulesValue = 281;
 constexpr int kHuntBaselineValue = 282;
 
-constexpr std::array<ExpectedRow, 41> kContract = {{
+constexpr std::array<ExpectedRow, 42> kContract = {{
     {"filter", kRequired, 'f'},
     {"list", kNoArgument, 'l'},
     {"repetitions", kRequired, 'r'},
@@ -250,6 +260,7 @@ constexpr std::array<ExpectedRow, 41> kContract = {{
     {"version", kNoArgument, 296},
     {"jitter-probe", kRequired, 260},
     {"os-noise", kRequired, 297},
+    {"graph", kOptional, 298},
     {"group-layout", kRequired, 299},
     {"hunt", kOptional, 270},
     {"hunt-norm", kRequired, 271},
@@ -264,20 +275,21 @@ constexpr std::array<ExpectedRow, 41> kContract = {{
     {"hunt-baseline", kRequired, kHuntBaselineValue},
 }};
 
-// The rows master carries today; the ten rows after them come from the
-// lanes that follow master, and the nine hunt rows close the table: the
-// eight of specs/029-hunter-core and `hunt-emit-set` of
+// The rows master carries today; the rows after them are the ones the
+// lanes bring, the graph row of specs/037 and the layout row of specs/039
+// closing that group, and the nine hunt rows close the table: the eight of
+// specs/029-hunter-core and `hunt-emit-set` of
 // specs/033-hunter-budgets.
 constexpr std::size_t kMasterRows = 20;
 constexpr std::size_t kRowsBeforeHunt = 30;
 
 // The bounds of the three value blocks: the constants the harness carried
 // before this feature, the constants the hunt lane reserves for its eleven
-// names, the constants spec D-24 reserves for the seven new names, and the
-// noise tracer's own constant, and the layout row's constant, 298 and 300
-// to 319 left free for the lanes that follow (FR-004, FR-079; specs/029
-// FR-083, D-22; specs/033 FR-010, R-13; specs/039 FR-011; specs/040
-// FR-020).
+// names, the constants spec D-24 reserves for the seven new names, the
+// noise tracer's own constant, the graph row's constant, and the layout
+// row's constant, 300 to 319 left free for the lanes that follow
+// (FR-004, FR-079; specs/029 FR-083, D-22; specs/033 FR-010, R-13;
+// specs/037 FR-002; specs/039 FR-011; specs/040 FR-020).
 constexpr int kCarriedLow = 256;
 constexpr int kCarriedHigh = 259;
 constexpr int kHuntLow = 270;
@@ -287,6 +299,16 @@ constexpr int kReservedHigh = 296;
 constexpr int kJitterProbeValue = 260;
 constexpr int kOsNoiseValue = 297;
 constexpr int kGroupLayoutValue = 299;
+
+
+// specs/037-execution-graphs T019, FR-002, R-01: the graph row's value. The
+// contract fixes 297, and the reservation rule of the Spec identity section
+// moves the lane to the next free value when pull request #58 lands first.
+// Master's block comment names 297 taken by the noise tracer and 298 to 319
+// free, so the lane takes 298 and the free block moves to 299 to 319.
+constexpr int kGraphValue = 298;
+constexpr int kGraphFreeLow = 298;
+constexpr int kGraphFreeHigh = 319;
 
 // The eleven hunt rows and the numbers the three hunt contracts assign
 // them; the rule binds the number, whichever constant spells it
@@ -439,8 +461,8 @@ auto argumentKindOf(std::string_view entry) -> char
 // constant and a bare number is a value spelled as a literal. Quoted text
 // is read ahead of the words, so a help sentence cannot reach the value.
 // The terminator row carries no name and answers nothing.
-auto parseRow(std::string_view entry,
-              const Constants& constants) -> std::optional<Row>
+auto parseRow(std::string_view entry, const Constants& constants)
+    -> std::optional<Row>
 {
   Row row;
   row.argument = argumentKindOf(entry);
@@ -548,8 +570,8 @@ auto closingBrace(std::string_view text, std::size_t open) -> std::size_t
 
 // The rows of the table in source order, from the row that names `filter`
 // to the terminator that carries no name.
-auto parseRows(std::string_view text,
-               const Constants& constants) -> std::vector<Row>
+auto parseRows(std::string_view text, const Constants& constants)
+    -> std::vector<Row>
 {
   std::vector<Row> rows;
   const std::size_t anchor = text.find("\"filter\"");
@@ -702,13 +724,13 @@ auto theTableAnswersARowList(const std::vector<Row>& rows) -> void
   check(!rows.empty(), "the table source answers a row list (FR-079)");
 }
 
-auto theTableHoldsFortyOneRows(const std::vector<Row>& rows) -> void
+auto theTableHoldsFortyTwoRows(const std::vector<Row>& rows) -> void
 {
   if (rows.size() == kContract.size()) {
     return;
   }
-  report("the table holds the 41 rows of the contract (FR-001, FR-004, SC-001)",
-         "41 rows",
+  report("the table holds the 42 rows of the contract (FR-001, FR-004, SC-001)",
+         "42 rows",
          std::to_string(rows.size()) + " rows");
 }
 
@@ -863,14 +885,14 @@ auto inMasterBlock(const int value) -> bool
 }
 
 // The value block of the rows the lanes after master bring: the
-// constants 290 to 296 that spec D-24 reserves, the jitter row at 260,
-// the noise tracer's row at 297, and the layout row at 299 (FR-004,
-// specs/039 FR-011).
+// constants 290 to 296 that spec D-24 reserves, the jitter row at 260, the
+// noise tracer's row at 297, the graph row at 298, and the layout row at
+// 299 (FR-004; specs/037 FR-002; specs/039 FR-011).
 auto inNewBlock(const int value) -> bool
 {
   return (value >= kReservedLow && value <= kReservedHigh)
       || value == kJitterProbeValue || value == kOsNoiseValue
-      || value == kGroupLayoutValue;
+      || value == kGraphValue || value == kGroupLayoutValue;
 }
 
 // The value block of the hunt rows: the constants 270 to 289 the hunt lane
@@ -916,11 +938,11 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
                                                          : "the new row '")
           + row.name + "' answers inside its block (FR-004, FR-079)";
       report(label.c_str(),
-             hunt ? "a constant from 270 to 289"
-                 : master
-                 ? "a letter or a constant from 256 to 259"
-                 : "a constant from 290 to 296, the lane block's 260, "
-                   "the noise tracer's 297, or the layout row's 299",
+             hunt         ? "a constant from 270 to 289"
+                 : master ? "a letter or a constant from 256 to 259"
+                          : "a constant from 290 to 296, the lane block's 260, "
+                            "the noise tracer's 297, the graph row's 298, or "
+                            "the layout row's 299",
              valueWord(row.value));
     }
     if (hunt) {
@@ -962,6 +984,62 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
            std::to_string(highestMaster) + " against "
                + std::to_string(lowestNew));
   }
+}
+
+// specs/037-execution-graphs T019: the `graph` row of the table, the value it
+// answers, the block that value stands in, and the standing rules over it
+// (FR-001, FR-002, FR-009, R-01, contracts/cli-graph.md). The value is the
+// reservation of the Spec identity section read at branch time: the contract
+// fixes 297 and the lane takes 298, the first value master's block comment
+// leaves free. The two standing rules above are the name and value checks the
+// contract names, so the row is covered by them and by nothing else.
+auto graphRowValueBlockAndUniqueness(const std::vector<Row>& rows,
+                                     const std::string& header) -> void
+{
+  const Row* const row = rowNamed(rows, "graph");
+  if (row == nullptr) {
+    report("the table carries one row named 'graph' (FR-001, FR-002)",
+           "a row named graph",
+           "no such row");
+    return;
+  }
+  check(row->value == kGraphValue,
+        "the graph row answers the value 298, the first free value at branch "
+        "time (FR-002)");
+  check(row->value >= kGraphFreeLow && row->value <= kGraphFreeHigh,
+        "the graph row's value stands in the free block 298 to 319 (FR-002)");
+  check(row->argument == kOptional,
+        "the graph row takes an optional argument (FR-001, FR-009)");
+  check(repeatedName(rows) == nullptr,
+        "the standing name rule covers the graph row (FR-004, SC-001)");
+  check(repeatedValue(rows) == nullptr,
+        "the standing value rule covers the graph row's 298 (FR-004, SC-001)");
+
+  // The live table carries the two facts the parsed text does not: the
+  // argument kind as the scanner sees it and the environment flag. The row
+  // carries the flag off, so the environment list stays the twelve rows
+  // FR-020 names and the bare row reads no variable (FR-009, R-02).
+  const sg::detail::OptionRow* const live = sg::detail::rowNamed("graph");
+  if (live == nullptr) {
+    report("the live table carries the graph row (FR-001)",
+           "a row named graph",
+           "no such row");
+    return;
+  }
+  check(
+      !live->fromEnvironment,
+      "the graph row carries the environment flag off (FR-020, FR-009, R-02)");
+  check(live->value == row->value,
+        "the live graph row answers the value the table text carries (FR-003)");
+  check(live->argument == sg::detail::OptionArgument::OPTIONAL,
+        "the live graph row carries the optional kind (FR-001)");
+
+  // The block comment of the value constants moves in the same commit as the
+  // row, so the free block the header names is the block the row's value left
+  // (FR-002).
+  check(header.find("299 to 319 stay free") != std::string::npos,
+        "the header's block comment names 299 to 319 free beside the graph "
+        "row (FR-002)");
 }
 
 // The nine hunt rows of the table, each at the number its contract states:
@@ -1339,8 +1417,8 @@ auto liveRow(const std::string_view name) -> const sg::detail::OptionRow*
 
 // The first printed line that opens with `prefix`, or an empty answer
 // when the printed text holds none.
-auto lineWith(const std::vector<std::string>& lines,
-              const std::string& prefix) -> std::string
+auto lineWith(const std::vector<std::string>& lines, const std::string& prefix)
+    -> std::string
 {
   for (const std::string& line : lines) {
     if (line.compare(0, prefix.size(), prefix) == 0) {
@@ -1646,15 +1724,14 @@ auto thePageAndTheTableAgreeInBothDirections(const std::filesystem::path& start)
 // short at either count.
 auto bmTwoCounts(sg::State& state) -> void
 {
-  for (auto _ : state) {
-  }
+  for (auto _ : state) {}
 }
 
 SG_BENCHMARK(bmTwoCounts);
 
 // The printed lines that name `name`, joined for a failure reading.
-auto namingLines(const std::vector<std::string>& lines,
-                 const std::string& name) -> std::vector<std::string>
+auto namingLines(const std::vector<std::string>& lines, const std::string& name)
+    -> std::vector<std::string>
 {
   std::vector<std::string> found;
   for (const std::string& line : lines) {
@@ -1777,7 +1854,7 @@ auto main(int argc, char** argv) -> int
   }
 
   theTableAnswersARowList(rows);
-  theTableHoldsFortyOneRows(rows);
+  theTableHoldsFortyTwoRows(rows);
   theNamesStandInTheContractOrder(rows);
   eachRowCarriesItsArgumentKind(rows);
   eachRowCarriesItsValue(rows);
@@ -1785,6 +1862,7 @@ auto main(int argc, char** argv) -> int
   theNewNamesTakeTheReservedConstants(rows);
   noNameAndNoValueRepeat(rows);
   theValueBlocksStayUniqueAndDisjoint(rows);
+  graphRowValueBlockAndUniqueness(rows, header);
   theHuntNamesTakeTheReservedConstants(rows);
   theFixtureTwinReportsItsPlantedDefects();
   theCarriedConstantsNameTheirOptions(rows);

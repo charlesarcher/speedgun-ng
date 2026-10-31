@@ -13,6 +13,7 @@
 #include <optional>
 #include <regex>
 #include <set>
+#include <span>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -38,6 +39,26 @@
 
 namespace sg
 {
+
+namespace detail
+{
+
+// specs/037-execution-graphs FR-007, FR-010, D-1 (T009): the graph file
+// reader. The definition stands in `source/harness/graph_file.cpp`; the
+// reader has no header of its own, the graph model's header carrying the
+// shared shape, so the entry point carries this declaration the way the
+// reader's test does.
+//
+// \pre `path` names the file the operator gave, and every count of
+//      `contextCounts` names the context count of one threaded run of the
+//      batch, in batch order (FR-009, FR-012, R-05)
+// \post the answer carries the graph, or the one fault line the entry point
+//       prints at status 2 before any context starts (FR-010, SC-003)
+[[nodiscard]] auto readGraphFile(std::string_view path,
+                                 std::span<const std::uint32_t> contextCounts)
+    -> std::expected<Graph, std::string>;
+
+}  // namespace detail
 
 namespace
 {
@@ -216,8 +237,9 @@ auto timeSourcePresent(counters::System& sys) -> bool
 // walk is in the order the sources named the names and states the first
 // failure, with its near-miss names on the same line behind the origin of the
 // source that held the name (FR-033, FR-038).
-[[nodiscard]] auto metricNameFailureLine(
-    const std::string& name, const counters::Error& error) -> std::string
+[[nodiscard]] auto metricNameFailureLine(const std::string& name,
+                                         const counters::Error& error)
+    -> std::string
 {
   std::string line =
       "--metric " + quotedText(name) + ": " + quotedText(error.message);
@@ -378,12 +400,13 @@ auto applyNarrowedMask(const cpu_set_t& narrowed) noexcept -> void
 // the fold reads (R-04). The record block is one unit of the report,
 // and the entry point below stands more than seven hundred lines, so
 // the build stands in a function of its own.
-auto buildJitterReportRecord(const JitterProbeOptions& probe,
-                             bool unavailable,
-                             bool rawGaps,
-                             const std::string& placementTail,
-                             const std::vector<const detail::ProbeCpuState*>&
-                                 states) -> detail::JitterReportRecord
+auto buildJitterReportRecord(
+    const JitterProbeOptions& probe,
+    bool unavailable,
+    bool rawGaps,
+    const std::string& placementTail,
+    const std::vector<const detail::ProbeCpuState*>& states)
+    -> detail::JitterReportRecord
 {
   detail::JitterReportRecord record;
   record.mode = probe.mode;
@@ -460,6 +483,64 @@ auto readNarrowingMask(cpu_set_t& saved) noexcept -> void
       sched_getaffinity(0, sizeof(saved), &saved) == 0;
   SG_ASSERT(readable,
             "the narrowing reads the mask it narrows for the instance (D-5)");
+}
+
+/**
+ * @brief specs/037-execution-graphs FR-022, FR-023, FR-024, R-11 (T023): the
+ * record entry of one threaded run: the nodes with the word each settled, the
+ * edges in the file's order, the held nodes with the failed node that gates
+ * each, and the stopped names.
+ *
+ * The console block and the document entry carry one fact, so the entry the
+ * entry point assembles is the one both print: the nodes in the ascending slot
+ * order FR-023 fixes, the edges in the order the file named them, and no
+ * timing figure (FR-024). The settlement names the graph's own nodes, the
+ * runner read them from the graph slot beside the gate it settled
+ * (`graphSettlementOf`), and the graph supplies the edges.
+ *
+ * \pre `benchmark` names the run the entry names, `graph` is the graph the run
+ *      read, and `settlement` carries the words the run's own gated attempt
+ *      settled: one entry per node of that graph in the ascending slot order
+ *      FR-023 fixes, each naming the failed node that gates a held node
+ *      (FR-019, FR-020)
+ * \post the answer carries the entry: `benchmark`, the nodes with their words
+ *       in the settlement's ascending slot order, the edges of `graph` in file
+ *       order, one held entry per `held` word with its gating reason, and one
+ *       stopped name per `stopped` word (FR-022, FR-023)
+ * \post an empty `settlement` answers no entry: a run that gated no attempt
+ *       settles no word and gains no entry, the single-context run of FR-012
+ *       among them
+ */
+[[nodiscard]] auto graphRunEntryOf(
+    const std::string& benchmark,
+    const detail::Graph& graph,
+    const std::vector<detail::GraphSettlement>& settlement)
+    -> std::optional<GraphRunRecord>
+{
+  if (settlement.empty()) {
+    return std::nullopt;
+  }
+  auto entry = GraphRunRecord {};
+  entry.benchmark = benchmark;
+  entry.nodes.reserve(settlement.size());
+  for (const auto& fact : settlement) {
+    entry.nodes.push_back(GraphNodeRecord {
+        .name = fact.name,
+        .slot = fact.slot,
+        .outcome = std::string(detail::nodeOutcomeName(fact.outcome))});
+    if (fact.outcome == detail::NodeOutcome::HELD) {
+      entry.held.push_back(
+          GraphHeldRecord {.node = fact.name, .reason = fact.reason});
+    }
+    if (fact.outcome == detail::NodeOutcome::STOPPED) {
+      entry.stopped.push_back(fact.name);
+    }
+  }
+  entry.edges.reserve(graph.edges.size());
+  for (const auto& edge : graph.edges) {
+    entry.edges.push_back(GraphEdgeRecord {.from = edge.from, .to = edge.to});
+  }
+  return entry;
 }
 
 /**
@@ -784,6 +865,67 @@ auto speedgunMain(int argc, char** argv) -> int
   // of a batch that named no row reads the preset's plan.
   for (auto* instance : selected) {
     instance->groupLayout = resolved->groupLayout;
+  }
+
+  // specs/037-execution-graphs FR-009, FR-011, FR-012, FR-022, R-02, R-05:
+  // the graph reads once, ahead of the first context, the parse-once shape the
+  // jitter-probe block above gives the command line's own text. The expansion
+  // and the filter stand behind this point, so the threaded runs of the batch
+  // stand here in batch order and the count rule of FR-012 reads each of them.
+  // Every fault prints one line alone at status 2, ahead of the context block
+  // and of the first row (SC-003).
+  auto graph = std::optional<detail::Graph> {};
+  if (options.graphPath.has_value()) {
+    if (options.graphPath->empty()) {
+      // FR-009: the bare row, given with no path in the command line, the
+      // option file line, or anywhere else.
+      std::fprintf(stderr, "%s\n", detail::emptyPathFault("--graph").c_str());
+      return 2;
+    }
+    auto counts = std::vector<std::uint32_t> {};
+    for (const auto* instance : selected) {
+      if (instance->threadCount > 1) {
+        counts.push_back(static_cast<std::uint32_t>(instance->threadCount));
+      }
+    }
+    if (counts.empty()) {
+      // FR-012, D-2: one run of one context takes no graph, the one context
+      // having nothing to order. A batch of runs with no threaded run among
+      // them refuses one line.
+      if (selected.size() != 1) {
+        std::fprintf(stderr,
+                     "--graph: the batch carries no threaded run to order\n");
+        return 2;
+      }
+    } else {
+      const auto read = detail::readGraphFile(
+          *options.graphPath, std::span<const std::uint32_t>(counts));
+      if (!read.has_value()) {
+        // FR-010: the first fault the reader meets, alone, and the run stops
+        // there; the slot the runner reads stays empty, so no context starts.
+        std::fprintf(stderr, "%s\n", read.error().c_str());
+        return 2;
+      }
+      for (const auto count : counts) {
+        if (count != read->nodes.size()) {
+          const std::string line = "--graph: the graph's "
+              + std::to_string(read->nodes.size())
+              + " nodes do not match the run's " + std::to_string(count)
+              + " contexts";
+          std::fprintf(stderr, "%s\n", line.c_str());
+          return 2;
+        }
+      }
+      graph = std::move(*read);
+    }
+  }
+  // FR-011, FR-025, D-7: the graph this invocation read stands in the slot the
+  // runner reads at each threaded attempt. A run that read none leaves the slot
+  // as it stands: the seam's rule is that an install decides the attempt that
+  // follows it (FR-025), and a production run that names no file finds the slot
+  // empty because nothing filled it.
+  if (graph.has_value()) {
+    detail::installTestGraph(std::move(graph));
   }
 
   // One entry-point invocation owns one interrupt flag: a suite that
@@ -1220,6 +1362,11 @@ auto speedgunMain(int argc, char** argv) -> int
     // object rides the row, so the deferred print of a shuffled run prints
     // the same hunt block the immediate print of an ordered run prints.
     std::optional<hunt::RunHunt> hunt;
+    // specs/037 FR-022, FR-023, R-11 (T023): the graph entry of the run that
+    // made this row rides the row for the same reason: the deferred print of a
+    // shuffled run prints the block the immediate print of an ordered run
+    // prints beside the same row.
+    std::optional<GraphRunRecord> graph;
   };
 
   std::vector<std::optional<HeldRow>> held(selected.size());
@@ -1233,6 +1380,12 @@ auto speedgunMain(int argc, char** argv) -> int
   // block the console prints behind the join edge is the block the
   // immediate print of an unprobed run prints (D-08, FR-035).
   std::vector<std::optional<hunt::RunHunt>> entryHuntRecords;
+  // specs/037 FR-022, FR-023, R-11 (T023): the graph entry of each entry,
+  // beside the hunt records above and aligned with them: the deferred print
+  // reads it for the block of its own run, and the document writer reads the
+  // filled ones, in batch order, as the record's `runs` (FR-023). A fit row
+  // and a run that gated no attempt carry none.
+  std::vector<std::optional<GraphRunRecord>> entryGraphRecords;
   // R-08, R-04: a probed run prints its benchmark tables behind the join
   // edge, so the per-benchmark attribution line reads the folds the
   // split fills after the stop; the printed order keeps the order the
@@ -1315,6 +1468,9 @@ auto speedgunMain(int argc, char** argv) -> int
         entryWindows.emplace_back();
         resultProbes.push_back(nullptr);
         entryHuntRecords.emplace_back();
+        // specs/037 (T023): a fit summarizes runs, it gates no attempt of its
+        // own, so it carries no graph entry and prints no block.
+        entryGraphRecords.emplace_back();
         // FR-002: a fit stands as its own entry of the document, beside
         // the entries of the runs it summarizes.
         report.rowRaw.emplace_back();
@@ -1444,13 +1600,26 @@ auto speedgunMain(int argc, char** argv) -> int
         status = 1;
       }
     }
+    // specs/037 FR-019, FR-022, FR-023, R-11 (T023): the run's record entry
+    // rides the hunt record. The words are this run's own gated attempt
+    // answered, drained from the runner's per-run channel beside the windows;
+    // the graph slot names the edges, and the benchmark name keys the entry the
+    // reader folds the console block by. The drain stands on every run, so a
+    // run that never reaches its merged record leaves no words for the next.
+    // A run that gated no attempt gains no entry, the single-context run beside
+    // the graph among them (FR-012).
+    const auto settlement = runner.takeGraphSettlement();
+    const auto graphEntry = detail::graphInput().has_value()
+        ? graphRunEntryOf(entry->name, *detail::graphInput(), settlement)
+        : std::optional<GraphRunRecord> {};
     if (interleaved) {
       held[position] = HeldRow {result,
                                 runner.rowRaw().back(),
                                 runner.contextRaw().back(),
                                 runner.takeRunWindows(),
                                 coveringStates,
-                                runRecord};
+                                runRecord,
+                                graphEntry};
     } else {
       report.results.push_back(result);
       entryWindows.push_back(runner.takeRunWindows());
@@ -1458,9 +1627,10 @@ auto speedgunMain(int argc, char** argv) -> int
       report.rowRaw.push_back(runner.rowRaw().back());
       report.contextRaw.push_back(runner.contextRaw().back());
       if (!consoleDeferred) {
-        detail::printResult(report.results.back(), runRecord);
+        detail::printResult(report.results.back(), runRecord, graphEntry);
       }
       entryHuntRecords.push_back(std::move(runRecord));
+      entryGraphRecords.push_back(graphEntry);
     }
     // FR-015: the family's probe stops after the family's last
     // instance in the walk, outside the timed windows (FR-006). A
@@ -1526,12 +1696,13 @@ auto speedgunMain(int argc, char** argv) -> int
         continue;
       }
       if (!consoleDeferred) {
-        detail::printResult(row->result, row->hunt);
+        detail::printResult(row->result, row->hunt, row->graph);
       }
       report.results.push_back(row->result);
       entryWindows.push_back(std::move(row->windows));
       resultProbes.push_back(row->states);
       entryHuntRecords.push_back(row->hunt);
+      entryGraphRecords.push_back(row->graph);
       report.rowRaw.push_back(row->raw);
       report.contextRaw.push_back(row->contextRaw);
       if (endsFamily(index)) {
@@ -1546,6 +1717,7 @@ auto speedgunMain(int argc, char** argv) -> int
           // held rows' pointers stand ahead of it (FR-022, E-06).
           resultProbes.push_back(nullptr);
           entryHuntRecords.emplace_back();
+          entryGraphRecords.emplace_back();
           report.rowRaw.emplace_back();
           report.contextRaw.emplace_back();
         }
@@ -1564,6 +1736,7 @@ auto speedgunMain(int argc, char** argv) -> int
     entryWindows.emplace_back();
     resultProbes.push_back(nullptr);
     entryHuntRecords.emplace_back();
+    entryGraphRecords.emplace_back();
     report.rowRaw.emplace_back();
     report.contextRaw.emplace_back();
   }
@@ -1658,7 +1831,9 @@ auto speedgunMain(int argc, char** argv) -> int
   // the order the batch pushed them.
   if (consoleDeferred) {
     for (std::size_t index = 0; index < report.results.size(); ++index) {
-      detail::printResult(report.results.at(index), entryHuntRecords.at(index));
+      detail::printResult(report.results.at(index),
+                          entryHuntRecords.at(index),
+                          entryGraphRecords.at(index));
     }
   }
 
@@ -1753,8 +1928,26 @@ auto speedgunMain(int argc, char** argv) -> int
       seed = resolved->interleave.seed;
     }
     const detail::RunDisclosure disclosure {resolved->uses, seed};
-    if (!detail::writeReport(
-            options.jsonPath, report, disclosure, jitterRecord, precheckRecord))
+    // specs/037 FR-023, R-11 (T023): the document carries the entries the
+    // console printed beside the runs, in batch order, the benchmark name
+    // keying each to its own block. A batch that gated no attempt writes no
+    // `graph` key at all, the byte identity of FR-006.
+    auto graphRecord = std::optional<GraphRecord> {};
+    auto runs = std::vector<GraphRunRecord> {};
+    for (const auto& record : entryGraphRecords) {
+      if (record.has_value()) {
+        runs.push_back(*record);
+      }
+    }
+    if (!runs.empty()) {
+      graphRecord = GraphRecord {.runs = std::move(runs)};
+    }
+    if (!detail::writeReport(options.jsonPath,
+                             report,
+                             disclosure,
+                             jitterRecord,
+                             precheckRecord,
+                             graphRecord))
     {
       reportFailed = true;
       status = 2;

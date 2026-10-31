@@ -144,8 +144,9 @@ enum class CounterFlag : std::uint32_t
  * \pre none
  * \post none
  */
-[[nodiscard]] constexpr auto operator&(
-    const CounterFlag left, const CounterFlag right) noexcept -> CounterFlag
+[[nodiscard]] constexpr auto operator&(const CounterFlag left,
+                                       const CounterFlag right) noexcept
+    -> CounterFlag
 {
   return static_cast<CounterFlag>(static_cast<std::uint32_t>(left)
                                   & static_cast<std::uint32_t>(right));
@@ -157,8 +158,9 @@ enum class CounterFlag : std::uint32_t
  * \pre none
  * \post none
  */
-[[nodiscard]] constexpr auto operator|(
-    const CounterFlag left, const CounterFlag right) noexcept -> CounterFlag
+[[nodiscard]] constexpr auto operator|(const CounterFlag left,
+                                       const CounterFlag right) noexcept
+    -> CounterFlag
 {
   return static_cast<CounterFlag>(static_cast<std::uint32_t>(left)
                                   | static_cast<std::uint32_t>(right));
@@ -800,6 +802,152 @@ struct NoiseWarning
 };
 
 /**
+ * @brief specs/037-execution-graphs: one node of a run's graph as the
+ * record carries it (FR-023, D-5 of research.md).
+ *
+ * The three fields are the keys of one `nodes` entry, in the order the
+ * schema's `x-order` states: `name`, `slot`, `outcome`.
+ *
+ * The writer fills the three fields from one node of the graph the run
+ * read: `name` names that node, `slot` stands inside the run's context
+ * count, and `outcome` carries one of the four words `finished`,
+ * `failed`, `held` and `stopped` (FR-008, FR-019). The writer emits the
+ * three fields as the entry's three keys, and `loadReport` reads them
+ * back equal (FR-023). One entry carries one node's name, slot and word
+ * for its whole life, no field derives from another, and the node array
+ * stands in ascending slot order (FR-023).
+ *
+ * The struct is data: it has no call to guard. The check over the node
+ * order stands at the writer's edge, where `writeReport` requires the
+ * ascending slot order of every run's nodes (FR-023), and the record
+ * test drives the read-back (FR-023).
+ *
+ * \pre none
+ * \post none
+ * \invariant none
+ */
+struct GraphNodeRecord
+{
+  std::string name;
+  std::uint32_t slot = 0;
+  std::string outcome;
+};
+
+/**
+ * @brief specs/037-execution-graphs: one dependency pair as the record
+ * carries it (FR-014, FR-023).
+ *
+ * The two fields are the keys of one `edges` entry, in the order the
+ * schema's `x-order` states: `from`, `to`.
+ *
+ * `from` and `to` each name a node of the graph the run read, and the
+ * pair names no self-edge: the reader refuses a dependency that names no
+ * node and a node that names itself before any record is built (FR-010
+ * rules 7 and 8). The writer emits the two fields as the entry's two
+ * keys, and `loadReport` reads them back equal (FR-023). The edge array
+ * carries one entry per dependency in the graph file's order, the order
+ * the record and the console print (FR-014, FR-023).
+ *
+ * The struct is data: it has no call to guard.
+ *
+ * \pre none
+ * \post none
+ * \invariant none
+ */
+struct GraphEdgeRecord
+{
+  std::string from;
+  std::string to;
+};
+
+/**
+ * @brief specs/037-execution-graphs: one held node and the failed node
+ * that gates it (FR-020, FR-023).
+ *
+ * The two fields are the keys of one `held` entry, in the order the
+ * schema's `x-order` states: `node`, `reason`.
+ *
+ * `node` names a node that settled `held`, and `reason` names a node of
+ * the same run that settled `failed` (FR-019, FR-020, FR-023). The
+ * writer emits the two fields as the entry's two keys, and `loadReport`
+ * reads them back equal (FR-023). The reason names a failed node alone:
+ * a stopped node carries no reason, and the held array stands in
+ * ascending slot order (FR-019, FR-023).
+ *
+ * The struct is data: it has no call to guard. The gate settles the
+ * held node and records the gater that holds it while the run starts
+ * (FR-020), and the record test drives the reason's word (FR-023).
+ *
+ * \pre none
+ * \post none
+ * \invariant none
+ */
+struct GraphHeldRecord
+{
+  std::string node;
+  std::string reason;
+};
+
+/**
+ * @brief specs/037-execution-graphs: one threaded run's graph facts as
+ * the record carries them (FR-023, D-5 of research.md).
+ *
+ * The five fields are the keys of one `runs` entry, in the order the
+ * schema's `x-order` states: `benchmark`, `nodes`, `edges`, `held`,
+ * `stopped`.
+ *
+ * `benchmark` names the benchmark of the run the entry describes,
+ * `nodes` carries one entry per node of the graph in ascending slot
+ * order, `edges` one entry per dependency in the file's order, `held`
+ * one entry per held node in ascending slot order, and `stopped` the
+ * stopped node names in ascending slot order (FR-019, FR-020, FR-023).
+ * The writer emits the five fields as the entry's five keys, and
+ * `loadReport` reads them back equal (FR-023). The entry names one
+ * threaded run and carries no timing figure: the graph times nothing
+ * (FR-024).
+ *
+ * The struct is data: it has no call to guard. The check over the node
+ * order stands at the writer's edge, where `writeReport` requires the
+ * ascending slot order of every run's nodes (FR-023).
+ *
+ * \pre none
+ * \post none
+ * \invariant none
+ */
+struct GraphRunRecord
+{
+  std::string benchmark;
+  std::vector<GraphNodeRecord> nodes;
+  std::vector<GraphEdgeRecord> edges;
+  std::vector<GraphHeldRecord> held;
+  std::vector<std::string> stopped;
+};
+
+/**
+ * @brief specs/037-execution-graphs: the top-level `graph` record the
+ * document carries (FR-023, FR-024, D-5 of research.md).
+ *
+ * `runs` carries one entry per threaded run of the batch, in batch
+ * order; a single-context run gains no entry (FR-012, FR-023). The
+ * writer emits the record as the top-level `graph` object after
+ * `precheck` and before `benchmarks`, and `loadReport` reads it back
+ * into `ReportData::graph` (FR-023). The record carries one entry per
+ * threaded run and no timing figure (FR-023, FR-024).
+ *
+ * The struct is data: it has no call to guard. The check over the
+ * record's shape stands at the writer's edge, where `writeReport`
+ * requires the ascending slot order of every run's nodes (FR-023).
+ *
+ * \pre none
+ * \post none
+ * \invariant none
+ */
+struct GraphRecord
+{
+  std::vector<GraphRunRecord> runs;
+};
+
+/**
  * @brief The value the harness writes as one JSON report and reads back
  * (specs/023 E-01).
  *
@@ -847,6 +995,12 @@ struct ReportData
   // that carries no pre-check, the reading a run without the
   // pre-check leaves behind.
   std::optional<PrecheckRecord> precheck;
+  // specs/037-execution-graphs FR-023, D-5: the graph record the document
+  // carried, one entry per threaded run in batch order. The load call
+  // fills it when the document carried the root `graph` object; absent
+  // stands for a document that carries no record, the reading a run with
+  // no `--graph` leaves behind (FR-006, FR-023).
+  std::optional<GraphRecord> graph;
 };
 
 /**
@@ -2503,9 +2657,8 @@ public:
    *       `createDenseRange(low, high, step)`, and the returned handle
    *       is this handle (FR-005)
    */
-  auto denseRange(std::int64_t low,
-                  std::int64_t high,
-                  std::int64_t step = 1) -> BenchmarkHandle&;
+  auto denseRange(std::int64_t low, std::int64_t high, std::int64_t step = 1)
+      -> BenchmarkHandle&;
 
   /**
    * @brief Append the product of `lists`: one instance per combination
@@ -2687,9 +2840,8 @@ public:
    *       place of any set an earlier thread call stated, and the
    *       returned handle is this handle (FR-016)
    */
-  auto denseThreadRange(int minCount,
-                        int maxCount,
-                        int step) -> BenchmarkHandle&;
+  auto denseThreadRange(int minCount, int maxCount, int step)
+      -> BenchmarkHandle&;
 
   /**
    * @brief Attach the dispatch function of this family's threaded runs
@@ -3257,7 +3409,7 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
                 SgBenchmarkFixtureTemplate_##FixtureClass##_##Method< \
                     __VA_ARGS__>::sgCurrentCase->sgBenchmarkCase(state); \
               }, \
-              SgBenchmarkFixtureInstance_##FixtureClass##_##Method##_##id :: \
+              SgBenchmarkFixtureInstance_##FixtureClass##_##Method##_##id:: \
                   sgFixtureName, \
               []() -> std::unique_ptr<::sg::Fixture> \
               { \

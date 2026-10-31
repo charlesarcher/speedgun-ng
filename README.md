@@ -623,6 +623,28 @@ SG_BENCHMARK(bmGrouped).threads(2).placement("compact");
 ```
 The `bmGrouped/threads:2` row prints, and where the plan names a unit its disclosure line ends each context field with that group's name, `ctx0=SPIN/0@0/applied/l3-0`. A preset spells that name as the unit it reads and an ordinal, `l3-0` or `node-0`, and a file spells it as its entries state, `g0` standing for an entry that names none. A run with `--placement=none` and no file names no partition, and its context fields carry no group segment. The JSON context record carries the same text as its `group` key, present for a grouped run alone. A file beside a preset that names a partition for the machine read in hand, a file beside `--hunt`, and a batch whose instance counts disagree with the file's slots each stop the batch with one line and status 2 before any measurement. A preset above `none` that names no unit for that read runs on with its pins, and the file names the run's one partition. See [context groups in detail](docs/pages/harness.md#context-groups).
 
+### Execution graphs
+<!-- sg-example: example/docs/execution_graphs.cpp#execution-graphs -->
+```cpp
+auto bmChain(sg::State& state) -> void
+{
+  for (auto _ : state) {
+    sg::doNotOptimize(state.threadIndex());
+  }
+}
+
+SG_BENCHMARK(bmChain).threads(3);
+```
+A graph file names one node per context of a threaded run, and each node
+names the nodes it waits for. `--graph=<file>` hands the run that file.
+The gate starts a node once every node it waits for has finished, and
+among the ready nodes it starts the lowest slot first. The run prints one
+`graph` block under its `contexts=` line: the nodes in slot order and the
+edges in the file's order. A node whose dependency failed prints as
+`held`, with that node beside it, and a node the stop request refuses
+prints as `stopped`. `--json` writes the same facts as the `graph`
+record. See [execution graphs in detail](docs/pages/harness.md#execution-graphs).
+
 ### Percentiles
 <!-- sg-example: example/docs/percentiles.cpp#percentiles -->
 ```cpp
@@ -912,6 +934,13 @@ The run writes its document at `--json=path`, loads it back with `loadReport`, a
 | `renderPage` | free function | Renders the static HTML page carrying the two figures | [report views](#report-views) |
 | `renderText` | free function | Renders the two figures as terminal text | [report views](#report-views) |
 
+| `GraphRecord` | type | The graph record one run's document carries | [execution graphs](#execution-graphs) |
+| `GraphRunRecord` | type | One threaded run's nodes, edges, held nodes and stopped nodes | [execution graphs](#execution-graphs) |
+| `GraphNodeRecord` | type | One node's name, slot and outcome word | [execution graphs](#execution-graphs) |
+| `GraphEdgeRecord` | type | One dependency pair of node names | [execution graphs](#execution-graphs) |
+| `GraphHeldRecord` | type | One held node and the failed node that gates it | [execution graphs](#execution-graphs) |
+| `ReportData::graph` | field | The record a loaded document carried, empty for none | [execution graphs](#execution-graphs) |
+
 | Option | What it does |
 | --- | --- |
 | `--filter` | Selects the instances whose names match |
@@ -926,6 +955,7 @@ The run writes its document at `--json=path`, loads it back with `loadReport`, a
 | `--json-raw` | Selects the chunk columns the document carries |
 | `--jitter-probe` | Runs the jitter probe over the batch by one value; `precheck=<ms>` or `precheck=serial` runs the host noise pre-check |
 | `--os-noise` | Runs the named noise tracer across the pre-check window |
+| `--graph` | Orders the context starts of every threaded run by that graph file; the bare form reads its path from the option file |
 | `--dry-run` | Runs one iteration and prints the row shape |
 | `--counter` | Adds one catalog counter address or `@file` of addresses to the report columns |
 | `--metric` | Adds one metric of the host's table to the report columns |

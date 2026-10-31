@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://speedgun-ng.dev/schema/graph-v1.json",
+  "title": "speedgun-ng execution graph",
+  "description": "The document the operator writes for one execution graph, the input of `--graph` (specs/037-execution-graphs FR-007, FR-008, contracts/graph-file.md). Key order is normative and stands in x-order: the top level names `nodes`, and one node names `name`, `slot` and `deps`. The harness checker reads this file and compares the key set, the key order and the value kinds of every graph file against it, the standing checker of specs/026 D-14. One node names itself with `name`, carries one context slot counted from `0` as `slot`, and lists its dependencies as node names in `deps`; an empty list stands for a source node. The file carries no benchmark name, no preset, no cpu index and no timing figure, and the schema admits no key beside the four (FR-008).",
+  "type": "object",
+  "x-order": [
+    "nodes"
+  ],
+  "required": [
+    "nodes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "x-order": ["name", "slot", "deps"],
+        "required": ["name", "slot", "deps"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "slot": { "type": "integer" },
+          "deps": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

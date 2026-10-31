@@ -55,6 +55,8 @@ SECTIONS = (
     "Topology placement",
     "Memory nodes",
     "Context groups",
+    # ---- Execution graphs (M7) ----
+    "Execution graphs",
     "Percentiles",
     "JSON reports",
     "Regression gate",
@@ -93,6 +95,8 @@ SECTION_OWNERS = {
     "Topology placement": ("topology_placement.cpp",),
     "Memory nodes": ("numa_placement.cpp",),
     "Context groups": ("context_groups.cpp",),
+    # ---- Execution graphs (M7) ----
+    "Execution graphs": ("execution_graphs.cpp",),
     "Percentiles": ("percentiles.cpp",),
     "JSON reports": ("json_reports.cpp",),
     "Regression gate": ("regression_gate.cpp",),
@@ -236,6 +240,13 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # the feature lands. The section sits under the per-section budget of
 # FR-024, so no entry joins SECTION_LINE_CAPS.
 PAGE_LINE_CAP = 964
+# ---- Execution graphs (M7) ----
+# specs/037-execution-graphs FR-032 measures its own move: the "Execution
+# graphs" section runs 23 lines, the six quick-reference name rows and the
+# one option row add 7, so 30 lines move the cap from 964 to 994, the
+# measured length of the page as the section lands. The section sits under
+# the per-section budget of FR-024, so no entry joins SECTION_LINE_CAPS.
+PAGE_LINE_CAP = 994
 SECTION_LINE_CAP = 25
 
 # Only these sections carry a higher cap, each at the smallest span that

@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "docs"))
 
 try:
-    from report_shape import compare, mask
+    from report_shape import classify, compare, mask
 except ImportError as error:
     print(f"red state: the report shape gate has no tool: {error}")
     raise SystemExit(1)
@@ -450,14 +450,16 @@ def golden_pairs() -> None:
           in " ".join(compare([PINNED], [bound])),
           " ".join(compare([bound], [PINNED]))[:1])
 
+    # The line class names the finding a shape change prints. The warning's
+    # presence is a host condition the fold reads out, so each class stands
+    # under its own name.
     check("a disclosure line classifies as a disclosure line",
-          "disclosure line differs" in " ".join(compare([DISCLOSURE], [WARNING])),
-          " ".join(compare([DISCLOSURE], [WARNING]))[:1])
+          classify(mask(DISCLOSURE)) == "disclosure line",
+          classify(mask(DISCLOSURE)))
 
     check("a noise warning classifies as a noise warning line",
-          "noise warning line differs"
-          in " ".join(compare([WARNING], [DISCLOSURE])),
-          " ".join(compare([WARNING], [DISCLOSURE]))[:1])
+          classify(mask(WARNING)) == "noise warning line",
+          classify(mask(WARNING)))
 
 
 def page_text(block: list[str]) -> str:
@@ -531,8 +533,13 @@ def end_to_end(tool: Path) -> None:
              THREAD_RUN),
             ("a run that prints a disclosure line the block omits", False,
              [STDOUT[0], STDOUT[1], WARNING], THREAD_RUN),
-            ("a block that carries a warning the run does not print", False,
+            # 020 FR-026, FR-027, 033 FR-042: the cpus the host gives the run
+            # set whether the warning prints, so its presence stands on either
+            # side while the fixed wording keeps its bytes.
+            ("a block that carries a warning the run's host never printed", True,
              list(THREAD_RUN), (STDOUT[0], STDOUT[1], DISCLOSURE)),
+            ("a run whose host printed a warning the block's host never printed",
+             True, [STDOUT[0], STDOUT[1], DISCLOSURE], list(THREAD_RUN)),
             ("a planted renamed column header beside the disclosure line", False,
              [STDOUT[0], STDOUT[1].replace("real time/iter", "wall time/iter"),
               DISCLOSURE, WARNING], THREAD_RUN),

@@ -128,6 +128,10 @@ struct RunRecord
   // D-04, FR-011: the label the repetition ended with, copied out of the
   // state after the loop, one copy per repetition.
   std::string label;
+  // specs/037-execution-graphs FR-019, FR-023, D-5 (T018): the settlement of
+  // one threaded graph attempt, one entry per node in the ascending slot
+  // order FR-023 fixes. A run with no graph carries none.
+  std::vector<GraphSettlement> graphSettlement;
 };
 
 // R-012: the growth factor is integer arithmetic on nanoseconds, and a
@@ -240,8 +244,8 @@ auto growUntilQualified(const std::uint64_t start,
   return {GrowOutcome::BOUND_EXHAUSTED, {}, boundText(phase, runBound)};
 }
 
-inline auto boundText(const PhaseText& phase,
-                      const std::uint64_t runBound) -> std::string
+inline auto boundText(const PhaseText& phase, const std::uint64_t runBound)
+    -> std::string
 {
   return std::string(phase.name) + " did not qualify within "
       + std::to_string(runBound) + " runs (" + std::string(phase.citation)

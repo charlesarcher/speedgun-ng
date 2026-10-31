@@ -76,6 +76,24 @@
 // condition that fired (SC-006, FR-041, FR-042, FR-043, FR-046, spec D-19).
 // ============================================================================
 
+// P2 diagnostic suppression, written justification (constitution I, VIII):
+// GCC 16 reports `-Wmaybe-uninitialized` inside libstdc++'s own
+// `std::regex` NFA builder (`std_function.h:395` and `:252`, reached from
+// `regex_automaton.h`) under `-fsanitize=address` at -O2, the ci-sanitize
+// configuration. The reported objects are libstdc++'s, the diagnostic
+// names no local variable, and the same translation unit compiles clean
+// at -Og, at -O3, under `-fsanitize=thread`, and under
+// `-fsanitize=undefined` alone. The file-scope form is required because
+// GCC attributes the diagnostic to the system header location, and the
+// call site never receives it. The counters library carries the same
+// suppression for the same diagnostic over its one `std::regex` use
+// (source/counters/linux_pmu/table_parse.cpp, specs/007-counters-and-
+// timers); the gate stays on for every other diagnostic and for every
+// other translation unit.
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
@@ -141,8 +159,8 @@ namespace sg::detail
 // The batch filter of the compare mode (D-12, FR-050), defined in
 // `source/harness/compare.cpp` by T022: the four position-indexed lists
 // of a loaded value move together.
-auto applyBatchFilter(sg::ReportData& report,
-                      const std::regex& pattern) -> void;
+auto applyBatchFilter(sg::ReportData& report, const std::regex& pattern)
+    -> void;
 
 // The table of FR-053 to FR-056, the node the compare mode calls; its
 // declaration stands in `detail/compare.hpp`.
@@ -1454,9 +1472,8 @@ auto recorded(const char* name,
 
 // One measured run carrying one metric column whose value stands at `value`
 // beside the running ratio the disclosure carries (FR-043).
-auto metricRun(const char* name,
-               const double value,
-               const double runningRatio) -> sg::BenchmarkResult
+auto metricRun(const char* name, const double value, const double runningRatio)
+    -> sg::BenchmarkResult
 {
   auto result = makeResult();
   result.name = name;
@@ -1713,8 +1730,8 @@ struct MatrixRecords
 // time columns, the 99 point of the primary column, one counter column, one
 // metric column and the two attached statistics with their units (E-08,
 // FR-013, FR-014, FR-015).
-auto matrixResult(const char* name,
-                  const MatrixValues& values) -> sg::BenchmarkResult
+auto matrixResult(const char* name, const MatrixValues& values)
+    -> sg::BenchmarkResult
 {
   auto result = makeResult();
   result.name = name;
@@ -1735,8 +1752,8 @@ auto matrixResult(const char* name,
 
 // The single-row shape: one measured row and no aggregate row, so every
 // aggregate answers that row's value (FR-017, D-09).
-auto singleMatrix(const char* name,
-                  const MatrixValues& values) -> sg::BenchmarkResult
+auto singleMatrix(const char* name, const MatrixValues& values)
+    -> sg::BenchmarkResult
 {
   return matrixResult(name, values);
 }

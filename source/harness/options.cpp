@@ -1,3 +1,21 @@
+// P2 diagnostic suppression, written justification (constitution I, VIII):
+// GCC 16 reports `-Wmaybe-uninitialized` inside libstdc++'s own
+// `std::regex` NFA builder (`std_function.h:395` and `:252`, reached from
+// `regex_automaton.h`) under `-fsanitize=address` at -O2, the ci-sanitize
+// configuration. The reported objects are libstdc++'s, the diagnostic
+// names no local variable, and the same translation unit compiles clean
+// at -Og, at -O3, under `-fsanitize=thread`, and under
+// `-fsanitize=undefined` alone. The file-scope form is required because
+// GCC attributes the diagnostic to the system header location, and the
+// call site never receives it. The counters library carries the same
+// suppression for the same diagnostic over its one `std::regex` use
+// (source/counters/linux_pmu/table_parse.cpp, specs/007-counters-and-
+// timers); the gate stays on for every other diagnostic and for every
+// other translation unit.
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -197,8 +215,8 @@ auto parsePercentileList(const char* text,
   return {};
 }
 
-auto parseCount(const char* text,
-                const char* option) -> std::expected<std::uint64_t, std::string>
+auto parseCount(const char* text, const char* option)
+    -> std::expected<std::uint64_t, std::string>
 {
   errno = 0;
   char* end = nullptr;
@@ -335,10 +353,8 @@ auto typedWord(std::string_view word) -> std::string_view
 // it names an earlier option there and the group itself stands one word
 // ahead; a letter a long row answers with belongs to no single-dash word,
 // so the search answers nothing and the base line stays (FR-007, T063).
-auto groupWord(int argc,
-               char** argv,
-               int optind,
-               char letter) -> std::string_view
+auto groupWord(int argc, char** argv, int optind, char letter)
+    -> std::string_view
 {
   const std::string head {'-', letter};
   for (const int index : {optind - 1, optind}) {
@@ -398,8 +414,8 @@ auto unknownOptionLine(std::string_view word) -> std::string
 // The ambiguous line, when the typed name starts two or more row names:
 // the candidates in table order, which the scan computes itself because
 // the scanner names no list once `opterr` stands at 0 (FR-009, D-25).
-auto ambiguousOptionLine(std::string_view word,
-                         std::string_view name) -> std::optional<std::string>
+auto ambiguousOptionLine(std::string_view word, std::string_view name)
+    -> std::optional<std::string>
 {
   if (name.empty()) {
     // A word of dashes alone carries no name, so no row of the table is a
@@ -645,7 +661,20 @@ auto optionRows() -> std::span<const OptionRow>
        false,
        "Runs the named noise tracer across the pre-check window",
        "specs/036-osnoise-timerlat-tracers"},
-      // specs/039-context-groups FR-011, FR-020: the layout file that names the
+      // specs/037-execution-graphs FR-001, FR-002, FR-009, R-01, R-02: the
+      // graph row, on the first value the constants block of
+      // `detail/options.hpp` leaves free. The row carries the environment flag
+      // off, so the environment list stays the twelve rows FR-020 names and
+      // the bare row reads no variable. Its value may stand absent: the bare
+      // form takes its path from the standing lower source, the option file
+      // line of specs/028 FR-035, and the entry point reads the named file
+      // once, ahead of the first context (FR-011).
+      {"graph",
+       kGraphOptionValue,
+       OptionArgument::OPTIONAL,
+       false,
+       "Orders the context starts of every threaded run by that graph file",
+       "specs/037"},
       // run's context groups. The row takes the constant 299 the free block
       // leaves this lane, carries no environment name the way `--compare-rules`
       // keeps none, and hands the path to the fit walk, which is the reader
@@ -1152,8 +1181,8 @@ auto readSeed(const std::string_view text)
 //
 //     count 12, seed 7: 4 0 2 6 10 9 1 5 11 8 7 3
 //     count 12, seed 8: 7 0 6 10 8 2 11 5 9 4 3 1
-auto shuffledOrder(const std::size_t count,
-                   const std::uint64_t seed) -> std::vector<std::size_t>
+auto shuffledOrder(const std::size_t count, const std::uint64_t seed)
+    -> std::vector<std::size_t>
 {
   SG_REQUIRE(count > 0,
              "the walk order belongs to a selection of at least one");
@@ -1343,8 +1372,8 @@ auto splitItems(const std::string& text) -> std::vector<std::string_view>
 // command line hand the whole of their text to the reader of the row, the
 // rule FR-035 gives the file, so the same value faults the same way from
 // either (FR-024, FR-035).
-auto sourceItems(const std::string& text,
-                 const OptionSource source) -> std::vector<std::string_view>
+auto sourceItems(const std::string& text, const OptionSource source)
+    -> std::vector<std::string_view>
 {
   if (source != OptionSource::ENVIRONMENT) {
     return {std::string_view(text)};
@@ -1831,6 +1860,31 @@ auto applySourceValue(const OptionRow& row,
       options.noiseTracerCpus = std::move(cpus);
       return true;
     }
+    case kGraphOptionValue: {
+      // specs/037 FR-009, R-02: the path text of `--graph=<file>` settles the
+      // row, in every source the row can stand in. The scan hands the bare
+      // form the word `0`, the way it hands the seed row its seed 0, and an
+      // empty word is the bare form too: both stand given with no path of
+      // their own. The row carries no environment name, so the environment
+      // source never settles it (FR-020).
+      const std::string path = text == "0" ? std::string {} : text;
+      if (options.graphPath.has_value() && prior != kSameSourceSettled) {
+        // The row stands given. The bare row is given with no path of its
+        // own, and FR-009 gives that path to the standing lower source, the
+        // option file line of specs/028 FR-035: a lower source's path fills
+        // the bare mark, and the row keeps the one path it names. A row that
+        // already names a path keeps it, the precedence of FR-037.
+        if (options.graphPath->empty() && !path.empty()) {
+          options.graphPath = path;
+          return true;
+        }
+        return false;
+      }
+      // Within one source the last word stands, the scalar rule of FR-035.
+      options.graphPath = path;
+      return true;
+    }
+
     case kGroupLayoutOptionValue: {
       // specs/039 FR-011: the path stands as the source spelled it, unopened.
       // The gather opens no file of its own, so the fit walk is the reader that

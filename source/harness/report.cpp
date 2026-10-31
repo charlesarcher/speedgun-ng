@@ -199,6 +199,43 @@ auto printContextDisclosure(const BenchmarkResult& result) -> void
   std::printf("\n");
 }
 
+// specs/037-execution-graphs FR-022, FR-023, D-6, R-10: the graph block of
+// one threaded run, the lines that stand directly after that run's
+// `contexts=` line. The nodes line names the run's nodes in the ascending
+// slot order FR-023 fixes and its edges as `from->to` pairs in the graph
+// file's order. The held line names each held node with the failed node
+// that gates it in parentheses, and the stopped line names each stopped
+// node, each list in ascending slot order and on one line. The two lines
+// stand only for a run that holds or stops a node. The entry carries its
+// arrays in these orders, so the block formats them and adds nothing, the
+// way the disclosure line formats `result.contexts` (FR-025).
+auto printGraphReport(const sg::GraphRunRecord& entry) -> void
+{
+  auto nodes = std::string {};
+  for (const auto& node : entry.nodes) {
+    nodes += (nodes.empty() ? "" : ",") + node.name;
+  }
+  auto edges = std::string {};
+  for (const auto& edge : entry.edges) {
+    edges += (edges.empty() ? "" : ",") + edge.from + "->" + edge.to;
+  }
+  std::printf("  graph nodes=%s edges=%s\n", nodes.c_str(), edges.c_str());
+  if (!entry.held.empty()) {
+    auto held = std::string {};
+    for (const auto& gate : entry.held) {
+      held += (held.empty() ? "" : ",") + gate.node + "(" + gate.reason + ")";
+    }
+    std::printf("  graph held=%s\n", held.c_str());
+  }
+  if (!entry.stopped.empty()) {
+    auto stopped = std::string {};
+    for (const auto& name : entry.stopped) {
+      stopped += (stopped.empty() ? "" : ",") + name;
+    }
+    std::printf("  graph stopped=%s\n", stopped.c_str());
+  }
+}
+
 // FR-026, FR-028: the noise warning of one result. The condition and the
 // three fields of its account stand in `noiseWarningOf`, which the
 // document writes beside the same result (specs/023 FR-017, D-11); this
@@ -389,8 +426,8 @@ auto percentileColumnLabel(const BenchmarkResult& result,
 
 // specs/021 FR-002: the two time columns print their values divided by the
 // unit scale; a metric column prints the value its own fold reached.
-auto percentileColumnDivisor(const std::size_t column,
-                             const double timeDivisor) -> double
+auto percentileColumnDivisor(const std::size_t column, const double timeDivisor)
+    -> double
 {
   return column <= 1 ? timeDivisor : 1.0;
 }
@@ -429,7 +466,8 @@ auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
                     const sg::hunt::RunHunt& run) -> void;
 
 auto printResult(const BenchmarkResult& result,
-                 const std::optional<sg::hunt::RunHunt>& run) -> void
+                 const std::optional<sg::hunt::RunHunt>& run,
+                 const std::optional<sg::GraphRunRecord>& graph) -> void
 {
   if (result.outcome == RunOutcome::FAILED) {
     std::printf(
@@ -650,6 +688,13 @@ auto printResult(const BenchmarkResult& result,
     return;
   }
   printContextDisclosure(result);
+  // specs/037 FR-022, FR-023, D-6: the graph block of this run stands
+  // directly after the `contexts=` line the disclosure just printed, one
+  // block per threaded run. A run that names no record entry prints no
+  // block, the bytes it printed before the record existed (FR-006, SC-001).
+  if (graph.has_value()) {
+    printGraphReport(*graph);
+  }
   // specs/021 FR-014: under the disclosure that names the contexts, each
   // context answers from its own chunk values.
   for (std::size_t context = 0; context < result.contextPercentiles.size();
