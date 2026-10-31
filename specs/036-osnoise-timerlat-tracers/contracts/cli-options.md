@@ -18,12 +18,12 @@ commit that lands the code (spec FR-024).
 The row joins the table after the `--jitter-probe` row, takes no short
 letter, and carries no environment name (the jitter family's own
 shape). Its value stands held as the named constant
-`kOsNoiseOptionValue` at `297` in
-`source/harness/detail/options.hpp`, the first free value of the block
-`297` to `319` the option master records; the block comment names
-`298` to `319` free after the row joins. No standing name moves and no
-standing value moves, and the name and value uniqueness tests carry
-the row (`test/source/harness_cli_table_test.cpp`, spec FR-001).
+`kOsNoiseOptionValue` at `320` in
+`source/harness/detail/options.hpp`, the first value of the tracer
+block `320` to `329`; the block comment names `321` to `329` free for
+tracers after the row joins. No standing name moves and no standing
+value moves, and the name and value uniqueness tests carry the row
+(`test/source/harness_cli_table_test.cpp`, spec FR-001).
 
 ## Value grammar
 

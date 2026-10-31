@@ -14,9 +14,9 @@
 // The contract fixes 42 rows in one order. The 20 rows master carries keep
 // their spelling, their argument kind and their internal value, the seven
 // new names take the constants 290 to 296 that spec D-24 reserves, the
-// noise tracer's name takes 297, the graph row takes 298 under the
-// reservation rule of specs/037 FR-002, the layout row takes 299, and the
-// eleven hunt names take the block 270 to 289 the hunt lane reserves: the
+// noise tracer's name takes 320, the graph row takes 330, the layout row
+// takes 340, and the eleven hunt names take the block 270 to 289 the hunt
+// lane reserves: the
 // eight of specs/029-hunter-core at 270 to 277, `hunt-emit-set` of
 // specs/033-hunter-budgets at 280, and the two of specs/040-hunter-
 // sensitivity at 281 and 282. The expected rows stand here as literals,
@@ -69,8 +69,11 @@
 //   theNewNamesTakeTheReservedConstants
 //                                  `options`, `env`, `threads`,
 //                                  `interleave`, `compare-rules`, `help`
-//                                  and `version` at 290 to 296, and
-//                                  `jitter-probe` at 260 (FR-004)
+//                                  and `version` at 290 to 296,
+//                                  `jitter-probe` at 260, the tracer
+//                                  row in 320 to 329, the graph row
+//                                  in 330 to 339, and the layout row
+//                                  in 340 to 349 (FR-004)
 //   noNameAndNoValueRepeat         uniqueness over the whole table
 //                                  (FR-004, SC-001)
 //   theHuntNamesTakeTheReservedConstants
@@ -89,21 +92,29 @@
 //                                  the 20 master rows answer inside the
 //                                  letters and 256 to 259, the 7 new
 //                                  rows inside 290 to 296 with the
-//                                  jitter row at 260 and the noise
-//                                  tracer's row at 297 and the layout
-//                                  row at 299, the blocks
-//                                  share no number, and no name or
-//                                  value repeats across them
-//                                  (FR-004, FR-079)
+//                                  jitter row at 260, the noise
+//                                  tracer's row at 320, the graph
+//                                  row at 330 and the layout row at
+//                                  340, the blocks share no number,
+//                                  and no name or value repeats
+//                                  across them (FR-004, FR-079)
+//   theTracerRowsStandInTheirBlock every tracer row answers inside
+//                                  320 to 329, and no other row
+//                                  answers inside that block
+//                                  (specs/036 FR-001, FR-004)
 //   graphRowValueBlockAndUniqueness
 //                                  the table carries one row named `graph`
-//                                  at the value 298, the first free value of
-//                                  the block 298 to 319 at branch time, the
-//                                  standing name and value rules cover it,
-//                                  the row takes an optional argument and
-//                                  carries the environment flag off, and the
-//                                  header's block comment names 300 to 319
-//                                  free (FR-001, FR-002, FR-009, R-01)
+//                                  at the value 330, inside the graph
+//                                  block 330 to 339, the standing name and
+//                                  value rules cover it, the row takes an
+//                                  optional argument and carries the
+//                                  environment flag off, and the header's
+//                                  block comment names the graph block
+//                                  (FR-001, FR-002, FR-009, R-01)
+//   theLayoutRowStandsInItsBlock   the layout row answers inside
+//                                  340 to 349, and no other row
+//                                  answers inside that block
+//                                  (specs/039 FR-011, FR-004)
 //   theCarriedConstantsNameTheirOptions
 //                                  256 to 259 name `metric-method`,
 //                                  `compare`, `compare-rule` and
@@ -259,9 +270,9 @@ constexpr std::array<ExpectedRow, 42> kContract = {{
     {"help", kNoArgument, 295},
     {"version", kNoArgument, 296},
     {"jitter-probe", kRequired, 260},
-    {"os-noise", kRequired, 297},
-    {"graph", kOptional, 298},
-    {"group-layout", kRequired, 299},
+    {"os-noise", kRequired, 320},
+    {"graph", kOptional, 330},
+    {"group-layout", kRequired, 340},
     {"hunt", kOptional, 270},
     {"hunt-norm", kRequired, 271},
     {"hunt-rank", kRequired, 272},
@@ -286,8 +297,8 @@ constexpr std::size_t kRowsBeforeHunt = 31;
 // The bounds of the three value blocks: the constants the harness carried
 // before this feature, the constants the hunt lane reserves for its eleven
 // names, the constants spec D-24 reserves for the seven new names, the
-// noise tracer's own constant, the graph row's constant, and the layout
-// row's constant, 300 to 319 left free for the lanes that follow
+// tracer block at 320, the graph block at 330, and the layout block at
+// 340, the free parts left for the lanes that follow
 // (FR-004, FR-079; specs/029 FR-083, D-22; specs/033 FR-010, R-13;
 // specs/037 FR-002; specs/039 FR-011; specs/040 FR-020).
 constexpr int kCarriedLow = 256;
@@ -297,17 +308,15 @@ constexpr int kHuntHigh = 289;
 constexpr int kReservedLow = 290;
 constexpr int kReservedHigh = 296;
 constexpr int kJitterProbeValue = 260;
-constexpr int kOsNoiseValue = 297;
-constexpr int kGroupLayoutValue = 299;
-
-// specs/037-execution-graphs T019, FR-002, R-01: the graph row's value. The
-// contract fixes 297, and the reservation rule of the Spec identity section
-// moves the lane to the next free value when pull request #58 lands first.
-// Master's block comment names 297 taken by the noise tracer and 298 to 319
-// free, so the lane takes 298 and the free block moves to 299 to 319.
-constexpr int kGraphValue = 298;
-constexpr int kGraphFreeLow = 298;
-constexpr int kGraphFreeHigh = 319;
+constexpr int kTracerLow = 320;
+constexpr int kTracerHigh = 329;
+constexpr int kOsNoiseValue = 320;
+constexpr int kGroupLayoutValue = 340;
+constexpr int kGraphValue = 330;
+constexpr int kGraphBlockLow = 330;
+constexpr int kGraphBlockHigh = 339;
+constexpr int kGroupBlockLow = 340;
+constexpr int kGroupBlockHigh = 349;
 
 // The eleven hunt rows and the numbers the three hunt contracts assign
 // them; the rule binds the number, whichever constant spells it
@@ -800,6 +809,20 @@ auto theBaseOptionsKeepTheirMasterValues(const std::vector<Row>& rows) -> void
   }
 }
 
+// The value block of the rows the lanes after master bring: the
+// constants 290 to 296 that spec D-24 reserves, the jitter row at 260, the
+// tracer rows in the block 320 to 329, the graph rows in the block 330 to
+// 339, and the layout rows in the block 340 to 349
+// (FR-004; specs/037 FR-002; specs/039 FR-011).
+auto inNewBlock(const int value) -> bool
+{
+  return (value >= kReservedLow && value <= kReservedHigh)
+      || value == kJitterProbeValue
+      || (value >= kTracerLow && value <= kTracerHigh)
+      || (value >= kGraphBlockLow && value <= kGraphBlockHigh)
+      || (value >= kGroupBlockLow && value <= kGroupBlockHigh);
+}
+
 auto theNewNamesTakeTheReservedConstants(const std::vector<Row>& rows) -> void
 {
   for (std::size_t index = kMasterRows; index < kRowsBeforeHunt; ++index) {
@@ -812,19 +835,18 @@ auto theNewNamesTakeTheReservedConstants(const std::vector<Row>& rows) -> void
       report(label.c_str(), std::to_string(expected.value), "no such row");
       continue;
     }
-    if (found->value < 290 || found->value > 319) {
-      // The jitter row's lane block holds 260 to 269; the rows the
-      // command-line lane brings hold 290 to 319 (FR-004).
-      const bool jitterRow = std::string_view(expected.name) == "jitter-probe";
-      const bool inside = jitterRow
-          ? (found->value >= 260 && found->value <= 269)
-          : (found->value >= 290 && found->value <= 319);
-      if (!inside) {
-        report(label.c_str(),
-               jitterRow ? "a value inside 260 to 269"
-                         : "a value inside 290 to 319",
-               std::to_string(found->value));
-      }
+    // The jitter row's lane block holds 260 to 269; the rows the
+    // command-line lane brings hold 290 to 296; the tracer rows stand in
+    // the block 320 to 329, the graph rows in the block 330 to 339, and
+    // the layout rows in the block 340 to 349 (FR-004).
+    const bool jitterRow = std::string_view(expected.name) == "jitter-probe";
+    const bool inside = jitterRow ? (found->value >= 260 && found->value <= 269)
+                                  : inNewBlock(found->value);
+    if (!inside) {
+      report(label.c_str(),
+             jitterRow ? "a value inside 260 to 269"
+                       : "a value inside the block its row's family holds",
+             std::to_string(found->value));
     }
   }
 }
@@ -883,17 +905,6 @@ auto inMasterBlock(const int value) -> bool
       || (value >= kCarriedLow && value <= kCarriedHigh);
 }
 
-// The value block of the rows the lanes after master bring: the
-// constants 290 to 296 that spec D-24 reserves, the jitter row at 260, the
-// noise tracer's row at 297, the graph row at 298, and the layout row at
-// 299 (FR-004; specs/037 FR-002; specs/039 FR-011).
-auto inNewBlock(const int value) -> bool
-{
-  return (value >= kReservedLow && value <= kReservedHigh)
-      || value == kJitterProbeValue || value == kOsNoiseValue
-      || value == kGraphValue || value == kGroupLayoutValue;
-}
-
 // The value block of the hunt rows: the constants 270 to 289 the hunt lane
 // reserves, 278, 279 and 283 to 289 unused this release (specs/029 FR-083,
 // D-22; specs/033 FR-010, R-13; specs/040 FR-020).
@@ -940,8 +951,8 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
              hunt         ? "a constant from 270 to 289"
                  : master ? "a letter or a constant from 256 to 259"
                           : "a constant from 290 to 296, the lane block's 260, "
-                            "the noise tracer's 297, the graph row's 298, or "
-                            "the layout row's 299",
+                            "the noise tracer's 320, the graph row's 330, or "
+                            "the layout row's 340",
              valueWord(row.value));
     }
     if (hunt) {
@@ -985,13 +996,33 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
   }
 }
 
+// The rows outside the family stand outside the block: no row the family
+// does not name answers inside the bounds (FR-004).
+auto blockHoldsNoOtherRow(const std::vector<Row>& rows,
+                          const std::vector<std::string_view>& family,
+                          const int low,
+                          const int high) -> bool
+{
+  for (const Row& row : rows) {
+    bool inFamily = false;
+    for (const std::string_view member : family) {
+      if (row.name == member) {
+        inFamily = true;
+        break;
+      }
+    }
+    if (!inFamily && row.value >= low && row.value <= high) {
+      return false;
+    }
+  }
+  return true;
+}
+
 // specs/037-execution-graphs T019: the `graph` row of the table, the value it
 // answers, the block that value stands in, and the standing rules over it
-// (FR-001, FR-002, FR-009, R-01, contracts/cli-graph.md). The value is the
-// reservation of the Spec identity section read at branch time: the contract
-// fixes 297 and the lane takes 298, the first value master's block comment
-// leaves free. The two standing rules above are the name and value checks the
-// contract names, so the row is covered by them and by nothing else.
+// (FR-001, FR-002, FR-009, R-01, contracts/cli-graph.md). The contract
+// names the graph block, so the row answers 330 inside 330 to 339. The two
+// standing rules above are the name and value checks the contract names.
 auto graphRowValueBlockAndUniqueness(const std::vector<Row>& rows,
                                      const std::string& header) -> void
 {
@@ -1003,16 +1034,17 @@ auto graphRowValueBlockAndUniqueness(const std::vector<Row>& rows,
     return;
   }
   check(row->value == kGraphValue,
-        "the graph row answers the value 298, the first free value at branch "
-        "time (FR-002)");
-  check(row->value >= kGraphFreeLow && row->value <= kGraphFreeHigh,
-        "the graph row's value stands in the free block 298 to 319 (FR-002)");
+        "the graph row answers the value 330 (FR-002)");
+  check(row->value >= kGraphBlockLow && row->value <= kGraphBlockHigh,
+        "the graph row's value stands in the graph block 330 to 339 (FR-002)");
+  check(blockHoldsNoOtherRow(rows, {"graph"}, kGraphBlockLow, kGraphBlockHigh),
+        "no other row answers inside the graph block 330 to 339 (FR-004)");
   check(row->argument == kOptional,
         "the graph row takes an optional argument (FR-001, FR-009)");
   check(repeatedName(rows) == nullptr,
         "the standing name rule covers the graph row (FR-004, SC-001)");
   check(repeatedValue(rows) == nullptr,
-        "the standing value rule covers the graph row's 298 (FR-004, SC-001)");
+        "the standing value rule covers the graph row's 330 (FR-004, SC-001)");
 
   // The live table carries the two facts the parsed text does not: the
   // argument kind as the scanner sees it and the environment flag. The row
@@ -1036,9 +1068,53 @@ auto graphRowValueBlockAndUniqueness(const std::vector<Row>& rows,
   // The block comment of the value constants moves in the same commit as the
   // row, so the free block the header names is the block the row's value left
   // (FR-002).
-  check(header.find("300 to 319 stay free") != std::string::npos,
-        "the header's block comment names 300 to 319 free beside the graph "
-        "row (FR-002)");
+  check(header.find("330 to 339") != std::string::npos,
+        "the header's block comment names the graph block 330 to 339 beside "
+        "the graph row (FR-002)");
+}
+
+// The tracer rows stand in the block 320 to 329, and no other row answers
+// inside it (specs/036 FR-001, FR-004).
+auto theTracerRowsStandInTheirBlock(const std::vector<Row>& rows) -> void
+{
+  const std::vector<std::string_view> tracers = {"os-noise"};
+  for (const std::string_view tracer : tracers) {
+    const Row* const row = rowNamed(rows, tracer);
+    check(row != nullptr,
+          "the table carries one row per tracer name (specs/036 FR-001)");
+    if (row == nullptr) {
+      continue;
+    }
+    check(row->value >= kTracerLow && row->value <= kTracerHigh,
+          "the tracer row answers inside the tracer block 320 to 329 "
+          "(specs/036 FR-001)");
+    check(row->value == kOsNoiseValue,
+          "the tracer row answers the constant the header spells "
+          "(specs/036 FR-001)");
+  }
+  check(blockHoldsNoOtherRow(rows, tracers, kTracerLow, kTracerHigh),
+        "no other row answers inside the tracer block 320 to 329 (FR-004)");
+}
+
+// The layout row stands in the block 340 to 349, and no other row answers
+// inside it (specs/039 FR-011, FR-004).
+auto theLayoutRowStandsInItsBlock(const std::vector<Row>& rows) -> void
+{
+  const std::vector<std::string_view> layout = {"group-layout"};
+  const Row* const row = rowNamed(rows, "group-layout");
+  check(row != nullptr,
+        "the table carries one row named 'group-layout' (specs/039 FR-011)");
+  if (row == nullptr) {
+    return;
+  }
+  check(row->value == kGroupLayoutValue,
+        "the layout row answers the constant the header spells "
+        "(specs/039 FR-011)");
+  check(row->value >= kGroupBlockLow && row->value <= kGroupBlockHigh,
+        "the layout row answers inside the layout block 340 to 349 "
+        "(specs/039 FR-011)");
+  check(blockHoldsNoOtherRow(rows, layout, kGroupBlockLow, kGroupBlockHigh),
+        "no other row answers inside the layout block 340 to 349 (FR-004)");
 }
 
 // The nine hunt rows of the table, each at the number its contract states:
@@ -1864,6 +1940,8 @@ auto main(int argc, char** argv) -> int
   noNameAndNoValueRepeat(rows);
   theValueBlocksStayUniqueAndDisjoint(rows);
   graphRowValueBlockAndUniqueness(rows, header);
+  theTracerRowsStandInTheirBlock(rows);
+  theLayoutRowStandsInItsBlock(rows);
   theHuntNamesTakeTheReservedConstants(rows);
   theFixtureTwinReportsItsPlantedDefects();
   theCarriedConstantsNameTheirOptions(rows);

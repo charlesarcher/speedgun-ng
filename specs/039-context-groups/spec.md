@@ -52,12 +52,10 @@ fit step that stops a layout the run cannot carry.
   value past its `1.9`: the schema minor lands at `1.10` (R-4, FR-030,
   FR-032). A landing that finds `1.9` or `1.10` taken moves one step
   higher and records the reading.
-- Option values: the free block `298` to `319` stands open
-  (`source/harness/detail/options.hpp:78-80`, `kOsNoiseOptionValue`
-  holds `297` at `:93`). Spec 037's `--graph` row takes `298` at its
-  own merge, so this lane's one new row takes `299` and the block
-  comment names the split (FR-011). The hunt block `280` to `289`
-  stands specs/033's.
+- Option values: the layout block `340` to `349` stands open
+  (`source/harness/detail/options.hpp`). This lane's one new row
+  takes `340` and the block comment names the split (FR-011). The
+  hunt block `280` to `289` stands specs/033's.
 
 ## Roadmap position
 
@@ -654,7 +652,7 @@ prints; the drift and prose gates read no finding.
 ### The layout file as a source (C)
 
 - **FR-011**: The command line SHALL gain one row, `--group-layout`,
-  taking the internal value `299`, reading its argument as a file
+  taking the internal value `340`, reading its argument as a file
   path, standing in the table `options.cpp:470-714` with the standing
   row record, and appearing in `--help` and in the guide's option
   reference the way the table drives both. The main page's option
