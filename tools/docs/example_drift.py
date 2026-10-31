@@ -231,30 +231,12 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # the cap from 940 to 947, the measured length of the page as the feature
 # lands. The section spans 24 lines, under the per-section budget of
 # FR-024, so no entry joins SECTION_LINE_CAPS.
-# specs/039 FR-011 adds the `--group-layout` option row: one line moves
-# the cap from 947 to 948, the measured length of the page with the row
-# in place.
-# specs/039 FR-039 measures its own move on top: the "Context groups"
-# section runs 15 lines and its quick-reference name row adds 1, so 16
-# lines move the cap from 948 to 964, the measured length of the page as
-# the feature lands. The section sits under the per-section budget of
-# FR-024, so no entry joins SECTION_LINE_CAPS.
-PAGE_LINE_CAP = 964
 # ---- Execution graphs (M7) ----
-# specs/037-execution-graphs FR-032 measures its own move: the "Execution
-# graphs" section runs 23 lines, the six quick-reference name rows and the
-# one option row add 7, so 30 lines move the cap from 964 to 994, the
-# measured length of the page as the section lands. The section sits under
-# the per-section budget of FR-024, so no entry joins SECTION_LINE_CAPS.
-PAGE_LINE_CAP = 994
-# specs/031-host-validation FR-036 measures its own move on top of that
-# page: the `example/quickstart.sh#validate` region runs 2 lines and its
-# marker comment and two fences add 3, and the purpose sentence, the result
-# sentence and the three blank lines that set them add 5, so 10 lines move
-# the cap from 994 to 1004, the measured length of the page with the block
-# in place beside the graph section (2026-10-31). The block stands in
-# "Quick start", which the per-section budgets do not inspect, so
-# SECTION_LINE_CAP and SECTION_LINE_CAPS keep their values.
+# Each measured move of the cap, in the order the features landed:
+# specs/039 moves it from 947 to 964, the `--group-layout` option row
+# and the context-groups section; specs/037 from 964 to 994, the
+# execution-graphs section and its rows; specs/031 FR-036 from 994 to
+# 1004, the quick-start block of 10 lines (2026-10-31).
 PAGE_LINE_CAP = 1004
 SECTION_LINE_CAP = 25
 
