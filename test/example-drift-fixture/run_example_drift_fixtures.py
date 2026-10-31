@@ -189,6 +189,18 @@ def main() -> int:
         print(f"red state: the example drift gate has no tool at {tool}")
         return 1
 
+    # The cap stands at one assignment: a second module-level line would
+    # silently override the first, and the cap would read a value no
+    # comment above it names.
+    assignments = re.findall(r"^PAGE_LINE_CAP\s*=", tool.read_text(), re.M)
+    check(
+        "the module sets PAGE_LINE_CAP once",
+        True,
+        (),
+        0 if len(assignments) == 1 else 1,
+        f"{len(assignments)} module-level assignments of PAGE_LINE_CAP",
+    )
+
     global ROOT
     with tempfile.TemporaryDirectory() as name:
         ROOT = Path(name)
