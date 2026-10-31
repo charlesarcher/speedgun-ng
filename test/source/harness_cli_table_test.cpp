@@ -102,7 +102,7 @@
 //                                  standing name and value rules cover it,
 //                                  the row takes an optional argument and
 //                                  carries the environment flag off, and the
-//                                  header's block comment names 299 to 319
+//                                  header's block comment names 300 to 319
 //                                  free (FR-001, FR-002, FR-009, R-01)
 //   theCarriedConstantsNameTheirOptions
 //                                  256 to 259 name `metric-method`,
@@ -111,8 +111,8 @@
 //   theScanCarriesNoShortLetter    the option string of the scan holds no
 //                                  letter (FR-005)
 //   theVersionBindingsReadTheMovedNumbers
-//                                  the project block reads 0.27.0, the
-//                                  harness target answers SOVERSION 18,
+//                                  the project block reads 0.28.0, the
+//                                  harness target answers SOVERSION 19,
 //                                  and the archive target keeps
 //                                  SOVERSION 4 (FR-050)
 //   theHelpAnswerPrintsOneLinePerRow
@@ -277,11 +277,11 @@ constexpr std::array<ExpectedRow, 42> kContract = {{
 
 // The rows master carries today; the rows after them are the ones the
 // lanes bring, the graph row of specs/037 and the layout row of specs/039
-// closing that group, and the nine hunt rows close the table: the eight of
-// specs/029-hunter-core and `hunt-emit-set` of
-// specs/033-hunter-budgets.
+// closing that group, and the eleven hunt rows close the table: the eight
+// of specs/029-hunter-core, `hunt-emit-set` of specs/033-hunter-budgets
+// and the two of specs/040-hunter-sensitivity.
 constexpr std::size_t kMasterRows = 20;
-constexpr std::size_t kRowsBeforeHunt = 30;
+constexpr std::size_t kRowsBeforeHunt = 31;
 
 // The bounds of the three value blocks: the constants the harness carried
 // before this feature, the constants the hunt lane reserves for its eleven
@@ -1036,8 +1036,8 @@ auto graphRowValueBlockAndUniqueness(const std::vector<Row>& rows,
   // The block comment of the value constants moves in the same commit as the
   // row, so the free block the header names is the block the row's value left
   // (FR-002).
-  check(header.find("299 to 319 stay free") != std::string::npos,
-        "the header's block comment names 299 to 319 free beside the graph "
+  check(header.find("300 to 319 stay free") != std::string::npos,
+        "the header's block comment names 300 to 319 free beside the graph "
         "row (FR-002)");
 }
 
@@ -1297,8 +1297,9 @@ auto projectVersion(const std::filesystem::path& start) -> std::string
 }
 
 // FR-050: the version bindings read the numbers the version move lands:
-// the project version `0.27.0`, the harness `SOVERSION 18` and the
-// archive `SOVERSION 4`. The rows stand red until T007 moves the block.
+// the project version `0.28.0`, the harness `SOVERSION 19` and the
+// archive `SOVERSION 4`. specs/037 R-13 took the pair from the 0.27.0
+// and 18 that specs/039 landed, and these rows read the moved numbers.
 ///
 /// \pre the root `CMakeLists.txt` can be read
 /// \post the three rows answer the numbers FR-050 moves
@@ -1307,10 +1308,10 @@ auto theVersionBindingsReadTheMovedNumbers(const std::filesystem::path& start)
 {
   const std::string cmake = rootCMakeText(start);
   SG_ASSERT(!cmake.empty(), "pre: the root CMakeLists.txt can be read");
-  check(projectVersion(start) == "0.27.0",
-        "the project version reads 0.27.0 (FR-050)");
-  check(cmake.find("SOVERSION 18") != std::string::npos,
-        "the harness SOVERSION line reads SOVERSION 18 (FR-050)");
+  check(projectVersion(start) == "0.28.0",
+        "the project version reads 0.28.0 (FR-050)");
+  check(cmake.find("SOVERSION 19") != std::string::npos,
+        "the harness SOVERSION line reads SOVERSION 19 (FR-050)");
   check(cmake.find("SOVERSION 4") != std::string::npos,
         "the archive SOVERSION line reads SOVERSION 4 (FR-050)");
 }

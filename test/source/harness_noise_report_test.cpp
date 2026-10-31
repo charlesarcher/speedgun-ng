@@ -454,7 +454,7 @@ auto maskSpeedgun(std::string text) -> std::string
 // fold equal to the fixture bytes, the fixture carrying the standing key set
 // with `schemaVersion` at 1.11 (FR-012, FR-015, R-10).
 constexpr std::string_view kDocumentFixture =
-    "{\"schemaVersion\":\"1.10\",\"speedgun\":\"?\",\"precheck\":{"
+    "{\"schemaVersion\":\"1.11\",\"speedgun\":\"?\",\"precheck\":{"
     "\"serial\":false,\"windowMs\":0,\"cpus\":[],"
     "\"hostSettings\":{\"isolcpus\":null,\"nohz_full\":null,"
     "\"rcu_nocbs\":null,\"governors\":{},\"irqAffinity\":{}},"
