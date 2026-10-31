@@ -69,7 +69,7 @@ this feature and not copied.
 
 ## Decisions
 
-Charles accepted these as recommendations for this prompt on 2026-10-19.
+The owner accepted these as recommendations for this prompt on 2026-10-19.
 They are recorded here per X.1 so that no implementer reopens them, and
 each one names the reading it settles.
 
@@ -789,7 +789,7 @@ Measured at the audit point, before any section is written:
   `SECTIONS` stay untouched.
 - Quick reference: one row per public name added. Option table: one row.
 
-Recorded at the owner review of the landed page (D-15, PR #41, Charles,
+Recorded at the owner review of the landed page (D-15, PR #41, the owner,
 2026-10-19): FR-031's final measurement is the section at 24 lines inside
 the unraised `SECTION_LINE_CAP`, the `SECTION_LINE_CAPS` raise removed, the
 `#metrics` walk and the fold-and-read flow moved to

@@ -65,7 +65,7 @@ it records here.
 
 ## Decisions
 
-Charles accepted these nine recommendations on 2026-10-19 as part of the
+The owner accepted these nine recommendations on 2026-10-19 as part of the
 prompt this spec comes from. They are governance for this feature. Each
 is recorded again at the FR that carries it.
 
@@ -721,7 +721,7 @@ Symbol and section anchors, each read at the audit point `ab32400`.
 
 ## Open questions
 
-The prompt carried its open items as recommendations, and Charles
+The prompt carried its open items as recommendations, and the owner
 accepted each on 2026-10-19, so the decisions stand at D-1 to D-9 and
 again at the FR that carries them. The clarification session of
 2026-10-19 resolved the two points that had waited for the plan, and

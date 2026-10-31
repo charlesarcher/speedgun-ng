@@ -78,11 +78,11 @@ it records here.
 
 ## Decisions
 
-Charles accepted D-1 to D-14 on 2026-10-20 as recommendations of the
+The owner accepted D-1 to D-14 on 2026-10-20 as recommendations of the
 prompt this spec comes from. They are governance for this feature, and
 each is recorded again at the FR that carries it. D-15 to D-19 are
 derived at this audit point from the code facts PC-2, PC-6, PC-7 and
-PC-10; Charles has not ruled on them, and each stands as a recommendation
+PC-10; the owner has not ruled on them, and each stands as a recommendation
 he can overturn. The clarification session of 2026-10-20 settled the two
 open halves of D-17 and D-19 and added D-20 to D-22. Those five stand as
 this session's decisions, each sourced at its `- Q:` bullet above, and
@@ -1210,11 +1210,11 @@ the two `source/harness/cli.cpp` rows read at the head this branch pushes.
 
 ## Open questions
 
-The prompt carried its open items as recommendations, and Charles accepted
+The prompt carried its open items as recommendations, and the owner accepted
 each on 2026-10-20, so the decisions stand at D-1 to D-14 and again at the
 FR that carries them.
 
-Three items derived at this audit point stay for Charles to overturn.
+Three items derived at this audit point stay for the owner to overturn.
 Each already stands encoded in the FR that carries it, so what stays open
 is his ruling over the recommendation, and the spec text holds that
 recommendation as written:

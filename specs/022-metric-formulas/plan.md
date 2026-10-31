@@ -223,8 +223,8 @@ collides with anything, and the archive
 | D-12 | How does the command line name a metric? | A repeatable option, order-preserving, fail-fast at status 2 |
 | D-13 | How does the stepping reach the key? | A private field on `PmuIdent`, appended to the key |
 | D-14 | What is the load and coverage budget? | Parse cost table, corpus plus sweep for every branch |
-| D-15 | Where does the page teach the metric walks? | One 25-line snippet section on the main page (the lookup); attach and fold walks move to `docs/pages/harness.md` (PR #41 review, Charles, 2026-10-20) |
-| D-16 | Where do gcov's false closing-brace records go? | The coverage tool step, not the source: lcov 2 `--filter brace` on the extract command in `cmake/coverage.cmake` removes the unexecutable count-zero record a plain `return local;` leaves on the brace, so no copy is built in source to move a count (PR #41 fix 2, Charles, 2026-10-20) |
+| D-15 | Where does the page teach the metric walks? | One 25-line snippet section on the main page (the lookup); attach and fold walks move to `docs/pages/harness.md` (PR #41 review, the owner, 2026-10-20) |
+| D-16 | Where do gcov's false closing-brace records go? | The coverage tool step, not the source: lcov 2 `--filter brace` on the extract command in `cmake/coverage.cmake` removes the unexecutable count-zero record a plain `return local;` leaves on the brace, so no copy is built in source to move a count (PR #41 fix 2, the owner, 2026-10-20) |
 
 ### Risks
 

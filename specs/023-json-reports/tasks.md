@@ -370,8 +370,8 @@ the rest: no file N2 or N4 owns gets edited.
 
 Each commit follows the constitution template: `<Section>: <one line>` at 50
 characters or fewer, a why-body wrapped at 72, then one footer block with
-`Refs: specs/023-json-reports`. `Approved-by: Charles` stands only on a
-decision he made.
+`Refs: specs/023-json-reports`. `Approved-by: the owner` stands only on a
+decision the owner made.
 
 | Commit | Section | Tasks | Content |
 |---|---|---|---|

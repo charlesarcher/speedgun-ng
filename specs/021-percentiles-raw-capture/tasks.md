@@ -225,7 +225,7 @@ finding, and `example_run` runs the program that carries the region.
        branch was cut from, so the rebase is a no-op and no shared list needs a
        conflict resolved. The branch lands as four atomic commits, each one
        building with its suite passing, pushed with `--force-with-lease` at
-       Charles's request on 2026-10-19. The first push failed two CI jobs: the
+       the owner's request on 2026-10-19. The first push failed two CI jobs: the
        pairing half of the dbc gate read `State::begin` as
        `documented-not-enforced` once its checks stood in the outlined
        `openRun`, and the Clang thread-sanitizer link rejected the test binary's

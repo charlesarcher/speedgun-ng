@@ -13,7 +13,7 @@ specify invocation record:
 this spec simple. An execution context (EC) is one thread with a simple
 event loop. Work goes to it through a public `dispatch()`. The Google
 Benchmark thread features are built on ECs. This spec builds no graph
-engine. Decisions by Charles (2026-10-15), recorded as decided: D-1 an
+engine. Decisions by the owner (2026-10-15), recorded as decided: D-1 an
 execution context is one thread with an event loop of dispatched work,
 configured by a policy, and a benchmark test case is one kind of work it
 hosts; D-2 a work item is strongly typed, a C++23 concept over a
@@ -55,7 +55,7 @@ graphs (H16). Scope, constraints, and success criteria SC-01 to SC-12.
 
 ## Decisions
 
-Charles recorded these three on 2026-10-15 as decided. They are
+The owner recorded these three on 2026-10-15 as decided. They are
 governance for this feature and for every later roadmap spec that builds
 on the context.
 
@@ -1000,7 +1000,7 @@ Symbol and section anchors, each read at the audit point `64f2ab5`.
 
 ## Open questions
 
-The request carried six open items. Charles approved each recorded
+The request carried six open items. The owner approved each recorded
 recommendation on 2026-10-15, and `/speckit-clarify` recorded every
 answer as written. No open item remains; each point is decided where it
 bites, at the FR carrying the matching record.
