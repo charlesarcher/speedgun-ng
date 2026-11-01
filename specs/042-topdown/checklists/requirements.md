@@ -35,9 +35,9 @@
   `/speckit-plan`
 - Iteration 1, 2026-11-01. Validation found three gaps and closed them in the
   same pass: a rule form that named a node the report lacks had no refusal
-  line (FR-037); a run that carries metric columns and asks for the tree had
-  no stated collection behavior (FR-051); a node that reads a gap had no
-  console shape (FR-029).
+  line (FR-038); a run that carries metric columns and asks for the tree had
+  no stated collection behavior (FR-023); a node that reads a gap had no
+  console shape (FR-030).
 - The Requirements section states behavior in the operator's terms. Code
   citations stand in `Preconditions`, `Budget note` and `Citations`, the shape
   `specs/024-multipass-collection/spec.md` and `specs/022-metric-formulas/spec.md`

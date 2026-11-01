@@ -47,14 +47,21 @@ force. No implementer reopens them.
 - **D-4 Public surface (Q-1).** The counters library gains the small public
   header `include/speedgun-ng/counters_topdown.hpp` with the node type and
   one selection entry point. That header is a public addition, so the
-  archive `SOVERSION` rises by one, from 4 to 5. The harness gains the
-  option and the report record only, and the harness `SOVERSION` stays at
-  19 unless a public harness header changes.
+  archive `SOVERSION` rises by one, from 4 to 5. The harness gains one member
+  in the exported record `sg::BenchmarkResult`, so its exported layout moves
+  and the harness `SOVERSION` rises from 19 to 20. specs/037 made the same move
+  from 18 to 19 for the same kind of addition (`CMakeLists.txt:369-374`), and
+  each rise carries the comment that names the record and the requirement.
 - **D-5 One option (Q-2).** The harness gains `--topdown[=<level>]` at
   internal value 350, the first value of the block 350 upward. Levels run 1
   to 6 and the default is 1. A request deeper than the selected table holds
   prints the deepest level the table holds and says so on the same block.
-  No short option is added.
+  No short option is added. One mechanism stays open for the plan: the command
+  line scan collapses a bare optional value to the seed text `0`
+  (`source/harness/options.cpp:1001-1006`), so the option word alone and the
+  attached `=0` reach the parse arm as one text, and FR-019 with FR-050 needs
+  two answers. The plan names the change that separates them and keeps the four
+  optional rows that exist today answering as they do now.
 - **D-6 Host constants (Q-3).** Every Intel level-1 row reaches the constant
   `#core_wide` through the table's own slot rows, measured at the audit
   point, so this feature adds a reader for `#core_wide` with a seam test. No
@@ -117,9 +124,12 @@ force. No implementer reopens them.
 - **D-17 Version and schema numbers.** The feature takes version 0.29.0:
   the lane planned for 0.29.0 holds no merge at branch time, checked against
   `specs/`, the remote branches and the open pull requests. The report gains
-  one key, so the schema moves from 1.11 to 1.12. If the other lane lands
-  first, this lane takes the next free minor and the next free schema minor
-  and re-runs every gate.
+  one key, so the schema moves from 1.11 to 1.12. The report reader plants
+  `1.12` as the example of a later minor in two tests
+  (`test/source/harness_json_load_test.cpp:107`, `:1199-1202`), so the move
+  moves those plants one minor up as well. If the other lane lands first, this
+  lane takes the next free minor and the next free schema minor and re-runs
+  every gate.
 
 ## Audit point
 
@@ -129,8 +139,10 @@ Measured on this machine on 2026-11-01 before any file changed.
   2026-10-31 in `git log`, the owner's message `CI: Add the record check and
   the pre-push step`.
 - Version: `0.28.0` in `CMakeLists.txt`. Harness library `SOVERSION` 19,
-  archive `SOVERSION` 4, checked in the same file. Report schema `1.11` in
-  `docs/schema/report-v1.json`.
+  archive `SOVERSION` 4, checked in the same file. Report schema `1.11` as the
+  one constant `kSchemaVersion` (`source/harness/json_report.cpp:43`); the
+  schema document types the field as a string and holds no number
+  (`docs/schema/report-v1.json:11-13`).
 - Option values: 256 to 259, 260, 270 to 277, 280 to 282, 290 to 296, 320,
   330 and 340 are taken; 297 to 319 and 321 to 329 stay free, and 350 is
   free (`source/harness/detail/options.hpp`).
@@ -238,7 +250,7 @@ Measured on this machine on 2026-11-01 before any file changed.
 - **PC-9: the seams a unit test needs exist. PASS.** `metric_fixture.hpp`
   builds a 100-row table and a fake host whose object tree answers the host
   constants in four shapes: `SMT_ON`, `SMT_OFF`, `CORELESS`, `THREADLESS`
-  (`test/source/metric_fixture.hpp:83-292`, `:303-368`). The seam
+  (`test/source/detail/metric_fixture.hpp:83-292`, `:303-368`). The seam
   `pmuParseTableFile` reads a synthetic table from a file under
   `SG_SEAM_TABLE_DIR` (`source/counters/detail/pmu.hpp:107-112`). No metric
   test opens an event.
@@ -258,6 +270,16 @@ Measured on this machine on 2026-11-01 before any file changed.
   reaches the catalog cannot appear in a tree that owes the operator a reason
   (FR-020, FR-021), so the plan names the loader change that publishes a row
   with its refusal and names who lands it.
+- **PC-12: no reader answers the manifest hash, and a published row names no
+  file. GAP, open.** D-12 states the source record the tree owes the operator.
+  `CMakeLists.txt:962-988` reads the `ref:` line of `external/pmu-events/RECORD`
+  at configure time and refuses a moved reference, so the pinned reference
+  already reaches the build. Nothing carries the file hash: no C++ reader opens
+  `RECORD`, and `PmuTableEntry` (`source/counters/detail/pmu.hpp:35-58`) holds
+  no file name, so a published row cannot say which file it came from. The plan
+  names the change in `cmake/embed_pmu_blob.cmake` that carries the reference,
+  the selected directory and the hash of each table file into the library as
+  build-time data, and the seam a test uses to fake them.
 
 ## Roadmap position
 
@@ -518,6 +540,9 @@ registered benchmark prints no row.
 - **FR-018**: When a run asks for a level, the harness shall collect the
   rows of that level and of every level above it.
 - **FR-019**: When no level is asked for, the harness shall collect level 1.
+  The option word with no attached value asks for level 1, and an attached
+  value of 0 is a bad value under FR-050, so the two arrivals answer
+  differently. (D-5.)
 - **FR-020**: When the asked level is deeper than the selected table holds,
   the harness shall collect the deepest level the table holds and the console
   block shall say that the table holds no deeper level.
@@ -527,110 +552,116 @@ registered benchmark prints no row.
 - **FR-022**: The feature shall read the programmable-counter limit only
   through the published object fact, and shall change no limit code and no
   provider code.
-- **FR-051**: When a run carries metric columns and asks for the tree, the
+
+- **FR-023**: When a run carries metric columns and asks for the tree, the
   harness shall collect both in one plan, one set of passes, and shall keep
   every metric column it would have reported before the option.
-- **FR-023**: The split and the collection shall run outside the timed window
+- **FR-024**: The split and the collection shall run outside the timed window
   of the benchmark, on the existing pass path, and shall change no time
   column.
 
 ### The console block (C-4)
 
-- **FR-024**: When a run with the option finishes a benchmark, the harness
+- **FR-025**: When a run with the option finishes a benchmark, the harness
   shall print one top-down block for that benchmark after its result tables.
-- **FR-025**: The block shall print the level it shows, then the level-1
+- **FR-026**: The block shall print the level it shows, then the level-1
   values in percent, then every deeper node indented under its own parent.
-- **FR-026**: Each printed node shall show its vendor-neutral name and its
+- **FR-027**: Each printed node shall show its vendor-neutral name and its
   value, and the block shall show the vendor name of every node that carries
   one.
-- **FR-027**: When the table is an AMD table, the block shall print
+- **FR-028**: When the table is an AMD table, the block shall print
   `topdown.smt_contention` and the line that states the four shared values
   add to less than 100 percent without it. (D-3.)
-- **FR-028**: When a node's value passes that node's threshold, the block
+- **FR-029**: When a node's value passes that node's threshold, the block
   shall mark the node. The mark shall carry no new exit status.
-- **FR-029**: When a collected node reads a gap, the block shall print the
+- **FR-030**: When a collected node reads a gap, the block shall print the
   node as a gap and shall print no value for it.
-- **FR-030**: The block shall list each refused row it knows about at the
+- **FR-031**: The block shall list each refused row it knows about at the
   level it shows, one line each, with the reason.
 
 ### The report and its reader (C-5)
 
-- **FR-031**: When a run with the option writes the report, the document
+- **FR-032**: When a run with the option writes the report, the document
   shall carry one top-down object for that entry: the source, the level shown,
   and one node record per node with its neutral name, its vendor name, its
   parent and its value.
-- **FR-032**: The object shall carry the refused rows with their reasons, and
+- **FR-033**: The object shall carry the refused rows with their reasons, and
   on an unsupported host it shall record top-down as unsupported.
-- **FR-033**: The report reader shall return every field of the object
+- **FR-034**: The report reader shall return every field of the object
   unchanged, and the values a run wrote shall equal the values the reader
   returns.
-- **FR-034**: When a run writes a report without the option, the document
+- **FR-035**: When a run writes a report without the option, the document
   shall be identical to the same run before this feature, and the schema
   version shall be the only difference.
-- **FR-035**: The schema document shall gain the top-down object, and the
+- **FR-036**: The schema document shall gain the top-down object, and the
   schema version shall move to the next free minor above the base. (D-17.)
 
 ### Regression rules (C-6)
 
-- **FR-036**: The rule language shall accept a rule name of the form
+- **FR-037**: The rule language shall accept a rule name of the form
   `topdown:<node>` with the comparison, direction and tolerance the existing
   rule forms carry, and the rule shall compare that node's value between two
   reports.
-- **FR-037**: When a rule names a top-down node the report does not carry, the
+- **FR-038**: When a rule names a top-down node the report does not carry, the
   comparison shall print one quoted line and exit with status 2.
-- **FR-038**: When a rule names a top-down node against a host or a report
+- **FR-039**: When a rule names a top-down node against a host or a report
   with no top-down, the comparison shall print one quoted line and exit with
   status 2. (D-14.)
 
 ### Unsupported answers (C-7)
 
-- **FR-039**: When the selection answers unsupported and the run asked for
+- **FR-040**: When the selection answers unsupported and the run asked for
   the tree, the harness shall print one message naming the vendor, the family
   and model or the `MIDR`, and the reason.
-- **FR-040**: When the selection answers unsupported, the run's exit status
+- **FR-041**: When the selection answers unsupported, the run's exit status
   shall equal the status of the same run without the option. (D-14.)
 
 ### Host facts (C-8)
 
-- **FR-041**: The counters library shall answer the constant `#core_wide` for
+- **FR-042**: The counters library shall answer the constant `#core_wide` for
   a host that publishes it, through a reader with a seam test, because every
   Intel level-1 row reaches that constant through the table's slot rows.
   (D-6, PC-5.)
-- **FR-042**: The constants `#num_dies`, `#SYSTEM_TSC_FREQ` and `#has_pmem`
+- **FR-043**: The constants `#num_dies`, `#SYSTEM_TSC_FREQ` and `#has_pmem`
   shall keep their present refusal, because no top-down row reaches any of
   them. (D-6.)
 
 ### Documentation (C-9)
 
-- **FR-043**: The main page shall carry a section for this feature of at most
+- **FR-044**: The main page shall carry a section for this feature of at most
   25 lines: one purpose sentence, one marked block, one result sentence, with
   its quick-reference rows and its option row, and the page shall stay within
   its line cap by the trim recorded in the same change. (D-15,
   constitution IV.1.)
-- **FR-044**: The feature shall carry a runnable example under `example/`
+- **FR-045**: The feature shall carry a runnable example under `example/`
   that prints the level-1 values on a host with a source and the unsupported
   message on a host without one, and that the run gate executes.
-- **FR-045**: The guide shall carry the longer explanation: the names, the
+- **FR-046**: The guide shall carry the longer explanation: the names, the
   levels, the source record, the unsupported reasons, and the rule form.
 
 ### Version, tests, and discipline (C-10)
 
-- **FR-046**: The project version, the two `SOVERSION` values and the schema
+- **FR-047**: The project version, the two `SOVERSION` values and the schema
   version shall move by the checks recorded in the Audit point and in D-4 and
   D-17, and each check shall be recorded in the `CMakeLists.txt` comment the
   earlier features use.
-- **FR-047**: Each new behavior shall have its test in the same commit as the
+- **FR-048**: Each new behavior shall have its test in the same commit as the
   code it covers, and every unit test of this feature shall run without the
   kernel event interface, without a sleep, without a clock read and with no
   made-up cpu number: the cpus a test uses come from the process's own
   affinity.
-- **FR-048**: The whole suite shall pass under `taskset -c 0,1`.
-- **FR-049**: Every bad value shall print one quoted line and exit with status
-  2: `--topdown` with the value 0, with the value 7, with the value `x`, and a
-  rule that names no known top-down node.
-- **FR-050**: New code shall hold 100 percent line and branch coverage with
+
+- **FR-049**: The whole suite shall pass under `taskset -c 0,1`.
+- **FR-050**: Every bad value shall print one quoted line and exit with status
+  2: the option with the attached value 0, with the attached value 7, with the
+  attached value `x`, and a rule that names no known top-down node.
+- **FR-051**: New code shall hold 100 percent line and branch coverage with
   the existing branch allowance unchanged at 21, and this feature shall add no
   coverage exclusion of any kind.
+- **FR-052**: The fixtures shall carry both AMD pipeline tables, because their
+  level-2 rows carry different names: Zen 4 names `backend_bound_cpu` where
+  Zen 5 names `backend_bound_by_cpu`, and seven more rows differ the same way.
+  A selection test shall name the level-2 nodes of each. (D-11.)
 
 ## Clarifications
 
@@ -639,17 +670,20 @@ registered benchmark prints no row.
 - Q: Which top-down rows of Skylake-X does the host-constant gap refuse, and
   is a level-1 row among them? → A: Yes, all four. `#core_wide` sits in
   `tma_info_core_core_clks`, `tma_info_thread_slots` is four times that row,
-  and all four level-1 rows divide by it. 52 of the 102 rows refuse through
-  an unreadable constant. PC-5 records the per-level figures, and D-6 adds
-  the reader.
+  and all four level-1 rows divide by it. Measured through `--catalog`: 69 of
+  the 102 rows reach the catalog, every one of them with a refusal (39 on
+  `#core_wide`, 9 on `#SMT_on`, 20 on a reference the scope cannot reach, 1 on
+  a conditional test), and 33 rows reach no catalog line at all. PC-5 records
+  the per-level figures, PC-11 names the dropped rows, and D-6 adds the
+  reader.
 - Q: Does a hybrid part or an Arm part get a tree in this feature? → A: No.
   Neither has a vendored directory, and Arm needs a license verdict and a
   host first. FR-005 and FR-006 carry the two refusals.
 - Q: Does the AMD level-1 set add to 100 percent? → A: The four shared values
-  do not, and the fifth value `topdown.smt_contention` closes the gap. FR-027
+  do not, and the fifth value `topdown.smt_contention` closes the gap. FR-028
   prints the statement.
 - Q: Does an unsupported host change the exit status? → A: It does not. The
-  report records the state and the status stands (FR-040).
+  report records the state and the status stands (FR-041).
 - Q: Does the feature raise the page line cap? → A: It does not. The page
   stays at 1004 lines and the new section pays for itself (D-15).
 
@@ -694,9 +728,11 @@ registered benchmark prints no row.
   holds no pipeline rows, an Intel hybrid identity, an Arm `MIDR`, an unknown
   vendor) answers one message with vendor, identity and reason, records
   unsupported in the report, and leaves the exit status of the run unchanged.
-- **SC-05**: `--topdown` with the value 0, the value 7, the value `x` and a
-  rule naming an unknown node each print exactly one quoted line and exit with
-  status 2. Four cases, four lines, four statuses.
+- **SC-05**: The option with the attached value 0, the attached value 7, the
+  attached value `x` and a rule naming an unknown node each print exactly one
+  quoted line and exit with status 2. Four cases, four lines, four statuses.
+  The option word with no attached value prints a tree at level 1 and exits
+  with status 0.
 - **SC-06**: A report written without the option differs from the report the
   same run produced before this feature in one line: the schema version.
 - **SC-07**: Every field of a written top-down object comes back unchanged
@@ -745,7 +781,7 @@ registered benchmark prints no row.
 
 ## Scope
 
-In: FR-001 to FR-051. The selection function over its identity seam, the tree
+In: FR-001 to FR-052. The selection function over its identity seam, the tree
 with its parents, levels, names and threshold text, the source record built
 from the vendored manifest, the level option, one formula set to the pass
 planner, the console block, the report object with its reader and its schema,
@@ -892,11 +928,11 @@ and PC-7 names the zero reads. The plan assigns each one.
 ## Constitution Checklist
 
 - Main-page impact check (IV.1): YES. The feature changes what a user sees, so
-  FR-043 to FR-045 carry its main-page section, its runnable `example/` owner
+  FR-044 to FR-046 carry its main-page section, its runnable `example/` owner
   file with a marked region, its quick-reference and option rows, and its
   guide-page section in the same change, inside the budget the Budget note
   records.
-- Coverage (VI): FR-050 holds the 100 percent gates and the allowance at 21.
+- Coverage (VI): FR-051 holds the 100 percent gates and the allowance at 21.
 - Contract (II): every new interface documents `\pre` and `\post` in its header
   and enforces them in its source, in the shape PC-9 quotes.
 - Anti-slop (X): the decisions above record each reading a requirement admits,
