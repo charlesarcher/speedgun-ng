@@ -115,12 +115,6 @@ force. No implementer reopens them.
   owner's own machines, recorded in the pull-request body with the host, the
   kernel and the test counts. No acceptance is gated on hosted runner CI,
   and this feature changes no CI file.
-- **D-18 The fixed-counter bound.** The gap of PC-7 blocks every live value
-  this feature reports, so it is fixed before the acceptance runs, in its own
-  commit with its reproducing test first, in the shape the counters lane uses
-  for a defect. If the counters lane lands it first, this lane rebases onto
-  that commit and drops its own. The bound keeps its contract: a number outside
-  the range the instruction accepts still answers "not allowed".
 - **D-17 Version and schema numbers.** The feature takes version 0.29.0:
   the lane planned for 0.29.0 holds no merge at branch time, checked against
   `specs/`, the remote branches and the open pull requests. The report gains
@@ -130,6 +124,30 @@ force. No implementer reopens them.
   moves those plants one minor up as well. If the other lane lands first, this
   lane takes the next free minor and the next free schema minor and re-runs
   every gate.
+- **D-18 The fixed-counter bound.** The gap of PC-7 blocks every live value
+  this feature reports, so it is fixed before the acceptance runs, in its own
+  commit with its reproducing test first, in the shape the counters lane uses
+  for a defect. If the counters lane lands it first, this lane rebases onto
+  that commit and drops its own. The bound keeps its contract: a number outside
+  the range the instruction accepts still answers "not allowed".
+- **D-19 The SMT fact on a host with no core objects (PC-6).** One of the four
+  Intel level-1 rows and eight deeper rows need `#SMT_on`, and the reader needs
+  core and thread objects this host publishes none of. This lane carries the
+  small shape: when the object tree answers no core object, the host-fact reader
+  reads the sibling list of one cpu under `sysfs` and answers the flag from it,
+  the object tree keeps priority, and the path a test fakes stands behind the
+  same seam the constants use. A topology provider that seeds `core` and
+  `thread` objects is the larger shape, it belongs to the system tree, and this
+  feature does not take it.
+- **D-20 Rows the loader never publishes (PC-11).** A tree owes the operator a
+  reason for every row of the level, so a dropped row has to reach the record.
+  This lane carries the loader change when the measurement shows a small change
+  that publishes each dropped row with an existing refusal kind and leaves the
+  published set otherwise unchanged, with its tests first. Where that measurement
+  shows a larger change, this lane files the defect, and its record states the
+  count and the names of the rows a level holds that reached no entry.
+
+
 
 ## Audit point
 
