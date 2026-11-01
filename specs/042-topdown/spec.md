@@ -32,8 +32,11 @@ force. No implementer reopens them.
 
 - **D-1 Selection order.** Selection runs per model first, then per
   architecture at level 1, then unsupported. A model whose table carries a
-  top-down group gets that table. A model whose architecture has level-1
-  rows only gets level 1. Anything else answers unsupported with a reason.
+  top-down group gets that table: `TopdownL1` to `TopdownL6` on Intel and
+  `PipelineL1` and `PipelineL2` on AMD name the same thing in two spellings,
+  and the selection treats one predicate over both. A model whose architecture
+  has level-1 rows only gets level 1. Anything else answers unsupported with a
+  reason.
 - **D-2 Names.** Level 1 carries the vendor-neutral names
   `topdown.frontend_bound`, `topdown.bad_speculation`,
   `topdown.backend_bound` and `topdown.retiring`. Every deeper node keeps
@@ -42,8 +45,9 @@ force. No implementer reopens them.
   vendor name of every node stands beside its neutral name in the tree and
   in the report.
 - **D-3 The fifth level-1 value.** AMD publishes `topdown.smt_contention`
-  as a fifth level-1 value on AMD hosts alone. The report states there that
-  the four shared values add to less than 100 percent without it.
+  as a fifth level-1 value on AMD hosts alone. The console block and the
+  report both state that the four shared values add to less than 100 percent
+  without it.
 - **D-4 Public surface (Q-1).** The counters library gains the small public
   header `include/speedgun-ng/counters_topdown.hpp` with the node type and
   one selection entry point. That header is a public addition, so the
@@ -76,10 +80,17 @@ force. No implementer reopens them.
   table that expresses top-down as formulas is enough; this feature adds no
   special counter path for those parts. Their acceptance is synthetic: seam
   tests over synthetic identities. No hardware result is claimed for them.
-- **D-9 Thresholds (Q-6).** A row's threshold text is copied into the tree
-  and into the report as text. The console marks a node whose value passes
-  its threshold. A threshold the formula grammar refuses stays text, and
-  nothing evaluates it.
+- **D-9 Thresholds (Q-6) ride as text, and nothing evaluates them.** A
+  row's threshold text is copied into the tree, the console block and the
+  report unchanged. Measured at the audit point with the library's own parser
+  (`parseFormula`, `source/counters/linux_pmu/metric_formula.hpp:102`): 0 of
+  the 102 threshold texts of `skx-metrics.json` parse. 80 name `&`, one names
+  `|`, and the 21 plain comparisons of the shape `tma_alu_op_utilization >
+  0.4` end in "malformed formula: trailing text", because a comparison stands
+  in this grammar only inside a conditional test. Reading the threshold shape
+  is new grammar work, and the request bars it, so the feature prints the text
+  and states no verdict. The rejected readings were a threshold reader of one's
+  own, and marking a node against a threshold no part can evaluate.
 - **D-10 The hunter link (Q-7).** Out of scope. The hunting lane uses this
   tree after this feature lands.
 - **D-11 The threshold reaches the tree through the table parse.** The parse
@@ -97,10 +108,13 @@ force. No implementer reopens them.
 - **D-13 The CPU identity is this feature's own seam.** The library's CPU
   record holds vendor, family, model and stepping alone: no core type for a
   hybrid part and no Arm `MIDR`. This feature defines one identity record
-  with those fields plus a core type and an `MIDR`, fills it from the
-  library's reader in production, and takes it as a parameter so a test
-  hands in synthetic CPUID words and a synthetic `MIDR`. The selection
-  function reads no CPUID itself.
+  with those fields plus a core type and an `MIDR`, fills the four existing
+  fields from the library's reader in production, leaves the two new fields
+  absent in production, and takes the record as a parameter so a test hands in
+  synthetic CPUID words, a synthetic core type and a synthetic `MIDR`. The
+  selection function reads no CPUID itself. A `MIDR` reader and a hybrid core
+  reader are later items: no Arm table and no hybrid host stand in this
+  feature.
 - **D-14 Unsupported answers.** An unsupported host gets one message that
   names the vendor, the family and model or the `MIDR`, and the reason. The
   report records `topdown` as unsupported. The exit status of the run does
@@ -220,7 +234,12 @@ Measured on this machine on 2026-11-01 before any file changed.
   of the shape `tma_<name>_group` whose stem names another top-down row of
   the same file, and no row carries two of them. Measured over all 98 deeper
   rows: 98 rows with one parent, 0 rows without, 0 rows with two. The per-row
-  table is `skx-topdown-rows.csv` in the audit record.
+  table is `skx-topdown-rows.csv` in the audit record. AMD spells the same
+  fact without the `tma_` prefix: `amdzen4/pipeline.json` and
+  `amdzen5/pipeline.json` each hold 14 rows, five `PipelineL1` rows with no
+  parent, eight `PipelineL2` rows with one `<name>_group` parent token each,
+  and one helper row (`total_dispatch_slots`) that carries no group and is not
+  a node.
 - **PC-5: the table's slot rows reach a constant this host cannot read. GAP,
   measured, and D-6 closes it.** `tma_info_core_core_clks` is the one row
   that names `#core_wide`, and `tma_info_thread_slots` is
@@ -392,8 +411,9 @@ statement that names the deepest level the table holds.
 3. **Given** a run at a level whose rows need more counters than the source
    can hold at once, **When** the plan is stated, **Then** the plan text names
    the passes the collection runs.
-4. **Given** a node whose table row carries a threshold, **When** the node's
-   value passes that threshold, **Then** the block marks the node.
+4. **Given** a node whose table row carries threshold text, **When** the
+   block prints, **Then** the block prints that text beside the node,
+   unchanged, and states no verdict on it.
 
 ---
 
@@ -495,10 +515,13 @@ registered benchmark prints no row.
   evaluates it.
 - A table with a helper row that carries no group, such as AMD's slot count:
   it is not a node.
-- A hybrid Intel identity: unsupported, because no vendored directory names
-  it.
-- An unknown vendor, a family with no row, and an AMD family whose directory
-  holds no pipeline table: three separate reasons in one message shape.
+- A hybrid Intel identity: unsupported, because the core type stands absent
+  and no hybrid host stands in the acceptance set, even though the mapping
+  file selects a directory for those models.
+- An unknown vendor, a family with no mapping row, and an AMD family whose
+  directory holds no pipeline table: three separate reasons in one message
+  shape. AMD families 23 and 25 map to `amdzen1`, `amdzen2` and `amdzen3`,
+  and none of the three holds a pipeline table (FR-007).
 - A run with several benchmarks: one block per benchmark, each with its own
   values.
 - A run whose filter matches no benchmark: no block, and the existing message
@@ -516,28 +539,35 @@ registered benchmark prints no row.
 ### Selection (C-1)
 
 - **FR-001**: When a run asks for the top-down tree, the counters library
-  shall select its source in this order: the table the vendored mapping file
-  gives for the running CPU's model, then the level-1 rows of that table,
-  then an unsupported answer with a reason. (D-1.)
-- **FR-002**: The selection shall be one function over two inputs: the CPU
-  identity and the metric rows of one table directory. It shall read no
-  counter, open no event, read no clock, and call no CPUID reader of its own.
+  shall select its source in this order: the directory the vendored mapping
+  file gives for the running CPU's vendor, family and model; then the rows of
+  the top-down groups of that directory; then, when the directory holds no
+  top-down row, the level-1 rows of the architecture's own source; then an
+  unsupported answer with a reason. (D-1.)
+- **FR-002**: The selection shall read no counter, open no event, read no
+  clock and call no CPUID reader of its own: its answer follows from the
+  identity it is given and the rows it is given.
 - **FR-003**: The identity the selection reads shall carry the vendor, the
-  family, the model, the stepping, the core type of a hybrid part and an Arm
-  `MIDR`. The production path shall fill it from the library's own CPU
-  reader, and a test shall be able to hand in synthetic CPUID words and a
-  synthetic `MIDR`. (D-13.)
+  family, the model and the stepping, which the production path fills from
+  the library's own CPU reader, and two further fields, the core type of a
+  hybrid part and an Arm `MIDR`, which stand absent on every production host
+  of this feature because no reader for either exists (D-13). A test shall
+  hand in synthetic CPUID words, a synthetic core type and a synthetic
+  `MIDR`. (D-13.)
 - **FR-004**: When the identity names a vendor the vendored tree holds no
   table for, the selection shall answer unsupported with the vendor text and
   the reason.
 - **FR-005**: When the identity names an Arm part, the selection shall answer
   unsupported, name the `MIDR`, and state that no Arm table is vendored.
   (D-7.)
-- **FR-006**: When the identity names a hybrid part, the selection shall
-  answer unsupported and state that no vendored directory names its core
-  type.
-- **FR-007**: When the selected table holds no row of any top-down group, the
-  selection shall answer unsupported and name the directory it read.
+- **FR-006**: When the mapping file selects a hybrid directory for the
+  identity, the selection shall answer unsupported and state that this
+  feature makes no claim for a hybrid part, because the core type stands
+  absent (FR-003) and no hybrid host stands in the acceptance set. (D-13,
+  SC-12.)
+- **FR-007**: When the selected table holds no row of any top-down group, in
+  either the Intel or the AMD spelling (FR-014), the selection shall answer
+  unsupported and name the directory it read.
 - **FR-008**: When the selected table holds level-1 rows and no deeper row,
   the selection shall answer a level-1 tree, whatever deeper levels the
   request asked for.
@@ -558,21 +588,28 @@ registered benchmark prints no row.
 - **FR-012**: Every node below level 1 shall keep the vendor's own name
   behind a vendor prefix in the form `topdown.<vendor>.<table name>`.
 - **FR-013**: The parent of a node shall come from the table's own group
-  text. When the table names no parent for a row, the tree shall hold no node
+  text: a group token of the shape `<stem>_group` whose stem names another
+  top-down row of the same directory. Intel spells the token
+  `tma_<name>_group` and AMD spells it `<name>_group`, and both spellings are
+  data. When the table names no parent for a row, the tree shall hold no node
   for that row, and no part of the feature shall invent one.
 - **FR-014**: The level of a node shall come from the table's own level group
-  text. A row that carries no level group is not a node.
+  text, `TopdownL1` to `TopdownL6` on Intel and `PipelineL1` and `PipelineL2`
+  on AMD. A row that carries no level group is not a node.
 - **FR-015**: The tree shall state the source it came from: the pinned
-  reference of the vendored tree, the selected directory, and the manifest
-  hash of the file that holds the rows. (D-12.)
+  reference of the vendored tree, the selected directory, and, for each file
+  of that directory that contributed a row to the tree, the file's name as
+  the embedded table names it and the manifest hash of that file. (D-12,
+  PC-12.)
 - **FR-016**: The tree shall list every top-down row of the selected level
   and of every level above it that the host refuses, each with its refusal
   kind and its reason. A refused row shall stay out of the collected set and
   shall not disappear from the record. The selection shall read the whole
   published listing, wherever a row prints (PC-11).
-- **FR-017**: The table's threshold text shall reach the tree as text. The
-  feature shall evaluate a threshold the formula grammar accepts and shall
-  carry a threshold it refuses as text, unevaluated. (D-9.)
+- **FR-017**: The table's threshold text shall reach the tree, the console
+  block and the report as text, and the feature shall evaluate no threshold:
+  the formula grammar refuses every threshold text of the selected table
+  (D-9).
 
 ### Collection (C-3)
 
@@ -589,8 +626,11 @@ registered benchmark prints no row.
   multi-pass planner of specs/024 as one set, and the run shall state the
   passes the planner produced.
 - **FR-022**: The feature shall read the programmable-counter limit only
-  through the published object fact, and shall change no limit code and no
-  provider code.
+  through the published object fact, and shall change no code under
+  `source/counters/linux_pmu/` beyond the three repairs D-18, D-19 and D-21
+  name, each in its own commit with its test first. The limit code
+  `source/counters/linux_pmu/counter_limits.cpp` stands untouched, and the
+  harness registration line D-21 changes is harness code.
 
 - **FR-023**: When a run carries metric columns and asks for the tree, the
   harness shall collect both in one plan, one set of passes, and shall keep
@@ -611,8 +651,9 @@ registered benchmark prints no row.
 - **FR-028**: When the table is an AMD table, the block shall print
   `topdown.smt_contention` and the line that states the four shared values
   add to less than 100 percent without it. (D-3.)
-- **FR-029**: When a node's value passes that node's threshold, the block
-  shall mark the node. The mark shall carry no new exit status.
+- **FR-029**: When a node's row carries threshold text, the block shall
+  print that text beside the node, unchanged, and shall state no verdict on
+  it. No exit status changes for a threshold.
 - **FR-030**: When a collected node reads a gap, the block shall print the
   node as a gap and shall print no value for it.
 - **FR-031**: The block shall list each refused row it knows about at the
@@ -640,7 +681,11 @@ registered benchmark prints no row.
 - **FR-037**: The rule language shall accept a rule name of the form
   `topdown:<node>` with the comparison, direction and tolerance the existing
   rule forms carry, and the rule shall compare that node's value between two
-  reports.
+  reports. `<node>` is the node's name with its leading `topdown.` dropped, so
+  a level-1 node reads `topdown:backend_bound` and a deeper node reads
+  `topdown:intel.tma_l1_bound`. The rule's own separators are colons, and a
+  node name carries dots, so one split on the first unescaped colon names the
+  node and leaves the direction and tolerance text intact.
 - **FR-038**: When a rule names a top-down node the report does not carry, the
   comparison shall print one quoted line and exit with status 2.
 - **FR-039**: When a rule names a top-down node against a host or a report
@@ -700,11 +745,59 @@ registered benchmark prints no row.
 - **FR-052**: The fixtures shall carry both AMD pipeline tables, because their
   level-2 rows carry different names: Zen 4 names `backend_bound_cpu` where
   Zen 5 names `backend_bound_by_cpu`, and seven more rows differ the same way.
-  A selection test shall name the level-2 nodes of each. (D-11.)
+  A selection test shall name the level-2 nodes of each. (D-2, FR-013.)
+- **FR-053**: The fast read path shall bound the counter number a page index
+  carries beneath the fixed-counter marker, and the repair shall have a unit
+  test that fails at the base hash and passes at this change, with the fixed
+  spellings read through a fake source and no event opened by the test.
+  (D-18, PC-7.)
+- **FR-054**: The host-fact reader shall answer `#SMT_on` on a host whose
+  object tree answers no core object, from the sibling list of one cpu under
+  `sysfs`, and the object tree shall keep priority when it answers a core
+  object. A seam test shall drive both shapes. (D-19, PC-6.)
+- **FR-055**: The entry point shall offer its PMU provider once per process,
+  and a test shall show a second entry-point call that builds no second
+  provider. (D-21, PC-8.)
+- **FR-056**: On an AMD table the block and the record shall carry all five
+  level-1 values together, so a reader can add them, and with a fake event
+  source the five sum to 100 percent within 0.1 percentage point. (D-3,
+  SC-03.)
+- **FR-057**: The report of this feature shall name each part with no host
+  (Intel parts measured through `PERF_METRICS`, Intel hybrid parts, Arm parts)
+  as a pending row, and shall state no hardware claim for one. (SC-11,
+  SC-12.)
 
 ## Clarifications
 
 ### Session 2026-11-01
+
+- Q: Does the feature evaluate a node's threshold and mark a node that passes
+  it? → A: No. The library's own parser refuses all 102 threshold texts of
+  `skx-metrics.json`: 80 name `&`, one names `|`, and the plain comparisons
+  end in "malformed formula: trailing text", because a comparison stands in
+  the grammar only inside a conditional test. Reading that shape is new
+  grammar work and the request bars it, so the text rides unchanged and no
+  verdict stands on it (D-9, FR-017, FR-029).
+- Q: How does the tree know a parent on a table that is not Intel? → A: From
+  the same data, spelled differently. Intel writes `tma_<name>_group` and AMD
+  writes `<name>_group`, and both are one group token whose stem names another
+  row of the directory. FR-013 and FR-014 state the rule over both spellings,
+  and PC-4 measures 14 AMD rows: five level-1 rows with no parent, eight
+  level-2 rows with one parent each, and one helper row with no group
+  (`total_dispatch_slots`) that is not a node.
+- Q: Does a hybrid Intel part get a tree? → A: No, and the reason is not an
+  absent directory. The mapping file maps models 97, 9A, B7, BA and BF to
+  `alderlake`, so a directory is selected; the refusal is that the hybrid core
+  type stands absent in this feature and no hybrid host stands in the
+  acceptance set (FR-006, FR-003, SC-12).
+- Q: Which identity fields can the production path fill? → A: The four the
+  library already reads: vendor, family, model, stepping. The hybrid core type
+  and the Arm `MIDR` stand absent on every production host here, because no
+  reader exists for either, and a test hands in both (FR-003, D-13).
+- Q: Does the source record name one file? → A: No. The Skylake-X directory
+  holds 16 JSON files, and a level's rows come from more than one of them, so
+  the record carries one entry per contributing file: the name the embedded
+  table gives and that file's manifest hash (FR-015, PC-12).
 
 - Q: Which top-down rows of Skylake-X does the host-constant gap refuse, and
   is a level-1 row among them? → A: Yes, all four. `#core_wide` sits in
@@ -761,11 +854,12 @@ registered benchmark prints no row.
   that the fixture table states, and no node names a parent the table omits.
   The fixture row with no stated parent yields no node.
 - **SC-03**: With a fake event source, the four Intel level-1 values and the
-  five AMD level-1 values equal the fixture values to the last printed digit,
-  and the five AMD values sum to 100 percent within one tenth of a percent.
+  five AMD level-1 values equal the fixture values within 0.05 percentage
+  point, and the five AMD values sum to 100 percent within 0.1 percentage
+  point.
 - **SC-04**: Each of the four unsupported identities (an AMD part whose table
-  holds no pipeline rows, an Intel hybrid identity, an Arm `MIDR`, an unknown
-  vendor) answers one message with vendor, identity and reason, records
+  holds no row of any top-down group, an Intel hybrid identity, an Arm `MIDR`,
+  an unknown vendor) answers one message with vendor, identity and reason, records
   unsupported in the report, and leaves the exit status of the run unchanged.
 - **SC-05**: The option with the attached value 0, the attached value 7, the
   attached value `x` and a rule naming an unknown node each print exactly one
@@ -787,12 +881,17 @@ registered benchmark prints no row.
   the pull-request body records the host, the kernel, the values, the refused
   rows and the test counts.
 - **SC-11**: On the AMD acceptance host, `--topdown=2` prints level 1 with
-  `topdown.smt_contention` and the 100 percent statement, when that lane has a
-  gap. Absence of that host is recorded as a pending row, with no hardware
+  `topdown.smt_contention` and the 100 percent statement, and prints the eight
+  level-2 rows of that directory each under its own level-1 parent, when that
+  lane has a gap. Absence of that host is recorded as a pending row, with no hardware
   claim for it.
 - **SC-12**: The parts with no host (Intel parts measured through
   `PERF_METRICS`, Intel hybrid, Arm) are covered by synthetic seam tests only,
   and the report of the feature names them as pending rows.
+- **SC-13**: A rule that names a level-1 node (`topdown:backend_bound`) and a
+  rule that names a deeper node (`topdown:intel.tma_l1_bound`) each resolve to
+  that node's value in both reports of a comparison. Two rules, two verdicts,
+  no extra quoting.
 
 ## Constraints
 
@@ -820,27 +919,28 @@ registered benchmark prints no row.
 
 ## Scope
 
-In: FR-001 to FR-052. The selection function over its identity seam, the tree
+In: FR-001 to FR-057. The selection function over its identity seam, the tree
 with its parents, levels, names and threshold text, the source record built
 from the vendored manifest, the level option, one formula set to the pass
 planner, the console block, the report object with its reader and its schema,
 the `topdown:` rule form, the unsupported message, the `#core_wide` reader, the
+three prerequisite repairs D-18, D-19 and D-21 name (FR-053 to FR-055), the
 public header, the version and `SOVERSION` checks, the docs section, the
 runnable example, and the tests.
 
 Out, each with its owner:
 
 - An Arm table, an Arm license verdict and an Arm host: a later item (D-7).
-- Intel hybrid parts: no vendored directory names them, and the mapping file
-  gains nothing here.
+- Intel hybrid parts: the mapping file selects a hybrid directory for them,
+  and this feature refuses them (FR-006). No mapping-file row changes here.
 - A special counter path for Intel parts measured through `PERF_METRICS`: none
   (D-8).
 - The hunting lane's use of this tree (N14c): the hunting lane, after this
   feature lands (D-10).
 - The programmable-counter limit and how it is found: the planning lane
   (planned 041).
-- Deeper threshold arithmetic than a pass mark: none. A threshold is text with
-  one mark.
+- Threshold evaluation of any kind: none. A threshold is text, printed
+  unchanged (D-9).
 
 ## Assumptions
 
@@ -854,10 +954,12 @@ Out, each with its owner:
   authority for the reference and the file hashes.
 - The request's level-row counts for levels 3 to 6 (25, 34, 17, 14) match the
   vendored Skylake-X file exactly. Its counts for levels 1 and 2 (8 and 16)
-  match no directory in that tree: 26 of the 29 Intel tables state 4 and 8, and
-  the four hybrid-era tables (Alder Lake, Arrow Lake, Lunar Lake, Meteor Lake)
-  state 8 and 14. The file governs (FR-004). The level width is table data, so
-  FR-005 counts the rows of a level to find its width.
+  match no directory in that tree. Measured over the 40 Intel directories: 19
+  state 4 and 8, three state 4 and 6 (`alderlaken`, `grandridge`,
+  `sierraforest`), the four hybrid-era directories (Alder Lake, Arrow Lake,
+  Lunar Lake, Meteor Lake) state 8 and 14, and 14 state no top-down row at
+  all. The selected directory governs (FR-013, FR-014). The level width is
+  table data, so the tree counts the rows of a level to find its width.
 - `#core_wide` means the property the kernel's own generator gives it: a flag
   that tells a row whether its slots are counted core-wide. The reader's exact
   source is a plan decision, and this spec states only that the fact is
@@ -953,16 +1055,18 @@ Measured at the audit point, before any section was written.
 - `tools/dbc/coverage_gate.sh`: line gate (45-48), ledger (55-101), allowance
   (102), verdict (111-118).
 - `test/CMakeLists.txt`: one counters test (515-522), the seam root (483-489).
-- `test/source/metric_fixture.hpp`: `fixtureRows` (83-292), the host shapes
-  (303-368).
+- `test/source/detail/metric_fixture.hpp`: `fixtureRows` (83-292), the host
+  shapes (303-368).
 - `README.md`: the name table (837), the option table (954).
 
 ## Open questions
 
 None open. The owner's seven questions stand answered by D-4 to D-10, the
-rulings by D-1 to D-3 and D-14, and the numbers by D-17. Two host gaps stay
-open as preconditions: PC-6 names the missing object kinds behind `#SMT_on`,
-and PC-7 names the zero reads. The plan assigns each one.
+rulings by D-1 to D-3 and D-14, and the numbers by D-17. Three host gaps are
+carried work with a requirement each: FR-053 the fixed-counter bound (PC-7),
+FR-054 the SMT fact (PC-6), FR-055 the provider offered once (PC-8). One stays
+open for the plan to design: PC-12 names the source-record plumbing FR-015
+needs.
 
 ## Constitution Checklist
 
