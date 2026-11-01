@@ -130,22 +130,24 @@ force. No implementer reopens them.
   for a defect. If the counters lane lands it first, this lane rebases onto
   that commit and drops its own. The bound keeps its contract: a number outside
   the range the instruction accepts still answers "not allowed".
-- **D-19 The SMT fact on a host with no core objects (PC-6).** One of the four
-  Intel level-1 rows and eight deeper rows need `#SMT_on`, and the reader needs
+- **D-19 The SMT fact on a host with no core objects (PC-6).** Two of the four
+  Intel level-1 rows name `#SMT_on` in their own formula, and the reader needs
   core and thread objects this host publishes none of. This lane carries the
   small shape: when the object tree answers no core object, the host-fact reader
   reads the sibling list of one cpu under `sysfs` and answers the flag from it,
   the object tree keeps priority, and the path a test fakes stands behind the
-  same seam the constants use. A topology provider that seeds `core` and
-  `thread` objects is the larger shape, it belongs to the system tree, and this
-  feature does not take it.
-- **D-20 Rows the loader never publishes (PC-11).** A tree owes the operator a
-  reason for every row of the level, so a dropped row has to reach the record.
-  This lane carries the loader change when the measurement shows a small change
-  that publishes each dropped row with an existing refusal kind and leaves the
-  published set otherwise unchanged, with its tests first. Where that measurement
-  shows a larger change, this lane files the defect, and its record states the
-  count and the names of the rows a level holds that reached no entry.
+  same seam the constants use. The larger shape stays out: a provider the
+  harness registers beside the clock and pmu registrations, seeding `package`,
+  `core` and `thread` objects from the layout hwloc already computes
+  (`source/harness/topology.cpp:442`, `source/harness/cli.cpp:566-579`). That
+  shape answers every host fact from one source and reaches harness runs only,
+  so it is a system-tree feature of its own.
+- **D-20 Rows that print under another object (PC-11).** The loader drops
+  nothing: it answers a verdict for every metric row of the selected directory,
+  and specs/022 bars a silent drop. The duty lands on the reader. The selection
+  reads the whole published listing, keeps the rows that print under `cpu/` or
+  an uncore object, and one test names a level whose rows print under two
+  objects. No loader change and no new refusal kind.
 
 
 
@@ -215,22 +217,26 @@ Measured on this machine on 2026-11-01 before any file changed.
   `4 * tma_info_core_core_clks`, which all four level-1 rows divide by. On
   this host `--catalog` answers `refusal=UNKNOWN_CONSTANT reason=no reader
   answers the constant #core_wide`. Measured through `--catalog`, which is the
-  loader's own voice: of the 102 rows that carry a TopdownL token, 69 reach the
-  catalog and every one of them carries a refusal, so no top-down row computes
-  here today at any level. The mix: 39 rows refuse on `#core_wide`, 9 on
-  `#SMT_on`, 20 because a reference names no event the scope reaches, and 1
-  because a conditional test needs the run-time value of a reference. Per
-  level, rows that reach the catalog out of rows the table states: level 1 four
-  of four, level 2 eight of eight, level 3 fifteen of 25, level 4 twenty-one of
-  34, level 5 ten of 17, level 6 eleven of 14. PC-11 names the rows that reach
-  no catalog line at all.
+  loader's own voice: of the 102 rows that carry a TopdownL token, 69 carry a
+  refusal and 33 publish with no refusal, so levels 3 to 6 already answer here
+  while levels 1 and 2 answer nothing. The mix over the 69: 39 rows refuse on
+  `#core_wide`, 9 on `#SMT_on`, 20 because a reference names no event the scope
+  reaches, and 1 on an unsupported construct. Refusing rows over rows the table
+  states, per level: level 1 four of four, level 2 eight of eight, level 3
+  fifteen of 25, level 4 twenty-one of 34, level 5 ten of 17, level 6 eleven of
+  14. The 33 that publish split ten, thirteen, seven and three over the same
+  four levels. PC-7 keeps the fixed counters out of all of them, and PC-11
+  states where the rows print.
 - **PC-6: `#SMT_on` answers nothing on this host. GAP, open.** The reader
   exists and counts the core and thread objects of the open system
   (`source/counters/linux_pmu/metric_tables.hpp:104-146`). This host
   publishes no object of either kind, so `--catalog` answers `this host
   publishes no value for the constant #SMT_on` for `tma_bad_speculation`.
-  Two of the four level-1 rows need that constant. The plan names the fix
-  and its owner.
+  Two level-1 rows name the constant in their own formula,
+  `tma_backend_bound` and `tma_bad_speculation`, and 12 rows of the file name
+  it. `--catalog` reports it as the refusal reason of one of the two, because
+  the loader stops at the first gap it reaches. The plan names the fix and its
+  owner.
 - **PC-7: every fixed counter reads zero through the fast read path. GAP, root
   cause found, owner named below.** With `kernel.perf_event_paranoid` at -1
   the open is granted: 499 leaves countable and 497 readable through `rdpmc`,
@@ -250,7 +256,8 @@ Measured on this machine on 2026-11-01 before any file changed.
   the counters path, and this feature depends on it for every live value: level
   1 of Skylake-X reaches `tma_info_thread_slots`, and the fixed spellings ride
   the same windows. Whether this lane carries it or the counters lane lands it
-  first is the owner's call, recorded as D-18. Live values on the acceptance host wait on this gap.
+  first is the owner's call, recorded as D-18. Live values on the acceptance
+  host wait on this gap.
 - **PC-8: one baseline test cannot finish inside its timeout. GAP, measured,
   owned outside this feature.** `harness_cli_test` reaches 300 seconds under
   `ctest` at the base hash, before this feature, and that 300 seconds is the
@@ -278,16 +285,18 @@ Measured on this machine on 2026-11-01 before any file changed.
   The limit is read through the published object fact, and this feature
   changes no limit code: `source/counters/linux_pmu/counter_limits.cpp`
   belongs to the other lane.
-- **PC-11: the loader drops rows and publishes nothing for them. GAP, open.** The
-  Skylake-X table states 275 rows and `--catalog` publishes 155. Of the 33
-  top-down rows missing, the counts per level are: level 3 ten, level 4
-  thirteen, level 5 seven, level 6 three. Each one names an event whose reader
-  answers nothing here, and none names a refused constant; `tma_4k_aliasing`
-  for example is
-  `LD_BLOCKS_PARTIAL.ADDRESS_ALIAS / tma_info_thread_clks`. A row that never
-  reaches the catalog cannot appear in a tree that owes the operator a reason
-  (FR-020, FR-021), so the plan names the loader change that publishes a row
-  with its refusal and names who lands it.
+- **PC-11: a metric row prints under the object its formula resolves to.
+  MEASURED, and the tree has to read past it.** Of the 279 metric rows the
+  Skylake-X directory publishes, 150 print under `machine/` and 129 print
+  under another object: 119 under `cpu/`, 4 under `cstate_pkg`, 3 under
+  `cstate_core`, 2 under `uncore_iio_0` and 1 under `msr`
+  (`source/counters/linux_pmu/metric_formula.cpp:1047-1049`, and the catalog
+  printer at `source/harness/catalog.cpp:62`, which prints a row only under its
+  own object). A reader that filters on `machine/` therefore sees 150 rows and
+  calls the rest missing. Nothing is dropped: the loader answers a verdict for
+  every metric row, and `test/source/counters_metric_lookup_test.cpp:782-783`
+  holds that rule for all 46 directories. The tree reads the whole listing, and
+  a test names a level whose rows print under two objects.
 - **PC-12: no reader answers the manifest hash, and a published row names no
   file. GAP, open.** D-12 states the source record the tree owes the operator.
   `CMakeLists.txt:962-988` reads the `ref:` line of `external/pmu-events/RECORD`
@@ -548,7 +557,8 @@ registered benchmark prints no row.
 - **FR-016**: The tree shall list every top-down row of the selected level
   and of every level above it that the host refuses, each with its refusal
   kind and its reason. A refused row shall stay out of the collected set and
-  shall not disappear from the record.
+  shall not disappear from the record. The selection shall read the whole
+  published listing, wherever a row prints (PC-11).
 - **FR-017**: The table's threshold text shall reach the tree as text. The
   feature shall evaluate a threshold the formula grammar accepts and shall
   carry a threshold it refuses as text, unevaluated. (D-9.)
@@ -689,10 +699,10 @@ registered benchmark prints no row.
   is a level-1 row among them? → A: Yes, all four. `#core_wide` sits in
   `tma_info_core_core_clks`, `tma_info_thread_slots` is four times that row,
   and all four level-1 rows divide by it. Measured through `--catalog`: 69 of
-  the 102 rows reach the catalog, every one of them with a refusal (39 on
-  `#core_wide`, 9 on `#SMT_on`, 20 on a reference the scope cannot reach, 1 on
-  a conditional test), and 33 rows reach no catalog line at all. PC-5 records
-  the per-level figures, PC-11 names the dropped rows, and D-6 adds the
+  the 102 rows carry a refusal (39 on `#core_wide`, 9 on `#SMT_on`, 20 on a
+  reference the scope cannot reach, 1 on an unsupported construct), and the
+  other 33 publish with no refusal, all of them at levels 3 to 6. PC-5 records
+  the per-level figures, PC-11 states where rows print, and D-6 adds the
   reader.
 - Q: Does a hybrid part or an Arm part get a tree in this feature? → A: No.
   Neither has a vendored directory, and Arm needs a license verdict and a
