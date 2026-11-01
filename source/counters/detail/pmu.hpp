@@ -347,13 +347,54 @@ struct FastContext
   // pinning precondition (FR-045).
   int pinnedCpu = -1;
 
+  // The move constructor ends the type's aggregate status, so the
+  // default constructor stands declared by name and the member
+  // initializers above keep the unopened state they state
+  // ([dcl.init.aggr]).
+  FastContext() = default;
+
+  // One descriptor and one mapping stand one owner's alone: a copied
+  // context would release the same pair twice, so the copy operations
+  // stand deleted and every hand-off moves.
+  FastContext(const FastContext&) = delete;
+  auto operator=(const FastContext&) -> FastContext& = delete;
+
+  /**
+   * @brief Takes the descriptor, the mapping, and the length the
+   *        source held, and leaves the source owning nothing.
+   *
+   * \pre none
+   * \post The constructed value holds exactly the descriptor, the
+   *        mapping, and the mapping length the source held on entry.
+   * \post The source owns nothing: its descriptor stands at -1, its
+   *        mapping pointer at nullptr, and its length at 0.
+   */
+  FastContext(FastContext&& other) noexcept;
+
+  /**
+   * @brief Releases what the context held, then takes the descriptor,
+   *        the mapping, and the length the source held, and leaves the
+   *        source owning nothing.
+   *
+   * \pre The two operands name different values.
+   * \post The descriptor and the mapping the context held on entry
+   *        stand released exactly once, before the context takes
+   *        anything.
+   * \post The context holds exactly the descriptor, the mapping, and
+   *        the mapping length the source held on entry.
+   * \post The source owns nothing: its descriptor stands at -1, its
+   *        mapping pointer at nullptr, and its length at 0.
+   * \post The returned reference names the context.
+   */
+  auto operator=(FastContext&& other) noexcept -> FastContext&;
+
   /**
    * @brief Releases the mapping and the descriptor the context holds.
    *
    * Every exit path releases: a value that leaves scope, a window the
    * partial open refuses, and a window the plan destroys. Closing a
    * context that owns nothing touches nothing, so the release runs on any
-   * host and needs no granted event (FR-013, FR-015).
+   * host and needs no granted event (specs/012 FR-013, FR-015).
    *
    * \pre none
    * \post The context owns no mapping and no descriptor.

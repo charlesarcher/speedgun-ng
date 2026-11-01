@@ -35,6 +35,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -162,6 +163,33 @@ auto makeEventPage(const EventPageFields& fields) -> perf_event_mmap_page
   page.time_cycles = fields.time_cycles;
   page.time_mask = fields.time_mask;
   return page;
+}
+
+// One page the test mapped itself: the scenario builds the kernel's page
+// shape in an anonymous mapping it owns, the context the scenario hands it
+// to releases the mapping at destruction, and the release addresses a
+// mapping the test created (specs/012 FR-014). The scenario reads and
+// mutates the page through the mapping's pointer, so the type hands the
+// pointer and the length beside it.
+struct OwnedEventPage
+{
+  perf_event_mmap_page* page = nullptr;
+  std::size_t length = 0;
+};
+
+auto ownEventPage(const EventPageFields& fields) -> OwnedEventPage
+{
+  const auto length = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+  void* mapping = ::mmap(nullptr,
+                         length,
+                         PROT_READ | PROT_WRITE,
+                         MAP_ANONYMOUS | MAP_PRIVATE,
+                         -1,
+                         0);
+  check(mapping != MAP_FAILED, "the scenario maps one page it owns");
+  auto* page = static_cast<perf_event_mmap_page*>(mapping);
+  *page = makeEventPage(fields);
+  return OwnedEventPage {.page = page, .length = length};
 }
 
 // The descriptor count the lifecycle test compares before and after its
@@ -704,7 +732,7 @@ auto multiplexWindowScenario() -> void
   const std::uint64_t delta =
       kOffset + quot * kMult + ((rem * kMult) >> kShift);
 
-  auto page = makeEventPage(EventPageFields {
+  const auto owned = ownEventPage(EventPageFields {
       .sequence = 12,
       .index = 1,
       .offset = 0,
@@ -717,28 +745,29 @@ auto multiplexWindowScenario() -> void
       .time_mult = static_cast<std::uint32_t>(kMult),
       .time_offset = kOffset,
       .cyc = kCyc});
-  sg::counters::detail::FastContext context {
-      .fd = -1,
-      .map = &page,
-      .mapLength = sizeof(page),
-      .owner = std::this_thread::get_id()};
+  auto* page = owned.page;
+  sg::counters::detail::FastContext context;
+  context.fd = -1;
+  context.map = owned.page;
+  context.mapLength = owned.length;
+  context.owner = std::this_thread::get_id();
 
   // The library samples the cycle counter with the instruction, so this
   // arm asserts the gate. A page whose enabled and running counts already
   // agree needs no delta, whatever the cycle counter reads, so the
   // disclosed pair is the page's own two values
   // (FR-007).
-  page.time_running = page.time_enabled;
+  page->time_running = page->time_enabled;
   std::uint64_t equalEnabled = 0;
   std::uint64_t equalRunning = 0;
   check(sg::counters::detail::fastContextTimePair(
             context, equalEnabled, equalRunning),
         "a stable leader page discloses its enabled and running pair");
-  check(equalEnabled == page.time_enabled
-            && equalRunning == page.time_running,
+  check(equalEnabled == page->time_enabled
+            && equalRunning == page->time_running,
         "a page whose enabled and running counts agree is disclosed as its "
         "own two values, with no computed delta (FR-007)");
-  page.time_running = 250'000;
+  page->time_running = 250'000;
 
   // The library's own read, on a page that states the time fields with an
   // enabled count that differs from its running count. The recipe needs a
@@ -754,21 +783,21 @@ auto multiplexWindowScenario() -> void
   check(sg::counters::detail::fastContextTimePair(
             context, recipeEnabled, recipeRunning),
         "a stable page stating the time fields discloses its pair");
-  check(recipeEnabled > page.time_enabled,
+  check(recipeEnabled > page->time_enabled,
         "the disclosed enabled count carries a computed delta, so it "
         "exceeds the page's own count (FR-007, FR-009)");
-  check(recipeRunning > page.time_running,
+  check(recipeRunning > page->time_running,
         "the disclosed running count carries the same delta where the page "
         "index is non-zero (FR-007)");
-  check(recipeEnabled - page.time_enabled
-            == recipeRunning - page.time_running,
+  check(recipeEnabled - page->time_enabled
+            == recipeRunning - page->time_running,
         "both counts gained the same delta, which is what the recipe adds "
         "to each in turn (FR-009)");
 
   // A page publishing no time capability keeps the raw pair. The recipe is
   // gated on the capability bit the kernel publishes, so a page with no
   // bit has no delta to add, whatever the cycle counter reads.
-  auto rawPage = makeEventPage(EventPageFields {
+  const auto rawOwned = ownEventPage(EventPageFields {
       .sequence = 12,
       .index = 1,
       .offset = 0,
@@ -776,19 +805,20 @@ auto multiplexWindowScenario() -> void
       .pmc_width = static_cast<std::uint16_t>(kRnpmcCounterWidth),
       .time_enabled = 1'000'000,
       .time_running = 250'000});
-  sg::counters::detail::FastContext rawContext {
-      .fd = -1,
-      .map = &rawPage,
-      .mapLength = sizeof(rawPage),
-      .owner = std::this_thread::get_id()};
+  const auto* rawPage = rawOwned.page;
+  sg::counters::detail::FastContext rawContext;
+  rawContext.fd = -1;
+  rawContext.map = rawOwned.page;
+  rawContext.mapLength = rawOwned.length;
+  rawContext.owner = std::this_thread::get_id();
   std::uint64_t rawEnabled = 0;
   std::uint64_t rawRunning = 0;
   check(sg::counters::detail::fastContextTimePair(
             rawContext, rawEnabled, rawRunning),
         "a page publishing no time capability discloses its pair too");
-  check(
-      rawEnabled == rawPage.time_enabled && rawRunning == rawPage.time_running,
-      "a page with no time capability keeps the raw pair (FR-007)");
+  check(rawEnabled == rawPage->time_enabled
+            && rawRunning == rawPage->time_running,
+        "a page with no time capability keeps the raw pair (FR-007)");
 
   // The gate the library applies before it samples the instruction, over
   // the same page fields with a cycle value a fixture controls. This is
@@ -797,9 +827,9 @@ auto multiplexWindowScenario() -> void
   const auto corrected =
       sg::counters::detail::fastTimePair(sg::counters::detail::EventTimeFields {
           .cap_user_time = true,
-          .time_enabled = rawPage.time_enabled,
-          .time_running = rawPage.time_running,
-          .index = rawPage.index,
+          .time_enabled = rawPage->time_enabled,
+          .time_running = rawPage->time_running,
+          .index = rawPage->index,
           .time_shift = static_cast<std::uint16_t>(kShift),
           .time_mult = static_cast<std::uint32_t>(kMult),
           .time_offset = kOffset,
@@ -807,11 +837,11 @@ auto multiplexWindowScenario() -> void
   check(corrected.applied,
         "a page stating the time fields applies the kernel's own recipe "
         "(FR-009)");
-  check(corrected.enabled == rawPage.time_enabled + delta
-            && corrected.running == rawPage.time_running + delta,
+  check(corrected.enabled == rawPage->time_enabled + delta
+            && corrected.running == rawPage->time_running + delta,
         "the corrected pair carries the computed delta on both counts "
         "(FR-007, FR-009)");
-  check(corrected.enabled != rawPage.time_enabled,
+  check(corrected.enabled != rawPage->time_enabled,
         "the corrected pair differs from the raw pair, so the assertions "
         "above measure a correction rather than restating the raw counts "
         "(FR-009)");
@@ -821,8 +851,8 @@ auto multiplexWindowScenario() -> void
   // gains more in proportion than the enabled count does, and the ratio
   // rises toward one. A ratio that fell would mean the correction had
   // landed on one count alone.
-  const auto rawRatio = static_cast<double>(rawPage.time_running)
-      / static_cast<double>(rawPage.time_enabled);
+  const auto rawRatio = static_cast<double>(rawPage->time_running)
+      / static_cast<double>(rawPage->time_enabled);
   const auto correctedRatio = static_cast<double>(corrected.running)
       / static_cast<double>(corrected.enabled);
   check(correctedRatio > rawRatio && correctedRatio < 1.0,
@@ -834,15 +864,17 @@ auto multiplexWindowScenario() -> void
   // unstable pair discloses nothing, so it leaves a zero pair.
   std::uint64_t outEnabled = 7;
   std::uint64_t outRunning = 9;
-  check(!sg::counters::detail::fastPairDisclosed(
-            false, page.time_enabled, page.time_running, outEnabled, outRunning)
-            && outEnabled == 0 && outRunning == 0,
-        "an unstable pair discloses no enabled or running time");
-  check(sg::counters::detail::fastPairDisclosed(
-            true, page.time_enabled, page.time_running, outEnabled, outRunning)
-            && outEnabled == page.time_enabled
-            && outRunning == page.time_running,
-        "a stable pair discloses the page's own two values");
+  check(
+      !sg::counters::detail::fastPairDisclosed(
+          false, page->time_enabled, page->time_running, outEnabled, outRunning)
+          && outEnabled == 0 && outRunning == 0,
+      "an unstable pair discloses no enabled or running time");
+  check(
+      sg::counters::detail::fastPairDisclosed(
+          true, page->time_enabled, page->time_running, outEnabled, outRunning)
+          && outEnabled == page->time_enabled
+          && outRunning == page->time_running,
+      "a stable pair discloses the page's own two values");
 }
 
 // A leader answering with fewer bytes than the group header, and a group
@@ -891,13 +923,13 @@ auto migratedThreadScenario() -> void
   // A build configured to emit no gated check reaches the read and returns
   // the page's own values, which is what makes the check's absence
   // measurable, and not merely asserted (FR-045).
-  auto page = makeEventPage(EventPageFields {
+  const auto owned = ownEventPage(EventPageFields {
       .sequence = 3, .index = 1, .capability = true, .pmc_width = 48});
-  sg::counters::detail::FastContext context {
-      .map = &page,
-      .mapLength = sizeof(page),
-      .owner = std::this_thread::get_id(),
-      .pinnedCpu = sched_getcpu() + 1};
+  sg::counters::detail::FastContext context;
+  context.map = owned.page;
+  context.mapLength = owned.length;
+  context.owner = std::this_thread::get_id();
+  context.pinnedCpu = sched_getcpu() + 1;
   std::uint64_t value = 0;
   check(sg::counters::detail::fastContextRead(context, value)
                 == FastReadVerdict::OK
@@ -905,13 +937,13 @@ auto migratedThreadScenario() -> void
         "a build that emits no pinned check reads the page, so the release "
         "cost is where FR-008 holds it (FR-045)");
 #else
-  auto page = makeEventPage(EventPageFields {
+  const auto owned = ownEventPage(EventPageFields {
       .sequence = 3, .index = 1, .capability = true, .pmc_width = 48});
-  sg::counters::detail::FastContext context {
-      .map = &page,
-      .mapLength = sizeof(page),
-      .owner = std::this_thread::get_id(),
-      .pinnedCpu = sched_getcpu() + 1};
+  sg::counters::detail::FastContext context;
+  context.map = owned.page;
+  context.mapLength = owned.length;
+  context.owner = std::this_thread::get_id();
+  context.pinnedCpu = sched_getcpu() + 1;
   const pid_t child = ::fork();
   check(child >= 0, "the migrated-thread probe forks");
   if (child == 0) {
@@ -962,8 +994,10 @@ auto lifecycleCycle() -> void
   check(mapping != MAP_FAILED,
         "the lifecycle test opens its own anonymous read-only mapping");
   {
-    sg::counters::detail::FastContext context {
-        .fd = fd, .map = mapping, .mapLength = length};
+    sg::counters::detail::FastContext context;
+    context.fd = fd;
+    context.map = mapping;
+    context.mapLength = length;
     static_cast<void>(context);
   }  // the value leaves scope here, and its destructor releases both
 }
@@ -1016,8 +1050,11 @@ auto fastContextPartialOpenScenario() -> void
           nullptr, length, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
       check(mapping != MAP_FAILED,
             "the partial open acquires an anonymous read-only mapping");
-      acquired[index] = sg::counters::detail::FastContext {
-          .fd = fd, .map = mapping, .mapLength = length};
+      sg::counters::detail::FastContext held;
+      held.fd = fd;
+      held.map = mapping;
+      held.mapLength = length;
+      acquired[index] = std::move(held);
     }
     // A later member fails here, so the window is never published and the
     // array releases what it holds.
@@ -1044,6 +1081,112 @@ auto destroyBeforeOpenScenario() -> void
         "a context destroyed before it was opened releases nothing and "
         "fails no check (FR-015)");
 }
+
+// A move construction transfers the descriptor and the mapping and leaves
+// the source owning nothing, so the moved-from value's destruction
+// releases nothing the process can observe (FR-003, FR-006).
+auto moveFromDestructionScenario() -> void
+{
+  const auto descriptorsBefore = openDescriptorCount();
+  const auto mappingsBefore = mappingCount();
+  {
+    const int fd = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
+    check(fd >= 0, "the move test opens its own descriptor");
+    const auto length = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+    void* mapping =
+        ::mmap(nullptr, length, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    check(mapping != MAP_FAILED,
+          "the move test opens its own anonymous read-only mapping");
+    sg::counters::detail::FastContext target;
+    {
+      sg::counters::detail::FastContext source;
+      source.fd = fd;
+      source.map = mapping;
+      source.mapLength = length;
+      target = std::move(source);
+      check(target.fd == fd && target.map == mapping
+                && target.mapLength == length,
+            "a move assignment leaves the target with the source's pair");
+      check(source.fd == -1 && source.map == nullptr && source.mapLength == 0,
+            "a move assignment leaves the source owning nothing");
+      {
+        // The moved-from value owns nothing: the move construction from
+        // the emptied source transfers nothing, and the destruction below
+        // releases nothing while the target still holds the pair.
+        sg::counters::detail::FastContext movedFrom {std::move(source)};
+        check(movedFrom.fd == -1 && movedFrom.map == nullptr
+                  && movedFrom.mapLength == 0,
+              "a move construction from a moved-from source owns nothing");
+      }
+      check(openDescriptorCount() == descriptorsBefore + 1,
+            "the moved-from destruction releases no descriptor the process "
+            "can observe (FR-003)");
+      check(mappingCount() == mappingsBefore + 1,
+            "the moved-from destruction releases no mapping the process can "
+            "observe (FR-003)");
+    }
+    // The target leaves scope here and releases the pair it took, so the
+    // counts stand at the baseline: one acquire, one release.
+  }
+  check(openDescriptorCount() == descriptorsBefore,
+        "the target's destruction releases its descriptor exactly once "
+        "(FR-002, FR-003)");
+  check(mappingCount() == mappingsBefore,
+        "the target's destruction releases its mapping exactly once "
+        "(FR-002, FR-003)");
+}
+
+// A move assignment releases the target's own pair exactly once before it
+// takes the source's, so the counts stand one pair above the baseline
+// while both values hold resources and return to the baseline at scope
+// exit (FR-002, FR-006).
+auto moveAssignmentReleaseScenario() -> void
+{
+  const auto descriptorsBefore = openDescriptorCount();
+  const auto mappingsBefore = mappingCount();
+  const auto acquire = []() -> sg::counters::detail::FastContext
+  {
+    const int fd = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
+    check(fd >= 0, "the move test opens its own descriptor");
+    const auto length = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+    void* mapping =
+        ::mmap(nullptr, length, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    check(mapping != MAP_FAILED,
+          "the move test opens its own anonymous read-only mapping");
+    sg::counters::detail::FastContext context;
+    context.fd = fd;
+    context.map = mapping;
+    context.mapLength = length;
+    return context;
+  };
+  {
+    auto target = acquire();
+    auto source = acquire();
+    target = std::move(source);
+    check(openDescriptorCount() == descriptorsBefore + 1,
+          "the move assignment released the target's own descriptor, so "
+          "the process holds one descriptor more than the baseline (FR-002)");
+    check(mappingCount() == mappingsBefore + 1,
+          "the move assignment released the target's own mapping, so the "
+          "process holds one mapping more than the baseline (FR-002)");
+    check(source.fd == -1 && source.map == nullptr && source.mapLength == 0,
+          "a move assignment leaves the source owning nothing (FR-002)");
+  }
+  check(openDescriptorCount() == descriptorsBefore,
+        "the array's destruction releases every descriptor exactly once "
+        "(FR-002)");
+  check(
+      mappingCount() == mappingsBefore,
+      "the array's destruction releases every mapping exactly once " "(FR-"
+                                                                     "002)");
+}
+
+// The copy operations stand deleted (FR-006), so an accidental copy fails
+// at compile time and no release path runs twice.
+static_assert(
+    !std::is_copy_constructible_v<sg::counters::detail::FastContext>
+        && !std::is_copy_assignable_v<sg::counters::detail::FastContext>,
+    "FastContext is move-only: the copy operations stand deleted");
 
 // The synthetic-table writer, defined below the scenarios that predate it.
 auto writeFixture(const char* name, const std::string_view body) -> std::string;
@@ -3820,6 +3963,8 @@ auto main() -> int
   fastContextLifetimeScenario();
   fastContextPartialOpenScenario();
   destroyBeforeOpenScenario();
+  moveFromDestructionScenario();
+  moveAssignmentReleaseScenario();
   intelEncodableRowsScenario();
   encodingRefusalScenario();
   devicePlacementScenario();
