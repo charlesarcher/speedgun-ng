@@ -93,11 +93,11 @@ fold's covered span underflowed or stood at zero, and the writer
 emitted `gapsPerSecond` at the double's ceiling, which the loader's
 number rule refused.
 
-Two defects carried the fix:
+Three defects carried the fix:
 
 - `setPoints` keeps the shared cursor when the reprogram carries no
-  points (a tail-only reprogram continues the series instead of
-  restarting it), so the stamps another reader forks from the slot
+  points (a tail-only reprogram continues the series and does not
+  restart it), so the stamps another reader forks from the slot
   stand ordered across the reprogram.
 - The fake window's hand-off leaves the shared cursor alone when the
   window's own cursor stands below it, so the two probe cpus' cursor
@@ -106,3 +106,22 @@ Two defects carried the fix:
   the shape the probe's default path gives every item, so a cpu's
   gap stays the scripted tail and never the count of another cpu's
   reads in between.
+
+## Third root cause (the Rocky 10 container's remaining runs)
+
+The container's validation still failed 2 of 100 runs at the
+document check, and the captured document named the cause: the
+run-level fold of a probe cpu whose buffer kept exactly one record
+carried `runtimeNs` at zero (the stamp span of one stamp is zero by
+definition) and `gapsPerSecond` at the double's ceiling, which the
+writer carried into the document and the loader's number rule
+refused. The fold's rate fields now stand at zero when the span
+stands at zero, the way the empty kept set's zeros stand; the
+kept-buffer scenario (one kept record) drives the arm.
+
+## Validation after the three fixes
+
+The host: the loaded loop 0 of 200, the pinned loop 0 of 100, the
+brief's acceptance loops 0 of 100 at `ci-rocky` and `ci-sanitize`
+for both tests, the seam test 0 of 1000 at `ci-rocky`. The Rocky 10
+container: the jitter test 0 of 100 and the seam test 0 of 100.
