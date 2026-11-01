@@ -124,6 +124,7 @@ force. No implementer reopens them.
   moves those plants one minor up as well. If the other lane lands first, this
   lane takes the next free minor and the next free schema minor and re-runs
   every gate.
+
 - **D-18 The fixed-counter bound.** The gap of PC-7 blocks every live value
   this feature reports, so it is fixed before the acceptance runs, in its own
   commit with its reproducing test first, in the shape the counters lane uses
@@ -148,6 +149,15 @@ force. No implementer reopens them.
   reads the whole published listing, keeps the rows that print under `cpu/` or
   an uncore object, and one test names a level whose rows print under two
   objects. No loader change and no new refusal kind.
+- **D-21 The entry point offers its PMU provider once (PC-8).** The local fix
+  is one line at `source/harness/cli.cpp:579`: offer the provider once per
+  process, since every later construction is refused anyway. That takes the two
+  thousand-call windows from about 63 minutes to seconds and makes the full
+  suite and the `taskset -c 0,1` run of the acceptance list finishable on this
+  host, so this lane carries it in its own commit with its test first. The wider
+  shape stays out: a process-static PMU state in the counters library, so a
+  second provider costs nothing for every caller of the library, belongs to the
+  counters lane.
 
 
 
@@ -266,11 +276,12 @@ Measured on this machine on 2026-11-01 before any file changed.
   of one thousand in-process entry-point calls (`test/source/harness_cli_test.cpp:1277-1289`)
   each cost 1.7 to 1.9 seconds, because every call builds a fresh PMU provider
   and re-probes the host: one provider build issues 49,330 event opens, 995 of
-  them granted. About 2,040 calls then need about 63 minutes. The fix is one
-  settled probe per process in `source/counters/linux_pmu/provider.cpp:802`,
-  and that belongs to the counters lane: this feature changes no provider
-  code (FR-022). The pull-request body records the condition and the count, as
-  D-16 requires. `prose_gate_fixtures` fails under `ctest -j 12` and passes
+  them granted. About 2,040 calls then need about 63 minutes. The cause sits at
+  `source/harness/cli.cpp:579`: the entry point constructs a `PmuProvider` on
+  every call, and the open system refuses it after its first call
+  (`source/counters/system.cpp:218`), so each call pays 1.35 to 1.72 seconds of
+  device walk and about 45,000 event opens for a provider that is thrown away.
+  D-21 names the fix and its owner. `prose_gate_fixtures` fails under `ctest -j 12` and passes
   alone, so it is a load condition on this host.
 - **PC-9: the seams a unit test needs exist. PASS.** `metric_fixture.hpp`
   builds a 100-row table and a fake host whose object tree answers the host
