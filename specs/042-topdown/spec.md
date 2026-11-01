@@ -108,6 +108,12 @@ force. No implementer reopens them.
   owner's own machines, recorded in the pull-request body with the host, the
   kernel and the test counts. No acceptance is gated on hosted runner CI,
   and this feature changes no CI file.
+- **D-18 The fixed-counter bound.** The gap of PC-7 blocks every live value
+  this feature reports, so it is fixed before the acceptance runs, in its own
+  commit with its reproducing test first, in the shape the counters lane uses
+  for a defect. If the counters lane lands it first, this lane rebases onto
+  that commit and drops its own. The bound keeps its contract: a number outside
+  the range the instruction accepts still answers "not allowed".
 - **D-17 Version and schema numbers.** The feature takes version 0.29.0:
   the lane planned for 0.29.0 holds no merge at branch time, checked against
   `specs/`, the remote branches and the open pull requests. The report gains
@@ -178,11 +184,16 @@ Measured on this machine on 2026-11-01 before any file changed.
   that names `#core_wide`, and `tma_info_thread_slots` is
   `4 * tma_info_core_core_clks`, which all four level-1 rows divide by. On
   this host `--catalog` answers `refusal=UNKNOWN_CONSTANT reason=no reader
-  answers the constant #core_wide` for `tma_backend_bound`,
-  `tma_frontend_bound` and `tma_retiring`. Transitive need, measured per
-  level: level 1 four of four, level 2 eight of eight, level 3 twelve of
-  25, level 4 eleven of 34, level 5 six of 17, level 6 eleven of 14, so 52
-  of the 102 rows.
+  answers the constant #core_wide`. Measured through `--catalog`, which is the
+  loader's own voice: of the 102 rows that carry a TopdownL token, 69 reach the
+  catalog and every one of them carries a refusal, so no top-down row computes
+  here today at any level. The mix: 39 rows refuse on `#core_wide`, 9 on
+  `#SMT_on`, 20 because a reference names no event the scope reaches, and 1
+  because a conditional test needs the run-time value of a reference. Per
+  level, rows that reach the catalog out of rows the table states: level 1 four
+  of four, level 2 eight of eight, level 3 fifteen of 25, level 4 twenty-one of
+  34, level 5 ten of 17, level 6 eleven of 14. PC-11 names the rows that reach
+  no catalog line at all.
 - **PC-6: `#SMT_on` answers nothing on this host. GAP, open.** The reader
   exists and counts the core and thread objects of the open system
   (`source/counters/linux_pmu/metric_tables.hpp:104-146`). This host
@@ -190,18 +201,40 @@ Measured on this machine on 2026-11-01 before any file changed.
   publishes no value for the constant #SMT_on` for `tma_bad_speculation`.
   Two of the four level-1 rows need that constant. The plan names the fix
   and its owner.
-- **PC-7: the host's counter reads answer zero. GAP, open.** With
-  `kernel.perf_event_paranoid` at -1 the open is granted: 499 leaves
-  countable and 497 readable through `rdpmc`. Every read answers zero:
-  `counters_pmu_test` reports `zero count: cpu/cpu-cycles mode 1 value
-  0.000`, and `--counter=cpu/cpu-cycles` reports `0.000 ratio=1.000 gap=1`.
-  A raw `perf_event_open` for the same event counts 450969862 cycles, so the
-  hardware answers. Live values on the acceptance host wait on this gap.
-- **PC-8: one baseline test times out on this host. GAP, open.**
-  `harness_cli_test` reaches 300 seconds under `ctest` and 900 seconds run
-  alone at the base hash, before this feature. Its output stops after
-  `no benchmark matches the filter '^nothingHere$'`. `prose_gate_fixtures`
-  fails under `ctest -j 12` and passes alone.
+- **PC-7: every fixed counter reads zero through the fast read path. GAP, root
+  cause found, owner named below.** With `kernel.perf_event_paranoid` at -1
+  the open is granted: 499 leaves countable and 497 readable through `rdpmc`,
+  and a raw `perf_event_open` for the same event counts 450969862 cycles, so
+  the hardware answers. The fast path refuses the published index: for a fixed
+  counter the kernel marks the page index with bit 30, so `cpu/cpu-cycles`
+  publishes index `0x40000002`, and the bound `index <= kRnpmcMaxIndex`
+  (`source/counters/linux_pmu/fast_read.cpp:48-51`,
+  `source/counters/detail/pmu.hpp:284-289`) rejects it. The read then yields
+  value 0 with the gap flag (`source/counters/linux_pmu/group_io.cpp:436-437`),
+  and `counters_pmu_test` reports `zero count: cpu/cpu-cycles mode 1 value
+  0.000`. Eight of the 499 countable leaves are fixed-counter spellings, and one
+  such leaf turns a whole window into a gap: `cache-references` reads 87 and 97
+  through the raw path while the fold reports 0 with the gap flag. The fix is
+  two lines: bound the counter number with bit 30 masked off, keep the
+  unchanged operand for the instruction, and correct the comment. It belongs to
+  the counters path, and this feature depends on it for every live value: level
+  1 of Skylake-X reaches `tma_info_thread_slots`, and the fixed spellings ride
+  the same windows. Whether this lane carries it or the counters lane lands it
+  first is the owner's call, recorded as D-18. Live values on the acceptance host wait on this gap.
+- **PC-8: one baseline test cannot finish inside its timeout. GAP, measured,
+  owned outside this feature.** `harness_cli_test` reaches 300 seconds under
+  `ctest` at the base hash, before this feature, and that 300 seconds is the
+  default its registration leaves in force
+  (`test/CMakeLists.txt:729-738`, `:2123-2128`). It does not hang. Two loops
+  of one thousand in-process entry-point calls (`test/source/harness_cli_test.cpp:1277-1289`)
+  each cost 1.7 to 1.9 seconds, because every call builds a fresh PMU provider
+  and re-probes the host: one provider build issues 49,330 event opens, 995 of
+  them granted. About 2,040 calls then need about 63 minutes. The fix is one
+  settled probe per process in `source/counters/linux_pmu/provider.cpp:802`,
+  and that belongs to the counters lane: this feature changes no provider
+  code (FR-022). The pull-request body records the condition and the count, as
+  D-16 requires. `prose_gate_fixtures` fails under `ctest -j 12` and passes
+  alone, so it is a load condition on this host.
 - **PC-9: the seams a unit test needs exist. PASS.** `metric_fixture.hpp`
   builds a 100-row table and a fake host whose object tree answers the host
   constants in four shapes: `SMT_ON`, `SMT_OFF`, `CORELESS`, `THREADLESS`
@@ -215,6 +248,16 @@ Measured on this machine on 2026-11-01 before any file changed.
   The limit is read through the published object fact, and this feature
   changes no limit code: `source/counters/linux_pmu/counter_limits.cpp`
   belongs to the other lane.
+- **PC-11: the loader drops rows and publishes nothing for them. GAP, open.** The
+  Skylake-X table states 275 rows and `--catalog` publishes 155. Of the 33
+  top-down rows missing, the counts per level are: level 3 ten, level 4
+  thirteen, level 5 seven, level 6 three. Each one names an event whose reader
+  answers nothing here, and none names a refused constant; `tma_4k_aliasing`
+  for example is
+  `LD_BLOCKS_PARTIAL.ADDRESS_ALIAS / tma_info_thread_clks`. A row that never
+  reaches the catalog cannot appear in a tree that owes the operator a reason
+  (FR-020, FR-021), so the plan names the loader change that publishes a row
+  with its refusal and names who lands it.
 
 ## Roadmap position
 
@@ -734,6 +777,12 @@ Out, each with its owner:
   runs, and its availability is not this feature's to schedule.
 - The vendored tree is the only table source, and its manifest stays the
   authority for the reference and the file hashes.
+- The request's level-row counts for levels 3 to 6 (25, 34, 17, 14) match the
+  vendored Skylake-X file exactly. Its counts for levels 1 and 2 (8 and 16)
+  match no directory in that tree: 26 of the 29 Intel tables state 4 and 8, and
+  the four hybrid-era tables (Alder Lake, Arrow Lake, Lunar Lake, Meteor Lake)
+  state 8 and 14. The file governs (FR-004). The level width is table data, so
+  FR-005 counts the rows of a level to find its width.
 - `#core_wide` means the property the kernel's own generator gives it: a flag
   that tells a row whether its slots are counted core-wide. The reader's exact
   source is a plan decision, and this spec states only that the fact is
