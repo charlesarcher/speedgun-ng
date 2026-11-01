@@ -40,6 +40,57 @@
 namespace sg::counters::detail
 {
 
+// The move operations serve both platform branches: the release arm is
+// the platform-independent `fastContextClose`, so one definition pair
+// stands outside the branch and the branch's own close serves each
+// build (specs/012 FR-013).
+FastContext::FastContext(FastContext&& other) noexcept
+    : fd {other.fd}
+    , map {other.map}
+    , mapLength {other.mapLength}
+    , owner {other.owner}
+    , pinnedCpu {other.pinnedCpu}
+{
+#if SG_CONTRACTS_SEMANTIC != 0
+  const auto takenFd = other.fd;
+  const void* takenMap = other.map;
+  const auto takenLength = other.mapLength;
+#endif
+  other.fd = -1;
+  other.map = nullptr;
+  other.mapLength = 0;
+  SG_ENSURE(fd == takenFd && map == takenMap && mapLength == takenLength,
+            "a move construction leaves the value with the descriptor, the "
+            "mapping, and the length the source held");
+  SG_ENSURE(other.fd == -1 && other.map == nullptr && other.mapLength == 0,
+            "a move construction leaves the source owning nothing");
+}
+
+auto FastContext::operator=(FastContext&& other) noexcept -> FastContext&
+{
+  SG_REQUIRE(this != &other, "a move assignment names two different values");
+#if SG_CONTRACTS_SEMANTIC != 0
+  const auto takenFd = other.fd;
+  const void* takenMap = other.map;
+  const auto takenLength = other.mapLength;
+#endif
+  fastContextClose(*this);
+  fd = other.fd;
+  map = other.map;
+  mapLength = other.mapLength;
+  owner = other.owner;
+  pinnedCpu = other.pinnedCpu;
+  other.fd = -1;
+  other.map = nullptr;
+  other.mapLength = 0;
+  SG_ENSURE(fd == takenFd && map == takenMap && mapLength == takenLength,
+            "a move assignment leaves the target with the descriptor, the "
+            "mapping, and the length the source held");
+  SG_ENSURE(other.fd == -1 && other.map == nullptr && other.mapLength == 0,
+            "a move assignment leaves the source owning nothing");
+  return *this;
+}
+
 // One-based counter-index validity over the page `index` (FR-040,
 // R-011). Index 0 means the kernel published no usable counter, and an
 // index past the operand bound names no counter any host has; both fall
