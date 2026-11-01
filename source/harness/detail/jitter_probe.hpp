@@ -31,6 +31,12 @@ namespace sg::detail
 // vary with the tuning flags the build names.
 inline constexpr std::size_t kCacheLineBytes = 64;
 
+// The measurement pass's read count, one per armed probe cpu (E-05,
+// R-05): the constant stands here, beside the probe the pass belongs
+// to, so the probe and the test that drives its gates spell the value
+// once.
+inline constexpr std::uint64_t kPassReads = 1024;
+
 /// @brief One kept gap, 16 bytes, two unsigned fields (E-04, D-6).
 struct GapRecord
 {

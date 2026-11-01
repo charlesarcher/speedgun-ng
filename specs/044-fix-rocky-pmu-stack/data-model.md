@@ -116,7 +116,7 @@ seam's contract states it (R-02).
 
 | Member | Type | Rule |
 | --- | --- | --- |
-| delegate window | one `counters::WindowReader` the test owns | The scripted `machine/tsc` window the fake provider's `open` returns. Every read the probe makes through the seam forwards to it, so the stamps the probe folds ride the scripted series (R-02, FR-039) |
+| delegate windows | one `counters::WindowReader` per probe thread, created on the thread's first read | The scripted `machine/tsc` windows the fake provider's `open` returns. Every read the probe makes through the seam forwards to the reading thread's own window, so the stamps the probe folds ride the scripted series (R-02, FR-039). One window per thread is the shape the probe's default path gives every item: a cpu's gap stays the scripted tail, and one shared window would make the two cpus' gaps measure their interleaving, which the quiet entry's windows must not carry |
 | count | one `std::atomic<std::uint64_t>` | The reads the probe cpus made through the installed reader: one increment per `readPoints` call. The runner's sampling reads never reach this count |
 
 Validation: the count is the event the gate waits end on (FR-012). A wait

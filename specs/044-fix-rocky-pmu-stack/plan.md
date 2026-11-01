@@ -26,10 +26,10 @@ so their margins unblock on reads the probe never made; under cpu load the
 pass's window closes with no kept gap at the pass's magnitude
 (`diagnosis-b2.md`: 264 of 500 loaded runs). The fix installs a counting
 reader through the reader-install seam (`installTestReader`) over the fake
-provider's own scripted `machine/tsc` window, so the waits end on the
-probe's own read count with targets derived from the documented 1,024
-reads per probe cpu; the drift margin and `passGateBase()` leave the test;
-the spin bound and the yield stay.
+provider's own scripted `machine/tsc` leaf, one delegate window per probe
+thread, so the waits end on the probe's own read count with targets
+derived from the documented 1,024 reads per probe cpu; the drift margin
+and `passGateBase()` leave the test; the spin bound and the yield stay.
 
 ## Technical Context
 

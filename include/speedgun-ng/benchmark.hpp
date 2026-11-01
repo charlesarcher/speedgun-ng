@@ -502,7 +502,10 @@ struct ContextDisclosure
  * The percentile fields follow the nearest-rank rule of
  * `source/harness/percentiles.cpp` over the sorted kept gaps (PC-4),
  * the rule the report columns fill through. The fold of an empty kept
- * set leaves every field at 0. The fold functions of the probe carry
+ * set leaves every field at 0. The fold of a kept set whose stamp span
+ * stands at zero, one record's own, leaves the rate fields at 0 beside
+ * the record's own figures, so no division by the zero span reaches the
+ * writer. The fold functions of the probe carry
  * the field relations this struct's fills establish; the aggregate
  * itself imposes nothing at construction.
  *

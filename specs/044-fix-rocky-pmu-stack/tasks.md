@@ -246,6 +246,7 @@ and 100 times under `taskset -c 0,1`, count 0 failures (SC-002).
 - [ ] T026 [US2] Commit T020 through T023 as ONE commit (FR-012):
       `source/harness/detail/jitter_probe.hpp`,
       `source/harness/jitter_probe.cpp`,
+      `source/counters/fake_provider.cpp`,
       `test/source/harness_jitter_window_test.cpp`. Title
       `Harness: End the gate waits on a count`. The why-body records
       the cause from `diagnosis-b2.md` and the targets' derivation
@@ -336,6 +337,7 @@ open and unmerged with the evidence in its body.
       `test/source/harness_jitter_window_test.cpp`,
       `source/harness/detail/jitter_probe.hpp`,
       `source/harness/jitter_probe.cpp`,
+      `source/counters/fake_provider.cpp`,
       `specs/044-fix-rocky-pmu-stack/`, and
       `.specify/feature.json`. Nothing under
       `.github/workflows/`, `cmake/`, `tools/ci/`, `tools/dbc/`

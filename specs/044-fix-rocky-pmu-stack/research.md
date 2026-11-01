@@ -270,18 +270,26 @@ change adds no public name and touches no installed header (FR-014).
 A test-local decorator, the shape `GapSeriesReader` (`:535-545`)
 already uses, named `CountingReader`:
 
-- It holds the window the fake provider's public `open()` returns
+- It holds one delegate window per probe thread, created on the
+  thread's first read through the fake provider's public `open()`
   over the machine/tsc leaf (`counters_fake.hpp:308-310`,
   `fake_provider.cpp:303-338`): a `LeafSet` whose addresses name
   `machine/tsc` and whose disclosure column stands at
   `kNoDisclosureColumn`. The fake ignores the target, so the test
-  passes any valid `Target`.
+  passes any valid `Target`. The per-thread shape is the probe's own
+  default path: the probe's default opens one window per item, whose
+  cursor advances by that item's reads alone (FR-018), so a cpu's
+  gap stays the scripted tail. One shared delegate would make the
+  two cpus' gaps measure their interleaving, and the quiet entry's
+  windows would keep the interleaving gaps the run must not carry;
+  the loaded diagnosis measured exactly that failure before the
+  per-thread shape stood in.
 - Its `readPoints` counts one increment on a relaxed atomic (the
   `m_readActions` shape, `counters_fake.hpp:334`) and delegates to
-  the underlying window. The scripted series, the `setPoints` tail
-  jumps, the per-window playback hand-off, and the disclosure
-  behave exactly as today, so every scenario's assertions keep
-  holding.
+  the reading thread's own window. The scripted series, the
+  `setPoints` tail jumps, the per-window playback hand-off, and the
+  disclosure behave exactly as today, so every scenario's assertions
+  keep holding.
 - The test keeps a raw pointer to the decorator in function-local
   state (the `seriesJump()` / `passGateCalls()` pattern, `:115-123` and
   `:177-185`) and clears that pointer when it clears the install.

@@ -45,9 +45,9 @@ namespace sg::detail
 namespace
 {
 
-// The measurement pass takes a fixed 1,024 loop reads the loop discards
-// (E-05, R-05).
-inline constexpr std::uint64_t kPassReads = 1024;
+// The measurement pass's read count stands in detail/jitter_probe.hpp,
+// beside the probe the pass belongs to, so the test that drives the
+// gates spells the same value (E-05, R-05).
 
 // The rise the default threshold takes at ten times the measured minimum
 // loop period (FR-007, D-2).
@@ -570,10 +570,18 @@ auto gapStatsOf(const ProbeCpuState& state) -> JitterStats
   }
   stats.runtimeNs = lastStamp - firstStamp;
 
-  stats.gapsPerSecond = static_cast<double>(stats.gapCount) * 1e9
-      / static_cast<double>(stats.runtimeNs);
-  stats.totalPercent = static_cast<double>(stats.totalNs) * 100.0
-      / static_cast<double>(stats.runtimeNs);
+  // The rate fields divide by the span, and the span of a kept set that
+  // holds one record stands at zero: the stamp span of one stamp is zero
+  // by definition. The rate fields stand at zero there, the way the empty
+  // kept set's zeros stand, so no division by zero reaches the writer
+  // (E-03, R-05).
+  stats.gapsPerSecond = stats.runtimeNs == 0
+      ? 0.0
+      : static_cast<double>(stats.gapCount) * 1e9
+          / static_cast<double>(stats.runtimeNs);
+  stats.totalPercent = stats.runtimeNs == 0 ? 0.0
+                                            : static_cast<double>(stats.totalNs)
+          * 100.0 / static_cast<double>(stats.runtimeNs);
   SG_ENSURE(stats.minNs <= stats.medianNs && stats.medianNs <= stats.p90Ns
                 && stats.p90Ns <= stats.p99Ns && stats.p99Ns <= stats.p999Ns
                 && stats.p999Ns <= stats.p9999Ns

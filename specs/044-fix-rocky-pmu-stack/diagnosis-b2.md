@@ -77,3 +77,32 @@ window and counts the probe's own reads, kept apart from the
 runner's reads; the gate waits end on that count, so a wait ends on
 an event the test controls and not on a large margin. The waits
 keep their spin bound, so a stalled probe still reports a failure.
+
+## Second root cause (found during the fix's validation)
+
+The first validation of the wait fix still failed the loaded runs at
+two checks of the roundtrip scenario: the gate entry's fold check and
+the document load. Instrumented captures tied both to one cause: the
+fake's `setPoints` resets the shared hand-off slot (`item.last = 0`)
+on every call, and the gate bodies reprogram the series mid-run. The
+runner's window-edge stamps fork from that slot, so every mid-run
+reprogram collapsed or wrapped the edges: the window's `[start, end)`
+placed none of the probe's stamps, the entry's fold carried the
+earlier magnitude (the gate-entry failure the CI job reports), the
+fold's covered span underflowed or stood at zero, and the writer
+emitted `gapsPerSecond` at the double's ceiling, which the loader's
+number rule refused.
+
+Two defects carried the fix:
+
+- `setPoints` keeps the shared cursor when the reprogram carries no
+  points (a tail-only reprogram continues the series instead of
+  restarting it), so the stamps another reader forks from the slot
+  stand ordered across the reprogram.
+- The fake window's hand-off leaves the shared cursor alone when the
+  window's own cursor stands below it, so the two probe cpus' cursor
+  drift cannot drag the slot backward.
+- The counting reader holds one delegate window per probe thread,
+  the shape the probe's default path gives every item, so a cpu's
+  gap stays the scripted tail and never the count of another cpu's
+  reads in between.
