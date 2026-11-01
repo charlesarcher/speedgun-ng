@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cctype>
 #include <cmath>
 #include <cstdint>
@@ -24,7 +25,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -122,30 +125,143 @@ auto seriesJump() -> std::uint64_t&
   return value;
 }
 
+// The counting reader the gate waits end on: it stands where the probe's
+// `machine/tsc` reader stands through the reader-install seam, counts one
+// increment per read on one atomic, and delegates to windows the fake
+// provider's `open()` returns over the same leaf, so the scripted series,
+// the tail jumps, and the disclosure behave exactly as today (FR-012).
+//
+// One delegate window per probe thread: the probe's default path gives
+// every item a window of its own, whose cursor advances by that item's
+// reads alone, so a cpu's gap stays the scripted tail and never the count
+// of another cpu's reads in between (FR-018). One shared delegate would
+// make the two cpus' gaps measure their interleaving, and the quiet
+// entry's windows would keep the interleaving gaps the run must not
+// carry.
+class CountingReader final : public sg::counters::WindowReader
+{
+public:
+  explicit CountingReader(sg::counters::FakeProvider& provider) noexcept
+      : m_provider {provider}
+  {
+  }
+
+  auto readPoints(sg::counters::PointSink& sink) noexcept -> void override
+  {
+    const auto self = std::this_thread::get_id();
+    sg::counters::WindowReader* delegate = nullptr;
+    {
+      const std::scoped_lock guard {m_mutex};
+      auto& held = m_delegates[self];
+      if (held == nullptr) {
+        held = m_provider.open(
+            sg::counters::LeafSet {.addresses = {"machine/tsc"}},
+            sg::counters::Target {});
+      }
+      delegate = held.get();
+    }
+    m_count.fetch_add(1, std::memory_order_relaxed);
+    delegate->readPoints(sink);
+  }
+
+  [[nodiscard]] auto count() const noexcept -> std::uint64_t
+  {
+    return m_count.load(std::memory_order_relaxed);
+  }
+
+private:
+  sg::counters::FakeProvider& m_provider;
+  std::mutex m_mutex;
+  std::map<std::thread::id, std::unique_ptr<sg::counters::WindowReader>>
+      m_delegates;
+  std::atomic<std::uint64_t> m_count {0};
+};
+
+// The installed counting reader and the cpu count the run armed: the
+// scenarios install before a gate-body run and clear after it, and the
+// gate bodies read both through the accessors beside the state (FR-012).
+struct GateReaderState
+{
+  CountingReader* reader = nullptr;
+  std::size_t armedCpus = 0;
+};
+
+auto gateReader() -> GateReaderState&
+{
+  static GateReaderState state;
+  return state;
+}
+
+// The probe's own read count the waits end on. A body that runs with no
+// counting reader installed reports the failure and never dereferences a
+// null pointer (FR-012).
+auto gateProbeReads() -> std::uint64_t
+{
+  auto& state = gateReader();
+  check(state.reader != nullptr,
+        "the gate body runs with no counting reader installed (FR-012)");
+  return state.reader->count();
+}
+
+// The armed cpu count the wait targets multiply (FR-012).
+auto gateArmedCpus() -> std::size_t
+{
+  auto& state = gateReader();
+  check(state.reader != nullptr,
+        "the gate body runs with no counting reader installed (FR-012)");
+  return state.armedCpus;
+}
+
+// The scenario-side install: the reader arms over the `machine/tsc` leaf
+// the fake provider's `open()` returns, after the scenario's `setPoints`
+// calls, and the cpu count the run arms with stands beside it. The
+// scenario clears both after its run, the way the reader-install seam's
+// null pointer clears (FR-012).
+auto installGateReader(std::size_t armedCpus) -> void
+{
+  auto& provider = scriptedProvider();
+  auto& state = gateReader();
+  check(state.reader == nullptr,
+        "the counting reader installs over no earlier install (FR-012)");
+  state.reader = new CountingReader(provider);
+  state.armedCpus = armedCpus;
+  sg::detail::installTestReader(
+      std::unique_ptr<sg::counters::WindowReader> {state.reader});
+}
+
+auto clearGateReader() -> void
+{
+  auto& state = gateReader();
+  // The run's session moved the reader out of the seam's slot at start
+  // and owns it behind the join edge, so the clear empties the slot and
+  // the state's pointer; the reader itself stands owned where the session
+  // put it (R-02, Q-5).
+  sg::detail::installTestReader(nullptr);
+  state.reader = nullptr;
+  state.armedCpus = 0;
+}
+
 // The gate benchmark: the body scripts the jump into the shared series
 // inside its own timed window and leaves the jumped tail in place, so
 // the window close reads the tail the kept records ride and stands
-// above every kept stamp by construction (R-02, FR-039). A one-tick
-// restore before the close resets the shared cursor the close edge
-// reads. When no probe read lands between the restore and the close
-// read, the close forks from the reset cursor and stands below every
-// kept stamp. The scenarios that follow reset the series before their
-// first run. The two waits stand the jump after the probe's
-// measurement pass and count the alongside reads the jump's tail
-// carries: the runner's own reads inside one attempt are the chunk
-// samples the chunk plan bounds, so the margins below stand above
-// them, and the probe's reads are certain.
+// above every kept stamp by construction (specs/027 R-02, FR-039). A
+// one-tick restore before the close resets the shared cursor the close
+// edge reads. When no probe read lands between the restore and the
+// close read, the close forks from the reset cursor and stands below
+// every kept stamp. The scenarios that follow reset the series before
+// their first run. The two waits end on the counting reader's count of
+// the probe's own reads, so no read the runner or any other window
+// made can end a wait the probe's rides must end (FR-012).
 auto bmGate(sg::State& state) -> void
 {
   auto& provider = scriptedProvider();
-  // The pass wait: the measurement pass's reads finish before the
-  // jump, so the pass measures the one-tick series and the effective
-  // threshold stands at the configured value (E-05, FR-007, R-05). The
-  // margin stands above the pass and the calibration's read counts
-  // together.
-  const auto base = provider.readActions();
+  // The pass wait: the measurement pass's reads stand behind the latch
+  // before the first body call, so the wait stands as an ordering
+  // signal whose target is met at entry and costs no spin (E-05,
+  // specs/027 FR-007, R-05).
+  const auto base = gateProbeReads();
   std::uint64_t spins = 0;
-  while (provider.readActions() < base + 20000) {
+  while (gateProbeReads() < base + sg::detail::kPassReads * gateArmedCpus()) {
     // The wait yields, the way the probe test's waits do, so the pinned
     // probe thread progresses under concurrent load; the bound turns a
     // stalled series into a reported failure; the wait cannot hang
@@ -155,13 +271,13 @@ auto bmGate(sg::State& state) -> void
       fail("the probe's measurement pass never finished (FR-039)");
     }
   }
-  // The jump wait: the pass is over, so every read in the margin rides
-  // the scripted tail and keeps its gap inside this body's window
-  // (FR-039, R-04).
+  // The jump wait: one pass's worth of the probe's own reads ride the
+  // jumped tail inside this body's window, so each armed cpu keeps its
+  // records at the jump's magnitude (FR-039, R-04).
   provider.setPoints("machine", "tsc", {}, seriesJump());
-  const auto jumped = provider.readActions();
+  const auto jumped = gateProbeReads();
   spins = 0;
-  while (provider.readActions() < jumped + 20000) {
+  while (gateProbeReads() < jumped + sg::detail::kPassReads * gateArmedCpus()) {
     std::this_thread::yield();
     if (++spins > 1000000000ULL) {
       fail("the scripted jump never reached the probe's reads (FR-039)");
@@ -184,66 +300,42 @@ auto passGateCalls() -> std::uint64_t&
   return calls;
 }
 
-// The reads the run had seen when the multi-pass gate's first call
-// began, the base the two passes' ride margins scale from. The
-// function-local static keeps the mutable state out of namespace
-// scope, the way `passGateCalls` keeps its own.
-auto passGateBase() -> std::uint64_t&
-{
-  static std::uint64_t base = 0;
-  return base;
-}
-
 // The multi-pass gate: the body of the family whose two metric columns
-// force the passes method (FR-022, E-01). Each call is one pass's one
-// measured attempt. The call first restores the one-tick tail and
-// waits for two of the probe's reads, so the reads between the passes
-// stand one tick apart and keep no gap (FR-022, R-04), and the close
-// edge forks from a cursor those two hand-offs carry back above every
-// kept stamp: a close forked from the reset cursor would read below
-// the open stamp and wrap the window's runtime (R-04). The call then
-// scripts the jump magnitude of its own pass and waits for a ride
-// margin of the probe's reads to ride that tail inside its own timed
-// window, so the kept set of the pass's window carries the pass's
-// magnitude alone (FR-022, R-04).
+// force the passes method (specs/027 FR-022, E-01). Each call is one
+// pass's one measured attempt. The call first restores the one-tick
+// tail and waits for one of the probe's own reads per armed cpu, so the
+// reads between the passes stand one tick apart and keep no gap
+// (FR-022, R-04), and the close edge forks from a cursor those
+// hand-offs carry back above every kept stamp: a close forked from the
+// reset cursor would read below the open stamp and wrap the window's
+// runtime (R-04). The call then scripts the jump magnitude of its own
+// pass and waits for one pass's worth of the probe's own reads to ride
+// that tail inside its own timed window, so the kept set of the pass's
+// window carries the pass's magnitude alone (FR-022, R-04).
 //
-// The ride margin stands at two times the reads the first call of
-// the run saw, a base the first call records: each probe cpu reads
-// the shared series through its own long-lived window, the two cpus'
-// series drift apart as their ride counts diverge, and a lagging
-// cpu's hand-off drags the shared cursor backward by that drift. The
-// window's edges fork from that cursor, so the window's span, the
-// rides it holds times the tail, must stand above the drift: a
-// smaller span wraps its close below its open, and a span below the
-// drift also leaves the lagging cpu's records outside the window,
-// where no fold counts them. The margin scales with the reads the
-// first call saw because the drift at the later calls' windows cannot
-// exceed them, and two times that bound covers every cpu whose share
-// of the rides stands above one quarter. The margin rides at the pass's
-// tail keep their gaps, so the scenarios that run this body size the
-// gap buffer beside the run (FR-010). Each wait counts the probe's
-// reads alone, because the runner samples the metric plan outside the
-// body's statements, so the margins below stand above them (FR-039).
+// Both waits end on the counting reader's count of the probe's own
+// reads (FR-012), and the counting reader stands over one window the
+// two cpus share, so the inter-cpu cursor drift a shared hand-off
+// chain carried cannot arise and no margin sizes against it. The rides
+// at the pass's tail keep their gaps, so the scenarios that run this
+// body size the gap buffer beside the run (FR-010).
 auto bmPassGate(sg::State& state) -> void
 {
   auto& provider = scriptedProvider();
   const auto pass = ++passGateCalls();
-  if (pass == 1) {
-    passGateBase() = provider.readActions();
-  }
   provider.setPoints("machine", "tsc", {}, 1);
-  const auto rebased = provider.readActions();
+  const auto rebased = gateProbeReads();
   std::uint64_t spins = 0;
-  while (provider.readActions() < rebased + 2) {
+  while (gateProbeReads() < rebased + gateArmedCpus()) {
     std::this_thread::yield();
     if (++spins > 1000000000ULL) {
       fail("the probe's reads never resumed the one-tick tail (FR-039)");
     }
   }
   provider.setPoints("machine", "tsc", {}, pass * kSeriesJump);
-  const auto jumped = provider.readActions();
+  const auto jumped = gateProbeReads();
   spins = 0;
-  while (provider.readActions() < jumped + passGateBase() * 2 + 64) {
+  while (gateProbeReads() < jumped + sg::detail::kPassReads * gateArmedCpus()) {
     std::this_thread::yield();
     if (++spins > 1000000000ULL) {
       fail("the probe's reads never rode the pass's jump (FR-039)");
@@ -738,10 +830,12 @@ auto main() -> int
       auto& provider = scriptedProvider();
       provider.setPoints("machine", "tsc", {}, 1);
       const std::string path = "harness_jitter_window_roundtrip.json";
+      installGateReader(2);
       captureRun({"--repetitions=1",
                   "--iterations=2",
                   "--json=" + path,
                   "--jitter-probe=" + cpuList + ",gaps=8388608"});
+      clearGateReader();
       const auto document = readDocument(path);
       const auto loaded = sg::loadReport(path);
       std::remove(path.c_str());
@@ -937,11 +1031,13 @@ auto main() -> int
     auto& provider = scriptedProvider();
     provider.setPoints("machine", "tsc", {}, 1);
     const std::string path = "harness_jitter_window_split.json";
+    installGateReader(1);
     const auto console =
         captureRun({"--repetitions=1",
                     "--iterations=2",
                     "--json=" + path,
                     "--jitter-probe=" + std::to_string(cpus.at(0))});
+    clearGateReader();
     const auto document = readDocument(path);
     std::remove(path.c_str());
 
@@ -1001,11 +1097,13 @@ auto main() -> int
     auto& provider = scriptedProvider();
     provider.setPoints("machine", "tsc", {}, 1);
     const std::string path = "harness_jitter_window_passes.json";
+    installGateReader(1);
     captureRun({"--filter=bmGate",
                 "--repetitions=3",
                 "--iterations=2",
                 "--json=" + path,
                 "--jitter-probe=" + std::to_string(cpus.at(0))});
+    clearGateReader();
     const auto document = readDocument(path);
     std::remove(path.c_str());
     const auto gateName = document.find("\"bmGate\"");
@@ -1040,12 +1138,14 @@ auto main() -> int
     provider.setPoints("machine", "tsc", {}, 1);
     passGateCalls() = 0;
     const std::string path = "harness_jitter_window_passsplit.json";
+    installGateReader(1);
     captureRun(
         {"--filter=bmPassGate",
          "--repetitions=1",
          "--iterations=2",
          "--json=" + path,
          "--jitter-probe=" + std::to_string(cpus.at(0)) + ",gaps=8388608"});
+    clearGateReader();
     const auto document = readDocument(path);
     std::remove(path.c_str());
     const auto gateName = document.find("\"bmPassGate\"");
@@ -1077,12 +1177,14 @@ auto main() -> int
     auto& provider = scriptedProvider();
     provider.setPoints("machine", "tsc", {}, 1);
     const std::string path = "harness_jitter_window_kept.json";
+    installGateReader(1);
     const auto console = captureRun(
         {"--filter=bmGate",
          "--repetitions=1",
          "--iterations=2",
          "--json=" + path,
          "--jitter-probe=" + std::to_string(cpus.at(0)) + ",gaps=1"});
+    clearGateReader();
     const auto document = readDocument(path);
     std::remove(path.c_str());
     const auto gateName = document.find("\"bmGate\"");
@@ -1257,19 +1359,23 @@ auto main() -> int
     provider.setPoints("machine", "tsc", {}, 1);
     seriesJump() = kSeriesJump;
     const std::string basePath = "harness_jitter_rule_base.json";
+    installGateReader(1);
     captureRun({"--filter=bmGate",
                 "--repetitions=1",
                 "--iterations=2",
                 "--json=" + basePath,
                 probe});
+    clearGateReader();
     provider.setPoints("machine", "tsc", {}, 1);
     seriesJump() = 2 * kSeriesJump;
     const std::string bigPath = "harness_jitter_rule_big.json";
+    installGateReader(1);
     captureRun({"--filter=bmGate",
                 "--repetitions=1",
                 "--iterations=2",
                 "--json=" + bigPath,
                 probe});
+    clearGateReader();
     seriesJump() = kSeriesJump;
 
     const auto baseDocument = readDocument(basePath);

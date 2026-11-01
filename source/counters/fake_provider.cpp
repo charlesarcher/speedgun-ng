@@ -137,8 +137,19 @@ struct detail::FakeWindow final : WindowReader
     // Hand this window's playback on for whichever window opens next
     // (FR-030). Because the fold above read this window's own cursor, the
     // windows of a threaded run fold independently and the order in which
-    // their hand-offs land changes nothing a row reports (FR-018).
+    // their hand-offs land changes nothing a row reports (FR-018). The
+    // order-independence is what the guard below delivers: the windows of
+    // a threaded run hold cursors that drift apart as their read counts
+    // diverge, and a lagging window's hand-off published as-is would drag
+    // the shared cursor backward, so the window edges another reader
+    // forks from the slot would stand unordered and the spans they cover
+    // would wrap. A window whose cursor stands below the slot's own
+    // leaves the slot alone, and the slot carries the furthest progress
+    // whichever window reached.
     for (auto& leaf : leaves) {
+      if (leaf.playback.last < leaf.data->last) {
+        continue;
+      }
       leaf.data->position = leaf.playback.position;
       leaf.data->last = leaf.playback.last;
       leaf.data->deltaState = leaf.playback.deltaState;
@@ -261,9 +272,18 @@ auto FakeProvider::setPoints(const std::string_view objectPath,
                             .tailDelta = tailDelta,
                             .deltaSeed = deltaSeed};
   item.position = 0;
+  // A script that carries points replays them from the first one, so the
+  // cursor's last value and its seeded-tail state stand reset beside it.
+  // A tail-only reprogram carries no points to replay, so the cursor's
+  // last value stands: the series continues from where it stood, and the
+  // stamps another reader forks from the shared slot stay ordered across
+  // the reprogram (specs/027 R-04: a close forked from a reset cursor
+  // reads below the open stamp and wraps the window's runtime). A seeded
+  // tail restarts its delta sequence from the seed by contract (T014).
+  if (item.script.points.empty() && !item.script.deltaSeed.has_value()) {
+    return *this;
+  }
   item.last = 0;
-  // The seeded tail starts from the seed itself, so the first delta a
-  // reader sees is `next_delta(seed)` (T014).
   item.deltaState = deltaSeed.value_or(0);
   SG_ENSURE(counter(path, leaf).script.points.size() == scripted,
             "the scripted sequence is held in order (FR-036)");
