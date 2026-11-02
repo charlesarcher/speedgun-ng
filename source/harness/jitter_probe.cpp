@@ -170,6 +170,21 @@ struct ProbeSession;
 // thousandth of the quantum for FTQ, the quantum in ns standing
 // `quantumUs` x 1,000.
 
+// The calibrated loop body: `count` passes closed on `sg::doNotOptimize`
+// (FR-010, FR-012, FR-015, D-2). The search times this body and the
+// window runs it, so the unit the calibration measured is the unit the
+// window times and counts.
+//
+// \pre `count` stands at or above 1
+auto runUnitBody(const std::uint64_t count) noexcept -> void
+{
+  std::uint64_t work = 0;
+  for (std::uint64_t index = 0; index < count; ++index) {
+    sg::doNotOptimize(work);
+  }
+  sg::doNotOptimize(work);
+}
+
 // The running state of one calibration search (FR-010, E-22).
 struct CalibrationSearch
 {
@@ -199,10 +214,7 @@ auto calibrationTrial(CalibrationSearch& search,
   if (!search.haveBest) {
     search.spanStart = first;
   }
-  std::uint64_t work = 0;
-  for (std::uint64_t index = 0; index < count; ++index) {
-    sg::doNotOptimize(work);
-  }
+  runUnitBody(count);
   search.spanEnd = readStamp();
   const std::uint64_t unit = (search.spanEnd - first) / count;
   const std::uint64_t target = search.target;
@@ -291,6 +303,41 @@ struct ProbeItem
   auto operator()(sg::WorkContext& /*work*/) noexcept -> void;
 };
 
+// One series sample into the pre-sized buffer, or the drop the filled
+// buffer answers with: the sample is lost and the count of records the
+// full buffer dropped stands in the per-cpu counters (FR-014, FR-016,
+// FR-022, E-26, D-6).
+auto keepSeriesOrDrop(ProbeCpuState& state,
+                      const std::uint64_t sample) noexcept -> void
+{
+  if (state.seriesKept < state.series.size()) {
+    state.series.at(state.seriesKept) = sample;
+    ++state.seriesKept;
+    return;
+  }
+  ++state.droppedSamples;
+}
+
+// One FWQ unit: the calibrated body, one read, and the unit time the
+// delta between two consecutive reads answers (FR-012, FR-014, R-08).
+// The body, the read, the one comparison and the one store of the
+// record stand the whole unit, and the unit allocates nothing, reads no
+// file, takes no lock and reads no clock outside the counters
+// (FR-013, R-08).
+//
+// \pre `readStamp` reads the probe's own time source and the state
+//      carries the count the calibration kept
+template<class ReadStamp>
+auto runFwqUnit(ProbeCpuState& state,
+                const ReadStamp& readStamp,
+                std::uint64_t& last) noexcept -> void
+{
+  runUnitBody(state.workCount);
+  const std::uint64_t stamp = readStamp();
+  keepSeriesOrDrop(state, stamp - last);
+  last = stamp;
+}
+
 // The state one live holder's start owns: the seam reader, the start
 // barrier, the latch, the work nodes and the probe contexts. The
 // contexts stand declared last, so their destruction runs first: a node
@@ -328,6 +375,13 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
   // read, so the first-touch faults land on the probe cpu and outside
   // every measured window (FR-009, R-03).
   state->buffer.assign(options->gapCount, GapRecord {});
+  // The series buffer of the two quanta methods pre-sizes from the same
+  // gaps key, one 8-byte sample per entry, so the measured loop stores
+  // into standing space and allocates nothing (FR-014, FR-016, E-26,
+  // D-6, R-08).
+  if (options->method != JitterMethod::TSC) {
+    state->series.assign(options->gapCount, 0);
+  }
 
   // The read move: the installed reader's thunk over a fresh stack
   // point sink per pass, the way the plan's own sampling action
@@ -407,15 +461,26 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
       last = readStamp();
     }
     const std::uint64_t phaseStart = last;
-    while (true) {
-      const std::uint64_t stamp = readStamp();
-      const std::uint64_t gap = stamp - last;
-      if (gap >= state->thresholdNs) {
-        keepOrDrop(*state, stamp, gap);
+    if (options->method == JitterMethod::FWQ) {
+      // FR-004: the pre-check phase of a FWQ run records unit times,
+      // and the phase ends at its span.
+      while (true) {
+        runFwqUnit(*state, readStamp, last);
+        if (last - phaseStart >= span) {
+          break;
+        }
       }
-      last = stamp;
-      if (stamp - phaseStart >= span) {
-        break;
+    } else {
+      while (true) {
+        const std::uint64_t stamp = readStamp();
+        const std::uint64_t gap = stamp - last;
+        if (gap >= state->thresholdNs) {
+          keepOrDrop(*state, stamp, gap);
+        }
+        last = stamp;
+        if (stamp - phaseStart >= span) {
+          break;
+        }
       }
     }
     if (options->precheckSerial) {
@@ -448,13 +513,22 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
   if (options->mode == JitterProbeMode::ALONGSIDE
       || options->mode == JitterProbeMode::BOTH)
   {
-    while (!state->stop.load(std::memory_order_relaxed)) {
-      const std::uint64_t stamp = readStamp();
-      const std::uint64_t gap = stamp - last;
-      if (gap >= state->thresholdNs) {
-        keepOrDrop(*state, stamp, gap);
+    if (options->method == JitterMethod::FWQ) {
+      // FR-012, FR-014, R-08: one unit per pass, the calibrated body
+      // and one read, the unit time the delta answers, and the record
+      // store into the pre-sized series.
+      while (!state->stop.load(std::memory_order_relaxed)) {
+        runFwqUnit(*state, readStamp, last);
       }
-      last = stamp;
+    } else {
+      while (!state->stop.load(std::memory_order_relaxed)) {
+        const std::uint64_t stamp = readStamp();
+        const std::uint64_t gap = stamp - last;
+        if (gap >= state->thresholdNs) {
+          keepOrDrop(*state, stamp, gap);
+        }
+        last = stamp;
+      }
     }
   }
 }
@@ -602,6 +676,13 @@ auto JitterProbe::start() -> void
   }
 }
 
+auto JitterProbe::stop() noexcept -> void
+{
+  for (auto& state : m_states) {
+    state.stop.store(true, std::memory_order_relaxed);
+  }
+}
+
 auto JitterProbe::stopAndJoin() -> void
 {
   if (probeSession == nullptr) {
@@ -611,9 +692,7 @@ auto JitterProbe::stopAndJoin() -> void
   // The stop flag stands first, so the loop's own read ends the work
   // item; the context's stop, drain and join then end the loop behind
   // the item (FR-006, R-04).
-  for (auto& state : m_states) {
-    state.stop.store(true, std::memory_order_relaxed);
-  }
+  stop();
   for (auto& context : probeSession->contexts) {
     context->requestStop();
     context->drain();

@@ -362,8 +362,19 @@ auto runScripted(const sg::JitterProbeOptions& options,
     scriptParked[slot].store(scriptCalls[slot].load(std::memory_order_relaxed),
                              std::memory_order_relaxed);
   }
+  probe.stop();
   scriptGateOpen.store(true, std::memory_order_release);
   probe.stopAndJoin();
+  if (!scriptPlan.park) {
+    // A clock that runs no park answers its final read count: the item
+    // ends its phase, its latch read and its window, and the count
+    // stands still behind the join (FR-004, FR-012).
+    for (std::size_t slot = 0; slot < cpuCount; ++slot) {
+      scriptParked[slot].store(
+          scriptCalls[slot].load(std::memory_order_relaxed),
+          std::memory_order_relaxed);
+    }
+  }
   sg::detail::installTestReader(nullptr);
   assertions(probe.states());
 }
@@ -569,7 +580,7 @@ auto calibrationRunsOncePerProbeCpu() -> void
 // FR-010, FR-011, R-05: the calibration span stands out of the window's
 // runtime. The prefix reads a stamp 5 ms apart, the window reads a stamp
 // 1 us apart, and the kept unit times answer the window's own span.
-auto calibrationStaysOutOfTheWindowRuntime() -> void
+auto calibrationStandsBehindTheWindow() -> void
 {
   calibrationPlan(2, {5000000}, 10);
   sg::JitterProbeOptions options;
@@ -1284,7 +1295,7 @@ auto main() -> int
   calibrationStopsAtTheOneCountInterval();
   calibrationKeepsTheClosestCount();
   calibrationRunsOncePerProbeCpu();
-  calibrationStaysOutOfTheWindowRuntime();
+  calibrationStandsBehindTheWindow();
 
   // T012: the FWQ series rows (US1, FR-004, FR-007 to FR-009, FR-012,
   // FR-014, FR-022, SC-001, R-08, R-09, R-10, R-14).

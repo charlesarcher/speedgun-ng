@@ -123,6 +123,13 @@ public:
   /// (FR-006, FR-009, FR-014, R-01).
   auto start() -> void;
 
+  /// @brief Set every probe cpu's stop flag; the loop's own read of the
+  /// flag ends the work item, and the drain and the join stand in
+  /// `stopAndJoin` (FR-006, D-7, R-04). The scripted cases set the flag
+  /// behind the clock's park, so the window ends at its planned read
+  /// (FR-012, FR-016).
+  auto stop() noexcept -> void;
+
   /// @brief Stop, drain and join every probe context; the runner reads
   /// the buffers only after this call returns (FR-006, D-7, R-04).
   auto stopAndJoin() -> void;
