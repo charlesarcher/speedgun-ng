@@ -340,6 +340,14 @@ spans record zero allocations.
   of T038 then reads nothing (FR-004, FR-015, FR-021, D-9, R-15).
   Verify: `ctest --test-dir build -R harness_fwq_ftq_test --output-on-failure` exits 0, and the new row names counts in the pre-check series
 
+- [ ] T069 [US1] Read `options.workCount` in `calibrateUnit`
+  (`source/harness/jitter_probe.cpp:249`): a count the value names stands
+  as the unit count, and the search does not run for that cpu. The
+  calibration span reads 0, and the measured unit time reads the first
+  unit of that cpu's window. Add the row that names a `work=1000` run
+  keeping 1000 (FR-002, FR-010, FR-011, D-2).
+  Verify: `ctest --test-dir build -R harness_fwq_ftq_test --output-on-failure` exits 0, and the new row stands green
+
 **Checkpoint**: the probe body stands green behind the seam: the five
 calibration stops, the FWQ unit times, the FTQ edges, the drop rule
 and the two armed spans all pass, and the time-source gate stands
