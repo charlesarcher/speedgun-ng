@@ -207,9 +207,10 @@ auto unitDistance(const std::uint64_t unit,
 }
 
 // One trial of the search: two reads around `count` loop bodies closed
-// on `sg::doNotOptimize`, the unit time standing at the delta divided by
-// the count. The closest unit time to the target wins, a tie keeping the
-// earlier trial (FR-010, D-2).
+// on `sg::doNotOptimize`, the unit time standing at the delta of the two
+// reads, the whole body run the window times and the target names
+// (FR-010, D-2). The closest unit time to the target wins, a tie keeping
+// the earlier trial.
 //
 // \pre `readStamp` reads the probe's own time source and `count` stands
 //      at or above 1
@@ -226,7 +227,7 @@ auto calibrationTrial(CalibrationSearch& search,
   }
   runUnitBody(count);
   search.spanEnd = readStamp();
-  const std::uint64_t unit = (search.spanEnd - first) / count;
+  const std::uint64_t unit = search.spanEnd - first;
   const std::uint64_t target = search.target;
   const std::uint64_t distance = unitDistance(unit, target);
   const std::uint64_t bestDistance = unitDistance(search.bestUnit, target);

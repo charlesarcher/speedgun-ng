@@ -498,12 +498,12 @@ auto calibrationStopsAtTheCountCap() -> void
       });
 }
 
-// FR-010: a delta below the target at count 1 and above it at count 2
+// FR-010: a body run below the target at count 1 and above it at count 2
 // closes the bisection interval at one count, so the search ends after
 // 4 reads and keeps the count whose unit time stands closest.
 auto calibrationStopsAtTheOneCountInterval() -> void
 {
-  calibrationPlan(4, {500, 2500}, 4);
+  calibrationPlan(4, {500, 1250}, 4);
   sg::JitterProbeOptions options;
   options.cpus = pickCpus(1);
   options.method = sg::JitterMethod::FWQ;
@@ -519,7 +519,8 @@ auto calibrationStopsAtTheOneCountInterval() -> void
         check(probed.workCount == 2,
               "the count whose unit time stands closest stands kept (FR-010)");
         check(probed.unitTimeNs == 1250,
-              "the kept unit time answers the delta over the count (FR-011)");
+              "the kept unit time answers the whole body run of its count "
+              "(FR-011)");
       });
 }
 
@@ -528,7 +529,7 @@ auto calibrationStopsAtTheOneCountInterval() -> void
 // and 5, and the count 6 answers the target exactly.
 auto calibrationKeepsTheClosestCount() -> void
 {
-  calibrationPlan(12, {100, 100, 100, 100000, 6000, 100000}, 4);
+  calibrationPlan(12, {100, 100, 100, 100000, 1000, 100000}, 4);
   sg::JitterProbeOptions options;
   options.cpus = pickCpus(1);
   options.method = sg::JitterMethod::FWQ;
@@ -544,7 +545,8 @@ auto calibrationKeepsTheClosestCount() -> void
         check(probed.workCount == 6,
               "the closest of the six measured counts stands kept (FR-010)");
         check(probed.unitTimeNs == 1000,
-              "the kept unit time answers the delta over the count (FR-011)");
+              "the kept unit time answers the whole body run of its count "
+              "(FR-011)");
       });
 }
 
