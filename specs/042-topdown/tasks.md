@@ -1040,7 +1040,7 @@ region in the example file, the option row with the option table, and the
 section list with the page, and the run gate executes the example and fails when
 a registered benchmark prints no row. Here that is
 `python3 tools/docs/example_drift.py .` and `bash test/example_run.sh build`. Four pending rows stand in the acceptance table, naming AMD level 2, `PERF_METRICS` parts, Intel hybrid parts and Arm parts, and the sentence below the table now reads `those rows`.
-- [ ] T084 [US5] Write `example/docs/topdown.cpp`, a new file: read the host
+- [x] T084 [US5] Write `example/docs/topdown.cpp`, a new file: read the host
   identity, print the level-1 values on a host with a source and the unsupported
   message on a host without one, bound the printed body between
   `// sg-example:begin topdown` and `// sg-example:end topdown`, and register
@@ -1052,9 +1052,8 @@ a registered benchmark prints no row. Here that is
   `tools/docs/example_drift.py:241` sets, the neighbor
   `Hardware counter metrics` holding the same shape at 25 (FR-045, FR-041). This
   file, its registration, its two lists in `tools/docs/example_drift.py` and the
-  README block that quotes it land in one commit (FR-048).
-
-- [ ] T085 [US5] Register the example in `example/CMakeLists.txt`:
+  README block that quotes it land in one commit (FR-048). The region takes the identity as its argument, because `TopdownSelection::table` carries no default member initializer and a three-member call will not fit 80 columns, so `main` passes `cpuIdentity()` and the guide names that read.
+- [x] T085 [US5] Register the example in `example/CMakeLists.txt`:
   `add_docs_example(topdown)` after `add_docs_example(report_views)` at `:82`,
   which builds `docs_topdown` and hangs `run_docs_topdown` on `run-examples` for
   `test/example_run.sh` (FR-045). Same commit as the new file of T084.
@@ -1068,7 +1067,6 @@ a registered benchmark prints no row. Here that is
   one moves without the other and reads `no '### Top-down analysis' section`
   until the page carries it (FR-044, spec Constraints). Same commit as T084,
   T085 and T087.
-
 - [ ] T087 [US5] Write the 34th capability section of `README.md` under
   `## How you do it` between `### Multi-pass collection` at `:326` and
   `### Skips` at `:350`: heading, one purpose sentence, the
@@ -1087,7 +1085,6 @@ a registered benchmark prints no row. Here that is
   program builds and prints its row, the figures being the acceptance run and
   not a promise about every host (FR-044, spec D-15). Same commit as T084, T085
   and T086.
-
 - [ ] T088 [US5] Add the two quick-reference name rows `topdownTree` and
   `TopdownTree` to `README.md` at the head of the graph block, above the
   `GraphRecord` row that stands at `README.md:947` at the base hash and at
@@ -1096,7 +1093,6 @@ a registered benchmark prints no row. Here that is
   so the page again measures 1004 lines and the drift gate finds no
   `long option '--topdown' has no option row`, that row having landed with T032
   (FR-044, spec D-15).
-
 - [ ] T089 [P] [US5] Write `## Top-down analysis` in `docs/pages/harness.md`
   after the `## Multi-pass collection` section that opens at `:1549`: the names,
   the levels, the source record, the five unsupported reasons and the `topdown:`
@@ -1119,7 +1115,6 @@ finding,
 case FR-058 names, the gate order, the two static analyzers, the contract gate,
 the two sanitizer builds, the coverage evidence, the acceptance record spec
 D-16 names, and the one timing bound PC-13 measures.
-
 - [ ] T090 [P] Write `example/memory_walk.cpp`, a new file: one memory-bound
   benchmark whose working set stands above the 19.3 MiB last-level cache of the
   acceptance host, where the largest shipped set stands at 64 KiB of
