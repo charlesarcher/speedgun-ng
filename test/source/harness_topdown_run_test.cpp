@@ -40,13 +40,16 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include <sys/wait.h>
+#include <unistd.h>
 
 #include "detail/internal.hpp"
 #include "detail/pass_fixture.hpp"
@@ -489,6 +492,66 @@ auto runMeasuredLedger(sg::Instance& instance,
       RunAccount {std::move(result), fake->readActions() - before},
       runner.rowRaw().back(),
       runner.contextRaw().back()};
+}
+
+// The detail a mapping-file miss states: the header defines the field as the
+// directory the selection read, and a miss read none. The sentence FR-040 names
+// belongs to `TopdownUnsupported::message()`, which T079 publishes, so no
+// caller composes it and a mid-feature record carries this detail alone
+// (FR-040, FR-041).
+constexpr std::string_view kRefusalDetail {};
+
+// The two files one redirected run writes: the names carry this unit, the way
+// `harness_aggregates_only_test.cpp` names the one file it redirects.
+constexpr const char* kOutPath = "harness_topdown_run_out.txt";
+constexpr const char* kErrPath = "harness_topdown_run_err.txt";
+
+[[nodiscard]] auto textOf(const char* const path) -> std::string
+{
+  std::ifstream file(path);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  return buffer.str();
+}
+
+// One run beside the two streams it could have written: the account of
+// `runMeasured` and the whole text each stream received while the run ran
+// (specs/042-topdown FR-040). A `check` of the redirect itself prints to the
+// redirected stream, because nothing else stands between the two, so both
+// restores are checked before any claim of the case reads the pair.
+struct CapturedRun
+{
+  RunAccount run;
+  std::string out;
+  std::string err;
+};
+
+auto runMeasuredQuietly(sg::Instance& instance,
+                        const sg::detail::RunOptions& options) -> CapturedRun
+{
+  const int savedOut = ::dup(STDOUT_FILENO);
+  const int savedErr = ::dup(STDERR_FILENO);
+  check(savedOut >= 0 && savedErr >= 0,
+        "the test holds its own two streams aside");
+  check(std::freopen(kOutPath, "w", stdout) != nullptr
+            && std::freopen(kErrPath, "w", stderr) != nullptr,
+        "the test redirects both streams of the run");
+  const std::uint64_t before = fake->readActions();
+  sg::detail::Runner runner(options);
+  auto result = runner.run(instance);
+  const std::uint64_t reads = fake->readActions() - before;
+  std::fflush(stdout);
+  std::fflush(stderr);
+  check(::dup2(savedOut, STDOUT_FILENO) >= 0
+            && ::dup2(savedErr, STDERR_FILENO) >= 0,
+        "the test gives its own two streams back");
+  ::close(savedOut);
+  ::close(savedErr);
+  return CapturedRun {
+      RunAccount {std::move(result), reads},
+      textOf(kOutPath),
+      textOf(kErrPath),
+  };
 }
 
 // The options of a run that reports its percentiles, the view the strip of the
@@ -1047,13 +1110,94 @@ auto scenarioTheStripChangesNoTimeColumn() -> int
   return 0;
 }
 
+// The eighth scenario: a selection that answers no tree records itself and
+// moves nothing else. The run collects no node column, keeps the plan its own
+// metric columns settled, answers the status the same run answers without the
+// option, and prints no line on either stream, because the one message line
+// belongs to the command line and T080 owns it (FR-040, FR-041, spec D-14).
+auto scenarioAnUnsupportedHostCollectsNothingAndStaysItself() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("this host states no vendor this build vendors a table for");
+  }
+  registerFixture(kNarrowCoreLimit);
+
+  metricBenchmark("bmTopdownRefusalPlain");
+  metricBenchmark("bmTopdownRefusalAsked");
+  sg::detail::expandRegistry();
+
+  // The rows stand published and the directory stands absent: the mapping file
+  // answered no row of its own for this identity, so no row of the table
+  // reaches a column and no node reaches the record (FR-040, FR-016).
+  const sg::detail::RunOptions asked =
+      askedTable(plantedTable("", sg::test::topdownIntelRows()),
+                 kLevelOne,
+                 kRunRepetitions);
+  const RunAccount plain = runMeasured(*needInstance("bmTopdownRefusalPlain"),
+                                       optionsFor(kRunRepetitions));
+  const CapturedRun refusal =
+      runMeasuredQuietly(*needInstance("bmTopdownRefusalAsked"), asked);
+
+  check(refusal.out.empty() && refusal.err.empty(),
+        "the refusal prints no line on either stream, because the one message "
+        "line stands in the command line (FR-040)");
+  check(refusal.run.result.outcome == plain.result.outcome
+            && refusal.run.result.reason == plain.result.reason,
+        "the run answers the status the same run answers without the option "
+        "(FR-041)");
+  check(refusal.run.result.topdown.has_value(),
+        "the run carries the record of the refusal it met (FR-040, FR-041)");
+  const sg::TopdownRecord& record = *refusal.run.result.topdown;
+  check(
+      !record.supported,
+      "the record states that the selection answered no tree (FR-040, FR-033)");
+  check(record.nodes.empty() && record.refused.empty() && record.files.empty(),
+        "a record that states no support carries no node, no refused row and "
+        "no " "file (FR-041, FR-033)");
+  check(record.directory.empty() && record.reference.empty(),
+        "no table stands behind a refusal (FR-015)");
+  check(record.askedLevel == kLevelOne && record.level == 0,
+        "the record states the level the run asked for and shows no level "
+        "(FR-020, FR-041)");
+
+  check(record.reason == kRefusalDetail,
+        "the reason holds the detail the planted refusal states, and the "
+        "sentence of a refusal arrives with the library's own line (FR-040, FR-041)");
+
+  check(refusal.run.result.metricLabels == plain.result.metricLabels,
+        "the refusal collects no node column (FR-040, FR-023)");
+  check(refusal.run.result.passCount == plain.result.passCount
+            && refusal.run.result.metricMethod == plain.result.metricMethod,
+        "the refusal leaves the plan the metric columns settled where it stood "
+        "(FR-040, FR-023)");
+  check(refusal.run.reads == plain.reads,
+        "the refusal costs the run no sampling action of its own (FR-040, "
+        "FR-009)");
+  check(refusal.run.result.rows.size() == plain.result.rows.size(),
+        "the refusal leaves the run the rows it had (FR-041)");
+  for (std::size_t row = 0; row < plain.result.rows.size(); ++row) {
+    const sg::ResultRow& before = plain.result.rows[row];
+    const sg::ResultRow& after = refusal.run.result.rows[row];
+    check(after.iterations == before.iterations
+              && sameBytes(after.timePerIterationNs, before.timePerIterationNs)
+              && sameBytes(after.cpuTimePerIterationNs,
+                           before.cpuTimePerIterationNs)
+              && after.metrics.size() == before.metrics.size(),
+          "the row of the refusal is the row of the run without the option "
+          "(FR-041)");
+  }
+
+  std::puts("an-unsupported-host-collects-nothing-and-stays-itself: ok");
+  return 0;
+}
+
 struct Scenario
 {
   const char* name;
   int (*run)();
 };
 
-constexpr std::array<Scenario, 7> kScenarios {{
+constexpr std::array<Scenario, 8> kScenarios {{
     Scenario {"nodes-share-one-plan-with-the-metric-columns",
               &scenarioNodesShareOnePlanWithTheMetricColumns},
     Scenario {"the-metric-columns-keep-their-bytes",
@@ -1068,6 +1212,8 @@ constexpr std::array<Scenario, 7> kScenarios {{
               &scenarioTheStripKeepsEveryMetricViewAligned},
     Scenario {"the-strip-changes-no-time-column",
               &scenarioTheStripChangesNoTimeColumn},
+    Scenario {"an-unsupported-host-collects-nothing-and-stays-itself",
+              &scenarioAnUnsupportedHostCollectsNothingAndStaysItself},
 }};
 
 }  // namespace
