@@ -91,9 +91,10 @@ stands disclosed for every method (specs/043 FR-019, FR-022).
 - The pre-check pair stands the method's own: the noise fraction and
   the maximum unit time for FWQ, the noise fraction and the minimum
   count for FTQ. The figure's key is `noisePercent`. The warning line
-  prints for a planned cpu whose noise fraction stands above zero, the
-  standing rule's shape; the strict refusal reads that pair against
-  `noise=`, 1 percent by default (specs/043 FR-021).
+  prints for a planned cpu whose noise fraction stands at or above
+  `noise=`, 1 percent by default. The strict refusal reads the same pair
+  against the same number, and a cpu under it warns nothing
+  (specs/043 FR-021, D-9, R-15).
 - The pinning-candidate line ranks by the noise fraction ascending,
   ties in cpu order, for FWQ and FTQ; the standing gap-rate ranking
   stays for `tsc` (specs/043 FR-021).
