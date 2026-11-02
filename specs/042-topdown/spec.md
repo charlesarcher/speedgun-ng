@@ -30,13 +30,16 @@ Each one is taken as the decision below, and each one names the reading it
 settles. The remaining entries settle rulings the request lists as in
 force. No implementer reopens them.
 
-- **D-1 Selection order.** Selection runs per model first, then per
-  architecture at level 1, then unsupported. A model whose table carries a
-  top-down group gets that table: `TopdownL1` to `TopdownL6` on Intel and
-  `PipelineL1` and `PipelineL2` on AMD name the same thing in two spellings,
-  and the selection treats one predicate over both. A model whose architecture
-  has level-1 rows only gets level 1. Anything else answers unsupported with a
-  reason.
+- **D-1 Selection order.** Selection runs per model, then unsupported. The
+  mapping file answers one directory for a vendor, family and model, and that
+  directory's rows are the whole source: the vendored tree holds no
+  architecture-level or generic directory to fall back to, counted at 47
+  directories under `external/pmu-events/arch/x86`. A model whose table carries
+  a top-down group gets that table: `TopdownL1` to `TopdownL6` on Intel and
+  `PipelineL1` and `PipelineL2` on AMD name the same thing in two spellings, and
+  the selection treats one predicate over both. A directory that carries level-1
+  rows and no deeper row answers a level-1 tree (FR-008). Anything else answers
+  unsupported with a reason (FR-007).
 - **D-2 Names.** Level 1 carries the vendor-neutral names
   `topdown.frontend_bound`, `topdown.bad_speculation`,
   `topdown.backend_bound` and `topdown.retiring`. Every deeper node keeps
@@ -572,9 +575,8 @@ registered benchmark prints no row.
 - **FR-001**: When a run asks for the top-down tree, the counters library
   shall select its source in this order: the directory the vendored mapping
   file gives for the running CPU's vendor, family and model; then the rows of
-  the top-down groups of that directory; then, when the directory holds no
-  top-down row, the level-1 rows of the architecture's own source; then an
-  unsupported answer with a reason. (D-1.)
+  the top-down groups of that directory; then an unsupported answer with a
+  reason. (D-1, FR-007.)
 - **FR-002**: The selection shall read no counter, open no event, read no
   clock and call no CPUID reader of its own: its answer follows from the
   identity it is given and the rows it is given.
