@@ -704,10 +704,11 @@ registered benchmark prints no row.
 
 ### Host facts (C-8)
 
-- **FR-042**: The counters library shall answer the constant `#core_wide` for
-  a host that publishes it, through a reader with a seam test, because every
-  Intel level-1 row reaches that constant through the table's slot rows.
-  (D-6, PC-5.)
+- **FR-042**: The counters library shall answer the constant `#core_wide` as
+  the coverage flag it is: true when the run's target set covers a whole core
+  with all of its SMT threads, and false for a window over one thread. The
+  reader shall answer no slot width: the width is a literal of the table. A
+  seam test shall drive both answers. (D-6, PC-5.)
 - **FR-043**: The constants `#num_dies`, `#SYSTEM_TSC_FREQ` and `#has_pmem`
   shall keep their present refusal, because no top-down row reaches any of
   them. (D-6.)
@@ -764,11 +765,17 @@ registered benchmark prints no row.
   level-1 values together, so a reader can add them, and with a fake event
   source the five sum to 100 percent within 0.1 percentage point. (D-3,
   SC-03.)
+
 - **FR-057**: The report of this feature shall name each part with no host
   (Intel parts measured through `PERF_METRICS`, Intel hybrid parts, Arm parts)
   as a pending row, and shall state no hardware claim for one. (SC-11,
   SC-12.)
 
+- **FR-058**: The example set shall carry one memory-bound benchmark whose
+  working set exceeds the last-level cache of the acceptance host, because the
+  acceptance run needs a memory-bound case and the shipped examples hold none:
+  the largest working set today is 32 KiB against a 19.3 MiB last-level cache.
+  (SC-10.)
 ## Clarifications
 
 ### Session 2026-11-01
@@ -879,9 +886,9 @@ registered benchmark prints no row.
 - **SC-09**: The coverage gate reads 100 percent line and 100 percent branch
   with the allowance at 21, and the change adds no exclusion marker.
 - **SC-10**: On the Intel acceptance host, `--topdown=1` and `--topdown=3`
-  each print a tree for one compute-bound and one memory-bound benchmark, and
-  the pull-request body records the host, the kernel, the values, the refused
-  rows and the test counts.
+  each print a tree for one compute-bound benchmark and the memory-bound
+  benchmark of FR-058, and the pull-request body records the host, the kernel,
+  the values, the refused rows and the test counts.
 - **SC-11**: On the AMD acceptance host, `--topdown=2` prints level 1 with
   `topdown.smt_contention` and the 100 percent statement, and prints the eight
   level-2 rows of that directory each under its own level-1 parent, when that
@@ -921,14 +928,15 @@ registered benchmark prints no row.
 
 ## Scope
 
-In: FR-001 to FR-057. The selection function over its identity seam, the tree
+In: FR-001 to FR-058. The selection function over its identity seam, the tree
 with its parents, levels, names and threshold text, the source record built
 from the vendored manifest, the level option, one formula set to the pass
 planner, the console block, the report object with its reader and its schema,
 the `topdown:` rule form, the unsupported message, the `#core_wide` reader, the
 three prerequisite repairs D-18, D-19 and D-21 name (FR-053 to FR-055), the
 public header, the version and `SOVERSION` checks, the docs section, the
-runnable example, and the tests.
+runnable example, the memory-bound example benchmark the acceptance run needs
+  (FR-058), and the tests.
 
 Out, each with its owner:
 
@@ -962,10 +970,16 @@ Out, each with its owner:
   Lunar Lake, Meteor Lake) state 8 and 14, and 14 state no top-down row at
   all. The selected directory governs (FR-013, FR-014). The level width is
   table data, so the tree counts the rows of a level to find its width.
-- `#core_wide` means the property the kernel's own generator gives it: a flag
-  that tells a row whether its slots are counted core-wide. The reader's exact
-  source is a plan decision, and this spec states only that the fact is
-  published, fakeable and needed by every Intel level-1 row.
+- `#core_wide` is a coverage flag, and it carries no width. Upstream defines
+  it as true when a measurement covers a whole core with all of its SMT threads
+  (`tools/perf/util/smt.h` in the vendored tree), and no generator supplies a
+  value for it: the slot width rides the table as a literal, `4 *
+  tma_info_core_core_clks` at `skx-metrics.json:1461`, in the 21 directories
+  that predate `TOPDOWN.SLOTS`. So the reader answers the flag for the run's
+  target set, answers 0 for a per-thread window, and reads no width. The
+  reader's exact source of the target set is a plan decision, and this spec
+  states only that the flag is published, fakeable and needed by every Intel
+  level-1 row.
 - PC-7 and PC-8 are host conditions at the audit point. This feature reports
   them, and its live-value acceptance waits on them.
 
