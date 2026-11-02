@@ -24,33 +24,45 @@ namespace
 // The config word a field name selects: "config" is word 0, "config1"
 // is word 1, and "configN" is word N. A name without a trailing index
 // is word 0.
+/// Whether the byte carries a lowercase letter, the alphabet the
+/// config-word prefixes use.
+///
+/// \pre none
+/// \post True exactly for the bytes 'a' through 'z'.
+[[nodiscard]] auto isConfigLetter(const char byte) noexcept -> bool
+{
+  return byte >= 'a' && byte <= 'z';
+}
+
+/// Whether the byte carries a decimal digit.
+///
+/// \pre none
+/// \post True exactly for the bytes '0' through '9'.
+[[nodiscard]] auto isConfigDigit(const char byte) noexcept -> bool
+{
+  return byte >= '0' && byte <= '9';
+}
+
 auto wordOf(const std::string_view name) -> int
 {
   int word = 0;
   std::size_t index = 0;
-  // Skip the alphabetic prefix: "config", "config1", "config2".
-  // LCOV_EXCL_BR_START : gcc reports a short-circuit edge of each
-  // two-term condition below as an unexecuted block on every build. The
-  // `&&` chain stops at a non-lowercase byte (fixtures "config1",
-  // "Config", "inv") or at the end of the name. The `||` chain rejects a
-  // byte outside the digits, which the loop reaches only from a field name
-  // no vendored table row spells.
-  while (index < name.size()  // LCOV_EXCL_BR_LINE
-         && name[index] >= 'a'  // LCOV_EXCL_BR_LINE
-         && name[index] <= 'z')
-  {  // LCOV_EXCL_BR_LINE
+  // Skip the alphabetic prefix: "config", "config1", "config2". The
+  // stop reasons stand apart, so each edge carries its own count: the
+  // prefix ends where the digits begin, or the name ends first.
+  while (index < name.size()) {
+    if (!isConfigLetter(name[index])) {
+      break;
+    }
     ++index;
-  }  // LCOV_EXCL_BR_LINE
+  }
   for (; index < name.size(); ++index) {
-    if (name[index] < '0'  // LCOV_EXCL_BR_LINE
-        || name[index] > '9')
-    {  // LCOV_EXCL_BR_LINE
-      return 0;  // LCOV_EXCL_LINE
-    }  // LCOV_EXCL_BR_LINE
+    if (!isConfigDigit(name[index])) {
+      return 0;
+    }
     word = word * 10 + static_cast<int>(name[index] - '0');
-  }  // LCOV_EXCL_BR_LINE
-  // LCOV_EXCL_BR_STOP
-  return word;  // LCOV_EXCL_LINE
+  }
+  return word;
 }
 
 }  // namespace
@@ -73,12 +85,10 @@ auto parseFormatField(const std::string_view spec,
   std::vector<FormatRange> parsed;
   std::size_t cursor = colon + 1;
   std::size_t found = 0;
-  // LCOV_EXCL_BR_START : the condition can never be false. `cursor` is
-  // assigned `comma + 1` and a comma index is at most `spec.size() - 1`, so
-  // `cursor <= spec.size()` holds on every entry; the loop leaves through
-  // its `break` on an empty piece or at the last comma, or through this
-  // condition at the end of the spec.
-  while (cursor <= spec.size()) {  // LCOV_EXCL_BR_LINE
+  // The cursor walks one piece past each comma, and a comma index is at
+  // most `spec.size() - 1`, so the cursor never stands past the spec on
+  // entry; the loop leaves through its breaks only.
+  for (;;) {  // LCOV_EXCL_BR_LINE
     const std::size_t comma = spec.find(',', cursor);
     const std::string_view piece =
         spec.substr(cursor,
@@ -119,8 +129,7 @@ auto parseFormatField(const std::string_view spec,
       break;
     }
     cursor = comma + 1;
-  }  // LCOV_EXCL_BR_LINE
-  // LCOV_EXCL_BR_STOP
+  }
   if (found == 0) {
     out.clear();
     return false;
