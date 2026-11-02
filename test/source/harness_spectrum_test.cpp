@@ -46,8 +46,8 @@ struct Plant
   double amplitude = 0.0;
 };
 
-auto planted(const std::size_t points, const std::vector<Plant>& plants)
-    -> std::vector<double>
+auto planted(const std::size_t points,
+             const std::vector<Plant>& plants) -> std::vector<double>
 {
   std::vector<double> samples(points, 0.0);
   for (const Plant& plant : plants) {
@@ -61,8 +61,8 @@ auto planted(const std::size_t points, const std::vector<Plant>& plants)
 }
 
 // The period of one bin of a span, the reading the kernel states (FR-019).
-constexpr auto binPeriodNs(const std::uint64_t points, const std::uint64_t bin)
-    -> std::uint64_t
+constexpr auto binPeriodNs(const std::uint64_t points,
+                           const std::uint64_t bin) -> std::uint64_t
 {
   return (points * kStepNs) / bin;
 }
