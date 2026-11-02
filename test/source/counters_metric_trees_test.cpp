@@ -1,7 +1,7 @@
 // ============================================================================
 // TDD test for the host-fact readers over an object tree that answers
 // differently (specs/022-metric-formulas T058; specs/042-topdown T004,
-// T005; FR-006, FR-042, FR-043, FR-054).
+// T005, T008; FR-006, FR-042, FR-043, FR-054).
 //
 // The lookup binary reads `#SMT_on` over the two-thread, one-core tree
 // where the fact stands. This binary opens its own process and registers a
@@ -11,7 +11,9 @@
 // two-thread, one-core tree and shows that tree keep priority over a list
 // naming one id. The `#core_wide` scenarios read this process's own cpu set
 // beside the sibling lists they drive, and the three constants no top-down
-// row reaches keep their refusal. A wrong answer never reaches the fold.
+// row reaches keep their refusal. The published query answers both readings
+// and the refusal, one reading per process, because the value settles at the
+// first read of a process. A wrong answer never reaches the fold.
 // Frameworkless check()/fail() convention.
 // ============================================================================
 
@@ -35,6 +37,7 @@
 #include "../../source/counters/linux_pmu/metric_tables.hpp"
 #include "../../source/detail/proc_root.hpp"
 #include "detail/metric_fixture.hpp"
+#include "speedgun-ng/counters_metrics.hpp"
 
 namespace
 {
@@ -341,6 +344,90 @@ auto coreWideAnswersFromTheProcessCpuSet() -> void
   }
 }
 
+// T008: the published query carries both readings of `#core_wide` and the
+// standing refusal to the caller (specs/042-topdown FR-042, FR-043, D-6). The
+// value settles at the first read of a process and never moves inside it, so
+// each reading stands in a process of its own and every fork of a process
+// stands before that process reads.
+auto coreWideAnswersThroughThePublishedQuery() -> void
+{
+  const auto cpus = processCpus();
+  const std::size_t lowest = cpus.front();
+  const auto holds = [&cpus](const std::size_t cpu)
+  { return std::find(cpus.begin(), cpus.end(), cpu) != cpus.end(); };
+  // The id past the widest this process holds, so it stands outside the set
+  // whoever the host is.
+  const auto outside = std::to_string(cpus.back() + 1);
+  const auto listText = [&](const std::size_t cpu, const bool namesOutside)
+  {
+    if (namesOutside && cpu == lowest) {
+      return std::to_string(cpu) + "," + outside;
+    }
+    return holds(cpu + 1) ? std::to_string(cpu) + "-" + std::to_string(cpu + 1)
+                          : std::to_string(cpu);
+  };
+  // One process reading the query under one root: the lists it stands behind,
+  // the answer the query owes it, and the reason a wrong answer fails. The
+  // second call answers the first, so a caller carries no reader of its own.
+  const auto read =
+      [&](const std::string_view name,
+          const bool namesOutside,
+          const bool readable,
+          const std::optional<sg::counters::CoreCoverage> expected,
+          const char* const what)
+  {
+    const auto root = fakeRoot(name);
+    const ProcRootGuard guard {root};
+    if (readable) {
+      for (const std::size_t cpu : cpus) {
+        writeSiblingList(
+            root, cpu, "core_cpus_list", listText(cpu, namesOutside));
+      }
+    }
+    const auto answer = sg::counters::coreWideCoverage();
+    check(answer == expected, what);
+    check(sg::counters::coreWideCoverage() == answer,
+          "the answer of the query stands unchanged over a second call (D-6)");
+  };
+  const pid_t narrowChild = ::fork();
+  check(narrowChild >= 0, "the one-thread reading forks");
+  if (narrowChild == 0) {
+    read("query-one-thread",
+         true,
+         true,
+         sg::counters::CoreCoverage::ONE_THREAD,
+         "one sibling standing outside the set answers ONE_THREAD through the "
+         "published query (FR-042)");
+    std::exit(0);
+  }
+  const pid_t unreadableChild = ::fork();
+  check(unreadableChild >= 0, "the unreadable reading forks");
+  if (unreadableChild == 0) {
+    read("query-unreadable",
+         false,
+         false,
+         std::nullopt,
+         "an unreadable sibling list answers nothing through the published "
+         "query, which keeps the standing refusal (FR-043)");
+    std::exit(0);
+  }
+  read("query-whole-core",
+       false,
+       true,
+       sg::counters::CoreCoverage::WHOLE_CORE,
+       "a set that holds every sibling of every cpu it holds answers "
+       "WHOLE_CORE through the published query (FR-042)");
+  int status = 0;
+  check(::waitpid(narrowChild, &status, 0) == narrowChild,
+        "the one-thread child is waited for");
+  check(WIFEXITED(status) && WEXITSTATUS(status) == 0,
+        "the one-thread child saw ONE_THREAD (FR-042)");
+  check(::waitpid(unreadableChild, &status, 0) == unreadableChild,
+        "the unreadable child is waited for");
+  check(WIFEXITED(status) && WEXITSTATUS(status) == 0,
+        "the unreadable child saw no answer (FR-043)");
+}
+
 // T004: the object tree keeps priority. Over the two-thread, one-core tree
 // the two counts answer, so they decide the fact while a list naming one id
 // stands under the root (FR-054).
@@ -377,6 +464,7 @@ auto main() -> int
   smtFactRefusalScenario();
   smtStateFallsBackToTheSiblingList();
   coreWideAnswersFromTheProcessCpuSet();
+  coreWideAnswersThroughThePublishedQuery();
   int status = 0;
   check(::waitpid(child, &status, 0) == child,
         "the priority child is waited for");
