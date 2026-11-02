@@ -2480,6 +2480,131 @@ auto scenarioNoiseRange() -> int
   return 0;
 }
 
+// FR-003, SC-005: a method word outside the three names the word on one
+// line at status 2.
+auto scenarioMethodWordRefused() -> int
+{
+  auto arguments = quickArguments();
+  arguments.push_back("--jitter-probe=idle,method=x");
+  const auto note = captureError(arguments, 2);
+  checkOneLine(note,
+               "a method word outside the three stands rejected (FR-003)");
+  check(note.find("'x'") != std::string::npos,
+        "the refusal names the method word (FR-003)");
+  return 0;
+}
+
+// FR-003, SC-005: the quantum rows. A count of 0, a value that reads no
+// number, a value above the range, and a fractional value each name the
+// value on one line at status 2.
+auto scenarioQuantumRefused() -> int
+{
+  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  for (const auto* value : {"0", "x", "100001", "10.5"}) {
+    auto arguments = quickArguments();
+    arguments.push_back("--jitter-probe=" + cpu + ",quantum=" + value);
+    const auto note = captureError(arguments, 2);
+    checkOneLine(note, "a bad quantum stands rejected (FR-003, SC-005)");
+    check(note.find("'" + std::string(value) + "'") != std::string::npos,
+          "the refusal names the quantum value (FR-003)");
+  }
+  return 0;
+}
+
+// FR-003, SC-005: the work rows. A count of 0, a count above the range,
+// a value that reads no number, and a fractional value each name the
+// value on one line at status 2.
+auto scenarioWorkRefused() -> int
+{
+  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  for (const auto* value : {"0", "16777217", "x", "10.5"}) {
+    auto arguments = quickArguments();
+    arguments.push_back("--jitter-probe=" + cpu + ",work=" + value);
+    const auto note = captureError(arguments, 2);
+    checkOneLine(note, "a bad work count stands rejected (FR-003, SC-005)");
+    check(note.find("'" + std::string(value) + "'") != std::string::npos,
+          "the refusal names the work value (FR-003)");
+  }
+  return 0;
+}
+
+// FR-003, SC-005: the noise rows. A value above the range, a value that
+// reads no number, and a fractional value each name the value on one
+// line at status 2.
+auto scenarioNoiseRefused() -> int
+{
+  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  for (const auto* value : {"101", "x", "0.5"}) {
+    auto arguments = quickArguments();
+    arguments.push_back("--jitter-probe=" + cpu + ",noise=" + value);
+    const auto note = captureError(arguments, 2);
+    checkOneLine(note, "a bad noise value stands rejected (FR-003, SC-005)");
+    check(note.find("'" + std::string(value) + "'") != std::string::npos,
+          "the refusal names the noise value (FR-003)");
+  }
+  return 0;
+}
+
+// FR-003, R-03: the cross-method pairing. A quantum key with
+// method=fwq and a work key with method=ftq each name the key on one
+// line at status 2.
+auto scenarioPairingRefused() -> int
+{
+  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  auto quanta = quickArguments();
+  quanta.push_back("--jitter-probe=" + cpu + ",method=fwq,quantum=100");
+  const auto quantumNote = captureError(quanta, 2);
+  checkOneLine(quantumNote,
+               "a quantum key beside fwq stands rejected (FR-003, R-03)");
+  check(quantumNote.find("'quantum'") != std::string::npos,
+        "the refusal names the quantum key (FR-003, R-03)");
+  auto work = quickArguments();
+  work.push_back("--jitter-probe=" + cpu + ",method=ftq,work=8");
+  const auto workNote = captureError(work, 2);
+  checkOneLine(workNote,
+               "a work key beside ftq stands rejected (FR-003, R-03)");
+  check(workNote.find("'work'") != std::string::npos,
+        "the refusal names the work key (FR-003, R-03)");
+  return 0;
+}
+
+// FR-002, FR-003: the method key standing twice in one value stands
+// refused on one line at status 2, the standing repeated-key shape.
+auto scenarioMethodTwiceRefused() -> int
+{
+  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  auto arguments = quickArguments();
+  arguments.push_back("--jitter-probe=" + cpu + ",method=tsc,method=fwq");
+  const auto note = captureError(arguments, 2);
+  checkOneLine(note, "a method key standing twice stands rejected (FR-002)");
+  check(note.find("'method'") != std::string::npos,
+        "the refusal names the repeated key (FR-002, FR-003)");
+  return 0;
+}
+
+// FR-003, FR-027: the same value on an option file line names the path,
+// the line and the token on one line at status 2.
+auto scenarioFileLineRefused() -> int
+{
+  const std::string path = "harness_jitter_cli_method_file.txt";
+  {
+    std::ofstream file(path);
+    file << "jitter-probe=idle,method=x\n";
+  }
+  auto arguments = quickArguments();
+  arguments.push_back("--options=" + path);
+  const auto note = captureError(arguments, 2);
+  check(note.find(path + ":1: --jitter-probe: ") == 0,
+        "a file line's method refusal names the path and the line "
+        "(FR-003, FR-027)");
+  check(std::count(note.begin(), note.end(), '\n') == 1,
+        "the file line's refusal stands one line (FR-003, SC-005)");
+  check(note.find("'x'") != std::string::npos,
+        "the file line's refusal names the token (FR-003)");
+  std::remove(path.c_str());
+  return 0;
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmQuiet);
@@ -2961,6 +3086,17 @@ auto main(int argc, char** argv) -> int
   check(scenarioQuantumRange() == 0, "quantumRange");
   check(scenarioWorkRange() == 0, "workRange");
   check(scenarioNoiseRange() == 0, "noiseRange");
+
+  // specs/043-fwq-ftq T006: the 16 refusal rows of the test plan, each
+  // one line on standard error at status 2, the three fractional rows
+  // closing the fractional clause of FR-003 (FR-003, SC-005).
+  check(scenarioMethodWordRefused() == 0, "methodWordRefused");
+  check(scenarioQuantumRefused() == 0, "quantumRefused");
+  check(scenarioWorkRefused() == 0, "workRefused");
+  check(scenarioNoiseRefused() == 0, "noiseRefused");
+  check(scenarioPairingRefused() == 0, "pairingRefused");
+  check(scenarioMethodTwiceRefused() == 0, "methodTwiceRefused");
+  check(scenarioFileLineRefused() == 0, "fileLineRefused");
 
   // contracts/cli-options.md: `--jitter-probe` with no argument keeps
   // the standing getopt_long missing-argument path, and an unknown flag
