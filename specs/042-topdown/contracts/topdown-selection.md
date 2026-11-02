@@ -52,6 +52,7 @@ topdownTree(const TopdownSelection& options)
 | `cpuIdentity` | `\pre` none. `\post` the first four fields equal `pmuIdentCurrent()` (`source/counters/detail/pmu.hpp:84`), `coreType` is empty and `midr` is unset: no reader for either exists in this feature (D-13). |
 | `message()` | `\pre` none. `\post` one line naming the vendor, the identity and the reason (D-14, FR-040). |
 | `TopdownNode::threshold` | `\pre` none. `\post` the table's own text byte for byte, empty where the row carries none. Nothing evaluates it (FR-017, D-9). |
+| `coreWideCoverage` | `\pre` none. `\post` nothing before the first read of a metric table, one value for the life of the process afterwards, because a conditional over the constant folds when the table resolves and the resolved table is cached per directory (FR-042, D-6). `\post` the value names a whole core with every sibling of it, or one thread of a core, and states no slot width: the width is a literal of the table (FR-042, D-6). `\invariant` a settled value never moves inside one process. |
 
 ## Names, levels and parents
 
@@ -96,13 +97,25 @@ The kind prints in UPPER SNAKE from `metricRefusalName`
 
 ## Two rulings this contract settles
 
-FR-006 keys the hybrid refusal on published scopes, and a closed name list is
-the weaker rule. A `grep -rl cpu_atom external/pmu-events/arch/x86` with a
-`Unit` count per directory answers five directories with `cpu_core` rows:
-`alderlake`, `arrowlake`, `lunarlake`, `meteorlake` and `pantherlake`. That
-last is mapped at `external/pmu-events/arch/x86/mapfile.csv:29`, so a closed
-set of four names would answer a tree for models CC and D5. The scope rule is
-the contract; `grandridge`, `sierraforest` and `alderlaken` carry neither token.
+FR-006 keys the hybrid refusal on the scopes a directory's own event rows
+publish, each read from its `Unit` text (`PmuTableEntry::unit`,
+`source/counters/detail/pmu.hpp:45`), and a closed name list is the weaker
+rule. A `python3` walk of the two shapes `parsePadded` reads
+(`source/counters/linux_pmu/table_parse.cpp:528-573`) over the 46 directories
+of `external/pmu-events/arch/x86` answers five with rows of both core classes,
+with the `cpu_core` and `cpu_atom` counts behind each: `alderlake` 319 and 207,
+`arrowlake` 329 and 295, `lunarlake` 331 and 307, `meteorlake` 323 and 252, and
+`pantherlake` 347 and 256. Four of the five carry level rows too, 135, 139, 139
+and 140, and the scope rule is what refuses those four. `pantherlake` is the
+directory the mapping file gives models `CC` and `D5`
+(`external/pmu-events/arch/x86/mapfile.csv:29`) and holds 606 event rows, no
+metric row and no level row, so FR-007's `NO_TOPDOWN_ROWS` answers there on
+either rule and a tree stands nowhere. The scope rule keeps its force for the
+directories that do carry level rows: the next hybrid directory is a hybrid
+directory at its first `cpu_atom` row, and a closed list names it one release
+late. `grandridge`, `sierraforest` and `alderlaken` carry neither token: 324,
+380 and 301 of their rows carry no `Unit` key, which is the core scope, and each
+of the three holds 26 level rows, so all three select normally.
 
 ## What a test must pin
 
@@ -124,7 +137,16 @@ seams at `source/counters/detail/pmu.hpp:99-100` and `:112`, pure (FR-048).
 
 `include/speedgun-ng/counters_metrics.hpp` gains the threshold on `MetricView`
 and `MetricListing` (`:63-68`, `:91-104`), so the archive `SOVERSION` moves 4
-to 5 (`CMakeLists.txt:110`, chain at `:102-109`). The new header joins
+to 5 (`CMakeLists.txt:110`, chain at `:102-109`). The same header publishes the
+query for the settled `#core_wide` flag beside `metricByName` (`:81`):
+`coreWideCoverage()` answers `std::optional<CoreCoverage>`, carrying the same
+`SPEEDGUN_NG_EXPORT` mark as the rows above it. `CoreCoverage` is a closed
+`enum class : std::uint8_t` with `WHOLE_CORE` and `ONE_THREAD`, the shape
+`Availability` uses (`include/speedgun-ng/counters_core.hpp:87-94`), and
+`source/counters/linux_pmu/metric_formula.cpp` defines the query over the
+host-fact row the load-time reader fills. It answers nothing ahead of the first
+table read and one value afterwards, and `source/harness/cli.cpp` prints that
+reading as the one scope line ahead of the first run (FR-042, D-6). The new header joins
 `NAME_SCAN_HEADERS` (`tools/docs/example_drift.py:530-538`) or its names cannot
 carry quick-reference rows. `include/speedgun-ng/counters.hpp:14-21` stays as
 it is: it lists eight headers and already omits the metric header.

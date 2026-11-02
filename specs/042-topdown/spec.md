@@ -25,6 +25,11 @@ authority for scope, numbering and the accepted answers.
 
 ## Decisions
 
+Numbering: this list runs `D-1` to `D-21` with no leading zero. The research
+file runs its own `D-01` to `D-16` with the leading zero and cites this list as
+`spec D-13`, so a two-digit spelling names a research entry and a plain one
+names an entry here.
+
 The owner's request carries seven open questions with recommended answers.
 Each one is taken as the decision below, and each one names the reading it
 settles. The remaining entries settle rulings the request lists as in
@@ -157,8 +162,14 @@ force. No implementer reopens them.
   `1.13`. Seven further lines name the minor in a message or a comment and move
   with it, so the tree states one minor. The guide page states the stamp in prose
   (`docs/pages/harness.md:1399`, which still reads `1.10` today) and moves
-  with it. If the other lane lands first, this
-  lane takes the next free minor and the next free schema minor and re-runs
+  with it. Two cases read the three
+  `CMakeLists.txt` numbers and both move with every number that moves:
+  `theVersionBindingsReadTheMovedNumbers` checks them at
+  `test/source/harness_cli_table_test.cpp:1387-1392` and quotes them twice in
+  prose, in the case list at `:124-128` and the comment at `:1375-1378`, and the
+  version block of `test/source/views_test.cpp:247-256` checks the same three
+  with its numbers in the comment at `:241-246`. If the other lane lands first,
+  this lane takes the next free minor and the next free schema minor and re-runs
   every gate.
 
 - **D-18 The fixed-counter bound.** The gap of PC-7 blocks every live value
@@ -204,6 +215,11 @@ force. No implementer reopens them.
 
 Measured on this machine on 2026-11-01 before any file changed.
 
+- Audit point: `65c48be9`, the tree every `path:line` of this feature's artifacts
+  opens against, named by the five files under `contracts/` and by the evidence
+  note of `data-model.md`. Three further hashes appear in these artifacts, each
+  for its own work: the base hash the next row gives, the `6348bb0c` that PC-13
+  measured its timings on, and the `ca7e1f84` whose run `quickstart.md` reports.
 - Base: `master` at `d454bcffd40ee66edd06bf5d7df0997b4f9561cf`, dated
   2026-10-31 in `git log`, the owner's message `CI: Add the record check and
   the pre-push step`.
@@ -248,8 +264,9 @@ Measured on this machine on 2026-11-01 before any file changed.
   the gap.
 - **PC-3: the grammar reads every construct the top-down rows use. PASS.**
   The formula tree carries `MINIMUM`, `MAXIMUM`, `CONDITIONAL`, `HAS_EVENT`,
-  `SOURCE_COUNT`, `GREATER` and `LESS`, and a node carries the device and
-  modifier of an at-style reference (`source/counters/linux_pmu/metric_formula.hpp:52-70`).
+  `SOURCE_COUNT`, `GREATER` and `LESS`
+  (`source/counters/linux_pmu/metric_formula.hpp:52-58`), and a node carries the
+  device and modifier of an at-style reference at `:75-76` of that header.
   A top-level conditional, `min`, `max`, `d_ratio` and an escaped comma all
   parse. Measured over the 102 top-down rows of `skx-metrics.json`: 7 rows
   carry a conditional, 12 carry `min` or `max`, 8 carry an at-style
@@ -562,10 +579,10 @@ registered benchmark prints no row.
   directory holds no pipeline table: three separate reasons in one message
   shape. AMD families 23 and 25 map to `amdzen1`, `amdzen2` and `amdzen3`,
   and none of the three holds a pipeline table (FR-007).
-- A run with several benchmarks: one block per benchmark, each with its own
-  values.
-- A run whose filter matches no benchmark: no block, and the existing message
-  for an empty filter.
+- A run with several benchmarks: one console block per benchmark, each with its
+  own values.
+- A run whose filter matches no benchmark: no console block, and the existing
+  message for an empty filter.
 - `--topdown` with the value 0, the value 7, or the value `x`: one quoted
   line each, exit status 2.
 - A report whose top-down object is absent, empty, or holds a node with no
@@ -1095,7 +1112,7 @@ Measured at the audit point, before any section was written.
 - Page words: `README.md` forbids source paths, build files, spec ids and
   requirement ids (`tools/docs/example_drift.py:455-462`), while a guide page
   forbids the identifiers and may name a source path
-  (`tools/docs/example_drift.py:474-486`).
+  (`tools/docs/example_drift.py:475-487`).
 - Option rows: three rows carry an optional value today
   (`source/harness/options.cpp:632`, `:676`, `:700`), and one test pins the
   option-table row count at 42
@@ -1174,7 +1191,9 @@ needs.
   guide-page section in the same change, inside the budget the Budget note
   records.
 - Coverage (VI): FR-051 holds the 100 percent gates and the allowance at 21.
-- Contract (II): every new interface documents `\pre` and `\post` in its header
-  and enforces them in its source, in the shape PC-9 quotes.
+- Contract (II): every new interface documents preconditions, postconditions and
+  invariants with doxygen `\pre`, `\post` and `\invariant` in its header, and its
+  implementation enforces the same contracts at runtime through the project's
+  contract facility, in the shape PC-9 quotes.
 - Anti-slop (X): the decisions above record each reading a requirement admits,
   and the Scope section names what this feature will not build.

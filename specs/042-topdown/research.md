@@ -7,6 +7,11 @@ Alternatives considered, in the shape
 answers 24, `lscpu` answers `GenuineIntel`, i9-9920X, stepping 4, 12 cores, 2
 threads per core; `/proc/cpuinfo` answers `cpu family: 6`, `model: 85`.
 
+Numbering: the sixteen entries here read `D-01` to `D-16`, two digits, and a
+decision of the specification reads `D-1` to `D-21` without the leading zero and
+is cited as `spec D-13`. The two-digit spelling therefore names a decision in
+this file, and a plain spelling names one in `spec.md`.
+
 ## D-01 - The selection seam and the identity record
 
 **Decision**: `include/speedgun-ng/counters_topdown.hpp` publishes

@@ -46,7 +46,7 @@ refuse such a text (FR-039).
 | one value, no aggregate | `statisticsValue = prefix != "stat:"`, `:400` | gains `&& prefix != "topdown:"` |
 | the `median` default | `:446-448`, under `else if (statisticsValue)` | none |
 | the node read | the `metric:` arm of the resolver, `:611-627`, and the `stat:` fall-through, `:629-633` | one `topdown:` arm between them: re-join the `topdown.` head, select the node of `result.topdown` by neutral name, answer its value and no statistics record |
-| a node with no value | an out-of-range metric index answers `{}`, `:622` | the same: a gapped node answers no value |
+| a node with no value | the guard `index >= result.metricLabels.size()` answers `{}` at `:619-620` | the same: a gapped node answers no value |
 | availability | `metricAvailabilityOf`, `:1431-1445`; any prefix but `metric:` answers `COUNTABLE` at `:1436` | none: a gapped node is a missing value, never an uncountable one |
 
 A node carries one value per entry, the way a custom statistic does, so a

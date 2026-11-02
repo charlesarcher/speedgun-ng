@@ -63,13 +63,17 @@ through `checkReport` (`json_load.cpp:2613`, called at `:57`).
 }
 ```
 
-Six rulings the fragment carries:
+Seven rulings the fragment carries:
 
 - Inner names follow the entry `hunt` object, which spells `pass_count` in
   snake case (`:829-844`); the entry's own outer keys stay camelCase.
 - `files` holds one record per contributing file: FR-015 asks the hash of each
-  file whose rows reached the tree, so the one `manifestHash` field the harness
-  plan lists for `TopdownRecord` is short of the requirement (D-12).
+  file whose rows reached the tree, so the one string field an earlier harness
+  plan listed for `TopdownRecord` is short of the requirement (D-12). This
+  fragment is the authority for the JSON spelling, `name` and `manifest_hash`
+  over the two keys above. `specs/042-topdown/data-model.md` is the authority
+  for the C++ spelling, `TableFile` with `name` and `manifestHash`, and the
+  writer maps one carrier onto the other at the key.
 - `nodes[].availability` reuses the six words of the counter columns
   (`:577-586`, `kAvailabilityWords` at
   `source/harness/detail/json_report.hpp:57-64`); a gap node
@@ -83,6 +87,12 @@ Six rulings the fragment carries:
   reader answers for keys the schema lists and passes over the rest
   (`json_load.cpp:2536-2543`), so a misspelled key would load as nothing and a
   `null` value would carry no type.
+- No key carries a vendor flag. The AMD case of FR-028 is a printed statement on
+  the block, and the fifth level-1 name `topdown.smt_contention` stands in
+  `nodes` on an AMD table alone. A reader of a stored document tells the two
+  vendors apart without a flag, because a node below level 1 carries
+  `topdown.<vendor>.<table name>`, so the closed object above stays at nine
+  keys.
 
 ## What stays out of `required`
 
@@ -132,11 +142,26 @@ tree states one minor: `harness_hunt_json_test.cpp:1538`,
 `harness_json_report_test.cpp:547`, `harness_json_schema_test.cpp:157` and
 `:187`, and `harness_noise_report_test.cpp:413`, `:427` and `:455`.
 
-The same change carries the three numbers FR-047 names: `VERSION 0.28.0` to
-`0.29.0` (`CMakeLists.txt:45`), harness `SOVERSION 19` to `20` (`:375`, chain at
-`:369-374`) and the counters archive `SOVERSION 4` to `5` (`:110`) for the new
-public header. One case pins all three: `theVersionBindingsReadTheMovedNumbers`
-(`test/source/harness_cli_table_test.cpp:1382-1393`).
+The numbers FR-047 names move in four commits, each in the commit that makes it
+true. The counters archive `SOVERSION 4` to `5` (`CMakeLists.txt:110`) rides the
+commit that moves an exported layout of that archive, the threshold on
+`MetricView` and `MetricListing`. The harness `SOVERSION 19` to `20` (`:375`,
+chain at `:369-374`) rides the commit that adds the record member to
+`BenchmarkResult`, so no commit ships the member with an unrisen number. The
+schema minor moves in its own commit, the one that raises `kSchemaVersion` at
+`source/harness/json_report.cpp:43`. `VERSION 0.28.0` to `0.29.0` (`:45`) rides a
+commit of its own, with the comment that names the record and the requirement.
+
+Two cases read the three `CMakeLists.txt` numbers, and both belong to every
+commit that moves one of them. `theVersionBindingsReadTheMovedNumbers`
+(`test/source/harness_cli_table_test.cpp:1382-1393`) checks them at `:1387-1392`
+and quotes them twice in prose, in the case list at `:124-128` and the comment at
+`:1375-1378`. The version block of `test/source/views_test.cpp:247-256` reads the
+same three, with its numbers quoted in the comment at `:241-246`. Both search
+`CMakeLists.txt` text: `SOVERSION 19` stands once, at `:375`, while `SOVERSION 4`
+stands at `:110` and again in the four comments at `:352`, `:357`, `:363` and
+`:374`, so the archive row of each case needs to name the line it reads before
+the archive moves.
 
 ## Verification
 
