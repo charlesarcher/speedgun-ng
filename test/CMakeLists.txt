@@ -990,6 +990,17 @@ add_test(NAME harness_jitter_preset_test
 # slots cover one threaded run (030 FR-003).
 set_tests_properties(harness_jitter_preset_test PROPERTIES PROCESSORS 4)
 
+# The public surface the fixed work quanta and fixed time quanta probes
+# stand on: the three method enumerators, the four option fields with their
+# defaults, the bounds the parser enforces, and the series and run records
+# (T001; US4, FR-001, FR-002, FR-005, FR-020, R-20).
+add_executable(harness_fwq_ftq_test source/harness_fwq_ftq_test.cpp)
+target_link_libraries(harness_fwq_ftq_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_fwq_ftq_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_fwq_ftq_test PRIVATE cxx_std_23)
+add_test(NAME harness_fwq_ftq_test COMMAND harness_fwq_ftq_test)
+
 # The machine layout read, the two install seams and the mask intersection
 # (T007; US1, FR-001, FR-002, FR-003, FR-005, FR-006, R-04, R-11, R-13,
 # SC-04, Q-5, Q-8).
