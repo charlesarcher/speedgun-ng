@@ -245,6 +245,9 @@ auto calibrationTrial(CalibrationSearch& search,
 // \post the state carries the kept count, its measured unit time, the
 //       target, the quantum for FTQ, and the span of the search's reads
 //       (FR-011, E-22)
+// \post a count the value names stands kept with a span of 0, its unit
+//       time standing for the first unit of this cpu's window to fill
+//       (FR-002, FR-010, FR-011, D-2)
 template<class ReadStamp>
 auto calibrateUnit(ProbeCpuState& state,
                    const JitterProbeOptions& options,
@@ -254,39 +257,49 @@ auto calibrateUnit(ProbeCpuState& state,
   search.target = options.method == JitterMethod::FTQ
       ? static_cast<std::uint64_t>(options.quantumUs)
       : kTargetUnitTimeNs;
-  std::uint64_t lo = 1;
-  std::uint64_t hi = kMaxWorkCount;
-  std::uint64_t count = 1;
-  // The doubling reads counts 1, 2, 4 through kMaxWorkCount, the
-  // `kCalibrationTrials` trials the search allows, and ends at the first
-  // count whose unit time passes the target, bracketing it by the count
-  // below (FR-010, R-02).
-  while (true) {
-    const std::uint64_t unit = calibrationTrial(search, readStamp, count);
-    if (unit >= search.target) {
-      hi = count;
-      lo = count / 2;
-      break;
+  if (options.workCount != 0) {
+    // FR-002, FR-010, D-2: a `work=` count the value names stands as the
+    // unit count, and the search does not run for this cpu. The span of
+    // the reads it never made stands at 0, and the unit time the run
+    // discloses reads the first unit of this cpu's window, so the window
+    // fills it (FR-011).
+    search.bestCount = options.workCount;
+    state.unitTimeFromWindow = true;
+  } else {
+    std::uint64_t lo = 1;
+    std::uint64_t hi = kMaxWorkCount;
+    std::uint64_t count = 1;
+    // The doubling reads counts 1, 2, 4 through kMaxWorkCount, the
+    // `kCalibrationTrials` trials the search allows, and ends at the first
+    // count whose unit time passes the target, bracketing it by the count
+    // below (FR-010, R-02).
+    while (true) {
+      const std::uint64_t unit = calibrationTrial(search, readStamp, count);
+      if (unit >= search.target) {
+        hi = count;
+        lo = count / 2;
+        break;
+      }
+      // The count cap ends the doubling with no count above the target, so
+      // the bisection reads the whole range and runs its full
+      // `kCalibrationSteps` steps (FR-010, R-02).
+      if (count == kMaxWorkCount) {
+        lo = 1;
+        break;
+      }
+      count *= 2;
     }
-    // The count cap ends the doubling with no count above the target, so
-    // the bisection reads the whole range and runs its full
-    // `kCalibrationSteps` steps (FR-010, R-02).
-    if (count == kMaxWorkCount) {
-      lo = 1;
-      break;
-    }
-    count *= 2;
-  }
-  // The bisection halves the bracket the doubling left: an interval of
-  // `kMaxWorkCount` halves `kCalibrationSteps` times and ends holding one
-  // count (FR-010).
-  while (hi - lo > 1) {
-    const std::uint64_t mid = lo + (hi - lo) / 2;
-    const std::uint64_t unit = calibrationTrial(search, readStamp, mid);
-    if (unit >= search.target) {
-      hi = mid;
-    } else {
-      lo = mid;
+    // The bisection halves the bracket the doubling left: an interval of
+    // `kMaxWorkCount` halves `kCalibrationSteps` times and ends holding one
+    // count (FR-010).
+    while (hi - lo > 1) {
+      const std::uint64_t mid = lo + (hi - lo) / 2;
+      const std::uint64_t unit = calibrationTrial(search, readStamp, mid);
+      if (unit >= search.target) {
+        hi = mid;
+      } else {
+        lo = mid;
+      }
     }
   }
   state.workCount = search.bestCount;
@@ -353,7 +366,14 @@ auto runFwqUnit(ProbeCpuState& state,
 {
   runUnitBody(state.workCount);
   const std::uint64_t stamp = readStamp();
-  keepSeriesOrDrop(state, stamp - last, phaseStart);
+  const std::uint64_t unit = stamp - last;
+  // FR-011, D-2: a run whose count the value names reads no search, so
+  // the unit time it discloses reads this window's first unit.
+  if (state.unitTimeFromWindow) {
+    state.unitTimeNs = unit;
+    state.unitTimeFromWindow = false;
+  }
+  keepSeriesOrDrop(state, unit, phaseStart);
   last = stamp;
 }
 

@@ -106,6 +106,10 @@ struct ProbeCpuState
   std::uint64_t targetNs = 0;
   std::uint64_t quantumNs = 0;
   std::uint64_t calibrationSpanNs = 0;
+  // specs/043 FR-010, FR-011, D-2: a `work=` count the value names skips
+  // the search, so the unit time the run discloses reads the first unit
+  // of this cpu's window. The flag stands set until that unit fills it.
+  bool unitTimeFromWindow = false;
   std::vector<std::uint64_t> series;
   std::size_t seriesKept = 0;
   // specs/043 FR-004, FR-020, E-27, R-04: the kept count the series
