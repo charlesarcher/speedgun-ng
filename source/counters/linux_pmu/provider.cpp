@@ -89,17 +89,10 @@ auto readParanoid() -> int
 {
   std::ifstream file(sg::counters::detail::kernelCalls().paranoidPath());
   int value = -1;
-  // LCOV_EXCL_BR_START : coverage exclusion (T066): the whole read is
-  // excluded because its false side needs the sysctl to be unreadable; see
-  // the `return -1` marker below.
-  if (file >> value) {  // LCOV_EXCL_BR_LINE
+  if (file >> value) {
     return value;
   }
-  // LCOV_EXCL_LINE : coverage exclusion (T066):
-  // `/proc/sys/kernel/perf_event_paranoid` is a read-only kernel file in a
-  // container namespace; no test can make the read fail.
-  return -1;  // LCOV_EXCL_LINE
-  // LCOV_EXCL_BR_STOP
+  return -1;
 }
 
 // The host's counter-limit registers, read once: the words do not change
@@ -825,13 +818,9 @@ PmuProvider::PmuProvider()
   // level (FR-039). The fast sentence is this device's own page verdict
   // (FR-017). A host-wide instructions probe does not write it.
   const int paranoid = readParanoid();
-  const std::string level =
-      paranoid < 0  // LCOV_EXCL_BR_LINE
-                    // LCOV_EXCL_LINE : coverage exclusion (T066): the same
-                    // unreadable sysctl the `read_paranoid` fallback above is
-                    // excluded for.
-      ? "an unreadable perf_event_paranoid"  // LCOV_EXCL_LINE
-      : "perf_event_paranoid " + std::to_string(paranoid);  // LCOV_EXCL_BR_LINE
+  const std::string level = paranoid < 0
+      ? "an unreadable perf_event_paranoid"
+      : "perf_event_paranoid " + std::to_string(paranoid);
   const std::string levelNote = "; the availability probe ran at " + level;
 
   for (const auto& dir : devices) {

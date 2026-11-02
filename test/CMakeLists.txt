@@ -508,6 +508,17 @@ target_compile_features(counters_pmu_window_test PRIVATE cxx_std_23)
 add_test(NAME counters_pmu_window_test
          COMMAND counters_pmu_window_test)
 
+# The provider through the public surface, over a scripted sysfs tree
+# and a scripted kernel, so the enumeration arms the coverage gate
+# measures carry their own counts on every host (G-19, G-21; Phase D).
+add_executable(counters_pmu_provider_test
+               source/counters_pmu_provider_test.cpp)
+target_link_libraries(counters_pmu_provider_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_pmu_provider_test PRIVATE cxx_std_23)
+add_test(NAME counters_pmu_provider_test
+         COMMAND counters_pmu_provider_test)
+
 # Metric formulas of the vendored event table (T013..T019, T027..T034;
 # FR-003..FR-021). The grammar test drives the parse seam as a pure
 # function; the lookup test resolves the fixture table against the fixture
