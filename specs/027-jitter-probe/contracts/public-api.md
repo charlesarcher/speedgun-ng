@@ -10,10 +10,12 @@ the naming rules of V.1).
 | Name | Kind | Requirement |
 | --- | --- | --- |
 | `JitterProbeMode` | enum: `ALONGSIDE`, `PRECHECK`, `BOTH` | FR-012, R-10 |
-| `JitterProbeOptions` | aggregate of six fields | FR-003, R-15 |
+| `JitterProbeOptions` | aggregate of ten fields | FR-003, R-15, specs/043 FR-005 |
 | `runJitterProbe(const JitterProbeOptions&)` | suite-level free function | FR-015 |
 | `BenchmarkHandle::jitterProbe(const JitterProbeOptions&)` | fluent member beside the setters (`benchmark.hpp:1620` and below) | FR-015 |
 | `JitterStats` | aggregate of sixteen fields | FR-002, R-05 |
+| `JitterMethod` | enum: `TSC`, `FWQ`, `FTQ` | specs/043 FR-001, FR-019 |
+| `JitterSeriesStats` | aggregate of 19 fields, plus the period list | specs/043 FR-007, FR-011, FR-019, FR-020 |
 
 No new public header and no new target: the names join the header beside
 `BenchmarkHandle` (FR-015, R-01). No entry point takes a bool (FR-003):
@@ -32,6 +34,10 @@ struct JitterProbeOptions {
   std::uint32_t   gapCount    = kDefaultGapCount;     // 65,536
   std::uint32_t   precheckMs  = kDefaultPrecheckMs;   // 200
   bool            strict      = false;
+  JitterMethod      method       = JitterMethod::TSC;      // one method per run
+  std::uint32_t     quantumUs    = kDefaultQuantumUs;      // 100 us
+  std::uint32_t     workCount    = 0;                      // 0 names the calibration
+  std::uint32_t     noisePercent = kDefaultNoisePercent;   // 1 percent
 };
 ```
 
@@ -43,6 +49,10 @@ struct JitterProbeOptions {
 | `gapCount` | inside `kMinGapCount` (1) through `kMaxGapCount` (16,777,216) | FR-009 |
 | `precheckMs` | at or above 1 | FR-014, D-13 |
 | `strict` | false by default; true matches `,strict` on the option value | FR-037 |
+| `method` | one of the three enumerators; `TSC` matches the option default and stands as specs/027 defines it | specs/043 FR-001, D-1 |
+| `quantumUs` | inside 10 through 100,000 us; the FTQ quantum, in microseconds | specs/043 FR-002, FR-015 |
+| `workCount` | 0 names the calibration of FR-010; a value stands inside 1 through 16,777,216 | specs/043 FR-002, FR-010 |
+| `noisePercent` | inside 0 through 100; the strict refusal reads it in the pre-check phase | specs/043 FR-002, FR-021 |
 
 Validation: the command line rejects a value outside these bounds with
 one line and status 2 before the options stand up (`cli-options.md`); a
@@ -64,6 +74,11 @@ runJitterProbe(const JitterProbeOptions& options)
        field carries one, `gapCount` inside the `kMinGapCount` through
        `kMaxGapCount` range, and `precheckMs` at or above 1 (FR-008,
        FR-009, D-13)
+  The parser `parseJitterProbeValue` stands the enforcement site for the
+  three ranges: it refuses a `quantumUs` value outside 10 through 100,000,
+  a `workCount` outside 1 through 16,777,216, and a `noisePercent` outside
+  0 through 100, each with one quoted line at exit status 2 (specs/043
+  FR-002, FR-003).
   \post the suite's next run starts the probe before its first selected
         instance and stops, drains and joins it after the last, over
         these options, the way the command-line option does (FR-006, R-01)
@@ -142,6 +157,46 @@ gapStatsOf(...)
 the mode is `PRECHECK` or `BOTH`, the alongside phase when the mode is
 `ALONGSIDE` or `BOTH`, and the overlap check binds the alongside phase
 only (FR-014, D-3, R-10).
+
+## JitterSeriesStats
+
+specs/043-fwq-ftq: the per-cpu record of one method's series. It joins
+`JitterEntryFold` beside `JitterStats`, so the run-level read and the
+per-benchmark read share one type (specs/043 FR-020, Key Entities).
+
+| Field | Kind | Rule | Requirement |
+| --- | --- | --- | --- |
+| `sampleCount` | integer | the kept samples of the covered windows | specs/043 FR-007 |
+| `minValue`, `medianValue`, `meanValue`, `p90Value`, `p99Value`, `p999Value`, `p9999Value`, `maxValue` | integer, `meanValue` real | the series figures in ns for FWQ and in counts for FTQ, the nearest-rank rule of specs/021 over the kept samples, read in place | specs/043 FR-007, FR-008 |
+| `noisePercent` | real | the method's noise fraction, 0 through 100, and 100 for a maximum count of 0 | specs/043 FR-009 |
+| `seriesRuntimeNs` | integer | the window span the series covers, the calibration span out | specs/043 FR-007, FR-010 |
+| `droppedSamples` | integer | the records a full buffer dropped | specs/043 FR-014, FR-022 |
+| `workCount`, `unitTimeNs`, `targetNs`, `quantumNs`, `calibrationSpanNs` | integer | the calibration of that probe cpu, measured before its window | specs/043 FR-010, FR-011 |
+| `resampleStepNs`, `spectrumPoints` | integer | the FWQ resample step at the median unit time, and the points the transform read | specs/043 FR-017, FR-019 |
+| `periods` | array | at most five closed records of `periodNs` and `powerRatio`, strongest first | specs/043 FR-018 |
+
+The fold that fills the record carries the contracts, the standing shape
+of `gapStatsOf`:
+
+```text
+seriesStatsOf(...)
+  \pre the series buffer of one probe cpu is read after that probe
+       context is joined (specs/027 R-04)
+  \post the percentile fields follow the nearest-rank rule over the
+        kept samples, read in place, and the code copies no buffer
+        (specs/043 FR-008)
+  \post minValue <= medianValue <= p90Value <= p99Value <= p999Value
+        <= p9999Value <= maxValue
+  \post the transform reads at most 65,536 points, the last ones of a
+        longer series, and the skipped count stands disclosed
+        (specs/043 FR-018)
+```
+
+The field carries microseconds and the JSON key `quantumNs` carries
+nanoseconds, one unit per surface (specs/043 FR-002, FR-006, FR-019). The
+option field `noisePercent` is a whole number, and the series figure
+`noisePercent` is a real, the standing percent shape of `totalPercent`
+(specs/043 FR-002, FR-009).
 
 ## Consumers
 
