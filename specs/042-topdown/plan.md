@@ -155,7 +155,7 @@ test/
 ├── source/counters_topdown_source_test.cpp        # new
 ├── source/harness_topdown_option_test.cpp         # new
 ├── source/harness_topdown_run_test.cpp            # new
-├── source/harness_topdown_json_test.cpp           # new
+├── source/harness_topdown_report_test.cpp         # new: block, key, schema
 └── source/counters_linux_pmu_seam_test.cpp        # the bound's seam checks
 ```
 

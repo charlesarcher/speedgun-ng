@@ -48,7 +48,7 @@ trimmed ones (D-15). The check reads the main page alone (`:764-765`) and answer
 | the `--topdown` row of the option table | 1 | the two `## Planned work` rows at 1001 and 1002 | 2 |
 
 Each trim line reads empty today, and the shape each one leaves already stands
-on the page: 12 of the 38 headings there stand directly after a sentence
+on the page: 11 of the 38 headings there stand directly after a sentence
 (`README.md:114-115`, `:300-301`, `:325-326`), 2 directly after a closing fence
 (`:152-153`, `:217-218`), and `README.md:1001` and `:1002` name output that
 ships.
@@ -101,11 +101,12 @@ non-empty `--list` (`:48-53`), a run at the fixed `--min-time=0.01` (`:57`), no
 line holding `FAILED` in either stream (`:63-68`), exit status 0 (`:69-74`),
 and one stdout line starting at column 1 for each registered benchmark (`:86`).
 A `SKIPPED:` row needs its `// example-run: expect-skip` marker, and a declared
-skip that never prints fails (`:76-101`, `:111`). The unsupported path
+skip that never prints fails (`:76-101`, `:113`). The unsupported path
 therefore prints its one message, holds `FAILED` out of it, and exits 0
-(FR-041). The snippet gate wraps each main-page cpp fence in a four-line
-prelude and syntax-compiles it (`test/snippet-compile/run.sh:84-92`), so the
-quoted body compiles alone.
+(FR-041). The snippet gate wraps each marked main-page fence in a four-line
+prelude and syntax-compiles it (`example_drift.py:738` collects the marked
+fences, `test/snippet-compile/run.sh:10-12` reads that list, the compile stands
+at `:89-94`), so the quoted body compiles alone.
 
 ## The guide page
 
@@ -121,7 +122,7 @@ writes 1.10` while `source/harness/json_report.cpp:43` stamps `1.11` today and
 
 ## Naming and the gate
 
-The main page runs under `MAIN_CLASSES` (`example_drift.py:450-461`), which
+The main page runs under `MAIN_CLASSES` (`example_drift.py:450-462`), which
 bars spec ids (`:455`), requirement ids (`:456`) and any path under `include`,
 `source`, `test`, `tools` or `external` (`:460`); guide pages run under
 `DOCS_CLASSES` (`:475-487`), which adds task ids, feature numbers and contract

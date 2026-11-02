@@ -124,5 +124,5 @@ once and checks the line, the stream, the status, and that no benchmark ran.
 `source/harness/detail/options.hpp` carries the constant and
 `source/harness/options.cpp` the row and the arm; both are harness-internal, so
 the option moves no exported layout. The `SOVERSION` moves a record member
-prices stand in `contract-report-key.md`; the README option row the drift gate
-asks for stands in `contract-page.md`.
+prices stand in `topdown-report-key.md`; the README option row the drift gate
+asks for stands in `topdown-page.md`.
