@@ -194,7 +194,7 @@ and every story calls `topdownTree`.
 
 ### Implementation for this phase
 
-- [ ] T012 [P] Move `source/harness/detail/proc_root.hpp` to
+- [x] T012 [P] Move `source/harness/detail/proc_root.hpp` to
   `source/detail/proc_root.hpp`, a new file at the lower path that holds the
   same reader, and change the four includes in
   `source/harness/jitter_probe.cpp`, `source/harness/noise_tracer.cpp`,
@@ -226,7 +226,11 @@ and every story calls `topdownTree`.
   `kHostFacts` row `core_wide` over the standing `bool(System&, double&)`
   reader, reading the mask with `sched_getaffinity` and each sibling list
   through the fallback reader of T015, and move `#core_wide` out of the header
-  comment that lists the four refusing constants (FR-042, FR-043; turns
+  comment that lists the four refusing constants. The same reading moves the
+  list in `test/source/counters_metric_formula_test.cpp:395-411`, which pins
+  `#core_wide` among the constants that answer no source and refuses the row
+  that names it: the row now has a source, so the name leaves that list and the
+  case that reads it keeps its other three (FR-042, FR-043; turns
   `coreWideAnswersFromTheProcessCpuSet` of T005 green).
 
 - [ ] T017 In `include/speedgun-ng/counters_metrics.hpp`, publish

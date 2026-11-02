@@ -21,9 +21,9 @@
 
 #include "detail/noise_tracer.hpp"
 
+#include "../detail/proc_root.hpp"
 #include "detail/jitter_probe.hpp"
 #include "detail/options.hpp"
-#include "detail/proc_root.hpp"
 #include "speedgun-ng/dbc.hpp"
 
 namespace sg::detail

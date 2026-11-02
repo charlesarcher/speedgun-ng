@@ -37,11 +37,11 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "../../source/detail/proc_root.hpp"
 #include "detail/internal.hpp"
 #include "detail/jitter_probe.hpp"
 #include "detail/noise_tracer.hpp"
 #include "detail/options.hpp"
-#include "detail/proc_root.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_fake.hpp"
 #include "speedgun-ng/counters_system.hpp"
