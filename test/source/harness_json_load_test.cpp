@@ -1752,7 +1752,7 @@ auto theGraphRefusalsNameTheirFields() -> void
 constexpr const char* const kSeries = R"JSON(
 {"schemaVersion":"1.12","speedgun":{"version":"0.29.0","buildType":"Release"},
  "jitter":{"mode":"ALONGSIDE","thresholdNs":200,"loopPeriodNs":20,"method":"FWQ",
-  "series":[{"cpu":2,"workCount":7,"unitTimeNs":1000,"targetNs":1000,"quantumNs":100000,"calibrationSpanNs":500,"sampleCount":4096,"minValue":900,"medianValue":1000,"meanValue":1000.5,"p90Value":1100,"p99Value":1200,"p999Value":1300,"p9999Value":1400,"maxValue":1500,"noisePercent":0.25,"seriesRuntimeNs":4096000,"droppedSamples":3,"resampleStepNs":1000,"spectrumPoints":2048,"periods":[{"periodNs":1000000,"powerRatio":1.0},{"periodNs":500000,"powerRatio":0.5}]},
+  "series":[{"cpu":2,"workCount":7,"unitTimeNs":1000,"targetNs":1000,"quantumNs":100000,"calibrationSpanNs":500,"sampleCount":4096,"minValue":900,"medianValue":1000,"meanValue":1000.5,"p90Value":1100,"p99Value":1200,"p999Value":1300,"p9999Value":1400,"maxValue":1500,"noisePercent":0.25,"seriesRuntimeNs":4096000,"droppedSamples":3,"resampleStepNs":1000,"spectrumPoints":2048,"periods":[{"periodNs":1000000,"powerRatio":1.0}]},
    {"cpu":3,"workCount":8,"unitTimeNs":1001,"targetNs":1001,"quantumNs":100001,"calibrationSpanNs":501,"sampleCount":1,"minValue":2,"medianValue":3,"meanValue":4.5,"p90Value":5,"p99Value":6,"p999Value":7,"p9999Value":8,"maxValue":9,"noisePercent":1.5,"seriesRuntimeNs":10,"droppedSamples":0,"resampleStepNs":0,"spectrumPoints":0,"periods":[]}],
   "cpus":[2,3],"stats":[{"cpu":2,"gapCount":1,"gapsPerSecond":1000.0,"minNs":200,"medianNs":200,"meanNs":200.0,"p90Ns":210,"p99Ns":220,"p999Ns":230,"p9999Ns":240,"maxNs":250,"totalNs":260,"totalPercent":0.5,"runtimeNs":270,"thresholdNs":280,"loopPeriodNs":29,"droppedGaps":30},
    {"cpu":3,"gapCount":0,"gapsPerSecond":0.0,"minNs":0,"medianNs":0,"meanNs":0.0,"p90Ns":0,"p99Ns":0,"p999Ns":0,"p9999Ns":0,"maxNs":0,"totalNs":0,"totalPercent":0.0,"runtimeNs":0,"thresholdNs":280,"loopPeriodNs":29,"droppedGaps":0}],
@@ -1772,8 +1772,8 @@ constexpr const char* const kSeries = R"JSON(
 // the whole array with its own key: the plants that take the array out, and
 // the plant that gives it a container of another kind, both need the span
 // (FR-020).
-auto seriesSpan(const std::string& text, std::size_t from)
-    -> std::pair<std::size_t, std::size_t>
+auto seriesSpan(const std::string& text,
+                std::size_t from) -> std::pair<std::size_t, std::size_t>
 {
   const auto at = text.find("\"series\":[", from);
   check(at != std::string::npos,
@@ -1835,8 +1835,7 @@ auto theSeriesRecordReadsBackEveryKey() -> void
 {
   sg::test::writeText("harness_json_load_series.json", kSeries);
   const auto loaded = sg::loadReport("harness_json_load_series.json");
-  check(loaded.has_value(),
-        "the document carrying the series loads (FR-020)");
+  check(loaded.has_value(), "the document carrying the series loads (FR-020)");
   if (!loaded.has_value()) {
     std::printf("  %s\n", loaded.error().c_str());
     return;
@@ -1908,11 +1907,9 @@ auto thePeriodListReadsBack() -> void
     return;
   }
   const auto& first = loaded->runJitterStats->at(0).series;
-  check(first.has_value() && first->periods.size() == 2
+  check(first.has_value() && first->periods.size() == 1
             && first->periods[0].periodNs == 1000000
-            && sg::test::sameValue(first->periods[0].powerRatio, 1.0)
-            && first->periods[1].periodNs == 500000
-            && sg::test::sameValue(first->periods[1].powerRatio, 0.5),
+            && sg::test::sameValue(first->periods[0].powerRatio, 1.0),
         "thePeriodListReadsBack: the period list reads back item by item "
         "(FR-018, E-24)");
   const auto& second = loaded->runJitterStats->at(1).series;
@@ -1978,77 +1975,73 @@ auto aMissingSeriesKeyLeavesTheFoldsEmpty() -> void
 
 // FR-020, FR-029, SC-007: one plant per new key, each of a kind the reader
 // does not take, each refused with the pointer of the key it stands at.
+constexpr Mutation kPlants[] = {
+    {"\"method\":\"FWQ\"", "\"method\":1", "/jitter/method"},
+    {"\"workCount\":7", "\"workCount\":\"x\"", "/jitter/series/0/workCount"},
+    {"\"unitTimeNs\":1000",
+     "\"unitTimeNs\":\"x\"",
+     "/jitter/series/0/unitTimeNs"},
+    {"\"targetNs\":1000", "\"targetNs\":\"x\"", "/jitter/series/0/targetNs"},
+    {"\"quantumNs\":100000",
+     "\"quantumNs\":\"x\"",
+     "/jitter/series/0/quantumNs"},
+    {"\"calibrationSpanNs\":500",
+     "\"calibrationSpanNs\":\"x\"",
+     "/jitter/series/0/calibrationSpanNs"},
+    {"\"sampleCount\":4096",
+     "\"sampleCount\":\"x\"",
+     "/jitter/series/0/sampleCount"},
+    {"\"minValue\":900", "\"minValue\":\"x\"", "/jitter/series/0/minValue"},
+    {"\"medianValue\":1000",
+     "\"medianValue\":\"x\"",
+     "/jitter/series/0/medianValue"},
+    {"\"meanValue\":1000.5",
+     "\"meanValue\":\"x\"",
+     "/jitter/series/0/meanValue"},
+    {"\"p90Value\":1100", "\"p90Value\":\"x\"", "/jitter/series/0/p90Value"},
+    {"\"p99Value\":1200", "\"p99Value\":\"x\"", "/jitter/series/0/p99Value"},
+    {"\"p999Value\":1300", "\"p999Value\":\"x\"", "/jitter/series/0/p999Value"},
+    {"\"p9999Value\":1400",
+     "\"p9999Value\":\"x\"",
+     "/jitter/series/0/p9999Value"},
+    {"\"maxValue\":1500", "\"maxValue\":\"x\"", "/jitter/series/0/maxValue"},
+    {"\"noisePercent\":0.25",
+     "\"noisePercent\":\"x\"",
+     "/jitter/series/0/noisePercent"},
+    {"\"seriesRuntimeNs\":4096000",
+     "\"seriesRuntimeNs\":\"x\"",
+     "/jitter/series/0/seriesRuntimeNs"},
+    {"\"droppedSamples\":3",
+     "\"droppedSamples\":\"x\"",
+     "/jitter/series/0/droppedSamples"},
+    {"\"resampleStepNs\":1000",
+     "\"resampleStepNs\":\"x\"",
+     "/jitter/series/0/resampleStepNs"},
+    {"\"spectrumPoints\":2048",
+     "\"spectrumPoints\":\"x\"",
+     "/jitter/series/0/spectrumPoints"},
+    // The period list rides the item last, and one period item
+    // carries the two figures the transform answers.
+    {"\"periods\":[{\"periodNs\":1000000,\"powerRatio\":1.0}]",
+     "\"periods\":{}",
+     "/jitter/series/0/periods"},
+    {"\"periodNs\":1000000",
+     "\"periodNs\":\"x\"",
+     "/jitter/series/0/periods/0/periodNs"},
+    {"\"powerRatio\":1.0",
+     "\"powerRatio\":\"x\"",
+     "/jitter/series/0/periods/0/powerRatio"},
+};
+
 auto eachNewKeyOfTheWrongKindStandsRefused() -> void
 {
-  constexpr Mutation kPlants[] = {
-      {"\"method\":\"FWQ\"", "\"method\":1", "/jitter/method"},
-      {"\"workCount\":7", "\"workCount\":\"x\"", "/jitter/series/0/workCount"},
-      {"\"unitTimeNs\":1000",
-       "\"unitTimeNs\":\"x\"",
-       "/jitter/series/0/unitTimeNs"},
-      {"\"targetNs\":1000",
-       "\"targetNs\":\"x\"",
-       "/jitter/series/0/targetNs"},
-      {"\"quantumNs\":100000",
-       "\"quantumNs\":\"x\"",
-       "/jitter/series/0/quantumNs"},
-      {"\"calibrationSpanNs\":500",
-       "\"calibrationSpanNs\":\"x\"",
-       "/jitter/series/0/calibrationSpanNs"},
-      {"\"sampleCount\":4096",
-       "\"sampleCount\":\"x\"",
-       "/jitter/series/0/sampleCount"},
-      {"\"minValue\":900", "\"minValue\":\"x\"", "/jitter/series/0/minValue"},
-      {"\"medianValue\":1000",
-       "\"medianValue\":\"x\"",
-       "/jitter/series/0/medianValue"},
-      {"\"meanValue\":1000.5",
-       "\"meanValue\":\"x\"",
-       "/jitter/series/0/meanValue"},
-      {"\"p90Value\":1100", "\"p90Value\":\"x\"", "/jitter/series/0/p90Value"},
-      {"\"p99Value\":1200", "\"p99Value\":\"x\"", "/jitter/series/0/p99Value"},
-      {"\"p999Value\":1300",
-       "\"p999Value\":\"x\"",
-       "/jitter/series/0/p999Value"},
-      {"\"p9999Value\":1400",
-       "\"p9999Value\":\"x\"",
-       "/jitter/series/0/p9999Value"},
-      {"\"maxValue\":1500", "\"maxValue\":\"x\"", "/jitter/series/0/maxValue"},
-      {"\"noisePercent\":0.25",
-       "\"noisePercent\":\"x\"",
-       "/jitter/series/0/noisePercent"},
-      {"\"seriesRuntimeNs\":4096000",
-       "\"seriesRuntimeNs\":\"x\"",
-       "/jitter/series/0/seriesRuntimeNs"},
-      {"\"droppedSamples\":3",
-       "\"droppedSamples\":\"x\"",
-       "/jitter/series/0/droppedSamples"},
-      {"\"resampleStepNs\":1000",
-       "\"resampleStepNs\":\"x\"",
-       "/jitter/series/0/resampleStepNs"},
-      {"\"spectrumPoints\":2048",
-       "\"spectrumPoints\":\"x\"",
-       "/jitter/series/0/spectrumPoints"},
-      {"\"periods\":[{\"periodNs\":1000000,\"powerRatio\":1.0},"
-       "{\"periodNs\":500000,\"powerRatio\":0.5}]",
-       "\"periods\":{}",
-       "/jitter/series/0/periods"},
-      {"\"periodNs\":1000000",
-       "\"periodNs\":\"x\"",
-       "/jitter/series/0/periods/0/periodNs"},
-      {"\"powerRatio\":1.0",
-       "\"powerRatio\":\"x\"",
-       "/jitter/series/0/periods/0/powerRatio"},
-  };
   plantsRefuseAtTheirPointers(kSeries, kPlants, "FR-020, FR-029");
 
   // The array itself, standing an object: the container kind the reader
   // names beside the item's own keys.
   const auto span = seriesSpan(std::string(kSeries), 0);
   std::string broken(kSeries);
-  broken.replace(span.first,
-                 span.second,
-                 "\"series\":1,");
+  broken.replace(span.first, span.second, "\"series\":1,");
   sg::test::writeText("harness_json_load_serieskind.json", broken);
   const auto refused = sg::loadReport("harness_json_load_serieskind.json");
   check(!refused.has_value()

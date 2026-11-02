@@ -576,9 +576,8 @@ auto readJitterSeriesCpu(Element value, const std::string& where)
     *into = *number;
     return {};
   };
-  const auto readRealKey =
-      [&](std::string_view key,
-          double* into) -> std::expected<void, std::string>
+  const auto readRealKey = [&](std::string_view key,
+                               double* into) -> std::expected<void, std::string>
   {
     auto found = field(value, where, key);
     if (!found.has_value()) {
@@ -630,8 +629,7 @@ auto readJitterSeriesCpu(Element value, const std::string& where)
   if (!settledValues.has_value()) {
     return std::unexpected(settledValues.error());
   }
-  if (const auto periods = optionalField(value, "periods");
-      periods.has_value())
+  if (const auto periods = optionalField(value, "periods"); periods.has_value())
   {
     auto items = asArray(*periods, where + "/periods");
     if (!items.has_value()) {
@@ -667,9 +665,10 @@ auto readJitterSeriesCpu(Element value, const std::string& where)
 
 // The series items of one `series` array, in the order the document
 // carries them, each with the cpu its item names (E-23, FR-020).
-auto readJitterSeries(Element value,
-                      const std::string& where) -> std::expected<
-    std::vector<std::pair<std::uint32_t, sg::JitterSeriesStats>>, std::string>
+auto readJitterSeries(Element value, const std::string& where)
+    -> std::expected<
+        std::vector<std::pair<std::uint32_t, sg::JitterSeriesStats>>,
+        std::string>
 {
   std::vector<std::pair<std::uint32_t, sg::JitterSeriesStats>> read;
   const auto key = optionalField(value, "series");
@@ -698,9 +697,9 @@ auto readJitterSeries(Element value,
 // not carry names itself, the way the standing cpu rule does (E-07, E-08,
 // FR-020, FR-029).
 auto foldJitterSeries(
-     std::vector<sg::JitterEntryFold>& folds,
-     const std::vector<std::pair<std::uint32_t, sg::JitterSeriesStats>>& series,
-     const std::string& where) -> std::expected<void, std::string>
+    std::vector<sg::JitterEntryFold>& folds,
+    const std::vector<std::pair<std::uint32_t, sg::JitterSeriesStats>>& series,
+    const std::string& where) -> std::expected<void, std::string>
 {
   for (const auto& item : series) {
     const auto fold =
@@ -709,8 +708,7 @@ auto foldJitterSeries(
                      [cpu = item.first](const sg::JitterEntryFold& candidate)
                      { return candidate.cpu == cpu; });
     if (fold == folds.end()) {
-      return std::unexpected(where
-                             + ": the series item names cpu "
+      return std::unexpected(where + ": the series item names cpu "
                              + std::to_string(item.first)
                              + ", which the stats array does not carry");
     }
@@ -1421,10 +1419,9 @@ auto readGraphRecord(Element value, const std::string& where)
 // method the run record carries, the method standing empty for a
 // document that names none (FR-020, E-25).
 auto readJitterRecord(Element value, const std::string& where)
-    -> std::expected<
-        std::pair<std::vector<sg::JitterEntryFold>,
-                  std::optional<sg::JitterMethod>>,
-        std::string>
+    -> std::expected<std::pair<std::vector<sg::JitterEntryFold>,
+                               std::optional<sg::JitterMethod>>,
+                     std::string>
 {
   const auto readKey =
       [&](std::string_view key) -> std::expected<Element, std::string>
@@ -1458,8 +1455,8 @@ auto readJitterRecord(Element value, const std::string& where)
   // series at all.
   std::optional<sg::JitterMethod> method;
   if (const auto word = optionalField(value, "method"); word.has_value()) {
-    auto read = asEnum<sg::JitterMethod>(detail::kJitterMethodWords, *word,
-                                         where + "/method");
+    auto read = asEnum<sg::JitterMethod>(
+        detail::kJitterMethodWords, *word, where + "/method");
     if (!read.has_value()) {
       return std::unexpected(read.error());
     }
@@ -2416,8 +2413,8 @@ auto readEntry(Element value,
     if (!series.has_value()) {
       return std::unexpected(series.error());
     }
-    if (const auto settled = foldJitterSeries(result.jitterFolds, *series,
-                                             here + "/series");
+    if (const auto settled =
+            foldJitterSeries(result.jitterFolds, *series, here + "/series");
         !settled.has_value())
     {
       return std::unexpected(settled.error());

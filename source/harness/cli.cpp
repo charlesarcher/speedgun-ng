@@ -438,9 +438,8 @@ auto addSpectrumTo(const detail::ProbeCpuState& state,
     series.resampleStepNs = answer.stepNs;
   }
   for (const auto& period : answer.periods) {
-    series.periods.push_back(
-        sg::JitterPeriodRecord {.periodNs = period.periodNs,
-                                .powerRatio = period.powerRatio});
+    series.periods.push_back(sg::JitterPeriodRecord {
+        .periodNs = period.periodNs, .powerRatio = period.powerRatio});
   }
 }
 
