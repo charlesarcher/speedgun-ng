@@ -261,62 +261,39 @@ std::unique_ptr<FastContext> fastContextOpen(const int type,
   const auto [pid, cpu] = leaderPid(where);
   const long fd =
       kernelCalls().openEvent(&attr, pid, cpu, -1, PERF_FLAG_FD_CLOEXEC);
-  // LCOV_EXCL_BR_START : coverage exclusion (T140): the granted arm of the
-  // open. It needs a `perf_event_open` the kernel answers with a descriptor.
-  // A runner whose `perf_event_open` is refused takes the refusing arm below
-  // on every call, and the host that grants the syscall takes this one; the
-  // refusal itself is measured for both arms by
-  // `context_open_refusal_scenario` in
-  // `test/source/counters_linux_pmu_seam_test.cpp`.
-  if (fd < 0) {  // LCOV_EXCL_BR_LINE
+  // The scripted kernel stands a descriptor and a page in wherever the
+  // test points the seam, so both arms of the open and the mapping
+  // refusal carry their own counts over the fixtures
+  // `counters_linux_pmu_seam_test.cpp` installs.
+  if (fd < 0) {
     return refuse("perf_event_open was refused: "
                   + std::string(std::strerror(errno)));
-  }  // LCOV_EXCL_BR_LINE
-  // LCOV_EXCL_BR_STOP
-  // LCOV_EXCL_START : coverage exclusion (T140): the context the granted arm
-  // fills. The descriptor above exists only where the kernel granted the
-  // open, so a runner whose `perf_event_open` is refused fills no context
-  // here, and the host that grants it fills one on every granted call.
+  }
   auto context = std::make_unique<FastContext>();
   context->owner = std::this_thread::get_id();
   context->pinnedCpu = where.kind == TargetKind::CPU ? where.cpu : -1;
   context->fd = static_cast<int>(fd);
   context->mapLength = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
-  // LCOV_EXCL_STOP
   // The mapping is the kernel's own page type read at the offsets that
   // type declares, so no cast of a mirrored layout is involved and no P2
   // exception is claimed (Constitution I; plan Complexity Tracking).
-  // LCOV_EXCL_START : coverage exclusion (T140): the arm needs a
-  // `perf_event_open` that returns a descriptor its own mapping then
-  // refuses. Every descriptor the kernel grants maps, so no host and no
-  // fixture reaches this arm; the open refusal above is the reachable
-  // half and `test/source/counters_linux_pmu_seam_test.cpp` covers it.
   void* mapping = kernelCalls().mapPage(
       nullptr, context->mapLength, PROT_READ, MAP_SHARED, context->fd, 0);
-  if (mapping == MAP_FAILED) {  // LCOV_EXCL_BR_LINE
+  if (mapping == MAP_FAILED) {
     fastContextClose(*context);
     return refuse(
         "the event descriptor the kernel returned could not be " "mapped: "
-        + std::string(std::strerror(errno)));  // LCOV_EXCL_LINE
-  }  // LCOV_EXCL_BR_LINE
-  // LCOV_EXCL_STOP
-  // LCOV_EXCL_START : coverage exclusion (T140): the mapping hand-back and
-  // the epilogue behind it. The descriptor handed back is the granted one,
-  // so a runner whose `perf_event_open` is refused returns above, and the
-  // host that grants it returns a context on every granted call.
+        + std::string(std::strerror(errno)));
+  }
   context->map = mapping;
   return context;
 }
 
-// LCOV_EXCL_STOP
-
-// LCOV_EXCL_START : coverage exclusion (T140): the whole mapped-page read.
-// It needs a context over a mapping the kernel handed back, and the only
-// source of one is a granted `perf_event_open`. A runner whose
-// `perf_event_open` is refused opens no context, so this body never runs
-// there; the host that grants it runs the body on every sample. The gates
-// the body applies are covered for both arms by `fastDecode` and the
-// `fastIndexValid` and `fastPairStable` seams in
+// The mapped-page read runs wherever a context stands, and the
+// scripted kernel stands one in over the fixture page, so the read
+// carries its own counts. The gates the body applies are covered for
+// both arms by `fastDecode` and the `fastIndexValid` and
+// `fastPairStable` seams in
 // `test/source/counters_linux_pmu_seam_test.cpp`.
 auto fastContextRead(const FastContext& context,
                      std::uint64_t& value) -> FastReadVerdict
@@ -344,27 +321,36 @@ auto fastContextRead(const FastContext& context,
   const auto offset = page->offset;
   const auto width = fastCounterWidth(page->pmc_width);
   const auto capability = static_cast<std::uint64_t>(page->cap_user_rdpmc);
-  // LCOV_EXCL_BR_START : coverage exclusion (T140): the arm that withholds
-  // the instruction. The kernel assigns a nonzero index to every event it
-  // opens on a host that grants the capability, so the arm needs a host
-  // that grants the capability and indexes nothing; the same gate is
-  // covered for both arms by `fastIndexValid` inside `fastDecode`.
-  const auto raw = index == 0  // LCOV_EXCL_BR_LINE
-      ? 0ULL
-      : static_cast<std::uint64_t>(  // LCOV_EXCL_BR_LINE
-            _rdpmc(static_cast<int>(index) - 1));  // LCOV_EXCL_BR_LINE
+  // A page that indexes nothing answers zero without the instruction,
+  // the arm the zero-index fixture drives; the instruction itself runs
+  // only where the processor maps the counter into the sampling
+  // context, which no fixture page can stand in for, so that arm
+  // carries the one marker the seam cannot reach (T140). The gates
+  // around it are covered for both arms by `fastIndexValid` inside
+  // `fastDecode`.
+  // LCOV_EXCL_BR_START : coverage exclusion (T140): the arm that
+  // withholds the instruction runs on a page that indexes nothing, and
+  // the instruction itself reads the counter the index names; the read
+  // faults on a host that never mapped the counter into this context,
+  // so no fixture page and no refused host takes the arm. The gate the
+  // decode applies is covered for both arms by `fastIndexValid` inside
+  // `fastDecode`.
+  std::uint64_t raw = 0;
+  if (index == 0) {
+    raw = 0ULL;
+  } else {
+    raw = static_cast<std::uint64_t>(
+        _rdpmc(static_cast<int>(index) - 1));  // LCOV_EXCL_LINE
+  }
   // LCOV_EXCL_BR_STOP
   _mm_lfence();
   return fastDecode(
       sequence, page->lock, index, capability, raw, offset, width, value);
-  // LCOV_EXCL_STOP
 }
 
-// LCOV_EXCL_START : coverage exclusion (T140): the whole enabled/running pair
-// read. It reads the same granted mapping the counter read above needs, so a
-// runner whose `perf_event_open` is refused never runs it, and the host that
-// grants the syscall runs it on every sampling action. The stability gate
-// the body applies is covered for both arms by `fastPairStable`.
+// The pair read runs wherever a context stands, over the same fixture
+// page the counter read uses; the stability gate the body applies is
+// covered for both arms by `fastPairStable`.
 auto fastContextTimePair(const FastContext& context,
                          std::uint64_t& enabled,
                          std::uint64_t& running) -> bool
@@ -401,14 +387,16 @@ auto fastContextTimePair(const FastContext& context,
   // set and the enabled count differs from the running count.
   const auto cyc = (capUserTime && pageEnabled != pageRunning) ? __rdtsc() : 0U;
   _mm_lfence();
-  // LCOV_EXCL_BR_START : coverage exclusion (T140): the arm that reports no
-  // pair. It needs the kernel to rewrite the page between the two reads of
-  // its sequence, which a test cannot force deterministically; the same
-  // comparison is covered for both arms by `fastPairStable`.
+  // The arm that reports no pair needs the kernel to rewrite the page
+  // between the two reads of its sequence, which a test cannot force
+  // deterministically; the same comparison is covered for both arms by
+  // `fastPairStable` (T140).
+  // The arm needs the kernel to rewrite the page between the two reads
+  // of its sequence, which a test cannot force deterministically; the
+  // same comparison is covered for both arms by `fastPairStable` (T140).
   if (!fastPairStable(sequence, page->lock)) {  // LCOV_EXCL_BR_LINE
     return false;  // LCOV_EXCL_LINE
   }  // LCOV_EXCL_BR_LINE
-  // LCOV_EXCL_BR_STOP
   // The kernel's own time recipe, applied to the fields this snapshot
   // holds (FR-007, FR-008, FR-009). The recipe is gated on the capability
   // bit and on an enabled count that differs from the running count, so a
@@ -431,7 +419,6 @@ auto fastContextTimePair(const FastContext& context,
   enabled = pair.enabled;
   running = pair.running;
   return true;
-  // LCOV_EXCL_STOP
 }
 
 void fastContextClose(FastContext& context)
