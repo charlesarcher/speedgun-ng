@@ -240,6 +240,17 @@ GENERIC_JOBS = ("lint", "test", "build", "docs", "configure", "format", "spell")
 # and the context-groups section; specs/037 from 964 to 994, the
 # execution-graphs section and its rows; specs/031 FR-036 from 994 to
 # 1004, the quick-start block of 10 lines (2026-10-31).
+# specs/043 FR-023 measures its own move: the "Fixed work and time
+# quanta" section runs 18 lines and its four quick-reference name rows
+# add 4, so 22 lines join the page. The trim is a region split, because
+# a marked region is the floor of a capability section and the drift
+# gate requires a marked block in every one of them. The three jitter
+# sections each quoted the same 17-line program, so the example file
+# gains a measured unit of 8 lines and a main of 8 lines, and the two
+# sections that teach the pre-check and the tracer quote the main. The
+# page measures 999 lines as the feature lands, 5 under the cap, and
+# the cap stays 1004. The section sits under the per-section budget of
+# FR-024, so no entry joins SECTION_LINE_CAPS.
 PAGE_LINE_CAP = 1004
 SECTION_LINE_CAP = 25
 
