@@ -1404,22 +1404,55 @@ auto printPrecheckReport(const PrecheckRecord& record,
   if (!candidatesStand) {
     std::printf("precheck candidates: none\n");
   }
+  // specs/043 T037, FR-004, FR-021, D-9, R-15: the pair the pre-check
+  // lines read. The window of a run that names a method keeps a series,
+  // and the pair stands the method's own: the noise fraction with the
+  // maximum unit time for FWQ, the noise fraction with the minimum count
+  // for FTQ. The FTQ series names a quantum and the FWQ series names
+  // none, so a non-zero quantum names the run whose second figure is the
+  // count. A `tsc` window keeps no series, and its standing gap pair and
+  // gap-rate rank stay byte-identical (FR-031).
+  const auto secondName = [](const PrecheckCpuRecord& entry) -> const char*
+  { return entry.series->quantumNs > 0 ? "minValue" : "maxValue"; };
+  const auto secondField = [](const PrecheckCpuRecord& entry) -> std::uint64_t
+  {
+    return entry.series->quantumNs > 0 ? entry.series->minValue
+                                       : entry.series->maxValue;
+  };
   std::vector<const PrecheckCpuRecord*> noisy;
   for (const auto& entry : record.cpus) {
-    if (entry.planned && entry.stats.gapCount > 0) {
+    if (!entry.planned) {
+      continue;
+    }
+    if (entry.series.has_value() ? entry.series->noisePercent > 0.0
+                                 : entry.stats.gapCount > 0)
+    {
       noisy.push_back(&entry);
     }
   }
   for (const auto* entry : noisy) {
-    std::printf("warning: cpu %u gapsPerSecond %.2f maxNs %llu\n",
-                static_cast<unsigned>(entry->cpu),
-                entry->stats.gapsPerSecond,
-                static_cast<unsigned long long>(entry->stats.maxNs));
+    if (entry->series.has_value()) {
+      std::printf("warning: cpu %u noisePercent %.2f %s %llu\n",
+                  static_cast<unsigned>(entry->cpu),
+                  entry->series->noisePercent,
+                  secondName(*entry),
+                  static_cast<unsigned long long>(secondField(*entry)));
+    } else {
+      std::printf("warning: cpu %u gapsPerSecond %.2f maxNs %llu\n",
+                  static_cast<unsigned>(entry->cpu),
+                  entry->stats.gapsPerSecond,
+                  static_cast<unsigned long long>(entry->stats.maxNs));
+    }
   }
   std::vector<std::pair<double, std::uint32_t>> ranked;
   for (const auto& entry : record.cpus) {
     if (entry.planned) {
-      ranked.emplace_back(entry.stats.gapsPerSecond, entry.cpu);
+      // The rank reads the same pair: the noise fraction for a method
+      // run, the gap rate for `tsc`. The tuple order keeps ties in cpu
+      // order (FR-013, FR-021, R-15).
+      ranked.emplace_back(entry.series.has_value() ? entry.series->noisePercent
+                                                   : entry.stats.gapsPerSecond,
+                          entry.cpu);
     }
   }
   std::ranges::sort(ranked);
