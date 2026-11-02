@@ -35,7 +35,6 @@
 
 #  include <linux/perf_event.h>
 #  include <sys/ioctl.h>
-#  include <sys/syscall.h>
 #  include <unistd.h>
 #endif
 
@@ -189,17 +188,14 @@ auto devicePageFastVerdict(const detail::PmuDevice& device) -> bool
     std::string refusal;
     auto context =
         fastContextOpen(device.type, config->second, where, &refusal);
-    if (!context) {  // LCOV_EXCL_BR_LINE
+    if (!context) {
       continue;
     }
-    // LCOV_EXCL_START : coverage exclusion (T140): the granted mapped page.
-    // A runner whose perf_event_open is refused never holds a context.
     const auto* page = static_cast<const perf_event_mmap_page*>(context->map);
     const bool granted = pageGrantsUserRdpmc(page->cap_user_rdpmc);
     fastContextClose(*context);
     return granted;
-    // LCOV_EXCL_STOP
-  }  // LCOV_EXCL_LINE
+  }
   return false;
 }
 
@@ -229,16 +225,10 @@ auto probeDevice(detail::PmuDevice& device, const bool fastCapable) -> void
     // cpu-targeted probe is refused (FR-046).
     entry.probedKinds = detail::probedKindMask(probed, onCpu);
     // A kind the kernel counts settles the entry, and the entry's own scope
-    // decides which kinds that is (FR-021).
-    // LCOV_EXCL_BR_LINE : coverage exclusion (T056): settling an entry on a
-    // granted cpu target needs a host that grants one. Every test in this
-    // feature runs unprivileged at `perf_event_paranoid` 2 (FR-034), which
-    // is the level where the kernel refuses a cpu-targeted event while
-    // still granting a per-task one, so the matrix never runs this arm.
-    // The countable arm guarded at the line below carries the same ground
-    // under T140, and the tracefile shows this condition false for all
-    // seventy-five entries the reference host probes.
-    if (onCpu == Availability::COUNTABLE) {  // LCOV_EXCL_BR_LINE
+    // decides which kinds that is (FR-021). The scripted kernel grants the
+    // cpu-targeted probe in the provider test, so both arms carry their own
+    // counts (FR-021, FR-046).
+    if (onCpu == Availability::COUNTABLE) {
       probed = Availability::COUNTABLE;
     } else if (device.deviceScoped) {
       // No probe settled the entry: the device's own scope refuses the
@@ -246,38 +236,19 @@ auto probeDevice(detail::PmuDevice& device, const bool fastCapable) -> void
       // is extracted, so a registered test drives both of its arms on any
       // host (FR-021, FR-022, FR-046).
       probed = detail::scopeSettledState(onCpu, device.deviceScoped);
-    } else if (probed != Availability::COUNTABLE) {  // LCOV_EXCL_BR_LINE
+    } else if (probed != Availability::COUNTABLE) {
       probed = onCpu;
     }
     entry.avail = probed;
-    if (entry.avail == Availability::COUNTABLE) {  // LCOV_EXCL_BR_LINE
-      // LCOV_EXCL_START : coverage exclusion (T140): the countable arm and
-      // the mode it discloses. A catalog entry is countable only where
-      // `perf_event_open` is granted, so a runner that refuses the syscall
-      // reaches no entry here, publishes no countable entry, and appends no
-      // time pair below; the host that grants it takes this arm for every
-      // event the kernel counts.
+    if (entry.avail == Availability::COUNTABLE) {
+      // The scripted kernel grants the probe and stands both page
+      // verdicts in, so the mode the selection answers carries its own
+      // count for each arm (FR-001, FR-046).
       countable = true;
-      // LCOV_EXCL_BR_START : coverage exclusion (T140): the `syscall` arm.
-      // It needs a host whose mapped page publishes no `cap_user_rdpmc` bit,
-      // which is a property of the running kernel and not of this tree; the
-      // probe's verdict over that bit is covered for both arms by
-      // `fast_probe_allows` in `test/source/counters_linux_pmu_seam_test.cpp`.
-      // The mode comes from the extracted selection, so a registered test
-      // drives both arms without a host that has to grant the event, and
-      // the coverage gate measures the decision (T075, FR-046).
       entry.mode = detail::entryReadSelectionFor(entry.avail, fastCapable).mode;
-      // LCOV_EXCL_BR_STOP
-      // LCOV_EXCL_STOP
     }
   }
-  if (countable) {  // LCOV_EXCL_BR_LINE
-    // LCOV_EXCL_START : coverage exclusion (T140): the enabled/running pair
-    // the countable entries above justify. The pair is published only over
-    // a countable event, and countability is a granted `perf_event_open`,
-    // so a runner that refuses the syscall publishes no pair and no ratio,
-    // while the host that grants it publishes both for every countable
-    // device.
+  if (countable) {
     detail::PmuEntry enabled {
         .name = "enabled",
         .description =
@@ -302,7 +273,6 @@ auto probeDevice(detail::PmuDevice& device, const bool fastCapable) -> void
     device.entries.push_back(std::move(running));
     device.hasTimePair = true;
   }
-  // LCOV_EXCL_STOP
 }
 
 auto loadDevice(const std::filesystem::path& dir)
@@ -363,12 +333,7 @@ auto loadDevice(const std::filesystem::path& dir)
     device.entries.push_back(std::move(entry));
   }
   return device;
-  // LCOV_EXCL_LINE : coverage exclusion (T066): the closing block of
-  // `load_device`. `gcov -b` reports it as an unexecuted block on every
-  // build, the way the NRVO epilogues in `source/counters/system.cpp` do; the
-  // function returns through `return device` on the line above and all 24
-  // devices of the reference host take it.
-}  // LCOV_EXCL_LINE
+}
 
 // The two parameters are both strings and both matter: the first is a
 // kernel device name and the second a table's scope label, and swapping
@@ -614,9 +579,7 @@ auto toHex(const std::uint64_t value) -> std::string
     out.push_back(kDigits[nibble]);
   }
   return out;
-  // LCOV_EXCL_LINE : the epilogue block of a by-value return; the `return`
-  // above carries the call count.
-}  // LCOV_EXCL_LINE
+}
 
 // Every catalog entry is described (FR-037). A kernel alias describes
 // itself with the event_attr text the kernel publishes, verbatim, so a
@@ -692,18 +655,14 @@ auto pmuProbe(const int type,
   // syscall is variadic in the C library, so the attribute pointer rides
   // through it as a vararg in the kernel's own prototype order. Nothing
   // on this line formats anything (FR-039).
+  // The probe runs through the seam, so the scripted kernel stands the
+  // grant and each refusal in for the tests, and the real set issues the
+  // call the code issued before (G-19, G-21).
   const long fd =
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
-      ::syscall(SYS_perf_event_open, &attr, pid, cpu, -1, PERF_FLAG_FD_CLOEXEC);
-  if (fd >= 0) {  // LCOV_EXCL_BR_LINE
-    // LCOV_EXCL_START : coverage exclusion (T140): the countable verdict. It
-    // needs a `perf_event_open` the kernel answers with a descriptor, so a
-    // runner whose `perf_event_open` is refused takes the errno switch below
-    // on every entry and publishes nothing countable, while the host that
-    // grants the syscall returns countable for every event it counts.
+      kernelCalls().openEvent(&attr, pid, cpu, -1, PERF_FLAG_FD_CLOEXEC);
+  if (fd >= 0) {
     ::close(static_cast<int>(fd));
     return Availability::COUNTABLE;
-    // LCOV_EXCL_STOP
   }
   // T118, D-18, spec PC-1: the one statement of what a refused open answers.
   // The state settled here is the state the catalog publishes for the entry,
@@ -717,19 +676,14 @@ auto pmuProbe(const int type,
   // answers `PERMISSION_BLOCKED`. A refusal that names no state answers no
   // kind, which covers the group open a provider answers with a null window:
   // the errno of that open reaches nowhere, so no caller may guess one.
-  switch (errno) {  // LCOV_EXCL_BR_LINE
+  switch (errno) {
     case EINVAL:
     case EOPNOTSUPP:
     case ENOENT:
       return Availability::NOT_ENCODABLE;
-    default:  // LCOV_EXCL_LINE
-      // LCOV_EXCL_LINE : coverage exclusion (T066): the permission arm needs
-      // a host whose kernel answers `perf_event_open` with `EACCES`. At the
-      // `perf_event_paranoid` 2 the CI matrix runs (constitution VIII), the
-      // kernel grants per-process user-mode events, so the refusals a test
-      // sees are the encoding errnos above.
-      return Availability::PERMISSION_BLOCKED;  // LCOV_EXCL_LINE
-  }  // LCOV_EXCL_LINE
+    default:
+      return Availability::PERMISSION_BLOCKED;
+  }
 }
 
 }  // namespace detail
@@ -823,41 +777,24 @@ void PmuProvider::enumerate(ObjectSink& sink) const
           .description = entry.description,
           // A hardware event counts events: the closed unit mapping
           // takes it to events^1. The time pair carries nanoseconds
-          // (FR-017).
-          // LCOV_EXCL_BR_START : coverage exclusion (T140): both arcs of the
-          // unit ternary. Only a countable entry publishes a time pair, and
-          // countability is a granted `perf_event_open`, so every entry of a
-          // runner whose `perf_event_open` is refused names a count and the
-          // ternary's nanoseconds arc never runs there; the host that grants
-          // the syscall enumerates both kinds on every device.
-          .unit = entry.isTimePair  // LCOV_EXCL_BR_LINE
-              ? std::string_view("nanoseconds")
-              : std::string_view("none"),  // LCOV_EXCL_BR_LINE
-          // LCOV_EXCL_BR_STOP
+          // (FR-017). The scripted kernel grants the probe, so the
+          // provider test enumerates both kinds and both arcs (FR-017).
+          .unit = entry.isTimePair ? std::string_view("nanoseconds")
+                                   : std::string_view("none"),
           .avail = entry.avail,
           .mode = entry.mode,
           .frequencyHz = 0,
           .scaled = false,
-          // LCOV_EXCL_BR_START : coverage exclusion (T140): both arcs of the
-          // ratio-pair flag, on the countable-entry ground above. A runner
-          // whose `perf_event_open` is refused publishes no time pair and no
-          // ratio, so both arcs stay there; the host that grants the syscall
-          // discloses the ratio for every member of a paired device.
-          .hasRatioPair = device.hasTimePair  // LCOV_EXCL_BR_LINE
-              && !entry.isTimePair,  // LCOV_EXCL_BR_LINE
-          // LCOV_EXCL_BR_STOP
+          .hasRatioPair = device.hasTimePair && !entry.isTimePair,
       });
       // The kinds the probe settled this entry on, keyed by the address the
       // system gives the seeded leaf, so the catalog names a kind only where
       // that kind's own probe counted the entry. An entry the probe settled
       // no kind on is not recorded, and the catalog reads the absence as the
       // device scope's own answer (FR-021).
-      if (entry.probedKinds != 0) {  // LCOV_EXCL_BR_LINE
-        // LCOV_EXCL_START : coverage exclusion (T140): a probed kind. A
-        // runner whose perf_event_open is refused settles no kind.
+      if (entry.probedKinds != 0) {
         detail::noteProbedKinds(device.path + "/" + entry.name,
                                 entry.probedKinds);
-        // LCOV_EXCL_STOP
       }
     }
     sink.addObject(ObjectSeed {
