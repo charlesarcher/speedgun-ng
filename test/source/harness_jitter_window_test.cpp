@@ -605,6 +605,182 @@ auto checkStatsRoundTrip(const sg::JitterStats& stats,
       what);
 }
 
+// specs/043 T023, FR-006, E-23: the 21 keys of one closed series item, in
+// the order the writer writes them. The item stands closed, so the key set
+// and the key order of the written item read against this list.
+constexpr std::array<std::string_view, 21> kSeriesKeys {"cpu",
+                                                        "workCount",
+                                                        "unitTimeNs",
+                                                        "targetNs",
+                                                        "quantumNs",
+                                                        "calibrationSpanNs",
+                                                        "sampleCount",
+                                                        "minValue",
+                                                        "medianValue",
+                                                        "meanValue",
+                                                        "p90Value",
+                                                        "p99Value",
+                                                        "p999Value",
+                                                        "p9999Value",
+                                                        "maxValue",
+                                                        "noisePercent",
+                                                        "seriesRuntimeNs",
+                                                        "droppedSamples",
+                                                        "resampleStepNs",
+                                                        "spectrumPoints",
+                                                        "periods"};
+
+// The keys of the JSON object that opens at `objectAt`, in the order they
+// stand: the walk counts the braces and the brackets, so a key of a nested
+// object stands out of the answer and the walk stops at the object's own
+// close (FR-006).
+auto jsonKeysAt(const std::string& text, std::size_t objectAt)
+    -> std::vector<std::string>
+{
+  std::vector<std::string> keys;
+  std::size_t depth = 0;
+  for (std::size_t at = objectAt; at < text.size(); ++at) {
+    const char edge = text.at(at);
+    if (edge == '{' || edge == '[') {
+      ++depth;
+      continue;
+    }
+    if (edge == '}' || edge == ']') {
+      if (--depth == 0) {
+        break;
+      }
+      continue;
+    }
+    if (depth != 1 || edge != '"') {
+      continue;
+    }
+    const auto close = text.find('"', at + 1);
+    check(close != std::string::npos, "a quoted key closes (FR-006)");
+    if (text.find(':', close + 1) == close + 1) {
+      keys.push_back(text.substr(at + 1, close - at - 1));
+    }
+    at = close;
+  }
+  return keys;
+}
+
+// The keys the closed series item carries, in the order the writer writes
+// them, with the one key the method leaves out: `quantumNs` for a FWQ run
+// and `resampleStepNs` for a FTQ run (FR-006, E-22, E-23).
+auto wantedSeriesKeys(std::string_view skip) -> std::vector<std::string>
+{
+  std::vector<std::string> wanted;
+  for (const auto key : kSeriesKeys) {
+    if (key != skip) {
+      wanted.emplace_back(key);
+    }
+  }
+  return wanted;
+}
+
+// The first item of the series array the document carries at or after
+// `from`: the position of its opening brace (FR-006, FR-020).
+auto seriesItemAt(const std::string& document, std::size_t from) -> std::size_t
+{
+  const auto at = document.find("\"series\":[{", from);
+  check(at != std::string::npos, "the object carries a series array (FR-006)");
+  return at + std::strlen("\"series\":[");
+}
+
+// The 19 figures and the period list of one loaded series record against
+// the item the document carries at `itemAt`: the writer's value for every
+// key, the integers as bare digits and the reals as the shortest text that
+// reads back the same double (FR-020, SC-001).
+auto checkSeriesRoundTrip(const sg::JitterSeriesStats& series,
+                          const std::string& document,
+                          std::size_t itemAt,
+                          const char* what) -> void
+{
+  check(integerValueAfter(document, itemAt, "workCount") == series.workCount,
+        what);
+  check(integerValueAfter(document, itemAt, "unitTimeNs") == series.unitTimeNs,
+        what);
+  check(integerValueAfter(document, itemAt, "targetNs") == series.targetNs,
+        what);
+  check(integerValueAfter(document, itemAt, "quantumNs") == series.quantumNs,
+        what);
+  check(integerValueAfter(document, itemAt, "calibrationSpanNs")
+            == series.calibrationSpanNs,
+        what);
+  check(integerValueAfter(document, itemAt, "sampleCount")
+            == series.sampleCount,
+        what);
+  check(integerValueAfter(document, itemAt, "minValue") == series.minValue,
+        what);
+  check(integerValueAfter(document, itemAt, "medianValue")
+            == series.medianValue,
+        what);
+  check(std::fabs(doubleValueAfter(document, itemAt, "meanValue")
+                  - series.meanValue)
+            <= 1e-9,
+        what);
+  check(integerValueAfter(document, itemAt, "p90Value") == series.p90Value,
+        what);
+  check(integerValueAfter(document, itemAt, "p99Value") == series.p99Value,
+        what);
+  check(integerValueAfter(document, itemAt, "p999Value") == series.p999Value,
+        what);
+  check(integerValueAfter(document, itemAt, "p9999Value") == series.p9999Value,
+        what);
+  check(integerValueAfter(document, itemAt, "maxValue") == series.maxValue,
+        what);
+  check(std::fabs(doubleValueAfter(document, itemAt, "noisePercent")
+                  - series.noisePercent)
+            <= 1e-9,
+        what);
+  check(integerValueAfter(document, itemAt, "seriesRuntimeNs")
+            == series.seriesRuntimeNs,
+        what);
+  check(integerValueAfter(document, itemAt, "droppedSamples")
+            == series.droppedSamples,
+        what);
+  check(integerValueAfter(document, itemAt, "resampleStepNs")
+            == series.resampleStepNs,
+        what);
+  check(integerValueAfter(document, itemAt, "spectrumPoints")
+            == series.spectrumPoints,
+        what);
+  const auto periodsAt = document.find("\"periods\":[", itemAt);
+  check(periodsAt != std::string::npos, what);
+  const auto itemsAt = periodsAt + std::strlen("\"periods\":");
+  const auto close = document.find(']', itemsAt);
+  check(close != std::string::npos, what);
+  std::size_t index = 0;
+  for (auto at = document.find('{', itemsAt);
+       at != std::string::npos && at < close;
+       at = document.find('{', at + 1))
+  {
+    check(index < series.periods.size(), what);
+    check(integerValueAfter(document, at, "periodNs")
+              == series.periods.at(index).periodNs,
+        what);
+    check(std::fabs(doubleValueAfter(document, at, "powerRatio")
+                    - series.periods.at(index).powerRatio)
+              <= 1e-9,
+        what);
+    ++index;
+  }
+  check(index == series.periods.size(), what);
+}
+
+// The flat clock: a stamp that never moves, so every unit time the FWQ
+// window keeps stands 0 and every FTQ quantum stands open. The two guards
+// of the period list read these runs: the median unit time of 0, and the
+// kept set of no sample (FR-017, FR-018, R-12).
+class FlatSeriesReader final : public sg::counters::WindowReader
+{
+public:
+  auto readPoints(sg::counters::PointSink& sink) noexcept -> void override
+  {
+    sink.put(0);
+  }
+};
+
 // The per-thread stamp state of the seam reader below: each probe
 // thread carries its own series, so the two cpus' reads interleave
 // without sharing a cursor (R-02, FR-039). The probe threads are new
@@ -1800,6 +1976,271 @@ auto main() -> int
 
     std::remove(basePath.c_str());
     std::remove(bigPath.c_str());
+  }
+
+  // specs/043 T023, US4, FR-006, FR-019, FR-020, FR-031, R-16, R-17: the
+  // record of a run that names a method. The document carries the method
+  // word in the upper-case spelling the JSON takes, one closed series item
+  // per probe cpu with its keys in the written order, and the periods array
+  // riding the cpu's item alone; `loadReport` reads every key back; and a
+  // run with no method key writes neither new key, the bytes of the
+  // standing record standing whole (FR-031, SC-004). The scripted clock
+  // steps one tick per read, so a FWQ window keeps a series of equal unit
+  // times, and the `gaps` value sizes the series buffer, so the transform
+  // reads a bounded span (FR-014, FR-018).
+  {
+    const std::string probeCpu = std::to_string(cpus.at(0));
+    const std::string fwqValue =
+        "--jitter-probe=" + probeCpu + ",method=fwq,gaps=256";
+    const std::string ftqValue =
+        "--jitter-probe=" + probeCpu + ",method=ftq,gaps=256";
+    const std::vector<std::string> quick {
+        "--filter=bmQuiet", "--repetitions=1", "--iterations=2"};
+
+    // FR-006, FR-019: the JSON spells the method with the upper-case word
+    // the enumerator names, after `loopPeriodNs` and before `series`.
+    {
+      const std::string path = "harness_jitter_window_method_fwq.json";
+      auto arguments = quick;
+      arguments.push_back("--json=" + path);
+      arguments.push_back(fwqValue);
+      captureRun(arguments);
+      const auto document = readDocument(path);
+      std::remove(path.c_str());
+      const auto root = document.find("\"jitter\":{");
+      check(root != std::string::npos,
+            "the run carries the root jitter object (E-07)");
+      const auto period = document.find("\"loopPeriodNs\":", root);
+      const auto method = document.find("\"method\":\"FWQ\"", root);
+      check(method != std::string::npos && method > period,
+            "theMethodWordStandsUpperCase: the root record carries the "
+            "upper-case method word after loopPeriodNs (FR-006, FR-019)");
+      check(document.find("\"series\":[", method) != std::string::npos,
+            "theMethodWordStandsUpperCase: the method word stands before the "
+            "series array (FR-006)");
+    }
+    {
+      const std::string path = "harness_jitter_window_method_ftq.json";
+      auto arguments = quick;
+      arguments.push_back("--json=" + path);
+      arguments.push_back(ftqValue);
+      captureRun(arguments);
+      const auto document = readDocument(path);
+      std::remove(path.c_str());
+      const auto root = document.find("\"jitter\":{");
+      check(root != std::string::npos,
+            "the run carries the root jitter object (E-07)");
+      const auto period = document.find("\"loopPeriodNs\":", root);
+      const auto method = document.find("\"method\":\"FTQ\"", root);
+      check(method != std::string::npos && method > period,
+            "theMethodWordStandsUpperCase: a FTQ run carries the FTQ word "
+            "after loopPeriodNs (FR-006, FR-019)");
+    }
+
+    // FR-006, E-22, E-23: the closed item carries its keys in the written
+    // order, the method's own key standing out: `quantumNs` for a FWQ run,
+    // `resampleStepNs` for a FTQ run. The per-entry item carries the same
+    // keys with no method and no periods (FR-020).
+    {
+      const std::string path = "harness_jitter_window_series_fwq.json";
+      auto arguments = quick;
+      arguments.push_back("--json=" + path);
+      arguments.push_back(fwqValue);
+      captureRun(arguments);
+      const auto document = readDocument(path);
+      std::remove(path.c_str());
+      const auto root = document.find("\"jitter\":{");
+      check(root != std::string::npos,
+            "the run carries the root jitter object (E-07)");
+      const auto itemAt = seriesItemAt(document, root);
+      check(jsonKeysAt(document, itemAt) == wantedSeriesKeys("quantumNs"),
+            "theSeriesItemCarriesEveryKey: the FWQ item carries its method's "
+            "keys in the written order (FR-006, E-23)");
+      const auto entry = document.find("\"bmQuiet\"");
+      check(entry != std::string::npos, "the document carries the entry (FR-020)");
+      const auto entryJitter = document.find("\"jitter\":{", entry);
+      check(entryJitter != std::string::npos,
+            "the entry carries its jitter object (FR-027, E-08)");
+      const auto entryItem = seriesItemAt(document, entryJitter);
+      auto wanted = wantedSeriesKeys("quantumNs");
+      wanted.erase(
+          std::find(wanted.begin(), wanted.end(), std::string("periods")),
+          wanted.end());
+      check(jsonKeysAt(document, entryItem) == wanted,
+            "theSeriesItemCarriesEveryKey: the per-entry item carries the "
+            "same keys with no method and no periods (FR-020)");
+    }
+    {
+      const std::string path = "harness_jitter_window_series_ftq.json";
+      auto arguments = quick;
+      arguments.push_back("--json=" + path);
+      arguments.push_back(ftqValue);
+      captureRun(arguments);
+      const auto document = readDocument(path);
+      std::remove(path.c_str());
+      const auto root = document.find("\"jitter\":{");
+      check(root != std::string::npos,
+            "the run carries the root jitter object (E-07)");
+      const auto itemAt = seriesItemAt(document, root);
+      check(jsonKeysAt(document, itemAt) == wantedSeriesKeys("resampleStepNs"),
+            "theSeriesItemCarriesEveryKey: the FTQ item carries its method's "
+            "keys in the written order (FR-006, E-23)");
+    }
+
+    // FR-006, FR-018, FR-020: the periods array rides the cpu's item and
+    // stands out of the per-entry copy. The flat clock leaves the FWQ
+    // median at 0 and the FTQ kept set empty, so the transform reads
+    // neither run and the list stands empty with the point count (FR-017,
+    // FR-018, R-12).
+    {
+      const std::string path = "harness_jitter_window_periods_fwq.json";
+      auto arguments = quick;
+      arguments.push_back("--json=" + path);
+      arguments.push_back(fwqValue);
+      captureRun(arguments);
+      const auto document = readDocument(path);
+      std::remove(path.c_str());
+      const auto root = document.find("\"jitter\":{");
+      const auto itemAt = seriesItemAt(document, root);
+      check(document.find("\"periods\":[", itemAt) != std::string::npos,
+            "thePeriodsArrayRidesTheCpuItem: the cpu's item carries the "
+            "periods array (FR-006)");
+      const auto entry = document.find("\"bmQuiet\"");
+      const auto entryJitter = document.find("\"jitter\":{", entry);
+      const auto entryItem = seriesItemAt(document, entryJitter);
+      const auto keys = jsonKeysAt(document, entryItem);
+      check(std::find(keys.begin(), keys.end(), std::string("periods"))
+                == keys.end(),
+            "thePeriodsArrayRidesTheCpuItem: the per-entry item carries no "
+            "periods array (FR-020)");
+    }
+    {
+      const std::string path = "harness_jitter_window_flat_fwq.json";
+      auto arguments = quick;
+      arguments.push_back("--json=" + path);
+      arguments.push_back(fwqValue);
+      sg::detail::installTestReader(std::make_unique<FlatSeriesReader>());
+      captureRun(arguments);
+      sg::detail::installTestReader(nullptr);
+      const auto document = readDocument(path);
+      std::remove(path.c_str());
+      const auto root = document.find("\"jitter\":{");
+      const auto itemAt = seriesItemAt(document, root);
+      check(integerValueAfter(document, itemAt, "sampleCount") > 0,
+            "thePeriodsArrayRidesTheCpuItem: the flat clock keeps unit times "
+            "(FR-012)");
+      check(integerValueAfter(document, itemAt, "medianValue") == 0,
+            "thePeriodsArrayRidesTheCpuItem: the flat clock's median unit "
+            "time stands 0 (FR-007)");
+      check(integerValueAfter(document, itemAt, "spectrumPoints") == 0,
+            "thePeriodsArrayRidesTheCpuItem: a median of 0 leaves the "
+            "transform unread (FR-017, R-12)");
+      check(document.find("\"periods\":[]", itemAt) != std::string::npos,
+            "thePeriodsArrayRidesTheCpuItem: the unread transform answers an "
+            "empty list (FR-018)");
+    }
+    {
+      const std::string path = "harness_jitter_window_flat_ftq.json";
+      auto arguments = quick;
+      arguments.push_back("--json=" + path);
+      arguments.push_back(ftqValue);
+      sg::detail::installTestReader(std::make_unique<FlatSeriesReader>());
+      captureRun(arguments);
+      sg::detail::installTestReader(nullptr);
+      const auto document = readDocument(path);
+      std::remove(path.c_str());
+      const auto root = document.find("\"jitter\":{");
+      const auto itemAt = seriesItemAt(document, root);
+      check(integerValueAfter(document, itemAt, "sampleCount") == 0,
+            "thePeriodsArrayRidesTheCpuItem: a clock that never moves leaves "
+            "no quantum closed (FR-016)");
+      check(integerValueAfter(document, itemAt, "quantumNs") > 0,
+            "thePeriodsArrayRidesTheCpuItem: the FTQ item carries the "
+            "quantum (FR-015, E-22)");
+      check(document.find("\"periods\":[]", itemAt) != std::string::npos,
+            "thePeriodsArrayRidesTheCpuItem: an empty kept set leaves the "
+            "list empty (FR-018, R-12)");
+    }
+
+    // FR-020, R-17: `loadReport` reads every key back, the run record
+    // carrying the method word and each fold carrying its series.
+    {
+      const std::string path = "harness_jitter_window_series_roundtrip.json";
+      auto arguments = quick;
+      arguments.push_back("--json=" + path);
+      arguments.push_back(fwqValue);
+      captureRun(arguments);
+      const auto document = readDocument(path);
+      const auto loaded = sg::loadReport(path);
+      std::remove(path.c_str());
+      check(loaded.has_value(),
+            "theSeriesRoundTripsThroughLoadReport: the document of a FWQ run "
+            "loads (FR-020)");
+      if (!loaded.has_value()) {
+        std::printf("  %s\n", loaded.error().c_str());
+      } else {
+        check(loaded->jitterRun.has_value()
+                  && loaded->jitterRun->method == sg::JitterMethod::FWQ,
+              "theSeriesRoundTripsThroughLoadReport: the run record reads "
+              "back the method word (FR-020, E-25)");
+        const auto& folds = loaded->runJitterStats;
+        check(folds.has_value() && folds->size() == 1,
+              "theSeriesRoundTripsThroughLoadReport: the run record carries "
+              "one fold per probe cpu (E-07)");
+        if (folds.has_value() && folds->size() == 1) {
+          const auto& fold = folds->at(0);
+          check(fold.series.has_value(),
+                "theSeriesRoundTripsThroughLoadReport: the run-level fold "
+                "reads back its series (FR-020)");
+          if (fold.series.has_value()) {
+            const auto itemAt = seriesItemAt(document, 0);
+            checkSeriesRoundTrip(*fold.series,
+                                 document,
+                                 itemAt,
+                                 "theSeriesRoundTripsThroughLoadReport: the "
+                                 "run-level series reads back every key "
+                                 "(FR-020)");
+          }
+        }
+        const auto* quiet = resultNamed(loaded->results, "bmQuiet");
+        check(quiet != nullptr && !quiet->jitterFolds.empty()
+                  && quiet->jitterFolds.front().series.has_value(),
+              "theSeriesRoundTripsThroughLoadReport: the entry's fold reads "
+              "back its series (FR-020, E-08)");
+        if (quiet != nullptr && !quiet->jitterFolds.empty()
+            && quiet->jitterFolds.front().series.has_value())
+        {
+          const auto entry = document.find("\"bmQuiet\"");
+          const auto entryJitter = document.find("\"jitter\":{", entry);
+          const auto entryItem = seriesItemAt(document, entryJitter);
+          checkSeriesRoundTrip(quiet->jitterFolds.front().series.value(),
+                               document,
+                               entryItem,
+                               "theSeriesRoundTripsThroughLoadReport: the "
+                               "entry's series reads back every key "
+                               "(FR-020)");
+        }
+      }
+    }
+
+    // FR-026, FR-031, SC-004: a run with no method key writes neither new
+    // key, so the standing record keeps the bytes master wrote.
+    {
+      const std::string path = "harness_jitter_window_series_tsc.json";
+      auto arguments = quick;
+      arguments.push_back("--json=" + path);
+      arguments.push_back("--jitter-probe=" + probeCpu + ",gaps=256");
+      captureRun(arguments);
+      const auto document = readDocument(path);
+      std::remove(path.c_str());
+      check(document.find("\"jitter\":{") != std::string::npos,
+            "aTscRunWritesNoNewKey: the tsc run carries the root jitter "
+            "object (E-07, FR-031)");
+      check(document.find("\"method\"") == std::string::npos
+                && document.find("\"series\"") == std::string::npos,
+            "aTscRunWritesNoNewKey: the tsc run writes neither the method "
+            "key nor the series array (FR-006, FR-026, FR-031)");
+    }
   }
 
   std::puts("harness_jitter_window_test: ok");
