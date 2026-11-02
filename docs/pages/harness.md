@@ -1396,9 +1396,9 @@ that measured the value. `docs/schema/report-v1.json` states the whole shape.
 `schemaVersion` names the shape of the document. A document whose major stands
 at 1 loads, whatever its minor says; a later major is refused, and the refusal
 names the version the document carries. The writer moves the minor for a key
-it adds inside major 1. A run writes `1.10`, the shape that added the `group`
-key of the context record; a `1.0` document, which carries neither the hunt
-keys nor the pass fields, loads through the same rule.
+it adds inside major 1. A run writes `1.12`, the shape that added the `method`
+key and the `series` array of the `jitter` object; a `1.0` document, which
+carries neither the hunt keys nor the pass fields, loads through the same rule.
 
 ### The null rule
 
@@ -1671,7 +1671,7 @@ the two. The split, the merge and the disclosure run in
 `test/source/harness_pass_report_test.cpp`, on the fake provider with a set
 counter limit.
 ## Jitter probe
-The `--jitter-probe` option and the `runJitterProbe` call state the probe options of the run: a spinning context per touched L3 group counts the gaps the host inserts above a threshold while the batch runs, and the report prints one block of the folds after the benchmark tables. An empty `cpus` field names the `idle` preset: in `precheck` mode the probe runs on the planned cpus, and in the other modes on one cpu of each L3 group the plans leave free. In `precheck` and `both` modes the run prints the pre-check block before the benchmark tables: one block per measured cpu carrying the sixteen field lines, the attribution deltas each naming its source, then the host settings once, then one warning line per noisy planned cpu and the pinning-candidate line ranked by gap rate. The fold block opens with `jitter probe: cpus`, carries one field line per stats field from `gapCount:` to `droppedGaps:`, one value per probe cpu, and closes with the disclosure lines.
+The `--jitter-probe` option and the `runJitterProbe` call state the probe options of the run: a spinning context per touched L3 group counts the gaps the host inserts above a threshold while the batch runs, and the report prints one block of the folds after the benchmark tables. An empty `cpus` field names the `idle` preset: in `precheck` mode the probe runs on the planned cpus, and in the other modes on one cpu of each L3 group the plans leave free. In `precheck` and `both` modes the run prints the pre-check block before the benchmark tables: one block per measured cpu carrying the sixteen field lines, the attribution deltas each naming its source, then the host settings once, then one warning line per noisy planned cpu and the pinning-candidate line ranked by gap rate. The fold block opens with `jitter probe: cpus`, carries one field line per stats field from `gapCount:` to `droppedGaps:`, one value per probe cpu, carries the series lines of the `fwq` and `ftq` methods, and closes with the disclosure lines.
 <!-- sg-example: example/docs/jitter_probe.cpp#probe-main -->
 ```cpp
 auto main(int argc, char** argv) -> int
@@ -1821,6 +1821,10 @@ The value takes a head, a cpu list or the word `idle`, and the keys follow, each
 | `precheck=<ms>` | The pre-check duration in ms, at or above 1 | 200 |
 | `gaps=<n>` | The gap buffer size per probe cpu, 1 to 16,777,216 | 65,536 |
 | `strict` | An unavailable time-stamp counter stops the run | Absent: the run discloses it and continues |
+| `method=` | `tsc`, `fwq`, or `ftq`: one method per run, the words the value takes | `tsc` |
+| `quantum=<us>` | The FTQ quantum in microseconds, 10 to 100,000 | 100 us |
+| `work=<n>` | The FWQ work count of one unit, 1 to 16,777,216 | 0: the calibration measures the count on the probe cpu |
+| `noise=<percent>` | The noise percent at which a strict run refuses, 0 to 100, a whole number | 1 |
 
 The block prints one field line per stats field, in this order, one value per probe cpu:
 
@@ -1843,6 +1847,44 @@ The block prints one field line per stats field, in this order, one value per pr
 | `loopPeriodNs` | ns | The minimum loop period the measurement pass measured |
 | `droppedGaps` | count | The gaps a full buffer dropped; zero when the buffer never filled |
 
+The `fwq` and `ftq` methods print 30 series fields, one line each, one value per probe
+cpu. The calibration group of four prints ahead of the batch's first run, and the 26
+figures print in the block after the stats lines. The method sets the unit: ns for `fwq`,
+counts for `ftq`. A rank a cpu does not carry prints 0:
+
+| Field | Unit | Rule |
+| --- | --- | --- |
+| `method` | word | The method the run measures with, the word the value takes |
+| `workCount` | count | The work count the calibration kept for that probe cpu |
+| `targetNs` | ns | The unit time the calibration searched toward |
+| `calibrationSpanNs` | ns | The span of the calibration's reads, kept out of the window's runtime |
+| `sampleCount` | count | The kept samples of the covered windows |
+| `minValue` | ns | The smallest kept sample |
+| `medianValue` | ns | The nearest-rank median over the kept samples |
+| `meanValue` | ns | The mean of the kept samples |
+| `p90Value` | ns | The nearest rank of the kept samples |
+| `p99Value` | ns | The nearest rank of the kept samples |
+| `p999Value` | ns | The nearest rank of the kept samples |
+| `p9999Value` | ns | The nearest rank of the kept samples |
+| `maxValue` | ns | The largest kept sample |
+| `noisePercent` | percent | The method's noise fraction, and 100 for a maximum count of 0 |
+| `seriesRuntimeNs` | ns | The window span the series covers, the calibration span out |
+| `droppedSamples` | count | The records a full buffer dropped |
+| `unitTimeNs` | ns | The unit time the calibration measured on that probe cpu |
+| `quantumNs` | ns | The FTQ quantum in ns, 0 for the other methods |
+| `resampleStepNs` | ns | The FWQ resample step at the median unit time |
+| `spectrumPoints` | count | The points the transform read |
+| `period1Ns` | ns | The strongest detected period |
+| `period2Ns` | ns | The second strongest detected period |
+| `period3Ns` | ns | The third strongest detected period |
+| `period4Ns` | ns | The fourth strongest detected period |
+| `period5Ns` | ns | The fifth strongest detected period |
+| `period1Power` | ratio | The power of the strongest period over itself, so 1 |
+| `period2Power` | ratio | The power of the second period over the strongest |
+| `period3Power` | ratio | The power of the third period over the strongest |
+| `period4Power` | ratio | The power of the fourth period over the strongest |
+| `period5Power` | ratio | The power of the fifth period over the strongest |
+
 The block ends with the disclosure lines: the probe cpus, the loop period and the threshold the run used, one `kept` and `dropped` line per cpu, and the kept-gaps-only rule the split reads.
 
 The names of the probe surface:
@@ -1855,6 +1897,10 @@ The names of the probe surface:
 | `JitterProbeMode` | type | The three phases one probe run can take | [jitter-probe](#jitter-probe) |
 | `JitterStats` | type | One probe cpu's fold over the covered windows | [jitter-probe](#jitter-probe) |
 | `JitterEntryFold` | type | One probe cpu's fold over one benchmark's windows | [jitter-probe](#jitter-probe) |
+| `JitterMethod` | type | The three methods one probe run measures with | [jitter-probe](#jitter-probe) |
+| `JitterSeriesStats` | type | One probe cpu's fold over the kept samples of its series | [jitter-probe](#jitter-probe) |
+| `JitterPeriodRecord` | type | One detected period and its power over the strongest | [jitter-probe](#jitter-probe) |
+| `JitterRunRecord` | type | The method and the per-cpu series one document carries | [jitter-probe](#jitter-probe) |
 
 ### The noise tracer
 
