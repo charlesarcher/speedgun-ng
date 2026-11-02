@@ -129,7 +129,9 @@ public:
    * (FR-017).
    *
    * \pre none
-   * \post none
+   * \post The resolved entry's unit token is a recognized token
+   *       (FR-017).
+   * \post The recognized unit maps to a dimension (FR-017).
    */
   template<class D>
   [[nodiscard]] auto counter(std::string_view name) const
@@ -146,12 +148,12 @@ public:
     // `registerProvider` refuses an unrecognized token, so the tree
     // never holds one, and the recognized set is closed. `dimensionOf`
     // maps every enumerator of that closed enumeration, so neither
-    // inner `expected` carries a failing value to return; the contracts
-    // stand where a reader expects the guards.
-    SG_ASSERT(recognized.has_value(),
+    // inner `expected` carries a failing value to return; the two
+    // postconditions hold at every return the function reaches.
+    SG_ENSURE(recognized.has_value(),
               "a stored catalog unit is a recognized token (FR-017)");
     const auto mapped = dimensionOf(*recognized);
-    SG_ASSERT(mapped.has_value(),
+    SG_ENSURE(mapped.has_value(),
               "the closed unit set maps to a dimension (FR-017)");
     if (mapped->time != D::kTimeExponent
         || mapped->events != D::kEventsExponent)
