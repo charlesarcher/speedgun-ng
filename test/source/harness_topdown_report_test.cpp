@@ -64,6 +64,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <initializer_list>
+#include <limits>
 #include <optional>
 #include <span>
 #include <string>
@@ -127,6 +128,8 @@ constexpr const char* kGatePartialDocument =
 constexpr const char* kGateTreelessDocument =
     "harness_json_topdown_gate_treeless.json";
 constexpr const char* kGateGapDocument = "harness_json_topdown_gate_gap.json";
+constexpr const char* kNonFiniteDocument =
+    "harness_json_topdown_nonfinite.json";
 
 // The four keys of the two levels of the planted tree, in the order the writer
 // emits them: parent before child (FR-032, contracts/topdown-report-key.md).
@@ -1202,6 +1205,45 @@ auto aGateRuleWithNoNodeToReadAnswersOneLine() -> void
 }
 
 // One scenario of the suite with the name the verdict line prints.
+// The belt at the writer, with the rule that refuses such a figure at the node
+// standing above it (`runner.cpp`). A figure that is no number reaches the
+// builder only past that rule, and the builder answers a finite magnitude for
+// it: `2.696539702293474e+308` for a not-a-number and
+// `1.797693134862316e+308` for an infinity, a figure a schema key typed
+// `["number","null"]` accepts as a measurement. This case hands the writer both
+// spellings directly and reads the document back
+// (specs/042-topdown FR-032, PC-17).
+auto aNonFiniteNodeFigureWritesNoFigure() -> void
+{
+  auto record = gateRecord(kGateLevelOneBaseline, kGateLevelTwoBaseline);
+  record.nodes.front().value = std::numeric_limits<double>::quiet_NaN();
+  record.nodes.front().availability = Availability::ABSENT;
+  record.nodes.back().value = std::numeric_limits<double>::infinity();
+  record.nodes.back().availability = Availability::ABSENT;
+  const std::string bytes =
+      writeDocument(kNonFiniteDocument, gateEntry(std::move(record)));
+  check(
+      bytes.find("nan") == std::string::npos
+          && bytes.find("inf") == std::string::npos
+          && bytes.find("2.696539702293474e+308") == std::string::npos
+          && bytes.find("1.797693134862316e+308") == std::string::npos,
+      "the document spells no figure for the two nodes no denominator served");
+  const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, bytes);
+  check(clean.has_value(),
+        "the document of the two refused nodes answers the schema");
+
+  const sg::ReportData loaded = loadedDocument(kNonFiniteDocument);
+  const auto& nodes = loaded.results.front().topdown->nodes;
+  check(nodes.size() == 2, "the document carries both nodes");
+  for (const sg::TopdownNode& node : nodes) {
+    check(!node.value.has_value(),
+          "the reader gives back no figure for the node that carried none");
+    check(
+        node.availability == Availability::ABSENT,
+        "the reader gives back the state of the denominator that is not there");
+  }
+}
+
 struct Scenario
 {
   const char* name;
@@ -1251,6 +1293,8 @@ auto main() -> int
       {"theGateReadsOneNodeOfEachTree", theGateReadsOneNodeOfEachTree},
       {"aGateRuleWithNoNodeToReadAnswersOneLine",
        aGateRuleWithNoNodeToReadAnswersOneLine},
+      {"aNonFiniteNodeFigureWritesNoFigure",
+       aNonFiniteNodeFigureWritesNoFigure},
   };
   std::size_t failedScenarios = 0;
   for (const auto& scenario : scenarios) {

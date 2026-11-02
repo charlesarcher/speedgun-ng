@@ -1707,9 +1707,10 @@ takes the name `topdown.<vendor>.<table name>`, so the Intel row
 
 One line prints one node: the neutral name, the row's own table name beside it,
 and the figure in percent. A node the merge left as a gap prints `not
-available` and no figure. A node whose row carries threshold text prints that
-text at the end of the line, spelled as the table file spells it, with no
-verdict on it.
+available` and no figure, and so does a node whose denominator measured no
+delta, the state the availability word `ABSENT` carries. A node whose row
+carries threshold text prints that text at the end of the line, spelled as the
+table file spells it, with no verdict on it.
 
 ### The levels
 

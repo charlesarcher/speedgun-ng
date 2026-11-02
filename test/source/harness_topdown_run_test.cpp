@@ -41,6 +41,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -449,6 +450,50 @@ auto registerAmdFixture(const std::size_t coreLimit)
   check(settled.has_value(), "the AMD fixture registers on the local system");
   fake = scripted;
   return *scripted;
+}
+
+// Two leaves of the planted table frozen at one reading. A frozen leaf carries
+// the same value at every sampling action, so its delta measures nothing and a
+// formula that divides by it has a denominator that measured no delta
+// (specs/042-topdown PC-17). The leaf stays countable: the fold receives the
+// delta of zero and divides, and answers a figure no report can print. Every
+// scripted fact precedes the registration, as the two fixtures above lay them.
+auto registerFrozenLeafFixture() -> sg::counters::FakeProvider&
+{
+  auto provider = std::make_unique<sg::counters::FakeProvider>();
+  sg::test::scriptPassFixture(*provider, kWideSourceLimit);
+  scriptTopdownLeaves(*provider);
+  provider->setPoints(kCoreObject, sg::test::kCycles, {0}, 0.0);
+  provider->setPoints(kCoreObject, sg::test::kRefCycles, {0}, 0.0);
+  provider->setProgrammableCounters(kCoreObject, kNarrowCoreLimit);
+  auto* scripted = provider.get();
+  const auto settled =
+      sg::counters::System::local().registerProvider(std::move(provider));
+  check(settled.has_value(),
+        "the frozen fixture registers on the local system");
+  fake = scripted;
+  return *scripted;
+}
+
+// The two words a double reaches for when the arithmetic answered no number.
+// They are the defect this case names: a line of the block and a field of the
+// record are both places a figure reaches a reader, and neither may spell them
+// (specs/042-topdown PC-17).
+constexpr std::array<std::string_view, 2> kNonFiniteSpellings {{"nan", "inf"}};
+
+// The hundred percent the four level-1 shares of the planted table divide, as a
+// figure of the scale the block prints them in.
+constexpr double kShareCeiling = 100.0;
+
+// True where no text of the report spells a figure that is no number.
+[[nodiscard]] auto spellsNoNumber(const std::string& text) -> bool
+{
+  for (const std::string_view spelling : kNonFiniteSpellings) {
+    if (text.find(spelling) != std::string::npos) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // The identity of an AMD cpu, handed to the selection in place of the one this
@@ -2886,13 +2931,145 @@ auto scenarioRefusedRowsPrintAtTheLevelShown() -> int
   return 0;
 }
 
+// The refusal PC-17 names. Two leaves of the planted table stand frozen, so
+// three of the four level-1 formulas divide by a denominator that measured no
+// delta: `tma_frontend_bound` takes zero over zero, `tma_retiring` takes a
+// count over zero, and `tma_backend_bound` carries both of them. The arithmetic
+// of a fold answers a figure that is no number for those three, and the fourth
+// row keeps the figure its two moving leaves drove. Neither surface that
+// carries a figure to a reader may spell it: the block prints the two names of
+// such a node and the words that stand where a figure stands, and the record
+// carries no figure for it, so the console and the record refuse the same nodes
+// (FR-030, specs/042-topdown PC-17).
+auto scenarioAFigureThatIsNoNumberReachesNeitherSurface() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("this host states no vendor this build vendors a table for");
+  }
+  registerFrozenLeafFixture();
+  bareBenchmark("bmTopdownFrozenDenominator");
+  sg::detail::expandRegistry();
+
+  const RunAccount run = runMeasured(
+      *needInstance("bmTopdownFrozenDenominator"),
+      askedOptions(sg::test::topdownIntelRows(), kLevelOne, kRunRepetitions));
+  check(run.result.topdown.has_value(), "the level-1 ask is answered");
+  if (!run.result.topdown.has_value()) {
+    return 1;
+  }
+  const sg::TopdownRecord& record = *run.result.topdown;
+  const auto named = [&record](const std::string_view name)
+  {
+    for (const sg::TopdownNode& node : record.nodes) {
+      if (node.name == name) {
+        return &node;
+      }
+    }
+    return static_cast<const sg::TopdownNode*>(nullptr);
+  };
+
+  // The three nodes the frozen leaves starve, and the one node whose two leaves
+  // both moved. Which formula divides by which leaf is the fixture's own text,
+  // stated at `topdownIntelLevelOneRows`, and the case names the nodes it
+  // built.
+  const std::array<std::string_view, 3> starved {{
+      "topdown.frontend_bound",
+      "topdown.backend_bound",
+      "topdown.retiring",
+  }};
+  for (const std::string_view name : starved) {
+    const sg::TopdownNode* node = named(name);
+    check(node != nullptr, "the record carries the node of a starved formula");
+    if (node == nullptr) {
+      return 1;
+    }
+    check(!node->value.has_value(),
+          "the record carries no figure for the node whose denominator "
+          "measured " "no delta");
+    // `ABSENT` is the state the library already gives a denominator that is
+    // not there: `hunt.cpp:273` states it for a column no window gave a rate,
+    // and a node whose denominator measured no delta is that condition one
+    // level up.
+    check(node->availability == sg::counters::Availability::ABSENT,
+          "the record answers for the node the state a missing denominator "
+          "answers");
+  }
+  const sg::TopdownNode* live = named("topdown.bad_speculation");
+  check(live != nullptr && live->value.has_value()
+            && live->availability == sg::counters::Availability::COUNTABLE,
+        "the node whose two leaves moved keeps its figure and its state");
+
+  for (const sg::TopdownNode& node : record.nodes) {
+    check(!node.value.has_value() || std::isfinite(*node.value),
+          "no node of the record carries a figure that is no number");
+    // The four shares of the level divide one hundred percent between them, so
+    // a figure past it is no measurement. A writer that turns a non-finite
+    // figure into a finite magnitude of this size is the regression this
+    // assertion stands against, and a case that only forbade the text `nan`
+    // would read it as a figure.
+    check(!node.value.has_value() || *node.value <= kShareCeiling,
+          "no node of the record carries a figure past the hundred percent the "
+          "level divides");
+  }
+
+  const std::vector<std::string> lines = blockLinesOf(printedLines(run.result));
+  check(!lines.empty(), "the run prints its block");
+  for (const std::string& line : lines) {
+    check(spellsNoNumber(line),
+          "no line of the block spells a figure that is no number");
+  }
+  for (const std::string_view name : starved) {
+    const std::string line = nodeLineOf(lines, kLevelOne, name);
+    check(!line.empty(), "the block prints the line of the starved node");
+    check(line.find("not available") != std::string::npos,
+          "the line of the starved node prints the words that stand where a "
+          "figure stands");
+  }
+  const std::string liveLine =
+      nodeLineOf(lines, kLevelOne, "topdown.bad_speculation");
+  check(liveLine.find("not available") == std::string::npos
+            && liveLine.find('%') != std::string::npos,
+        "the line of the node that answered prints its figure");
+
+  // The print makes the same test the assembly of the node makes. The record of
+  // the copy below reaches the print by another route, with the figure of the
+  // starved nodes put back by hand and the countable state left on them, which
+  // is what a record read back from an older document looks like. The block
+  // still prints no figure for them (PC-17).
+  auto handBuilt = run.result;
+  for (sg::TopdownNode& node : handBuilt.topdown->nodes) {
+    if (std::find(starved.begin(), starved.end(), node.name) != starved.end()) {
+      node.value = std::numeric_limits<double>::quiet_NaN();
+      node.availability = sg::counters::Availability::COUNTABLE;
+    }
+  }
+  const std::vector<std::string> handLines =
+      blockLinesOf(printedLines(handBuilt));
+  check(handLines.size() == lines.size(),
+        "the hand built record prints as many lines as the run printed");
+  for (const std::string& line : handLines) {
+    check(spellsNoNumber(line),
+          "no line of the hand built block spells a figure that is no number");
+  }
+  for (const std::string_view name : starved) {
+    check(nodeLineOf(handLines, kLevelOne, name)
+              .find("not available")
+          != std::string::npos,
+          "the hand built block prints the words that stand where a figure "
+          "stands");
+  }
+
+  std::puts("a-figure-that-is-no-number-reaches-neither-surface: ok");
+  return 0;
+}
+
 struct Scenario
 {
   const char* name;
   int (*run)();
 };
 
-constexpr std::array<Scenario, 23> kScenarios {{
+constexpr std::array<Scenario, 24> kScenarios {{
     Scenario {"nodes-share-one-plan-with-the-metric-columns",
               &scenarioNodesShareOnePlanWithTheMetricColumns},
     Scenario {"the-metric-columns-keep-their-bytes",
@@ -2939,6 +3116,8 @@ constexpr std::array<Scenario, 23> kScenarios {{
               &scenarioAnUnsupportedHostPrintsOneLineAndKeepsTheStatus},
     Scenario {"refused-rows-print-at-the-level-shown",
               &scenarioRefusedRowsPrintAtTheLevelShown},
+    Scenario {"a-figure-that-is-no-number-reaches-neither-surface",
+              &scenarioAFigureThatIsNoNumberReachesNeitherSurface},
 }};
 
 }  // namespace

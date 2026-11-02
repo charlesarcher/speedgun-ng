@@ -386,8 +386,13 @@ auto printTopdownBlock(const BenchmarkResult& result) -> void
       statesContention = true;
     }
     const std::string indent(2 * (node.level > 0 ? node.level - 1 : 0), ' ');
+    // specs/042-topdown PC-17: the print reads the same predicate the assembly
+    // of the node read, so a record that reached here by another route, a hand
+    // built one or one read back from an older document, prints no figure it
+    // could not have assembled.
     if (node.value.has_value()
-        && node.availability == sg::counters::Availability::COUNTABLE)
+        && node.availability == sg::counters::Availability::COUNTABLE
+        && figureIsReportable(*node.value))
     {
       std::printf("topdown:  %s%s  %s  %.2f%%",
                   indent.c_str(),
