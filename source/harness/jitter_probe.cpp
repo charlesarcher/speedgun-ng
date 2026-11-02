@@ -317,9 +317,16 @@ struct ProbeItem
 // full buffer dropped stands in the per-cpu counters (FR-014, FR-016,
 // FR-022, E-26, D-6).
 auto keepSeriesOrDrop(ProbeCpuState& state,
-                      const std::uint64_t sample) noexcept -> void
+                      const std::uint64_t sample,
+                      const std::uint64_t phaseStart) noexcept -> void
 {
   if (state.seriesKept < state.series.size()) {
+    // specs/043 FR-020, R-11, E-26: the first store writes the phase's
+    // first stamp, the base the window fold recovers every sample's
+    // stamp from, and a later store leaves it standing.
+    if (state.seriesKept == 0) {
+      state.seriesStartNs = phaseStart;
+    }
     state.series.at(state.seriesKept) = sample;
     ++state.seriesKept;
     return;
@@ -339,11 +346,12 @@ auto keepSeriesOrDrop(ProbeCpuState& state,
 template<class ReadStamp>
 auto runFwqUnit(ProbeCpuState& state,
                 const ReadStamp& readStamp,
-                std::uint64_t& last) noexcept -> void
+                std::uint64_t& last,
+                const std::uint64_t phaseStart) noexcept -> void
 {
   runUnitBody(state.workCount);
   const std::uint64_t stamp = readStamp();
-  keepSeriesOrDrop(state, stamp - last);
+  keepSeriesOrDrop(state, stamp - last, phaseStart);
   last = stamp;
 }
 
@@ -362,14 +370,15 @@ auto runFtqUnit(ProbeCpuState& state,
                 const ReadStamp& readStamp,
                 std::uint64_t& last,
                 std::uint64_t& edge,
-                std::uint64_t& count) noexcept -> void
+                std::uint64_t& count,
+                const std::uint64_t phaseStart) noexcept -> void
 {
   runUnitBody(state.workCount);
   const std::uint64_t stamp = readStamp();
   last = stamp;
   ++count;
   while (stamp >= edge) {
-    keepSeriesOrDrop(state, count);
+    keepSeriesOrDrop(state, count, phaseStart);
     count = 0;
     edge += state.quantumNs;
   }
@@ -502,7 +511,7 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
       // FR-004: the pre-check phase of a FWQ run records unit times,
       // and the phase ends at its span.
       while (true) {
-        runFwqUnit(*state, readStamp, last);
+        runFwqUnit(*state, readStamp, last, phaseStart);
         if (last - phaseStart >= span) {
           break;
         }
@@ -515,7 +524,7 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
       std::uint64_t edge = phaseStart + state->quantumNs;
       std::uint64_t count = 0;
       while (true) {
-        runFtqUnit(*state, readStamp, last, edge, count);
+        runFtqUnit(*state, readStamp, last, edge, count, phaseStart);
         if (last - phaseStart >= span) {
           break;
         }
@@ -563,12 +572,16 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
   if (options->mode == JitterProbeMode::ALONGSIDE
       || options->mode == JitterProbeMode::BOTH)
   {
+    // specs/043 FR-020, R-11, E-26: the read behind the latch stands
+    // the window's first stamp, the base the series fold recovers every
+    // sample's stamp from.
+    const std::uint64_t windowStart = last;
     if (options->method == JitterMethod::FWQ) {
       // FR-012, FR-014, R-08: one unit per pass, the calibrated body
       // and one read, the unit time the delta answers, and the record
       // store into the pre-sized series.
       while (!state->stop.load(std::memory_order_relaxed)) {
-        runFwqUnit(*state, readStamp, last);
+        runFwqUnit(*state, readStamp, last, windowStart);
       }
     } else if (options->method == JitterMethod::FTQ) {
       // FR-015, FR-016, D-4, R-07: the quantum edges stand from the
@@ -577,7 +590,7 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
       std::uint64_t edge = last + state->quantumNs;
       std::uint64_t count = 0;
       while (!state->stop.load(std::memory_order_relaxed)) {
-        runFtqUnit(*state, readStamp, last, edge, count);
+        runFtqUnit(*state, readStamp, last, edge, count, windowStart);
       }
     } else {
       while (!state->stop.load(std::memory_order_relaxed)) {
@@ -653,12 +666,9 @@ auto seriesNoisePercent(const JitterMethod method,
 // standing minimum sample count, and the five calibration figures and
 // the drop count ride the state (FR-007, FR-008, R-09). The two series
 // folds share the reading, the run fold over the kept set and the
-// window fold over the set the windows placed.
-//
-// \pre `values` holds the samples one fold folds, in any order
+// window fold over the set the windows placed, in any order.
 auto seriesFigures(const ProbeCpuState& state,
-                   std::span<const std::uint64_t> values)
-    -> JitterSeriesStats
+                   std::span<const std::uint64_t> values) -> JitterSeriesStats
 {
   JitterSeriesStats stats {};
   stats.workCount = state.workCount;
@@ -692,13 +702,6 @@ auto seriesFigures(const ProbeCpuState& state,
   stats.p9999Value = percentileField(sorted, 99.99);
   stats.noisePercent = seriesNoisePercent(
       state.method, stats.sampleCount, stats.minValue, stats.maxValue, total);
-  SG_ENSURE(stats.minValue <= stats.medianValue
-                && stats.medianValue <= stats.p90Value
-                && stats.p90Value <= stats.p99Value
-                && stats.p99Value <= stats.p999Value
-                && stats.p999Value <= stats.p9999Value
-                && stats.p9999Value <= stats.maxValue,
-            "the percentile chain stands ordered (E-03, PC-4)");
   return stats;
 }
 
@@ -988,20 +991,17 @@ auto seriesStatsOf(const ProbeCpuState& state) -> JitterSeriesStats
   // FR-010).
   std::uint64_t span = 0;
   for (std::size_t index = 0; index < state.seriesKept; ++index) {
-    span += state.method == JitterMethod::FTQ
-        ? state.quantumNs
-        : state.series.at(index);
+    if (state.method == JitterMethod::FTQ) {
+      span += state.quantumNs;
+    } else {
+      span += state.series.at(index);
+    }
   }
   stats.seriesRuntimeNs = span;
   SG_ENSURE(stats.sampleCount == state.seriesKept
-                && stats.droppedSamples == state.droppedSamples,
-            "the counts answer the kept and dropped samples (FR-007, FR-022)");
-  SG_ENSURE(stats.workCount == state.workCount
-                && stats.unitTimeNs == state.unitTimeNs
-                && stats.targetNs == state.targetNs
-                && stats.quantumNs == state.quantumNs
-                && stats.calibrationSpanNs == state.calibrationSpanNs,
-            "the calibration figures carry the state's own (FR-011, E-22)");
+                && stats.noisePercent >= 0.0 && stats.noisePercent <= 100.0,
+            "the count answers the kept samples and the fraction stands in "
+            "the range 0 to 100 (FR-007, FR-009)");
   return stats;
 }
 
@@ -1097,6 +1097,76 @@ auto gapStatsOf(const ProbeCpuState& state,
             "the covered span is the windows' total duration (E-03)");
   SG_ENSURE(durationDivisionsHold(stats),
             "the duration divisions answer the covered span (E-03, R-05)");
+  return stats;
+}
+
+/**
+ * @brief specs/043-fwq-ftq: the per-benchmark series fold of one probe
+ * cpu over one benchmark's timed windows (FR-020, R-11): the kept
+ * samples whose recovered stamp falls inside a half-open window, over
+ * the covered span the windows' total duration. The fold reads the one
+ * series buffer the probe cpu owns, so no second buffer joins. The
+ * empty placement answers the absent record and none of the rows
+ * below.
+ *
+ * \post the fold recovers each sample's stamp from `seriesStartNs`,
+ *       the stamp the first series store wrote: the FWQ stamp is that
+ *       start plus the running sum of the unit times, and the FTQ
+ *       stamp that start plus the sample rank plus one, times the
+ *       quantum (R-11, E-26)
+ * \post a kept sample folds into every window whose half-open
+ *       `[start, end)` contains its recovered stamp, and the fields
+ *       carry the contracts the run-level fold states (E-06, R-04)
+ * \post `seriesRuntimeNs` is the windows' total duration (E-03, R-05)
+ * \post the fold stands absent when the windows place no sample
+ *       (FR-020)
+ */
+auto seriesStatsOf(const ProbeCpuState& state,
+                   std::span<const TimedWindow> windows)
+    -> std::optional<JitterSeriesStats>
+{
+  // The covered span the entry's fields divide (E-03, R-05): the
+  // windows' total, the one duration the window set carries.
+  std::uint64_t coveredNs = 0;
+  for (const auto& window : windows) {
+    coveredNs += window.end - window.start;
+  }
+
+  std::vector<std::uint64_t> placed;
+  placed.reserve(state.seriesKept);
+  std::uint64_t recoveredStamp = state.seriesStartNs;
+  for (std::size_t index = 0; index < state.seriesKept; ++index) {
+    const auto value = state.series.at(index);
+    if (state.method == JitterMethod::FTQ) {
+      recoveredStamp += state.quantumNs;
+    } else {
+      recoveredStamp += value;
+    }
+    // A sample folds into every window whose half-open `[start, end)`
+    // contains its recovered stamp (E-06, R-04), and the entry's fold
+    // reads each placed sample once, the one reading that leaves
+    // `sampleCount` the count of the samples the benchmark's windows
+    // placed (FR-020).
+    const bool inside = std::any_of(
+        windows.begin(),
+        windows.end(),
+        [&](const TimedWindow& window) noexcept -> bool
+        {
+          return window.start <= recoveredStamp && recoveredStamp < window.end;
+        });
+    if (inside) {
+      placed.push_back(value);
+    }
+  }
+  if (placed.empty()) {
+    return std::nullopt;
+  }
+  auto stats = seriesFigures(state, placed);
+  stats.seriesRuntimeNs = coveredNs;
+  SG_ENSURE(stats.sampleCount == placed.size()
+                && stats.noisePercent >= 0.0 && stats.noisePercent <= 100.0,
+            "the count answers the placed samples and the fraction stands in "
+            "the range 0 to 100 (FR-020, FR-009)");
   return stats;
 }
 

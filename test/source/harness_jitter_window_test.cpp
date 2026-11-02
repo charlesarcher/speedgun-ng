@@ -30,6 +30,7 @@
 #include <mutex>
 #include <sstream>
 #include <span>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -1333,7 +1334,8 @@ auto main() -> int
     sg::detail::ProbeCpuState fwq;
     fillFwqSeries(fwq);
     const auto run = sg::detail::seriesStatsOf(fwq);
-    check(run.sampleCount == 4, "the run fold counts the kept samples (FR-007)");
+    check(run.sampleCount == 4,
+          "the run fold counts the kept samples (FR-007)");
     check(run.minValue == 1000 && run.maxValue == 2000,
           "the run fold names the kept extremes (FR-007)");
     check(run.medianValue == 1000 && run.p90Value == 2000
@@ -1354,8 +1356,8 @@ auto main() -> int
               && run.quantumNs == 0 && run.calibrationSpanNs == 500,
           "the five calibration figures ride the state (FR-011, E-22)");
 
-    const auto placed = sg::detail::seriesStatsOf(fwq,
-                                                  seriesWindow(1500, 4500));
+    const auto placed =
+        sg::detail::seriesStatsOf(fwq, seriesWindow(1500, 4500));
     check(placed.has_value(),
           "thePerEntrySeriesFoldsTheWindows: the windows place samples, so "
           "the entry fold stands present (FR-020)");
@@ -1395,8 +1397,7 @@ auto main() -> int
           "thePerEntrySeriesStandsNullWithoutSamples: the windows that "
           "place no sample leave the entry fold null (FR-020)");
     check(!sg::detail::seriesStatsOf(
-               fwq,
-               std::span<const sg::detail::TimedWindow> {})
+               fwq, std::span<const sg::detail::TimedWindow> {})
                .has_value(),
           "no window places no sample, so the entry fold stands null (FR-020)");
   }
@@ -1424,14 +1425,15 @@ auto main() -> int
           "the runtime is the recovered stamp span of the three quanta "
           "(FR-007, FR-015)");
 
-    const auto placed = sg::detail::seriesStatsOf(ftq, seriesWindow(1100, 2100));
+    const auto placed =
+        sg::detail::seriesStatsOf(ftq, seriesWindow(1100, 2100));
     check(placed.has_value() && placed->sampleCount == 1,
           "the edge the window opens on places its count, and the edge it "
           "closes on stands past (FR-020, R-11)");
-    check(placed->minValue == 5 && placed->maxValue == 5
-              && std::fabs(placed->noisePercent) <= 1e-9,
-          "one count stands its own maximum, so the fraction reads 0 "
-          "(FR-009)");
+    check(placed->minValue == 5 && placed->maxValue == 5,
+          "one count stands its own maximum (FR-009)");
+    check(std::fabs(placed->noisePercent) <= 1e-9,
+          "the single placed count answers a zero fraction (FR-009)");
     check(placed->seriesRuntimeNs == 1000,
           "the entry's runtime is the window's total (FR-007, E-03)");
 
@@ -1477,15 +1479,17 @@ auto main() -> int
     auto& provider = scriptedProvider();
     provider.setPoints("machine", "tsc", {}, 1);
     const std::string path = "harness_jitter_window_series.json";
-    captureRun({"--filter=bmQuiet",
-                "--repetitions=1",
-                "--iterations=2",
-                "--json=" + path,
-                "--jitter-probe=" + std::to_string(cpus.at(0)) + ",method=fwq"});
+    captureRun(
+        {"--filter=bmQuiet",
+         "--repetitions=1",
+         "--iterations=2",
+         "--json=" + path,
+         "--jitter-probe=" + std::to_string(cpus.at(0)) + ",method=fwq"});
     const auto document = readDocument(path);
     std::remove(path.c_str());
     const auto quietName = document.find("\"bmQuiet\"");
-    check(quietName != std::string::npos, "the document carries the entry (FR-020)");
+    check(quietName != std::string::npos,
+          "the document carries the entry (FR-020)");
     check(document.find("\"jitter\":{\"stats\"", quietName) != std::string::npos,
           "thePerEntrySeriesFoldsTheWindows: the FWQ entry carries the fold "
           "its series placed (FR-020, R-11)");
@@ -1503,7 +1507,8 @@ auto main() -> int
     const auto document = readDocument(path);
     std::remove(path.c_str());
     const auto quietName = document.find("\"bmQuiet\"");
-    check(quietName != std::string::npos, "the document carries the entry (FR-020)");
+    check(quietName != std::string::npos,
+          "the document carries the entry (FR-020)");
     check(document.find("\"jitter\":null", quietName) != std::string::npos,
           "thePerEntrySeriesStandsNullWithoutSamples: the windows of a "
           "pre-check run place no sample, so the entry stands null (FR-020)");
