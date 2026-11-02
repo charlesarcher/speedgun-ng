@@ -363,6 +363,13 @@ auto printTopdownBlock(const BenchmarkResult& result) -> void
               static_cast<int>(record.level),
               result.passCount,
               record.directory.c_str());
+  if (record.askedLevel > record.level) {
+    // specs/042-topdown FR-020: the level the block states is the deepest level
+    // the table holds, and the line says so once, because the level the command
+    // line asked for reaches no node of this run.
+    std::printf("topdown: the table holds no level deeper than %d\n",
+                static_cast<int>(record.level));
+  }
   if (!record.reference.empty()) {
     std::printf("topdown: reference=%s\n", record.reference.c_str());
   }
@@ -379,17 +386,26 @@ auto printTopdownBlock(const BenchmarkResult& result) -> void
     if (node.value.has_value()
         && node.availability == sg::counters::Availability::COUNTABLE)
     {
-      std::printf("topdown:  %s%s  %s  %.2f%%\n",
+      std::printf("topdown:  %s%s  %s  %.2f%%",
                   indent.c_str(),
                   node.name.c_str(),
                   node.vendorName.c_str(),
                   *node.value);
     } else {
-      std::printf("topdown:  %s%s  %s  not available\n",
+      // specs/042-topdown FR-030: a node the run cannot answer prints its two
+      // names and no figure.
+      std::printf("topdown:  %s%s  %s  not available",
                   indent.c_str(),
                   node.name.c_str(),
                   node.vendorName.c_str());
     }
+    if (!node.threshold.empty()) {
+      // specs/042-topdown FR-029, spec D-09: the row's threshold text, spelled
+      // as the table file spells it, with no verdict of the report's own beside
+      // it and no threshold at all where the row carries none.
+      std::printf("  %s", node.threshold.c_str());
+    }
+    std::putchar('\n');
   }
   if (statesContention) {
     std::printf("topdown: the four shared level-1 values add to less than 100 "

@@ -185,6 +185,115 @@ constexpr std::array<double, 4> kLevelOnePercents {{
     kRetiringPercent,
 }};
 
+// The deeper levels of the Intel fixture, in the order its rows stand. The
+// neutral names are the ones `topdownTree` gives a row below level 1, the
+// vendor names are the row's own, and each parent is the neutral name of the
+// row one level above (FR-013, FR-014, FR-018).
+constexpr std::array<std::string_view, 6> kLevelTwoNeutralNames {{
+    "topdown.intel.tma_fetch_latency",
+    "topdown.intel.tma_fetch_bandwidth",
+    "topdown.intel.tma_branch_mispredicts",
+    "topdown.intel.tma_core_bound",
+    "topdown.intel.tma_memory_bound",
+    "topdown.intel.tma_memory_bandwidth",
+}};
+constexpr std::array<std::string_view, 6> kLevelTwoVendorNames {{
+    "tma_fetch_latency",
+    "tma_fetch_bandwidth",
+    "tma_branch_mispredicts",
+    "tma_core_bound",
+    "tma_memory_bound",
+    "tma_memory_bandwidth",
+}};
+constexpr std::array<std::string_view, 6> kLevelTwoParentNames {{
+    "topdown.frontend_bound",
+    "topdown.frontend_bound",
+    "topdown.bad_speculation",
+    "topdown.backend_bound",
+    "topdown.backend_bound",
+    "topdown.backend_bound",
+}};
+
+// The level-3 rows of the same fixture, in table order, and the level-2 parent
+// each one names.
+constexpr std::array<std::string_view, 4> kLevelThreeNeutralNames {{
+    "topdown.intel.tma_branch_resteers",
+    "topdown.intel.tma_divider",
+    "topdown.intel.tma_dram_bound",
+    "topdown.intel.tma_dsb",
+}};
+constexpr std::array<std::string_view, 4> kLevelThreeVendorNames {{
+    "tma_branch_resteers",
+    "tma_divider",
+    "tma_dram_bound",
+    "tma_dsb",
+}};
+constexpr std::array<std::string_view, 4> kLevelThreeParentNames {{
+    "topdown.intel.tma_fetch_latency",
+    "topdown.intel.tma_core_bound",
+    "topdown.intel.tma_memory_bound",
+    "topdown.intel.tma_fetch_bandwidth",
+}};
+
+// The pass counts the one plan of each asked level settles: the two scripted
+// pairs, the four level-1 columns, and the columns of each deeper level, all
+// priced together against the two programmable counters of the scripted source
+// (FR-021, FR-023).
+constexpr std::size_t kLevelTwoPlanPassCount = 7;
+constexpr std::size_t kLevelThreePlanPassCount = 8;
+
+// SC-03's two tolerances, in percentage points: one figure against the fixture
+// figure it stands for, and the five AMD level-1 values against the hundred
+// percent they close.
+constexpr double kFigureTolerance = 0.05;
+constexpr double kSumTolerance = 0.1;
+
+// The threshold text one planted row carries, spelled with the spaces the table
+// file spells it, so a reader can tell an unchanged print from a trimmed one
+// (FR-017, FR-029).
+constexpr std::string_view kPlantedThreshold {"&gt; 65.0"};
+
+// The AMD identity a scripted run hands the selection, and the ref-cycles delta
+// this unit scripts for the AMD run alone. The five rows of the Zen 4 table
+// each take something over six slots of the cycle count, and with the 500 the
+// metric fixture scripts for that leaf the five come to 91.67 percent. The AMD
+// case therefore lays that leaf down at 1000, so the five level-1 figures close
+// the hundred percent FR-056 states and the case measures the closing instead
+// of assuming it. Both numbers are scripted values of this unit's source and no
+// fact about a host (FR-011, FR-056, spec D-3).
+constexpr std::string_view kAmdVendorText {"AuthenticAMD"};
+constexpr double kAmdRefCyclesDelta = 1000.0;
+
+// The five figures the run answers for the Zen 4 table over the scripted leaves
+// above, in table order. They are written out and not computed here: the fold
+// that turns a row's formula and the scripted leaves into a percentage is the
+// library's, and a case that redid that arithmetic could not fail. Each is the
+// figure of a row of the fixture over scripted leaves, which are scripted
+// values and no fact about a host.
+constexpr std::array<double, 5> kAmdLevelOneFigures {{
+    16.666667,
+    33.166667,
+    16.666667,
+    0.166667,
+    33.333333,
+}};
+
+// The deepest level of the shallow fixture: the level an ask deeper than that
+// clamps to, and the level the run reports (FR-020).
+constexpr std::uint64_t kDeepestPlantedLevel = 4;
+
+// One level-4 node of that fixture, by the neutral name the selection gives it.
+constexpr std::string_view kLevelFourNeutralName {
+    "topdown.intel.tma_clears_resteers"};
+
+// The tag of the line a clamped ask states, naming the deepest level the table
+// holds.
+constexpr std::string_view kClampLineTag {
+    "topdown: the table holds no level deeper than "};
+
+// The lines the AMD statement costs, beside the header and the node lines.
+constexpr std::size_t kAmdStatementLines = 1;
+
 // The two vendors this build vendors a table for, spelled the way CPUID leaf 0
 // spells them. The identity a run reads belongs to the host, so a scenario of
 // this unit stands only where that identity names one of these two texts.
@@ -318,6 +427,41 @@ auto registerFixture(const std::size_t coreLimit) -> sg::counters::FakeProvider&
   return *scripted;
 }
 
+// The scripted source of the AMD run, and no other: the leaves of the planted
+// rows and the one limit, with this unit's ref-cycles leaf laid down at
+// `kAmdRefCyclesDelta` instead of the value the metric fixture scripts, so the
+// five level-1 figures of the Zen 4 table close the hundred percent FR-056
+// states. The leaves are scripted readings, no fact about a host, and the
+// fixture header keeps the value every other case of this unit reads. Every
+// scripted fact still precedes the registration.
+auto registerAmdFixture(const std::size_t coreLimit)
+    -> sg::counters::FakeProvider&
+{
+  auto provider = std::make_unique<sg::counters::FakeProvider>();
+  sg::test::scriptPassFixture(*provider, kWideSourceLimit);
+  scriptTopdownLeaves(*provider);
+  provider->setPoints(
+      kCoreObject, sg::test::kRefCycles, {0}, kAmdRefCyclesDelta);
+  provider->setProgrammableCounters(kCoreObject, coreLimit);
+  auto* scripted = provider.get();
+  const auto settled =
+      sg::counters::System::local().registerProvider(std::move(provider));
+  check(settled.has_value(), "the AMD fixture registers on the local system");
+  fake = scripted;
+  return *scripted;
+}
+
+// The identity of an AMD cpu, handed to the selection in place of the one this
+// host states. `topdownTree` reads the vendor text alone: the family, the model
+// and the stepping choose the table of a host that has to read one, and a run
+// that is handed its table reads no mapping.
+auto amdIdentity() -> sg::counters::CpuIdentity
+{
+  sg::counters::CpuIdentity identity;
+  identity.vendor = std::string(kAmdVendorText);
+  return identity;
+}
+
 // The sum of one column's leaves, the shape `data-model.md` E-01 gives a metric
 // column of the pass fixture: one same-dimension core over the PMU events it
 // names.
@@ -358,11 +502,56 @@ auto metricBenchmark(const char* name) -> void
   }
 }
 
+// The fixture rows with one threshold text planted on one metric row, leaving
+// every other row as the fixture spells it.
+[[nodiscard]] auto withThreshold(const std::vector<MetricRow>& rows,
+                                 const std::string_view metricName,
+                                 const std::string_view threshold)
+    -> std::vector<MetricRow>
+{
+  std::vector<MetricRow> spelled = rows;
+  for (MetricRow& row : spelled) {
+    if (row.metricName == metricName) {
+      row.threshold = std::string(threshold);
+    }
+  }
+  return spelled;
+}
+
+// True when one node of a record carries `name`.
+auto holdsName(const std::vector<sg::TopdownNode>& nodes,
+               const std::string_view name) -> bool
+{
+  for (const sg::TopdownNode& node : nodes) {
+    if (node.name == name) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Register one instance of the plain body with no column of its own: the tree
 // is the only thing such a run collects.
 auto bareBenchmark(const char* name) -> void
 {
   static_cast<void>(sg::registerBenchmark(&plainBody, name));
+}
+
+// Register one instance that declares one metric column whose label is the
+// vendor name of a level-1 node and whose formula is that node's formula scaled
+// by hand to the percent unit the row's scale text spells: the column a user
+// names with `--metric=` in a production run. A scripted run cannot reach a
+// planted row through the option's name, because the option resolves a name in
+// the table of the host and the rows of a planted table stand in no host. What
+// FR-023 and SC-03 fix is a column of a node's formula and label, whichever way
+// it enters the run, and a declared column is the way a scripted run has.
+auto nodeColumnBenchmark(const char* name) -> void
+{
+  auto handle = sg::registerBenchmark(&plainBody, name);
+  handle.addMetric(100.0
+                       * (sumLeaves(kCoreObject, {sg::test::kCycles})
+                          / sumLeaves(kCoreObject, {sg::test::kRefCycles})),
+                   std::string(kLevelOneVendorNames[0]));
 }
 
 // The run shape every scenario shares. The warm-up stands off so every sampling
@@ -644,6 +833,79 @@ auto runMeasuredQuietly(sg::Instance& instance,
     return std::nullopt;
   }
   return static_cast<std::size_t>(found - lines.begin());
+}
+
+// How many fields one printed row line carries for `label`. A node column whose
+// vendor name equals the label of a column the run already reported must add no
+// field of its own (FR-023).
+[[nodiscard]] auto fieldsOf(const std::string& line,
+                            const std::string_view label) -> std::size_t
+{
+  const std::string mark = std::string(label) + "=";
+  std::size_t seen = 0;
+  for (std::size_t at = line.find(mark); at != std::string::npos;
+       at = line.find(mark, at + mark.size()))
+  {
+    ++seen;
+  }
+  return seen;
+}
+
+// The figure text of the field one printed row line carries for `label`, or an
+// empty text where the line carries no such field.
+[[nodiscard]] auto figureFieldOf(const std::string& line,
+                                 const std::string_view label) -> std::string
+{
+  const std::string mark = std::string(label) + "=";
+  const std::size_t at = line.find(mark);
+  if (at == std::string::npos) {
+    return {};
+  }
+  std::size_t start = at + mark.size();
+  while (start < line.size() && line[start] == ' ') {
+    ++start;
+  }
+  const std::size_t stop = line.find_first_of(" \t", start);
+  return line.substr(
+      start, stop == std::string::npos ? std::string::npos : stop - start);
+}
+
+// The first line a report carries of `prefix`, or an empty text where none
+// stands.
+[[nodiscard]] auto lineOf(const std::vector<std::string>& lines,
+                          const std::string_view prefix) -> std::string
+{
+  const std::optional<std::size_t> found = lineAt(lines, prefix);
+  return found.has_value() ? lines[*found] : std::string {};
+}
+
+// The block line of one node of one level: the block tag, the indentation the
+// level of the node buys, and the neutral name. An empty text is the run
+// printing no line for that node.
+[[nodiscard]] auto nodeLineOf(const std::vector<std::string>& lines,
+                              const std::uint64_t level,
+                              const std::string_view name) -> std::string
+{
+  const std::string prefix = std::string(kBlockTag) + "  "
+      + std::string(2 * static_cast<std::size_t>(level - 1), ' ')
+      + std::string(name);
+  for (const std::string& line : lines) {
+    if (line.starts_with(prefix)) {
+      return line;
+    }
+  }
+  return {};
+}
+
+// The deepest level one record's nodes stand at, or 0 when it holds none.
+[[nodiscard]] auto deepestLevelOf(const sg::TopdownRecord& record)
+    -> std::uint64_t
+{
+  std::uint64_t deepest = 0;
+  for (const sg::TopdownNode& node : record.nodes) {
+    deepest = std::max(deepest, node.level);
+  }
+  return deepest;
 }
 
 // The options of a run that reports its percentiles, the view the strip of the
@@ -1975,13 +2237,349 @@ auto scenarioTheRunStatesTheCoreWideScopeBeforeTheFirstMeasurement() -> int
   return 0;
 }
 
+// Every node above the level a run asks for stands in the run, in the order the
+// table spells its rows, each naming its parent, and one plan prices the whole
+// set: FR-018, FR-021 and FR-027. The printed half asks for the indentation of
+// a deeper level, the vendor name beside the figure, and the line a clamped ask
+// states (FR-020, FR-026, FR-027).
+auto scenarioTheDeeperLevelsCollectEveryNodeAboveThem() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("no vendored vendor on this host");
+  }
+  registerFixture(kNarrowCoreLimit);
+  metricBenchmark("bmTopdownLevelTwo");
+  metricBenchmark("bmTopdownLevelThree");
+  metricBenchmark("bmTopdownClampedLevel");
+  sg::detail::expandRegistry();
+
+  const RunAccount two = runMeasured(
+      *needInstance("bmTopdownLevelTwo"),
+      askedOptions(sg::test::topdownIntelRows(), 2, kRunRepetitions));
+  check(two.result.topdown.has_value(), "the level-2 ask is answered");
+  if (!two.result.topdown.has_value()) {
+    return 1;
+  }
+  const sg::TopdownRecord& deep = *two.result.topdown;
+  check(deep.askedLevel == 2, "the run asked level 2");
+  check(deep.level == 2, "the table answers level 2");
+  check(
+      deep.nodes.size() == kLevelOneNodeColumns + kLevelTwoNeutralNames.size(),
+      "the level-2 run holds the four level-1 nodes beside six level-2 nodes");
+  for (std::size_t index = 0; index < kLevelTwoNeutralNames.size()
+       && index + kLevelOneNodeColumns < deep.nodes.size();
+       ++index)
+  {
+    const sg::TopdownNode& node = deep.nodes[kLevelOneNodeColumns + index];
+    check(node.level == 2, "the node of the row stands at level 2");
+    check(node.name == kLevelTwoNeutralNames[index],
+          "the node carries the neutral name the fixture spells");
+    check(node.vendorName == kLevelTwoVendorNames[index],
+          "the node carries the vendor name of its row");
+    check(!node.parent.empty(), "the level-2 node names a parent");
+    if (!node.parent.empty()) {
+      check(node.parent == kLevelTwoParentNames[index],
+            "the node names the level-1 parent of its row");
+      check(holdsName(deep.nodes, node.parent),
+            "every node above the level asked for stands in the run");
+    }
+  }
+  check(two.result.passCount == kLevelTwoPlanPassCount,
+        "one plan covers the deeper set and states its pass count");
+
+  const std::vector<std::string> twoLines =
+      blockLinesOf(printedLines(two.result));
+  const std::string twoHeader =
+      lineOf(twoLines, std::string(kBlockTag) + " level=");
+  check(twoHeader.find("level=2 ") != std::string::npos,
+        "the block states the level the run answered");
+  check(twoHeader.find("passes=" + std::to_string(two.result.passCount))
+            != std::string::npos,
+        "the block states the pass count the one plan settled");
+  for (std::size_t index = 0; index < kLevelTwoNeutralNames.size(); ++index) {
+    const std::string printed =
+        nodeLineOf(twoLines, 2, kLevelTwoNeutralNames[index]);
+    check(!printed.empty(),
+          "a level-2 line stands at the indentation of its level, below its "
+          "own " "parent (FR-026, FR-027)");
+    check(printed.find("  " + std::string(kLevelTwoVendorNames[index]) + "  ")
+              != std::string::npos,
+          "the deeper line carries the vendor name of its row as a field of "
+          "its " "own (FR-027)");
+  }
+
+  const RunAccount three = runMeasured(
+      *needInstance("bmTopdownLevelThree"),
+      askedOptions(sg::test::topdownIntelRows(), 3, kRunRepetitions));
+  check(three.result.topdown.has_value(), "the level-3 ask is answered");
+  if (!three.result.topdown.has_value()) {
+    return 1;
+  }
+  const sg::TopdownRecord& below = *three.result.topdown;
+  check(below.level == 3, "the table answers level 3");
+  check(below.nodes.size()
+            == kLevelOneNodeColumns + kLevelTwoNeutralNames.size()
+                + kLevelThreeNeutralNames.size(),
+        "the level-3 run holds every node of the three levels");
+  std::size_t seen = 0;
+  for (std::size_t index = 0; index < kLevelThreeNeutralNames.size(); ++index) {
+    for (const sg::TopdownNode& node : below.nodes) {
+      if (node.name != kLevelThreeNeutralNames[index]) {
+        continue;
+      }
+      ++seen;
+      check(node.level == 3, "the node of the row stands at level 3");
+      check(node.vendorName == kLevelThreeVendorNames[index],
+            "the node carries the vendor name of its row");
+      check(node.parent == kLevelThreeParentNames[index],
+            "the level-3 node names its level-2 parent");
+      check(holdsName(below.nodes, kLevelThreeParentNames[index]),
+            "every node above the level asked for stands in the run");
+    }
+  }
+  check(seen == kLevelThreeNeutralNames.size(),
+        "the run holds each level-3 node of the fixture once");
+  check(three.result.passCount == kLevelThreePlanPassCount,
+        "one plan covers the three levels and states its pass count");
+
+  const std::vector<std::string> threeLines =
+      blockLinesOf(printedLines(three.result));
+  check(!nodeLineOf(threeLines, 3, kLevelThreeNeutralNames[0]).empty(),
+        "a level-3 line stands at the indentation of its level");
+
+  // Ask deeper than the table goes: the run reports the level it answered and
+  // states the deepest level the table holds (FR-020).
+  const RunAccount clamped = runMeasured(
+      *needInstance("bmTopdownClampedLevel"),
+      askedTable(
+          plantedTable(kIntelDirectory, sg::test::topdownIntelShallowRows()),
+          6,
+          kRunRepetitions));
+  check(clamped.result.topdown.has_value(), "the ask of level 6 is answered");
+  if (!clamped.result.topdown.has_value()) {
+    return 1;
+  }
+  check(clamped.result.topdown->askedLevel == 6, "the run asked level 6");
+  check(clamped.result.topdown->level == kDeepestPlantedLevel,
+        "the run reports the deepest level the table holds");
+  check(deepestLevelOf(*clamped.result.topdown) == kDeepestPlantedLevel,
+        "no node of the run stands deeper than the level it reports");
+  check(holdsName(clamped.result.topdown->nodes, kLevelFourNeutralName),
+        "the run holds the nodes of the level it clamped to");
+  const std::vector<std::string> clampLines =
+      blockLinesOf(printedLines(clamped.result));
+  check(lineOf(clampLines, std::string(kBlockTag) + " level=").find("level=4 ")
+            != std::string::npos,
+        "the block states the level the run answered, not the level asked");
+  check(!lineOf(clampLines, kClampLineTag).empty(),
+        "the block states the deepest level the table holds");
+
+  // The line belongs to a clamped ask alone: a run the table answers at the
+  // level it was given states no such thing.
+  check(lineOf(twoLines, kClampLineTag).empty(),
+        "a run that got the level it asked states no deepest level");
+  std::puts("the-deeper-levels-collect-every-node-above-them: ok");
+  return 0;
+}
+
+// A run that carries a node's formula as a metric column reports one figure for
+// the node and the column (SC-03), keeps the column it reported before the
+// option stood even though its label is the node's vendor name (FR-023), and
+// prints the row's threshold text unchanged and with no verdict beside it
+// (FR-029, spec D-09).
+auto scenarioTheNodeAndItsMetricColumnAnswerOneFigure() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("no vendored vendor on this host");
+  }
+  registerFixture(kNarrowCoreLimit);
+  const std::string benchmarkName {"bmTopdownNodeColumn"};
+  nodeColumnBenchmark(benchmarkName.c_str());
+  sg::detail::expandRegistry();
+  sg::Instance& instance = *needInstance(benchmarkName);
+
+  const RunAccount plain = runMeasured(instance, optionsFor(kRunRepetitions));
+  check(!plain.result.topdown.has_value(),
+        "the run given no option records nothing");
+  const std::string vendorName(kLevelOneVendorNames[0]);
+  check(plain.result.metricLabels == std::vector<std::string> {vendorName},
+        "the run reports the column of the node's formula before the option");
+  const std::size_t column = columnAt(plain.result, vendorName)
+                                 .value_or(plain.result.metricLabels.size());
+  check(column < plain.result.metricLabels.size(),
+        "the column stands in the row");
+  check(!plain.result.rows.empty(), "the run before the option reports a row");
+  if (plain.result.rows.empty()) {
+    return 1;
+  }
+  const double plainFigure = plain.result.rows[0].metrics[column].value;
+
+  const RunAccount asked =
+      runMeasured(instance,
+                  percentilesOn(askedTable(
+                      plantedTable(kIntelDirectory,
+                                   withThreshold(sg::test::topdownIntelRows(),
+                                                 vendorName,
+                                                 kPlantedThreshold)),
+                      1,
+                      kRunRepetitions)));
+  check(asked.result.topdown.has_value(), "the level-1 ask is answered");
+  if (!asked.result.topdown.has_value()) {
+    return 1;
+  }
+  check(
+      asked.result.metricLabels == plain.result.metricLabels,
+      "the run keeps every metric column it reported before the option stood");
+  const std::size_t kept = columnAt(asked.result, vendorName)
+                               .value_or(asked.result.metricLabels.size());
+  check(kept < asked.result.metricLabels.size(),
+        "the column whose label is a node's vendor name stays in the row");
+  check(sameBytes(asked.result.rows[0].metrics[kept].value, plainFigure),
+        "the kept column carries the figure it carried before the option");
+  check(!asked.result.rows.empty()
+            && asked.result.rows[0].metrics.size()
+                == plain.result.rows[0].metrics.size()
+            && asked.result.rows[0].metricStats.size()
+                == plain.result.rows[0].metricStats.size(),
+        "the row keeps the number of columns it reported before the option");
+  if (asked.result.rows.empty()) {
+    return 1;
+  }
+  const std::string before = lineOf(printedLines(plain.result), benchmarkName);
+  const std::string after = lineOf(printedLines(asked.result), benchmarkName);
+  check(!before.empty() && !after.empty(), "each run prints its row");
+  check(fieldsOf(before, vendorName) == 1
+            && fieldsOf(after, vendorName) == 1,
+        "the row of the asked run carries one field of the label, the node "
+        "column adding no field of its own (FR-023)");
+  check(!figureFieldOf(before, vendorName).empty()
+            && figureFieldOf(after, vendorName)
+                   == figureFieldOf(before, vendorName),
+        "the kept column prints the figure it printed before the option stood "
+        "(FR-023)");
+
+  const sg::TopdownNode& node = asked.result.topdown->nodes[0];
+  check(node.vendorName == vendorName, "the node of the column stands first");
+  check(node.value.has_value(), "the node answers a figure");
+  if (!node.value.has_value()) {
+    return 1;
+  }
+  check(std::abs(*node.value - plainFigure) <= kFigureTolerance,
+        "node and column answer one figure within SC-03's tolerance");
+  check(node.threshold == kPlantedThreshold,
+        "the record carries the threshold text the row spells, spaces and all");
+
+  const std::vector<std::string> lines =
+      blockLinesOf(printedLines(asked.result));
+  const std::string printed = nodeLineOf(lines, 1, node.name);
+  check(printed.find(figureText(*node.value)) != std::string::npos,
+        "the node line states the figure");
+  check(printed.find(std::string(kPlantedThreshold)) != std::string::npos,
+        "the node line states the threshold text of the row");
+  check(printed.find("pass=") == std::string::npos
+            && printed.find("PASS") == std::string::npos
+            && printed.find("FAIL") == std::string::npos,
+        "the report sets no verdict by the threshold");
+  std::puts("the-node-and-its-metric-column-answer-one-figure: ok");
+  return 0;
+}
+
+// The five values of an AMD table answer the fixture figures the rows script
+// and close the hundred percent the five are meant to fill: FR-011, FR-056 and
+// SC-03. The printed half states the fifth value beside the four shared names,
+// names the AMD table it read, and prints a deeper AMD level under its parent
+// at its indentation (FR-026, FR-027, spec D-03).
+auto scenarioTheAmdFiveValuesAnswerTheFixtureAndSumToHundred() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("no vendored vendor on this host");
+  }
+  registerAmdFixture(kNarrowCoreLimit);
+  metricBenchmark("bmTopdownAmdLevelOne");
+  metricBenchmark("bmTopdownAmdLevelTwo");
+  sg::detail::expandRegistry();
+
+  sg::detail::RunOptions levelOne = askedTable(
+      plantedTable(sg::test::kZen4Directory, sg::test::topdownZen4Rows()),
+      1,
+      kRunRepetitions);
+  levelOne.topdownIdentity = amdIdentity();
+  const RunAccount first =
+      runMeasured(*needInstance("bmTopdownAmdLevelOne"), levelOne);
+  check(first.result.topdown.has_value(), "the AMD ask is answered");
+  if (!first.result.topdown.has_value()) {
+    return 1;
+  }
+  const sg::TopdownRecord& record = *first.result.topdown;
+  check(record.directory == sg::test::kZen4Directory,
+        "the record names the AMD table the run read");
+  check(record.nodes.size() == kAmdLevelOneFigures.size(),
+        "the AMD level-1 set holds the four shared names beside the fifth");
+  double sum = 0.0;
+  for (std::size_t index = 0; index < kAmdLevelOneFigures.size(); ++index) {
+    if (index >= record.nodes.size()) {
+      break;
+    }
+    const sg::TopdownNode& node = record.nodes[index];
+    check(node.level == 1, "the node stands at level 1");
+    check(node.parent.empty(), "a level-1 node names no parent");
+    check(node.name
+              == std::string("topdown.")
+                  + std::string(sg::test::kAmdLevelOneNames[index]),
+          "the node carries the shared neutral name of its row");
+    check(node.vendorName == sg::test::kAmdLevelOneNames[index],
+          "the node carries the vendor name of its row");
+    check(node.value.has_value(), "the AMD node answers a figure");
+    if (node.value.has_value()) {
+      sum += *node.value;
+      check(std::abs(*node.value - kAmdLevelOneFigures[index])
+                <= kFigureTolerance,
+            "the figure answers the fixture figure within SC-03's tolerance");
+    }
+  }
+  check(std::abs(sum - 100.0) <= kSumTolerance,
+        "the five values close the hundred percent FR-056 states");
+
+  const std::vector<std::string> lines =
+      blockLinesOf(printedLines(first.result));
+  check(lines.size() == kAmdLevelOneFigures.size() + kAmdStatementLines + 1,
+        "the AMD block states the five values, the table it read and the "
+        "statement");
+  check(!nodeLineOf(lines, 1, sg::test::kNeutralSmtContention).empty(),
+        "the block prints the fifth value under its shared name");
+
+  sg::detail::RunOptions levelTwo = askedTable(
+      plantedTable(sg::test::kZen4Directory, sg::test::topdownZen4Rows()),
+      2,
+      kRunRepetitions);
+  levelTwo.topdownIdentity = amdIdentity();
+  const RunAccount deeper =
+      runMeasured(*needInstance("bmTopdownAmdLevelTwo"), levelTwo);
+  check(deeper.result.topdown.has_value(), "the AMD level-2 ask is answered");
+  if (!deeper.result.topdown.has_value()) {
+    return 1;
+  }
+  const std::string childName = std::string("topdown.amd.")
+      + std::string(sg::test::kZenLevelTwoNames[0].first);
+  check(holdsName(deeper.result.topdown->nodes, childName),
+        "the AMD run holds the level-2 node of the table");
+  const std::vector<std::string> deepLines =
+      blockLinesOf(printedLines(deeper.result));
+  const std::string childLine = nodeLineOf(deepLines, 2, childName);
+  check(!childLine.empty(),
+        "the block prints the deeper AMD level under its parent at its "
+        "indentation");
+  std::puts("the-amd-five-values-answer-the-fixture-and-sum-to-hundred: ok");
+  return 0;
+}
+
 struct Scenario
 {
   const char* name;
   int (*run)();
 };
 
-constexpr std::array<Scenario, 18> kScenarios {{
+constexpr std::array<Scenario, 21> kScenarios {{
     Scenario {"nodes-share-one-plan-with-the-metric-columns",
               &scenarioNodesShareOnePlanWithTheMetricColumns},
     Scenario {"the-metric-columns-keep-their-bytes",
@@ -2018,6 +2616,12 @@ constexpr std::array<Scenario, 18> kScenarios {{
               &scenarioAnUnsupportedRecordPrintsNoBlock},
     Scenario {"the-run-states-the-core-wide-scope-before-the-first-measurement",
               &scenarioTheRunStatesTheCoreWideScopeBeforeTheFirstMeasurement},
+    Scenario {"the-deeper-levels-collect-every-node-above-them",
+              &scenarioTheDeeperLevelsCollectEveryNodeAboveThem},
+    Scenario {"the-node-and-its-metric-column-answer-one-figure",
+              &scenarioTheNodeAndItsMetricColumnAnswerOneFigure},
+    Scenario {"the-amd-five-values-answer-the-fixture-and-sum-to-hundred",
+              &scenarioTheAmdFiveValuesAnswerTheFixtureAndSumToHundred},
 }};
 
 }  // namespace

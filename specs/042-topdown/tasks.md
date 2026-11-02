@@ -665,7 +665,7 @@ and SC-03's two tolerances over the scripted source.
   these rows and `levelTwoNamesDifferBetweenTheTwoAmdTables` already names the
   two tables, so this case adds the row-for-row pairing and the parent of each
   row. It lands with T047 in one commit (FR-048). The case prints green against the state it starts from, so it pins the rule `T047` records rather than turning new code green.
-- [ ] T044 [US2] In `test/source/harness_topdown_run_test.cpp`, add the
+- [x] T044 [US2] In `test/source/harness_topdown_run_test.cpp`, add the
   multi-level run over the fixture: at level 2 and at level 3 the collected set
   holds every node of that level and of every level above, the block states the
   level shown and indents each deeper node under its own parent with its vendor
@@ -673,24 +673,21 @@ and SC-03's two tolerances over the scripted source.
   asking 6 against the depth-4 fixture records `askedLevel` 6 with `level` 4 and
   prints `topdown: the table holds no level deeper than 4` (FR-018, FR-020,
   FR-021, FR-023, FR-026, FR-027). This case lands with T049, T050 and T051 in
-  one commit (FR-048).
-
-- [ ] T045 [US2] In `test/source/harness_topdown_run_test.cpp`, add SC-03's
+  one commit (FR-048). The collection, the parent chain, the two levels on the record and the pass count print green at the base, and the case's own red is the line naming the deepest level the table holds.
+- [x] T045 [US2] In `test/source/harness_topdown_run_test.cpp`, add SC-03's
   first tolerance: a run carrying a node's formula as a `--metric` column and
   asking that node's level reports node and column within 0.05 percentage point,
   keeps the column it reported before the option, and prints that row's
   threshold text unchanged with no verdict (FR-017, FR-023, FR-029, SC-03). This
-  case lands with T049, T050 and T051 in one commit (FR-048).
-
-- [ ] T046 [US2] In `test/source/harness_topdown_run_test.cpp`, add SC-03's
+  case lands with T049, T050 and T051 in one commit (FR-048). Both FR-023 claims print green at the base, and the case's own red is the node line carrying no threshold text.
+- [x] T046 [US2] In `test/source/harness_topdown_run_test.cpp`, add SC-03's
   second tolerance over the AMD fixture tree with the scripted source: each of
   the five level-1 values answers its fixture figure within 0.05 percentage
   point and the five sum to 100 percent within 0.1 percentage point (FR-011,
   FR-056, SC-03, spec D-3). This case lands with T049, T050 and T051 in one
   commit, the three code changes whose run it reads (FR-048).
 
-### Implementation for User Story 4
-
+### Implementation for User Story 4 This case could not be authored as written: the runner handed the selection the host identity, so a planted Zen table reached it under Intel rules and `topdown.smt_contention` fell to the rule at `topdown_select.cpp:412`, which is right for the identity it was given. `RunOptions::topdownIdentity`, disengaged for production, is the seam that lets a run hand the selection its identity, and the five level-1 figures now close 100 through a measured run over leaves scripted inside this unit.
 - [x] T047 [US2] In `source/counters/linux_pmu/topdown_select.cpp`, read level
   and parent from the group text: split on `;`, take the level from the one
   token matching `TopdownL([1-6])` or `PipelineL([12])`, take the parent from
@@ -701,18 +698,16 @@ and SC-03's two tolerances over the scripted source.
   `TopdownTree::depth` to the deepest level the selected table holds whatever
   the asked level, and collect only the levels at or below it (FR-008, FR-009,
   FR-020; turns T042 green). No code change landed with it, for the reason `T047` states. One arm of this task, collecting only the levels at or below the depth the answer states, is pinned by `levelDeeperThanTheTableClamps` of Phase 2 rather than by the new case, and a break of that arm prints that older case's claim.
-- [ ] T049 [US2] In `source/harness/runner.cpp`, append one metric column per
+- [x] T049 [US2] In `source/harness/runner.cpp`, append one metric column per
   node of the clamped level and of every level above it after the `--metric`
   loop at `:1315-1326`, hand the whole set to the standing planner, and record
   the asked level and the level shown on the result (FR-018, FR-020, FR-021,
-  FR-023, E-17; turns T044 green).
-
-- [ ] T050 [US2] In `source/harness/runner.cpp`, move `stripTopdownColumns` to
+  FR-023, E-17; turns T044 green). The columns of every level at or above the clamped level join the standing plan and the record carries both the asked level and the level shown, so the case reads what the run settled, with no second accounting of its own.
+- [x] T050 [US2] In `source/harness/runner.cpp`, move `stripTopdownColumns` to
   drop only the node positions from every metric view of the result, so a user
   metric column whose label equals a node's vendor name keeps its column and its
-  value (FR-023, FR-032, E-17; turns T045 green).
-
-- [ ] T051 [US2] In `source/harness/report.cpp`, print each deeper node indented
+  value (FR-023, FR-032, E-17; turns T045 green). No behavior change stands with this task: the erasure works by position, the rule arrived with `T035`, and the shared-label clause now stands in the `\post` of `stripTopdownColumns`. Arm A4 makes the erasure take the label's first match instead, and the strip's own postcondition is what fails.
+- [x] T051 [US2] In `source/harness/report.cpp`, print each deeper node indented
   under its own parent with its vendor name and its threshold text, print a
   gapped node with no value, and print the one line naming the deepest level the
   table holds when the asked level stands deeper (FR-020, FR-026, FR-027,
@@ -742,8 +737,7 @@ tree. Here `test/source/harness_topdown_report_test.cpp` writes a tree, reads it
 back and runs it through the rule set with a rule naming a level-1 node, one
 naming a deeper node, one naming no node, and one with no tree.
 
-### Tests for User Story 5 (write first, observe failure)
-
+### Tests for User Story 5 (write first, observe failure) The two lines this task adds read `topdown: the table holds no level deeper than 4` under the header of a clamped run, and the node line carries the row's threshold text after its figure.
 - [ ] T052 [US3] In `test/source/harness_topdown_report_test.cpp`, a new file,
   add `theRecordRoundTrips`: a written tree with its source, its two levels, a
   gapped node with its availability and threshold, and its refused rows reads
