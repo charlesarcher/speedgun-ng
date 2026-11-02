@@ -397,7 +397,7 @@ per-benchmark fold stands null where the windows keep no sample.
   (depends on T021)
   Verify: `ctest --test-dir build -R harness_fwq_ftq_test --output-on-failure` exits 0, and the fold rows of T019 turn green
 
-- [ ] T067 [US4] Add the ordering postcondition to both series folds of
+- [x] T067 [US4] Add the ordering postcondition to both series folds of
   `source/harness/jitter_probe.cpp:993` and `:1158`, the chain the gap
   folds state at `:935` and `:1077`. `cmake/coverage.cmake:101` omits
   contract lines from the trace, so the check costs no branch position
@@ -550,7 +550,7 @@ the window, and the pre-check lines carry the method pair.
 
 ### Tests for User Stories 1, 2 and 4 (write first, observe failure)
 
-- [ ] T033 [US1] [US2] Write the failing console rows in
+- [x] T033 [US1] [US2] Write the failing console rows in
   `test/source/harness_jitter_window_test.cpp`, the field-line walk shape
   at `:655-662`: `theFwqBlockPrintsTheThirtyNewLines`,
   `theFtqBlockPrintsTheQuantumLines`,
@@ -558,7 +558,7 @@ the window, and the pre-check lines carry the method pair.
   (FR-011, FR-013, FR-016, FR-019, FR-022, R-14).
   (depends on T023, T027, same file, behind a disjoint scenario block)
   Verify: `ctest --test-dir build -R harness_jitter_window_test --output-on-failure` exits non-zero (red observed)
-- [ ] T034 [US4] Write the failing pre-check rows in
+- [x] T034 [US4] Write the failing pre-check rows in
   `test/source/harness_precheck_test.cpp` over `capturePrecheck` (
   `:234-252`), the exec child shape at `:278-341` and the standing skip
   for a mask below four cpus at `:443-445`:
@@ -570,7 +570,7 @@ the window, and the pre-check lines carry the method pair.
   (FR-004, FR-021, D-9, R-15).
   (depends on T033)
   Verify: `ctest --test-dir build -R harness_precheck_test --output-on-failure` exits non-zero (red observed)
-- [ ] T035 [US1] [US2] Print the 30 lines in `printJitterReport` (
+- [x] T035 [US1] [US2] Print the 30 lines in `printJitterReport` (
   `source/harness/report.cpp:726`) after `droppedGaps` (`:795-796`) in
   three groups: the calibration group of four lines `method`,
   `workCount`, `targetNs` and `calibrationSpanNs`; the 16 figures of
@@ -585,7 +585,7 @@ the window, and the pre-check lines carry the method pair.
   `specs/034-host-noise-precheck/contracts/` (FR-030).
   (depends on T033)
   Verify: `cmake --build build` exits 0 with no warning line
-- [ ] T036 [US1] Print the calibration group ahead of the batch first
+- [x] T036 [US1] Print the calibration group ahead of the batch first
   run, after `jitterProbe->start()` (`source/harness/cli.cpp:1129`): the
   four lines `method`, `workCount`, `targetNs` and `calibrationSpanNs`,
   each standing before that cpu window. The measured unit time and the
@@ -594,7 +594,7 @@ the window, and the pre-check lines carry the method pair.
   SC-003, D-2, R-05).
   (depends on T035)
   Verify: `cmake --build build` exits 0, and the calibration rows of T033 turn green
-- [ ] T037 [US4] Swap the pair the pre-check lines read in
+- [x] T037 [US4] Swap the pair the pre-check lines read in
   `printPrecheckReport` (`source/harness/report.cpp:1172`): the warning
   line (`:1305-1310`) and the ranking (`:1311-1321`) take the method pair:
   the noise fraction and the maximum unit time for FWQ, the noise fraction
@@ -605,7 +605,7 @@ the window, and the pre-check lines carry the method pair.
   `specs/034-host-noise-precheck/contracts/` (FR-030).
   (depends on T035)
   Verify: `cmake --build build` exits 0, and the pair rows of T034 turn green
-- [ ] T038 [US4] Fire the noise refusal in the pre-check phase beside
+- [x] T038 [US4] Fire the noise refusal in the pre-check phase beside
   the standing strict refusal (`source/harness/cli.cpp:1155-1176`): a
   probe cpu at or above the `noise=` threshold answers one line at exit
   status 2 after the pre-check window and before the batch first run;
@@ -615,14 +615,14 @@ the window, and the pre-check lines carry the method pair.
   (depends on T034, T036, T037; the refusal rows of T034 turn green)
   Verify: `taskset -c 0,1 ctest --test-dir build -R "harness_precheck_test|harness_jitter_window_test" --output-on-failure` exits 0
 
-- [ ] T065 [US4] Print the series figures in the per-benchmark jitter
+- [x] T065 [US4] Print the series figures in the per-benchmark jitter
   block of `source/harness/report.cpp:657` when the method keeps a
   series. A FWQ run places no gap today, so the block prints
   `gaps=0 max=0 total=0.00` for every entry. The block names the series
   figures in that case, and the gap line stands for a `tsc` run
   (FR-019, FR-020, D-7).
   Verify: `ctest --test-dir build -R "harness_jitter_cli_test|docs_jitter_probe" --output-on-failure` exits 0
-- [ ] T066 [US1] [US2] Snapshot the kept series count at the latch line
+- [x] T066 [US1] [US2] Snapshot the kept series count at the latch line
   of `source/harness/jitter_probe.cpp`, and fold that prefix into the
   pre-check record of a `mode=both` run in `source/harness/cli.cpp:1219-1233`.
   The standing precondition bars a read of a live buffer. The prefix
