@@ -17,7 +17,9 @@
 // harness_jitter_probe_test carries it.
 // ============================================================================
 
+#include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -152,7 +154,9 @@ inline constexpr std::uint64_t kScriptLatchRead = 1;
 
 // The layout one scripted case reads: the calibration prefix as the
 // delta before each prefix read, the in-pass step, the delta of one
-// window unit, and the unit count behind the latch read.
+// window unit, and the unit count behind the latch read. The window
+// reads answer one delta each, moved by the planted slow unit, the
+// planted dip period, and the ramp step.
 struct ScriptPlan
 {
   std::vector<std::uint64_t> prefixDeltas {};
@@ -160,6 +164,12 @@ struct ScriptPlan
   std::uint64_t windowStep = 1000;
   std::uint64_t units = 4;
   std::uint64_t planned = 0;
+  std::uint64_t slowUnit = 0;
+  std::uint64_t slowDelta = 0;
+  std::uint64_t dipPeriod = 0;
+  std::uint64_t dipDelta = 0;
+  std::uint64_t rampStep = 0;
+  bool park = true;
 };
 
 ScriptPlan scriptPlan;
@@ -187,15 +197,26 @@ auto scriptTotal(const ScriptPlan& plan) -> std::uint64_t
 }
 
 // The delta the scripted clock answers before read `call`: the prefix
-// table first, then the pass step, then the window step.
+// table first, then the pass step, then the delta of one window unit.
 auto scriptedDelta(const std::uint64_t call) -> std::uint64_t
 {
   if (call <= scriptPlan.prefixDeltas.size()) {
     return scriptPlan.prefixDeltas.at(static_cast<std::size_t>(call) - 1);
   }
-  return call <= scriptPlan.prefixDeltas.size() + kScriptPassReads
-      ? scriptPlan.passStep
-      : scriptPlan.windowStep;
+  if (call <= scriptPlan.prefixDeltas.size() + kScriptPassReads) {
+    return scriptPlan.passStep;
+  }
+  const auto unit = call - scriptPlan.prefixDeltas.size() - kScriptPassReads;
+  if (scriptPlan.slowUnit != 0 && unit == scriptPlan.slowUnit + 1) {
+    return scriptPlan.slowDelta;
+  }
+  if (scriptPlan.dipPeriod != 0 && unit % scriptPlan.dipPeriod == 1) {
+    return scriptPlan.dipDelta;
+  }
+  if (scriptPlan.rampStep != 0) {
+    return scriptPlan.rampStep * unit;
+  }
+  return scriptPlan.windowStep;
 }
 
 // The scripted clock: one per-thread stamp series over the plan, parked
@@ -216,7 +237,7 @@ public:
       scriptCalls[thread.ticket - 1].store(thread.calls,
                                            std::memory_order_relaxed);
     }
-    if (thread.calls >= scriptPlan.planned) {
+    if (scriptPlan.park && thread.calls >= scriptPlan.planned) {
       std::uint64_t spins = 0;
       while (!scriptGateOpen.load(std::memory_order_acquire)) {
         std::this_thread::yield();
@@ -521,6 +542,326 @@ auto calibrationStaysOutOfTheWindowRuntime() -> void
       });
 }
 
+// ============================================================================
+// T012: the fixed work quanta series (US1). One unit is the calibrated
+// loop body, timed by one read, and the unit time stands at the delta
+// between two consecutive reads; every method runs the standing 1,024-
+// read measurement pass, so a scripted series carries the calibration
+// prefix, then 1,024 pass stamps, then one stamp per unit, then the read
+// behind the latch (FR-004, FR-007, FR-008, FR-009, FR-012, FR-014,
+// FR-022, SC-001, R-08, R-09, R-10, R-14). Each row carries its read-
+// count check over the scripted layout.
+// ============================================================================
+
+// The unit index of the planted slow unit, 1-based, and its delta: the
+// shape of the series with one slow unit (SC-001).
+inline constexpr std::uint64_t kSlowUnitIndex = 5000;
+inline constexpr std::uint64_t kSlowUnitDelta = 10000;
+
+// The dip the resample row plants: one slow unit every 1,000 units at a
+// 1 us unit time (FR-025).
+inline constexpr std::uint64_t kDipPeriod = 1000;
+inline constexpr std::uint64_t kDipDelta = 10000;
+
+// The FWQ layout the row scripts: the calibration prefix of 2 reads at
+// the target, the in-pass step, the delta of one unit, and the unit
+// count behind the latch read (FR-012, R-01).
+auto fwqPlan(const std::uint64_t units, const std::uint64_t windowStep) -> void
+{
+  calibrationPlan(2, {1000}, units);
+  scriptPlan.passStep = 1;
+  scriptPlan.windowStep = windowStep;
+}
+
+// The kept samples of one probe cpu's series, sorted: the set the
+// statistics read (FR-008, FR-022).
+auto seriesSorted(const sg::detail::ProbeCpuState& state)
+    -> std::vector<std::uint64_t>
+{
+  std::vector<std::uint64_t> sorted;
+  sorted.reserve(state.seriesKept);
+  for (std::size_t index = 0; index < state.seriesKept; ++index) {
+    sorted.push_back(state.series.at(index));
+  }
+  std::sort(sorted.begin(), sorted.end());
+  return sorted;
+}
+
+// The nearest-rank point of the kept samples, the rule of spec 021 the
+// fold reads: the rank stands at the point times the sample count,
+// rounded up (FR-008).
+auto seriesRank(const std::vector<std::uint64_t>& sorted, const double point)
+    -> std::uint64_t
+{
+  const auto rank = static_cast<std::size_t>(
+      std::ceil(point * static_cast<double>(sorted.size()) / 100.0));
+  return sorted.at(rank - 1);
+}
+
+// The FWQ noise fraction of the kept samples: the kept unit times minus
+// the sample count times the minimum unit time, over the kept unit
+// times, times 100 (FR-009, R-3).
+auto fwqNoisePercent(const sg::detail::ProbeCpuState& state) -> double
+{
+  const auto sorted = seriesSorted(state);
+  const auto total = seriesSum(state);
+  if (total == 0) {
+    return 0.0;
+  }
+  const auto spread = static_cast<double>(total)
+      - static_cast<double>(sorted.size())
+          * static_cast<double>(sorted.front());
+  return spread * 100.0 / static_cast<double>(total);
+}
+
+// FR-007, FR-012, FR-013, SC-001: a clean series of 1,000 equal units
+// answers equal figures, keeps every sample, and reads 2,027 reads
+// behind a prefix of 2.
+auto fwqCleanSeriesAnswersEqualFigures() -> void
+{
+  fwqPlan(1000, 1000);
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FWQ;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(scriptCalls[0].load() == 2 + kScriptPassReads + kScriptLatchRead
+                  + 1000,
+              "the clean 1,000-unit case stands 2,027 reads behind a prefix "
+              "of 2 (FR-012, R-01)");
+        check(probed.seriesKept == 1000,
+              "the series keeps every unit of a clean run (FR-007)");
+        check(probed.droppedSamples == 0,
+              "the buffer never filled (FR-014, FR-022)");
+        const auto sorted = seriesSorted(probed);
+        check(sorted.front() == 1000 && sorted.back() == 1000,
+              "the minimum and the maximum answer the equal unit time "
+              "(FR-007)");
+        check(seriesRank(sorted, 50.0) == 1000 && seriesRank(sorted, 99.99) == 1000,
+              "the median and the last rank answer the equal unit time "
+              "(FR-007, FR-008)");
+        check(seriesSum(probed) == 1000000,
+              "the kept unit times answer the window's own span (FR-007)");
+      });
+}
+
+// FR-008, SC-001: 10,000 units with one unit at ten times the unit time
+// move the maximum, leave the median at the equal value, and read
+// 11,027 reads.
+auto fwqOneSlowUnitMovesTheMaximum() -> void
+{
+  fwqPlan(10000, 1000);
+  scriptPlan.slowUnit = kSlowUnitIndex;
+  scriptPlan.slowDelta = kSlowUnitDelta;
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FWQ;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(scriptCalls[0].load()
+                  == 2 + kScriptPassReads + kScriptLatchRead + 10000,
+              "the 10,000-unit case stands 11,027 reads (FR-012, R-01)");
+        check(probed.seriesKept == 10000 && probed.droppedSamples == 0,
+              "the series keeps all 10,000 samples (FR-007, FR-014)");
+        const auto sorted = seriesSorted(probed);
+        check(sorted.back() == kSlowUnitDelta,
+              "the maximum names the slow unit (SC-001)");
+        check(sorted.front() == 1000,
+              "the minimum stands at the equal unit time (FR-007)");
+        check(seriesRank(sorted, 50.0) == 1000,
+              "the median stands at the equal unit time (FR-008)");
+        check(probed.series.at(kSlowUnitIndex - 1) == kSlowUnitDelta,
+              "the slow unit stands where the layout planted it (FR-012)");
+      });
+}
+
+// FR-009, SC-001: the noise fraction of that series reads 0.09 percent:
+// the kept unit times minus the sample count times the minimum, over the
+// kept unit times.
+auto fwqNoiseFractionOfASlowUnit() -> void
+{
+  fwqPlan(10000, 1000);
+  scriptPlan.slowUnit = kSlowUnitIndex;
+  scriptPlan.slowDelta = kSlowUnitDelta;
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FWQ;
+  runScripted(options,
+              1,
+              [](const auto& states)
+              {
+                const auto& probed = states.at(0);
+                check(scriptCalls[0].load()
+                          == 2 + kScriptPassReads + kScriptLatchRead + 10000,
+                      "the row reads the same 11,027 reads (FR-012, R-01)");
+                check(probed.seriesKept == 10000,
+                      "the fraction reads the kept samples (FR-022)");
+                check(std::fabs(fwqNoisePercent(probed) - 0.09) <= 0.001,
+              "the noise fraction of one slow unit reads 0.09 percent "
+              "(FR-009, SC-001)");
+              });
+}
+
+// FR-014, FR-022: a buffer of 2 entries keeps the first two samples,
+// counts the two the full buffer lost, and the run keeps going.
+auto fwqBufferFullCountsDrops() -> void
+{
+  fwqPlan(4, 500);
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FWQ;
+  options.gapCount = 2;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(scriptCalls[0].load()
+                  == 2 + kScriptPassReads + kScriptLatchRead + 4,
+              "the gaps=2 case reads its 1,031 stamps (FR-012, R-01)");
+        check(probed.seriesKept == 2,
+              "the gaps=2 buffer keeps 2 samples (FR-014)");
+        check(probed.droppedSamples == 2,
+              "the full buffer counts each lost record (FR-014, FR-022)");
+        check(probed.series.at(0) == 500 && probed.series.at(1) == 500,
+              "the kept samples answer the scripted unit time (FR-012)");
+      });
+}
+
+// FR-008, FR-022: the statistics read the kept samples, in the order the
+// series wrote them, and the buffer holds no sorted copy.
+auto seriesPercentilesReadTheKeptSamples() -> void
+{
+  fwqPlan(100, 10);
+  scriptPlan.rampStep = 10;
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FWQ;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(scriptCalls[0].load()
+                  == 2 + kScriptPassReads + kScriptLatchRead + 100,
+              "the row reads its 1,127 stamps (FR-012, R-01)");
+        check(probed.seriesKept == 100 && probed.droppedSamples == 0,
+              "the series keeps all 100 samples (FR-007, FR-014)");
+        bool readOrder = true;
+        for (std::size_t index = 0; index < probed.seriesKept; ++index) {
+          readOrder = readOrder && probed.series.at(index) == 10 * (index + 1);
+        }
+        check(readOrder,
+              "the buffer holds the kept samples in read order (FR-008)");
+        const auto sorted = seriesSorted(probed);
+        check(seriesRank(sorted, 50.0) == 500 && seriesRank(sorted, 90.0) == 900
+                  && seriesRank(sorted, 99.0) == 990
+                  && seriesRank(sorted, 99.99) == 1000,
+              "the ranks the fold reads answer the kept samples (FR-008)");
+      });
+}
+
+// FR-007, FR-008: a series of one sample reads that sample.
+auto oneSampleSeriesReadsThatSample() -> void
+{
+  fwqPlan(1, 4000);
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FWQ;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(scriptCalls[0].load()
+                  == 2 + kScriptPassReads + kScriptLatchRead + 1,
+              "the one-sample case reads 1,028 stamps (FR-012, R-01)");
+        check(probed.seriesKept == 1 && probed.series.at(0) == 4000,
+              "the series of one sample reads that sample (FR-007, FR-008)");
+        check(probed.droppedSamples == 0, "the buffer never filled (FR-014)");
+      });
+}
+
+// FR-017, FR-025: the resample path reads the FWQ series of a dip every
+// 1,000 units at a 1 us unit time. The series keeps all 65,536 samples,
+// the median unit time stands the resample step, and the row reads
+// 66,563 reads over 65,536 units.
+auto fwqResampleReachesThePeriodList() -> void
+{
+  fwqPlan(65536, 1000);
+  scriptPlan.dipPeriod = kDipPeriod;
+  scriptPlan.dipDelta = kDipDelta;
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FWQ;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(scriptCalls[0].load() == 2 + kScriptPassReads + kScriptLatchRead
+                  + 65536,
+              "the dip case stands 66,563 reads over 65,536 units "
+              "(FR-012, R-01)");
+        check(probed.seriesKept == 65536,
+              "the default buffer keeps 65,536 samples (FR-014)");
+        check(probed.droppedSamples == 0,
+              "the series of the cap fills the buffer with no drop (FR-022)");
+        bool dips = true;
+        for (std::size_t index = 0; index < probed.seriesKept; ++index) {
+          const auto expected =
+              (index + 1) % kDipPeriod == 0 ? kDipDelta : std::uint64_t {1000};
+          dips = dips && probed.series.at(index) == expected;
+        }
+        check(dips,
+              "the dip stands at every 1,000th unit of the series (FR-025)");
+        const auto sorted = seriesSorted(probed);
+        check(seriesRank(sorted, 50.0) == 1000,
+              "the median unit time stands the resample step (FR-017)");
+      });
+}
+
+// FR-004: mode=precheck runs the selected method. The pre-check phase of
+// a FWQ run records unit times, and the phase ends at its scripted span.
+auto precheckModeRunsTheSelectedMethod() -> void
+{
+  fwqPlan(0, 1000);
+  scriptPlan.park = false;
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FWQ;
+  options.mode = sg::JitterProbeMode::PRECHECK;
+  options.precheckMs = 1;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(scriptCalls[0].load() == 2 + kScriptPassReads + 1000
+                  + kScriptLatchRead,
+              "the pre-check phase reads its scripted span, then the read "
+              "behind the latch (FR-004, FR-012)");
+        check(probed.seriesKept == 1000,
+              "the pre-check phase runs the selected method (FR-004)");
+        check(probed.droppedSamples == 0 && seriesSum(probed) == 1000000,
+              "the pre-check series answers the scripted unit time "
+              "(FR-004, FR-012)");
+      });
+}
+
 }  // namespace
 
 auto main() -> int
@@ -576,6 +917,17 @@ auto main() -> int
   calibrationKeepsTheClosestCount();
   calibrationRunsOncePerProbeCpu();
   calibrationStaysOutOfTheWindowRuntime();
+
+  // T012: the FWQ series rows (US1, FR-004, FR-007 to FR-009, FR-012,
+  // FR-014, FR-022, SC-001, R-08, R-09, R-10, R-14).
+  fwqCleanSeriesAnswersEqualFigures();
+  fwqOneSlowUnitMovesTheMaximum();
+  fwqNoiseFractionOfASlowUnit();
+  fwqBufferFullCountsDrops();
+  seriesPercentilesReadTheKeptSamples();
+  oneSampleSeriesReadsThatSample();
+  fwqResampleReachesThePeriodList();
+  precheckModeRunsTheSelectedMethod();
 
   std::puts("harness_fwq_ftq_test: ok");
   return 0;
