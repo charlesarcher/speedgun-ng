@@ -385,10 +385,90 @@ auto deviceDiscoveryScenario() -> void
   resetFixture();
 }
 
+// ---- P3: the catalog parse ------------------------------------------------
+
+/// The kernel alias wins a name conflict with the vendored table, and
+/// the alias describes itself with the text the kernel publishes
+/// (FR-037).
+auto kernelAliasWinsScenario() -> void
+{
+  auto calls = scriptedCalls();
+  resetFixture();
+  const auto root = freshRoot();
+  writeCoreDevice(root);
+  gDevicesRoot = root;
+  writeParanoid("2\n");
+  installKernelCalls(&calls);
+
+  // The first enumeration learns one vendored row's name: a cpu entry
+  // whose description is the table's own prose.
+  const auto first = enumerate();
+  std::string vendored;
+  std::string vendoredDescription;
+  for (const auto& entry : first.entries.front()) {
+    if (entry.name == "enabled" || entry.name == "running") {
+      continue;
+    }
+    if (entry.description.find("kernel event configuration: ")
+        == std::string::npos)
+    {
+      vendored = entry.name;
+      vendoredDescription = entry.description;
+      break;
+    }
+  }
+  check(!vendored.empty(), "the vendored table merges a core row");
+
+  // The second enumeration carries a kernel alias of the same name:
+  // the alias wins, the entry count for the name stays at one, and the
+  // description is the kernel's own text (FR-037).
+  const auto root2 = freshRoot();
+  writeCoreDevice(root2, {{vendored, "config=0x2d"}});
+  gDevicesRoot = root2;
+  const auto second = enumerate();
+  std::size_t found = 0;
+  std::string won;
+  for (const auto& entry : second.entries.front()) {
+    if (entry.name == vendored) {
+      ++found;
+      won = entry.description;
+    }
+  }
+  check(found == 1, "the kernel alias wins the name conflict (FR-037)");
+  check(
+      won.find("kernel event configuration: ") == 0,
+      "the winning entry describes itself with the kernel's text " "(FR-037)");
+  resetFixture();
+}
+
+/// An alias whose file the kernel publishes empty describes itself
+/// with the no-configuration sentence (FR-037).
+auto aliasWithoutTextScenario() -> void
+{
+  auto calls = scriptedCalls();
+  resetFixture();
+  const auto root = freshRoot();
+  writeCoreDevice(root, {{"quiet", ""}});
+  gDevicesRoot = root;
+  writeParanoid("2\n");
+  installKernelCalls(&calls);
+  const auto sink = enumerate();
+  for (const auto& entry : sink.entries.front()) {
+    if (entry.name != "quiet") {
+      continue;
+    }
+    check(entry.description.find("the kernel publishes no configuration")
+              != std::string::npos,
+          "an alias with no configuration text says so (FR-037)");
+  }
+  resetFixture();
+}
+
 auto main() -> int
 {
   paranoidReadScenario();
   deviceDiscoveryScenario();
+  kernelAliasWinsScenario();
   if (failures != 0) {
     return 1;
   }

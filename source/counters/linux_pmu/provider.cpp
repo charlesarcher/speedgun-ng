@@ -124,12 +124,11 @@ namespace detail
 // architecture directory for the running CPU, and those rows describe
 // core events (FR-038). Kernel aliases of the same name win.
 //
-// Two arms of this function stay excluded, each at its own site: a CPU no
-// row of the pinned mapfile matches, which `CPUID` alone decides, and a
-// kernel alias whose name the selected table carries, whose two sides live
-// in read-only sysfs and in the pinned tree. Every other line here is
-// reached, because a registered test calls this function over fixture
-// devices on every host (FR-046, T105).
+// One arm of this function stays excluded: a CPU no row of the pinned
+// mapfile matches, which `CPUID` alone decides. Every other line here is
+// reached, because the provider test calls this function over a fixture
+// device whose alias carries a vendored row's name, on every host
+// (FR-046, T105).
 auto mergeVendored(detail::PmuDevice& device) -> void
 {
   const std::string directory =
@@ -152,17 +151,9 @@ auto mergeVendored(detail::PmuDevice& device) -> void
     const bool taken = std::ranges::any_of(device.entries,
                                            [&](const detail::PmuEntry& entry)
                                            { return entry.name == row.name; });
-    // LCOV_EXCL_BR_START : coverage exclusion (T066): the kernel-wins skip.
-    // It needs a kernel alias name that also appears in the vendored table
-    // of the selected architecture directory. Neither side is writable by a
-    // test: the alias names come from sysfs and the table from the pinned
-    // tree. FR-037's kernel-wins rule is exercised by
-    // `test/source/counters_pmu_test.cpp`, which asserts every sysfs alias
-    // keeps the kernel's own event_attr text.
-    if (taken) {  // LCOV_EXCL_BR_LINE
-      continue;  // LCOV_EXCL_LINE
-    }  // LCOV_EXCL_LINE
-    // LCOV_EXCL_BR_STOP
+    if (taken) {
+      continue;
+    }
     detail::PmuEntry entry;
     entry.name = row.name;
     entry.description = detail::tableDescription(row);
@@ -171,10 +162,7 @@ auto mergeVendored(detail::PmuDevice& device) -> void
     }
     device.entries.push_back(std::move(entry));
   }
-  // LCOV_EXCL_LINE : coverage exclusion (T066): the closing block of
-  // `merge_vendored`, the same unexecuted-block report the `load_device`
-  // epilogue above carries.
-}  // LCOV_EXCL_LINE
+}
 
 auto pageGrantsUserRdpmc(const std::uint64_t capUserRdpmc) noexcept -> bool
 {
@@ -586,19 +574,16 @@ auto parseAttr(const std::string& text)
           // fixtures in `test/source/counters_linux_pmu_seam_test.cpp`:
           // "192" takes the decimal arm, "0xc0" the lowercase one, "0xC0"
           // the uppercase one, and "0xzz" and "0xc0z" the `-1` arm refused
-          // below. What gcc reports as unexecuted are the short-circuit
-          // edges between those arms, which no byte reaches.
-          const int nibble = digit >= '0' && digit <= '9'  // LCOV_EXCL_LINE
-              ? digit - '0'  // LCOV_EXCL_LINE
-              : (digit >= 'a' && digit <= 'f'  // LCOV_EXCL_LINE
-                     ? digit - 'a' + 10  // LCOV_EXCL_LINE
-                     : (digit >= 'A' && digit <= 'F'  // LCOV_EXCL_LINE
-                            ? digit - 'A' + 10  // LCOV_EXCL_LINE
-                            : -1));  // LCOV_EXCL_LINE
-          if (nibble < 0) {  // LCOV_EXCL_LINE
+          // below.
+          const int nibble = digit >= '0' && digit <= '9'
+              ? digit - '0'
+              : (digit >= 'a' && digit <= 'f'
+                     ? digit - 'a' + 10
+                     : (digit >= 'A' && digit <= 'F' ? digit - 'A' + 10 : -1));
+          if (nibble < 0) {
             number = 0;
             break;
-          }  // LCOV_EXCL_BR_LINE
+          }
           number =
               number * (hex ? 16U : 10U) + static_cast<std::uint64_t>(nibble);
         }
@@ -613,9 +598,7 @@ auto parseAttr(const std::string& text)
     cursor = comma + 1;
   }
   return fields;
-  // LCOV_EXCL_LINE : the function-epilogue block gcc emits for a
-  // by-value return; the `return` above carries the call count.
-}  // LCOV_EXCL_LINE
+}
 
 auto toHex(const std::uint64_t value) -> std::string
 {
@@ -656,11 +639,7 @@ auto tableDescription(const PmuTableEntry& entry) -> std::string
     out = "hardware event '" + entry.name
         + "'; the vendored kernel table carries no description";
     for (const auto& [field, value] : entry.fields) {
-      // LCOV_EXCL_BR_LINE : gcc's second edge for this comparison, which
-      // no field list reaches. Both arms are measured by the seam fixtures:
-      // a row carrying an "event" field names its code, and a row carrying
-      // only "umask" names none.
-      if (field == "event") {  // LCOV_EXCL_BR_LINE
+      if (field == "event") {
         out += " (event code " + toHex(value) + ")";
       }
     }
@@ -677,9 +656,7 @@ auto tableDescription(const PmuTableEntry& entry) -> std::string
     out += " [table scope: " + entry.unit + "]";
   }
   return out;
-  // LCOV_EXCL_LINE : the epilogue block of a by-value return; the `return`
-  // above carries the call count.
-}  // LCOV_EXCL_LINE
+}
 
 auto pmuProbe(const int type,
               const std::vector<std::pair<int, std::uint64_t> >& words,
@@ -898,16 +875,10 @@ void PmuProvider::enumerate(ObjectSink& sink) const
   }
 }
 
-// LCOV_EXCL_START : coverage exclusion (T140): the whole window open. It
-// hands back a window over members every one of which needs a granted
-// `perf_event_open`, so a runner whose `perf_event_open` is refused refuses
-// every leaf before it reaches this body, while the host that grants the
-// syscall opens a window for every leaf set it serves.
 std::unique_ptr<WindowReader> PmuProvider::open(const LeafSet& leaves,
                                                 const Target& where)
 {
   return detail::pmuOpenWindow(*m_state, leaves, where);
-  // LCOV_EXCL_STOP
 }
 
 #endif  // !__linux__
