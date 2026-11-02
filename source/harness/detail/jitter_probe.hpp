@@ -46,6 +46,17 @@ struct GapRecord
 
 static_assert(sizeof(GapRecord) == 16, "one kept gap record is 16 bytes");
 
+/// @brief specs/043-fwq-ftq: one kept series sample, 8 bytes, one
+/// unsigned field: the unit time in ns for FWQ, the count for FTQ
+/// (E-26, FR-014, FR-016, D-6).
+struct SeriesRecord
+{
+  std::uint64_t value = 0;
+};
+
+static_assert(sizeof(SeriesRecord) == 8,
+              "one kept series sample is 8 bytes (E-26, D-6)");
+
 /// @brief One timed window: the half-open TSC interval one benchmark
 /// attempt covers, with the indexes that name the attempt (E-06, R-04).
 struct TimedWindow
@@ -63,9 +74,13 @@ struct TimedWindow
 ///
 /// The buffer pre-sizes to `gapCount` records, allocated and first
 /// touched on the probe cpu inside the work item, before the window
-/// opens (FR-009, D-6). The stop flag stands last in the field list,
-/// inside its own `alignas` block, so the one read per loop pass
-/// shares no cache line with a field the runner writes (FR-005, R-04).
+/// opens (FR-009, D-6). The series buffer of the FWQ and FTQ methods
+/// pre-sizes to the same `gapCount` entries, one 8-byte sample each,
+/// and the kept count and the count of records a full buffer dropped
+/// ride beside it (specs/043 FR-014, FR-016, FR-022, E-26, D-6). The
+/// stop flag stands last in the field list, inside its own `alignas`
+/// block, so the one read per loop pass shares no cache line with a
+/// field the runner writes (FR-005, R-04).
 struct ProbeCpuState
 {
   std::uint32_t cpu = 0;
@@ -76,6 +91,9 @@ struct ProbeCpuState
   std::uint64_t droppedMaxNs = 0;
   std::uint64_t loopPeriodNs = 0;
   std::uint64_t thresholdNs = 0;
+  std::vector<std::uint64_t> series;
+  std::size_t seriesKept = 0;
+  std::uint64_t droppedSamples = 0;
   alignas(kCacheLineBytes) std::atomic<bool> stop {false};
 };
 
