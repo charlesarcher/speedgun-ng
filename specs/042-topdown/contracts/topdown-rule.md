@@ -73,8 +73,8 @@ After the change that text is gone and the five lines below are the whole set.
 |---|---|
 | `topdown:` names nothing | `--compare-rule: the value name of the rule 'topdown:' is not readable: the 'topdown:' prefix names nothing` |
 | `topdown:backend_bound@median:lower:5%` | `--compare-rule: the aggregate of the rule '...' is not readable: this value carries one value and takes no aggregate` |
-| a node the contender lacks (FR-038) | `error: the rule 'topdown:nope:higher:abs=5' finds no topdown:nope for 'bmSum' in the contender report` |
-| a contender with no top-down object (FR-039, D-14) | `error: the rule 'topdown:backend_bound:higher:abs=5' finds no topdown:backend_bound for 'bmSum' in the contender report` |
+| a node the contender lacks (FR-038) | `error: the rule 'topdown:nope:higher:abs=5' finds no topdown:nope for bmSum in the contender report` |
+| a contender with no top-down object (FR-039, D-14) | `error: the rule 'topdown:backend_bound:higher:abs=5' finds no topdown:backend_bound for bmSum in the contender report` |
 | a baseline written without the option | the same text naming the baseline report |
 
 The first two come from `ruleFault` (`:80-88`), which names the field of the
