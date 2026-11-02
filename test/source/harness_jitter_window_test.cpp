@@ -2057,7 +2057,8 @@ auto main() -> int
             "theSeriesItemCarriesEveryKey: the FWQ item carries its method's "
             "keys in the written order (FR-006, E-23)");
       const auto entry = document.find("\"bmQuiet\"");
-      check(entry != std::string::npos, "the document carries the entry (FR-020)");
+      check(entry != std::string::npos,
+            "the document carries the entry (FR-020)");
       const auto entryJitter = document.find("\"jitter\":{", entry);
       check(entryJitter != std::string::npos,
             "the entry carries its jitter object (FR-027, E-08)");
@@ -2240,6 +2241,136 @@ auto main() -> int
                 && document.find("\"series\"") == std::string::npos,
             "aTscRunWritesNoNewKey: the tsc run writes neither the method "
             "key nor the series array (FR-006, FR-026, FR-031)");
+    }
+  }
+
+  // specs/043 T027, US4, FR-021, FR-030, FR-031, R-18: the rule-name table
+  // of the series. The 16 new field names resolve in the four heads, the
+  // fault text names the grown table, the run-scoped name reads the run
+  // record's series, and the `any` reading answers the largest count of the
+  // probe cpus. Observe red before T031 exists: the table carries sixteen
+  // names, and the writer of a method run writes no series yet.
+  {
+    const std::string cpu = std::to_string(cpus.at(0));
+    const std::vector<std::string> heads {"jitter:" + cpu + ":",
+                                          "jitter:any:",
+                                          "jitter:run:" + cpu + ":",
+                                          "jitter:run:any:"};
+    const std::vector<std::string_view> kSeriesFields {
+        "sampleCount",  "minValue",   "medianValue",   "meanValue",
+        "p90Value",     "p99Value",   "p999Value",     "p9999Value",
+        "maxValue",     "noisePercent", "seriesRuntimeNs", "droppedSamples",
+        "unitTimeNs",   "quantumNs",  "resampleStepNs",  "spectrumPoints"};
+    for (const auto& head : heads) {
+      for (const auto field : kSeriesFields) {
+        const std::string text = head + std::string(field) + ":lower:abs=5000";
+        const auto rule = sg::parseCompareRule(text);
+        check(rule.has_value(),
+              "theSixteenNewRuleNamesResolve: the parser accepts the new "
+              "field name (FR-021, FR-030)");
+        check(rule.has_value() && rule->text == text
+                  && rule->valueName == head + std::string(field),
+              "theSixteenNewRuleNamesResolve: the rule keeps the text and the "
+              "value name it read (D-08)");
+        check(rule.has_value() && rule->absoluteThreshold.has_value()
+                  && std::fabs(*rule->absoluteThreshold - 5000.0) <= 1e-9,
+              "theSixteenNewRuleNamesResolve: the standing suffix's absolute "
+              "bound lands in the rule (FR-033)");
+      }
+    }
+
+    // FR-021, FR-038: the fault of a field outside the table names the
+    // grown table.
+    const auto fault = sg::parseCompareRule("jitter:any:madeUpNs:lower:abs=1");
+    check(!fault.has_value(),
+          "a field name outside the table is a fault (FR-038)");
+    check(fault.has_value()
+              || fault.error().find(
+                     "'madeUpNs' names none of the thirty-two jitter fields")
+                     != std::string::npos,
+          "theFaultTextNamesThirtyTwoFields: the fault names the thirty-two "
+          "fields (FR-021, FR-038)");
+
+    // FR-021, FR-031: the run-scoped name reads the run record's series,
+    // and the bare name reads the entry's own.
+    const std::string fwqValue =
+        "--jitter-probe=" + cpu + ",method=fwq,gaps=256";
+    const std::vector<std::string> quick {
+        "--filter=bmQuiet", "--repetitions=1", "--iterations=2"};
+    const std::string basePath = "harness_jitter_rule_series_base.json";
+    {
+      auto arguments = quick;
+      arguments.push_back("--json=" + basePath);
+      arguments.push_back(fwqValue);
+      captureRun(arguments);
+    }
+    const auto baseDocument = readDocument(basePath);
+    check(baseDocument.find("\"series\":[") != std::string::npos,
+          "the FWQ run writes the series array (FR-006, FR-020)");
+    const std::string rootEdited = "harness_jitter_rule_series_root.json";
+    {
+      const std::string edited =
+          withIntegerReplaced(baseDocument, 0, "sampleCount", 4 * kSeriesJump);
+      std::ofstream out(rootEdited);
+      out << edited;
+      out.close();
+    }
+    const std::string runRule =
+        "--compare-rule=jitter:run:" + cpu + ":sampleCount:lower:abs=1";
+    const std::string entryRule =
+        "--compare-rule=jitter:" + cpu + ":sampleCount:lower:abs=1";
+    const auto rootMoved =
+        captureRun({"--compare=" + basePath + "," + rootEdited, runRule}, 1);
+    check(rootMoved.find("REGRESSED") != std::string::npos,
+          "theRunScopedNameReadsTheRunRecord: the run-scoped name reads the "
+          "run record's series (FR-021, FR-031)");
+    const auto entryUnmoved =
+        captureRun({"--compare=" + basePath + "," + rootEdited, entryRule}, 0);
+    check(entryUnmoved.find("REGRESSED") == std::string::npos,
+          "theRunScopedNameReadsTheRunRecord: the bare name reads the entry's "
+          "series, which the run-level edit leaves equal (FR-021, FR-031)");
+    std::remove(rootEdited.c_str());
+    std::remove(basePath.c_str());
+
+    // FR-021, D-11: the `any` reading answers the largest count of the
+    // probe cpus, the uniform maximum the standing reading carries.
+    if (twoCpuScenarios) {
+      const std::string pairPath = "harness_jitter_rule_series_pair.json";
+      auto arguments = quick;
+      arguments.push_back("--json=" + pairPath);
+      arguments.push_back("--jitter-probe=" + cpuList + ",method=fwq,gaps=256");
+      captureRun(arguments);
+      const auto pairDocument = readDocument(pairPath);
+      const auto root = pairDocument.find("\"jitter\":{");
+      const auto firstCount = pairDocument.find("\"sampleCount\":", root);
+      const auto secondCount =
+          pairDocument.find("\"sampleCount\":", firstCount + 1);
+      check(secondCount != std::string::npos,
+            "the run-level series carries one item per probe cpu (FR-020)");
+      const std::string pairEdited =
+          "harness_jitter_rule_series_pair_edited.json";
+      {
+        const std::string edited = withIntegerReplaced(
+            pairDocument, secondCount, "sampleCount", 4 * kSeriesJump);
+        std::ofstream out(pairEdited);
+        out << edited;
+        out.close();
+      }
+      const std::string anyRule =
+          "--compare-rule=jitter:any:sampleCount:lower:abs=1";
+      const auto anyMoved =
+          captureRun({"--compare=" + pairPath + "," + pairEdited, anyRule}, 1);
+      check(anyMoved.find("REGRESSED") != std::string::npos,
+            "theAnyReadingAnswersTheLargestCount: the any reading answers the "
+            "largest count of the probe cpus (FR-021, D-11)");
+      const auto namedCpu =
+          captureRun({"--compare=" + pairPath + "," + pairEdited, entryRule},
+                     0);
+      check(namedCpu.find("REGRESSED") == std::string::npos,
+            "theAnyReadingAnswersTheLargestCount: the named cpu's own count "
+            "stands where the edit left it (FR-021, D-11)");
+      std::remove(pairEdited.c_str());
+      std::remove(pairPath.c_str());
     }
   }
 
