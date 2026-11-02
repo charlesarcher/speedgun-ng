@@ -70,7 +70,11 @@ force. No implementer reopens them.
   now.
 - **D-6 Host constants (Q-3).** Every Intel level-1 row reaches the constant
   `#core_wide` through the table's own slot rows, measured at the audit
-  point, so this feature adds a reader for `#core_wide` with a seam test. No
+  point, so this feature adds a reader for `#core_wide` with a seam test. A
+  conditional over that constant folds when the metric table resolves, and the
+  resolved table is cached per directory, so the flag answers the CPU set of the
+  process at that first read and answers one value to every benchmark of that
+  process. The harness states the scope on the console (FR-042). No
   top-down row reaches `#num_dies`, `#SYSTEM_TSC_FREQ` or `#has_pmem`, so
   those three keep their present refusal. Every node the host cannot resolve
   stays visible: the report lists it with its reason.
@@ -733,11 +737,17 @@ registered benchmark prints no row.
 
 ### Host facts (C-8)
 
-- **FR-042**: The counters library shall answer the constant `#core_wide` as
-  the coverage flag it is: true when the run's target set covers a whole core
-  with all of its SMT threads, and false for a window over one thread. The
-  reader shall answer no slot width: the width is a literal of the table. A
-  seam test shall drive both answers. (D-6, PC-5.)
+- **FR-042**: The counters library shall answer the constant `#core_wide` as the
+  coverage flag it is. It shall read the CPU set of the calling process at the
+  first read of the metric table, answer true when that set holds every SMT
+  sibling of every CPU it holds, and answer false when one sibling stands outside
+  it. It shall answer that one value to every benchmark of one process, because a
+  conditional over the constant settles when the table resolves. The harness shall
+  state that scope on the console before the first measurement. An unreadable CPU
+  set or sibling list shall answer nothing, which keeps the standing refusal of
+  the constant. The reader shall answer no slot width: the width is a literal of
+  the table. A seam test shall drive both answers from its own affinity. (D-6,
+  PC-5.)
 - **FR-043**: The constants `#num_dies`, `#SYSTEM_TSC_FREQ` and `#has_pmem`
   shall keep their present refusal, because no top-down row reaches any of
   them. (D-6.)

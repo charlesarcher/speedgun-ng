@@ -128,6 +128,11 @@ source/counters/
     ├── embedded_tables.hpp        # file hashes and the reference string
     └── fast_read.cpp              # the fixed-counter bound (FR-053)
 
+source/detail/
+└── proc_root.hpp                              # moved down from the harness, so
+                                               # both libraries read one proc root
+                                               # (FR-054, D-19)
+
 source/harness/
 ├── detail/{options.hpp,internal.hpp}  # option value, RunOptions, helpers
 ├── options.cpp                    # the row, the scan arm, the level reader
@@ -136,7 +141,8 @@ source/harness/
 ├── json_report.cpp                # the key and the raised minor
 ├── json_load.cpp                  # the reader
 ├── compare.cpp                    # the `topdown:` prefix
-└── cli.cpp                        # the unsupported line, one provider (FR-055)
+└── cli.cpp                        # the unsupported line, one provider (FR-055),
+                                      # the core-wide scope line (FR-042)
 
 cmake/{embed_pmu_blob.cmake,EmbedPmuEvents.cmake}   # hash and reference in
 CMakeLists.txt                                     # version, two SOVERSIONs

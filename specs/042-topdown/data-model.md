@@ -124,7 +124,7 @@ so a published row can name its file (PC-12).
 
 | Fact | Shape | Fixed by |
 | --- | --- | --- |
-| `#core_wide` | A new reader answers the coverage flag: 0 for a window over one thread, so the per-thread clock form is taken. It answers no slot width; the width is a literal of the table | FR-042, D-6, PC-5 |
+| `#core_wide` | A new reader answers the coverage flag from the process CPU set at the first table read: 1 when the set holds every SMT sibling, 0 when one stands outside, and nothing when the mask or a sibling list is unreadable. The value settles once, because a conditional folds at load, so the console states the scope. It answers no slot width; the width is a literal of the table | FR-042, D-6, PC-5 |
 | `#SMT_on` | `readSmtState` (`source/counters/linux_pmu/metric_tables.hpp:144-153`) keeps the object tree first, and one sibling-list read of one cpu answers the flag when the tree answers no core object | FR-054, D-19, PC-6 |
 
 The sibling list this host publishes for cpu 0 is `0,12`, which is the fact the
