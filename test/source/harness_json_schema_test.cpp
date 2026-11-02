@@ -1,6 +1,6 @@
 // ============================================================================
-// T017: the written document validates, and the checker names the pointer
-// of a disagreement (specs/023-json-reports; FR-008, FR-010, D-05).
+// T017, T025: the written document validates, and the checker names the
+// pointer of a disagreement (specs/023-json-reports; FR-008, FR-010, D-05).
 //
 // The oracle is `checkReport`, which reads `docs/schema/report-v1.json`
 // with no validator library. A document the writer produced passes. Five
@@ -9,7 +9,9 @@
 // that position in the message. Frameworkless check()/fail() convention.
 // ============================================================================
 
+#include <cstring>
 #include <string>
+#include <string_view>
 
 #include "detail/json_fixture.hpp"
 
@@ -188,6 +190,252 @@ auto entryHuntKeysPairAtStampedMinor(const std::string& documentText) -> void
         "(FR-032, specs/039 FR-032, specs/037 FR-005)");
 }
 
+// specs/043 T025, US4, FR-006, R-16: the schema node of the series record.
+// The item stands closed, its `x-order` names the 21 keys in the written
+// order, the method word stands in a list of three, and the period item
+// stands closed with its two keys. The document the writer produces pairs
+// the schema at the minor the writer stamps, `1.12` since specs/043 added
+// the series record.
+constexpr std::string_view kSeriesKeys[] = {
+    "cpu",
+    "workCount",
+    "unitTimeNs",
+    "targetNs",
+    "quantumNs",
+    "calibrationSpanNs",
+    "sampleCount",
+    "minValue",
+    "medianValue",
+    "meanValue",
+    "p90Value",
+    "p99Value",
+    "p999Value",
+    "p9999Value",
+    "maxValue",
+    "noisePercent",
+    "seriesRuntimeNs",
+    "droppedSamples",
+    "resampleStepNs",
+    "spectrumPoints",
+    "periods",
+};
+
+// The closed series item, every key in the written order, the period list
+// carrying one item (FR-006, FR-018).
+constexpr const char* const kSeriesItem =
+    R"JSON({"cpu":2,"workCount":7,"unitTimeNs":1000,"targetNs":1000,"quantumNs":100000,"calibrationSpanNs":500,"sampleCount":4096,"minValue":900,"medianValue":1000,"meanValue":1000.5,"p90Value":1100,"p99Value":1200,"p999Value":1300,"p9999Value":1400,"maxValue":1500,"noisePercent":0.25,"seriesRuntimeNs":4096000,"droppedSamples":3,"resampleStepNs":1000,"spectrumPoints":2048,"periods":[{"periodNs":1000000,"powerRatio":1.0}]})JSON";
+
+// The written document of a run that carries the run-level jitter record:
+// the six rows splice their series keys into the jitter object this writes,
+// the shape the writer produces for a probed run (FR-006, FR-025).
+auto documentWithJitter() -> std::string
+{
+  sg::detail::RunOptions options;
+  options.fixedIterations = sg::test::kWindowIterations;
+  const auto run = sg::test::scriptedRun(options);
+  sg::ReportData data;
+  data.results.push_back(run.result);
+  data.rowRaw = run.rowRaw;
+  data.contextRaw = run.contextRaw;
+  sg::detail::JitterReportRecord record;
+  record.thresholdNs = 200;
+  record.loopPeriodNs = 20;
+  record.cpus = {2};
+  sg::detail::JitterReportCpu cpu;
+  cpu.cpu = 2;
+  cpu.stats.gapCount = 1;
+  cpu.stats.gapsPerSecond = 1000.0;
+  cpu.stats.minNs = 200;
+  cpu.stats.medianNs = 200;
+  cpu.stats.meanNs = 200.0;
+  cpu.stats.p90Ns = 210;
+  cpu.stats.p99Ns = 220;
+  cpu.stats.p999Ns = 230;
+  cpu.stats.p9999Ns = 240;
+  cpu.stats.maxNs = 250;
+  cpu.stats.totalNs = 260;
+  cpu.stats.totalPercent = 0.5;
+  cpu.stats.runtimeNs = 270;
+  cpu.stats.thresholdNs = 280;
+  cpu.stats.loopPeriodNs = 29;
+  cpu.stats.droppedGaps = 30;
+  record.stats.push_back(cpu);
+  record.disclosure = "the run's disclosure";
+  check(sg::detail::writeReport("harness_json_schema_jitter.json", data, {},
+                                record),
+        "the writer wrote the document with the jitter record (FR-006)");
+  return sg::test::readText("harness_json_schema_jitter.json");
+}
+
+// The written document with the method word and one series item spliced
+// into the run-level `jitter` object, the place the writer keeps them:
+// the plants reach the item's own keys, and the schema reaches the pairs
+// the splice writes (FR-006).
+auto withSeries(const std::string& text,
+                const std::string& method,
+                const std::string& item) -> std::string
+{
+  const auto jitterAt = text.find("\"jitter\":{");
+  check(jitterAt != std::string::npos,
+        "the written document carries the run-level jitter object (FR-006)");
+  const auto cpusAt = text.find("\"cpus\":[", jitterAt);
+  check(cpusAt != std::string::npos,
+        "the run-level jitter object carries its cpu list (FR-006)");
+  std::string spliced = text;
+  spliced.insert(cpusAt,
+                 "\"method\":" + method + ",\"series\":[" + item + "],");
+  return spliced;
+}
+
+// The `x-order` list of the series item, read out of the schema file the
+// way the hunt row reads the list of its own node (FR-006).
+auto seriesOrderOfSchema() -> std::string
+{
+  const std::string schemaText = sg::test::readText(SG_SCHEMA_PATH);
+  const auto seriesAt = schemaText.find("\"series\": {");
+  check(seriesAt != std::string::npos,
+        "the schema carries the run-level series array (FR-006)");
+  if (seriesAt == std::string::npos) {
+    return {};
+  }
+  const auto itemsAt = schemaText.find("\"items\": {", seriesAt);
+  check(itemsAt != std::string::npos,
+        "the series array states its item schema (FR-006)");
+  const auto orderAt = schemaText.find("\"x-order\"", itemsAt);
+  const auto open = schemaText.find('[', orderAt);
+  if (itemsAt == std::string::npos || orderAt == std::string::npos
+      || open == std::string::npos)
+  {
+    return {};
+  }
+  const auto close = schemaText.find(']', open);
+  return schemaText.substr(open, close - open);
+}
+
+// FR-006, R-16: the item names the 21 keys in the written order, and the
+// document the writer produces pairs the schema at the stamped minor.
+auto theSeriesKeysPairAtTheStampedMinor() -> void
+{
+  const std::string documentText = documentWithJitter();
+  const std::string order = seriesOrderOfSchema();
+  check(!order.empty(), "the series item states its key order (FR-006)");
+  std::size_t previous = 0;
+  bool paired = true;
+  for (const std::string_view key : kSeriesKeys) {
+    const auto at = order.find(std::string("\"") + std::string(key) + "\"");
+    paired = paired && at != std::string::npos && at > previous;
+    previous = at;
+  }
+  check(paired,
+        "theSeriesKeysPairAtTheStampedMinor: the item names the 21 keys in "
+        "the written order (FR-006, FR-011)");
+  check(documentText.find("\"schemaVersion\":\"1.12\"") != std::string::npos,
+        "theSeriesKeysPairAtTheStampedMinor: the document the writer produces "
+        "stands at the stamped minor 1.12 (FR-006, R-16)");
+}
+
+// FR-006: the item stands closed, so a key the schema lists nowhere refuses
+// with the pointer of the item that carries it.
+auto aClosedSeriesItemRefusesAnAddedKey() -> void
+{
+  std::string added = withSeries(documentWithJitter(), "\"FWQ\"", kSeriesItem);
+  const auto at = added.find("{\"cpu\":2,");
+  check(at != std::string::npos, "the splice wrote the series item (FR-006)");
+  added.insert(at + 1, "\"extra\":true,");
+  const auto answer = sg::detail::checkReport(SG_SCHEMA_PATH, added);
+  check(!answer.has_value(),
+        "aClosedSeriesItemRefusesAnAddedKey: the closed series item refuses a "
+        "key the schema lists nowhere (FR-006)");
+  if (!answer.has_value()) {
+    check(answer.error().find("/jitter/series/0/extra") != std::string::npos,
+          "aClosedSeriesItemRefusesAnAddedKey: the refusal names the item "
+          "that carries the key (FR-006, FR-010)");
+  }
+}
+
+// FR-006: the keys of the item ride a stated order, so the same keys in
+// another order refuse.
+auto aSeriesKeyOutOfOrderStandsRefused() -> void
+{
+  std::string swapped = std::string(kSeriesItem);
+  static constexpr std::string_view kHead = "{\"cpu\":2,\"workCount\":7,";
+  static constexpr std::string_view kSwap = "{\"workCount\":7,\"cpu\":2,";
+  check(swapped.starts_with(kHead),
+        "the item opens with its cpu and its work count (FR-006)");
+  swapped.replace(0, kHead.size(), kSwap);
+  const auto answer = sg::detail::checkReport(
+      SG_SCHEMA_PATH, withSeries(documentWithJitter(), "\"FWQ\"", swapped));
+  check(!answer.has_value(),
+        "aSeriesKeyOutOfOrderStandsRefused: a key out of the stated order "
+        "stands refused (FR-006, FR-010)");
+  if (!answer.has_value()) {
+    check(answer.error().find("out of the order") != std::string::npos
+              && answer.error().find("/jitter/series/0") != std::string::npos,
+          "aSeriesKeyOutOfOrderStandsRefused: the refusal names the order and "
+          "the item (FR-006, FR-010)");
+  }
+}
+
+// FR-006: the method word stands in a list of three, so a fourth spelling
+// refuses beside the list.
+auto aMethodWordOutsideTheThreeStandsRefused() -> void
+{
+  const auto answer = sg::detail::checkReport(
+      SG_SCHEMA_PATH,
+      withSeries(documentWithJitter(), "\"AUTO\"", kSeriesItem));
+  check(!answer.has_value(),
+        "aMethodWordOutsideTheThreeStandsRefused: a method word outside the "
+        "three stands refused (FR-006)");
+  if (!answer.has_value()) {
+    check(answer.error().find("/jitter/method") != std::string::npos
+              && answer.error().find("outside the list") != std::string::npos,
+          "aMethodWordOutsideTheThreeStandsRefused: the refusal names the "
+          "word and the list (FR-006, FR-010)");
+  }
+}
+
+// FR-018, E-24: a run that keeps no period list writes an empty array, and
+// the schema takes it.
+auto anEmptyPeriodsArrayPasses() -> void
+{
+  std::string empty = std::string(kSeriesItem);
+  static constexpr std::string_view kOpen = "\"periods\":[";
+  const auto at = empty.find(kOpen);
+  check(at != std::string::npos, "the item carries its period list (FR-018)");
+  empty.erase(at + kOpen.size(), empty.find(']', at) - (at + kOpen.size()));
+  const auto answer = sg::detail::checkReport(
+      SG_SCHEMA_PATH, withSeries(documentWithJitter(), "\"FTQ\"", empty));
+  if (!answer.has_value()) {
+    std::printf("  the empty period list refused: %s\n",
+                answer.error().c_str());
+  }
+  check(answer.has_value(),
+        "anEmptyPeriodsArrayPasses: an empty period list passes the schema "
+        "(FR-018, FR-022)");
+}
+
+// FR-018: the period item stands closed with two keys of its own kinds, so
+// a figure of another kind refuses with its pointer.
+auto aPeriodItemOfTheWrongKindStandsRefused() -> void
+{
+  std::string broken = std::string(kSeriesItem);
+  const auto at = broken.find("\"periodNs\":1000000");
+  check(at != std::string::npos, "the period item carries its period (FR-018)");
+  static constexpr std::string_view kPeriod = "\"periodNs\":1000000";
+  broken.replace(at, kPeriod.size(), "\"periodNs\":\"slow\"");
+  const auto answer = sg::detail::checkReport(
+      SG_SCHEMA_PATH, withSeries(documentWithJitter(), "\"FWQ\"", broken));
+  check(!answer.has_value(),
+        "aPeriodItemOfTheWrongKindStandsRefused: a period figure of the wrong "
+        "kind stands refused (FR-018)");
+  if (!answer.has_value()) {
+    check(answer.error().find("/jitter/series/0/periods/0/periodNs")
+              != std::string::npos,
+          "aPeriodItemOfTheWrongKindStandsRefused: the refusal names the "
+          "period figure (FR-018, FR-010)");
+  }
+}
+
 // The checker reads the schema file as a document of its own: a schema it
 // cannot read is refused with the place that broke, and so is a document it
 // cannot read (FR-008, SC-008).
@@ -306,6 +554,12 @@ auto main() -> int
   brokenSchemasAreRefused(sg::test::readText("harness_json_schema.json"));
   theOpenShapesOfTheSchemaLanguagePass(
       sg::test::readText("harness_json_schema.json"));
+  theSeriesKeysPairAtTheStampedMinor();
+  aClosedSeriesItemRefusesAnAddedKey();
+  aSeriesKeyOutOfOrderStandsRefused();
+  aMethodWordOutsideTheThreeStandsRefused();
+  anEmptyPeriodsArrayPasses();
+  aPeriodItemOfTheWrongKindStandsRefused();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;
