@@ -187,6 +187,15 @@ eight sections. The four FTQ sections read a drop count of 0 over a
 10,000 ms kept span. The four FWQ sections die in the transform at
 exit 139, and the record keeps that reading.
 
+The re-recorded lane host run stands recorded at
+[results/acceptance-2026-11-02-rerun.md](./results/acceptance-2026-11-02-rerun.md),
+eight sections, taken at the head that carries both P0 fixes. Each
+section reads exit 0 and a drop count of 0 over a 10,000 ms kept span.
+The four FWQ sections read a unit time of 1,008 ns against the 1,000 ns
+target. Their calibration count reads 1,136 at rest and 640 under the
+SMT sibling load. The four FTQ sections keep a calibration count of 1,
+the shape FR-010 gives a target that stands under the read cost.
+
 ## Out of scope for the gates
 
 - Real noise figures: the suite scripts its series, and no test

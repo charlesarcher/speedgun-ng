@@ -822,7 +822,7 @@ every record, and the standing contracts carry the deltas.
   counts the division set (FR-010, FR-011, D-2).
   Verify: `ctest --test-dir build -R "harness_fwq_ftq_test|harness_jitter_cli_test|harness_jitter_window_test" --output-on-failure` exits 0, and a `method=fwq` run names a `workCount` above 1 with a unit time near the 1,000 ns target
 
-- [ ] T073 [US7] Re-record the acceptance run after T071 and T072 land. The
+- [x] T073 [US7] Re-record the acceptance run after T071 and T072 land. The
   record on disk carries four FWQ sections at exit 139 and `workCount: 1`,
   the two defects as read. Run `bash tools/noise/fwq_ftq_acceptance.sh`
   again on the lane host, keep the eight sections, and land the new record
