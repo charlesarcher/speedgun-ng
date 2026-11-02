@@ -13,10 +13,12 @@
 // harness_json_schema_test.cpp carries it.
 // ============================================================================
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <ranges>
 #include <vector>
 
 #include "detail/json_fixture.hpp"
@@ -285,6 +287,91 @@ auto aBinBelowTheThresholdStandsDropped() -> void
         "a bin at twice the median level stands dropped (FR-018)");
 }
 
+// ---------------------------------------------------------------------------
+// The resample path of FR-017 and R-12: the FWQ unit times at the median
+// unit time, one sample per whole step of cumulative unit time, each bin
+// holding the mean unit time inside it and an empty bin taking the previous
+// sample.
+// ---------------------------------------------------------------------------
+
+// The nearest-rank 50.0 point of a scripted series, the figure an FWQ run
+// takes as the resample step (FR-017, R-5).
+auto medianOf(const std::vector<std::uint64_t>& unitTimes) -> std::uint64_t
+{
+  std::vector<std::uint64_t> sorted = unitTimes;
+  std::ranges::sort(sorted);
+  return sorted[(sorted.size() - 1) / 2];
+}
+
+// FR-017: each bin of one step of cumulative unit time holds the mean unit
+// time inside it. A unit time that ends at the bin boundary closes the bin,
+// and one that ends inside leaves the bin open.
+auto theResampleAveragesEachBin() -> void
+{
+  const std::vector<std::uint64_t> unitTimes {400, 600, 800, 200, 1000};
+  const auto samples = sg::detail::resampleUnitTimes(
+      unitTimes, kStepNs, sg::detail::kSpectrumCap);
+
+  check(samples.size() == 3,
+        "the resample answers one sample per whole step (FR-017)");
+  if (samples.size() == 3) {
+    check(sameValue(samples[0], 500.0),
+          "the first bin holds the mean of its two unit times (FR-017)");
+    check(sameValue(samples[1], 500.0),
+          "the second bin holds the mean of its two unit times (FR-017)");
+    check(sameValue(samples[2], 1000.0),
+          "a unit time that ends at the boundary closes its own bin (FR-017)");
+  }
+}
+
+// FR-017: a unit time that spans a bin leaves that bin empty, and the empty
+// bin takes the previous sample.
+auto anEmptyBinTakesThePreviousSample() -> void
+{
+  const std::vector<std::uint64_t> unitTimes {1000, 2500, 500};
+  const auto samples = sg::detail::resampleUnitTimes(
+      unitTimes, kStepNs, sg::detail::kSpectrumCap);
+
+  check(samples.size() == 4,
+        "the resample answers one sample per whole step (FR-017)");
+  if (samples.size() == 4) {
+    check(sameValue(samples[0], 1000.0),
+          "a filled bin holds its own mean (FR-017)");
+    check(sameValue(samples[1], 1000.0),
+          "the bin the long unit time leaves empty takes the previous sample "
+          "(FR-017)");
+    check(sameValue(samples[2], 1000.0),
+          "the next empty bin takes the same sample (FR-017)");
+    check(
+        sameValue(samples[3], 1500.0),
+        "the bin the long unit time closes holds the mean of the two (FR-017)");
+  }
+}
+
+// FR-017: the step stands at the median unit time of the kept series, and
+// the cap bounds the count the resample answers.
+auto theResampleStepStandsAtTheMedian() -> void
+{
+  const std::vector<std::uint64_t> unitTimes {1000, 1000, 1000, 1000, 5000};
+  const std::uint64_t step = medianOf(unitTimes);
+  check(step == 1000, "the median unit time of the series reads 1 us (FR-017)");
+
+  const auto samples =
+      sg::detail::resampleUnitTimes(unitTimes, step, sg::detail::kSpectrumCap);
+  check(samples.size() == 9,
+        "the median step counts nine whole steps of cumulative unit time "
+        "(FR-017)");
+  if (samples.size() == 9) {
+    check(sameValue(samples.front(), 1000.0),
+          "the head bin holds its own unit time (FR-017)");
+    check(sameValue(samples.back(), 5000.0),
+          "the bin the long unit time closes holds it (FR-017)");
+  }
+
+  const auto capped = sg::detail::resampleUnitTimes(unitTimes, step, 4);
+  check(capped.size() == 4, "the cap bounds the count (FR-017)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -298,6 +385,9 @@ auto main() -> int
   sixTonesKeepFiveEntries();
   theMedianStandsOverBinsOneToHalf();
   aBinBelowTheThresholdStandsDropped();
+  theResampleAveragesEachBin();
+  anEmptyBinTakesThePreviousSample();
+  theResampleStepStandsAtTheMedian();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;
