@@ -130,7 +130,10 @@ force. No implementer reopens them.
 - **D-16 Acceptance is local.** Every acceptance claim comes from the
   owner's own machines, recorded in the pull-request body with the host, the
   kernel and the test counts. No acceptance is gated on hosted runner CI,
-  and this feature changes no CI file.
+  and this feature changes no CI workflow and no job. The one lint-config change
+  it carries is a spell allowlist entry for the model number `BA` of the vendored
+  mapping file: no text change removes that finding, and `.codespellrc` already
+  carries that class of entry with its reason.
 - **D-17 Version and schema numbers.** The feature takes version 0.29.0:
   the lane planned for 0.29.0 holds no merge at branch time, checked against
   `specs/`, the remote branches and the open pull requests. The report gains
@@ -935,7 +938,8 @@ registered benchmark prints no row.
 - No new runtime dependency, and no path lookup at run time: the tables and
   their source record reach the library as build-time data.
 - No change to `source/counters/linux_pmu/counter_limits.cpp`, to the limit
-  code, or to any CI file.
+  code, or to any CI workflow or job file. The spell allowlist line of D-16 is
+  the one lint-config change.
 - Options structs carry every new parameter: no new bool parameter.
 - JSON only through the JSON libraries the tree already uses.
 - Bad values exit with status 2 and one quoted line.

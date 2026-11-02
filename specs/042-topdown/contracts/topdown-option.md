@@ -99,7 +99,7 @@ line holds the shape above, and `test/source/harness_cli_table_test.cpp` moves:
   (`:735`) and its message `the table holds the 42 rows of the contract`
   (`:740`) read 43.
 - `inNewBlock` (`:817-824`) gains the block 350 to 359 beside the 340 bounds
-  (`:318-319`), and a case `theTopdownRowStandsInItsBlock` joins, modelled on
+  (`:318-319`), and a case `theTopdownRowStandsInItsBlock` joins, modeled on
   `theLayoutRowStandsInItsBlock` (`:1101-1118`).
 - The partition loop (`:938-957`) reads every index at or past
   `kRowsBeforeHunt` (`:295`) as a hunt row inside 270 to 289, so the tail row

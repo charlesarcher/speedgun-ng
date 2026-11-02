@@ -318,7 +318,7 @@ absorb the key: a reader could not tell a record's absence from an old writer.
 ## D-14 - The rule prefix, the node name, and the unsupported answer
 
 **Decision**: `topdown:` joins `kLabelPrefixes`
-(`source/harness/compare.cpp:55-56`) so `labelPrefixOf` (`:97-105`) recognises
+(`source/harness/compare.cpp:55-56`) so `labelPrefixOf` (`:97-105`) recognizes
 it and the standing grammar (`:381-399`) reads prefix plus value name
 unchanged. A level-1 node names `topdown:backend_bound` and a deeper node
 names `topdown:intel.tma_l1_bound` (`specs/042-topdown/spec.md:693-697`), so
