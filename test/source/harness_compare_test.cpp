@@ -196,6 +196,24 @@ auto faulted(const char* text, const char* field, const char* what) -> void
   check(faultNames(parsed.error(), text, field), what);
 }
 
+// The fault texts `specs/042-topdown/contracts/topdown-rule.md` states word
+// for word. `faulted` reads the field word and the rule text, and both stand in
+// the fault of a name outside the value space too, so these rows read the whole
+// line.
+auto faultTextIs(const char* text, const char* want, const char* what) -> void
+{
+  const auto parsed = sg::parseCompareRule(text);
+  if (parsed) {
+    fail(what);
+    return;
+  }
+  if (parsed.error() != want) {
+    std::printf(
+        "  answered: %s\n  expected: %s\n", parsed.error().c_str(), want);
+  }
+  check(parsed.error() == want, what);
+}
+
 // FR-022, FR-023: a bare number is neither the percent form nor the
 // `abs=` form, so the threshold field faults.
 auto bareNumberFaultsTheThreshold() -> void
@@ -2465,6 +2483,10 @@ auto theTableScalesEveryDeclaredUnit() -> void
 // and before the threshold field, and a backslash at the end of a label
 // or before a plain character answer their own faults (FR-004, FR-005,
 // FR-013, FR-018, FR-019, FR-022, FR-023, FR-024).
+//
+// T057 adds the two rows of `contracts/topdown-rule.md`: the top-down prefix
+// that names nothing, and a written aggregate on a node that carries one value
+// (FR-037, FR-018).
 auto theGrammarFaultsEveryUnreadableCorner() -> void
 {
   faulted(
@@ -2496,6 +2518,21 @@ auto theGrammarFaultsEveryUnreadableCorner() -> void
   faulted("counter::lower:5%",
           "value name",
           "a prefix that names nothing faults (FR-015)");
+  faulted("topdown:",
+          "value name",
+          "the top-down prefix that names nothing faults (FR-037, FR-015)");
+  faultTextIs("topdown:",
+              "the value name of the rule 'topdown:' is not readable: the "
+              "'topdown:' prefix names nothing",
+              "that line names the prefix it refuses (FR-037)");
+  faulted("topdown:backend_bound@median:lower:5%",
+          "aggregate",
+          "a written aggregate on a top-down node faults (FR-037, FR-018)");
+  faultTextIs("topdown:backend_bound@median:lower:5%",
+              "the aggregate of the rule "
+              "'topdown:backend_bound@median:lower:5%' is not readable: this "
+              "value carries one value and takes no aggregate",
+              "that line names the one value a node carries (FR-018)");
   faulted(
       "foo:lower:5%", "value name", "a name outside the seven faults (FR-013)");
   faulted("time@median:lower:x%",
@@ -2528,6 +2565,9 @@ auto theGrammarFaultsEveryUnreadableCorner() -> void
 // default aggregate with no `@`, an empty filter after the last colon,
 // and a backslash before a character that stands in no escape pair, the
 // backslash kept inside the label (FR-016, FR-019, FR-024).
+//
+// T057 adds the two rules SC-13 names, read with the dotted node name and the
+// threshold whole (FR-037, SC-13).
 auto theGrammarAcceptsTheRemainingShapes() -> void
 {
   const auto bare = sg::parseCompareRule("time:lower:5%");
@@ -2542,6 +2582,27 @@ auto theGrammarAcceptsTheRemainingShapes() -> void
   check(plainEscape.has_value() && plainEscape->valueName == "counter:a\\xb",
         "a backslash before a plain character stands inside the label "
         "(FR-019)");
+  const auto levelOne =
+      sg::parseCompareRule("topdown:backend_bound:higher:abs=5");
+  check(levelOne.has_value() && levelOne->valueName == "topdown:backend_bound"
+            && levelOne->direction == sg::Direction::HIGHER_IS_BETTER
+            && !levelOne->aggregate.has_value()
+            && !levelOne->relativeThreshold.has_value()
+            && levelOne->absoluteThreshold.has_value()
+            && sameValue(*levelOne->absoluteThreshold, 5.0),
+        "the level-1 rule names its node whole, takes no aggregate, and reads "
+        "the abs= bound (FR-037, FR-023, SC-13)");
+  const auto deeper =
+      sg::parseCompareRule("topdown:intel.tma_l1_bound:lower:10%");
+  check(deeper.has_value()
+            && deeper->valueName == "topdown:intel.tma_l1_bound"
+            && deeper->direction == sg::Direction::LOWER_IS_BETTER
+            && !deeper->aggregate.has_value()
+            && !deeper->absoluteThreshold.has_value()
+            && deeper->relativeThreshold.has_value()
+            && sameValue(*deeper->relativeThreshold, 0.1),
+        "the dotted node name reads whole through one split, and the percent "
+        "reads as a fraction (FR-037, FR-022, SC-13)");
 }
 
 // T055: the value sites no earlier case reached: the primary fold of a

@@ -1463,6 +1463,8 @@ answers status 0, the second answers 1 with its row `REGRESSED`.
 <rule>      ::= <value> [ @ <aggregate> ] : <direction> : <threshold> [ : <filter> ]
 <value>     ::= time | real_time | cpu_time | p <point>
               | counter : <label> | metric : <label> | stat : <label>
+              | topdown : <node>
+<node>      ::= a node name with its leading "topdown." dropped, dots included
 <aggregate> ::= median | mean | min | max
 <direction> ::= lower | higher
 <threshold> ::= <percent>% | abs = <number> | <percent>% , abs = <number>
@@ -1471,14 +1473,18 @@ answers status 0, the second answers 1 with its row `REGRESSED`.
 
 The fields run in that order. `time` reads the primary column, `real_time` and
 `cpu_time` read one column by name, `p<point>` reads one percentile cell, and
-the three prefixed names read the column or the statistic their label names. A
-label ends at the first unescaped colon, and `\:` , `\,` , `\@` and `\\` stand inside
-it. The `@` suffix names one aggregate and defaults to `median` for a name the
-report holds as a statistics record; a written suffix on a percentile cell or on
-a statistic is a fault. The direction word is required. A threshold carries a
-percent, an `abs=` number, or the two in that order, the number standing in the
-stored unit of the value. The filter is a regular expression over the full
-instance name, matched the way the batch filter option matches.
+the four prefixed names read the column, statistic or node their text names.
+A `topdown:` name picks one node of the tree the run wrote, so
+`topdown:backend_bound` reads a level-1 node and `topdown:intel.tma_l1_bound`
+reads a deeper one; a node no report carries is a fault line naming the rule,
+the value, the benchmark and the report. Both names end at the first unescaped
+colon, and `\:` , `\,` , `\@` and `\\` stand inside it. The `@` suffix names one
+aggregate and defaults to `median` for a name the report holds as a statistics
+record; a written suffix on a percentile cell, on a statistic or on a node is a
+fault. The direction word is required. A threshold carries a percent, an `abs=`
+number, or the two in that order, the number standing in the stored unit of the
+value. The filter is a regular expression over the full instance name, matched
+the way the batch filter option matches.
 
 `parseCompareRule` is the public call behind that parse, and `compareReports`
 takes the rules with two loaded reports and one `CompareOptions` value, so a

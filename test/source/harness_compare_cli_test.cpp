@@ -58,8 +58,10 @@
 #include <cstdio>
 #include <fstream>
 #include <initializer_list>
+#include <optional>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <unistd.h>
@@ -84,6 +86,16 @@ constexpr const char* kFirstRunDocument = "harness_compare_cli_first.json";
 constexpr const char* kSecondRunDocument = "harness_compare_cli_second.json";
 constexpr const char* kFitDocument = "harness_compare_cli_fit.json";
 constexpr const char* kPlainDocument = "harness_compare_cli_plain.json";
+
+// One path per document of the two top-down fault cases, for the same reason:
+// the document that carries the tree, the document whose tree leaves the
+// level-1 node out, and the document a run wrote with no option, which carries
+// no top-down object at all (T058, specs/042-topdown FR-038, FR-039).
+constexpr const char* kTreeDocument = "harness_compare_cli_topdown_tree.json";
+constexpr const char* kPartialDocument =
+    "harness_compare_cli_topdown_partial.json";
+constexpr const char* kTreelessDocument =
+    "harness_compare_cli_topdown_treeless.json";
 
 // One path per rules file, for the same reason (T051, FR-061, FR-062,
 // FR-063, FR-064, FR-065).
@@ -1331,6 +1343,117 @@ auto aNameThatCarriesRowBytesPrintsEscaped(const std::string& data) -> void
         "the name cell stands quoted once (FR-030)");
 }
 
+// The benchmark the three top-down documents hold: a name no other case of
+// this file reads, so the row of a mode that fell through to the run path stays
+// the failure the output-shape checks already own (T058).
+constexpr const char* kTopdownBenchmark = "bmTopdownGate";
+
+// The tree one document carries: the level-1 node and the deeper node the
+// SC-13 rules name, under the neutral names the collector answers, each with
+// its own value (T058, specs/042-topdown FR-032, FR-037).
+[[nodiscard]] auto topdownTree(const bool carriesLevelOne) -> sg::TopdownRecord
+{
+  auto record = sg::TopdownRecord {};
+  record.supported = true;
+  record.reference = "v4.3";
+  record.directory = "arch/x86/skylakex/";
+  record.askedLevel = 2;
+  record.level = 2;
+  if (carriesLevelOne) {
+    record.nodes.push_back(sg::TopdownNode {
+        .name = "topdown.backend_bound",
+        .vendorName = "TopL1.BackendBound",
+        .parent = {},
+        .level = 1,
+        .value = 52.5,
+        .availability = sg::counters::Availability::COUNTABLE,
+        .threshold = "> 20 %",
+    });
+  }
+  record.nodes.push_back(sg::TopdownNode {
+      .name = "topdown.intel.tma_l1_bound",
+      .vendorName = "tma_l1_bound",
+      .parent = "topdown.backend_bound",
+      .level = 2,
+      .value = 6.125,
+      .availability = sg::counters::Availability::COUNTABLE,
+      .threshold = ">= 10 %",
+  });
+  return record;
+}
+
+// The one entry of one top-down document: the measured row a rule reaches its
+// value through, and the record the case names. A record left absent stands for
+// the document a run wrote with no option (T058, FR-035, FR-039).
+[[nodiscard]] auto topdownEntry(std::optional<sg::TopdownRecord> record)
+    -> sg::BenchmarkResult
+{
+  sg::BenchmarkResult result;
+  result.name = kTopdownBenchmark;
+  result.suite = kTopdownBenchmark;
+  result.caseName = kTopdownBenchmark;
+  result.outcome = sg::RunOutcome::MEASURED;
+  auto& row = result.rows.emplace_back();
+  row.kind = sg::RowKind::REPETITION;
+  row.timePerIterationNs = 1000.0;
+  row.cpuTimePerIterationNs = 1000.0;
+  result.topdown = std::move(record);
+  return result;
+}
+
+// One document of the two top-down cases, written where the mode reads it
+// (T058).
+auto writeTopdown(const char* path, const sg::BenchmarkResult& result) -> void
+{
+  sg::ReportData data;
+  data.results.push_back(result);
+  data.rowRaw.push_back({});
+  data.contextRaw.push_back({});
+  check(sg::detail::writeReport(path, data),
+        "the writer wrote the document of the top-down case");
+}
+
+// The rule of the two cases, in the spelling SC-13 gives the level-1 node.
+constexpr const char* kTopdownRule =
+    "--compare-rule=topdown:backend_bound:higher:abs=5";
+
+// T058, specs/042-topdown FR-038, SC-05: a rule naming a node the contender
+// lacks stops the comparison where the value is read. One line names the rule,
+// the value, the benchmark and the report it looked in, the status is 2, and no
+// table stands: the fourth of the four lines SC-05 counts.
+auto aRuleNamingAnAbsentNodeAnswersOneLine() -> void
+{
+  writeTopdown(kTreeDocument, topdownEntry(topdownTree(true)));
+  writeTopdown(kPartialDocument, topdownEntry(topdownTree(false)));
+  const ModeRun run = runMode(
+      {kTopdownRule,
+       std::string("--compare=") + kTreeDocument + "," + kPartialDocument});
+
+  oneFaultLine(run,
+               "the rule naming a node the contender lacks",
+               {"'topdown:backend_bound:higher:abs=5'",
+                "finds no topdown:backend_bound",
+                "for bmTopdownGate in the contender report"});
+}
+
+// T058, specs/042-topdown FR-039, D-14: a rule over a document that carries no
+// top-down object answers the same shape, because a report with no record reads
+// as the plain missing value. One line, status 2, and no table.
+auto aRuleOverATreelessReportAnswersOneLine() -> void
+{
+  writeTopdown(kTreeDocument, topdownEntry(topdownTree(true)));
+  writeTopdown(kTreelessDocument, topdownEntry(std::nullopt));
+  const ModeRun run = runMode(
+      {kTopdownRule,
+       std::string("--compare=") + kTreeDocument + "," + kTreelessDocument});
+
+  oneFaultLine(run,
+               "the rule over a report with no top-down object",
+               {"'topdown:backend_bound:higher:abs=5'",
+                "finds no topdown:backend_bound",
+                "for bmTopdownGate in the contender report"});
+}
+
 auto bmNeverRuns(sg::State& state) -> void
 {
   for (auto _ : state) {
@@ -1385,6 +1508,8 @@ auto main(const int argc, char** argv) -> int
   aCompareDocumentPathIsQuotedOneTime(data);
   aNewlineInAComparisonPathPrintsOneLine(data);
   aForgedSchemaVersionPrintsNoRawLine(data);
+  aRuleNamingAnAbsentNodeAnswersOneLine();
+  aRuleOverATreelessReportAnswersOneLine();
 
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);

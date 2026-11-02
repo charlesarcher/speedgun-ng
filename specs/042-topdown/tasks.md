@@ -768,22 +768,21 @@ naming a deeper node, one naming no node, and one with no tree.
   does not list answers unlisted (FR-032, FR-036). This case lands with T067 in
   one commit (FR-048).
 
-- [ ] T056 [US3] In `test/source/harness_topdown_report_test.cpp`, add the gate
+- [x] T056 [US3] In `test/source/harness_topdown_report_test.cpp`, add the gate
   cases: `topdown:backend_bound:higher:abs=5` and
   `topdown:intel.tma_l1_bound:lower:10%` each compare that node's value in both
   reports, while a node the contender lacks, a contender with no `topdown`
   object, and a baseline written without the option each answer one quoted line
   naming the rule, the value, the benchmark and the report at status 2 (FR-037
-  to FR-039, FR-050, SC-13). This case lands with T074 in one commit (FR-048).
-
-- [ ] T057 [P] [US3] In `test/source/harness_compare_test.cpp`, extend
+  to FR-039, FR-050, SC-13). This case lands with T074 in one commit (FR-048). The gate scenario carries a fourth fault document, which is what reads the gap claim, and it is the case that kills a planted gap answering zero.
+- [x] T057 [P] [US3] In `test/source/harness_compare_test.cpp`, extend
   `theGrammarFaultsEveryUnreadableCorner` (`:2468`) with `topdown:` naming
   nothing and with `topdown:backend_bound@median:lower:5%` refusing an
   aggregate, and `theGrammarAcceptsTheRemainingShapes` (`:2531`) with the two
   SC-13 rules read with the dotted node name and the threshold whole (FR-037).
   This case lands with T074 in one commit (FR-048).
 
-- [ ] T058 [P] [US3] In `test/source/harness_compare_cli_test.cpp`, drive
+- [x] T058 [P] [US3] In `test/source/harness_compare_cli_test.cpp`, drive
   through the `oneFaultLine` helper (`:770`) the two exits: a rule naming an
   absent node and a rule against a report with no top-down object each print one
   line, print no table and exit with status 2, the third and fourth of the four
@@ -899,27 +898,25 @@ naming a deeper node, one naming no node, and one with no tree.
   `null` in its `value` where a counted node carries a number; leave the
   existing list of keys that stand null otherwise unchanged (FR-033, FR-035;
   lands with T065 in one commit). The null rule gains the one sentence the tree needs: a node whose row the host refuses carries a gap where its figure would stand.
-- [ ] T071 [US3] In `docs/pages/harness.md`, add the `topdown : <label>`
+- [x] T071 [US3] In `docs/pages/harness.md`, add the `topdown : <label>`
   alternative to the second line of the `<value>` production at `:1461`, inside
   the grammar fence that runs `:1458-1466`, beside `counter`, `metric` and
-  `stat` (FR-037; lands with T074 in one commit).
-
-- [ ] T072 [US3] In `specs/026-regression-gate/contracts/rule-parse.md`, add the
+  `stat` (FR-037; lands with T074 in one commit). The fence names the production `<node>`. This block wrote `<label>` from an older reading, and the guide page, `contracts/topdown-rule.md` and `specs/026-regression-gate/contracts/rule-parse.md` all carry `<node>`.
+- [x] T072 [US3] In `specs/026-regression-gate/contracts/rule-parse.md`, add the
   `topdown : <label>` alternative to the `<value>` production line at `:33`,
   beside `counter`, `metric` and `stat`, the grammar
   `specs/042-topdown/contracts/topdown-rule.md:15-21` settles; in
   `specs/026-regression-gate/contracts/compare-call.md`, name the top-down node
   among the values a report can lack in the fault row at `:54`, the three fault
   lines `specs/042-topdown/contracts/topdown-rule.md:89-94` says ride with the
-  prefix (FR-037; lands with T074 in one commit).
-
+  prefix (FR-037; lands with T074 in one commit). No gate reads the grammar fence: a planted spelling the parser refuses left the prose gate, codespell and the thirteen docs checks clean, so the line stands on the two compare units and on this contract. The contract also called that name a label while carrying the `<node>` production, and one word moved.
 - [ ] T073 [US3] In `CMakeLists.txt`, move `VERSION 0.28.0` at `:45` to `0.29.0`
   with the comment at `:40-44` naming the record and the requirement that moves
   it, the counters `SOVERSION` at `:110` and the harness `SOVERSION` at `:375`
   having moved with their own commits in Phase 2 (spec D-4, spec D-17; turns
   T059 green).
 
-- [ ] T074 [US3] In `source/harness/compare.cpp`, add `"topdown:"` to
+- [x] T074 [US3] In `source/harness/compare.cpp`, add `"topdown:"` to
   `kLabelPrefixes` at `:55-56`, add `&& prefix != "topdown:"` to
   `statisticsValue` at `:400` so a written aggregate on a node faults, and add
   one `topdown:` arm between the `metric:` arm of the resolver at `:611-627` and

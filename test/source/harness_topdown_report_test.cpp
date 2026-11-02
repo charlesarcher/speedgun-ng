@@ -9,6 +9,14 @@
 // and every `x-order` position is `contracts/topdown-report-key.md`'s, and no
 // key is mirrored here.
 //
+// The gate cases add the public comparison to that seam: the case writes two
+// documents, loads both back and hands them to `compareReports` with the rule
+// texts it names, so the tree reaches the rule through the writer and the
+// reader. The fault of a rule with no node to read is the text
+// `contracts/topdown-rule.md` states; the compare mode owns the `error: ` line
+// and status 2, and `harness_compare_cli_test` drives that pair (FR-037,
+// FR-038, FR-039, FR-050).
+//
 // The tree a case writes stands in the record of specs/042-topdown E-16, the
 // carrier `stripTopdownColumns` fills for a run that names the option. The
 // neutral names, the vendor names and the threshold texts are the texts a
@@ -37,6 +45,17 @@
 //                            `topdown` standing after `hunt` in the entry order
 //                            and its nine keys in their stated order
 //                            (FR-032, FR-036)
+//   theGateReadsOneNodeOfEachTree
+//                            the two rules SC-13 names each read their node's
+//                            value in both reports and answer their own
+//                            verdict (FR-037, SC-13)
+//   aGateRuleWithNoNodeToReadAnswersOneLine
+//                            a node the contender lacks, a contender with no
+//                            object, a baseline written without the option,
+//                            and a node the merge left as a gap each answer
+//                            one quoted line naming the rule, the value, the
+//                            benchmark and the report (FR-030, FR-038, FR-039,
+//                            FR-050)
 // ============================================================================
 
 #include <array>
@@ -44,10 +63,12 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <initializer_list>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <sys/wait.h>
@@ -73,12 +94,12 @@ using sg::test::sameValue;
 
 using Availability = sg::counters::Availability;
 
-// The scratch documents of the four scenarios, one per shape a document
-// answers: the supported tree, the record of an unsupported host, the entry of
-// a run that names no option, the entry that carries a hunt object beside its
-// record, and the document that carries an array where the object stands. The
-// names stand under the `harness_json_` prefix the other JSON suites of this
-// directory already write and read back.
+// The scratch documents of the writer and reader scenarios, one per shape a
+// document answers: the supported tree, the record of an unsupported host, the
+// entry of a run that names no option, the entry that carries a hunt object
+// beside its record, and the document that carries an array where the object
+// stands. The names stand under the `harness_json_` prefix the other JSON
+// suites of this directory already write and read back.
 constexpr const char* kTreeDocument = "harness_json_topdown_tree.json";
 constexpr const char* kUnsupportedDocument =
     "harness_json_topdown_unsupported.json";
@@ -88,6 +109,21 @@ constexpr const char* kOptionlessDocument =
     "harness_json_topdown_optionless.json";
 constexpr const char* kWrongKindDocument =
     "harness_json_topdown_wrongkind.json";
+
+// The five documents of the two gate scenarios: the pair whose trees carry the
+// two nodes the two rules name, the contender whose tree carries the deeper
+// node and lacks the level-1 node, the entry a run wrote with no option, which
+// carries no object at all, and the contender whose level-1 node stands as a
+// gap.
+constexpr const char* kGateBaselineDocument =
+    "harness_json_topdown_gate_base.json";
+constexpr const char* kGateContenderDocument =
+    "harness_json_topdown_gate_contender.json";
+constexpr const char* kGatePartialDocument =
+    "harness_json_topdown_gate_partial.json";
+constexpr const char* kGateTreelessDocument =
+    "harness_json_topdown_gate_treeless.json";
+constexpr const char* kGateGapDocument = "harness_json_topdown_gate_gap.json";
 
 // The four keys of the two levels of the planted tree, in the order the writer
 // emits them: parent before child (FR-032, contracts/topdown-report-key.md).
@@ -101,6 +137,31 @@ constexpr std::size_t kLevelTwoGap = 4;
 // planted table holds below the level the option asked for.
 constexpr std::uint64_t kAskedLevel = 4;
 constexpr std::uint64_t kShownLevel = 3;
+
+// The benchmark the four gate documents hold, and the primary time of the one
+// row of each: a rule over `time` reads that number, while a rule over a node
+// reads the node's own value.
+constexpr const char* kGateBenchmark = "bmTopdownGate";
+constexpr double kGateTimeNs = 1000.0;
+
+// The four node values the two gate trees answer. The level-1 node falls by
+// 7.5 points, past the absolute bound of the rule that reads it, and the deeper
+// node rises by 0.375 points, 6.1 percent of its own baseline and inside the
+// bound of the rule that reads it (FR-037, SC-13).
+constexpr double kGateLevelOneBaseline = 52.5;
+constexpr double kGateLevelOneContender = 45.0;
+constexpr double kGateLevelTwoBaseline = 6.125;
+constexpr double kGateLevelTwoContender = 6.5;
+
+// The two rule texts SC-13 names: the first reads the level-1 node, the second
+// the deeper one, and neither needs a quoting of its own (FR-037, SC-13).
+constexpr const char* kLevelOneRule = "topdown:backend_bound:higher:abs=5";
+constexpr const char* kLevelTwoRule = "topdown:intel.tma_l1_bound:lower:10%";
+
+// The value name the three fault cases read: the level-1 node the baseline
+// carries, which is the node the contender leaves out in the first case
+// (FR-038, FR-039).
+constexpr const char* kLevelOneValue = "topdown:backend_bound";
 
 // The nine keys of the object, in the `x-order` the schema states.
 constexpr std::array<const char*, 9> kRecordKeys {
@@ -405,6 +466,125 @@ auto checked(const bool condition, const std::string& what) -> void
   return *record;
 }
 
+// The whole document of one gate scenario, loaded through the reader the gate
+// reads (FR-034, FR-037).
+[[nodiscard]] auto loadedDocument(const char* path) -> sg::ReportData
+{
+  const auto loaded = sg::loadReport(path);
+  if (!loaded.has_value()) {
+    failed("the reader refused the gate document: " + loaded.error());
+  }
+  return *loaded;
+}
+
+// The tree one gate document carries: the level-1 node and the deeper node the
+// two rule texts name, each under the value the case gives. Both names carry
+// the `topdown.` head, because that head is what the collector answers and what
+// a rule name drops (FR-032, FR-037).
+[[nodiscard]] auto gateRecord(const double levelOne,
+                              const double deeper) -> sg::TopdownRecord
+{
+  return sg::TopdownRecord {
+      .supported = true,
+      .reason = {},
+      .reference = "v4.3",
+      .directory = "arch/x86/skylakex/",
+      .files = plantedFiles(),
+      .askedLevel = 2,
+      .level = 2,
+      .nodes =
+          {
+              sg::TopdownNode {
+                  .name = "topdown.backend_bound",
+                  .vendorName = "TopL1.BackendBound",
+                  .parent = {},
+                  .level = 1,
+                  .value = levelOne,
+                  .availability = Availability::COUNTABLE,
+                  .threshold = "> 20 %",
+              },
+              sg::TopdownNode {
+                  .name = "topdown.intel.tma_l1_bound",
+                  .vendorName = "tma_l1_bound",
+                  .parent = "topdown.backend_bound",
+                  .level = 2,
+                  .value = deeper,
+                  .availability = Availability::COUNTABLE,
+                  .threshold = ">= 10 %",
+              },
+          },
+      .refused = {},
+  };
+}
+
+// The same tree with its level-1 node gone: the shape of a contender whose
+// table answered the deeper row and left the row above it unread (FR-038).
+[[nodiscard]] auto gateTreeWithoutLevelOne(const double deeper)
+    -> sg::TopdownRecord
+{
+  auto record = gateRecord(kGateLevelOneBaseline, deeper);
+  record.nodes.erase(record.nodes.begin());
+  return record;
+}
+
+// The same tree with its level-1 node left as a gap by the merge: the row
+// stands in the tree and carries no value, which a rule reads as a missing
+// value (FR-030, FR-038).
+[[nodiscard]] auto gateTreeWithLevelOneGapped(const double deeper)
+    -> sg::TopdownRecord
+{
+  auto record = gateRecord(kGateLevelOneBaseline, deeper);
+  record.nodes.front().value = {};
+  record.nodes.front().availability = Availability::GAP;
+  return record;
+}
+
+// The one entry of one gate document: the measured row the gate reads, and the
+// record the case names, which stands absent for the entry a run wrote with no
+// option (FR-035, FR-039).
+[[nodiscard]] auto gateEntry(std::optional<sg::TopdownRecord> record)
+    -> sg::BenchmarkResult
+{
+  auto result = makeResult(kGateBenchmark);
+  auto& row = result.rows.emplace_back();
+  row.timePerIterationNs = kGateTimeNs;
+  row.cpuTimePerIterationNs = kGateTimeNs;
+  result.topdown = std::move(record);
+  return result;
+}
+
+// The two loaded documents of one gate pair, each read back with the one entry
+// and the one row a rule reaches its value through.
+[[nodiscard]] auto gatePair(const char* baselinePath, const char* contenderPath)
+    -> std::pair<sg::ReportData, sg::ReportData>
+{
+  auto baseline = loadedDocument(baselinePath);
+  auto contender = loadedDocument(contenderPath);
+  for (const sg::ReportData* const report : {&baseline, &contender}) {
+    checked(
+        report->results.size() == 1 && report->results.front().rows.size() == 1,
+        "the gate document holds one entry carrying one row");
+  }
+  return {std::move(baseline), std::move(contender)};
+}
+
+// The rules of one gate scenario, each text through the public parse, so the
+// grammar and the comparison meet inside the case (FR-004, FR-037).
+[[nodiscard]] auto gateRules(std::initializer_list<const char*> texts)
+    -> std::vector<sg::CompareRule>
+{
+  std::vector<sg::CompareRule> rules;
+  for (const char* const text : texts) {
+    auto parsed = sg::parseCompareRule(text);
+    if (!parsed.has_value()) {
+      failed(std::string("the parser refused the rule ") + text + ": "
+             + parsed.error());
+    }
+    rules.push_back(std::move(*parsed));
+  }
+  return rules;
+}
+
 // The byte at which one key of the document opens, refused when it stands
 // absent.
 [[nodiscard]] auto keyAt(std::string_view text,
@@ -684,6 +864,177 @@ auto theWrittenTreePassesTheSchemaWithTheKeyAfterHunt() -> void
           " benchmarks array, and the array closes the document");
 }
 
+// One row of the gate's answer, read through its six fields, with the row
+// printed for the reader of a failure.
+auto checkGateRow(const sg::CompareEntry& entry,
+                  const char* ruleText,
+                  const double wantBaseline,
+                  const double wantContender,
+                  const sg::CompareState wantState,
+                  const char* what) -> void
+{
+  const bool values = entry.baseline.has_value() && entry.contender.has_value()
+      && sameValue(*entry.baseline, wantBaseline)
+      && sameValue(*entry.contender, wantContender);
+  if (!values || entry.name != kGateBenchmark || entry.ruleText != ruleText
+      || entry.state != wantState)
+  {
+    std::printf("  row: name=%s rule=%s baseline=%g contender=%g state=%d\n",
+                entry.name.c_str(),
+                entry.ruleText.c_str(),
+                entry.baseline.value_or(0.0),
+                entry.contender.value_or(0.0),
+                static_cast<int>(entry.state));
+  }
+  check(values && entry.name == kGateBenchmark && entry.ruleText == ruleText
+            && entry.state == wantState,
+        what);
+}
+
+// The one line of the missing value, in the order the contract states: the
+// rule in quotes, the value name, the benchmark, and the report the rule
+// looked in (`contracts/topdown-rule.md`).
+[[nodiscard]] auto missingText(std::string_view ruleText,
+                               std::string_view value,
+                               std::string_view report) -> std::string
+{
+  return "the rule '" + std::string(ruleText) + "' finds no "
+      + std::string(value) + " for " + std::string(kGateBenchmark) + " in the "
+      + std::string(report) + " report";
+}
+
+// One fault of the gate: the comparison answers one line, and that line is the
+// text above, whole.
+auto checkGateFault(const sg::ReportData& baseline,
+                    const sg::ReportData& contender,
+                    const char* ruleText,
+                    const std::string& want,
+                    const char* what) -> void
+{
+  const auto answer = sg::compareReports(
+      baseline, contender, gateRules({ruleText}), sg::CompareOptions {});
+  if (answer.has_value()) {
+    std::printf("  the gate answered %zu rows and no fault\n",
+                answer->entries.size());
+    fail(what);
+    return;
+  }
+  if (answer.error() != want) {
+    std::printf("  answered: %s\n  expected: %s\n",
+                answer.error().c_str(),
+                want.c_str());
+  }
+  check(
+      answer.error() == want && answer.error().find('\n') == std::string::npos,
+      what);
+}
+
+// T056: the gate over two written trees. Each of the two rules SC-13 names
+// reads its own node's value in both reports, so the pair answers two rows, two
+// verdicts and four values, and no row reads the time column (FR-037, SC-13).
+auto theGateReadsOneNodeOfEachTree() -> void
+{
+  const auto baselineBytes = writeDocument(
+      kGateBaselineDocument,
+      gateEntry(gateRecord(kGateLevelOneBaseline, kGateLevelTwoBaseline)));
+  const auto contenderBytes = writeDocument(
+      kGateContenderDocument,
+      gateEntry(gateRecord(kGateLevelOneContender, kGateLevelTwoContender)));
+  check(sg::detail::checkReport(SG_SCHEMA_PATH, baselineBytes).has_value(),
+        "the baseline document of the gate pair passes the schema (FR-032)");
+  check(sg::detail::checkReport(SG_SCHEMA_PATH, contenderBytes).has_value(),
+        "the contender document of the gate pair passes the schema (FR-032)");
+
+  const auto [baseline, contender] =
+      gatePair(kGateBaselineDocument, kGateContenderDocument);
+  const auto answer =
+      sg::compareReports(baseline,
+                         contender,
+                         gateRules({kLevelOneRule, kLevelTwoRule}),
+                         sg::CompareOptions {});
+  if (!answer.has_value()) {
+    failed("the gate refused the two rules: " + answer.error());
+  }
+  if (answer->entries.size() != 2) {
+    failed("two rules over one benchmark answered "
+           + std::to_string(answer->entries.size()) + " rows");
+  }
+  checkGateRow(answer->entries[0],
+               kLevelOneRule,
+               kGateLevelOneBaseline,
+               kGateLevelOneContender,
+               sg::CompareState::REGRESSED,
+               "the level-1 rule reads backend_bound in both reports, and the"
+               " fall past its bound answers REGRESSED (FR-037, SC-13)");
+  checkGateRow(answer->entries[1],
+               kLevelTwoRule,
+               kGateLevelTwoBaseline,
+               kGateLevelTwoContender,
+               sg::CompareState::OK,
+               "the dotted rule reads the deeper node in both reports, and the"
+               " rise inside its bound answers OK (FR-037, SC-13)");
+  check(!answer->passed,
+        "the row that regressed moves the verdict of the pair (FR-037)");
+}
+
+// T056: the cases where a rule names no node to read. Each answers the one
+// line `contracts/topdown-rule.md` states; the compare mode prints it as its
+// one line at status 2, and `harness_compare_cli_test` drives that pair
+// (FR-030, FR-038, FR-039, FR-050, D-14). A node the merge left as a gap
+// stands in the tree and carries no value, so it reads here the way a node the
+// contender carries nowhere reads.
+auto aGateRuleWithNoNodeToReadAnswersOneLine() -> void
+{
+  const auto baselineBytes = writeDocument(
+      kGateBaselineDocument,
+      gateEntry(gateRecord(kGateLevelOneBaseline, kGateLevelTwoBaseline)));
+  static_cast<void>(writeDocument(
+      kGatePartialDocument,
+      gateEntry(gateTreeWithoutLevelOne(kGateLevelTwoContender))));
+  static_cast<void>(
+      writeDocument(kGateTreelessDocument, gateEntry(std::nullopt)));
+  static_cast<void>(writeDocument(
+      kGateGapDocument,
+      gateEntry(gateTreeWithLevelOneGapped(kGateLevelTwoBaseline))));
+  check(sg::detail::checkReport(SG_SCHEMA_PATH, baselineBytes).has_value(),
+        "the tree document of the three faults passes the schema (FR-032)");
+
+  const auto [tree, partial] =
+      gatePair(kGateBaselineDocument, kGatePartialDocument);
+  checkGateFault(tree,
+                 partial,
+                 kLevelOneRule,
+                 missingText(kLevelOneRule, kLevelOneValue, "contender"),
+                 "a node the contender lacks stops the comparison (FR-038)");
+
+  const auto [baseline, treeless] =
+      gatePair(kGateBaselineDocument, kGateTreelessDocument);
+  checkGateFault(baseline,
+                 treeless,
+                 kLevelOneRule,
+                 missingText(kLevelOneRule, kLevelOneValue, "contender"),
+                 "a contender with no topdown object stops the comparison"
+                 " (FR-039, D-14)");
+
+  const auto [plain, contender] =
+      gatePair(kGateTreelessDocument, kGateBaselineDocument);
+  checkGateFault(plain,
+                 contender,
+                 kLevelOneRule,
+                 missingText(kLevelOneRule, kLevelOneValue, "baseline"),
+                 "a baseline written without the option stops the comparison"
+                 " naming the baseline report (FR-035, FR-039)");
+
+  const auto [whole, gapped] =
+      gatePair(kGateBaselineDocument, kGateGapDocument);
+  checkGateFault(whole,
+                 gapped,
+                 kLevelOneRule,
+                 missingText(kLevelOneRule, kLevelOneValue, "contender"),
+                 "a node the merge left as a gap stops the comparison naming"
+                 " the contender report (FR-030, FR-038)");
+}
+
 // One scenario of the suite with the name the verdict line prints.
 struct Scenario
 {
@@ -729,6 +1080,9 @@ auto main() -> int
       {"aRunWithoutTheOptionWritesNoKey", aRunWithoutTheOptionWritesNoKey},
       {"theWrittenTreePassesTheSchemaWithTheKeyAfterHunt",
        theWrittenTreePassesTheSchemaWithTheKeyAfterHunt},
+      {"theGateReadsOneNodeOfEachTree", theGateReadsOneNodeOfEachTree},
+      {"aGateRuleWithNoNodeToReadAnswersOneLine",
+       aGateRuleWithNoNodeToReadAnswersOneLine},
   };
   std::size_t failedScenarios = 0;
   for (const auto& scenario : scenarios) {
