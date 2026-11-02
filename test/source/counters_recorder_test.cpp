@@ -488,6 +488,28 @@ auto registerEverything() -> void
   // measured action after the gap reads the third scripted count.
   provider->setGapActions("package-1/core-3", "cyc3", {3});
   provider->setGapActions("package-1/core-3", "ins3", {3});
+  // One pair whose numerator never moves, so a fold over two measured
+  // actions divides a zero delta by a real one and answers zero. Both leaves
+  // stay unmarked, so no route to the disclosure column is open here
+  // (specs/012 FR-002, FR-003).
+  provider->addCounter(
+      "package-1/core-3", "still_slots", "ops", "slots with no delta");
+  provider->addCounter(
+      "package-1/core-3", "moving_cycles", "ops", "cycles with a delta");
+  provider->setPoints("package-1/core-3", "still_slots", {500, 500, 500}, 0);
+  provider->setPoints("package-1/core-3", "moving_cycles", {100, 300, 600}, 0);
+  // One pair marked at action two on its denominator alone, so the refused
+  // leaf publishes no count there while its sibling publishes its own count
+  // at the same action (specs/012 FR-002, FR-007).
+  provider->addCounter(
+      "package-1/core-3", "kept_instr", "ops", "instructions, never marked");
+  provider->addCounter("package-1/core-3",
+                       "refused_cycles",
+                       "ops",
+                       "cycles, marked at action 2");
+  provider->setPoints("package-1/core-3", "kept_instr", {1000, 2600, 7000}, 0);
+  provider->setPoints("package-1/core-3", "refused_cycles", {100, 260, 700}, 0);
+  provider->setGapActions("package-1/core-3", "refused_cycles", {2});
   // One dedicated leaf pair per thread for the concurrency test, which
   // runs first and must not consume the scripts above.
   for (int scenario = 0; scenario < 8; ++scenario) {
@@ -584,6 +606,110 @@ auto testSampleOverheadCalibration() -> void
   check(again >= 0.0, "a second calibration read stays non-negative");
 }
 
+// A fold whose arithmetic answers zero over two measured end points answers a
+// value, and zero is that value. Every action of this window is measured, so
+// no route to the disclosure column is open: the mark belongs to an action
+// that measured nothing, which is what a fast read the page refuses
+// publishes (specs/012 FR-002, FR-003). The host that reads six leaves in one
+// pass reaches that mark and prints `not available` for two level-1 nodes.
+// This scenario pins the other side, where both counts stand and the quotient
+// is zero, so a later change cannot fold the two spellings together
+// (FR-001, FR-004, FR-006).
+auto testMeasuredZeroIsAValue() -> void
+{
+  const auto core = coreObject();
+  const auto slots = *core.counter<Events>("still_slots");
+  const auto cycles = *core.counter<Events>("moving_cycles");
+  const auto quotient = slots / cycles;
+  const auto compiled = compile(System::local(), quotient);
+  if (!compiled.has_value()) {
+    fail("the zero-answer plan compiles");
+  }
+  auto rec = compiled->recorder(4);
+  for (int action = 0; action < 2; ++action) {
+    rec.sample();
+  }
+  const auto folded = quotient.fold(rec.view());
+  check(folded.availability == sg::counters::Availability::COUNTABLE,
+        "a fold over two measured actions stays countable when its arithmetic "
+        "answers zero, because the disclosure names an action that measured "
+        "nothing and no action of this window is one (FR-001, FR-004)");
+  check(sameDouble(folded.value, 0.0),
+        "a fold whose numerator measured no delta answers zero as its own "
+        "value, and the countability value stands beside it (FR-006)");
+  const auto slotsView =
+      quotient.raw(rec.view(), "package-1/core-3", "still_slots");
+  const auto cyclesView =
+      quotient.raw(rec.view(), "package-1/core-3", "moving_cycles");
+  if (!slotsView.has_value() || !cyclesView.has_value()) {
+    fail("the zero-answer window exposes both retained columns (FR-020)");
+  }
+  check(slotsView->points[1] == slotsView->points[0]
+            && cyclesView->points[1] > cyclesView->points[0],
+        "the two counts the zero answer rests on both carry a count, so the "
+        "zero is the quotient of one zero delta and one measured delta "
+        "(FR-007)");
+  check(slotsView->availability == sg::counters::Availability::COUNTABLE
+            && cyclesView->availability
+                   == sg::counters::Availability::COUNTABLE,
+        "each leaf of the zero answer discloses the countability value its "
+        "entry publishes, which is the field that separates a measured zero "
+        "from a gap (FR-004, FR-005, SC-003)");
+}
+
+// A fold whose window touches a marked action answers no value, and the count
+// that vanished belongs to the leaf that was refused. The script marks the
+// denominator at action two and leaves its sibling measured there, so the
+// refused column holds a zero while the sibling's column holds its count at
+// the same action. The disclosure column is one per sampling action, so both
+// columns read that action's mark: the node refuses, and the leaf whose count
+// is missing is the one the reason has to name (specs/012 FR-002, FR-007).
+auto testRefusedLeafRefusesItsFold() -> void
+{
+  const auto core = coreObject();
+  const auto instr = *core.counter<Events>("kept_instr");
+  const auto cycles = *core.counter<Events>("refused_cycles");
+  const auto quotient = instr / cycles;
+  const auto compiled = compile(System::local(), quotient);
+  if (!compiled.has_value()) {
+    fail("the refused-leaf plan compiles");
+  }
+  auto rec = compiled->recorder(4);
+  for (int action = 0; action < 3; ++action) {
+    rec.sample();
+  }
+  const auto gap = sg::counters::Availability::GAP;
+  const auto endPointGap = quotient.fold(rec.view(), 0, 1);
+  check(endPointGap.availability == gap && sameDouble(endPointGap.value, 0.0),
+        "a fold whose end point is the marked action answers no value, so the "
+        "count the read never produced reaches no delta (FR-001, FR-006)");
+  const auto startPointGap = quotient.fold(rec.view(), 1, 2);
+  check(startPointGap.availability == gap,
+        "a fold whose start point is the marked action answers no value "
+        "(FR-001)");
+  const auto spanning = quotient.fold(rec.view(), 0, 2);
+  const auto instrView =
+      quotient.raw(rec.view(), "package-1/core-3", "kept_instr");
+  const auto cyclesView =
+      quotient.raw(rec.view(), "package-1/core-3", "refused_cycles");
+  if (!instrView.has_value() || !cyclesView.has_value()) {
+    fail("the refused-leaf window exposes both retained columns (FR-020)");
+  }
+  check(spanning.availability != gap,
+        "a window with the marked action strictly inside keeps two measured "
+        "end points and answers a value (FR-001)");
+  check(sameDouble(spanning.value,
+                   static_cast<double>(instrView->points[2] - instrView->points[0])
+                       / static_cast<double>(cyclesView->points[2]
+                                             - cyclesView->points[0])),
+        "the spanning fold reports only the delta its two measured end points "
+        "drove (FR-006)");
+  check(cyclesView->points[1] == 0 && instrView->points[1] != 0,
+        "the refused leaf publishes no count at the marked action while its "
+        "sibling publishes its own count there, so the refusal names the "
+        "refused leaf and no other (FR-002, FR-007)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -597,6 +723,8 @@ auto main() -> int
   testWrapThroughRecorder();
   testSelfMoveAssignment();
   testDisclosureColumn();
+  testMeasuredZeroIsAValue();
+  testRefusedLeafRefusesItsFold();
   testMixedProviderDisclosure();
   testSamplingActionProperties();
   testSampleOverheadCalibration();
