@@ -1143,6 +1143,46 @@ auto scenarioWorstCpuUpdate() -> void
   check(named, "the report prints the attribution line (FR-024, R-08)");
 }
 
+// specs/043 T070, FR-019, FR-020, D-7: the series form of the same line.
+// Three folds over one entry of a method run: the first carries the
+// smaller unit time, the second the larger, and the third carries no
+// series at all. The walk names the cpu of the largest unit time, skips
+// the fold with no series, and prints the kept count beside the noise
+// fraction.
+auto scenarioWorstCpuSeriesUpdate() -> void
+{
+  auto result = sg::BenchmarkResult {};
+  result.name = "bmWorstSeries";
+  sg::JitterSeriesStats small {};
+  small.sampleCount = 40;
+  small.maxValue = 100;
+  small.noisePercent = 1.5;
+  sg::JitterSeriesStats large {};
+  large.sampleCount = 60;
+  large.maxValue = 900;
+  large.noisePercent = 2.5;
+  result.jitterFolds.push_back(sg::JitterEntryFold {.cpu = 0, .series = small});
+  result.jitterFolds.push_back(sg::JitterEntryFold {.cpu = 1, .series = large});
+  result.jitterFolds.push_back(sg::JitterEntryFold {.cpu = 2});
+  const auto lines = captureThrough([&] { sg::detail::printResult(result); });
+  bool named = false;
+  for (const auto& line : lines) {
+    if (line.rfind("jitter: worst cpu ", 0) == 0) {
+      named = true;
+      check(line.find("worst cpu 1") != std::string::npos,
+            "the series line names the cpu of the largest unit time (FR-019)");
+      check(line.find("samples=60") != std::string::npos
+                && line.find("max=900") != std::string::npos
+                && line.find("noise=2.50") != std::string::npos,
+            "the series line carries the kept count, the largest unit time and "
+            "the noise fraction (FR-019, FR-020)");
+      check(line.find("gaps=") == std::string::npos,
+            "a method run prints no gap figures (FR-019, D-7)");
+    }
+  }
+  check(named, "the series run prints the attribution line (FR-019, R-08)");
+}
+
 // FR-023, PC-6: the probe block prints one column per probe cpu, so an
 // available probe whose states stand empty prints nothing the block
 // could carry.
@@ -1182,6 +1222,7 @@ auto main() -> int
       {"noFoldCrossesContexts", scenarioNoFoldCrossesContexts},
       {"twoPassContextBytesUntouched", scenarioTwoPassContextBytesUntouched},
       {"worstCpuUpdate", scenarioWorstCpuUpdate},
+      {"worstCpuSeriesUpdate", scenarioWorstCpuSeriesUpdate},
       {"jitterEmptyStates", scenarioJitterEmptyStates},
   };
   std::size_t failed = 0;
