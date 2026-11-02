@@ -141,7 +141,7 @@ and every story calls `topdownTree`.
   string (FR-017; red at `754867de`). This case lands in the commit of T020
   (FR-048).
 
-- [ ] T008 In `test/source/counters_metric_trees_test.cpp`, add
+- [x] T008 In `test/source/counters_metric_trees_test.cpp`, add
   `coreWideAnswersThroughThePublishedQuery`: both readings of `#core_wide` reach
   the caller through `coreWideCoverage()` over the fake root from
   `installTestProcRoot`, one answering `WHOLE_CORE` and one `ONE_THREAD`, on the
@@ -233,7 +233,7 @@ and every story calls `topdownTree`.
   case that reads it keeps its other three (FR-042, FR-043; turns
   `coreWideAnswersFromTheProcessCpuSet` of T005 green).
 
-- [ ] T017 In `include/speedgun-ng/counters_metrics.hpp`, publish
+- [x] T017 In `include/speedgun-ng/counters_metrics.hpp`, publish
   `coreWideCoverage()` beside `metricByName` at `:81` with the same
   `SPEEDGUN_NG_EXPORT` mark its neighbors carry: it answers
   `std::optional<CoreCoverage>`, over the `CoreCoverage` enumeration this header
