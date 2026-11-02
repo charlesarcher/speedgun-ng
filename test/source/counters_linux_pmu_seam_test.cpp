@@ -48,6 +48,7 @@
 
 #include "../source/counters/detail/pmu.hpp"
 #include "../source/counters/linux_pmu/embedded_tables.hpp"
+#include "../source/counters/linux_pmu/pmu_ident.hpp"
 #include "speedgun-ng/counters_clock.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_provider.hpp"
@@ -3946,6 +3947,54 @@ auto devicePageVerdictScenario() -> void
   matchesPage(PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, true);
 }
 
+// The ident decode is a pure function of the CPUID words, so every arm
+// stands over word sets no host has to provide: a leaf 0 that answers
+// with a vendor string, a leaf 0 that reads as absent, a leaf 1 that
+// answers, and a leaf 1 that does not.
+auto pmuIdentDecodeScenario() -> void
+{
+  using sg::counters::detail::CpuidWords;
+  using sg::counters::detail::pmuIdentFromWords;
+  {
+    CpuidWords words;
+    words.leaf0Eax = 1;
+    words.leaf0Ebx = 0x68747541U;  // "Auth"
+    words.leaf0Edx = 0x69746E65U;  // "enti"
+    words.leaf0Ecx = 0x444D4163U;  // "cAMD"
+    words.leaf1Answered = true;
+    words.leaf1Eax = (6U << 8) | (0x5U << 4) | 3U;  // family 6 model 5 step 3
+    const auto id = pmuIdentFromWords(words);
+    check(id.vendor == "AuthenticAMD",
+          "the vendor string carries leaf 0 EBX:EDX:ECX in that order");
+    check(id.family == 6, "the family takes EAX bits 11:8");
+    check(id.model == 0x5, "the model takes EAX bits 7:4");
+    check(id.stepping == 3, "the stepping takes EAX bits 3:0");
+  }
+  {
+    CpuidWords words;  // leaf 0 reads as absent: the vendor stays empty.
+    words.leaf1Answered = true;
+    words.leaf1Eax = (0xFU << 8) | (0x3U << 4);
+    const auto id = pmuIdentFromWords(words);
+    check(id.vendor.empty(),
+          "a leaf 0 that reads as zero leaves the vendor string empty");
+    check(id.family == 15, "the extended family adds EAX bits 19:16");
+    check(id.model == 0x3,
+          "the model takes EAX bits 7:4, extended bits stand beside it");
+  }
+  {
+    CpuidWords words;
+    words.leaf0Eax = 1;
+    words.leaf0Ebx = 0x444D412U;  // any words; leaf 1 answers nothing.
+    words.leaf0Edx = 0;
+    words.leaf0Ecx = 0;
+    const auto id = pmuIdentFromWords(words);
+    check(id.vendor.size() == 12,
+          "the vendor string is sized whenever leaf 0 answers");
+    check(id.family == -1 && id.model == -1 && id.stepping == -1,
+          "a leaf 1 that does not answer leaves the ident fields unset");
+  }
+}
+
 auto main() -> int
 {
   availabilityGateScenario();
@@ -3993,6 +4042,7 @@ auto main() -> int
   probeKindRecordScenario();
   contextOpenRefusalScenario();
   devicePageVerdictScenario();
+  pmuIdentDecodeScenario();
   std::printf("counters_linux_pmu_seam_test PASS: encoder and protocol\n");
   return 0;
 }
