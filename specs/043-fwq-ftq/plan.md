@@ -21,7 +21,7 @@ per field, one column per probe cpu. The JSON gains `method` and `series`
 under the standing root `jitter` object, and `loadReport` reads both
 back. The version moves to `0.29.0` (`CMakeLists.txt:45`), the harness
 `SOVERSION` moves from `19` to `20` (`CMakeLists.txt:375`), the archive
-`SOVERSION` stays `4` (`CMakeLists.txt:110`), and the report schema moves
+`SOVERSION` stays `5` (`CMakeLists.txt:110`), and the report schema moves
 from `1.11` to `1.12` (`source/harness/json_report.cpp:43`).
 
 ## Technical Context
@@ -184,7 +184,7 @@ include/speedgun-ng/benchmark.hpp         # + JitterMethod, the bounds, the
                                           #   PrecheckCpuRecord::series,
                                           #   ReportData::jitterRun
 CMakeLists.txt                            # + version 0.29.0; harness SOVERSION 20;
-                                          #   archive SOVERSION stays 4
+                                          #   archive SOVERSION stays 5
 source/harness/detail/jitter_probe.hpp    # + SeriesRecord, the series fields of
                                           #   ProbeCpuState, the two seriesStatsOf
 source/harness/detail/spectrum.hpp        # new: resampleUnitTimes, dftPeriods,
@@ -460,7 +460,7 @@ brace marks the parallel group.
   inside 10 to 100,000, `workCount` at 0 or inside 1 to 16,777,216,
   `noisePercent` inside 0 to 100. Test plan: the version rows
   of `harness_cli_table_test:1382-1393` move to `0.29.0`, `SOVERSION 20`
-  and `SOVERSION 4` (wave 1). Nothing else builds before M-A lands.
+  and `SOVERSION 5` (wave 1). Nothing else builds before M-A lands.
 - **M-B the value grammar** (`source/harness/jitter_probe.cpp`). Public
   surface: none beyond M-A. Contracts: the grammar, the ranges and the
   error surface of [contracts/cli-options.md](./contracts/cli-options.md).
@@ -725,7 +725,7 @@ struct SpectrumResult
 | `test/source/harness_json_load_test.cpp` | the read-back rows, the kind rows and the closed-item rows |
 | `test/source/harness_json_schema_test.cpp` | the stamped-minor row and the planted-disagreement rows, the shape at `:41-117`, `:158-189` |
 | `test/source/harness_jitter_probe_alloc_test.cpp` | two armed spans: the FWQ unit loop and the FTQ quantum loop, the shape at `:212-266` |
-| `test/source/harness_cli_table_test.cpp` | the version rows at `:1382-1393` move to `0.29.0`, `SOVERSION 20`, `SOVERSION 4` |
+| `test/source/harness_cli_table_test.cpp` | the version rows at `:1382-1393` move to `0.29.0`, `SOVERSION 20`, `SOVERSION 5` |
 | `tools/noise/fwq_ftq_acceptance.sh` | new: the eight sections of FR-027, a script and never a gate, the shape of `tools/noise/jitter_probe_acceptance.sh` |
 | `tools/docs/example_drift.py` | the new title in `SECTIONS` (`:33-68`), the owner row in `SECTION_OWNERS` (`:73-108`), the cap ledger comment (`:178-183`); both caps stay |
 | `specs/043-fwq-ftq/` | `plan.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`, `tasks.md`, `results/` |
@@ -768,7 +768,7 @@ series record of `JitterEntryFold` (`:645`), the series record of
 The version comment block names the four types. That is a public-ABI
 change, so the harness
 `SOVERSION` rises from `19` to `20` (`CMakeLists.txt:375`); the archive
-`SOVERSION` stays `4` (`CMakeLists.txt:110`), because no public counters
+`SOVERSION` stays `5`, the number specs/044 landed (`CMakeLists.txt:110`), because no public counters
 header moves. The schema minor moves to `1.12`
 (`source/harness/json_report.cpp:43`), because the series record, the
 method key, the series array and its nested period list join the closed
@@ -793,7 +793,7 @@ touches and the gate that closes it.
    `source/harness/jitter_probe.cpp`, `test/source/harness_jitter_cli_test.cpp`,
    `test/source/harness_cli_table_test.cpp`, `test/CMakeLists.txt`. The
    wave proves: the version rows read `0.29.0`, `SOVERSION 20` and
-   `SOVERSION 4`; the three method words stand accepted with the head
+   `SOVERSION 5`; the three method words stand accepted with the head
    first; a head token that carries `=` answers the standing cpu-token
    line; each of the 16 refusal rows prints one quoted line at status 2;
    the value-block rows stay green with no new row. Gate: `ctest` on
@@ -1012,7 +1012,7 @@ then the instrumented builds.
 | 7 | `cmake --build build` | exit 0, no warning line |
 | 8 | `ctest --test-dir build --output-on-failure` | `100% tests passed, 0 tests failed out of <N>`; each new entry prints `***Passed` |
 | 9 | `ctest --test-dir build -R 'harness_fwq_ftq_test\|harness_spectrum_test\|harness_jitter_bytes_test' --output-on-failure` | three `***Passed` lines, each binary prints its `ok` line |
-| 10 | `ctest --test-dir build -R 'harness_cli_table_test\|harness_json_schema_test\|harness_json_load_test\|harness_compare_test' --output-on-failure` | each `***Passed`; the version rows read `0.29.0`, `SOVERSION 20`, `SOVERSION 4` |
+| 10 | `ctest --test-dir build -R 'harness_cli_table_test\|harness_json_schema_test\|harness_json_load_test\|harness_compare_test' --output-on-failure` | each `***Passed`; the version rows read `0.29.0`, `SOVERSION 20`, `SOVERSION 5` |
 | 11 | `ctest --test-dir build -R 'example_drift\|snippet_compile\|example_run\|report_shape_fwq_ftq_sample\|report_shape_jitter_sample\|example_drift_fixtures\|example_run_fixtures\|report_shape_fixtures' --output-on-failure` | each `***Passed`; the fold prints no difference; the three fixture entries prove the scans inspect something |
 | 12 | `taskset -c 0,1 ctest --test-dir build --output-on-failure` | the same pass line; the two-cpu rows print the standing `SKIPPED` note at `harness_jitter_window_test.cpp:623-626` and `harness_precheck_test.cpp:443-445` |
 | 13 | `cmake --preset=ci-coverage` | exit 0 |

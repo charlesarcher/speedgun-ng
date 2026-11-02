@@ -54,8 +54,8 @@ the lane stands on. Nothing else builds before this phase closes.
   Verify: `cmake --build build --target harness_fwq_ftq_test` exits non-zero with the new rows failing to compile (red observed as a compile failure), and `ctest --test-dir build -R harness_fwq_ftq_test` reports the entry as `Not Run`
 - [x] T002 [P] [US4] Move the version rows in
   `test/source/harness_cli_table_test.cpp:1382-1393` from `0.28.0`,
-  `SOVERSION 19` and `SOVERSION 4` to `0.29.0`, `SOVERSION 20` and
-  `SOVERSION 4`, and keep the value-block rows green with no new row,
+  `SOVERSION 19` and `SOVERSION 5` to `0.29.0`, `SOVERSION 20` and
+  `SOVERSION 5`, and keep the value-block rows green with no new row,
   because the keys ride the standing value 260 (
   `source/harness/detail/options.hpp:87`) (FR-005, FR-034, SC-009).
   Verify: `ctest --test-dir build -R harness_cli_table_test --output-on-failure` exits non-zero (red observed)

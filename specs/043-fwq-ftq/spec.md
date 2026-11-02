@@ -39,7 +39,7 @@
   The move shifted three cites: the shape-fold block, the two
   `example_drift.py` caps, and the option-row count.
 - Version: master stands at `0.28.0` (`CMakeLists.txt:45`), harness
-  `SOVERSION 19` (`CMakeLists.txt:375`), archive `SOVERSION 4`
+  `SOVERSION 19` (`CMakeLists.txt:375`), archive `SOVERSION 5`
   (`CMakeLists.txt:110`). The lane takes the next free minor,
   `0.29.0`. N6-P plans `0.29.0` and N10 plans the next, and neither
   has merged, so the lane that merges first keeps the lowest free
@@ -49,8 +49,9 @@
   and the series record joins the public surface beside
   `JitterStats` (`include/speedgun-ng/benchmark.hpp:512`), so the
   exported layouts move: the harness `SOVERSION` rises from `19` to
-  `20` at rebase time. The archive `SOVERSION` stays `4`, because no
-  public counters header changes. The commit that moves the numbers
+  `20` at rebase time. The archive `SOVERSION` stays at the `5` that
+  specs/044 landed, because no public counters header changes in this
+  lane. The commit that moves the numbers
   records each check beside them, the way the `CMakeLists.txt`
   comments record the ABI list of each lane that moved one (FR-005,
   D-8).
@@ -470,7 +471,7 @@ requirements:
 - **D-8: the ABI and the schema move once (roadmap 10.6).** The
   method field joins the public options struct and the series record
   joins the public surface, so the harness `SOVERSION` rises from `19`
-  to `20`, the archive `SOVERSION` stays `4`, the version moves to
+  to `20`, the archive `SOVERSION` stays `5`, the version moves to
   `0.29.0`, and the schema minor moves to `1.12`. One commit carries
   the numbers and records each check beside them (FR-005, FR-006).
 - **D-9: the standing phases and the tracers stay (Q-5).** `mode=
@@ -655,7 +656,7 @@ checker passes it against `docs/schema/report-v1.json`, and
 5. **Given** the lane's build, **When** a reader checks
    `CMakeLists.txt` and the report, **Then** the version stands
    `0.29.0`, the harness `SOVERSION` stands `20`, the archive
-   `SOVERSION` stands `4`, and the commit that moved them names the
+   `SOVERSION` stands `5`, and the commit that moved them names the
    four layout moves.
 
 ---
@@ -842,7 +843,7 @@ periods.
   under the standing overlap refusal. The tracer of spec 036 SHALL run
   beside any method with no change.
 - **FR-005** (D-8): The version SHALL stand at `0.29.0` with the
-  harness `SOVERSION` at `20` and the archive `SOVERSION` at `4`, the
+  harness `SOVERSION` at `20` and the archive `SOVERSION` at `5`, the
   values free above master at branch time. A rebase SHALL take the next
   free value of each and record the check. The commit that moves the
   numbers SHALL record the version check, the ABI check and the schema
@@ -1207,7 +1208,7 @@ periods.
   the calibration figures and the detected periods, and the quickstart
   links every record.
 - **SC-009**: The version stands at `0.29.0`, the harness `SOVERSION`
-  at `20` and the archive `SOVERSION` at `4`, and the commit that moved
+  at `20` and the archive `SOVERSION` at `5`, and the commit that moved
   them records the version check, the ABI check with the four layout
   moves named, and the schema check.
 
