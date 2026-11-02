@@ -710,12 +710,13 @@ constexpr std::string_view kPlantedFileName {"pipeline.json"};
 constexpr std::string_view kPlantedFileHash {
     "9f2b1c4d7e6a5038b1c2d3e4f5061728a9b0c1d2e3f405162738495a6b7c8d9e"};
 
-// The two files one redirected call writes: the names carry this unit, the way
-// `harness_aggregates_only_test.cpp` names the one file it redirects. Running
-// the binary from the repository root leaves them there, and ctest runs it from
-// the build's test directory.
-constexpr const char* kOutPath = "harness_topdown_run_out.txt";
-constexpr const char* kErrPath = "harness_topdown_run_err.txt";
+// The two files one redirected call writes. Both names carry the
+// `harness_json_` head: `harness_topdown_report_test.cpp` writes its scratch
+// documents under that head, the ignore rules of the repository cover it, and
+// running this binary from the repository root leaves the tree clean. ctest
+// runs it from the build's test directory.
+constexpr const char* kOutPath = "harness_json_topdown_run_out.txt";
+constexpr const char* kErrPath = "harness_json_topdown_run_err.txt";
 
 [[nodiscard]] auto textOf(const char* const path) -> std::string
 {
