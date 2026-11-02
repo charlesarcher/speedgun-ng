@@ -507,6 +507,19 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
           break;
         }
       }
+    } else if (options->method == JitterMethod::FTQ) {
+      // FR-004, FR-015, R-07: the pre-check phase of a FTQ run records the
+      // count of whole units each quantum holds. Edge k stands at the
+      // phase's first stamp plus k quanta, the read compares against the
+      // next edge, and the phase ends at its span.
+      std::uint64_t edge = phaseStart + state->quantumNs;
+      std::uint64_t count = 0;
+      while (true) {
+        runFtqUnit(*state, readStamp, last, edge, count);
+        if (last - phaseStart >= span) {
+          break;
+        }
+      }
     } else {
       while (true) {
         const std::uint64_t stamp = readStamp();
