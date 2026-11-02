@@ -4,7 +4,7 @@
 
 **Prerequisites**: [spec.md](spec.md) (FR-001 to FR-058, SC-01 to SC-13, user
 stories US1 to US5, decisions D-1 to D-21, the audit point at `754867de`),
-[plan.md](plan.md), [research.md](research.md) (D-01 to D-21),
+[plan.md](plan.md), [research.md](research.md) (D-01 to D-16),
 [data-model.md](data-model.md) (E-01 to E-18, invariants I-1 to I-7),
 [quickstart.md](quickstart.md), [contracts/](contracts/) (five files)
 
