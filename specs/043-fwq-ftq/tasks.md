@@ -397,6 +397,13 @@ per-benchmark fold stands null where the windows keep no sample.
   (depends on T021)
   Verify: `ctest --test-dir build -R harness_fwq_ftq_test --output-on-failure` exits 0, and the fold rows of T019 turn green
 
+- [ ] T067 [US4] Add the ordering postcondition to both series folds of
+  `source/harness/jitter_probe.cpp:993` and `:1158`, the chain the gap
+  folds state at `:935` and `:1077`. `cmake/coverage.cmake:101` omits
+  contract lines from the trace, so the check costs no branch position
+  (FR-008, FR-020, contracts/public-api.md).
+  Verify: `cmake --build build` exits 0, and `ctest --test-dir build -R harness_fwq_ftq_test --output-on-failure` exits 0
+
 **Checkpoint**: the folds stand green: the run record reads the kept
 samples, the per-benchmark fold reads the windows, and no buffer
 copy joins.
@@ -523,15 +530,7 @@ equal for a `tsc` run.
   every standing console line standing byte-identical (FR-026, FR-031,
   SC-004, R-19).
   (depends on T028, T029, T030, T031)
-  Verify: `ctest --test-dir build -R harness_jitter_bytes_test --output-on-failure` exits 0, the byte-identity binary no other verify runs, and `ctest --test-dir build -R report_shape_jitter_sample --output-on-failure` exits 0 with the standing fold printing no difference
-
-**Checkpoint**: the record stands green: the item carries its 21 keys,
-the reader reads each kind, the schema pairs at `1.12`, the 32 names
-resolve, and the `tsc` bytes fold equal.
-
----
-
-## Phase 7: User Stories 1, 2 and 4 - the console block and the pre-check pair (Priority: P1) (module M-F, waves 4 and 5)
+  Verify:## Phase 7: User Stories 1, 2 and 4 - the console block and the pre-check pair (Priority: P1) (module M-F, waves 4 and 5)
 
 **Goal**: the console gains 30 series lines, one field per line and
 one column per probe cpu, the calibration lines print before the
@@ -606,6 +605,32 @@ the window, and the pre-check lines carry the method pair.
   `mode=alongside` keeps the `strict` meaning and fires no noise gate; a
   `noise=` value with no `strict`, and a `noise=` value with `method=tsc`,
   stand accepted and disclosed as unused (FR-021, D-9, R-15).
+  (depends on T034, T036, T037; the refusal rows of T034 turn green)
+  Verify: `taskset -c 0,1 ctest --test-dir build -R "harness_precheck_test|harness_jitter_window_test" --output-on-failure` exits 0
+
+- [ ] T065 [US4] Print the series figures in the per-benchmark jitter
+  block of `source/harness/report.cpp:657` when the method keeps a
+  series. A FWQ run places no gap today, so the block prints
+  `gaps=0 max=0 total=0.00` for every entry. The block names the series
+  figures in that case, and the gap line stands for a `tsc` run
+  (FR-019, FR-020, D-7).
+  Verify: `ctest --test-dir build -R "harness_jitter_cli_test|docs_jitter_probe" --output-on-failure` exits 0
+- [ ] T066 [US1] [US2] Snapshot the kept series count at the latch line
+  of `source/harness/jitter_probe.cpp`, and fold that prefix into the
+  pre-check record of a `mode=both` run in `source/harness/cli.cpp:1219-1233`.
+  The standing precondition bars a read of a live buffer. The prefix
+  stands stable once the phase ends at the latch, so the read is safe.
+  Add the row that names the pre-check series of a `mode=both` run
+  (FR-004, FR-020, E-27, R-04).
+  Verify: `ctest --test-dir build -R "harness_fwq_ftq_test|harness_jitter_window_test" --output-on-failure` exits 0
+
+**Checkpoint**: the console and the pre-check stand green under a
+two-cpu mask: the 30 lines print once per field, the calibration
+lines stand before the window, and the refusal stops at status 2.
+
+---
+
+d and disclosed as unused (FR-021, D-9, R-15).
   (depends on T034, T036, T037; the refusal rows of T034 turn green)
   Verify: `taskset -c 0,1 ctest --test-dir build -R "harness_precheck_test|harness_jitter_window_test" --output-on-failure` exits 0
 
