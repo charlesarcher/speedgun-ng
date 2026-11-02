@@ -33,6 +33,7 @@
 #include <sched.h>
 
 #include "detail/jitter_probe.hpp"
+#include "detail/spectrum.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_provider.hpp"
 
@@ -140,6 +141,9 @@ static_assert(
 // The call slots the scripted clock mirrors, one per probe thread.
 inline constexpr std::size_t kScriptSlots = 4;
 
+// The sine's full turn, the one constant the planted dip reads.
+inline constexpr double kTwoPi = 6.283185307179586;
+
 // The spin bound of the two waits: the reader's park inside its last
 // planned read, and the case's watch of the call counts. The bound turns
 // a clock that never reaches its plan into a reported failure, so no
@@ -169,6 +173,8 @@ struct ScriptPlan
   std::uint64_t dipPeriod = 0;
   std::uint64_t dipDelta = 0;
   std::uint64_t rampStep = 0;
+  std::uint64_t sinePeriod = 0;
+  std::int64_t sineAmplitude = 0;
   bool park = true;
 };
 
@@ -214,7 +220,14 @@ auto scriptedDelta(const std::uint64_t call) -> std::uint64_t
     return scriptPlan.dipDelta;
   }
   if (scriptPlan.rampStep != 0) {
-    return scriptPlan.rampStep * unit;
+    return scriptPlan.rampStep * (unit - 1);
+  }
+  if (scriptPlan.sinePeriod != 0) {
+    const auto phase = kTwoPi * static_cast<double>(unit)
+        / static_cast<double>(scriptPlan.sinePeriod);
+    return scriptPlan.windowStep
+        + static_cast<std::uint64_t>(
+               static_cast<double>(scriptPlan.sineAmplitude) * std::sin(phase));
   }
   return scriptPlan.windowStep;
 }
@@ -862,6 +875,324 @@ auto precheckModeRunsTheSelectedMethod() -> void
       });
 }
 
+// ============================================================================
+// T013: the fixed time quanta series (US2). Edge k stands at the window's
+// first stamp plus k times the quantum, the read compares against the
+// next edge, the pass stores the count at the edge, resets it and
+// advances the edge by one quantum, and a trailing open quantum records
+// no count (FR-009, FR-015, FR-016, FR-022, FR-025, SC-002, D-4, R-07,
+// R-08). The FTQ target stands at one thousandth of the quantum, so a
+// 100 us quantum calibrates a 100 ns unit and one quantum holds 1,000
+// units.
+// ============================================================================
+
+// The unit delta of a scripted FTQ window: 100 ns, so a 100 us quantum
+// holds 1,000 units and the FTQ target of 100 ns stands calibrated by
+// one trial (FR-010, FR-015).
+inline constexpr std::uint64_t kFtqUnitDelta = 100;
+inline constexpr std::uint64_t kFtqQuantumUs = 100;
+inline constexpr std::uint64_t kFtqUnitsPerQuantum = 1000;
+
+// The FTQ layout the row scripts: the calibration prefix of 2 reads at
+// the quantum's target, the in-pass step, the delta of one unit, and the
+// unit count behind the latch read (FR-010, FR-015, R-07).
+auto ftqPlan(const std::uint64_t quantumUs,
+             const std::uint64_t units,
+             const std::uint64_t windowStep) -> void
+{
+  calibrationPlan(2, {quantumUs}, units);
+  scriptPlan.passStep = 1;
+  scriptPlan.windowStep = windowStep;
+}
+
+// The FTQ noise fraction of the kept counts: the sample count times the
+// maximum count, minus the sum of the counts, over the sample count
+// times the maximum count, times 100; a maximum count of 0 answers 100
+// (FR-009, R-3).
+auto ftqNoisePercent(const sg::detail::ProbeCpuState& state) -> double
+{
+  const auto sorted = seriesSorted(state);
+  const auto maximum = sorted.empty() ? std::uint64_t {0} : sorted.back();
+  if (maximum == 0) {
+    return 100.0;
+  }
+  const auto span =
+      static_cast<double>(sorted.size()) * static_cast<double>(maximum);
+  return (span - static_cast<double>(seriesSum(state))) * 100.0 / span;
+}
+
+// FR-009, FR-015, FR-016, SC-002: 100 quanta at a 100 us quantum keep
+// 100 equal counts, stand 101,027 reads, and answer equal figures.
+auto ftqCleanCountsAnswerEqualFigures() -> void
+{
+  ftqPlan(kFtqQuantumUs, kFtqUnitsPerQuantum * 100, kFtqUnitDelta);
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FTQ;
+  options.quantumUs = kFtqQuantumUs;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(scriptCalls[0].load() == 2 + kScriptPassReads + kScriptLatchRead
+                  + kFtqUnitsPerQuantum * 100,
+              "the 100-quanta case at a 100 us quantum stands 101,027 reads "
+              "(FR-015, R-08)");
+        check(probed.seriesKept == 100,
+              "the 100-quanta case keeps 100 counts (FR-015, FR-016)");
+        check(probed.droppedSamples == 0,
+              "the buffer never filled (FR-014, FR-022)");
+        const auto sorted = seriesSorted(probed);
+        check(sorted.front() == kFtqUnitsPerQuantum
+                  && sorted.back() == kFtqUnitsPerQuantum,
+              "the minimum and the maximum of a clean run stand equal "
+              "(SC-002)");
+        check(seriesRank(sorted, 50.0) == kFtqUnitsPerQuantum,
+              "the median stands with them (FR-008, SC-002)");
+        check(probed.quantumNs == 100000,
+              "the quantum of 100 us reads 100,000 ns (FR-015, E-22)");
+      });
+}
+
+// FR-009, FR-015: 1,000 quanta with one quantum at half the best count
+// keep 1,000 counts and move the minimum.
+auto ftqOneLowCountMovesTheMinimum() -> void
+{
+  ftqPlan(kFtqQuantumUs, kFtqUnitsPerQuantum * 1000, kFtqUnitDelta);
+  scriptPlan.slowUnit = 1;
+  scriptPlan.slowDelta = 50100;
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FTQ;
+  options.quantumUs = kFtqQuantumUs;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(scriptCalls[0].load()
+                  == 2 + kScriptPassReads + kScriptLatchRead
+                      + kFtqUnitsPerQuantum * 1000,
+              "the 1,000-quanta case reads one stamp per unit (FR-015, R-08)");
+        check(probed.seriesKept == 1000,
+              "the 1,000-quanta case keeps 1,000 counts (FR-015, FR-016)");
+        const auto sorted = seriesSorted(probed);
+        check(sorted.front() == kFtqUnitsPerQuantum / 2,
+              "the minimum names the low quantum at half the best count "
+              "(FR-009, FR-015)");
+        check(sorted.back() == kFtqUnitsPerQuantum
+                  && seriesRank(sorted, 50.0) == kFtqUnitsPerQuantum,
+              "the maximum and the median stand at the best count (FR-016)");
+      });
+}
+
+// FR-009: the noise fraction of that series reads 0.05 percent: the
+// sample count times the maximum count, minus the sum of the counts.
+auto ftqNoiseFractionOfALowQuantum() -> void
+{
+  ftqPlan(kFtqQuantumUs, kFtqUnitsPerQuantum * 1000, kFtqUnitDelta);
+  scriptPlan.slowUnit = 1;
+  scriptPlan.slowDelta = 50100;
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FTQ;
+  options.quantumUs = kFtqQuantumUs;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(probed.seriesKept == 1000,
+              "the fraction reads the kept counts (FR-022)");
+        check(std::fabs(ftqNoisePercent(probed) - 0.05) <= 0.001,
+              "the noise fraction of one low quantum reads 0.05 percent "
+              "(FR-009, R-3)");
+      });
+}
+
+// FR-009: a window shorter than one quantum keeps no count, the maximum
+// count stands 0, and the fraction answers 100.
+auto ftqZeroMaximumAnswersOneHundred() -> void
+{
+  ftqPlan(kFtqQuantumUs, kFtqUnitsPerQuantum / 2, kFtqUnitDelta);
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FTQ;
+  options.quantumUs = kFtqQuantumUs;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(scriptCalls[0].load()
+                  == 2 + kScriptPassReads + kScriptLatchRead
+                      + kFtqUnitsPerQuantum / 2,
+              "the half-quantum window reads its units and stops (FR-015)");
+        check(probed.seriesKept == 0,
+              "an open quantum records no count (FR-015, FR-016)");
+        check(std::fabs(ftqNoisePercent(probed) - 100.0) <= 1e-9,
+              "a maximum count of 0 answers 100 (FR-009)");
+      });
+}
+
+// FR-015, R-04, R-07: edge k stands at the window's first stamp plus k
+// times the quantum. The prefix reads a stamp 5 ms apart, so the window
+// opens at a stamp no absolute quantum edge names, and the counts stand
+// equal.
+auto ftqEdgesStandFromTheFirstStamp() -> void
+{
+  ftqPlan(kFtqQuantumUs, kFtqUnitsPerQuantum * 100, kFtqUnitDelta);
+  scriptPlan.prefixDeltas = {5000000, 5000000};
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FTQ;
+  options.quantumUs = kFtqQuantumUs;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(probed.calibrationSpanNs == 5000000,
+              "the window opens 10,001,124 ns into the scripted clock "
+              "(FR-011, FR-015)");
+        check(probed.seriesKept == 100,
+              "the shifted window keeps its 100 counts (FR-015)");
+        const auto sorted = seriesSorted(probed);
+        check(sorted.front() == kFtqUnitsPerQuantum
+                  && sorted.back() == kFtqUnitsPerQuantum,
+              "the edges of the window's first stamp hold 1,000 units each "
+              "(FR-015, R-07)");
+      });
+}
+
+// FR-015: a trailing open quantum records no count.
+auto ftqTrailingOpenQuantumRecordsNothing() -> void
+{
+  ftqPlan(kFtqQuantumUs, kFtqUnitsPerQuantum * 100 + 500, kFtqUnitDelta);
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FTQ;
+  options.quantumUs = kFtqQuantumUs;
+  runScripted(options,
+              1,
+              [](const auto& states)
+              {
+                const auto& probed = states.at(0);
+                check(scriptCalls[0].load()
+                          == 2 + kScriptPassReads + kScriptLatchRead
+                              + kFtqUnitsPerQuantum * 100 + 500,
+                      "the row reads its 500 units behind the 100th edge "
+                      "(FR-015)");
+                check(probed.seriesKept == 100,
+                      "the trailing open quantum records no count (FR-015)");
+                check(probed.series.at(99) == kFtqUnitsPerQuantum,
+              "the last kept count stands at the last closed quantum "
+              "(FR-015)");
+              });
+}
+
+// FR-014, FR-016, FR-022: a full count buffer keeps its first two
+// counts and counts each lost record.
+auto ftqBufferFullCountsDrops() -> void
+{
+  ftqPlan(kFtqQuantumUs, kFtqUnitsPerQuantum * 100, kFtqUnitDelta);
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FTQ;
+  options.quantumUs = kFtqQuantumUs;
+  options.gapCount = 2;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(probed.seriesKept == 2,
+              "the gaps=2 buffer keeps 2 counts (FR-014, FR-016)");
+        check(probed.droppedSamples == 98,
+              "the full count buffer counts each lost record (FR-014, FR-022)");
+        check(probed.series.at(0) == kFtqUnitsPerQuantum
+                  && probed.series.at(1) == kFtqUnitsPerQuantum,
+              "the kept counts answer the scripted quantum (FR-015)");
+      });
+}
+
+// FR-010, FR-011, E-22: a 10 us quantum sets a 10 ns target, one
+// thousandth of the quantum, and the search calibrates it on its own cpu.
+auto ftqQuantumOfTenNanosecondsTarget() -> void
+{
+  ftqPlan(10, 5 * kFtqUnitsPerQuantum, 10);
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FTQ;
+  options.quantumUs = 10;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(scriptCalls[0].load()
+                  == 2 + kScriptPassReads + kScriptLatchRead
+                      + 5 * kFtqUnitsPerQuantum,
+              "the row reads 6,027 stamps over 5 quanta (FR-015, R-08)");
+        check(probed.targetNs == 10,
+              "a 10 us quantum sets a 10 ns target (FR-010, E-22)");
+        check(probed.quantumNs == 10000,
+              "the quantum of 10 us reads 10,000 ns (FR-015, E-22)");
+        check(probed.workCount == 1 && probed.unitTimeNs == 10,
+              "the search keeps the count that answers the target (FR-010)");
+        check(probed.seriesKept == 5,
+              "the 10 us quantum holds 1,000 units of 10 ns (FR-015)");
+        check(probed.series.at(0) == kFtqUnitsPerQuantum,
+              "the count of the 10 us quantum reads 1,000 (FR-016)");
+      });
+}
+
+// FR-018, FR-025, SC-002: a dip every 1 ms over 1,000 samples at a 100
+// us quantum lands the transform's strongest period inside 990,000 to
+// 1,010,000 ns, the one-bin tolerance of R-7.
+auto ftqDipEveryMillisecondNamesThePeriod() -> void
+{
+  ftqPlan(kFtqQuantumUs, kFtqUnitsPerQuantum * 1000, kFtqUnitDelta);
+  scriptPlan.sinePeriod = kFtqUnitsPerQuantum * 10;
+  scriptPlan.sineAmplitude = 20;
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FTQ;
+  options.quantumUs = kFtqQuantumUs;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(probed.seriesKept == 1000,
+              "the dip row keeps its 1,000 counts (FR-015, FR-016)");
+        check(probed.series.at(2) < probed.series.at(7)
+                  && probed.series.at(2) == probed.series.at(12),
+              "the dip lands once every 10 quanta of the series (FR-025)");
+        std::vector<double> samples;
+        samples.reserve(probed.seriesKept);
+        for (std::size_t index = 0; index < probed.seriesKept; ++index) {
+          samples.push_back(static_cast<double>(probed.series.at(index)));
+        }
+        const auto spectrum = sg::detail::dftPeriods(samples, 100000);
+        check(!spectrum.periods.empty(),
+              "the planted dip reaches the period list (FR-018)");
+        check(spectrum.periods.front().periodNs >= 990000
+                  && spectrum.periods.front().periodNs <= 1010000,
+              "the planted 1 ms period lands inside 990,000 to 1,010,000 ns "
+              "(FR-018, SC-002, R-7)");
+      });
+}
+
 }  // namespace
 
 auto main() -> int
@@ -928,6 +1259,18 @@ auto main() -> int
   oneSampleSeriesReadsThatSample();
   fwqResampleReachesThePeriodList();
   precheckModeRunsTheSelectedMethod();
+
+  // T013: the FTQ rows (US2, FR-009, FR-015, FR-016, FR-022, FR-025,
+  // SC-002, D-4, R-07, R-08).
+  ftqCleanCountsAnswerEqualFigures();
+  ftqOneLowCountMovesTheMinimum();
+  ftqNoiseFractionOfALowQuantum();
+  ftqZeroMaximumAnswersOneHundred();
+  ftqEdgesStandFromTheFirstStamp();
+  ftqTrailingOpenQuantumRecordsNothing();
+  ftqBufferFullCountsDrops();
+  ftqQuantumOfTenNanosecondsTarget();
+  ftqDipEveryMillisecondNamesThePeriod();
 
   std::puts("harness_fwq_ftq_test: ok");
   return 0;
