@@ -311,10 +311,11 @@ Measured on this machine on 2026-11-01 before any file changed.
   `ctest` at the base hash, before this feature, and that 300 seconds is the
   default its registration leaves in force
   (`test/CMakeLists.txt:729-738`, `:2123-2128`). It does not hang. Two loops
-  of one thousand in-process entry-point calls (`test/source/harness_cli_test.cpp:1277-1289`)
-  each cost 1.7 to 1.9 seconds, because every call builds a fresh PMU provider
-  and re-probes the host: one provider build issues 49,330 event opens, 995 of
-  them granted. About 2,040 calls then need about 59 minutes. The cause sits at
+  of one thousand in-process entry-point calls, 2,002 with the two that stand
+  before them (`test/source/harness_cli_test.cpp:1266-1290`), each cost 1.7 to
+  1.9 seconds, because every call builds a fresh PMU provider and re-probes the
+  host: one provider build issues 49,330 event opens, 995 of them granted.
+  Those 2,002 calls then need about 59 minutes. The cause sits at
   `source/harness/cli.cpp:579`: the entry point constructs a `PmuProvider` on
   every call, and the open system refuses it after its first call
   (`source/counters/system.cpp:218`), so each call pays 1.35 to 1.72 seconds of
