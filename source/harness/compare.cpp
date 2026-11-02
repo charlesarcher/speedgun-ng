@@ -236,59 +236,120 @@ auto readThreshold(std::string_view field, CompareRule& rule) -> bool
 // The prefix the jitter value names carry (specs/027 FR-030).
 constexpr std::string_view kJitterPrefix = "jitter:";
 
-// One field of the sixteen `JitterStats` carries, with the reader that
-// answers its value.
+// One field of the jitter table carries, with the reader that answers
+// its value.
 struct JitterField
 {
   std::string_view name;
-  double (*value)(const JitterStats&);
+  double (*value)(const JitterEntryFold&);
 };
 
-// The sixteen field names of `JitterStats` in the E-03 order, each with
-// the reader that answers its value: the one table the name lookup and
-// the value read share, so a field name outside the sixteen reads
+// The series a fold carries, an empty series standing for a fold that
+// carries none: a run whose method kept no series, a `TSC` run included,
+// reads 0 for every series field, the reading of a run that kept no
+// samples (specs/043 FR-021, FR-032).
+auto seriesOf(const JitterEntryFold& fold) -> const JitterSeriesStats&
+{
+  static constexpr JitterSeriesStats kKeptNothing {};
+  return fold.series.has_value() ? *fold.series : kKeptNothing;
+}
+
+// The 32 field names the jitter rules read: the sixteen of `JitterStats`
+// in the E-03 order, then the sixteen the series fold carries in the
+// E-22 order (specs/043 FR-021, R-18). The one table the name lookup and
+// the value read share is what makes a field name outside the 32 read
 // nowhere (specs/027 FR-002, E-03, FR-030).
-constexpr std::array<JitterField, 16> kJitterFields {{
+constexpr std::array<JitterField, 32> kJitterFields {{
     {"gapCount",
-     [](const JitterStats& stats)
-     { return static_cast<double>(stats.gapCount); }},
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(fold.stats.gapCount); }},
     {"gapsPerSecond",
-     [](const JitterStats& stats) { return stats.gapsPerSecond; }},
+     [](const JitterEntryFold& fold) { return fold.stats.gapsPerSecond; }},
     {"minNs",
-     [](const JitterStats& stats) { return static_cast<double>(stats.minNs); }},
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(fold.stats.minNs); }},
     {"medianNs",
-     [](const JitterStats& stats)
-     { return static_cast<double>(stats.medianNs); }},
-    {"meanNs", [](const JitterStats& stats) { return stats.meanNs; }},
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(fold.stats.medianNs); }},
+    {"meanNs", [](const JitterEntryFold& fold) { return fold.stats.meanNs; }},
     {"p90Ns",
-     [](const JitterStats& stats) { return static_cast<double>(stats.p90Ns); }},
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(fold.stats.p90Ns); }},
     {"p99Ns",
-     [](const JitterStats& stats) { return static_cast<double>(stats.p99Ns); }},
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(fold.stats.p99Ns); }},
     {"p999Ns",
-     [](const JitterStats& stats)
-     { return static_cast<double>(stats.p999Ns); }},
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(fold.stats.p999Ns); }},
     {"p9999Ns",
-     [](const JitterStats& stats)
-     { return static_cast<double>(stats.p9999Ns); }},
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(fold.stats.p9999Ns); }},
     {"maxNs",
-     [](const JitterStats& stats) { return static_cast<double>(stats.maxNs); }},
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(fold.stats.maxNs); }},
     {"totalNs",
-     [](const JitterStats& stats)
-     { return static_cast<double>(stats.totalNs); }},
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(fold.stats.totalNs); }},
     {"totalPercent",
-     [](const JitterStats& stats) { return stats.totalPercent; }},
+     [](const JitterEntryFold& fold) { return fold.stats.totalPercent; }},
     {"runtimeNs",
-     [](const JitterStats& stats)
-     { return static_cast<double>(stats.runtimeNs); }},
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(fold.stats.runtimeNs); }},
     {"thresholdNs",
-     [](const JitterStats& stats)
-     { return static_cast<double>(stats.thresholdNs); }},
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(fold.stats.thresholdNs); }},
     {"loopPeriodNs",
-     [](const JitterStats& stats)
-     { return static_cast<double>(stats.loopPeriodNs); }},
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(fold.stats.loopPeriodNs); }},
     {"droppedGaps",
-     [](const JitterStats& stats)
-     { return static_cast<double>(stats.droppedGaps); }},
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(fold.stats.droppedGaps); }},
+    {"sampleCount",
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(seriesOf(fold).sampleCount); }},
+    {"minValue",
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(seriesOf(fold).minValue); }},
+    {"medianValue",
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(seriesOf(fold).medianValue); }},
+    {"meanValue",
+     [](const JitterEntryFold& fold) { return seriesOf(fold).meanValue; }},
+    {"p90Value",
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(seriesOf(fold).p90Value); }},
+    {"p99Value",
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(seriesOf(fold).p99Value); }},
+    {"p999Value",
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(seriesOf(fold).p999Value); }},
+    {"p9999Value",
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(seriesOf(fold).p9999Value); }},
+    {"maxValue",
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(seriesOf(fold).maxValue); }},
+    {"noisePercent",
+     [](const JitterEntryFold& fold) { return seriesOf(fold).noisePercent; }},
+    {"seriesRuntimeNs",
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(seriesOf(fold).seriesRuntimeNs); }},
+    {"droppedSamples",
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(seriesOf(fold).droppedSamples); }},
+    {"unitTimeNs",
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(seriesOf(fold).unitTimeNs); }},
+    {"quantumNs",
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(seriesOf(fold).quantumNs); }},
+    {"resampleStepNs",
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(seriesOf(fold).resampleStepNs); }},
+    {"spectrumPoints",
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(seriesOf(fold).spectrumPoints); }},
 }};
 
 // The parts of one jitter value name, the grammar
@@ -307,9 +368,9 @@ struct JitterNameParts
 // Read the parts of one jitter value name and the length the name ends
 // at, where `name` is the text after the `jitter:` prefix: the optional
 // `run:` scope, the cpu (the word `any` or a decimal index), and one of
-// the sixteen field names (specs/027 FR-030, FR-031). The parse of the
-// value name and the comparison's own read share this one reader, so
-// the grammar stands in one place (FR-033, R-12).
+// the 32 field names (specs/027 FR-030, FR-031, specs/043 FR-021). The
+// parse of the value name and the comparison's own read share this one
+// reader, so the grammar stands in one place (FR-033, R-12).
 auto readJitterName(std::string_view name)
     -> std::expected<std::pair<JitterNameParts, std::size_t>, std::string>
 {
@@ -365,7 +426,8 @@ auto readJitterName(std::string_view name)
                                   { return candidate.name == fieldToken; });
   if (field == kJitterFields.end()) {
     return std::unexpected("'" + std::string(fieldToken)
-                           + "' names none of the sixteen jitter fields");
+                           + "' names none of the thirty-two jitter "
+                             "fields");
   }
   parts.field = static_cast<std::size_t>(field - kJitterFields.begin());
   return {std::pair {parts, name.size() - rest.size() + fieldEnd}};
@@ -1474,7 +1536,7 @@ auto jitterValueOf(const std::optional<std::vector<JitterEntryFold>>& runStats,
           + " and the jitter stats of " + std::string(name) + " in the "
           + std::string(reportLabel) + " report do not carry it");
     }
-    return kJitterFields.at(parts.field).value(found->stats);
+    return kJitterFields.at(parts.field).value(*found);
   }
   if (stats.empty()) {
     return std::unexpected(
@@ -1483,10 +1545,10 @@ auto jitterValueOf(const std::optional<std::vector<JitterEntryFold>>& runStats,
         + std::string(reportLabel) + " report carry no probe cpu");
   }
   // FR-030, D-11: the worst cpu is the one carrying the largest value,
-  // every field of `JitterStats` alike, so the maximum is uniform.
+  // every field of the table alike, so the maximum is uniform.
   double worst = 0.0;
   for (const auto& fold : stats) {
-    worst = std::max(worst, kJitterFields.at(parts.field).value(fold.stats));
+    worst = std::max(worst, kJitterFields.at(parts.field).value(fold));
   }
   return worst;
 }

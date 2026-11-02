@@ -16,24 +16,43 @@ jitter:run:any:<field>:<direction>:<mode>=<bound>
 | Part | Meaning | Requirement |
 | --- | --- | --- |
 | `<cpu>` | a probe cpu index the report's `jitter` object names | FR-030, FR-026 |
-| `any` | the worst cpu for that field: the probe cpu carrying the largest value; the rule is a uniform maximum over every field of `JitterStats` alike, the configuration and span fields included, so a rule naming one of them reads the largest value the report carries for it | FR-030, D-11 |
-| `<field>` | one of the sixteen field names of `JitterStats`, in camelCase | FR-030, FR-002 |
+| `any` | the worst cpu for that field: the probe cpu carrying the largest value; the rule is a uniform maximum over every field of the table alike, the configuration and span fields included, so a rule naming one of them reads the largest value the report carries for it | FR-030, D-11 |
+| `<field>` | one of the 32 field names the jitter table carries: the sixteen of `JitterStats`, then the sixteen of the series fold, in camelCase | FR-030, FR-002, specs/043 FR-021 |
 | `<direction>:<mode>=<bound>` | the standing comparison suffix the N5 rule grammar carries | FR-033, D-11 |
 
 The example D-11 states the whole shape in one rule:
 `--compare-rule=jitter:any:p99Ns:lower:abs=5000`.
 
-The field names are exactly the sixteen field names data-model.md E-03
-carries, in camelCase as that table names them. A field name outside
-the sixteen is the parser's usage error, one line and exit status 2
-(FR-038).
+The field names are exactly the names the two tables carry, in
+camelCase as those tables name them: the sixteen of data-model.md E-03,
+then the sixteen specs/043 adds for the series fold (E-22), listed
+below. A field name outside the 32 is the parser's usage error, one
+line and exit status 2, and the line reads `names none of the
+thirty-two jitter fields` (FR-038, specs/043 FR-021).
+
+| Series field name | Value the rule reads | Requirement |
+| --- | --- | --- |
+| `sampleCount` | the samples the series fold kept | specs/043 FR-021 |
+| `minValue`, `medianValue`, `meanValue` | the spread of the kept unit times | specs/043 FR-021 |
+| `p90Value`, `p99Value`, `p999Value`, `p9999Value` | the kept series percentiles | specs/043 FR-021 |
+| `maxValue` | the largest kept unit time | specs/043 FR-021 |
+| `noisePercent` | the noise percent the fold reports | specs/043 FR-021 |
+| `seriesRuntimeNs` | the span the kept samples cover | specs/043 FR-021 |
+| `droppedSamples` | the samples the buffer dropped | specs/043 FR-021 |
+| `unitTimeNs` | the unit time the method measures | specs/043 FR-021 |
+| `quantumNs` | the FTQ quantum, 0 for a FWQ run | specs/043 FR-021 |
+| `resampleStepNs` | the FWQ resample step, 0 for a FTQ run | specs/043 FR-021 |
+| `spectrumPoints` | the DFT bins the transform answered | specs/043 FR-021 |
+
+A fold that carries no series, the fold of a `TSC` run included, reads
+0 for every series field (specs/043 FR-021, FR-032).
 
 ## Prefix semantics
 
 | Prefix | Values the rule reads | Requirement |
 | --- | --- | --- |
-| bare `jitter:` | the per-benchmark stats of the entry the rule names, the default | FR-031, D-11 |
-| `jitter:run:` | the whole-run stats of the run-level `jitter` object | FR-031, D-11 |
+| bare `jitter:` | the per-benchmark stats of the entry the rule names, the default, and the entry's series where the entry carries one | FR-031, D-11, specs/043 FR-021 |
+| `jitter:run:` | the whole-run stats of the run-level `jitter` object, and its series | FR-031, D-11, specs/043 FR-021 |
 
 `any` selects the worst cpu for that field over the values the prefix
 names (FR-030). A named `<cpu>` that the report's `jitter` object does
@@ -67,3 +86,8 @@ line and exit status 2 (FR-032, FR-038).
   SC-004).
 - `test/source/harness_jitter_window_test.cpp` carries the probe report
   the comparison reads; the comparison tests ride the merged N5 surface (FR-033).
+- The series rule names: the 16 names resolve in the four heads, the
+  fault names the grown table, the run-scoped name reads the run
+  record's series while the bare name reads the entry's, and the `any`
+  reading answers the largest count of the probe cpus (specs/043
+  FR-021, FR-030, FR-031, D-11).
