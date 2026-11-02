@@ -281,6 +281,15 @@ four tables at `:1024`, `:1119`, `:1954` and `:1977`; `kContract` moves 42 to
 field holding the bare seed: the row carries six fields
 (`options.hpp:133-140`).
 
+**Prefix collision, measured**: the scan computes the candidates of a typed
+name from the row table itself, so a unique prefix answers the unknown-option
+line and a prefix that reaches two or more rows answers the ambiguous line
+with the candidates in table order. The new row moved `--to` and `--top` into
+the ambiguous set and gave `--t` a third candidate, and `--topo` stays unknown
+because only `topology` starts with it. No abbreviation resolved to
+`--topology` before the row stood, so no working spelling was lost.
+`test/source/harness_cli_sources_test.cpp` pins all four answers.
+
 ## D-11 - Tree nodes ride the one column vector, then leave it
 
 **Decision**: After the `--metric` loop
