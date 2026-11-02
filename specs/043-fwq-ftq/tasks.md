@@ -805,7 +805,11 @@ every record, and the standing contracts carry the deltas.
   exits 139. The FTQ path binds a named local and stands. Add the row
   that reads the FWQ spectrum figures of a series above the transform cap,
   and clear the path under the sanitizer preset (FR-018, FR-033,
-  constitution VIII).
+  constitution VIII). `ASAN_OPTIONS=detect_leaks=0` on
+  `build/sanitize/test/harness_jitter_window_test` reads
+  `heap-use-after-free`, a read of 8 bytes at `spectrum.cpp:139`
+  through `addSpectrumTo` at `jitter_probe.cpp:1292`, the region freed
+  by the vector's deallocate, so the standing row names it today.
   Verify: `cmake --build build/sanitize --target harness_fwq_ftq_test` exits 0, `ASAN_OPTIONS=detect_leaks=0 ./build/sanitize/test/harness_fwq_ftq_test` exits 0 with no `AddressSanitizer` line, and `./build/example/benchmark_example --filter=bmTouch --min-time=1 --repetitions=1 --jitter-probe=0,method=fwq,mode=precheck,precheck=2400,gaps=10485760` exits 0
 - [ ] T072 [P0] Read the whole body run in `calibrationTrial`
   (`source/harness/jitter_probe.cpp:229`). The line returns
