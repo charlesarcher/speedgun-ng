@@ -2300,9 +2300,22 @@ auto main() -> int
     {
       const std::string path = "harness_jitter_window_series_roundtrip.json";
       auto arguments = quick;
+      // The entry's fold reads the samples the probe kept inside that
+      // entry's own windows, so the entry stands long enough to hold them
+      // when the probe thread shares the machine (R-11).
+      arguments.erase(
+          std::find(arguments.begin(), arguments.end(), "--iterations=2"),
+          arguments.end());
+      arguments.push_back("--iterations=100000");
       arguments.push_back("--json=" + path);
       arguments.push_back(fwqValue);
+      // The dipping clock paces the FWQ loop on scripted stamps, so the
+      // probe keeps samples inside each entry's windows under any load;
+      // the standing clock paces on wall time and starves the entry's
+      // windows when the machine runs the suite in parallel (R-11).
+      sg::detail::installTestReader(std::make_unique<DipSeriesReader>());
       captureRun(arguments);
+      sg::detail::installTestReader(nullptr);
       const auto document = readDocument(path);
       const auto loaded = sg::loadReport(path);
       std::remove(path.c_str());
