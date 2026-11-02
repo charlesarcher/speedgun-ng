@@ -25,6 +25,11 @@ struct EmbeddedFile
   const char* name;
   std::size_t offset;
   std::size_t length;
+  // The digest the manifest line beside this file states, read out of
+  // `external/pmu-events/RECORD` when the table was embedded. The manifest is
+  // its only source, so no digest is retyped here, and a file it names no
+  // digest for reaches no build (FR-015, spec D-12, PC-12).
+  const char* sha256;
 };
 
 // One directory of the vendored tree, named by its path relative to the
@@ -37,6 +42,12 @@ struct EmbeddedDir
   std::size_t size;
   const EmbeddedFile* files;
   std::size_t fileCount;
+  // The reference the manifest's `ref:` line states, one value for the whole
+  // tree it came from: the pinned release of the vendored data this directory
+  // is a part of. A reader publishes it as the reference of a table it read
+  // here, which is how an operator tells which release of the vendor's data a
+  // figure came out of (FR-015, spec D-12).
+  const char* reference;
 };
 
 // Defined by the generated registry, one entry per vendored directory.
