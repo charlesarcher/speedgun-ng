@@ -301,11 +301,9 @@ struct PmuWindow final : WindowReader
     }
     for (const auto& slot : slots) {
       const auto& group = groups[slot.group];
-      // LCOV_EXCL_BR_START : coverage exclusion (T066): the "fewer values
-      // than members" arm needs the kernel to report an `nr` below the
-      // member count, which a group read never does while every member is
-      // enabled, and the switch has no fourth enumerator to fall through to.
-      switch (slot.source) {  // LCOV_EXCL_BR_LINE
+      // The switch's no-case arc is a block the compiler emits for a
+      // value the enumeration cannot hold; no input reaches it.
+      switch (slot.source) {  // LCOV_EXCL_LINE
         case SlotSource::MEMBER:
           sink.put(group.values[slot.index]);
           break;
@@ -321,9 +319,9 @@ struct PmuWindow final : WindowReader
               static_cast<std::uint64_t>(gapped ? Availability::GAP
                                                 : Availability::COUNTABLE));
           break;
-      }  // LCOV_EXCL_BR_LINE
-    }  // LCOV_EXCL_BR_LINE
-  }  // LCOV_EXCL_BR_LINE
+      }
+    }
+  }
 
   // The compiled plan hands the window over as the base reference
   // `ReadThunk` declares, and `pmu_open_window` constructs it as this
@@ -334,14 +332,14 @@ struct PmuWindow final : WindowReader
   {
     static_cast<PmuWindow&>(base).readPoints(sink);
   }
-};  // LCOV_EXCL_BR_STOP
+};
 
 // The fast-mode window: one mapped page per member leaf, read inside one
 // sampling action, and the enabled/running pair taken from the leader's
 // page (FR-040, FR-041). The window runs for real on any host the kernel
-// lets open a per-process user event, so the reads below carry no blanket
-// coverage exclusion; the two arms no host reaches are marked at their own
-// sites.
+// serves, and the scripted kernel stands the pages in for the tests, so
+// the reads below carry no blanket exclusion; the arms no input reaches
+// keep their markers at their own sites.
 struct PmuFastWindow final : WindowReader
 {
   struct Member
@@ -411,35 +409,27 @@ struct PmuFastWindow final : WindowReader
     // LCOV_EXCL_BR_START : coverage exclusion (T140): the arm that reports
     // no pair. It needs the kernel to rewrite the leader's page between the
     // two reads of its sequence, which a test cannot force
-    // deterministically; the comparison itself is covered for both arms by
-    // `fastPairStable`.
-    // The pair's disclosure is the extracted decision, so a registered
-    // test drives both of its arms over synthetic pages and the coverage
-    // gates measure the decision itself (FR-005, FR-046).
+    // deterministically; the comparison itself and the extracted
+    // disclosure decision are covered for both arms by `fastPairStable`
+    // and `fastPairDisclosed` over synthetic pages in
+    // `test/source/counters_linux_pmu_seam_test.cpp` (FR-005, FR-046).
     std::uint64_t pageEnabled = 0;
     std::uint64_t pageRunning = 0;
-    // LCOV_EXCL_BR_START : coverage exclusion (T140): the branch the
-    // kernel alone can take here. It needs the kernel to rewrite the
-    // leader's page between the two reads of its sequence; the decision is
-    // covered for both arms by `fastPairDisclosed` in
-    // `test/source/counters_linux_pmu_seam_test.cpp`.
     const bool pairStable = fastContextTimePair(
         *members.at(leader).context, pageEnabled, pageRunning);
     if (!fastPairDisclosed(
             pairStable, pageEnabled, pageRunning, enabled, running))
-    {  // LCOV_EXCL_BR_LINE
+    {
       // A leader whose page disclosed no stable pair this action reports
       // none; the pair discloses ratio 0 and the action is marked beside
       // the zero. A time is never fabricated.
-      gapped = true;
-    }  // LCOV_EXCL_BR_LINE
+      gapped = true;  // LCOV_EXCL_LINE
+    }
     // LCOV_EXCL_BR_STOP
     for (const auto& slot : slots) {
-      // LCOV_EXCL_BR_LINE : coverage exclusion (T140): the switch's
-      // implicit no-case arc. `slot_source` names every enumerator above,
-      // so the arc is the block the compiler emits for a value the
-      // enumeration cannot hold.
-      switch (slot.source) {  // LCOV_EXCL_BR_LINE
+      // The switch's no-case arc is a block the compiler emits for a
+      // value the enumeration cannot hold; no input reaches it.
+      switch (slot.source) {  // LCOV_EXCL_LINE
         case SlotSource::MEMBER:
           sink.put(members[slot.index].value);
           break;
@@ -455,7 +445,7 @@ struct PmuFastWindow final : WindowReader
               static_cast<std::uint64_t>(gapped ? Availability::GAP
                                                 : Availability::COUNTABLE));
           break;
-      }  // LCOV_EXCL_BR_LINE
+      }
     }
   }
 
@@ -573,9 +563,8 @@ auto openGroupWindow(const PmuState& state,
     if (kernelCalls().ioctlEvent(
             group.leader, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP)
             != 0
-        || kernelCalls().ioctlEvent(group.leader,
-                                    PERF_EVENT_IOC_ENABLE,
-                                    PERF_IOC_FLAG_GROUP)
+        || kernelCalls().ioctlEvent(
+               group.leader, PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP)
             != 0)
     {
       return nullptr;
@@ -711,8 +700,7 @@ auto pmuOpenWindow(const PmuState& state,
     // the kernel refuses is a recoverable open failure. The group path is
     // the read the catalog describes for a plan that is not all fast
     // (FR-023).
-    if (auto fast = openFastWindow(state, resolved, layout, where); fast)
-    {
+    if (auto fast = openFastWindow(state, resolved, layout, where); fast) {
       return fast;
     }
   }
