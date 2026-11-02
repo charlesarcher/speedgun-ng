@@ -30,6 +30,7 @@
 #include "detail/json_report.hpp"
 #include "detail/noise_tracer.hpp"
 #include "detail/options.hpp"
+#include "detail/spectrum.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_clock.hpp"
 #include "speedgun-ng/counters_metrics.hpp"
@@ -395,6 +396,54 @@ auto applyNarrowedMask(const cpu_set_t& narrowed) noexcept -> void
             "the affinity mask stands narrowed for the instance's run (D-5)");
 }
 
+// specs/043 FR-017, FR-018, FR-022: the spectrum keys of one cpu's series
+// record. The transform reads the FTQ count series at the quantum, or the
+// FWQ unit times resampled to the median unit time; a series with no
+// sample, a FWQ median of 0 and a FTQ quantum of 0 leave it unread, so the
+// record keeps 0 points and an empty period list (FR-017, FR-018, R-12).
+auto addSpectrumTo(const detail::ProbeCpuState& state,
+                   sg::JitterSeriesStats& series) -> void
+{
+  const std::span<const std::uint64_t> kept {state.series.data(),
+                                             state.seriesKept};
+  if (series.sampleCount == 0 || kept.empty()) {
+    return;
+  }
+  std::vector<double> counts;
+  std::span<const double> samples {};
+  std::uint64_t stepNs = 0;
+  if (state.method == JitterMethod::FWQ) {
+    stepNs = series.medianValue;
+    if (stepNs == 0) {
+      return;
+    }
+    samples = detail::resampleUnitTimes(kept, stepNs, detail::kSpectrumCap);
+  } else {
+    stepNs = series.quantumNs;
+    if (stepNs == 0) {
+      return;
+    }
+    counts.reserve(kept.size());
+    for (const auto count : kept) {
+      counts.push_back(static_cast<double>(count));
+    }
+    samples = counts;
+  }
+  if (samples.empty()) {
+    return;
+  }
+  const auto answer = detail::dftPeriods(samples, stepNs);
+  series.spectrumPoints = answer.points;
+  if (state.method == JitterMethod::FWQ) {
+    series.resampleStepNs = answer.stepNs;
+  }
+  for (const auto& period : answer.periods) {
+    series.periods.push_back(
+        sg::JitterPeriodRecord {.periodNs = period.periodNs,
+                                .powerRatio = period.powerRatio});
+  }
+}
+
 // E-07: the record the document carries, built from the joined states
 // the fold reads (R-04). The record block is one unit of the report,
 // and the entry point below stands more than seven hundred lines, so
@@ -440,6 +489,10 @@ auto buildJitterReportRecord(const JitterProbeOptions& probe,
   // names; every probe cpu's fold carries the same pair (FR-007).
   record.thresholdNs = ordered.front()->thresholdNs;
   record.loopPeriodNs = ordered.front()->loopPeriodNs;
+  // specs/043 FR-019, E-21: one run carries one method, the word the
+  // record spells; every probe cpu of one run carries the same method
+  // (FR-001, D-1).
+  record.method = ordered.front()->method;
   for (const auto* state : ordered) {
     record.disclosure += "; cpu " + std::to_string(state->cpu) + " kept "
         + std::to_string(state->kept) + " dropped "
@@ -459,6 +512,12 @@ auto buildJitterReportRecord(const JitterProbeOptions& probe,
       entry.gaps.assign(
           state->buffer.begin(),
           state->buffer.begin() + static_cast<std::ptrdiff_t>(state->kept));
+    }
+    // specs/043 FR-020, E-23: the series of the whole run rides beside
+    // the gaps, and a `TSC` run keeps no series to carry (FR-006).
+    if (state->method != JitterMethod::TSC) {
+      entry.series = detail::seriesStatsOf(*state);
+      addSpectrumTo(*state, *entry.series);
     }
     record.stats.push_back(std::move(entry));
   }
