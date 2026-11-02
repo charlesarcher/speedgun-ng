@@ -122,8 +122,8 @@
 //   theScanCarriesNoShortLetter    the option string of the scan holds no
 //                                  letter (FR-005)
 //   theVersionBindingsReadTheMovedNumbers
-//                                  the project block reads 0.28.0, the
-//                                  harness target answers SOVERSION 19,
+//                                  the project block reads 0.29.0, the
+//                                  harness target answers SOVERSION 20,
 //                                  and the archive target keeps
 //                                  SOVERSION 4 (FR-050)
 //   theHelpAnswerPrintsOneLinePerRow
@@ -1373,9 +1373,10 @@ auto projectVersion(const std::filesystem::path& start) -> std::string
 }
 
 // FR-050: the version bindings read the numbers the version move lands:
-// the project version `0.28.0`, the harness `SOVERSION 19` and the
-// archive `SOVERSION 4`. specs/037 R-13 took the pair from the 0.27.0
-// and 18 that specs/039 landed, and these rows read the moved numbers.
+// the project version `0.29.0`, the harness `SOVERSION 20` and the
+// archive `SOVERSION 4`. specs/043 FR-005 took the pair from the 0.28.0
+// and 19 that specs/037 landed, and these rows read the moved numbers
+// (specs/043 SC-009).
 ///
 /// \pre the root `CMakeLists.txt` can be read
 /// \post the three rows answer the numbers FR-050 moves
@@ -1384,10 +1385,10 @@ auto theVersionBindingsReadTheMovedNumbers(const std::filesystem::path& start)
 {
   const std::string cmake = rootCMakeText(start);
   SG_ASSERT(!cmake.empty(), "pre: the root CMakeLists.txt can be read");
-  check(projectVersion(start) == "0.28.0",
-        "the project version reads 0.28.0 (FR-050)");
-  check(cmake.find("SOVERSION 19") != std::string::npos,
-        "the harness SOVERSION line reads SOVERSION 19 (FR-050)");
+  check(projectVersion(start) == "0.29.0",
+        "the project version reads 0.29.0 (FR-050)");
+  check(cmake.find("SOVERSION 20") != std::string::npos,
+        "the harness SOVERSION line reads SOVERSION 20 (FR-050)");
   check(cmake.find("SOVERSION 5") != std::string::npos,
         "the archive SOVERSION line reads SOVERSION 5 (FR-050)");
 }
