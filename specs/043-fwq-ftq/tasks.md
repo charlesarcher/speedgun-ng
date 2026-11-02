@@ -795,6 +795,28 @@ every record, and the standing contracts carry the deltas.
 
 ---
 
+- [ ] T070 Close the coverage shortfall the lane head reads, from the
+  `coverage` target of the `ci-coverage` preset: lines 16,568 of 16,612
+  (44 dark) and branches 8,128 of 8,180 (52 short against the allowance
+  of 21). The dark lines stand in six lane files: `compare.cpp:311-328`
+  (the 16 series-field lambdas of `kJitterFields`, read by no compare
+  row); `json_load.cpp:570,584,643,651,711-713,1501,2414,2420` (the
+  reader's refusal arms beside a series item, its cpu key, its periods
+  and its ratio); `json_report.cpp:710,1103` (the arm that skips a fold
+  with no series inside a run that carries one); `spectrum.cpp:100-101`
+  (the tail fill of the trailing open bin); `cli.cpp:2033` (the `noise=`
+  unused disclosure); `jitter_probe.cpp:1240` (the pre-check arm for a
+  planned cpu with no state, or a `tsc` state). The lane's files carry 45
+  of the 52 short branch positions: `cli.cpp` 20, `json_load.cpp` 10,
+  `jitter_probe.cpp` 8, `report.cpp` 3, `json_report.cpp` 2,
+  `compare.cpp` 1, `spectrum.cpp` 1. Add the rows that reach each arm, in
+  the test file that owns the surface. No `LCOV_EXCL`, no new
+  `--omit-lines` pattern, no new `--ignore-errors` class, no code added
+  only to reach a branch, and the allowance stays 21 (constitution VI,
+  FR-033).
+  Verify: `cmake --build build/coverage --target coverage` exits 0, and `bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` reads lines at `100.0%` and a branch shortfall at 21 rows or fewer
+
+
 ## Phase 10: Polish and Cross-Cutting Concerns
 
 **Purpose**: the hard gates of Principle VIII at the feature head, in
