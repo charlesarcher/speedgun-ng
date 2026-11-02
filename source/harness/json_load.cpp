@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cerrno>
 #include <charconv>
@@ -541,6 +542,181 @@ auto readJitterCpu(Element value, const std::string& where)
   }
   read.first = static_cast<std::uint32_t>(cpuValue);
   return read;
+}
+
+// One per-cpu item of a `series` array: the cpu index, the five
+// calibration figures, the twelve series figures and the two spectrum
+// keys in the E-22 order, and the period list E-24 states (E-22, E-23,
+// FR-020). `quantumNs` is the FTQ's quantum and `resampleStepNs` the
+// FWQ's resample step: the method leaves one of the two unused, the key
+// stands out of the schema's required list, and a key that stands absent
+// reads 0 (FR-006). The period list rides the run-level item alone, so
+// the per-entry read answers an empty list (FR-020). Each key is read
+// and kind-checked in order, so a wrong kind names itself before a later
+// key's absence does (FR-029).
+auto readJitterSeriesCpu(Element value, const std::string& where)
+    -> std::expected<std::pair<std::uint32_t, sg::JitterSeriesStats>,
+                     std::string>
+{
+  std::pair<std::uint32_t, sg::JitterSeriesStats> read {};
+  std::uint64_t cpuValue = 0;
+  auto& series = read.second;
+  const auto readUnsignedKey =
+      [&](std::string_view key,
+          std::uint64_t* into) -> std::expected<void, std::string>
+  {
+    auto found = field(value, where, key);
+    if (!found.has_value()) {
+      return std::unexpected(found.error());
+    }
+    auto number = asUnsigned(*found, where + "/" + std::string(key));
+    if (!number.has_value()) {
+      return std::unexpected(number.error());
+    }
+    *into = *number;
+    return {};
+  };
+  const auto readRealKey =
+      [&](std::string_view key,
+          double* into) -> std::expected<void, std::string>
+  {
+    auto found = field(value, where, key);
+    if (!found.has_value()) {
+      return std::unexpected(found.error());
+    }
+    auto number = asDouble(*found, where + "/" + std::string(key));
+    if (!number.has_value()) {
+      return std::unexpected(number.error());
+    }
+    *into = *number;
+    return {};
+  };
+  const auto readMethodKey =
+      [&](std::string_view key,
+          std::uint64_t* into) -> std::expected<void, std::string>
+  {
+    const auto found = optionalField(value, key);
+    if (!found.has_value()) {
+      return {};
+    }
+    auto number = asUnsigned(*found, where + "/" + std::string(key));
+    if (!number.has_value()) {
+      return std::unexpected(number.error());
+    }
+    *into = *number;
+    return {};
+  };
+  const auto settledValues = allSettled(
+      readUnsignedKey("cpu", &cpuValue),
+      readUnsignedKey("workCount", &series.workCount),
+      readUnsignedKey("unitTimeNs", &series.unitTimeNs),
+      readUnsignedKey("targetNs", &series.targetNs),
+      readMethodKey("quantumNs", &series.quantumNs),
+      readUnsignedKey("calibrationSpanNs", &series.calibrationSpanNs),
+      readUnsignedKey("sampleCount", &series.sampleCount),
+      readUnsignedKey("minValue", &series.minValue),
+      readUnsignedKey("medianValue", &series.medianValue),
+      readRealKey("meanValue", &series.meanValue),
+      readUnsignedKey("p90Value", &series.p90Value),
+      readUnsignedKey("p99Value", &series.p99Value),
+      readUnsignedKey("p999Value", &series.p999Value),
+      readUnsignedKey("p9999Value", &series.p9999Value),
+      readUnsignedKey("maxValue", &series.maxValue),
+      readRealKey("noisePercent", &series.noisePercent),
+      readUnsignedKey("seriesRuntimeNs", &series.seriesRuntimeNs),
+      readUnsignedKey("droppedSamples", &series.droppedSamples),
+      readMethodKey("resampleStepNs", &series.resampleStepNs),
+      readUnsignedKey("spectrumPoints", &series.spectrumPoints));
+  if (!settledValues.has_value()) {
+    return std::unexpected(settledValues.error());
+  }
+  if (const auto periods = optionalField(value, "periods");
+      periods.has_value())
+  {
+    auto items = asArray(*periods, where + "/periods");
+    if (!items.has_value()) {
+      return std::unexpected(items.error());
+    }
+    std::size_t index = 0;
+    for (const auto item : *items) {
+      const std::string here = where + "/periods/" + std::to_string(index);
+      auto period = field(item, here, "periodNs");
+      if (!period.has_value()) {
+        return std::unexpected(period.error());
+      }
+      auto periodValue = asUnsigned(*period, here + "/periodNs");
+      if (!periodValue.has_value()) {
+        return std::unexpected(periodValue.error());
+      }
+      auto ratio = field(item, here, "powerRatio");
+      if (!ratio.has_value()) {
+        return std::unexpected(ratio.error());
+      }
+      auto ratioValue = asDouble(*ratio, here + "/powerRatio");
+      if (!ratioValue.has_value()) {
+        return std::unexpected(ratioValue.error());
+      }
+      series.periods.push_back(sg::JitterPeriodRecord {
+          .periodNs = *periodValue, .powerRatio = *ratioValue});
+      ++index;
+    }
+  }
+  read.first = static_cast<std::uint32_t>(cpuValue);
+  return read;
+}
+
+// The series items of one `series` array, in the order the document
+// carries them, each with the cpu its item names (E-23, FR-020).
+auto readJitterSeries(Element value,
+                      const std::string& where) -> std::expected<
+    std::vector<std::pair<std::uint32_t, sg::JitterSeriesStats>>, std::string>
+{
+  std::vector<std::pair<std::uint32_t, sg::JitterSeriesStats>> read;
+  const auto key = optionalField(value, "series");
+  if (!key.has_value()) {
+    return read;
+  }
+  auto items = asArray(*key, where + "/series");
+  if (!items.has_value()) {
+    return std::unexpected(items.error());
+  }
+  std::size_t index = 0;
+  for (const auto item : *items) {
+    const std::string here = where + "/series/" + std::to_string(index);
+    auto cpu = readJitterSeriesCpu(item, here);
+    if (!cpu.has_value()) {
+      return std::unexpected(cpu.error());
+    }
+    read.push_back(*cpu);
+    ++index;
+  }
+  return read;
+}
+
+// The series of the cpus a stats array carries, folded into the folds in
+// the order the folds stand: a series item whose cpu the stats array does
+// not carry names itself, the way the standing cpu rule does (E-07, E-08,
+// FR-020, FR-029).
+auto foldJitterSeries(
+     std::vector<sg::JitterEntryFold>& folds,
+     const std::vector<std::pair<std::uint32_t, sg::JitterSeriesStats>>& series,
+     const std::string& where) -> std::expected<void, std::string>
+{
+  for (const auto& item : series) {
+    const auto fold =
+        std::find_if(folds.begin(),
+                     folds.end(),
+                     [cpu = item.first](const sg::JitterEntryFold& candidate)
+                     { return candidate.cpu == cpu; });
+    if (fold == folds.end()) {
+      return std::unexpected(where
+                             + ": the series item names cpu "
+                             + std::to_string(item.first)
+                             + ", which the stats array does not carry");
+    }
+    fold->series = item.second;
+  }
+  return {};
 }
 
 // One count the document may stand `null`: an attribution figure the
@@ -1236,12 +1412,19 @@ auto readGraphRecord(Element value, const std::string& where)
 }
 
 // The run-level jitter record: the seven keys of E-07 in the kinds the
-// schema states. The reader checks the record and lets the values go,
-// the shape the noise warning read uses (E-07, E-08, FR-029); each key
-// is read and kind-checked in order, so a wrong kind names itself
-// before a later key's absence does (FR-029).
+// schema states, and the two keys specs/043 adds between
+// `loopPeriodNs` and `cpus` (E-25, E-28). The reader checks the record
+// and lets the gap values go, the shape the noise warning read uses
+// (E-07, E-08, FR-029); each key is read and kind-checked in order, so
+// a wrong kind names itself before a later key's absence does (FR-029).
+// The answer carries the folds the `jitter:run:` rule reads and the
+// method the run record carries, the method standing empty for a
+// document that names none (FR-020, E-25).
 auto readJitterRecord(Element value, const std::string& where)
-    -> std::expected<std::vector<sg::JitterEntryFold>, std::string>
+    -> std::expected<
+        std::pair<std::vector<sg::JitterEntryFold>,
+                  std::optional<sg::JitterMethod>>,
+        std::string>
 {
   const auto readKey =
       [&](std::string_view key) -> std::expected<Element, std::string>
@@ -1268,6 +1451,23 @@ auto readJitterRecord(Element value, const std::string& where)
                     { return asUnsigned(found, where + "/loopPeriodNs"); });
   if (!period.has_value()) {
     return std::unexpected(period.error());
+  }
+  // FR-006, FR-020, E-25: the method key stands out of the schema's
+  // required list, so a document that names no method reads with the run
+  // record empty, and a document written before specs/043 reads with no
+  // series at all.
+  std::optional<sg::JitterMethod> method;
+  if (const auto word = optionalField(value, "method"); word.has_value()) {
+    auto read = asEnum<sg::JitterMethod>(detail::kJitterMethodWords, *word,
+                                         where + "/method");
+    if (!read.has_value()) {
+      return std::unexpected(read.error());
+    }
+    method = *read;
+  }
+  auto series = readJitterSeries(value, where);
+  if (!series.has_value()) {
+    return std::unexpected(series.error());
   }
   auto cpus = readKey("cpus").and_then(
       [&](Element found) { return asArray(found, where + "/cpus"); });
@@ -1298,6 +1498,11 @@ auto readJitterRecord(Element value, const std::string& where)
     folds.push_back({.cpu = read->first, .stats = read->second});
     ++index;
   }
+  if (const auto settled = foldJitterSeries(folds, *series, where + "/series");
+      !settled.has_value())
+  {
+    return std::unexpected(settled.error());
+  }
   auto dropped =
       readKey("droppedGaps")
           .and_then([&](Element found)
@@ -1312,7 +1517,7 @@ auto readJitterRecord(Element value, const std::string& where)
   if (!disclosure.has_value()) {
     return std::unexpected(disclosure.error());
   }
-  return folds;
+  return std::pair {std::move(folds), method};
 }
 
 auto readRow(Element value,
@@ -2204,6 +2409,19 @@ auto readEntry(Element value,
       });
       ++index;
     }
+    // specs/043 FR-020, E-23: the entry's series reads into the same
+    // folds, the carrier the comparison reads; the per-entry item
+    // carries no period list, so the reading answers none (FR-020).
+    auto series = readJitterSeries(*jitter, here);
+    if (!series.has_value()) {
+      return std::unexpected(series.error());
+    }
+    if (const auto settled = foldJitterSeries(result.jitterFolds, *series,
+                                             here + "/series");
+        !settled.has_value())
+    {
+      return std::unexpected(settled.error());
+    }
   }
   auto rows = asArray(at(11), where + "/rows");
   if (!rows.has_value()) {
@@ -2697,7 +2915,12 @@ auto loadReport(const std::string& path)
     if (!read.has_value()) {
       return std::unexpected(read.error());
     }
-    data.runJitterStats = std::move(*read);
+    data.runJitterStats = std::move(read->first);
+    // specs/043 FR-020, E-25: the method the document names lands in the
+    // run record; a document that names none leaves it empty.
+    if (read->second.has_value()) {
+      data.jitterRun = sg::JitterRunRecord {.method = *read->second};
+    }
   }
   // specs/029 FR-051, FR-031 (PD-10): the run-level hunt object, the key the
   // writer closes the document with. It is read before the benchmarks array
