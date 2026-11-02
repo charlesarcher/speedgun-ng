@@ -740,6 +740,22 @@ struct RunOptions
   // reads nothing else from it, so no default here names a directory, holds a
   // row, or picks a level.
   std::optional<sg::counters::TopdownTable> topdownTable;
+
+  // specs/042-topdown FR-001, FR-044, spec D-20: the identity the selection
+  // reads, spelled the way `TopdownSelection::identity` spells it. An absent
+  // optional is a production run, where the runner reads
+  // `sg::counters::cpuIdentity()` and the vendor, the family, the model and the
+  // stepping of this cpu decide the table, the vendor rules of the tree and the
+  // level-1 node set. An engaged optional is a scripted run handing in the
+  // identity of a cpu it is not standing on, which is how a unit reaches a
+  // table of another vendor through the runner: the identity decides whether
+  // the fifth level-1 node of an AMD table stands, so a planted AMD table under
+  // an Intel identity loses that node by the rule of `topdownTree`. No rule of
+  // the harness reads this member, no default names a vendor, and the runner
+  // copies it into the selection and reads nothing else from it. This is a data
+  // member only: no accessor, no logic, and no gate reads this comment, because
+  // `internal.hpp` stands outside the doc gate's input.
+  std::optional<sg::counters::CpuIdentity> topdownIdentity;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it
@@ -1435,6 +1451,10 @@ struct MetricColumn
  * of a threaded run, and from the retained chunk columns of a row and of its
  * contexts. The two time slots and every user-counter column keep their place,
  * so a grid and a chunk ledger end the width of the columns the run reports.
+ * The erasure names positions and no label, so a metric column of the run whose
+ * label equals a node's vendor name is a column of the run: it keeps its
+ * column, its figure and its place, and only the node's own position goes
+ * (FR-032).
  *
  * A node figure is the statistic the run published for its column when an
  * aggregate row stands, and the value of that column when one row stands. A

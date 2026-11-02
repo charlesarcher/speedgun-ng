@@ -1487,11 +1487,12 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // the columns above keep the positions they held before the option stood. A
   // node carries the metric layer's own spine, so its column folds through the
   // plan, the window and the merge like a named metric, and it takes the row's
-  // vendor name as its label. The selection reads the identity of the cpu this
-  // process runs on, once, and the table the run plants through
-  // `TopdownSelection::table`, the seam
-  // `specs/042-topdown/contracts/topdown-selection.md` gives a test. A
-  // selection that answers no tree collects no column, and a refused row of a
+  // vendor name as its label. The selection reads the identity the run hands
+  // it, or that of the cpu this process runs on where it is handed none, and
+  // the table the run plants through `TopdownSelection::table`, the seam
+  // `specs/042-topdown/contracts/topdown-selection.md` gives a test for the
+  // table, and `RunOptions::topdownIdentity` is the same seam for the identity.
+  // A selection that answers no tree collects no column, and a refused row of a
   // tree reaches no column and moves no position of this vector: only the nodes
   // of the answer stand here, and the record of both sides rides in
   // `result.topdown` (FR-016, FR-040).
@@ -1499,7 +1500,14 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   std::vector<std::size_t> nodePositions;
   if (m_options.topdownLevel.has_value()) {
     sg::counters::TopdownSelection selection;
-    selection.identity = sg::counters::cpuIdentity();
+    // specs/042-topdown FR-001, FR-044, spec D-20: a run handed an identity
+    // hands that identity to the selection and calls no cpu reader of its own,
+    // which is how a scripted run reaches the table of another vendor through
+    // the runner. Only where the field stands absent, which is every production
+    // run, does this read the identity of the cpu the process runs on.
+    selection.identity = m_options.topdownIdentity.has_value()
+        ? *m_options.topdownIdentity
+        : sg::counters::cpuIdentity();
     selection.level = static_cast<int>(*m_options.topdownLevel);
     selection.table = m_options.topdownTable;
     const auto answered = sg::counters::topdownTree(selection);
