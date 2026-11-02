@@ -521,11 +521,8 @@ auto openGroupWindow(const PmuState& state,
   auto window = std::make_unique<PmuWindow>(leaves.size());
   window->groups.resize(layout.count());
   window->slots.reserve(leaves.size());
-  for (const auto& one : leaves) {  // LCOV_EXCL_BR_LINE
-    if (one.source == SlotSource::DISCLOSURE) {  // LCOV_EXCL_BR_LINE
-      // LCOV_EXCL_START : coverage exclusion (T140): the disclosure slot.
-      // A member open that the kernel refuses returns before this slot is
-      // registered. The host that grants perf_event_open reaches it.
+  for (const auto& one : leaves) {
+    if (one.source == SlotSource::DISCLOSURE) {
       window->slots.push_back(LeafSlot {
           .group = 0,
           .index = 0,
@@ -533,38 +530,24 @@ auto openGroupWindow(const PmuState& state,
           .disclosure = one.disclosure,
       });
       continue;
-      // LCOV_EXCL_STOP
     }
     const std::size_t group = layout.groupOf(one.device);
-    if (one.source != SlotSource::MEMBER) {  // LCOV_EXCL_BR_LINE
-      // LCOV_EXCL_START : coverage exclusion (T140): the time-pair slot. A
-      // plan carries an `enabled` or `running` leaf only where the catalog
-      // reports an event countable, and countability is a granted
-      // `perf_event_open`. A runner whose `perf_event_open` is refused
-      // publishes none, so it registers no time-pair slot; the host that
-      // grants the syscall registers one per pair leaf.
+    if (one.source != SlotSource::MEMBER) {
       window->slots.push_back(
           LeafSlot {.group = group, .index = 0, .source = one.source});
       continue;
-      // LCOV_EXCL_STOP
     }
     perf_event_attr attr {};
     fillAttr(attr, state.devices[one.device], *one.entry);
     const bool isLeader = window->groups[group].leader < 0;
-    attr.disabled = isLeader ? 1U : 0U;  // LCOV_EXCL_BR_LINE
-    // LCOV_EXCL_START : coverage exclusion (T140): the granted open. A
-    // runner whose `perf_event_open` is refused answers every member with
-    // `fd < 0` and returns above, so it reaches neither the granted half
-    // below nor the loop it never completes; the host that grants the
-    // syscall opens every member here and completes the loop on every plan
-    // it serves.
+    attr.disabled = isLeader ? 1U : 0U;
     const long fd =
         kernelCalls().openEvent(&attr,
                                 pid,
                                 cpu,
                                 isLeader ? -1 : window->groups[group].leader,
                                 PERF_FLAG_FD_CLOEXEC);
-    if (fd < 0) {  // LCOV_EXCL_BR_LINE
+    if (fd < 0) {
       return nullptr;
     }
     const int handle = static_cast<int>(fd);
@@ -576,7 +559,6 @@ auto openGroupWindow(const PmuState& state,
         LeafSlot {.group = group,
                   .index = window->groups[group].members.size() - 1,
                   .source = SlotSource::MEMBER});
-    // LCOV_EXCL_STOP
   }
   // LCOV_EXCL_START : coverage exclusion (T066): both arms need a
   // `perf_event_open` that succeeds and then fails its reset or enable.
@@ -622,24 +604,15 @@ auto openFastWindow(const PmuState& state,
   auto window = std::make_unique<PmuFastWindow>();
   window->slots.reserve(leaves.size());
   std::size_t leader = static_cast<std::size_t>(-1);
-  for (const auto& one : leaves) {  // LCOV_EXCL_BR_LINE
-    if (one.source == SlotSource::DISCLOSURE) {  // LCOV_EXCL_BR_LINE
-      // LCOV_EXCL_START : coverage exclusion (T140): the fast-window
-      // disclosure slot, on the same refused-open ground as the group
-      // window's slot above.
+  for (const auto& one : leaves) {
+    if (one.source == SlotSource::DISCLOSURE) {
       window->slots.push_back(LeafSlot {.group = 0,
                                         .index = 0,
                                         .source = one.source,
                                         .disclosure = one.disclosure});
       continue;
-      // LCOV_EXCL_STOP
     }
-    if (one.source != SlotSource::MEMBER) {  // LCOV_EXCL_BR_LINE
-      // LCOV_EXCL_START : coverage exclusion (T140): the time-pair slot of
-      // the fast window, on the same countable-entry ground as the group
-      // window's slot above. A runner whose `perf_event_open` is refused
-      // publishes no countable entry and registers no such slot; the host
-      // that grants the syscall registers one per pair leaf.
+    if (one.source != SlotSource::MEMBER) {
       window->slots.push_back(LeafSlot {
           .group = 0,
           .index = 0,
@@ -647,7 +620,6 @@ auto openFastWindow(const PmuState& state,
           .disclosure = one.disclosure,
       });
       continue;
-      // LCOV_EXCL_STOP
     }
     // The mapped-page read addresses one config word, the `config` word a
     // core PMU event encodes into. An entry whose encoding also sets
@@ -663,34 +635,16 @@ auto openFastWindow(const PmuState& state,
         singleWord = false;
       }
     }
-    // LCOV_EXCL_BR_START : coverage exclusion (T140): the arm that refuses a
-    // multi-word encoding. It needs a countable entry that sets a config
-    // word above the first, which no core PMU event does; the refusal is
-    // asserted for a synthetic such entry in
-    // `test/source/counters_linux_pmu_seam_test.cpp`.
-    if (!singleWord) {  // LCOV_EXCL_BR_LINE
-      releaseFastMembers(window->members);  // LCOV_EXCL_LINE
-      return nullptr;  // LCOV_EXCL_LINE
-    }  // LCOV_EXCL_BR_LINE
-    // LCOV_EXCL_BR_STOP
+    if (!singleWord) {
+      releaseFastMembers(window->members);
+      return nullptr;
+    }
     auto context =
         fastContextOpen(state.devices[one.device].type, config, where);
-    // LCOV_EXCL_BR_START : coverage exclusion (T140): the arm that refuses
-    // the whole window because one member's event was refused. It needs a
-    // catalog entry the kernel counts, whose event `perf_event_open` then
-    // refuses; the refusal itself is covered for both arms by
-    // `context_open_refusal_scenario` in
-    // `test/source/counters_linux_pmu_seam_test.cpp`.
-    if (!context) {  // LCOV_EXCL_BR_LINE
-      releaseFastMembers(window->members);  // LCOV_EXCL_LINE
-      return nullptr;  // LCOV_EXCL_LINE
-    }  // LCOV_EXCL_BR_LINE
-    // LCOV_EXCL_BR_STOP
-    // LCOV_EXCL_START : coverage exclusion (T140): the granted member and
-    // the slot naming it. The context above exists only where the kernel
-    // granted the open, so a runner whose `perf_event_open` is refused
-    // returns before this point and registers no member, while the host that
-    // grants the syscall registers one per member leaf.
+    if (!context) {
+      releaseFastMembers(window->members);
+      return nullptr;
+    }
     if (leader == static_cast<std::size_t>(-1)) {
       leader = window->members.size();
     }
@@ -702,7 +656,6 @@ auto openFastWindow(const PmuState& state,
   }
   window->leader = leader;
   return window;
-  // LCOV_EXCL_STOP
 }
 
 // Appends the plan's disclosure column to the resolved leaves, so the
@@ -761,23 +714,10 @@ auto pmuOpenWindow(const PmuState& state,
     // the kernel refuses is a recoverable open failure. The group path is
     // the read the catalog describes for a plan that is not all fast
     // (FR-023).
-    // LCOV_EXCL_BR_START : coverage exclusion (T140): the falling-through
-    // arm. It needs a fast catalog whose leaf set the fast window then
-    // refuses, which `open_fast_window` answers only when a member event
-    // is refused (marked at its own site above). The accepting arm is
-    // reached on every host that grants the mapped page.
     if (auto fast = openFastWindow(state, resolved, layout, where); fast)
-    {  // LCOV_EXCL_BR_LINE
-      // LCOV_EXCL_START : coverage exclusion (T140): the fast window this
-      // provider hands over. It needs the granted mapped-page opens
-      // `open_fast_window` collects members from, so a runner whose
-      // `perf_event_open` is refused has no fast window to hand over and
-      // falls through to the group path below; the host that grants the
-      // syscall hands one over on every fast-capable plan.
+    {
       return fast;
     }
-    // LCOV_EXCL_STOP
-    // LCOV_EXCL_BR_STOP
   }
   return openGroupWindow(state, resolved, layout, where);
 }
