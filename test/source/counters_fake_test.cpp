@@ -1053,6 +1053,29 @@ auto groupLeafRefusalScenario() -> void
   provider.setGroupLeafLimit("package-1/core-9", 3);
   check(provider.open(LeafSet {.addresses = wide}, where) == nullptr,
         "a later call for the same object replaces the scripted count");
+
+
+  // The plan compiler hands every group's leaf set to the provider's
+  // open, so the scripted count of two refuses a three-leaf group and
+  // the compile carries the refusal to its caller (FR-011, D-18).
+  const auto narrow = *System::local().object("package-9/cpu-2");
+  const auto cycles = narrow.counter<Events>("cycles");
+  const auto instructions = narrow.counter<Events>("instructions");
+  const auto branches = narrow.counter<Events>("branches");
+  check(cycles.has_value() && instructions.has_value() && branches.has_value(),
+        "the narrow core serves the three leaves the plan spans");
+  const Expression<Events> a {*cycles};
+  const Expression<Events> b {*instructions};
+  const Expression<Events> c {*branches};
+  const auto wideCompile = compile(System::local(), a + b + c, a, b, c);
+  check(!wideCompile.has_value(),
+        "a plan wider than the scripted count compiles to a refusal");
+  if (!wideCompile.has_value()) {
+    check(
+        contains(wideCompile.error().message,
+                 "provider cannot open a window for its leaves"),
+        "the refusal names the window open the provider declined " "(FR-011)");
+  }
 }
 
 // A scalar multiple of a composite: the scale is one node over the

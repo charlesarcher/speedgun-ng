@@ -105,23 +105,20 @@ namespace
 {
   std::vector<std::string_view> components;
   std::size_t start = 0;
-  // LCOV_EXCL_BR_START : coverage exclusion (T066): the condition can never
-  // fail. The loop breaks on the first `find` miss, and every path reaches that
-  // break, so the condition is only ever true on entry.
-  while (start <= path.size()) {  // LCOV_EXCL_BR_LINE
+  // The loop breaks on the first `find` miss, and every path reaches
+  // that break, so the loop condition is only ever true on entry and
+  // the breaks alone leave the loop.
+  for (;;) {
     const auto end = path.find('/', start);
     const auto stop = end == std::string::npos ? path.size() : end;
     components.push_back(std::string_view(path).substr(start, stop - start));
-    if (end == std::string::npos) {  // LCOV_EXCL_BR_LINE
-      break;  // LCOV_EXCL_LINE
-    }  // LCOV_EXCL_LINE
+    if (end == std::string::npos) {
+      break;
+    }
     start = end + 1;
-  }  // LCOV_EXCL_BR_LINE
-  // LCOV_EXCL_BR_STOP
-  // LCOV_EXCL_LINE : coverage exclusion (T066): the NRVO epilogue block of
-  // `path_components`, as at the `split_words` epilogue above.
+  }
   return components;
-}  // LCOV_EXCL_LINE
+}
 
 // True when the canonical path carries the component the filter spells,
 // `key-value` (FR-003).
@@ -343,7 +340,8 @@ auto System::tsc() const -> std::expected<Counter<Dim<0, 1>>, Error>
   // between the two operands. The `machine` node is seeded by the system
   // itself at construction, so `find` answers it on every host, both
   // with and without a `perf_event_open` the kernel grants; the emptiness
-  // operand below is the half every host reaches.
+  // operand below is the half every host reaches. Dropping the null
+  // operand trips the null-dereference analysis, so the guard stands.
   if (node == nullptr || node->leaves.empty()) {  // LCOV_EXCL_BR_LINE
     return std::unexpected(Error {
         .message =
@@ -520,18 +518,18 @@ auto Object::children() const -> std::vector<const Object*>
   auto& systemRef = System::local();
   std::vector<const Object*> direct;
   for (const auto& [objectPath, child] : systemRef.m_impl->objects) {
-    // LCOV_EXCL_BR_START : coverage exclusion (T066): the direct-child
-    // test. Its branch attribution moves with the host topology and the
-    // gcov version, and no leg of the test holds a host-independent
-    // decision. The stop sits after the whole ternary: the CI gcov
-    // attributes a branch of the false leg to its last line, so a stop
-    // at the true leg leaves that branch inside the count.
-    const bool isDirect = node->path == "machine"
-        ? (objectPath.find('/') == std::string::npos && objectPath != "machine")
-        : (objectPath.size() > node->path.size() + 1
-           && objectPath.starts_with(node->path + "/")
-           && objectPath.find('/', node->path.size() + 1) == std::string::npos);
-    // LCOV_EXCL_BR_STOP
+    // The direct-child test stands per leg, so each edge lands on its
+    // own line: the root names its top-level objects, any other node
+    // names the objects one level under it (FR-003).
+    bool isDirect = false;
+    if (node->path == "machine") {
+      isDirect =
+          objectPath.find('/') == std::string::npos && objectPath != "machine";
+    } else {
+      isDirect = objectPath.size() > node->path.size() + 1
+          && objectPath.starts_with(node->path + "/")
+          && objectPath.find('/', node->path.size() + 1) == std::string::npos;
+    }
     if (isDirect) {
       direct.push_back(&systemRef.handleFor(objectPath));
     }
