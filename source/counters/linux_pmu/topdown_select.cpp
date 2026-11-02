@@ -1,7 +1,8 @@
 // ============================================================================
-// The identity a top-down selection reads, the table it selects and the tree it
-// answers (specs/042-topdown T022, T024; FR-001 to FR-003, FR-008 to FR-016,
-// FR-020; data-model E-01 to E-09).
+// The identity a top-down selection reads, the table it selects, the tree it
+// answers and the refusals it answers instead (specs/042-topdown T022, T024,
+// T079; FR-001 to FR-007, FR-008 to FR-016, FR-020, FR-040; data-model E-01 to
+// E-11).
 //
 // Three calls live here, each over a seam of the private pmu header. The
 // identity copies the four fields the library's own cpu reader answers and
@@ -31,6 +32,15 @@
 // `<name>_group` by AMD. A published row of a level the ask reaches, with a
 // parent the tree already holds, becomes one node. A refused row of such a
 // level becomes one entry of `refused` and no node (FR-016).
+//
+// Two of the five refusals read those same rows ahead of the tree: a directory
+// whose rows carry no level token answers NO_TOPDOWN_ROWS, and a directory
+// whose event rows carry the two core scopes answers HYBRID. The first stands
+// ahead of the second, because a directory with two scopes and no level row
+// states no tree. The three that read the identity answer ahead of both.
+// `message()` owns the one line each of the five answers, one sentence per
+// kind, and no other part of this band composes that sentence (FR-004 to
+// FR-007, FR-040, spec D-14).
 // ============================================================================
 
 #include <algorithm>
@@ -316,6 +326,36 @@ constexpr std::size_t kNoRow {std::numeric_limits<std::size_t>::max()};
   return text;
 }
 
+// The two core scopes a hybrid part's directory publishes, spelled the way a
+// hybrid table spells them in the `Unit` text of its own rows (FR-006).
+constexpr std::string_view kCoreScope {"cpu_core"};
+constexpr std::string_view kAtomScope {"cpu_atom"};
+
+// Whether the event rows of `directory` publish both core scopes: the fact
+// FR-006 reads, held in the `Unit` text of a row of the directory's own parsed
+// table (`PmuTableEntry::unit`). A scope of another class, the memory class of
+// an uncore row among them, counts for nothing here, and a directory whose rows
+// carry no `Unit` key at all publishes one core scope. The load is the
+// once-per-directory read the listing already reached, so this call opens no
+// path and reads no counter (FR-006, specs/012 FR-036).
+[[nodiscard]] auto publishesTwoScopes(const std::string& directory) -> bool
+{
+#ifdef __linux__
+  bool core = false;
+  bool atom = false;
+  for (const detail::PmuTableEntry& entry : detail::pmuLoadTable(directory)) {
+    core = core || entry.unit == kCoreScope;
+    atom = atom || entry.unit == kAtomScope;
+  }
+  return core && atom;
+#else
+  // A platform that publishes no event table holds no directory to read, so no
+  // directory of it publishes two scopes (specs/007 FR-042).
+  static_cast<void>(directory);
+  return false;
+#endif
+}
+
 // A refusal, with the kind and the three fields the identity states. The line a
 // caller prints is `message()`'s, so no text here carries a sentence
 // (FR-040, spec D-14).
@@ -333,6 +373,43 @@ constexpr std::size_t kNoRow {std::numeric_limits<std::size_t>::max()};
 }
 
 }  // namespace
+
+auto TopdownUnsupported::message() const -> std::string
+{
+  // The reason of the kind, spelled once here. The two refusals that read no
+  // directory state their reason in full, the two a table's own rows state
+  // carry that directory between quote marks, and an `MIDR` carries the
+  // sentence its refusal states (FR-004 to FR-007, spec D-14).
+  std::string reason;
+  switch (kind) {
+    case TopdownUnsupport::UNKNOWN_VENDOR:
+      reason = "no vendored table carries this vendor";
+      break;
+    case TopdownUnsupport::NO_DIRECTORY:
+      reason = "the mapping file names no table for this identity";
+      break;
+    case TopdownUnsupport::HYBRID:
+      reason = "the selected table '" + detail
+          + "' publishes rows for two core scopes, and this feature makes no "
+            "claim for a hybrid part";
+      break;
+    case TopdownUnsupport::ARM:
+      reason = detail;
+      break;
+    case TopdownUnsupport::NO_TOPDOWN_ROWS:
+      reason = "the selected table '" + detail
+          + "' holds no row of any top-down group";
+      break;
+  }
+  const std::string line =
+      "topdown: " + vendor + ' ' + identity + ": " + reason;
+  SG_ENSURE(line.starts_with("topdown: ") && !line.contains('\n')
+                && line.contains(vendor) && line.contains(identity)
+                && line.contains(reason),
+            "the refusal answers one line that names the vendor, the identity "
+            "and the reason of its kind (FR-040, spec D-14)");
+  return line;
+}
 
 auto topdownTree(const TopdownSelection& options)
     -> std::expected<TopdownTree, TopdownUnsupported>
@@ -389,6 +466,29 @@ auto topdownTree(const TopdownSelection& options)
     rowsByName.insert({table.rows[index].name, index});
   }
   const int depth = options.level < deepest ? options.level : deepest;
+
+  // Two refusals read the rows of the selected directory, and they stand ahead
+  // of any tree. A directory whose rows carry no level token holds no top-down
+  // row at all, and that answer stands first: a directory that publishes the
+  // two core scopes beside no level row states no tree to refuse, which is the
+  // shape one vendored directory answers with 606 event rows and no metric row
+  // (FR-006, FR-007, spec D-14).
+  if (deepest == 0) {
+    return std::unexpected(refusedWith(TopdownUnsupport::NO_TOPDOWN_ROWS,
+                                       identity.vendor,
+                                       identityText(identity),
+                                       table.source.directory));
+  }
+  // The two core scopes are the fact FR-006 refuses on, and the rule reads it
+  // from the directory's own event rows: the next hybrid directory is a hybrid
+  // directory at its first atom row, so a list of directory names would name it
+  // one release late.
+  if (publishesTwoScopes(table.source.directory)) {
+    return std::unexpected(refusedWith(TopdownUnsupport::HYBRID,
+                                       identity.vendor,
+                                       identityText(identity),
+                                       table.source.directory));
+  }
 
   TopdownTree tree;
   tree.source = table.source;

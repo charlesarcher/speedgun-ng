@@ -955,7 +955,7 @@ unsupported record.
 
 ### Tests for User Story 6 (write first, observe failure)
 
-- [ ] T075 [P] [US4] In `test/source/counters_topdown_select_test.cpp`, add the
+- [x] T075 [P] [US4] In `test/source/counters_topdown_select_test.cpp`, add the
   refusal cases: `unsupportedAnswersQuoteTheIdentity` reads the five refusal
   texts of `specs/042-topdown/contracts/topdown-selection.md:81-87` verbatim
   over the identity seam at `source/counters/detail/pmu.hpp:99-100` and `:112`,
@@ -995,7 +995,7 @@ unsupported record.
 
 ### Implementation for User Story 6
 
-- [ ] T079 [P] [US4] In `source/counters/linux_pmu/topdown_select.cpp`, answer
+- [x] T079 [P] [US4] In `source/counters/linux_pmu/topdown_select.cpp`, answer
   the five refusals: `UNKNOWN_VENDOR`, `NO_DIRECTORY`, `HYBRID`, `ARM` and
   `NO_TOPDOWN_ROWS`, with `message()` one line apiece as
   `specs/042-topdown/contracts/topdown-selection.md:81-87` spells them. The
@@ -1004,20 +1004,16 @@ unsupported record.
   `source/counters/detail/pmu.hpp:45`, and the no-rows answer stands ahead of
   it, so a directory that publishes two scopes and no level row answers
   `NO_TOPDOWN_ROWS` (FR-004 to FR-007, FR-040, spec D-13, spec D-14; turns T075
-  green).
-
+  green). No name list stands anywhere: the hybrid answer reads the scope text the selected directory's own event rows carry, and the no-rows answer stands ahead of it. The record's `reason` carries this message, so an identity that reads no directory names the vendor and the identity in the document (FR-033).
 - [ ] T080 [P] [US4] In `source/harness/cli.cpp`, print that one message when
   the selection answers unsupported and change no exit status on that path
   (FR-040, FR-041; turns T076 green).
-
 - [ ] T081 [P] [US4] In `source/harness/report.cpp`, print the refused rows in
   the block, one line each at the level shown with kind and reason (FR-016,
   FR-031; turns T077 green).
-
 - [ ] T082 [P] [US4] In `source/harness/json_report.cpp`, write the refused
   entries and the unsupported state of the top-down object (FR-033, spec D-14;
   turns T078 green).
-
 - [ ] T083 [P] [US4] Land the pending-row rule of FR-057 with no unit test,
   since a part with no host is a statement about hardware: one pending row per
   part with no host (`PERF_METRICS` parts, Intel hybrid parts, Arm parts) in the
@@ -1044,7 +1040,6 @@ region in the example file, the option row with the option table, and the
 section list with the page, and the run gate executes the example and fails when
 a registered benchmark prints no row. Here that is
 `python3 tools/docs/example_drift.py .` and `bash test/example_run.sh build`.
-
 - [ ] T084 [US5] Write `example/docs/topdown.cpp`, a new file: read the host
   identity, print the level-1 values on a host with a source and the unsupported
   message on a host without one, bound the printed body between
