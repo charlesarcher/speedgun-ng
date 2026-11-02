@@ -3993,6 +3993,19 @@ auto pmuIdentDecodeScenario() -> void
     check(id.family == -1 && id.model == -1 && id.stepping == -1,
           "a leaf 1 that does not answer leaves the ident fields unset");
   }
+
+  // The bind the two target kinds name: a cpu-pinned plan binds the
+  // cpu for every task, a thread-bound plan counts the calling thread
+  // on any cpu (FR-024, FR-031).
+  using sg::counters::Target;
+  using sg::counters::TargetKind;
+  using sg::counters::detail::leaderPid;
+  const Target pinned {TargetKind::CPU, 3};
+  check(leaderPid(pinned) == std::pair<pid_t, int> {-1, 3},
+        "a cpu-pinned target binds cpu 3 for every task");
+  const Target threaded {TargetKind::THREAD, 5};
+  check(leaderPid(threaded) == std::pair<pid_t, int> {0, -1},
+        "a thread-bound target counts the calling thread");
 }
 
 auto main() -> int
