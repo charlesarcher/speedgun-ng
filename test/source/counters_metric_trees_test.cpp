@@ -9,8 +9,8 @@
 // half of the SMT fact and the sibling list of one cpu answers the fact
 // under the root the seam installs. One child process registers the
 // two-thread, one-core tree and shows that tree keep priority over a list
-// naming one id. The `#core_wide` scenarios read this process's own cpu set
-// beside the sibling lists they drive, and the three constants no top-down
+// naming one id. The `#core_wide` scenarios move the sibling list of every
+// cpu the process may run on, and the three constants no top-down
 // row reaches keep their refusal. The published query answers both readings
 // and the refusal, one reading per process, because the value settles at the
 // first read of a process. A wrong answer never reaches the fold.
@@ -253,49 +253,100 @@ auto smtStateFallsBackToTheSiblingList() -> void
   }
 }
 
-// T005: `#core_wide` reads the cpu set of this process and the sibling list
-// of every cpu that set holds (specs/042-topdown FR-042, FR-043, D-6). The
-// mask is the one the host hands the run, so the lists name ids the mask
-// holds and the answer stands still on a narrowed host.
-auto coreWideAnswersFromTheProcessCpuSet() -> void
+// T005: `#core_wide` reads the sibling list of the cpu that carries the run
+// (specs/042-topdown FR-042, FR-043, D-6). A list naming one cpu answers 1,
+// because that thread's own counters span the core, and a list naming a
+// second cpu answers 0, because the run reads one thread of that core. The
+// cpu set the process holds states a scheduling permission and settles
+// nothing, so every scenario below keeps the set as wide as the host hands
+// it and moves the lists instead.
+auto coreWideAnswersFromTheSiblingList() -> void
 {
   const auto cpus = processCpus();
   const std::size_t lowest = cpus.front();
   const std::size_t highest = cpus.back();
-  const auto holds = [&cpus](const std::size_t cpu)
-  { return std::find(cpus.begin(), cpus.end(), cpu) != cpus.end(); };
-  // The id past the widest this process holds, so it stands outside the set
-  // whoever the host is.
+  // The id past the widest this process holds, so a list naming it names a
+  // second cpu whoever the host is.
   const auto outside = std::to_string(highest + 1);
+  // One text per cpu under one root: each cpu names itself, or each names a
+  // second cpu, in the `a-b` spelling where the successor stands in the set
+  // and in the `a,b` spelling past the widest, so one run walks both
+  // spellings the kernel prints (FR-042).
+  const auto writeAll =
+      [&](const std::filesystem::path& root, const bool namesSecondCpu)
   {
-    // Every sibling of every cpu stands inside the set. The list of a cpu
-    // whose successor also stands inside carries the range spelling, so one
-    // run walks both spellings the kernel prints (FR-042).
-    const auto root = fakeRoot("wide-whole");
-    const ProcRootGuard guard {root};
     for (const std::size_t cpu : cpus) {
-      const auto text = holds(cpu + 1)
-          ? std::to_string(cpu) + "-" + std::to_string(cpu + 1)
+      const auto text = namesSecondCpu
+          ? (cpu == highest
+                 ? std::to_string(cpu) + "," + outside
+                 : std::to_string(cpu) + "-" + std::to_string(cpu + 1))
           : std::to_string(cpu);
       writeSiblingList(root, cpu, "core_cpus_list", text);
     }
+  };
+  // Which arm of a row conditional on the constant publishes. The if-arm
+  // divides by a constant no host answers, so a refusal naming `has_pmem`
+  // means the if-arm and a published row means the else arm (FR-005).
+  const auto takesIfArm = []
+  {
+    const auto rows = std::vector<sg::test::MetricRow> {
+        sg::test::fixtureEvent(sg::test::kCycles),
+        sg::test::fixtureMetric(
+            "coverage_arm",
+            "fixture_cycles / #has_pmem if #core_wide else fixture_cycles"),
+    };
+    const auto table = sg::counters::detail::parseMetricRows(rows);
+    const auto settled =
+        sg::counters::detail::metricDefinition(table,
+                                               sg::test::fixtureEvents(),
+                                               sg::test::fixtureHost(),
+                                               "coverage_arm");
+    return !settled.has_value()
+        && settled.error().message.find("has_pmem") != std::string::npos;
+  };
+  {
+    // Each cpu lists itself, so whichever cpu carries the run reads a list
+    // that names no sibling, whatever number of cpus the set holds.
+    const auto root = fakeRoot("list-one-cpu");
+    const ProcRootGuard guard {root};
+    writeAll(root, false);
     check(answerOf("core_wide") == FactAnswer::ONE,
-          "a set that holds every sibling of every cpu it holds answers "
-          "#core_wide 1, and no width beside it (FR-042)");
+          "a sibling list naming one cpu answers #core_wide 1 beside a cpu "
+          "set holding many, and no width beside it (FR-042)");
+    check(takesIfArm(),
+          "a whole-core list folds the row onto its if-arm, the arm the "
+          "pinned table spells from the thread's own clock (FR-042, FR-005)");
   }
   {
-    const auto root = fakeRoot("wide-outside");
+    const auto root = fakeRoot("list-two-cpus");
+    const ProcRootGuard guard {root};
+    writeAll(root, true);
+    check(answerOf("core_wide") == FactAnswer::ZERO,
+          "a sibling list naming a second cpu answers #core_wide 0, because "
+          "one thread of that core stands outside the counters (FR-042)");
+    check(!takesIfArm(),
+          "a list naming a sibling folds the row onto its else-arm, the arm "
+          "the pinned table spells from the core-wide clock (FR-042, FR-005)");
+  }
+  {
+    // Every list names a sibling this process's own cpu set also holds, so
+    // the width of the set cannot be what settles the verdict: the list
+    // names a second cpu, and the run reads one thread of that core.
+    const auto root = fakeRoot("list-sibling-inside-set");
     const ProcRootGuard guard {root};
     for (const std::size_t cpu : cpus) {
-      writeSiblingList(root,
-                       cpu,
-                       "core_cpus_list",
-                       cpu == lowest ? std::to_string(cpu) + "," + outside
-                                     : std::to_string(cpu));
+      const auto text = cpu == lowest
+          ? std::to_string(cpu) + "," + std::to_string(highest)
+          : std::to_string(cpu - 1) + "-" + std::to_string(cpu);
+      writeSiblingList(root, cpu, "core_cpus_list", text);
     }
     check(answerOf("core_wide") == FactAnswer::ZERO,
-          "one sibling standing outside the set answers #core_wide 0 and the "
-          "conditional takes the other arm (FR-042)");
+          "a sibling the cpu set holds as well leaves #core_wide at 0, "
+          "because the set states a permission and the list states the "
+          "measurement (FR-042, D-6)");
+    check(!takesIfArm(),
+          "the fold keeps the arm a one-thread run reads, beside a set that "
+          "holds the sibling too (FR-042, FR-005)");
   }
   {
     const auto root = fakeRoot("wide-unreadable");
@@ -313,29 +364,41 @@ auto coreWideAnswersFromTheProcessCpuSet() -> void
           "standing refusal (FR-042)");
   }
   {
-    // An id at or above the width of the set type stands outside every set,
-    // so the digit walk settles there and the flag answers 0 (FR-042).
+    // An id at or above the width of the set type stands inside no set, and
+    // the verdict reads no set: the list names a second cpu, so the flag
+    // answers 0 for that reason alone (FR-042).
     const auto root = fakeRoot("wide-past-set");
     const ProcRootGuard guard {root};
     for (const std::size_t cpu : cpus) {
-      writeSiblingList(root,
-                       cpu,
-                       "core_cpus_list",
-                       cpu == lowest ? std::to_string(cpu) + ",1048576"
-                                     : std::to_string(cpu));
+      writeSiblingList(
+          root, cpu, "core_cpus_list", std::to_string(cpu) + ",1048576");
     }
     check(answerOf("core_wide") == FactAnswer::ZERO,
-          "a sibling id past the width the set carries stands outside it, "
-          "and the flag answers 0 (FR-042)");
+          "a list naming a second id answers #core_wide 0 whatever width the "
+          "cpu set of the process carries (FR-042)");
   }
   {
-    // The shape a refused affinity read leaves behind: an empty set answers
-    // nothing, so the reader invents no coverage for a process it cannot see.
-    cpu_set_t empty {};
-    CPU_ZERO(&empty);
+    // The verdict itself, over texts no host has to publish (D-6). A refusal
+    // leaves the caller's value standing, the shape every reader keeps.
     double value = 0.0;
-    check(!sg::counters::detail::coreWideFromCpuSet(empty, value),
-          "a cpu set holding no cpu answers no #core_wide (FR-042)");
+    check(sg::counters::detail::coreWideFromSiblingList("0", value)
+              && value > 0.5,
+          "a list naming one cpu answers the coverage flag 1 (FR-042, D-6)");
+    check(sg::counters::detail::coreWideFromSiblingList("0,12", value)
+              && value < 0.5,
+          "a list naming two cpus answers the coverage flag 0 (FR-042, D-6)");
+    check(sg::counters::detail::coreWideFromSiblingList("0-1", value)
+              && value < 0.5,
+          "a list naming a run of cpus answers the coverage flag 0 (FR-042)");
+    value = 7.5;
+    check(!sg::counters::detail::coreWideFromSiblingList("none", value)
+              && value > 7.0 && value < 8.0,
+          "a list naming no cpu id answers nothing and leaves the caller's "
+          "value as it stood (FR-042)");
+    check(!sg::counters::detail::coreWideFromSiblingList("", value)
+              && value > 7.0 && value < 8.0,
+          "an empty list answers nothing and leaves the caller's value as it "
+          "stood (FR-042)");
   }
   for (const auto* constant : {"num_dies", "SYSTEM_TSC_FREQ", "has_pmem"}) {
     check(answerOf(constant) == FactAnswer::NOTHING,
@@ -352,26 +415,28 @@ auto coreWideAnswersFromTheProcessCpuSet() -> void
 auto coreWideAnswersThroughThePublishedQuery() -> void
 {
   const auto cpus = processCpus();
-  const std::size_t lowest = cpus.front();
   const auto holds = [&cpus](const std::size_t cpu)
   { return std::find(cpus.begin(), cpus.end(), cpu) != cpus.end(); };
-  // The id past the widest this process holds, so it stands outside the set
-  // whoever the host is.
-  const auto outside = std::to_string(cpus.back() + 1);
-  const auto listText = [&](const std::size_t cpu, const bool namesOutside)
+  // The widest id and the one before it, both inside the set, so the last
+  // cpu names a sibling the set holds as well: the width of the set then
+  // settles nothing, and only the list does.
+  const auto back = std::to_string(cpus.back());
+  const auto penultimate =
+      std::to_string(cpus.size() > 1 ? cpus.back() - 1 : cpus.front());
+  const auto listText = [&](const std::size_t cpu, const bool namesSecondCpu)
   {
-    if (namesOutside && cpu == lowest) {
-      return std::to_string(cpu) + "," + outside;
+    if (!namesSecondCpu) {
+      return std::to_string(cpu);
     }
     return holds(cpu + 1) ? std::to_string(cpu) + "-" + std::to_string(cpu + 1)
-                          : std::to_string(cpu);
+                          : penultimate + "," + back;
   };
   // One process reading the query under one root: the lists it stands behind,
   // the answer the query owes it, and the reason a wrong answer fails. The
   // second call answers the first, so a caller carries no reader of its own.
   const auto read =
       [&](const std::string_view name,
-          const bool namesOutside,
+          const bool namesSecondCpu,
           const bool readable,
           const std::optional<sg::counters::CoreCoverage> expected,
           const char* const what)
@@ -381,7 +446,7 @@ auto coreWideAnswersThroughThePublishedQuery() -> void
     if (readable) {
       for (const std::size_t cpu : cpus) {
         writeSiblingList(
-            root, cpu, "core_cpus_list", listText(cpu, namesOutside));
+            root, cpu, "core_cpus_list", listText(cpu, namesSecondCpu));
       }
     }
     const auto answer = sg::counters::coreWideCoverage();
@@ -396,8 +461,9 @@ auto coreWideAnswersThroughThePublishedQuery() -> void
          true,
          true,
          sg::counters::CoreCoverage::ONE_THREAD,
-         "one sibling standing outside the set answers ONE_THREAD through the "
-         "published query (FR-042)");
+         "a sibling list naming a second cpu answers ONE_THREAD through the "
+         "published query, because the run reads one thread of that core "
+         "(FR-042)");
     std::exit(0);
   }
   const pid_t unreadableChild = ::fork();
@@ -415,8 +481,9 @@ auto coreWideAnswersThroughThePublishedQuery() -> void
        false,
        true,
        sg::counters::CoreCoverage::WHOLE_CORE,
-       "a set that holds every sibling of every cpu it holds answers "
-       "WHOLE_CORE through the published query (FR-042)");
+       "a sibling list naming one cpu answers WHOLE_CORE through the "
+       "published query, because that thread's own counters span the core "
+       "(FR-042)");
   int status = 0;
   check(::waitpid(narrowChild, &status, 0) == narrowChild,
         "the one-thread child is waited for");
@@ -463,7 +530,7 @@ auto main() -> int
   }
   smtFactRefusalScenario();
   smtStateFallsBackToTheSiblingList();
-  coreWideAnswersFromTheProcessCpuSet();
+  coreWideAnswersFromTheSiblingList();
   coreWideAnswersThroughThePublishedQuery();
   int status = 0;
   check(::waitpid(child, &status, 0) == child,

@@ -1745,7 +1745,13 @@ A metric set wider than the host's published counter limit measures in passes,
 and the pass line under the row carries `method=`, `count=` and `spread=`.
 Ahead of the first measurement the run states the scope of the core-wide
 constant as `topdown: core-wide coverage=whole_core` or
-`topdown: core-wide coverage=one_thread`. A host that answers no value for that
+`topdown: core-wide coverage=one_thread`. The scope is a topology fact about the
+cpu that carries the run, read from that cpu's sibling list. A list naming that
+cpu by itself answers `whole_core`, because the thread's own counters span the
+core. A list naming a second cpu answers `one_thread`, because the run takes its
+counters from one thread and the other thread of that core stands outside them.
+The cpus a process may run on state a scheduling permission, and they settle
+nothing about what a measurement counted. A host that answers no value for that
 constant prints no such line, and a row that reaches the constant keeps its
 refusal.
 

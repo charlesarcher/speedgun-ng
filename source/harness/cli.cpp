@@ -1571,11 +1571,11 @@ auto speedgunMain(int argc, char** argv) -> int
   // `#core_wide` flag settled before any measurement prints. The query is the
   // one reader of that flag, so this call is what settles the cached value and
   // the conditional over the constant folds to the same value when a table
-  // resolves: the line and a folded row cannot disagree. It reads the cpu set
-  // this process holds here, ahead of the narrowing a live jitter probe applies
-  // inside the walk. An unreadable cpu set or sibling list answers nothing,
-  // which keeps the standing refusal of the constant and prints no line at all
-  // (FR-043).
+  // resolves: the line and a folded row cannot disagree. It reads the sibling
+  // list of the cpu this thread runs on where the query settles, ahead of the
+  // narrowing a live jitter probe applies inside the walk. An unreadable
+  // sibling list answers nothing, which keeps the standing refusal of the
+  // constant and prints no line at all (FR-043).
   // specs/042-topdown FR-040, spec D-14: the one line of a host that has no
   // source, stated once for the process ahead of the walk, so it reaches the
   // reader before the first measurement does. A host that answers a tree prints
