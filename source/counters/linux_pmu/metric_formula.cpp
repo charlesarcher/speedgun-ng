@@ -1674,10 +1674,10 @@ auto metricByName(const std::string_view name)
 auto coreWideCoverage() -> std::optional<CoreCoverage>
 {
   // One walk per process: a block-scope static initializes once, so the
-  // first call reads the cpu set and the sibling lists and every later call
-  // answers the settled value with no file open (FR-042, spec D-6). The walk
-  // stands in `detail::coreWideFlag`, the reader the `#core_wide` row of a
-  // table reads through, so the query and a folded row answer one thing.
+  // first call reads the sibling list of the cpu it runs on and every later
+  // call answers the settled value with no file open (FR-042, spec D-6). The
+  // walk stands in `detail::coreWideFlag`, the reader the `#core_wide` row of
+  // a table reads through, so the query and a folded row answer one thing.
   static const std::optional<CoreCoverage> kCoverage = []
   {
     double flag = 0.0;
