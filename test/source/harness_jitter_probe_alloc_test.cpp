@@ -219,7 +219,11 @@ auto runArmedSpan(const sg::JitterProbeOptions& loopOptions,
                   const char* what) -> void
 {
   auto& provider = scriptedProvider();
-  provider.setPoints("machine", "tsc", passSeries(1), 1);
+  // The step of 1,000 ns stands at the FWQ target and above the FTQ
+  // target of one thousandth of the quantum, so the calibration keeps
+  // the count 1 and the armed span covers the loop's own passes (FR-012,
+  // FR-015, R-08).
+  provider.setPoints("machine", "tsc", passSeries(1000), 1);
   const auto baseActions = provider.readActions();
   sg::detail::JitterProbe probe(loopOptions);
   probe.start();
