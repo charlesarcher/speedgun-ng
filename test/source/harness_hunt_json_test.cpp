@@ -1534,9 +1534,10 @@ auto twoStageDocument() -> void
 auto schemaConformance() -> void
 {
   const auto text = huntDocumentText(singleStageHunt());
-  check(text.starts_with("{\"schemaVersion\":\"1.12\""),
-        "the hunt document stamps the minor 1.12 the writer carries "
-        "(FR-032, specs/039 FR-032, specs/037 FR-005, specs/043 FR-006)");
+  check(text.starts_with("{\"schemaVersion\":\"1.13\""),
+        "the hunt document stamps the minor 1.13 the writer carries "
+        "(FR-032, specs/039 FR-032, specs/037 FR-005, specs/043 FR-006, "
+        "specs/042-topdown FR-036)");
   const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, text);
   if (!clean.has_value()) {
     failed("the hunt document disagrees with the schema: " + clean.error());

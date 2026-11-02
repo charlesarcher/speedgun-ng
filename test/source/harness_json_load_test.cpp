@@ -105,7 +105,7 @@ auto versionRuleGatesTheReader() -> void
     return mutated;
   };
 
-  sg::test::writeText("harness_json_load_minor.json", withVersion("\"1.12\""));
+  sg::test::writeText("harness_json_load_minor.json", withVersion("\"1.13\""));
   check(sg::loadReport("harness_json_load_minor.json").has_value(),
         "a later minor of the same major loads (FR-010)");
 
@@ -827,7 +827,7 @@ auto theRootListAndTheWarningKeyAnswerTheirOwnRules(const std::string& text)
 }
 
 constexpr Mutation kMutations[] = {
-    {"\"schemaVersion\":\"1.12\"", "\"schemaVersion\":1", "/schemaVersion"},
+    {"\"schemaVersion\":\"1.13\"", "\"schemaVersion\":1", "/schemaVersion"},
     {"\"name\":\"bmJsonWindow\"", "\"name\":[]", "/benchmarks/0/name"},
     // The two kinds the naming word has no other caller for: a document
     // that holds null, and one that holds a flag, at a name.
@@ -1197,10 +1197,10 @@ auto theHeaderFieldsAndTheStoredWarningsLoad(const std::string& text) -> void
   // number in the field.
   std::string other = text;
   const auto stamp = other.find("\"schemaVersion\":") + 16;
-  other.replace(stamp, other.find('"', stamp + 1) + 1 - stamp, "\"1.12\"");
+  other.replace(stamp, other.find('"', stamp + 1) + 1 - stamp, "\"1.13\"");
   sg::test::writeText("harness_json_load_headertext.json", other);
   const auto minor = sg::loadReport("harness_json_load_headertext.json");
-  check(minor.has_value() && minor->schemaVersion == "1.12",
+  check(minor.has_value() && minor->schemaVersion == "1.13",
         "the field answers the version of a later minor (FR-070, FR-010)");
 
   // A document that omits the speedgun object entirely stays readable and

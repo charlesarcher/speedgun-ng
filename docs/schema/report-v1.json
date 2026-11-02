@@ -495,7 +495,8 @@
           "passCount",
           "passSpread",
           "spreadWarning",
-          "hunt"
+          "hunt",
+          "topdown"
         ],
         "required": [
           "name",
@@ -987,6 +988,111 @@
                   "properties": {
                     "address": { "type": "string" },
                     "kind": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "topdown": {
+            "type": "object",
+            "x-order": [
+              "supported",
+              "reason",
+              "reference",
+              "directory",
+              "files",
+              "asked_level",
+              "level",
+              "nodes",
+              "refused"
+            ],
+            "required": [
+              "supported",
+              "reason",
+              "reference",
+              "directory",
+              "files",
+              "asked_level",
+              "level",
+              "nodes",
+              "refused"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "supported": { "type": "boolean" },
+              "reason": { "type": "string" },
+              "reference": { "type": "string" },
+              "directory": { "type": "string" },
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "x-order": ["name", "manifest_hash"],
+                  "required": ["name", "manifest_hash"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": { "type": "string" },
+                    "manifest_hash": { "type": "string" }
+                  }
+                }
+              },
+              "asked_level": { "type": "integer" },
+              "level": { "type": "integer" },
+              "nodes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "x-order": [
+                    "name",
+                    "vendor_name",
+                    "parent",
+                    "level",
+                    "value",
+                    "availability",
+                    "threshold"
+                  ],
+                  "required": [
+                    "name",
+                    "vendor_name",
+                    "parent",
+                    "level",
+                    "value",
+                    "availability",
+                    "threshold"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": { "type": "string" },
+                    "vendor_name": { "type": "string" },
+                    "parent": { "type": "string" },
+                    "level": { "type": "integer" },
+                    "value": { "type": ["number", "null"] },
+                    "availability": {
+                      "type": "string",
+                      "enum": [
+                        "COUNTABLE",
+                        "PERMISSION_BLOCKED",
+                        "NOT_ENCODABLE",
+                        "ABSENT",
+                        "SCOPE_REFUSED",
+                        "GAP"
+                      ]
+                    },
+                    "threshold": { "type": "string" }
+                  }
+                }
+              },
+              "refused": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "x-order": ["name", "kind", "reason"],
+                  "required": ["name", "kind", "reason"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": { "type": "string" },
+                    "kind": { "type": "string" },
+                    "reason": { "type": "string" }
                   }
                 }
               }

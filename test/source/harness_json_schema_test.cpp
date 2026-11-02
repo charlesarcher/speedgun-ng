@@ -40,6 +40,35 @@ auto swappedSpeedgun(const std::string& text) -> std::string
   return mutated;
 }
 
+// The two carriers of the entry order of specs/042-topdown (FR-032, FR-036):
+// a top-down object of the shape the schema states, and a hunt object of the
+// shape the schema states, each hung on the entry after `spreadWarning`, the
+// key that closed the entry before either of them existed.
+constexpr const char* const kHuntObject =
+    R"JSON({"method":"AUTO","pass_count":1,"top":20,"retried_passes":0,"entries":[],"skipped":[]})JSON";
+
+constexpr const char* const kTopdownObject =
+    R"JSON({"supported":true,"reason":"","reference":"v4.3","directory":"arch/x86/skylakex/","files":[{"name":"core_metrics.json","manifest_hash":"0a1b2c3d"}],"asked_level":4,"level":3,"nodes":[{"name":"backend_bound","vendor_name":"TopL1.BackendBound","parent":"","level":1,"value":52.5,"availability":"COUNTABLE","threshold":"> 20 %"}],"refused":[{"name":"topdown.intel.frontend_l1_bound","kind":"UNRESOLVED","reason":"the row names a metric no other row"}]})JSON";
+
+// The same top-down object with one key the closed object does not list.
+constexpr const char* const kTopdownWithExtra =
+    R"JSON({"supported":true,"extra":true,"reason":"","reference":"v4.3","directory":"arch/x86/skylakex/","files":[{"name":"core_metrics.json","manifest_hash":"0a1b2c3d"}],"asked_level":4,"level":3,"nodes":[{"name":"backend_bound","vendor_name":"TopL1.BackendBound","parent":"","level":1,"value":52.5,"availability":"COUNTABLE","threshold":"> 20 %"}],"refused":[{"name":"topdown.intel.frontend_l1_bound","kind":"UNRESOLVED","reason":"the row names a metric no other row"}]})JSON";
+
+// One entry of the document, with `keys` hung on it after the last key of the
+// entry as the writer stands it.
+auto entryWithKeys(const std::string& text,
+                   const std::string& keys) -> std::string
+{
+  const std::string last = "\"spreadWarning\":";
+  const auto at = text.find(last);
+  check(at != std::string::npos, "the written entry carries a spread warning");
+  const auto value = at + last.size();
+  const auto stop = text[value] == 't' ? value + 4 : value + 5;
+  std::string mutated = text;
+  mutated.insert(stop, "," + keys);
+  return mutated;
+}
+
 auto plantedDisagreementsAreNamedByPointer() -> void
 {
   sg::detail::RunOptions options;
@@ -108,6 +137,20 @@ auto plantedDisagreementsAreNamedByPointer() -> void
            Plant {std::move(twice),
                   "a key that stands twice in one object",
                   "/schemaVersion"},
+           // specs/042-topdown FR-032, FR-036: the entry order is normative,
+           // so a top-down object that stands before the hunt object reads
+           // out of that order, and a key the closed top-down object does not
+           // list reads unlisted.
+           Plant {entryWithKeys(text,
+                                std::string("\"topdown\":") + kTopdownObject
+                                    + ",\"hunt\":" + kHuntObject),
+                  "a top-down key stands before the hunt key",
+                  "/benchmarks/0/hunt"},
+           Plant {entryWithKeys(text,
+                                std::string("\"hunt\":") + kHuntObject
+                                    + ",\"topdown\":" + kTopdownWithExtra),
+                  "the closed top-down object holds an unlisted key",
+                  "/benchmarks/0/topdown/extra"},
        })
   {
     const auto answer = sg::detail::checkReport(SG_SCHEMA_PATH, plant.text);
@@ -156,8 +199,8 @@ auto plantedDisagreementsAreNamedByPointer() -> void
 // The schema's per-entry hunt entry node (specs/040; FR-032, B-9): the
 // node stands closed, so its `x-order` names the three rank keys after
 // `rank`, and the document the writer produces pairs the schema at the
-// minor the writer stamps, `1.12` since specs/043 added the series
-// record.
+// minor the writer stamps, `1.13` since specs/042-topdown added the
+// `topdown` object of the entry record.
 auto entryHuntKeysPairAtStampedMinor(const std::string& documentText) -> void
 {
   const std::string schemaText = sg::test::readText(SG_SCHEMA_PATH);
@@ -186,17 +229,18 @@ auto entryHuntKeysPairAtStampedMinor(const std::string& documentText) -> void
         "the entry node names the three rank keys after `rank` in its "
         "`x-order` (FR-032, B-9)");
 
-  check(documentText.find("\"schemaVersion\":\"1.12\"") != std::string::npos,
-        "the document the writer produces stands at the stamped minor 1.12 "
-        "(FR-032, specs/039 FR-032, specs/037 FR-005, specs/043 FR-006)");
+  check(documentText.find("\"schemaVersion\":\"1.13\"") != std::string::npos,
+        "the document the writer produces stands at the stamped minor 1.13 "
+        "(FR-032, specs/039 FR-032, specs/037 FR-005, specs/043 FR-006, "
+        "specs/042-topdown FR-036)");
 }
 
 // specs/043 T025, US4, FR-006, R-16: the schema node of the series record.
 // The item stands closed, its `x-order` names the 21 keys in the written
 // order, the method word stands in a list of three, and the period item
 // stands closed with its two keys. The document the writer produces pairs
-// the schema at the minor the writer stamps, `1.12` since specs/043 added
-// the series record.
+// the schema at the minor the writer stamps, `1.13` since specs/042-topdown
+// added the `topdown` object of the entry record.
 constexpr std::string_view kSeriesKeys[] = {
     "cpu",
     "workCount",
@@ -330,9 +374,9 @@ auto theSeriesKeysPairAtTheStampedMinor() -> void
   check(paired,
         "theSeriesKeysPairAtTheStampedMinor: the item names the 21 keys in "
         "the written order (FR-006, FR-011)");
-  check(documentText.find("\"schemaVersion\":\"1.12\"") != std::string::npos,
+  check(documentText.find("\"schemaVersion\":\"1.13\"") != std::string::npos,
         "theSeriesKeysPairAtTheStampedMinor: the document the writer produces "
-        "stands at the stamped minor 1.12 (FR-006, R-16)");
+        "stands at the stamped minor 1.13 (FR-006, R-16)");
 }
 
 // FR-006: the item stands closed, so a key the schema lists nowhere refuses

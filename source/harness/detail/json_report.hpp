@@ -341,6 +341,14 @@ struct JitterReportRecord
  *       graph writes the same bytes apart from the `schemaVersion`
  *       value (specs/037 FR-006, SC-005). A single-context run gains
  *       no entry (specs/037 FR-012).
+ * @post an entry whose `topdown` record stands writes the `topdown`
+ *       object of that entry after its `hunt` key, one object that holds
+ *       the fields of the record: the support flag and its reason, the
+ *       table reference and directory, the file rows, the asked level and
+ *       the level, the node rows and the refused rows (specs/042-topdown
+ *       FR-032, FR-034); an entry whose record stands empty writes no such
+ *       key, so a run that named no `--topdown` writes the same bytes apart
+ *       from the `schemaVersion` value (specs/042-topdown FR-035, FR-036)
  */
 [[nodiscard]] auto writeReport(
     const std::string& path,
