@@ -811,7 +811,7 @@ every record, and the standing contracts carry the deltas.
   through `addSpectrumTo` at `jitter_probe.cpp:1292`, the region freed
   by the vector's deallocate, so the standing row names it today.
   Verify: `cmake --build build/sanitize --target harness_fwq_ftq_test` exits 0, `ASAN_OPTIONS=detect_leaks=0 ./build/sanitize/test/harness_fwq_ftq_test` exits 0 with no `AddressSanitizer` line, and `./build/example/benchmark_example --filter=bmTouch --min-time=1 --repetitions=1 --jitter-probe=0,method=fwq,mode=precheck,precheck=2400,gaps=10485760` exits 0
-- [ ] T072 [P0] Read the whole body run in `calibrationTrial`
+- [x] T072 [P0] Read the whole body run in `calibrationTrial`
   (`source/harness/jitter_probe.cpp:229`). The line returns
   `(spanEnd - first) / count`, the per-iteration figure, and the search
   compares it against the target. FR-010 names one unit, which is one body
