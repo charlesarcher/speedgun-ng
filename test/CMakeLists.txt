@@ -2223,6 +2223,25 @@ target_include_directories(harness_topdown_option_test PRIVATE ${CMAKE_SOURCE_DI
 target_compile_features(harness_topdown_option_test PRIVATE cxx_std_23)
 add_test(NAME harness_topdown_option_test COMMAND harness_topdown_option_test)
 
+# The collection one `--topdown` run makes (specs/042-topdown T027; US1;
+# FR-016, FR-018, FR-019, FR-021, FR-022, FR-023; PC-9, PC-10). Four scenarios
+# drive the runner over one scripted provider each: the one plan that holds the
+# metric columns and the node columns, the bytes those metric columns keep, the
+# refused rows that collect no column, and the source the node columns bring in
+# reading its published limit. The rows the selection reads stand in the table
+# the run plants at `RunOptions::topdownTable`, and the leaves those rows read
+# stand on the scripted objects, so the unit reads no real counter, no vendored
+# table and no clock. Each scenario owns one provider script, so it runs in a
+# re-exec of this binary and the parent reads its wait status. The selection
+# reads the identity of the cpu it runs on, so a host outside the two vendors
+# this build tables states its reason and exits with the skip code below.
+add_executable(harness_topdown_run_test source/harness_topdown_run_test.cpp)
+target_link_libraries(harness_topdown_run_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_topdown_run_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_topdown_run_test PRIVATE cxx_std_23)
+add_test(NAME harness_topdown_run_test COMMAND harness_topdown_run_test)
+set_tests_properties(harness_topdown_run_test PROPERTIES SKIP_RETURN_CODE 2)
+
 # ---- Tier labels and budgets ----
 
 # The entries a fast local run may leave out (030 P-05, FR-025): one row per

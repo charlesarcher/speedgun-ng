@@ -27,6 +27,7 @@
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_metrics.hpp"
 #include "speedgun-ng/counters_system.hpp"
+#include "speedgun-ng/counters_topdown.hpp"
 #include "speedgun-ng/dbc.hpp"
 
 namespace
@@ -1323,6 +1324,42 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     columns.push_back(detail::metricColumnFor(name,
                                               sg::counters::metricByName(name),
                                               sg::counters::catalogMetrics()));
+  }
+
+  // specs/042-topdown FR-018, FR-019, FR-021, FR-023: a run that asks for a
+  // level collects the formula of every node of that tree as a column of this
+  // run, ahead of the leaf grouping, the limit read and the settling below, so
+  // the planner prices the metric columns and the node columns as one set and
+  // the columns above keep the positions they held before the option stood. A
+  // node carries the metric layer's own spine, so its column folds through the
+  // plan, the window and the merge like a named metric, and it takes the row's
+  // vendor name as its label. The selection reads the identity of the cpu this
+  // process runs on, once, and the table the run plants through
+  // `TopdownSelection::table`, the seam
+  // `specs/042-topdown/contracts/topdown-selection.md` gives a test. A
+  // selection that answers no tree collects no column, and a refused row of a
+  // tree reaches no column and moves no position of this vector: only the nodes
+  // of the answer stand here, and the record of both sides rides in
+  // `result.topdown` (FR-016, FR-040).
+  if (m_options.topdownLevel.has_value()) {
+    sg::counters::TopdownSelection selection;
+    selection.identity = sg::counters::cpuIdentity();
+    selection.level = static_cast<int>(*m_options.topdownLevel);
+    selection.table = m_options.topdownTable;
+    const auto answered = sg::counters::topdownTree(selection);
+    if (answered.has_value()) {
+      for (const sg::counters::TopdownNode& node : answered->nodes) {
+        columns.push_back(detail::metricColumnFor(
+            node.vendorName,
+            sg::counters::MetricView {
+                .expression = node.formula,
+                .group = {},
+                .unit = {},
+                .threshold = std::string_view {node.threshold},
+            },
+            std::vector<sg::counters::MetricListing> {}));
+      }
+    }
   }
 
   std::vector<const sg::counters::detail::ExprCore*> cores;

@@ -88,6 +88,7 @@ MASTER_SKIP = {
     "counters_objects_limit_test": "2",
     "counters_topdown_select_test": "2",
     "counters_topdown_source_test": "2",
+    "harness_topdown_run_test": "2",
 }
 
 # FR-048 closes the list of constructs a registration may not carry, and
