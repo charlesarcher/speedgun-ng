@@ -29,7 +29,8 @@ INFO_TOKEN = re.compile(r"^(sg-example|sg-sample-output)=(\S+)$")
 # one specs/021 add (FR-027), the one specs/023 add (FR-037), the one
 # specs/025 add (FR-016), the one specs/026 add (FR-063), the one
 # specs/024 add (FR-027), the one specs/029 add (FR-070), the one
-# specs/038 add (FR-022) and the one specs/039 add (FR-039).
+# specs/038 add (FR-022), the one specs/039 add (FR-039) and the one
+# specs/043 add (FR-023).
 SECTIONS = (
     "The run loop",
     "Registration",
@@ -63,6 +64,7 @@ SECTIONS = (
     "Jitter probe",
     "Host noise pre-check",
     "Noise tracer",
+    "Fixed work and time quanta",
     "Hunter mode",
     "Report views",
 )
@@ -103,6 +105,7 @@ SECTION_OWNERS = {
     "Jitter probe": ("jitter_probe.cpp",),
     "Host noise pre-check": ("jitter_probe.cpp",),
     "Noise tracer": ("jitter_probe.cpp",),
+    "Fixed work and time quanta": ("fwq_ftq.cpp",),
     "Hunter mode": ("hunt_rank.cpp", "hunt_ranks.cpp"),
     "Report views": ("report_views.cpp",),
 }

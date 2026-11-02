@@ -717,7 +717,7 @@ auto printComparison(const sg::ReportData& baseline,
 That pair answers one line per benchmark with its state word, `OK`, `REGRESSED`, `IMPROVED`, `NOISY`, `ADDED`, `REMOVED` or `SKIPPED`, and one verdict line `compare: the verdict is fail`; the command line answers a failed verdict with status 1 and a rejected rule or document with status 2. See [regression gate](docs/pages/harness.md#regression-gate).
 ### Jitter probe
 A probe is a spinning context the harness pins to one free cpu of each L3 group the plans touch, and it counts the gaps the host inserts above a threshold while the batch runs. See [jitter probe in detail](docs/pages/harness.md#jitter-probe) for the option parts, the block field lines and the names.
-<!-- sg-example: example/docs/jitter_probe.cpp#jitter-probe -->
+<!-- sg-example: example/docs/jitter_probe.cpp#probe-unit -->
 ```cpp
 auto bmMeasured(sg::State& state) -> void
 {
@@ -727,30 +727,12 @@ auto bmMeasured(sg::State& state) -> void
 }
 
 SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
-
-auto main(int argc, char** argv) -> int
-{
-  sg::runJitterProbe({.thresholdNs = 1000000000,
-                      .mode = sg::JitterProbeMode::PRECHECK,
-                      .precheckSerial = true,
-                      .tracerEngine = sg::TracerEngine::OSNOISE});
-  return sg::speedgunMain(argc, argv);
-}
 ```
 
 ### Host noise pre-check
 The pre-check measures the host noise on the planned cpus before the batch runs: it prints one block per measured cpu with the gap figures, the attribution deltas each naming its `/proc` source and the host settings, then one warning line per noisy planned cpu and the pinning-candidate line ranked by gap rate. `strict` refuses a run whose planned cpu stands noisy with status 2, and `precheck=serial` runs the pre-check windows one cpu at a time. See [jitter probe in detail](docs/pages/harness.md#jitter-probe) for the keys and the record.
-<!-- sg-example: example/docs/jitter_probe.cpp#jitter-probe -->
+<!-- sg-example: example/docs/jitter_probe.cpp#probe-main -->
 ```cpp
-auto bmMeasured(sg::State& state) -> void
-{
-  for (auto _ : state) {
-    sg::doNotOptimize(state.iterations());
-  }
-}
-
-SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
-
 auto main(int argc, char** argv) -> int
 {
   sg::runJitterProbe({.thresholdNs = 1000000000,
@@ -763,17 +745,8 @@ auto main(int argc, char** argv) -> int
 
 ### Noise tracer
 The `--os-noise` value runs the `osnoise` or the `timerlat` tracer across the pre-check window. The report prints one header line naming the engine and the tracer cpus, then one figure line per source per tracer cpu. The disclosure covers three host states: no tracefs mount at the standing path, no tracer engine, and no rights for the setup writes. It stands one line, `tracer: not available`, on the tracer lines alone, and the exit status stays 0. A `cpus=` list naming a planned cpu runs the tracer's own load beside the measured cpus. See [jitter probe in detail](docs/pages/harness.md#jitter-probe) for the value grammar, the refusal shape and the record.
-<!-- sg-example: example/docs/jitter_probe.cpp#jitter-probe -->
+<!-- sg-example: example/docs/jitter_probe.cpp#probe-main -->
 ```cpp
-auto bmMeasured(sg::State& state) -> void
-{
-  for (auto _ : state) {
-    sg::doNotOptimize(state.iterations());
-  }
-}
-
-SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
-
 auto main(int argc, char** argv) -> int
 {
   sg::runJitterProbe({.thresholdNs = 1000000000,
@@ -783,6 +756,24 @@ auto main(int argc, char** argv) -> int
   return sg::speedgunMain(argc, argv);
 }
 ```
+
+### Fixed work and time quanta
+`method=fwq` prices one unit of loop bodies, `method=ftq` counts the units one quantum holds, `work=`, `quantum=` and `noise=` set the work count, the quantum and the noise bound, and the run prints the calibration it measured on each probe cpu before its window opens.
+<!-- sg-example: example/docs/fwq_ftq.cpp#fwq-ftq -->
+```cpp
+auto main(int argc, char** argv) -> int
+{
+  sg::runJitterProbe({.thresholdNs = 1000000000,
+                      .mode = sg::JitterProbeMode::PRECHECK,
+                      .precheckMs = 500,
+                      .precheckSerial = true,
+                      .method = sg::JitterMethod::FWQ,
+                      .workCount = 0,
+                      .noisePercent = 1});
+  return sg::speedgunMain(argc, argv);
+}
+```
+The run prints the calibration group, the 30 series lines and the five detected periods in the probe block, one column per probe cpu.
 
 ### Hunter mode
 `--hunt` puts a wide catalog event set on one benchmark and ranks the events by how far each one stands out of the run. `--hunt=all` selects every entry of every core device, and an address list, a glob such as `uncore/*` or a `@file` of addresses selects the rest. A hunt option beside no `--hunt` leaves the hunt off, and `--hunt=none` states the same run in words. A settled `--hunt-emit-set` beside no `--hunt` is the one exception: it names a file no hunt will write, so the run prints one line and ends with status 2. The hunt drives the multi-pass collection loop above, so it opens no second counter path.
@@ -936,6 +927,10 @@ The run writes its document at `--json=path`, loads it back with `loadReport`, a
 | `PrecheckTracerRecord` | tracer type | The tracer record one run carries: the engine and one entry per tracer cpu | [noise tracer](#noise-tracer) |
 | `PrecheckTracerCpuRecord` | tracer type | One tracer cpu's five noise-by-source counts | [noise tracer](#noise-tracer) |
 | `PrecheckRecord::tracer` | tracer field | The optional record standing when the tracer ran | [noise tracer](#noise-tracer) |
+| `JitterMethod` | method type | The three methods one probe run measures with | [fixed work and time quanta](#fixed-work-and-time-quanta) |
+| `JitterProbeOptions::method` | method field | Names the method the run measures with | [fixed work and time quanta](#fixed-work-and-time-quanta) |
+| `JitterProbeOptions::noisePercent` | method field | Sets the noise percent a strict pre-check refuses at | [fixed work and time quanta](#fixed-work-and-time-quanta) |
+| `JitterSeriesStats` | method type | One probe cpu's fold over the kept series samples, the periods included | [fixed work and time quanta](#fixed-work-and-time-quanta) |
 | `BenchmarkResult::contexts` | BenchmarkResult | The disclosures one run recorded for its contexts | [reading the report](#reading-the-report) |
 | `ContextDisclosure::group` | field | Names the group that holds the context, empty where the run carries no partition | [context groups](#context-groups) |
 | `viewSeries` | free function | Resolves one column's recorded values of one benchmark | [report views](#report-views) |
@@ -963,7 +958,7 @@ The run writes its document at `--json=path`, loads it back with `loadReport`, a
 | `--no-percentiles` | Turns the percentile lines off |
 | `--json` | Writes one JSON report document for the run |
 | `--json-raw` | Selects the chunk columns the document carries |
-| `--jitter-probe` | Runs the jitter probe over the batch by one value; `precheck=<ms>` or `precheck=serial` runs the host noise pre-check |
+| `--jitter-probe` | Runs the jitter probe over the batch by one value; `precheck=<ms>` or `precheck=serial` runs the host noise pre-check; `method=`, `quantum=`, `work=` and `noise=` state the method, its quantum, its work count and the noise bound |
 | `--os-noise` | Runs the named noise tracer across the pre-check window |
 | `--graph` | Orders the context starts of every threaded run by that graph file; the bare form reads its path from the option file |
 | `--dry-run` | Runs one iteration and prints the row shape |
