@@ -1634,6 +1634,58 @@ auto theTracerCpuRows(const std::vector<std::uint32_t>& planned,
     std::remove("harness_noise_cpus_default.json");
     std::remove("harness_noise_cpus_default_tally.txt");
   }
+
+  // specs/043 T070, FR-009, R-09: a pre-check whose measured set stands
+  // wholly planned leaves the default tracer list empty. The node plan of
+  // a four-thread instance covers every cpu the injected layout holds, so
+  // no candidate stands beside it: no cpu stands to trace, the run sets no
+  // engine up, the tree keeps its standing words, and the record carries
+  // no tracer.
+  {
+    TracingRootGuard guard;
+    installStandingTree(guard.root(), "ffffffff");
+    for (const auto cpu : planned) {
+      writeTracingFile(guard.root(), cpuCountFile(cpu), kPreWindowFigures);
+    }
+    auto spread = sg::registerBenchmark(&bmPinnedNoise, "bmNodeNoise");
+    spread.threads(4).placement("compact");
+    sg::detail::installTestReader(std::make_unique<TracerWindowReader>(
+        guard.root(),
+        countPathsOf(guard.root(), planned),
+        kPostWindowFigures,
+        "osnoise",
+        1,
+        "harness_noise_cpus_planned_tally.txt"));
+    const auto console =
+        captureRun({"--filter=bmNodeNoise",
+                    "--repetitions=1",
+                    "--iterations=2",
+                    "--jitter-probe=idle,mode=precheck,precheck=1",
+                    "--os-noise=osnoise",
+                    "--json=harness_noise_cpus_planned.json"});
+    const auto loaded = sg::loadReport("harness_noise_cpus_planned.json");
+    check(loaded.has_value() && loaded->precheck.has_value(),
+          "the wholly planned pre-check run writes its record (FR-014)");
+    if (loaded.has_value() && loaded->precheck.has_value()) {
+      check(!loaded->precheck->tracer.has_value(),
+            "theWhollyPlannedSetLeavesTheTracerNoCpu: the record carries no "
+            "tracer (FR-009, R-09)");
+    }
+    check(console.find("tracer: engine") == std::string::npos,
+          "theWhollyPlannedSetLeavesTheTracerNoCpu: the block prints no tracer "
+          "line (FR-013)");
+    check(console.find("bmNodeNoise") != std::string::npos,
+          "theWhollyPlannedSetLeavesTheTracerNoCpu: the batch ran (FR-009)");
+    check(readStream(guard.root() / "sys/kernel/tracing/current_tracer")
+              == "nop\n",
+          "theWhollyPlannedSetLeavesTheTracerNoCpu: the setup wrote no engine "
+          "word (FR-009, R-09)");
+    check(readStream(guard.root() / "sys/kernel/tracing/tracing_on") == "0\n",
+          "theWhollyPlannedSetLeavesTheTracerNoCpu: the setup left tracing_on "
+          "down (FR-009, R-09)");
+    std::remove("harness_noise_cpus_planned.json");
+    std::remove("harness_noise_cpus_planned_tally.txt");
+  }
 }
 
 // The not-available rows' shared shape: the run exits 0, the user-space
