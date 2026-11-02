@@ -469,8 +469,7 @@ rule and no page is needed.
   tree-only run (FR-021); and `theBareWordPrintsATreeAtStatusZero` runs the
   entry point with the bare word, reads a level-1 tree and answers exit status
   0, the fifth case SC-05 names beside its four refusal statuses. This case
-  lands with T037 and T038 in one commit (FR-048).
-
+  lands with T037 and T038 in one commit (FR-048). The reference line and the file lines a production run prints stand with `T101`, so the block cases pin the print rule over a planted record.
 - [ ] T031 [US1] In `test/source/harness_topdown_run_test.cpp`, the case
   `theRunStatesTheCoreWideScopeBeforeTheFirstMeasurement`: a top-down run states
   once on the console, ahead of its first measurement, which way the flag
@@ -1201,6 +1200,22 @@ D-16 names, and the one timing bound PC-13 measures.
       first cpu of the affinity mask its process holds, narrows to it, opens
       its window there and hands the mask back once the window has been read
       (FR-045, FR-053, spec PC-14).
+
+- [ ] T101 [US1] Fill the source a production table reads. In
+  `source/counters/linux_pmu/topdown_select.cpp`, let `topdownTable()` copy the
+  manifest reference and one `TableFile` per contributing file, each with its
+  `name` and `manifestHash`, out of the record `T018` and `T019` put in the
+  index and the registry, in the embedder's sorted order, so a table the host
+  itself reads reaches the console block and the report document with the
+  reference and the digests the vendored `RECORD` lines state (FR-015, FR-033).
+  Measured during `T030`'s console cycle: on this host a production answer
+  prints `topdown: level=1 passes=0 table=arch/x86/skylakex/` with no reference
+  line and no file line, because `TopdownSource` arrives with `directory` filled
+  alone, and no other task of this feature copies the other two fields.
+  `test/source/counters_topdown_select_test.cpp` gains the case that asks a
+  production table over the identity of the host it runs on and holds the
+  reference non-empty with one file entry per contributing file, each carrying a
+  digest, so the claim cannot ride a planted record alone.
 
 **Checkpoint**: every gate of Principle VIII is green on the pushed state
 and
