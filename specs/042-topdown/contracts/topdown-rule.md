@@ -32,9 +32,10 @@ The threshold field is unchanged, and its grammar is strict: measured today,
 `time@median:lower:rel=10` answers `--compare-rule: the threshold of the rule
 'time@median:lower:rel=10' is not readable: 'rel=10' is neither a percent, nor
 the abs= marker, nor the two in that order with one comma between` at status 2
-(`readThreshold`, `:207-234`). The harness plan's SC-13 pair spells the second
-rule `topdown:intel.tma_l1_bound:lower:rel=10`, and no rule takes that form; it
-must read `:lower:10%`.
+(`readThreshold`, `:207-234`). A top-down rule therefore reads
+`topdown:backend_bound:lower:5%` or `topdown:intel.tma_l1_bound:lower:10%`. No
+artifact of this feature spells a threshold `rel=10`, and the comparator would
+refuse such a text (FR-039).
 
 ## The prefix list and the value it reads
 

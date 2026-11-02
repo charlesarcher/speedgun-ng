@@ -111,7 +111,7 @@ seams at `source/counters/detail/pmu.hpp:99-100` and `:112`, pure (FR-048).
 
 | Fact | Case |
 |---|---|
-| Model 85 stepping 4 selects `arch/x86/skylakex/`; family 25 `amdzen4`, family 26 `amdzen5` | `selectsTheTableOfTheIdentity` |
+| Model 85 stepping 4 selects `arch/x86/skylakex/`; family 25 model 17 selects `amdzen4` and family 26 model 17 selects `amdzen5`, because the mapping file matches a model pattern and takes the first row that hits (`mapfile.csv:44-47`) | `selectsTheTableOfTheIdentity` |
 | Four Intel level-1 names with no parent; five AMD names with `smt_contention` | `levelOneCarriesTheSharedNames` (FR-011, SC-01, FR-052) |
 | Both parent spellings resolve; a group-free row yields no node | `parentsComeFromTheGroupText` (FR-013, FR-014) |
 | Each of the five texts above verbatim, with the identity in it | `unsupportedAnswersQuoteTheIdentity` (FR-004 to FR-007, FR-040) |
