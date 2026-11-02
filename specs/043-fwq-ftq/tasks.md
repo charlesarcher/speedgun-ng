@@ -752,7 +752,7 @@ script run, each naming the host, the kernel, `CONFIG_HZ`, the L3
 group, the commands, the exit codes, the calibration figures and
 the detected periods, and each showing a drop count of 0.
 
-- [ ] T044 [US7] Write `tools/noise/fwq_ftq_acceptance.sh` in the shape
+- [x] T044 [US7] Write `tools/noise/fwq_ftq_acceptance.sh` in the shape
   of `tools/noise/jitter_probe_acceptance.sh:35-52`: eight sections, two
   methods, two L3 groups and two load states, the window from a named
   benchmark run with `--min-time=10` and `--repetitions=1`,
