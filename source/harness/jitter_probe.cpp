@@ -1000,6 +1000,16 @@ auto seriesStatsOf(const ProbeCpuState& state) -> JitterSeriesStats
     }
   }
   stats.seriesRuntimeNs = span;
+  // The chain the gap folds state beside the same five points: the
+  // nearest-rank points stand ordered on the sorted values by
+  // construction, and the check reads the construction (FR-008, FR-020).
+  SG_ENSURE(stats.minValue <= stats.medianValue
+                && stats.medianValue <= stats.p90Value
+                && stats.p90Value <= stats.p99Value
+                && stats.p99Value <= stats.p999Value
+                && stats.p999Value <= stats.p9999Value
+                && stats.p9999Value <= stats.maxValue,
+            "the percentile chain stands ordered (FR-008, PC-4)");
   SG_ENSURE(stats.sampleCount == state.seriesKept
                 && stats.noisePercent >= 0.0 && stats.noisePercent <= 100.0,
             "the count answers the kept samples and the fraction stands in "
@@ -1164,6 +1174,15 @@ auto seriesStatsOf(const ProbeCpuState& state,
   }
   auto stats = seriesFigures(state, placed);
   stats.seriesRuntimeNs = coveredNs;
+  // The chain of the run fold, read beside the same five points of the
+  // windows' set (FR-008, FR-020).
+  SG_ENSURE(stats.minValue <= stats.medianValue
+                && stats.medianValue <= stats.p90Value
+                && stats.p90Value <= stats.p99Value
+                && stats.p99Value <= stats.p999Value
+                && stats.p999Value <= stats.p9999Value
+                && stats.p9999Value <= stats.maxValue,
+            "the percentile chain stands ordered (FR-020, PC-4)");
   SG_ENSURE(stats.sampleCount == placed.size()
                 && stats.noisePercent >= 0.0 && stats.noisePercent <= 100.0,
             "the count answers the placed samples and the fraction stands in "
