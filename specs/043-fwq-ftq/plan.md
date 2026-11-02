@@ -735,7 +735,7 @@ stays, `kJitterProbeOptionValue` stays 260
 | Name | Shape | Contract |
 | --- | --- | --- |
 | `JitterMethod` | closed enum: `TSC`, `FWQ`, `FTQ` | the method one run measures; `TSC` stands as spec 027 defines it (spec FR-001, D-1) |
-| the bounds | `kDefaultQuantumUs` 100, `kMinQuantumUs` 10, `kMaxQuantumUs` 100000, `kMaxWorkCount` 16777216, `kTargetUnitTimeNs` 1000, `kCalibrationTrials` 25, `kCalibrationSteps` 24, `kDefaultNoisePercent` 1.0 | the ranges the parser enforces and the calibration reads (spec FR-002, FR-010) |
+| the bounds | `kDefaultQuantumUs` 100, `kMinQuantumUs` 10, `kMaxQuantumUs` 100000, `kMaxWorkCount` 16777216, `kTargetUnitTimeNs` 1000, `kCalibrationTrials` 25, `kCalibrationSteps` 24, `kDefaultNoisePercent` 1, each `std::uint32_t` and `kTargetUnitTimeNs` `std::uint64_t`; the noise maximum stands file-local at the parser as `kMaxNoisePercent` 100 | the ranges the parser enforces and the calibration reads (spec FR-002, FR-010) |
 | `JitterProbeOptions::method` | `JitterMethod`, default `TSC` | the field carries the struct's doxygen contract; the enum closes the set at the type level (spec FR-001, FR-005) |
 | `JitterProbeOptions::quantumUs` | `std::uint32_t`, default 100 | the FTQ quantum in microseconds, inside 10 to 100,000; the JSON key carries nanoseconds as `quantumNs` (spec FR-002, FR-015) |
 | `JitterProbeOptions::workCount` | `std::uint32_t`, default 0 | 0 names the calibration of FR-010; a value stands inside 1 to 16,777,216 (spec FR-002, FR-010) |
