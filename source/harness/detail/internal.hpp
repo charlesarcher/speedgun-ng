@@ -1422,6 +1422,47 @@ struct MetricColumn
     const std::string& name, const sg::counters::Error& error) -> std::string;
 
 /**
+ * @brief specs/042-topdown FR-023, FR-032, E-17: the record of one top-down
+ * run, and its metric views with the node positions gone.
+ *
+ * A node column rides the run's plan so that one price covers it with the
+ * metric columns (FR-021), and the report prints a node in the top-down block
+ * and in no metric table (E-16, E-17). This call moves each node's figure into
+ * `result.topdown`, naming the node, its neutral name, its parent, its level,
+ * its threshold text, its availability and its value, and it removes that
+ * node's position from the metric labels, from every row's metric values and
+ * metric statistics, from every percentile grid, from the context percentiles
+ * of a threaded run, and from the retained chunk columns of a row and of its
+ * contexts. The two time slots and every user-counter column keep their place,
+ * so a grid and a chunk ledger end the width of the columns the run reports.
+ *
+ * A node figure is the statistic the run published for its column when an
+ * aggregate row stands, and the value of that column when one row stands. A
+ * repetition whose fold left a gap in the column makes the node a gap, and a
+ * gap carries no value.
+ *
+ * @param positions the position of each node's column among the run's metric
+ * columns, in the order of `tree.nodes`
+ * @param askedLevel the level the command line asked for
+ * @param rowRaw the retained chunk columns of this run's rows
+ * @param contextRaw the retained chunk columns of this run's contexts
+ *
+ * \pre `positions` holds one entry per node of `tree` and every entry names a
+ *       metric column of `result`
+ * \post a row that carries metric values holds one per remaining label and a
+ * row that carries statistics holds one set per remaining label, and every
+ *       percentile grid and every retained chunk column that stands holds two
+ *       time slots beside those labels
+ */
+auto stripTopdownColumns(sg::BenchmarkResult& result,
+                         const sg::counters::TopdownTree& tree,
+                         const std::vector<std::size_t>& positions,
+                         std::uint64_t askedLevel,
+                         std::vector<sg::RowRaw>& rowRaw,
+                         std::vector<std::vector<sg::RowRaw>>& contextRaw)
+    -> void;
+
+/**
  * @brief Walk the counter addresses every source named and print the first
  * refusal: the origin of the source that held the address (or the option
  * name, for the command line), the address, and what the host found there.

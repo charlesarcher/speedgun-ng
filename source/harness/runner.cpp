@@ -686,6 +686,160 @@ namespace sg::detail
   return resolved;
 }
 
+// specs/042-topdown FR-023, FR-030, FR-032, E-17: the record of one top-down
+// run, and its metric views with the node positions gone. A node figure is the
+// statistic the run published for its column where an aggregate row stands, and
+// the value of that column where one row stands; a repetition that left a gap
+// in the column makes the node a gap, and a gap carries no value. The two
+// bounds ride SG_REQUIRE, as T035 states, both of them, and the header that
+// declares them stands outside the interfaces the doc gate reads, so the pair
+// gate counts neither the tags nor these checks. The declaration stands in
+// detail/internal.hpp, where the run test drives the strip against the views of
+// the same run.
+auto stripTopdownColumns(sg::BenchmarkResult& result,
+                         const sg::counters::TopdownTree& tree,
+                         const std::vector<std::size_t>& positions,
+                         const std::uint64_t askedLevel,
+                         std::vector<sg::RowRaw>& rowRaw,
+                         std::vector<std::vector<sg::RowRaw>>& contextRaw)
+    -> void
+{
+  SG_REQUIRE(positions.size() == tree.nodes.size()
+                 && std::all_of(positions.begin(),
+                                positions.end(),
+                                [&result](const std::size_t position) {
+                                  return position < result.metricLabels.size();
+                                }),
+             "stripTopdownColumns: one metric position per collected node, "
+             "each " "naming a column of the result");
+
+  // The two time columns stand ahead of every metric slot of a percentile grid
+  // and of a retained chunk column, so a stripped slot index is the metric
+  // position shifted by that pair (specs/021 FR-010, specs/023 E-02).
+  constexpr std::size_t kTimeSlots = 2;
+  const auto eraseSlot = [](auto& slots, const std::size_t slot)
+  {
+    if (slot < slots.size()) {
+      slots.erase(slots.begin() + static_cast<std::ptrdiff_t>(slot));
+    }
+  };
+
+  sg::TopdownRecord record;
+  record.supported = true;
+  record.askedLevel = askedLevel;
+  record.level = static_cast<std::uint64_t>(tree.depth);
+  record.reference = tree.source.reference;
+  record.directory = tree.source.directory;
+  record.files = tree.source.files;
+  record.refused.reserve(tree.refused.size());
+  for (const sg::counters::TopdownRefusal& row : tree.refused) {
+    record.refused.push_back(sg::TopdownRefusal {
+        .name = row.name,
+        .refusal = std::string {sg::counters::metricRefusalName(row.refusal)},
+        .reason = row.reason,
+    });
+  }
+
+  record.nodes.reserve(tree.nodes.size());
+  for (std::size_t index = 0; index < tree.nodes.size(); ++index) {
+    const sg::counters::TopdownNode& node = tree.nodes[index];
+    const std::size_t position = positions[index];
+    sg::counters::Availability availability =
+        sg::counters::Availability::COUNTABLE;
+    std::optional<double> value;
+    for (const sg::ResultRow& row : result.rows) {
+      if (row.kind == sg::RowKind::AGGREGATE) {
+        if (position < row.metricStats.size()
+            && row.metricStats[position].samples > 0)
+        {
+          value = row.metricStats[position].mean;
+        }
+        continue;
+      }
+      if (position >= row.metrics.size()
+          || row.metrics[position].availability
+              != sg::counters::Availability::COUNTABLE)
+      {
+        availability = sg::counters::Availability::GAP;
+      } else if (!value.has_value()) {
+        value = row.metrics[position].value;
+      }
+    }
+    if (availability != sg::counters::Availability::COUNTABLE) {
+      value.reset();
+    }
+    record.nodes.push_back(sg::TopdownNode {
+        .name = node.name,
+        .vendorName = node.vendorName,
+        .parent = node.parent,
+        .level = static_cast<std::uint64_t>(node.level),
+        .value = value,
+        .availability = availability,
+        .threshold = node.threshold,
+    });
+  }
+  result.topdown = std::move(record);
+
+  // Descending order, so every position still to go names the slot it named
+  // before the first erase moved the columns below it up.
+  for (auto position = positions.rbegin(); position != positions.rend();
+       ++position)
+  {
+    eraseSlot(result.metricLabels, *position);
+    for (sg::ResultRow& row : result.rows) {
+      eraseSlot(row.metrics, *position);
+      eraseSlot(row.metricStats, *position);
+      eraseSlot(row.percentiles, *position + kTimeSlots);
+    }
+    for (auto& grid : result.contextPercentiles) {
+      eraseSlot(grid, *position + kTimeSlots);
+    }
+    for (sg::RowRaw& raw : rowRaw) {
+      eraseSlot(raw.columns, *position + kTimeSlots);
+    }
+    for (auto& contexts : contextRaw) {
+      for (sg::RowRaw& raw : contexts) {
+        eraseSlot(raw.columns, *position + kTimeSlots);
+      }
+    }
+  }
+
+  const std::size_t labels = result.metricLabels.size();
+  const std::size_t gridWidth = kTimeSlots + labels;
+  SG_REQUIRE(std::all_of(result.rows.begin(),
+                         result.rows.end(),
+                         [&result, labels, gridWidth](const sg::ResultRow& row)
+                         {
+                           return (row.metrics.empty()
+                                   || row.metrics.size() == labels)
+                               && (row.metricStats.empty()
+                                   || row.metricStats.size() == labels)
+                               && (row.percentiles.empty()
+                                   || row.percentiles.size() == gridWidth);
+                         })
+                 && std::all_of(rowRaw.begin(),
+                                rowRaw.end(),
+                                [gridWidth](const sg::RowRaw& raw) {
+                                  return raw.columns.empty()
+                                      || raw.columns.size() == gridWidth;
+                                })
+                 && std::all_of(
+                     contextRaw.begin(),
+                     contextRaw.end(),
+                     [gridWidth](const std::vector<sg::RowRaw>& contexts)
+                     {
+                       return std::all_of(contexts.begin(),
+                                          contexts.end(),
+                                          [gridWidth](const sg::RowRaw& raw) {
+                                            return raw.columns.empty()
+                                                || raw.columns.size()
+                                                == gridWidth;
+                                          });
+                     }),
+             "stripTopdownColumns: every metric view of the run holds one "
+             "entry " "per remaining label beside the two time slots");
+}
+
 // FR-020: the skip rule of the threaded merge: a skipped context sets the
 // merged flag and leaves its reason standing, so the merged row names the
 // first context that skipped. The declaration stands in
@@ -1341,6 +1495,8 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
   // tree reaches no column and moves no position of this vector: only the nodes
   // of the answer stand here, and the record of both sides rides in
   // `result.topdown` (FR-016, FR-040).
+  std::optional<sg::counters::TopdownTree> topdown;
+  std::vector<std::size_t> nodePositions;
   if (m_options.topdownLevel.has_value()) {
     sg::counters::TopdownSelection selection;
     selection.identity = sg::counters::cpuIdentity();
@@ -1348,7 +1504,9 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     selection.table = m_options.topdownTable;
     const auto answered = sg::counters::topdownTree(selection);
     if (answered.has_value()) {
+      topdown = *answered;
       for (const sg::counters::TopdownNode& node : answered->nodes) {
+        nodePositions.push_back(columns.size());
         columns.push_back(detail::metricColumnFor(
             node.vendorName,
             sg::counters::MetricView {
@@ -3325,6 +3483,20 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
     result.rows.push_back(aggregate);
     m_rowRaw.back().emplace_back();
     m_contextRaw.back().emplace_back();
+  }
+
+  // specs/042-topdown FR-023, FR-032, E-17: the node figures ride the record of
+  // the run and stand in no metric view of it. The call waits for the aggregate
+  // row, because a node takes the statistic the run published for its column,
+  // and it runs ahead of the fit note, which reads the metric views of the
+  // result.
+  if (topdown.has_value()) {
+    detail::stripTopdownColumns(result,
+                                *topdown,
+                                nodePositions,
+                                *m_options.topdownLevel,
+                                m_rowRaw.back(),
+                                m_contextRaw.back());
   }
 
   // FR-019, FR-022: a family that asked for a complexity fit collects one value
