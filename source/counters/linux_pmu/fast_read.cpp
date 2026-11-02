@@ -339,8 +339,15 @@ auto fastContextRead(const FastContext& context,
   if (index == 0) {
     raw = 0ULL;
   } else {
-    raw = static_cast<std::uint64_t>(
-        _rdpmc(static_cast<int>(index) - 1));  // LCOV_EXCL_LINE
+    // LCOV_EXCL_START : coverage exclusion (T140): the instruction reads
+    // the counter the index names, and the read faults on a host that
+    // never mapped the counter into this sampling context, so no fixture
+    // page and no refused host takes the arm. The statement is one line
+    // and the pair of markers names it: the line marker the statement
+    // carried before sat on the second line of a statement gcov
+    // attributes to its first, so the gate saw the first line dark.
+    raw = static_cast<std::uint64_t>(_rdpmc(static_cast<int>(index) - 1));
+    // LCOV_EXCL_STOP
   }
   // LCOV_EXCL_BR_STOP
   _mm_lfence();
