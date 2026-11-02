@@ -365,13 +365,19 @@ Measured on this machine on 2026-11-01 before any file changed.
   the selected directory and the hash of each table file into the library as
   build-time data, and the seam a test uses to fake them.
 
-- **PC-13: the prose fixture gate fails on this host at the base hash. GAP, open,
-  outside this change.** `test/prose-gate-fixture/run_prose_gate_fixtures.py:84`
-  bounds one gate run at 10.0 seconds and `:1046` fails the entry above that
-  bound. Measured on the acceptance host at `d454bcff`: 11.559 seconds over 909
-  sources. The entry fails when it runs alone, so host speed governs it. A green acceptance needs one of two answers: the bound moves in its
-  own commit with the measured figure in its body, or the owner records the
-  failure as pre-existing beside the change's own results.
+- **PC-13: the prose fixture gate's timed entry. CLOSED as a load condition,
+  no owner decision needed.** `test/prose-gate-fixture/run_prose_gate_fixtures.py:84`
+  bounds one gate run at 10.0 seconds and `:1046` times exactly one run of
+  `tools/prose/prose_gate.py --check prose --mode tree`. Measured alone on the
+  acceptance host at `6348bb0c`: 8.911, 8.963 and 8.989 seconds over 911
+  sources, with `ctest --test-dir build -R '^prose_gate_fixtures$'` passing
+  in 16.02 seconds. PC-8 already records the same
+  entry failing under a parallel suite run, and this feature changes nothing in
+  the gate, so the acceptance run states the entry alone. Two readings were
+  wrong before: the 11.559-second figure was the whole fixture script, which
+  runs the gate many times, counted as one run, and the entry reported as
+  failing when run alone was that script invoked without its required
+  fixture-directory argument, which answers usage with exit 2.
 ## Roadmap position
 
 N2 (022) publishes a metric row as a formula. N6 (024) splits a set of
