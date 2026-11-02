@@ -631,7 +631,7 @@ the window, and the pre-check lines carry the method pair.
   (FR-004, FR-020, E-27, R-04).
   Verify: `ctest --test-dir build -R "harness_fwq_ftq_test|harness_jitter_window_test" --output-on-failure` exits 0
 
-- [ ] T068 [US4] Pass the `noise=` threshold into `printPrecheckReport`.
+- [x] T068 [US4] Pass the `noise=` threshold into `printPrecheckReport`.
   The declaration stands in `source/harness/detail/internal.hpp`, the
   definition in `source/harness/report.cpp:1172`, and the call in
   `source/harness/cli.cpp`. The warning rule and the strict refusal then

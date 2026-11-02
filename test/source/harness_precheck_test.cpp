@@ -256,14 +256,19 @@ auto bmPinned(sg::State& state) -> void
 
 // T013: the console capture the block tests read: the printer's own
 // bytes, taken through the redirect the standing capture carries.
-auto capturePrecheck(const sg::PrecheckRecord& record) -> std::string
+// specs/043 T068, FR-021, D-9: the capture hands over the `noise=`
+// threshold the warning rule reads, the default being the standing 1
+// percent.
+auto capturePrecheck(
+    const sg::PrecheckRecord& record,
+    const std::uint32_t noisePercent = sg::kDefaultNoisePercent) -> std::string
 {
   const char* const path = "harness_precheck_block.txt";
   const int saved = dup(STDOUT_FILENO);
   if (saved < 0 || std::freopen(path, "w", stdout) == nullptr) {
     fail("cannot redirect the pre-check block");
   }
-  sg::detail::printPrecheckReport(record);
+  sg::detail::printPrecheckReport(record, sg::TracerEngine::NONE, noisePercent);
   std::fflush(stdout);
   if (dup2(saved, STDOUT_FILENO) < 0) {
     fail("cannot restore stdout");
@@ -703,6 +708,30 @@ auto main(int argc, char** argv) -> int
     check(warning != std::string::npos,
           "theFtqPrecheckPairCarriesNoiseAndMinimum: the FTQ warning line "
           "names the noise fraction and the minimum count (FR-021, R-15)");
+  }
+  // specs/043 T068, US4, FR-021, D-9, R-15: the warning rule reads the
+  // `noise=` threshold the caller hands over, the number the strict
+  // refusal reads. A planned cpu whose fraction stands under it warns
+  // nothing, and one above it warns; the rank keeps every fraction.
+  {
+    const auto cpus = pickCpus(2);
+    const auto record = methodRecord(cpus, false);
+    const auto block = capturePrecheck(record, 5);
+    check(block.find("warning: cpu " + std::to_string(cpus.at(1)) + " ")
+              == std::string::npos,
+          "theWarningRuleReadsTheNoiseThreshold: a planned cpu under the "
+          "threshold warns nothing (FR-021, D-9, R-15)");
+    check(block.find("warning: cpu " + std::to_string(cpus.at(0))
+                     + " noisePercent 12.50 maxValue "
+                     + std::to_string(1000 + cpus.at(0)))
+              != std::string::npos,
+          "theWarningRuleReadsTheNoiseThreshold: a planned cpu above the "
+          "threshold warns (FR-021, D-9)");
+    check(block.find("pinning candidates: cpu " + std::to_string(cpus.at(1))
+                     + " 3.25 cpu " + std::to_string(cpus.at(0)) + " 12.50")
+              != std::string::npos,
+          "theWarningRuleReadsTheNoiseThreshold: the rank keeps the fraction "
+          "under the threshold (FR-021, R-15)");
   }
   {
     const auto cpus = pickCpus(2);

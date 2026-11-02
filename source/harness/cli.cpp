@@ -1340,10 +1340,13 @@ auto speedgunMain(int argc, char** argv) -> int
         // specs/036 FR-016, R-14: the requested engine carries the
         // not-available signal: a not-available setup prints the one
         // disclosure line, and a run whose tracer ran prints the figure
-        // lines.
+        // lines. specs/043 T068, FR-021, D-9, R-15: the parsed `noise=`
+        // threshold rides beside it, so the warning rule of the block and
+        // the refusal above read the same pair against the same number.
         detail::printPrecheckReport(
             *precheckRecord,
-            options.noiseTracer.value_or(sg::TracerEngine::NONE));
+            options.noiseTracer.value_or(sg::TracerEngine::NONE),
+            options.jitterProbe->noisePercent);
       }
     }
   }
