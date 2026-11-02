@@ -795,7 +795,7 @@ every record, and the standing contracts carry the deltas.
 
 ---
 
-- [ ] T071 [P0] Stand a named vector behind the FWQ span in `addSpectrumTo`
+- [x] T071 [P0] Stand a named vector behind the FWQ span in `addSpectrumTo`
   (`source/harness/jitter_probe.cpp:1277`). The line assigns
   `std::span<const double>` from the temporary `std::vector<double>` that
   `resampleUnitTimes` returns, so the temporary dies at the end of the

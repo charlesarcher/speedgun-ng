@@ -926,6 +926,53 @@ auto fwqResampleReachesThePeriodList() -> void
       });
 }
 
+// FR-017, FR-018, FR-025: the spectrum figures of a FWQ series above the
+// transform cap. 100,000 units of 1,000 ns stand above the 65,536-point
+// cap, so the resample fills the cap's bins. The row plants a 1 ms sine
+// and reads the step, the point count and the planted period through
+// `addSpectrumTo` (FR-018, R-12).
+auto fwqSpectrumReadsTheSeriesAboveTheCap() -> void
+{
+  fwqPlan(100000, 1000);
+  scriptPlan.sinePeriod = 1000;
+  scriptPlan.sineAmplitude = 20;
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FWQ;
+  options.gapCount = 100000;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(scriptParked[0].load() == 2 + kScriptPassReads + kScriptLatchRead
+                  + 100000,
+              "the row reads its 101,027 stamps over 100,000 units "
+              "(FR-012, R-01)");
+        check(probed.seriesKept == 100000 && probed.droppedSamples == 0,
+              "the 100,000-entry buffer keeps the series above the cap "
+              "(FR-014, FR-022)");
+        auto series = sg::detail::seriesStatsOf(probed);
+        sg::detail::addSpectrumTo(probed, series);
+        check(series.medianValue == 1000 && series.resampleStepNs == 1000,
+              "the resample step stands the median unit time (FR-017)");
+        check(series.spectrumPoints == sg::detail::kSpectrumCap,
+              "the transform reads its 65,536 points of a series above the cap "
+              "(FR-018, FR-025)");
+        check(!series.periods.empty()
+                  && series.periods.front().periodNs >= 990000
+                  && series.periods.front().periodNs <= 1010000,
+              "the planted 1 ms period lands inside 990,000 to 1,010,000 ns "
+              "of the capped span (FR-018, R-7)");
+        check(
+            !series.periods.empty()
+                && std::fabs(series.periods.front().powerRatio - 1.0) <= 1e-9,
+            "the strongest period stands first with its power at 1 " "(FR-"
+                                                                     "018)");
+      });
+}
+
 // FR-004: mode=precheck runs the selected method. The pre-check phase of
 // a FWQ run records unit times, and the phase ends at its scripted span.
 auto precheckModeRunsTheSelectedMethod() -> void
@@ -1383,6 +1430,7 @@ auto main() -> int
   seriesPercentilesReadTheKeptSamples();
   oneSampleSeriesReadsThatSample();
   fwqResampleReachesThePeriodList();
+  fwqSpectrumReadsTheSeriesAboveTheCap();
   precheckModeRunsTheSelectedMethod();
 
   // T013: the FTQ rows (US2, FR-009, FR-015, FR-016, FR-022, FR-025,
