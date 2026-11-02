@@ -33,7 +33,7 @@
 
 ## Notes
 
-- The prose gate reads the file clean: 1,139 units, 0 findings
+- The prose gate reads the file clean: 1,181 units, 0 findings
   (`python3 tools/prose/prose_gate.py --check prose --mode tree --paths
   specs/043-fwq-ftq/spec.md`, run 2026-11-01).
 - "Written for non-technical stakeholders" stands open on purpose. The
@@ -51,14 +51,15 @@
   names because the governance of Principle VIII and the house format
   make those facts the requirement.
 - FR-030 to FR-034 carry no acceptance scenario of their own. Their
-  acceptance is the gate run: SC-005 covers the coverage gate, SC-006
-  the suite bounds, SC-007 the drift, snippet, shape and prose gates,
-  and FR-034 is a prohibition the same gates read.
+  acceptance is the gate run: SC-005 covers the refusal rows, SC-006 the
+  coverage gate and the restricted-cpu run, SC-007 the drift, snippet,
+  shape and prose gates, and the diff-scope check of the closing gate
+  task reads FR-034.
 - Validation rounds: the first fixed the requirement numbering so every
   cross-reference resolves; the second added the edge cases for a
   one-sample series, a series at the cap, a quantum shorter than one
   unit, and an unreachable calibration target; the third cleared a
-  voucher word; the fourth applied the 24 answers of the clarification
+  voucher word; the fourth applied the 30 answers of the clarification
   review; the fifth applied the 37 consistency findings, the duplicate
   key names, the rule-name count, the README cap arithmetic, the
   `--min-time` window length, the strict-refusal phase and the contract

@@ -37,8 +37,8 @@ FR-024).
   --jitter-probe=idle,method=fwq,mode=precheck,gaps=10485760
 ```
 
-Expected: the calibration lines print on each probe cpu before that
-cpu's window, naming `workCount`, `targetNs` at 1,000 ns and
+Expected: the four calibration lines print on each probe cpu before that
+cpu's window, naming `method`, `workCount`, `targetNs` at 1,000 ns and
 `calibrationSpanNs`; the block after the benchmark tables prints the 30
 series lines, one column per probe cpu; `droppedSamples` reads 0 at
 the 10,485,760-entry buffer; the exit status is 0
@@ -128,8 +128,8 @@ ctest --test-dir build -R "report_shape_fwq_ftq_sample|example_run|example_drift
 
 Expected: one FWQ family and one FTQ family print, each with its
 calibration lines and its series block; the fold prints no difference;
-the drift gate reads the 18-line section and the page at 991 lines
-against `PAGE_LINE_CAP = 1004` (`tools/docs/example_drift.py:240`,
+the drift gate reads the 18-line section, and the page stands at 991
+lines against `PAGE_LINE_CAP = 1004` (`tools/docs/example_drift.py:240`,
 spec FR-023, FR-029, SC-007).
 
 ## The suite under a two-cpu mask

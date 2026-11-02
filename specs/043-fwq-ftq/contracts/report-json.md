@@ -97,7 +97,7 @@ columns `| Delta | Detail | Requirement |`:
 
 The document root's `x-order` list stands unchanged (spec FR-006). The
 closed object refuses a key the schema does not list, the standing
-checker path at `source/harness/json_load.cpp:2532-2543`.
+checker path at `source/harness/json_load.cpp:2538-2542`.
 
 ## The `loadReport` line
 

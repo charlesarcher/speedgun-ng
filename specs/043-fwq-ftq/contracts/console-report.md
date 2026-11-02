@@ -1,9 +1,10 @@
 # Contract: the series lines of the jitter console block
 
 Phase 1 output. The delta over the standing pre-check console block of
-`specs/034-host-noise-precheck/contracts/console-report.md`: the
-per-cpu block gains the calibration lines, and the fold block after the
-benchmark tables gains 30 series lines (spec FR-011, FR-019, FR-021).
+`specs/034-host-noise-precheck/contracts/console-report.md`: the fold
+block after the benchmark tables gains 30 series lines, and the first
+four of them stand the calibration group (spec FR-011, FR-019,
+FR-021).
 Every standing line stands byte-identical for a `tsc` run (spec
 FR-031, SC-004). The standing field names, the block order and the
 `not available` rules stand unchanged. The standing file is amended in
@@ -12,16 +13,21 @@ the commit that lands the printer (spec FR-030).
 ## Calibration lines
 
 Inside the block order at lines 15 to 39, after line 18, the line
-`<the sixteen stats lines, one value>`:
+`<the sixteen stats lines, one value>`, the calibration group prints
+four lines, one field each:
 
 ```text
 [FWQ or FTQ, per measured cpu]
-  method: <tsc|fwq|ftq>  workCount: <n>  targetNs: <n>  calibrationSpanNs: <n>
-  unitTimeNs: <n>  quantumNs: <n>  resampleStepNs: <n>  spectrumPoints: <n>
-  sampleCount: <n>  minValue: <n>  medianValue: <n>  meanValue: <n>
-  p90Value: <n>  p99Value: <n>  p999Value: <n>  p9999Value: <n>  maxValue: <n>
-  noisePercent: <n>  seriesRuntimeNs: <n>  droppedSamples: <n>
+  method: <tsc|fwq|ftq>
+  workCount: <n>
+  targetNs: <n>
+  calibrationSpanNs: <n>
 ```
+
+The group stands first among the 30 lines, and it prints on the probe
+cpu before that cpu's window starts. The measured unit time and the
+quantum print among the 16 figures, and the JSON carries all five
+calibration keys inside that cpu's `series` item (spec FR-011, FR-019).
 
 The console spells the method `tsc`, `fwq` and `ftq`, the words the
 value takes, and the JSON spells it `TSC`, `FWQ` and `FTQ` (spec
@@ -36,7 +42,6 @@ After line 35, the pinning line:
   jitter probe: cpus <list>
   <the sixteen gap field lines, at 0>
   <the 30 series lines, one column per probe cpu>
-  period1Ns .. period5Ns   period1Power .. period5Power
   jitter: probe on cpus <list>
   jitter: cpu <n> kept <n> dropped <n>       [per probe cpu]
   jitter: split and percentiles use the kept samples only
@@ -45,7 +50,8 @@ After line 35, the pinning line:
 The 30 lines carry one field each, in this order (spec FR-019,
 FR-021):
 
-1. `method`, `workCount`, `targetNs` and `calibrationSpanNs`.
+1. The calibration group: `method`, `workCount`, `targetNs` and
+   `calibrationSpanNs`.
 2. The 16 figures `sampleCount`, `minValue`, `medianValue`,
    `meanValue`, `p90Value`, `p99Value`, `p999Value`, `p9999Value`,
    `maxValue`, `noisePercent`, `seriesRuntimeNs`, `droppedSamples`,
@@ -59,9 +65,10 @@ Two rules join the `## Rules` list after line 61:
 
 ```markdown
 - The pre-check pair stands the method's own: the noise fraction and
-  the maximum unit time for FWQ, the missing share and the minimum
-  count for FTQ. The warning rule and the strict refusal read that
-  pair against `noise=`, 1 percent by default (specs/043 FR-021).
+  the maximum unit time for FWQ, the noise fraction and the minimum
+  count for FTQ. The figure's key is `noisePercent`. The warning rule
+  and the strict refusal read that pair against `noise=`, 1 percent by
+  default (specs/043 FR-021).
 - The pinning-candidate line ranks by the noise fraction ascending,
   ties in cpu order, for FWQ and FTQ; the standing gap-rate ranking
   stays for `tsc` (specs/043 FR-021).
