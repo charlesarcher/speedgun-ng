@@ -169,6 +169,14 @@ constexpr std::array<std::string_view, 4> kLevelOneVendorNames {{
     "tma_retiring",
 }};
 
+// The four neutral names beside those rows, in the same order.
+constexpr std::array<std::string_view, 4> kLevelOneNeutralNames {{
+    sg::test::kNeutralFrontendBound,
+    sg::test::kNeutralBadSpeculation,
+    sg::test::kNeutralBackendBound,
+    sg::test::kNeutralRetiring,
+}};
+
 // The four figures beside those names, in the same order.
 constexpr std::array<double, 4> kLevelOnePercents {{
     kFrontendPercent,
@@ -501,8 +509,22 @@ auto runMeasuredLedger(sg::Instance& instance,
 // (FR-040, FR-041).
 constexpr std::string_view kRefusalDetail {};
 
-// The two files one redirected run writes: the names carry this unit, the way
-// `harness_aggregates_only_test.cpp` names the one file it redirects.
+// The tag every line of the top-down block carries, the way the jitter note
+// carries `jitter:` in the same report (specs/042-topdown FR-026).
+constexpr std::string_view kBlockTag {"topdown:"};
+
+// The source record a planted table carries, so the block has a reference and a
+// file digest to print: the loader fills both beside the directory, and a
+// planted table states them for the same view (FR-015).
+constexpr std::string_view kPlantedReference {"v2024.10-events"};
+constexpr std::string_view kPlantedFileName {"pipeline.json"};
+constexpr std::string_view kPlantedFileHash {
+    "9f2b1c4d7e6a5038b1c2d3e4f5061728a9b0c1d2e3f405162738495a6b7c8d9e"};
+
+// The two files one redirected call writes: the names carry this unit, the way
+// `harness_aggregates_only_test.cpp` names the one file it redirects. Running
+// the binary from the repository root leaves them there, and ctest runs it from
+// the build's test directory.
 constexpr const char* kOutPath = "harness_topdown_run_out.txt";
 constexpr const char* kErrPath = "harness_topdown_run_err.txt";
 
@@ -514,11 +536,39 @@ constexpr const char* kErrPath = "harness_topdown_run_err.txt";
   return buffer.str();
 }
 
+// The two streams of one call, held apart from the test's own output. A `check`
+// of the redirect itself prints to the redirected stream, because nothing else
+// stands between the two, so both restores are checked before the text is read.
+struct CapturedStreams
+{
+  std::string out;
+  std::string err;
+};
+
+template<typename Body>
+auto captureStreams(Body&& body) -> CapturedStreams
+{
+  const int savedOut = ::dup(STDOUT_FILENO);
+  const int savedErr = ::dup(STDERR_FILENO);
+  check(savedOut >= 0 && savedErr >= 0,
+        "the test holds its own two streams aside");
+  check(std::freopen(kOutPath, "w", stdout) != nullptr
+            && std::freopen(kErrPath, "w", stderr) != nullptr,
+        "the test redirects both streams of the call");
+  body();
+  std::fflush(stdout);
+  std::fflush(stderr);
+  check(::dup2(savedOut, STDOUT_FILENO) >= 0
+            && ::dup2(savedErr, STDERR_FILENO) >= 0,
+        "the test gives its own two streams back");
+  ::close(savedOut);
+  ::close(savedErr);
+  return CapturedStreams {textOf(kOutPath), textOf(kErrPath)};
+}
+
 // One run beside the two streams it could have written: the account of
 // `runMeasured` and the whole text each stream received while the run ran
-// (specs/042-topdown FR-040). A `check` of the redirect itself prints to the
-// redirected stream, because nothing else stands between the two, so both
-// restores are checked before any claim of the case reads the pair.
+// (specs/042-topdown FR-040).
 struct CapturedRun
 {
   RunAccount run;
@@ -529,29 +579,65 @@ struct CapturedRun
 auto runMeasuredQuietly(sg::Instance& instance,
                         const sg::detail::RunOptions& options) -> CapturedRun
 {
-  const int savedOut = ::dup(STDOUT_FILENO);
-  const int savedErr = ::dup(STDERR_FILENO);
-  check(savedOut >= 0 && savedErr >= 0,
-        "the test holds its own two streams aside");
-  check(std::freopen(kOutPath, "w", stdout) != nullptr
-            && std::freopen(kErrPath, "w", stderr) != nullptr,
-        "the test redirects both streams of the run");
+  RunAccount account {sg::BenchmarkResult {}, 0};
   const std::uint64_t before = fake->readActions();
-  sg::detail::Runner runner(options);
-  auto result = runner.run(instance);
-  const std::uint64_t reads = fake->readActions() - before;
-  std::fflush(stdout);
-  std::fflush(stderr);
-  check(::dup2(savedOut, STDOUT_FILENO) >= 0
-            && ::dup2(savedErr, STDERR_FILENO) >= 0,
-        "the test gives its own two streams back");
-  ::close(savedOut);
-  ::close(savedErr);
+  CapturedStreams streams = captureStreams(
+      [&]
+      {
+        sg::detail::Runner runner(options);
+        account.result = runner.run(instance);
+      });
+  account.reads = fake->readActions() - before;
+  check(account.result.outcome == sg::RunOutcome::MEASURED,
+        "the scripted run measured its row");
+  check(!account.result.rows.empty(), "the measured result carries a row");
   return CapturedRun {
-      RunAccount {std::move(result), reads},
-      textOf(kOutPath),
-      textOf(kErrPath),
-  };
+      std::move(account), std::move(streams.out), std::move(streams.err)};
+}
+
+// The report of one result, as the console prints it. `detail::printResult` is
+// declared in `detail/internal.hpp` for this lane, so each case reads the block
+// in the report of the run that collected it.
+[[nodiscard]] auto printedLines(const sg::BenchmarkResult& result)
+    -> std::vector<std::string>
+{
+  const CapturedStreams streams =
+      captureStreams([&] { sg::detail::printResult(result); });
+  std::vector<std::string> lines;
+  std::istringstream stream(streams.out);
+  for (std::string line; std::getline(stream, line);) {
+    lines.push_back(line);
+  }
+  return lines;
+}
+
+// The lines of a printed report that carry the block's tag, and the index of
+// the first line a report carries of a given prefix, or nothing where none
+// stands.
+[[nodiscard]] auto blockLinesOf(const std::vector<std::string>& lines)
+    -> std::vector<std::string>
+{
+  std::vector<std::string> found;
+  for (const std::string& line : lines) {
+    if (line.rfind(kBlockTag, 0) == 0) {
+      found.push_back(line);
+    }
+  }
+  return found;
+}
+
+[[nodiscard]] auto lineAt(const std::vector<std::string>& lines,
+                          const std::string_view prefix)
+    -> std::optional<std::size_t>
+{
+  const auto found = std::find_if(lines.begin(),
+                                  lines.end(),
+                                  [&](const std::string& line)
+                                  { return line.rfind(prefix, 0) == 0; });
+  if (found == lines.end()) {
+    return std::nullopt;
+  }
+  return static_cast<std::size_t>(found - lines.begin());
 }
 
 // The options of a run that reports its percentiles, the view the strip of the
@@ -1191,13 +1277,527 @@ auto scenarioAnUnsupportedHostCollectsNothingAndStaysItself() -> int
   return 0;
 }
 
+// One planted table with the source record a loader fills beside the directory,
+// so the block's reference and digest lines have text to print (FR-015).
+[[nodiscard]] auto tableWithSource(sg::counters::TopdownTable table)
+    -> sg::counters::TopdownTable
+{
+  table.source.reference = std::string {kPlantedReference};
+  table.source.files.push_back(sg::counters::TableFile {
+      .name = std::string {kPlantedFileName},
+      .manifestHash = std::string {kPlantedFileHash},
+  });
+  return table;
+}
+
+// The figure text one node line carries: the printed percent of the figure, to
+// two decimals, so a reader can add the four level-1 values (FR-027, SC-03).
+[[nodiscard]] auto figureText(const double figure) -> std::string
+{
+  char text[64] {};
+  std::snprintf(text, sizeof(text), "%.2f%%", figure);
+  return text;
+}
+
+// The first scenario of the block: one block stands per benchmark under that
+// benchmark's own tables, and a threaded run stands in the same rule as a
+// single-context run (FR-025).
+auto scenarioTheBlockStandsAfterTheResultTables() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("this host states no vendor this build vendors a table for");
+  }
+  registerFixture(kNarrowCoreLimit);
+
+  metricBenchmark("bmTopdownBlockFirst");
+  metricBenchmark("bmTopdownBlockSecond");
+  metricBenchmark("bmTopdownBlockThreaded");
+  sg::detail::expandRegistry();
+
+  const std::vector<MetricRow> rows = sg::test::topdownIntelRows();
+  const RunAccount first =
+      runMeasured(*needInstance("bmTopdownBlockFirst"),
+                  askedOptions(rows, kLevelOne, kRecordRepetitions));
+  const RunAccount second =
+      runMeasured(*needInstance("bmTopdownBlockSecond"),
+                  askedOptions(rows, kLevelOne, kRecordRepetitions));
+  sg::Instance& threaded = *needInstance("bmTopdownBlockThreaded");
+  threaded.threadCount = 2;
+  const RunAccount merged =
+      runMeasured(threaded, askedOptions(rows, kLevelOne, kRunRepetitions));
+
+  const auto checkBlock =
+      [](const char* const name, const sg::BenchmarkResult& result)
+  {
+    const std::vector<std::string> lines = printedLines(result);
+    const std::string headerPrefix = std::string {kBlockTag} + " level=";
+    const auto header = lineAt(lines, headerPrefix);
+    check(header.has_value(),
+          "the report of a run with the option carries one top-down header "
+          "under " "its benchmark (FR-025)");
+    std::size_t lastRow = 0;
+    bool anyRow = false;
+    for (std::size_t index = 0; index < lines.size(); ++index) {
+      if (lines[index].rfind(name, 0) == 0
+          && lines[index].contains("iterations="))
+      {
+        lastRow = index;
+        anyRow = true;
+      }
+    }
+    check(anyRow && header.has_value() && *header > lastRow,
+          "the block stands under the rows of its own benchmark (FR-025)");
+    std::size_t headers = 0;
+    for (const std::string& line : blockLinesOf(lines)) {
+      headers += line.rfind(headerPrefix, 0) == 0 ? 1U : 0U;
+    }
+    check(headers == 1, "one block stands per benchmark (FR-025)");
+  };
+  checkBlock("bmTopdownBlockFirst", first.result);
+  checkBlock("bmTopdownBlockSecond", second.result);
+  checkBlock("bmTopdownBlockThreaded", merged.result);
+
+  const std::vector<std::string> mergedLines = printedLines(merged.result);
+  const auto mergedHeader =
+      lineAt(mergedLines, std::string {kBlockTag} + " level=");
+  const auto contexts = [&]() -> std::optional<std::size_t>
+  {
+    const auto found = std::find_if(mergedLines.begin(),
+                                    mergedLines.end(),
+                                    [](const std::string& line)
+                                    { return line.contains("contexts="); });
+    if (found == mergedLines.end()) {
+      return std::nullopt;
+    }
+    return static_cast<std::size_t>(found - mergedLines.begin());
+  }();
+  check(contexts.has_value() && mergedHeader.has_value()
+            && *contexts > *mergedHeader,
+        "the threaded run's context disclosure stands under its block, so the "
+        "block reached the threaded path too (FR-025)");
+
+  std::puts("the-block-stands-after-the-result-tables: ok");
+  return 0;
+}
+
+// The second scenario of the block: the header names the level the run shows,
+// the passes its one plan produced and the table the rows came from, and the
+// source record follows with the pinned reference and the file digest (FR-026,
+// FR-015).
+auto scenarioTheBlockStatesTheLevelThePassesAndTheTable() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("this host states no vendor this build vendors a table for");
+  }
+  registerFixture(kNarrowCoreLimit);
+
+  metricBenchmark("bmTopdownBlockHeader");
+  sg::detail::expandRegistry();
+
+  const RunAccount run = runMeasured(
+      *needInstance("bmTopdownBlockHeader"),
+      askedTable(tableWithSource(plantedTable(kIntelDirectory,
+                                              sg::test::topdownIntelRows())),
+                 kLevelOne,
+                 kRunRepetitions));
+  const std::vector<std::string> block = blockLinesOf(printedLines(run.result));
+  check(block.size() == 1 + 1 + 1 + kLevelOneNodeColumns,
+        "the block carries one header, the reference, one line per file that "
+        "contributed a row, and one line per node (FR-015, FR-026)");
+
+  char header[160] {};
+  std::snprintf(header,
+                sizeof(header),
+                "topdown: level=%llu passes=%zu table=%s",
+                static_cast<unsigned long long>(kLevelOne),
+                kOnePlanPassCount,
+                std::string {kIntelDirectory}.c_str());
+  check(block.front() == header,
+        "the header states the level shown, the passes the plan produced and "
+        "the " "table the rows came from (FR-026, FR-021, FR-015)");
+  const auto reference = lineAt(block, "topdown: reference=");
+  std::size_t fileLines = 0;
+  for (const std::string& line : block) {
+    fileLines +=
+        line.rfind(std::string {kBlockTag} + " file ", 0) == 0 ? 1U : 0U;
+  }
+  check(reference.has_value()
+            && block[*reference]
+                   == std::string {kBlockTag} + " reference="
+                          + std::string {kPlantedReference}
+            && fileLines == 1,
+        "the block carries the reference the manifest states and one line per "
+        "file that contributed a row (FR-015)");
+  const auto file = lineAt(block, "topdown: file ");
+  check(file.has_value() && block[*file].contains(kPlantedFileName)
+            && block[*file].contains(kPlantedFileHash),
+        "the block carries the file and the digest that contributed the rows "
+        "(FR-015)");
+
+  std::puts("the-block-states-the-level-the-passes-and-the-table: ok");
+  return 0;
+}
+
+// The third scenario of the block: the four level-1 nodes print in the order
+// the table spells them, each with its neutral name and the vendor name it came
+// from (FR-027).
+auto scenarioTheFourLevelOneNamesPrintWithTheirVendorNames() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("this host states no vendor this build vendors a table for");
+  }
+  registerFixture(kNarrowCoreLimit);
+
+  metricBenchmark("bmTopdownBlockNames");
+  sg::detail::expandRegistry();
+
+  const RunAccount run = runMeasured(
+      *needInstance("bmTopdownBlockNames"),
+      askedOptions(sg::test::topdownIntelRows(), kLevelOne, kRunRepetitions));
+  const std::vector<std::string> block = blockLinesOf(printedLines(run.result));
+  check(
+      block.size() == 4 + 1,
+      "the block carries one header and one line per collected node (FR-026)");
+
+  for (std::size_t node = 0; node < kLevelOneNeutralNames.size(); ++node) {
+    const std::string& line = block[node + 1];
+    check(line.contains(kLevelOneNeutralNames[node])
+              && line.contains(kLevelOneVendorNames[node]),
+          "the node line carries the neutral name and the vendor name of the "
+          "row, " "in the order the table spells the rows (FR-027)");
+    check(line.contains(figureText(kLevelOnePercents[node])),
+          "the node line carries its figure in percent (FR-027)");
+  }
+
+  std::puts("the-four-level-one-names-print-with-their-vendor-names: ok");
+  return 0;
+}
+
+// The fourth scenario of the block: each printed figure is the figure the
+// scripted leaves fold to, at the rounding the block prints (SC-03).
+auto scenarioEachFigureEqualsWhatTheFixtureScripts() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("this host states no vendor this build vendors a table for");
+  }
+  registerFixture(kNarrowCoreLimit);
+
+  metricBenchmark("bmTopdownBlockFigures");
+  sg::detail::expandRegistry();
+
+  const RunAccount run = runMeasured(
+      *needInstance("bmTopdownBlockFigures"),
+      askedOptions(sg::test::topdownIntelRows(), kLevelOne, kRunRepetitions));
+  const std::vector<std::string> block = blockLinesOf(printedLines(run.result));
+  check(block.size() == 4 + 1,
+        "the four nodes of the run print their own lines (FR-026)");
+  for (std::size_t node = 0; node < kLevelOnePercents.size(); ++node) {
+    const std::string expected = std::string {kBlockTag} + "  "
+        + std::string {kLevelOneNeutralNames[node]} + "  "
+        + std::string {kLevelOneVendorNames[node]} + "  "
+        + figureText(kLevelOnePercents[node]);
+    check(block[node + 1] == expected,
+          "one node line answers the figure the scripted leaves fold to, at "
+          "the " "two-decimal rounding the block prints (SC-03, FR-027)");
+  }
+
+  std::puts("each-figure-equals-what-the-fixture-scripts: ok");
+  return 0;
+}
+
+// The ninth scenario of the block: a record that states no support prints no
+// block, because the one line an unsupported host owes the reader belongs to
+// the command line, where the refusal is answered before any benchmark runs
+// (FR-040, FR-041, T080). The runner publishes that record for the report
+// writers, so the block has to leave it alone here.
+auto scenarioAnUnsupportedRecordPrintsNoBlock() -> int
+{
+  sg::BenchmarkResult result;
+  result.name = "bmTopdownUnsupportedRecord";
+  sg::ResultRow row;
+  row.iterations = 1;
+  row.timePerIterationNs = 100.0;
+  row.cpuTimePerIterationNs = 100.0;
+  row.endpointSamples = 2;
+  result.rows.push_back(row);
+  sg::TopdownRecord record;
+  record.supported = false;
+  record.askedLevel = 3;
+  record.reason = "the mapping file names no row for this identity";
+  result.topdown = std::move(record);
+
+  const std::vector<std::string> lines = printedLines(result);
+  check(blockLinesOf(lines).empty(),
+        "the report of a refusal record prints no top-down block (FR-040, "
+        "FR-041)");
+  check(lineAt(lines, "bmTopdownUnsupportedRecord").has_value(),
+        "the report of a refusal record still prints its own row (FR-040)");
+
+  std::puts("an-unsupported-record-prints-no-block: ok");
+  return 0;
+}
+
+// The eighth scenario of the block: a tree asked one level deeper prints its
+// children indented two spaces per level below one, and a node whose leaves the
+// fixture publishes as a gap prints `not available` where its figure stands.
+// Both belong to the shape D-12 states for the block, and the scripted leaves
+// settle a gap only through a hand-built record, because a planted table
+// answers the same availability for every node of the run (FR-027, FR-030,
+// D-12).
+auto scenarioTheDeeperTreePrintsItsIndentationAndItsGap() -> int
+{
+  sg::BenchmarkResult result;
+  result.name = "bmTopdownDeepTree";
+  result.passCount = kOnePlanPassCount;
+  sg::TopdownRecord record;
+  record.supported = true;
+  record.level = 2;
+  record.askedLevel = 2;
+  record.directory = std::string {kIntelDirectory};
+  record.nodes.push_back(sg::TopdownNode {
+      .name = std::string {sg::test::kNeutralFrontendBound},
+      .vendorName = "tma_frontend_bound",
+      .parent = {},
+      .level = 1,
+      .value = 200.0,
+      .availability = sg::counters::Availability::COUNTABLE,
+      .threshold = {},
+  });
+  record.nodes.push_back(sg::TopdownNode {
+      .name = "topdown.frontend_bound.latency",
+      .vendorName = "tma_fetch_latency",
+      .parent = std::string {sg::test::kNeutralFrontendBound},
+      .level = 2,
+      .value = 120.0,
+      .availability = sg::counters::Availability::COUNTABLE,
+      .threshold = {},
+  });
+  record.nodes.push_back(sg::TopdownNode {
+      .name = "topdown.frontend_bound.bandwidth",
+      .vendorName = "tma_fetch_bandwidth",
+      .parent = std::string {sg::test::kNeutralFrontendBound},
+      .level = 2,
+      .value = std::nullopt,
+      .availability = sg::counters::Availability::GAP,
+      .threshold = {},
+  });
+  result.topdown = std::move(record);
+
+  const std::vector<std::string> block = blockLinesOf(printedLines(result));
+  check(block.size() == 1 + 3,
+        "the block prints one line per node of the tree (FR-026)");
+  check(block.front()
+            == std::string {kBlockTag}
+                + " level=2 passes=" + std::to_string(kOnePlanPassCount)
+                + " table=" + std::string {kIntelDirectory},
+        "the header states the deeper level the run shows (FR-026)");
+  check(block[1]
+            == std::string {kBlockTag} + "  "
+                + std::string {sg::test::kNeutralFrontendBound} + "  "
+                + "tma_frontend_bound  " + figureText(200.0),
+        "a level-1 node prints with no indent beyond the tag (FR-027)");
+  check(block[2]
+            == std::string {kBlockTag} + "    topdown.frontend_bound.latency  "
+                + "tma_fetch_latency  " + figureText(120.0),
+        "a level-2 node prints indented two spaces below its parent (FR-027, "
+        "D-12)");
+  check(block[3]
+            == std::string {kBlockTag}
+                + "    topdown.frontend_bound.bandwidth  "
+                + "tma_fetch_bandwidth  not available",
+        "a node the leaves answer as a gap prints `not available` in place of "
+        "its " "figure (FR-030)");
+
+  std::puts("the-deeper-tree-prints-its-indentation-and-its-gap: ok");
+  return 0;
+}
+
+// The fifth scenario of the block: an AMD table prints the fifth level-1 value
+// beside the four shared ones and states that the four add to less than 100
+// percent without it. The record carries no vendor flag, so the block reads the
+// fifth name (FR-028, FR-056).
+auto scenarioTheAmdBlockPrintsTheFifthValueAndTheStatement() -> int
+{
+  sg::BenchmarkResult result;
+  result.name = "bmTopdownAmdBlock";
+  result.passCount = kOnePlanPassCount;
+  sg::TopdownRecord record;
+  record.supported = true;
+  record.level = kLevelOne;
+  record.askedLevel = kLevelOne;
+  record.directory = std::string {sg::test::kZen4Directory};
+  constexpr std::array<std::string_view, 5> kNeutral {{
+      sg::test::kNeutralFrontendBound,
+      sg::test::kNeutralBadSpeculation,
+      sg::test::kNeutralBackendBound,
+      sg::test::kNeutralSmtContention,
+      sg::test::kNeutralRetiring,
+  }};
+  constexpr std::array<double, 5> kValues {{30.0, 5.0, 50.0, 10.0, 5.0}};
+  for (std::size_t node = 0; node < kNeutral.size(); ++node) {
+    record.nodes.push_back(sg::TopdownNode {
+        .name = std::string {kNeutral[node]},
+        .vendorName = std::string {sg::test::kAmdLevelOneNames[node]},
+        .parent = {},
+        .level = kLevelOne,
+        .value = kValues[node],
+        .availability = sg::counters::Availability::COUNTABLE,
+        .threshold = {},
+    });
+  }
+  result.topdown = std::move(record);
+
+  const std::vector<std::string> block = blockLinesOf(printedLines(result));
+  check(block.size() == 5 + 2,
+        "the block carries the header, the five nodes and the statement "
+        "(FR-028)");
+  check(block[4]
+            == std::string {kBlockTag} + "  "
+                + std::string {sg::test::kNeutralSmtContention} + "  "
+                + "smt_contention  " + figureText(10.0),
+        "the fifth level-1 value prints with its neutral name and its vendor "
+        "name (FR-028, FR-056)");
+  check(block.back().contains(sg::test::kNeutralSmtContention)
+            && block.back().contains("100 percent"),
+        "the block states that the four shared values add to less than 100 "
+        "percent " "without the fifth (FR-028)");
+  double shared = 0.0;
+  for (std::size_t node = 0; node < kValues.size(); ++node) {
+    shared += kValues[node];
+  }
+  check(closeTo(shared, 100.0),
+        "the five values of the scripted AMD row set close the hundred percent "
+        "(FR-056)");
+
+  std::puts("the-amd-block-prints-the-fifth-value-and-the-statement: ok");
+  return 0;
+}
+
+// The sixth scenario of the block: a run that collected the tree and no metric
+// column still states the passes its one plan produced, because the plan is the
+// tree's own (FR-021).
+auto scenarioARunWithNoMetricColumnStillStatesItsPasses() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("this host states no vendor this build vendors a table for");
+  }
+  registerFixture(kNarrowCoreLimit);
+
+  bareBenchmark("bmTopdownBarePasses");
+  sg::detail::expandRegistry();
+
+  const RunAccount run = runMeasured(
+      *needInstance("bmTopdownBarePasses"),
+      askedOptions(sg::test::topdownIntelRows(), kLevelOne, kRunRepetitions));
+  check(run.result.metricLabels.empty(),
+        "the run attached no metric column of its own (FR-021)");
+  check(run.result.passCount == kLevelOnePassCount,
+        "the tree alone settled to the passes its one plan produced (FR-021)");
+
+  const std::vector<std::string> lines = printedLines(run.result);
+  const auto passLine = [&]() -> std::optional<std::size_t>
+  {
+    const auto found = std::find_if(lines.begin(),
+                                    lines.end(),
+                                    [](const std::string& line) {
+                                      return line.contains("  passes  method=");
+                                    });
+    if (found == lines.end()) {
+      return std::nullopt;
+    }
+    return static_cast<std::size_t>(found - lines.begin());
+  }();
+  const auto header = lineAt(lines, std::string {kBlockTag} + " level=");
+  check(passLine.has_value(),
+        "a run with no metric column states the passes its plan produced "
+        "(FR-021)");
+  check(passLine.has_value() && header.has_value() && *passLine < *header,
+        "the pass line stands above the block, where it stands for a run with "
+        "metric columns (FR-025, FR-021)");
+  check(header.has_value()
+            && lines[*header]
+                == std::string {kBlockTag}
+                    + " level=1 passes=" + std::to_string(kLevelOnePassCount)
+                    + " table=" + std::string {kIntelDirectory},
+        "the block of the tree-only run states the passes beside the level "
+        "(FR-021, FR-026)");
+
+  std::puts("a-run-with-no-metric-column-still-states-its-passes: ok");
+  return 0;
+}
+
+// The mode that re-executes this binary as a child driving the entry point, and
+// the marker that child prints before the entry point reaches its own report:
+// the bare-word case reads both, because SC-05's fifth case is about the entry
+// point and not about a runner driven directly.
+constexpr std::string_view kEntryPointMode {"entry-point-child"};
+constexpr std::string_view kEntryPointMarker {"ENTRY_POINT_RAN"};
+
+// argv[0] of this binary, which the bare-word case re-executes.
+const char* selfPath = "harness_topdown_run_test";
+
+auto runEntryPointChild() -> int
+{
+  registerFixture(kNarrowCoreLimit);
+  static_cast<void>(sg::registerBenchmark(&plainBody, "bmTopdownEntry"));
+  std::printf("%s\n", std::string {kEntryPointMarker}.c_str());
+  std::fflush(stdout);
+  std::vector<std::string> arguments {
+      "--topdown", "--iterations=1", "--repetitions=1"};
+  std::vector<char*> argv {const_cast<char*>(selfPath)};
+  for (std::string& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
+// The seventh scenario of the block: the option word with no attached value
+// prints a tree at level one and leaves the run's status at zero, the fifth
+// case SC-05 names beside its four refusal statuses (FR-018, FR-025; SC-05).
+auto scenarioTheBareWordPrintsATreeAtStatusZero() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("this host states no vendor this build vendors a table for");
+  }
+  const sg::counters::TopdownTable vendored =
+      sg::counters::topdownTable(sg::counters::cpuIdentity());
+  if (vendored.source.directory.empty()) {
+    skip("the vendored mapping file names no table for this identity");
+  }
+
+  const std::string command = "\"" + std::string {selfPath} + "\" "
+      + std::string {kEntryPointMode} + " > " + kOutPath + " 2>&1";
+  const int status = std::system(command.c_str());
+  const std::string output = textOf(kOutPath);
+  check(WIFEXITED(status) && WEXITSTATUS(status) == 0,
+        "the option word with no attached value leaves the run's status at "
+        "zero (SC-05)");
+  check(output.contains(kEntryPointMarker),
+        "the run under the bare word reaches its benchmark (SC-05)");
+  const std::string header = std::string {kBlockTag} + " level=1 ";
+  check(output.contains(header),
+        "the bare word prints a tree at the level it shows, which is one, and the "
+        "block of a run driven through the entry point reaches the console (FR-018, FR-025)");
+  // The directory the header names is the one this identity selects, so the
+  // case reads the record of its own run and not a constant (FR-026). The
+  // number of file lines is whatever that record states: the vendored path
+  // fills the reference and the contributing files at no task of this feature
+  // yet, so the scripted case above is where the print rule of FR-015 stands.
+  check(output.contains(header + "passes=")
+            && output.contains("table=" + vendored.source.directory),
+        "the header states the table this identity selects (FR-026, FR-015)");
+
+  std::puts("the-bare-word-prints-a-tree-at-status-zero: ok");
+  return 0;
+}
+
 struct Scenario
 {
   const char* name;
   int (*run)();
 };
 
-constexpr std::array<Scenario, 8> kScenarios {{
+constexpr std::array<Scenario, 17> kScenarios {{
     Scenario {"nodes-share-one-plan-with-the-metric-columns",
               &scenarioNodesShareOnePlanWithTheMetricColumns},
     Scenario {"the-metric-columns-keep-their-bytes",
@@ -1214,6 +1814,24 @@ constexpr std::array<Scenario, 8> kScenarios {{
               &scenarioTheStripChangesNoTimeColumn},
     Scenario {"an-unsupported-host-collects-nothing-and-stays-itself",
               &scenarioAnUnsupportedHostCollectsNothingAndStaysItself},
+    Scenario {"the-block-stands-after-the-result-tables",
+              &scenarioTheBlockStandsAfterTheResultTables},
+    Scenario {"the-block-states-the-level-the-passes-and-the-table",
+              &scenarioTheBlockStatesTheLevelThePassesAndTheTable},
+    Scenario {"the-four-level-one-names-print-with-their-vendor-names",
+              &scenarioTheFourLevelOneNamesPrintWithTheirVendorNames},
+    Scenario {"each-figure-equals-what-the-fixture-scripts",
+              &scenarioEachFigureEqualsWhatTheFixtureScripts},
+    Scenario {"the-amd-block-prints-the-fifth-value-and-the-statement",
+              &scenarioTheAmdBlockPrintsTheFifthValueAndTheStatement},
+    Scenario {"a-run-with-no-metric-column-still-states-its-passes",
+              &scenarioARunWithNoMetricColumnStillStatesItsPasses},
+    Scenario {"the-bare-word-prints-a-tree-at-status-zero",
+              &scenarioTheBareWordPrintsATreeAtStatusZero},
+    Scenario {"the-deeper-tree-prints-its-indentation-and-its-gap",
+              &scenarioTheDeeperTreePrintsItsIndentationAndItsGap},
+    Scenario {"an-unsupported-record-prints-no-block",
+              &scenarioAnUnsupportedRecordPrintsNoBlock},
 }};
 
 }  // namespace
@@ -1228,10 +1846,14 @@ auto main(int argc, char** argv) -> int
       argc > 0 && argv[0] != nullptr ? argv[0] : "harness_topdown_run_test";
   const std::string requested =
       argc > 1 && argv[1] != nullptr ? argv[1] : std::string();
+  selfPath = self.c_str();
   for (const Scenario& scenario : kScenarios) {
     if (requested == scenario.name) {
       return scenario.run();
     }
+  }
+  if (requested == kEntryPointMode) {
+    return runEntryPointChild();
   }
   if (!requested.empty()) {
     std::fprintf(stderr,

@@ -454,7 +454,7 @@ rule and no page is needed.
   table holds four published rows and no directory, so the case shows a refusal
   outranking the rows it carries.
 
-- [ ] T030 [US1] In `test/source/harness_topdown_run_test.cpp`, write the block
+- [x] T030 [US1] In `test/source/harness_topdown_run_test.cpp`, write the block
   cases: `theBlockStandsAfterTheResultTables` holds one block per benchmark
   under its own tables, threaded runs included (FR-025);
   `theBlockStatesTheLevelThePassesAndTheTable` reads
@@ -470,6 +470,16 @@ rule and no page is needed.
   entry point with the bare word, reads a level-1 tree and answers exit status
   0, the fifth case SC-05 names beside its four refusal statuses. This case
   lands with T037 and T038 in one commit (FR-048). The reference line and the file lines a production run prints stand with `T101`, so the block cases pin the print rule over a planted record.
+  The block cases drive `detail::printResult` over runs the fixture scripts, so the
+  figures, the names and the block's place in the report come off the report the run
+  produced. The AMD record and the level-2 record with a gapped child stand built by
+  hand, because a planted table answers one availability for every node of its run,
+  and `the-deeper-tree-prints-its-indentation-and-its-gap` holds D-12's two-space
+  indentation and FR-030's `not available` beside the case list of this task. The
+  bare word re-executes this binary through `sg::speedgunMain` over the scripted
+  provider, reads the header its own record states and answers status 0, so no case
+  depends on which table the host selects. Nine arms, one per case, each printed its
+  own claim and left the tree byte-identical.
 - [ ] T031 [US1] In `test/source/harness_topdown_run_test.cpp`, the case
   `theRunStatesTheCoreWideScopeBeforeTheFirstMeasurement`: a top-down run states
   once on the console, ahead of its first measurement, which way the flag
@@ -551,7 +561,7 @@ rule and no page is needed.
   feature, because T079 and T080 land in this branch. Five arms each printed their
   own claim, and no arm left the refusal printing or moving a status.
 
-- [ ] T037 [US1] In `source/harness/report.cpp`, add
+- [x] T037 [US1] In `source/harness/report.cpp`, add
   `printTopdownBlock(const BenchmarkResult&)` in the anonymous namespace that
   closes at `:334`, beside `printPassDisclosure` at `:301`, printing with
   `std::printf` in the house field shape of `:312`, and call it from
@@ -559,13 +569,25 @@ rule and no page is needed.
   note at `:657`, so the block stands after the tables and every later line
   keeps its bytes (FR-025, FR-026, FR-027, FR-028; turns every case of T030
   green except the pass line, which T038 turns in the same commit).
+  `printTopdownBlock` stands in the anonymous namespace that closes above it, and its
+  call stands between that disclosure and the jitter note, so a threaded run reaches
+  the block on the path a single-context run already took. Every line carries the
+  `topdown:` tag, the header holds the three fields FR-026 fixes, the source lines
+  follow one per entry the record states, each node line carries two spaces per level
+  below one, and a record that states no support prints no block, because the line an
+  unsupported host owes the reader belongs to `source/harness/cli.cpp` at T080. The
+  statement of FR-028 keys on the node named `topdown.smt_contention`, and the reason
+  the record carries no vendor flag stands in the comment beside that branch.
 
-- [ ] T038 [US1] In `source/harness/report.cpp`, let the guard of
+- [x] T038 [US1] In `source/harness/report.cpp`, let the guard of
   `printPassDisclosure` at `:303-307` read `&& !result.topdown.has_value()`, so
   a `--topdown` run with no `--metric` column still states the passes its one
   plan produced, one branch and no other change (FR-021; turns
   `aRunWithNoMetricColumnStillStatesItsPasses` of T030 green in the commit of
   T037).
+  The guard reads the added clause, so a run that collected the tree and no metric
+  column states its passes above its block. One case of T030 holds both halves, and
+  the arm that restores the guard as it stood moves that case alone.
 
 - [ ] T039 [US1] In `source/harness/cli.cpp`, print that one scope line once
   from `speedgunMain`, ahead of the walk that calls `runner.run` at
