@@ -1223,7 +1223,7 @@ D-16 names, and the one timing bound PC-13 measures.
       its window there and hands the mask back once the window has been read
       (FR-045, FR-053, spec PC-14).
 
-- [ ] T101 [US1] Fill the source a production table reads. In
+- [x] T101 [US1] Fill the source a production table reads. In
   `source/counters/linux_pmu/topdown_select.cpp`, let `topdownTable()` copy the
   manifest reference and one `TableFile` per contributing file, each with its
   `name` and `manifestHash`, out of the record `T018` and `T019` put in the
