@@ -310,9 +310,12 @@ Measured on this machine on 2026-11-01 before any file changed.
   states, per level: level 1 four of four, level 2 eight of eight, level 3
   fifteen of 25, level 4 twenty-one of 34, level 5 ten of 17, level 6 eleven of
   14. The 33 that publish split ten, thirteen, seven and three over the same
-  four levels. PC-7 keeps the fixed counters out of all of them, and PC-11
-  states where the rows print.
-- **PC-6: `#SMT_on` answers nothing on this host. GAP, open.** The reader
+  four levels. The fixed-counter rows publish since `039844e0`, PC-15 states the part limit that
+  keeps two level-1 nodes refused, and PC-11 states where the rows print.
+- **PC-6: `#SMT_on` answers nothing on this host. CLOSED at `c1462b7c`.** Measured
+  again at that hash, the object tree answers 24 threads over 12 cores, so `readSmtState`
+  answers SMT_ON, and `cpu0/thread_siblings_list` names `0,12`: the audit reading that this
+  host publishes no core object stood at the wrong path. The reader
   exists and counts the core and thread objects of the open system
   (`source/counters/linux_pmu/metric_tables.hpp:104-146`). This host
   publishes no object of either kind, so `--catalog` answers `this host
@@ -322,8 +325,8 @@ Measured on this machine on 2026-11-01 before any file changed.
   it. `--catalog` reports it as the refusal reason of one of the two, because
   the loader stops at the first gap it reaches. The plan names the fix and its
   owner.
-- **PC-7: every fixed counter reads zero through the fast read path. GAP, root
-  cause found, owner named below.** With `kernel.perf_event_paranoid` at -1
+- **PC-7: every fixed counter reads zero through the fast read path. CLOSED at
+  `c1462b7c`, cause corrected below.** With `kernel.perf_event_paranoid` at -1
   the open is granted: 499 leaves countable and 497 readable through `rdpmc`,
   and a raw `perf_event_open` for the same event counts 450969862 cycles, so
   the hardware answers. The fast path refuses the published index: for a fixed
@@ -343,6 +346,16 @@ Measured on this machine on 2026-11-01 before any file changed.
   the same windows. Whether this lane carries it or the counters lane lands it
   first is the owner's call, recorded as D-18. Live values on the acceptance
   host wait on this gap.
+  Closed at `039844e0` and `c1462b7c`, and the bound was not the cause. Opened
+  through the PMU's own sysfs type, the page publishes no index at all and the
+  group read answers the count, so a marked index never reached the instruction on
+  this path. The zeros came from the table: `Counter` stood among the keys the
+  parser drops, so `CPU_CLK_UNHALTED.THREAD` composed its marker umask alone, and
+  the kernel counts that config as nothing. The composition now reads the kernel's
+  own alias for each fixed counter, three rows of the composed catalog move, and
+  the level-1 shares print inside 0 to 100. Two level-1 nodes stay refused on this
+  part for the budget reason PC-15 records, and the coverage flag moved to the
+  sibling list of the cpu that carries the run.
 - **PC-8: one baseline test cannot finish inside its timeout. GAP, measured,
   owned outside this feature.** `harness_cli_test` reaches 300 seconds under
   `ctest` at the base hash, before this feature, and that 300 seconds is the
@@ -428,6 +441,45 @@ Measured on this machine on 2026-11-01 before any file changed.
   scenario now names the cpu it samples on and narrows its own affinity to it,
   choosing that cpu from the mask its parent left it, so a narrowed run keeps
   working. `T100` records the fix.
+
+- **PC-15: two level-1 spines need more general-purpose counters than this part
+  publishes. GAP, measured, owned outside this feature.** `tma_backend_bound` and
+  `tma_bad_speculation` fold six leaves in one window, five of them
+  general-purpose, and the part publishes four (`Object::programmableCounters()`
+  for `cpu`, and CPUID leaf 0xA `EAX[15:8]`), so the kernel leaves one event
+  unscheduled, its page holds `index = 0`, and the fast read refuses it at 66 of
+  66 sampling actions in that pass. specs/012 FR-002 marks such an action as one
+  that measured nothing, so the node prints `not available` while its five other
+  leaves keep their counts in their own columns. Printing zero there would
+  publish a count that was never read. On a part with eight general-purpose
+  counters the spine fits and all four level-1 shares publish, so SC-10's two
+  missing shares are a host fact for this part. Three routes stand, none taken
+  here: budget general-purpose counters alone when a mixed spine is planned
+  (PC-16), choose the group read at open for a pass over its limit, at the cost
+  of that pass's per-action overhead, or disclose per entry, at one managed
+  column per leaf. The first belongs to PC-16's owner, and the other two are a
+  counters decision with a Principle VII measurement beside them.
+- **PC-16: the pass planner budgets a mixed spine against every counter. GAP,
+  reasoned from the limit it reads, owned outside this feature.** A spine that
+  needs five general-purpose events and one fixed event is planned against the
+  source limit that counts both kinds, so a pass that the fixed counter could
+  carry is planned as exclusive. Measured here the effect is invisible, because
+  five general events exceed four either way, and the pass that carries the two
+  refused nodes needs five general events. On a part where a mixed spine fits
+  within the general-purpose counters plus the fixed ones, that planning choice
+  still spends a pass and can mark actions the hardware could have measured. The
+  fix reads `programmableCounters()` for the general-purpose members and the
+  fixed count for the marked ones, and its test states both numbers.
+- **PC-17: a denominator whose delta answers zero yields a non-finite figure with
+  `COUNTABLE`. GAP, measured over the fake seam, repair carried here.** Over the
+  fake host a fold whose denominator measured no delta answers `-nan` while its
+  availability stays `COUNTABLE`, and no guard stands in the fold or in the
+  metric print, so a page can print `-nan%`. specs/022 FR-012 refuses a literal
+  zero divisor and reaches no divisor that measures zero. The deep fix belongs
+  to the fold, and the guard this feature carries stands where the figure
+  reaches a user: the top-down block prints `not available`, with the reason
+  naming the denominator that measured no delta, and the record carries the same
+  refusal, so no non-finite figure leaves the library.
 ## Roadmap position
 
 N2 (022) publishes a metric row as a formula. N6 (024) splits a set of
