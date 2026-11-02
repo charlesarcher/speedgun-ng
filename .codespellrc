@@ -6,8 +6,11 @@ check-hidden =
 # dependencies there; never spell-check vendored JS. .omo is OhMyOpenCode
 # agent scratch state (session transcripts), not project content.
 # build-shared is the shared-build hwloc prefix the local lanes leave
-# beside build-tidy; neither exists on a CI runner.
-skip = */.git,*/build,*/build-tidy,*/build-shared,*/prefix,*/node_modules,*/.omo,*/external
+# beside build-tidy; neither exists on a CI runner. build-* names the
+# per-lane trees a developer stands beside build to keep two builds of one
+# checkout apart; a CI runner carries build alone, so the wider pattern
+# skips vendored text no CI job reads.
+skip = */.git,*/build,*/build-*,*/build-tidy,*/build-shared,*/prefix,*/node_modules,*/.omo,*/external
 # False positives from Spec Kit's vendored shell scripts
 # (.specify/scripts/bash/common.sh): "unparseable" is valid English and
 # "strat" is a shell variable (short for strategy).
