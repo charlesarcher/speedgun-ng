@@ -34,6 +34,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -128,6 +129,51 @@ constexpr std::size_t kLevelTwoPassCount = 7;
 constexpr std::uint64_t kLevelOne = 1;
 constexpr std::uint64_t kLevelTwo = 2;
 
+// The repetition count of the record and strip cases. Two repetitions stand one
+// aggregate row beside the two measured rows, so those cases read a run's
+// statistic view and its value view (FR-027).
+constexpr std::uint64_t kRecordRepetitions = 2;
+
+// The node columns the level-1 ask brings into a run, and the two time columns
+// that stand ahead of every metric column of a percentile grid and of a
+// retained chunk column (specs/021 FR-010, specs/023 E-02).
+constexpr std::size_t kLevelOneNodeColumns = 4;
+constexpr std::size_t kTimeColumns = 2;
+
+// The four level-1 figures the scripted leaves owe the planted rows. Each row
+// carries the `100%` scale, and the scale of a row applies inside that row's
+// own spine, so an inlined sub-metric arrives with its own scale already
+// applied (specs/022 FR-018). The backend row therefore reads one minus the
+// three percents and carries its own scale over that difference.
+constexpr double kFrontendPercent =
+    100.0 * sg::test::kCyclesDelta / sg::test::kRefCyclesDelta;
+constexpr double kBadSpeculationPercent =
+    100.0 * sg::test::kL2Delta / sg::test::kInstructionsDelta;
+constexpr double kRetiringPercent =
+    100.0 * sg::test::kInstructionsDelta / sg::test::kRefCyclesDelta;
+constexpr double kBackendPercent = 100.0
+    * (1.0 - kFrontendPercent - kBadSpeculationPercent - kRetiringPercent);
+
+// The metric columns every scenario attaches: the two scripted pairs of the
+// pass fixture, which are all the metric view a stripped top-down run keeps.
+constexpr std::size_t kMetricColumnCount = 2;
+
+// The four vendor names of those rows, in the table order the fixture spells.
+constexpr std::array<std::string_view, 4> kLevelOneVendorNames {{
+    "tma_frontend_bound",
+    "tma_bad_speculation",
+    "tma_backend_bound",
+    "tma_retiring",
+}};
+
+// The four figures beside those names, in the same order.
+constexpr std::array<double, 4> kLevelOnePercents {{
+    kFrontendPercent,
+    kBadSpeculationPercent,
+    kBackendPercent,
+    kRetiringPercent,
+}};
+
 // The two vendors this build vendors a table for, spelled the way CPUID leaf 0
 // spells them. The identity a run reads belongs to the host, so a scenario of
 // this unit stands only where that identity names one of these two texts.
@@ -154,6 +200,15 @@ auto check(const bool cond, const char* what) -> void
   }
 }
 
+// True when a figure stands within a tenth of a percent of the figure the
+// scripted deltas state: the fold of a window divides a count by a count, so
+// the figures a scenario reads are exact and this tolerance only absorbs the
+// printed round of a double.
+auto closeTo(const double figure, const double expected) -> bool
+{
+  return std::abs(figure - expected) <= 0.001 * (std::abs(expected) + 1.0);
+}
+
 // True when two figures carry the same bytes: the equality one column of a
 // top-down run owes the same column of the run without the option. A tolerance
 // would let a figure that moved by a unit of the last place pass as unchanged,
@@ -161,6 +216,19 @@ auto check(const bool cond, const char* what) -> void
 auto sameBytes(const double first, const double second) -> bool
 {
   return std::memcmp(&first, &second, sizeof(double)) == 0;
+}
+
+// True when two statistic sets carry the same bytes in every field: the
+// equality one aggregate view of a run owes the same view of the run without
+// the option.
+auto sameStats(const sg::Statistics& first,
+               const sg::Statistics& second) -> bool
+{
+  return first.samples == second.samples && sameBytes(first.mean, second.mean)
+      && sameBytes(first.median, second.median)
+      && sameBytes(first.sampleStdDev, second.sampleStdDev)
+      && sameBytes(first.coefficientOfVariation, second.coefficientOfVariation)
+      && sameBytes(first.min, second.min) && sameBytes(first.max, second.max);
 }
 
 // A host this build vendors no table for: the scenario states the reason it
@@ -395,6 +463,41 @@ auto runMeasured(sg::Instance& instance,
         "the scripted run measured its row");
   check(!result.rows.empty(), "the measured result carries a row");
   return RunAccount {std::move(result), fake->readActions() - before};
+}
+
+// One run beside the retained chunk columns it left behind: the ledger of row
+// `k` stands at `rowRaw[k]` and the ledger of context `j` of that row at
+// `contextRaw[k][j]`, the pairing `harness_pass_collect_test.cpp` reads for the
+// same view (specs/023 E-01, FR-029).
+struct LedgerAccount
+{
+  RunAccount run;
+  std::vector<sg::RowRaw> rowRaw;
+  std::vector<std::vector<sg::RowRaw>> contextRaw;
+};
+
+auto runMeasuredLedger(sg::Instance& instance,
+                       const sg::detail::RunOptions& options) -> LedgerAccount
+{
+  const std::uint64_t before = fake->readActions();
+  sg::detail::Runner runner(options);
+  auto result = runner.run(instance);
+  check(result.outcome == sg::RunOutcome::MEASURED,
+        "the scripted run measured its row");
+  check(!result.rows.empty(), "the measured result carries a row");
+  return LedgerAccount {
+      RunAccount {std::move(result), fake->readActions() - before},
+      runner.rowRaw().back(),
+      runner.contextRaw().back()};
+}
+
+// The options of a run that reports its percentiles, the view the strip of the
+// percentile grid is read against (FR-024).
+[[nodiscard]] auto percentilesOn(sg::detail::RunOptions options)
+    -> sg::detail::RunOptions
+{
+  options.showPercentiles = true;
+  return options;
 }
 
 // The position of one label in a result's metric columns, or nothing where the
@@ -677,13 +780,280 @@ auto scenarioANewSourceReadsItsLimitOnce() -> int
   return 0;
 }
 
+// The fifth scenario: the record of a run carries every collected node figure
+// with the availability the merge published, beside the names, the level and
+// the table the rows came from (FR-032, FR-030, FR-017, FR-020, FR-033).
+auto scenarioTheNodeFigureStandsInTheRecord() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("this host states no vendor this build vendors a table for");
+  }
+  registerFixture(kNarrowCoreLimit);
+
+  metricBenchmark("bmTopdownRecordFigures");
+  metricBenchmark("bmTopdownRecordSingle");
+  sg::detail::expandRegistry();
+
+  const std::vector<MetricRow> rows = sg::test::topdownIntelRows();
+  const RunAccount figures =
+      runMeasured(*needInstance("bmTopdownRecordFigures"),
+                  askedOptions(rows, kLevelOne, kRecordRepetitions));
+  const RunAccount single =
+      runMeasured(*needInstance("bmTopdownRecordSingle"),
+                  askedOptions(rows, kLevelOne, kRunRepetitions));
+
+  check(figures.result.topdown.has_value(),
+        "a run with the option carries a top-down record (FR-032)");
+  check(single.result.topdown.has_value(),
+        "a run of one repetition carries the same record shape (FR-032)");
+  const sg::TopdownRecord& record = *figures.result.topdown;
+  const sg::TopdownRecord& alone = *single.result.topdown;
+
+  check(record.supported,
+        "the record states that the selection answered a tree (FR-033)");
+  check(record.reason.empty(),
+        "a record that answers a tree states no reason (FR-033, FR-041)");
+  check(record.askedLevel == kLevelOne && record.level == kLevelOne,
+        "the record carries the level the run asked for and the level it shows "
+        "(FR-020)");
+  check(record.directory == kIntelDirectory,
+        "the record names the directory its rows came from (FR-015, FR-032)");
+  check(record.nodes.size() == kLevelOneNodeColumns,
+        "the record holds one node record per collected node (FR-032)");
+  check(record.refused.empty(),
+        "the level-1 ask over the fixture table leaves no refused row (FR-016, "
+        "FR-033)");
+
+  constexpr std::array<std::string_view, 4> kNeutralNames {{
+      sg::test::kNeutralFrontendBound,
+      sg::test::kNeutralBadSpeculation,
+      sg::test::kNeutralBackendBound,
+      sg::test::kNeutralRetiring,
+  }};
+  for (std::size_t node = 0; node < record.nodes.size(); ++node) {
+    const sg::TopdownNode& entry = record.nodes[node];
+    check(entry.vendorName == kLevelOneVendorNames[node],
+          "the node carries its own table name, in the order the table spells "
+          "the rows (FR-032)");
+    check(entry.name == kNeutralNames[node],
+          "the node carries the neutral name beside its vendor name (FR-032)");
+    check(entry.parent.empty(),
+          "a node of the level the run shows names no parent (FR-032)");
+    check(entry.level == kLevelOne, "the node states its own level (FR-014)");
+    check(entry.threshold.empty(),
+          "a row that carries no threshold text leaves the record field empty "
+          "(FR-017, FR-029)");
+    check(entry.availability == sg::counters::Availability::COUNTABLE,
+          "the node carries the availability the merge published (FR-030)");
+    check(entry.value.has_value()
+              && closeTo(*entry.value, kLevelOnePercents[node]),
+          "the node's figure is the percentage the scripted leaves fold to "
+          "(FR-030, SC-03)");
+  }
+
+  check(alone.nodes.size() == record.nodes.size(),
+        "one record stands per run, whatever the repetition count (FR-032)");
+  for (std::size_t node = 0; node < record.nodes.size(); ++node) {
+    check(alone.nodes[node].value.has_value()
+              && closeTo(*alone.nodes[node].value, *record.nodes[node].value),
+          "one node figure answers a run of two repetitions and a run of one, "
+          "so the record summarizes the repetitions the merge published (FR-030)");
+  }
+  check(figures.result.rows.size() == kRecordRepetitions + 1,
+        "the two repetitions stand one aggregate row beside their own rows "
+        "(FR-027)");
+
+  std::puts("the-node-figure-stands-in-the-record: ok");
+  return 0;
+}
+
+// The sixth scenario: the strip leaves every metric view of the result aligned
+// on the columns the run reports as metrics, with its percentiles on and off
+// (FR-023, FR-024).
+auto scenarioTheStripKeepsEveryMetricViewAligned() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("this host states no vendor this build vendors a table for");
+  }
+  registerFixture(kNarrowCoreLimit);
+
+  metricBenchmark("bmTopdownStripPlainGrid");
+  metricBenchmark("bmTopdownStripAskedGrid");
+  metricBenchmark("bmTopdownStripPlainValue");
+  metricBenchmark("bmTopdownStripAskedValue");
+  sg::detail::expandRegistry();
+
+  const std::vector<MetricRow> rows = sg::test::topdownIntelRows();
+  const LedgerAccount grid =
+      runMeasuredLedger(*needInstance("bmTopdownStripPlainGrid"),
+                        percentilesOn(optionsFor(kRecordRepetitions)));
+  const LedgerAccount askedGrid = runMeasuredLedger(
+      *needInstance("bmTopdownStripAskedGrid"),
+      percentilesOn(askedOptions(rows, kLevelOne, kRecordRepetitions)));
+  const RunAccount values =
+      runMeasured(*needInstance("bmTopdownStripPlainValue"),
+                  optionsFor(kRecordRepetitions));
+  const RunAccount askedValues =
+      runMeasured(*needInstance("bmTopdownStripAskedValue"),
+                  askedOptions(rows, kLevelOne, kRecordRepetitions));
+
+  check(askedGrid.run.result.passCount == kOnePlanPassCount,
+        "the run whose views this case walks collected the node columns and "
+        "planned them with the metric columns (FR-023)");
+  check(askedGrid.run.result.metricLabels == grid.run.result.metricLabels,
+        "no node figure stays in the metric labels of the run (FR-023)");
+  check(askedGrid.run.result.metricLabels.size() == kMetricColumnCount,
+        "the labels of the run hold the metric columns it attached (FR-023)");
+  check(askedGrid.run.result.rows.size() == grid.run.result.rows.size(),
+        "the strip leaves the row count where the run left it (FR-024)");
+
+  const std::size_t expectedGrid = kTimeColumns + kMetricColumnCount;
+  for (std::size_t row = 0; row < grid.run.result.rows.size(); ++row) {
+    const sg::ResultRow& before = grid.run.result.rows[row];
+    const sg::ResultRow& after = askedGrid.run.result.rows[row];
+    const sg::ResultRow& afterValues = askedValues.result.rows[row];
+    check((after.metrics.empty()
+           || after.metrics.size() == askedGrid.run.result.metricLabels.size())
+              && afterValues.metrics.size() == before.metrics.size(),
+          "every row that carries metric values carries one per metric label "
+          "of " "the run, with its percentiles on and off (FR-023)");
+    check(after.metricStats.size() == before.metricStats.size(),
+          "the row holds one statistic set per metric column of the run "
+          "(FR-023)");
+    check(after.percentiles.size() == before.percentiles.size(),
+          "the percentile grid of the row holds the columns the row prints, "
+          "the " "node positions gone (FR-023, FR-024)");
+    check(after.percentiles.empty() || after.percentiles.size() == expectedGrid,
+          "the percentile grid stands two time slots beside the metric columns "
+          "of the run (FR-024)");
+    check(
+        before.percentiles.empty() || before.percentiles.size() == expectedGrid,
+        "the same grid answers the run without the option (FR-024)");
+    check(askedGrid.rowRaw[row].columns.size()
+              == grid.rowRaw[row].columns.size(),
+          "the retained chunk columns of the row hold the same width as the "
+          "same " "row without the option (FR-023, FR-029)");
+    check(askedGrid.rowRaw[row].columns.empty()
+              || askedGrid.rowRaw[row].columns.size() == expectedGrid,
+          "the retained chunk columns stand two time slots beside the metric "
+          "columns of the run (specs/023 E-02)");
+    check(askedGrid.contextRaw[row].size() == grid.contextRaw[row].size(),
+          "the strip leaves the per-context ledgers of the row as they stood "
+          "(FR-023)");
+    for (std::size_t column = 0; column + 2 < after.percentiles.size();
+         ++column)
+    {
+      check(after.percentiles[column + 2].size()
+                == before.percentiles[column + 2].size(),
+            "one metric column of the grid holds one value per percentile "
+            "point " "of the run (FR-024)");
+    }
+  }
+  check(askedGrid.run.result.contextPercentiles.empty()
+            && grid.run.result.contextPercentiles.empty(),
+        "a single-context run answers no context percentiles, with the option "
+        "standing and without it (FR-023)");
+
+  std::puts("the-strip-keeps-every-metric-view-aligned: ok");
+  return 0;
+}
+
+// The seventh scenario: the strip changes no time column and no row field of
+// the run. Every column of every row, and every statistic set beside it,
+// answers byte for byte what the same run answers without the option. Three
+// views stand outside that bar because the plan names them: the pass tag of a
+// metric value, the overhead floor, which measures what the reference window
+// costs to sample, and the chunk pair, whose size follows the floor through the
+// 1% rule (specs/024 FR-013, specs/021 FR-005). The percentile grid and the
+// retained chunk columns are folds over those chunks, so this case runs with no
+// percentile reported and the previous case holds the width of both views
+// (FR-023, FR-024).
+auto scenarioTheStripChangesNoTimeColumn() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("this host states no vendor this build vendors a table for");
+  }
+  registerFixture(kNarrowCoreLimit);
+
+  metricBenchmark("bmTopdownTimePlain");
+  metricBenchmark("bmTopdownTimeAsked");
+  sg::detail::expandRegistry();
+
+  const std::vector<MetricRow> rows = sg::test::topdownIntelRows();
+  const LedgerAccount plain = runMeasuredLedger(
+      *needInstance("bmTopdownTimePlain"), optionsFor(kRecordRepetitions));
+  const LedgerAccount asked =
+      runMeasuredLedger(*needInstance("bmTopdownTimeAsked"),
+                        askedOptions(rows, kLevelOne, kRecordRepetitions));
+
+  check(asked.run.result.rows.size() == plain.run.result.rows.size(),
+        "the strip leaves the run's row count where it stood (FR-024)");
+  for (std::size_t row = 0; row < plain.run.result.rows.size(); ++row) {
+    const sg::ResultRow& before = plain.run.result.rows[row];
+    const sg::ResultRow& after = asked.run.result.rows[row];
+    check(after.metrics.size() == before.metrics.size()
+              && after.metricStats.size() == before.metricStats.size(),
+          "a row reports as many metric columns and as many statistic sets as "
+          "the same row of the run without the option (FR-023)");
+    check(after.percentiles.size() == before.percentiles.size()
+              && asked.rowRaw[row].columns.size()
+                     == plain.rowRaw[row].columns.size(),
+          "a run that reports no percentile leaves the grid and the retained "
+          "chunk columns of the row empty in both arms (FR-024)");
+    check(after.kind == before.kind, "the row keeps its kind (FR-024)");
+    check(after.iterations == before.iterations,
+          "the row reports the iteration count the run without the option "
+          "reported (FR-024)");
+    check(sameBytes(after.timePerIterationNs, before.timePerIterationNs)
+              && sameBytes(after.cpuTimePerIterationNs,
+                           before.cpuTimePerIterationNs),
+          "the option changes no time column of the row (FR-024)");
+    check(after.timeAvailability == before.timeAvailability
+              && after.pauseSamplesFolded == before.pauseSamplesFolded,
+          "the primary fold keeps its availability and its pause disclosure "
+          "(FR-024)");
+    check(after.endpointSamples == before.endpointSamples,
+          "the row discloses the endpoint samples the same row discloses "
+          "without " "the option (FR-024)");
+    check(after.chunkCount == before.chunkCount
+              && after.chunkIterations == before.chunkIterations,
+          "the chunk pair of the row stands where it stood (FR-024)");
+    check(after.label == before.label,
+          "the row keeps the label its body wrote (FR-024)");
+    check(sameStats(after.timeStats, before.timeStats),
+          "the aggregate time statistics of the row answer the same bytes "
+          "(FR-024, FR-027)");
+    check(after.counterDisclosure == before.counterDisclosure
+              && after.counters == before.counters,
+          "the counter view of the row stands untouched (FR-024)");
+    for (std::size_t column = 0; column < before.metrics.size(); ++column) {
+      check(sameBytes(after.metrics[column].value, before.metrics[column].value)
+                && sameBytes(after.metrics[column].runningRatio,
+                             before.metrics[column].runningRatio)
+                && after.metrics[column].scaled == before.metrics[column].scaled
+                && after.metrics[column].availability
+                       == before.metrics[column].availability,
+            "a metric column folds the bytes the same column folds without the "
+            "option, the pass tag excepted (FR-023)");
+    }
+    for (std::size_t column = 0; column < before.metricStats.size(); ++column) {
+      check(sameStats(after.metricStats[column], before.metricStats[column]),
+            "the statistic set of a metric column answers the same bytes "
+            "(FR-023, FR-027)");
+    }
+  }
+
+  std::puts("the-strip-changes-no-time-column: ok");
+  return 0;
+}
+
 struct Scenario
 {
   const char* name;
   int (*run)();
 };
 
-constexpr std::array<Scenario, 4> kScenarios {{
+constexpr std::array<Scenario, 7> kScenarios {{
     Scenario {"nodes-share-one-plan-with-the-metric-columns",
               &scenarioNodesShareOnePlanWithTheMetricColumns},
     Scenario {"the-metric-columns-keep-their-bytes",
@@ -692,6 +1062,12 @@ constexpr std::array<Scenario, 4> kScenarios {{
               &scenarioARefusedRowCollectsNoColumn},
     Scenario {"a-new-source-reads-its-limit-once",
               &scenarioANewSourceReadsItsLimitOnce},
+    Scenario {"the-node-figure-stands-in-the-record",
+              &scenarioTheNodeFigureStandsInTheRecord},
+    Scenario {"the-strip-keeps-every-metric-view-aligned",
+              &scenarioTheStripKeepsEveryMetricViewAligned},
+    Scenario {"the-strip-changes-no-time-column",
+              &scenarioTheStripChangesNoTimeColumn},
 }};
 
 }  // namespace

@@ -427,7 +427,7 @@ rule and no page is needed.
   against a tree where the option's field stood with no collection behind it,
   and prints it again under one mutation of that collection.
 
-- [ ] T028 [US1] In `test/source/harness_topdown_run_test.cpp`, the new file of
+- [x] T028 [US1] In `test/source/harness_topdown_run_test.cpp`, the new file of
   T027, write the record and strip cases: `theNodeFigureStandsInTheRecord` holds
   each collected figure in `result.topdown` with the availability the merge
   published, `theStripKeepsEveryMetricViewAligned` walks `metricLabels`, each
@@ -436,6 +436,12 @@ rule and no page is needed.
   every time column and every row field byte for byte against the same run
   without the option (FR-023, FR-024, FR-032). This case lands with T035 in one
   commit (FR-048).
+  The three cases ride the same re-exec parent as the four of T027, one scripted
+  run each: the record, then the widths of every metric view with `--percentiles`
+  on and off, then the bytes of every row field with no percentile reported. The
+  overhead floor, the chunk pair and the pass tag stand outside that byte bar
+  because the plan of the run names them, and each case printed its own fault with
+  the strip's call taken out.
 
 - [ ] T029 [US1] In `test/source/harness_topdown_run_test.cpp`, add
   `anUnsupportedHostCollectsNothingAndStaysItself`: a planted refusal answers no
@@ -513,7 +519,7 @@ rule and no page is needed.
   refused row taking a column, and the new source's limit reaching no plan.
   The tree came back byte for byte after each.
 
-- [ ] T035 [US1] In `source/harness/detail/internal.hpp`, declare
+- [x] T035 [US1] In `source/harness/detail/internal.hpp`, declare
   `stripTopdownColumns` with the `\pre` that every stripped position names a
   column of that run and the `\post` that the labels, every row's metrics and
   every row's statistics and percentiles hold equal length; in
@@ -522,6 +528,11 @@ rule and no page is needed.
   the aggregate row at `:3185`, so each node figure moves into `result.topdown`
   and its position leaves every metric view, the two bounds held by `SG_REQUIRE`
   (FR-023, FR-032, PC-9; turns T028 green).
+  The call stands after the aggregate row and ahead of the fit note, and both
+  bounds ride `SG_REQUIRE`: the post bound printed the arm that left a percentile
+  slot standing, and the arm that stripped one slot early printed the label and the
+  content faults of three cases. `detail/internal.hpp` stands outside the doc
+  gate's `INPUT`, so the pair gate counts neither the tags nor these checks.
 
 - [ ] T036 [US1] In `source/harness/runner.cpp`, take the refusal side of the
   `std::expected` answer at T034's call: append no column, record the reason and
