@@ -631,6 +631,15 @@ the window, and the pre-check lines carry the method pair.
   (FR-004, FR-020, E-27, R-04).
   Verify: `ctest --test-dir build -R "harness_fwq_ftq_test|harness_jitter_window_test" --output-on-failure` exits 0
 
+- [ ] T068 [US4] Pass the `noise=` threshold into `printPrecheckReport`.
+  The declaration stands in `source/harness/detail/internal.hpp`, the
+  definition in `source/harness/report.cpp:1172`, and the call in
+  `source/harness/cli.cpp`. The warning rule and the strict refusal then
+  read the same pair against the same number, the rule the
+  `console-report.md` delta states. Add the row that names a run under
+  the threshold warning nothing (FR-021, D-9, R-15).
+  Verify: `ctest --test-dir build -R harness_precheck_test --output-on-failure` exits 0, and the new row stands green
+
 **Checkpoint**: the console and the pre-check stand green under a
 two-cpu mask: the 30 lines print once per field, the calibration
 lines stand before the window, and the refusal stops at status 2.
