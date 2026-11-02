@@ -795,6 +795,36 @@ every record, and the standing contracts carry the deltas.
 
 ---
 
+- [ ] T071 [P0] Stand a named vector behind the FWQ span in `addSpectrumTo`
+  (`source/harness/jitter_probe.cpp:1277`). The line assigns
+  `std::span<const double>` from the temporary `std::vector<double>` that
+  `resampleUnitTimes` returns, so the temporary dies at the end of the
+  full-expression and the span dangles through `dftPeriods`. gdb on the
+  release binary stops at `addsd (%rax),%xmm5` inside `dftPeriods`, and
+  `--jitter-probe=0,method=fwq,mode=precheck,precheck=2400,gaps=10485760`
+  exits 139. The FTQ path binds a named local and stands. Add the row
+  that reads the FWQ spectrum figures of a series above the transform cap,
+  and clear the path under the sanitizer preset (FR-018, FR-033,
+  constitution VIII).
+  Verify: `cmake --build build/sanitize --target harness_fwq_ftq_test` exits 0, `ASAN_OPTIONS=detect_leaks=0 ./build/sanitize/test/harness_fwq_ftq_test` exits 0 with no `AddressSanitizer` line, and `./build/example/benchmark_example --filter=bmTouch --min-time=1 --repetitions=1 --jitter-probe=0,method=fwq,mode=precheck,precheck=2400,gaps=10485760` exits 0
+- [ ] T072 [P0] Read the whole body run in `calibrationTrial`
+  (`source/harness/jitter_probe.cpp:229`). The line returns
+  `(spanEnd - first) / count`, the per-iteration figure, and the search
+  compares it against the target. FR-010 names one unit, which is one body
+  run: a body iteration costs about 0.3 ns, so no count reaches 1,000 ns
+  per iteration, the doubling runs to the count cap, and the kept count
+  reads 1, beside a window unit near 84 ns. Keep the closest-count rule,
+  the trial cap and the count cap, and update the scripted rows whose
+  counts the division set (FR-010, FR-011, D-2).
+  Verify: `ctest --test-dir build -R "harness_fwq_ftq_test|harness_jitter_cli_test|harness_jitter_window_test" --output-on-failure` exits 0, and a `method=fwq` run names a `workCount` above 1 with a unit time near the 1,000 ns target
+
+- [ ] T073 [US7] Re-record the acceptance run after T071 and T072 land. The
+  record on disk carries four FWQ sections at exit 139 and `workCount: 1`,
+  the two defects as read. Run `bash tools/noise/fwq_ftq_acceptance.sh`
+  again on the lane host, keep the eight sections, and land the new record
+  beside the quickstart link (FR-027, FR-028, SC-008).
+  Verify: `grep -c "^## " specs/043-fwq-ftq/results/acceptance-<date>.md` reads 8, `grep -c "exit status: 0\|exit: 0" specs/043-fwq-ftq/results/acceptance-<date>.md` reads 8, and each section names a `workCount` above 1 and a drop count of 0
+
 - [ ] T070 Close the coverage shortfall the lane head reads, from the
   `coverage` target of the `ci-coverage` preset: lines 16,568 of 16,612
   (44 dark) and branches 8,128 of 8,180 (52 short against the allowance
