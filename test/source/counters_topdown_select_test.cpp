@@ -63,6 +63,7 @@
 #include "../source/counters/detail/pmu.hpp"
 #include "../source/counters/linux_pmu/embedded_tables.hpp"
 #include "../source/counters/linux_pmu/metric_formula.hpp"
+#include "../source/counters/linux_pmu/topdown_select.hpp"
 #include "detail/topdown_fixture.hpp"
 #include "speedgun-ng/counters_metrics.hpp"
 
@@ -90,6 +91,7 @@ using sg::counters::TopdownNode;
 using sg::counters::TopdownRefusal;
 using sg::counters::TopdownRow;
 using sg::counters::TopdownSelection;
+using sg::counters::TopdownSource;
 using sg::counters::topdownTable;
 using sg::counters::TopdownTable;
 using sg::counters::topdownTree;
@@ -100,6 +102,7 @@ using sg::counters::detail::EmbeddedDir;
 using sg::counters::detail::embeddedFindDir;
 using sg::counters::detail::ExprCore;
 using sg::counters::detail::ExprNode;
+using sg::counters::detail::fillSourceRecord;
 using sg::counters::detail::LeafCore;
 using sg::counters::detail::metricRows;
 using sg::counters::detail::parseMetricRows;
@@ -545,6 +548,42 @@ constexpr std::array<std::pair<std::string_view, std::string_view>, 4>
 
 // FR-011, SC-01 and FR-052: the four shared names every table answers, the
 // fifth an AMD table alone, and no parent at level 1.
+auto theFillOfOneNameFillsTheRecordOrLeavesIt() -> void
+{
+  // The fill is the seam the record of a production table rides, and one name
+  // drives each of its arms, so no host has to stand behind either check
+  // (FR-015, FR-051).
+  TopdownSource named;
+  named.directory = "arch/x86/amdzen3/";
+  fillSourceRecord(named);
+  check(!named.reference.empty(),
+        "a directory the registry holds states the reference its manifest "
+        "names (FR-015, spec D-12)");
+  check(!named.files.empty(),
+        "a directory whose rows the metric layer reads names the files that "
+        "contributed them (FR-033)");
+  for (const TableFile& file : named.files) {
+    check(!file.name.empty(), "a contributed file names itself (FR-033)");
+    check(file.manifestHash.size() == 64,
+          "a contributed file carries the digest its manifest line states "
+          "(FR-033)");
+  }
+
+  // A name the registry holds no bytes for answers the source as it stands: no
+  // reference, no file, and the name it arrived with. The mapping file names
+  // only directories of the vendored tree, so this name reaches no selection,
+  // and the arm stands where a test can hold it (FR-036, FR-051).
+  TopdownSource unknown;
+  unknown.directory = "arch/x86/no-such-table/";
+  fillSourceRecord(unknown);
+  check(unknown.directory == "arch/x86/no-such-table/",
+        "the fill leaves the name it was given (FR-036)");
+  check(unknown.reference.empty(),
+        "a name the registry holds no bytes for states no reference (FR-036)");
+  check(unknown.files.empty(),
+        "a name the registry holds no bytes for contributes no file (FR-036)");
+}
+
 auto levelOneCarriesTheSharedNames() -> void
 {
   const TopdownTree intel =
@@ -1659,6 +1698,7 @@ auto main() -> int
   selectsTheTableOfTheIdentity();
   oneCallReadsNoSourceOfItsOwn();
   productionTableCarriesItsSourceRecord();
+  theFillOfOneNameFillsTheRecordOrLeavesIt();
   levelOneCarriesTheSharedNames();
   parentsComeFromTheGroupText();
   theLevelTokenOfEachGroupSpellingStatesTheLevel();

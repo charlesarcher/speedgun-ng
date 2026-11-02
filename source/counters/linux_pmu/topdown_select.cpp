@@ -55,6 +55,8 @@
 #include <utility>
 #include <vector>
 
+#include "topdown_select.hpp"
+
 #include "../detail/pmu.hpp"
 #include "embedded_tables.hpp"
 #include "metric_formula.hpp"
@@ -86,14 +88,11 @@ namespace
   return row;
 }
 
-// The source record of the directory a source already names, filled in place.
-// The reference is the one text the manifest states for the whole vendored
-// tree, and the files are the entries of that directory's index that hold a
-// row of the parsed table, each with the digest the manifest line beside its
-// name states. The embedder emitted the index in a sorted order and the loader
-// reads the directory in it, so the entries reach the record in the embedder's
-// order and a file that holds no row reaches no entry (FR-015, FR-033,
-// spec D-12, data-model E-02, E-03).
+}  // namespace
+
+namespace detail
+{
+
 auto fillSourceRecord(TopdownSource& source) -> void
 {
   // A directory arrives with a trailing separator and the registry names it
@@ -102,30 +101,25 @@ auto fillSourceRecord(TopdownSource& source) -> void
   if (key.ends_with('/')) {
     key.remove_suffix(1);
   }
-  const detail::EmbeddedDir* record = detail::embeddedFindDir(key);
-  // LCOV_EXCL_BR_START : coverage exclusion (T101): the arm where the registry
-  // holds no bytes for a directory the mapping file named. The generator
-  // embeds every directory of the vendored tree, naming each file its glob
-  // finds and refusing a file the manifest names no digest for, and the
-  // mapping file names only directories of that tree, so a selected directory
-  // stands in the registry of every archive this library links (FR-036).
+  const EmbeddedDir* record = embeddedFindDir(key);
+  // A name the registry holds no bytes for answers the source as it stands: no
+  // reference, no file. The mapping file names only directories of the vendored
+  // tree, so every directory a host selects stands in this registry, and the
+  // test for this arm hands in a name no mapping file carries (FR-036).
   if (record == nullptr) {
     return;
   }
-  // LCOV_EXCL_BR_STOP
   source.reference = record->reference;
-  const std::vector<detail::PmuTableEntry>& table =
-      detail::pmuLoadTable(source.directory);
+  const std::vector<PmuTableEntry>& table = pmuLoadTable(source.directory);
   for (std::size_t index = 0; index != record->fileCount; ++index) {
     // The registry's index is a generated C array and its count bounds this
     // loop, so the subscript is in range by construction.
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    const detail::EmbeddedFile& file = record->files[index];
+    const EmbeddedFile& file = record->files[index];
     const std::string_view name {file.name};
-    const bool contributed =
-        std::ranges::any_of(table,
-                            [name](const detail::PmuTableEntry& entry)
-                            { return entry.fileName == name; });
+    const bool contributed = std::ranges::any_of(
+        table,
+        [name](const PmuTableEntry& entry) { return entry.fileName == name; });
     if (contributed) {
       source.files.push_back(
           TableFile {.name = std::string {name},
@@ -134,7 +128,7 @@ auto fillSourceRecord(TopdownSource& source) -> void
   }
 }
 
-}  // namespace
+}  // namespace detail
 #endif  // __linux__
 
 auto cpuIdentity() -> CpuIdentity
@@ -180,7 +174,7 @@ auto topdownTable(const CpuIdentity& identity) -> TopdownTable
     // record the embedder put beside this directory's bytes, so the fill reads
     // no path and opens nothing: the manifest texts are already in the archive
     // (FR-015, spec D-12).
-    fillSourceRecord(table.source);
+    detail::fillSourceRecord(table.source);
     // The verdicts of the rows come from the metric layer's own pass over the
     // parsed rows of this directory, which resolves once per directory against
     // the system this process already holds. The host carries the directory
