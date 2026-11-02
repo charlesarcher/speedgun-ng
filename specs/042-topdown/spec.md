@@ -65,7 +65,9 @@ force. No implementer reopens them.
   (`source/harness/options.cpp:1001-1006`), so the option word alone and the
   attached `=0` reach the parse arm as one text, and FR-019 with FR-050 needs
   two answers. The plan names the change that separates them and keeps the four
-  optional rows that exist today answering as they do now.
+  optional rows that exist today (three of them, at
+  `source/harness/options.cpp:632`, `:676` and `:700`) answering as they do
+  now.
 - **D-6 Host constants (Q-3).** Every Intel level-1 row reaches the constant
   `#core_wide` through the table's own slot rows, measured at the audit
   point, so this feature adds a reader for `#core_wide` with a seam test. No
@@ -1001,7 +1003,18 @@ Measured at the audit point, before any section was written.
   `tools/docs/example_drift.py:683` when one list moves without the other.
 - Tests: one counters test registers in six lines
   (`test/CMakeLists.txt:515-522`) and one harness test takes the same shape.
-  Two new test files join that list.
+  Three new test files join that list. A counters test that answers
+  `SKIP_RETURN_CODE 2` also needs a row in `MASTER_SKIP`
+  (`test/tier_labels.sh:77-86`), because the tier-label gate faults an
+  unregistered skip rule.
+- Page words: `README.md` forbids source paths, build files, spec ids and
+  requirement ids (`tools/docs/example_drift.py:455-462`), while a guide page
+  forbids the identifiers and may name a source path
+  (`tools/docs/example_drift.py:474-486`).
+- Option rows: three rows carry an optional value today
+  (`source/harness/options.cpp:632`, `:676`, `:700`), and one test pins the
+  option-table row count at 42
+  (`test/source/harness_cli_table_test.cpp:244`).
 
 ## Dependencies
 
