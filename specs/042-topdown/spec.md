@@ -353,6 +353,13 @@ Measured on this machine on 2026-11-01 before any file changed.
   the selected directory and the hash of each table file into the library as
   build-time data, and the seam a test uses to fake them.
 
+- **PC-13: the prose fixture gate fails on this host at the base hash. GAP, open,
+  outside this change.** `test/prose-gate-fixture/run_prose_gate_fixtures.py:84`
+  bounds one gate run at 10.0 seconds and `:1046` fails the entry above that
+  bound. Measured on the acceptance host at `d454bcff`: 11.559 seconds over 909
+  sources. The entry fails when it runs alone, so host speed governs it. A green acceptance needs one of two answers: the bound moves in its
+  own commit with the measured figure in its body, or the owner records the
+  failure as pre-existing beside the change's own results.
 ## Roadmap position
 
 N2 (022) publishes a metric row as a formula. N6 (024) splits a set of
