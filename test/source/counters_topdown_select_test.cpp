@@ -284,6 +284,20 @@ auto plantThreshold(TopdownTable& table,
   }
 }
 
+// The group text of one planted row, replaced in place. The level rule of
+// FR-014 reads that text, so a case that wants a row to carry tokens other than
+// the ones the fixture spells for it carries them here (FR-014).
+auto plantGroup(TopdownTable& table,
+                const std::string_view name,
+                const std::string_view group) -> void
+{
+  for (TopdownRow& row : table.rows) {
+    if (row.name == name) {
+      row.group = std::string {group};
+    }
+  }
+}
+
 // What a case asks for: one identity, one level, and, where a case plants rows,
 // the table the answer must come from (FR-002, PC-9).
 [[nodiscard]] auto selection(const CpuIdentity& identity,
@@ -321,6 +335,20 @@ auto plantThreshold(TopdownTable& table,
 {
   for (const TopdownNode& node : tree.nodes) {
     if (node.name == name) {
+      return &node;
+    }
+  }
+  return nullptr;
+}
+
+// The node that carries one row's own name, so a case can ask whether a row
+// reached a node without naming the neutral name the selection gave it.
+[[nodiscard]] auto nodeOfRow(const TopdownTree& tree,
+                             const std::string_view vendorName)
+    -> const TopdownNode*
+{
+  for (const TopdownNode& node : tree.nodes) {
+    if (node.vendorName == vendorName) {
       return &node;
     }
   }
@@ -413,6 +441,24 @@ auto plantThreshold(TopdownTable& table,
     deepest = node.level > deepest ? node.level : deepest;
   }
   return deepest;
+}
+
+// Whether every node below level 1 names a parent that stands in the tree as a
+// node one level above. A tree that answers this holds no parent no row stated,
+// because the only parent a node can carry is the one its own group text names
+// (FR-013).
+[[nodiscard]] auto deeperParentsStand(const TopdownTree& tree) -> bool
+{
+  for (const TopdownNode& node : tree.nodes) {
+    if (node.level == 1) {
+      continue;
+    }
+    const TopdownNode* above = nodeNamed(tree, node.parent);
+    if (above == nullptr || above->level + 1 != node.level) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // A node name below level 1 of an Intel table, and the same shape for an AMD
@@ -564,6 +610,151 @@ auto parentsComeFromTheGroupText() -> void
   check(nodesAtLevel(intel, 2) == 6 && nodesAtLevel(zen, 2) == 8,
         "every published row of a level the answer reaches reaches one node "
         "(FR-010, FR-014)");
+}
+
+// FR-014, research D-02 and SC-01: the level of a node is the digit of the one
+// level token its own group text carries. Intel spells that token `TopdownL1`
+// to `TopdownL6` and AMD spells it `PipelineL1` and `PipelineL2`, and a row
+// with no level token among its `;` tokens reaches no node and states no
+// refusal.
+auto theLevelTokenOfEachGroupSpellingStatesTheLevel() -> void
+{
+  const CpuIdentity intel = intelIdentity(6, 85, 4);
+  const CpuIdentity zen = amdIdentity(25, 17);
+  const TopdownTree deep =
+      asked(plantedTable(kIntelDirectory, topdownIntelRows()), 6, intel);
+  check(deep.depth == 6,
+        "the Intel fixture carries every level token, so an ask of 6 clamps "
+        "nowhere (FR-008)");
+  // One row of each chain level, named the way the tree names it, beside the
+  // digit its own `TopdownL<n>` token carries. The chain runs from a level-1
+  // root to the deepest row of the fixture (FR-014).
+  constexpr std::array<std::pair<std::string_view, int>, 6> kIntelChain {
+      {{kNeutralFrontendBound, 1},
+       {"topdown.intel.tma_fetch_latency", 2},
+       {"topdown.intel.tma_branch_resteers", 3},
+       {"topdown.intel.tma_clears_resteers", 4},
+       {"topdown.intel.tma_dram_page_miss", 5},
+       {"topdown.intel.tma_dram_page_miss_4k", 6}}};
+  for (const auto& [name, level] : kIntelChain) {
+    const TopdownNode* node = nodeNamed(deep, name);
+    check(node != nullptr,
+          "the chain of the fixture holds a node of that name at each of the "
+          "six levels (FR-014)");
+    check(node != nullptr && node->level == level,
+          "the `TopdownL<n>` token of that row states its level (FR-014)");
+  }
+  // The published rows of each level of the fixture, counted in the order the
+  // level tokens run: four roots, six rows under them, and four, three, two and
+  // two rows down the chains. The orphan row of level 2 stands in no level.
+  constexpr std::array<std::size_t, 6> kIntelLevelCounts {{4, 6, 4, 3, 2, 2}};
+  for (int level = 1; level <= 6; ++level) {
+    const std::size_t stated =
+        kIntelLevelCounts[static_cast<std::size_t>(level - 1)];
+    check(nodesAtLevel(deep, level) == stated,
+          "every row whose group carries `TopdownL` of that level reaches one "
+          "node of that level (FR-014)");
+  }
+
+  const TopdownTree zen4 =
+      asked(plantedTable(kZen4Directory, topdownZen4Rows()), 2, zen);
+  check(zen4.depth == 2,
+        "a pipeline table answers the level an ask names, the way an Intel "
+        "table does (FR-008)");
+  check(nodesAtLevel(zen4, 1) == kAmdLevelOneNames.size()
+            && nodesAtLevel(zen4, 2) == kZenLevelTwoNames.size(),
+        "the `PipelineL1` rows answer level 1 and the `PipelineL2` rows answer "
+        "level 2 (FR-014)");
+
+  // The helper row of a pipeline table: a formula, a scale, and no group text
+  // at all, so no token of it states a level and it reaches neither carrier.
+  const TopdownTable bare = plantedTable(kZen4Directory, topdownZen4Rows());
+  const TopdownTree groupless = asked(bare, 2, zen);
+  check(nodeOfRow(groupless, "total_dispatch_slots") == nullptr
+            && nodeNamed(groupless, qualifiedAmd("total_dispatch_slots"))
+                   == nullptr,
+        "the group-free helper row of a pipeline table reaches no node "
+        "(FR-014)");
+  check(refusalNamed(groupless, "total_dispatch_slots") == nullptr
+            && groupless.refused.empty(),
+        "the group-free helper row states no refusal, so a row of no level "
+        "stands in no carrier (FR-014, FR-016)");
+
+  // The same row with a group text of two tokens, neither a level token and
+  // neither naming a row of the directory: the level rule reads the tokens and
+  // finds none, so the answer above stands unchanged (FR-014).
+  TopdownTable grouped = bare;
+  plantGroup(
+      grouped, "total_dispatch_slots", "TmaDispatch;dispatch_slots_group");
+  check(treeText(asked(grouped, 2, zen)) == treeText(groupless),
+        "a row whose group carries tokens and no level token among them "
+        "reaches no node and states no refusal (FR-014)");
+}
+
+// FR-013 and SC-02: every node below level 1 names the parent its own `_group`
+// token states, the Intel spelling `tma_<name>_group` both at the level below a
+// root and behind the vendor prefix deeper still, and a row whose stem names no
+// row of the directory reaches no node under any name. The AMD spelling stands
+// row for row in `theAmdLevelTwoRowsStandRowForRow`.
+auto everyDeeperNodeNamesTheParentItsOwnGroupTokenStates() -> void
+{
+  const TopdownTable table = plantedTable(kIntelDirectory, topdownIntelRows());
+  const TopdownTree deep = asked(table, 6, intelIdentity(6, 85, 4));
+  // Every deeper row of the fixture beside the neutral name of the row its own
+  // `tma_<name>_group` token states, in the order the table spells the rows. A
+  // parent of level 2 or deeper stands behind the vendor prefix of FR-012,
+  // which is the name the tree carries for it.
+  constexpr std::array<std::pair<std::string_view, std::string_view>, 17>
+      kStatedParents {{
+          {"tma_fetch_latency", kNeutralFrontendBound},
+          {"tma_fetch_bandwidth", kNeutralFrontendBound},
+          {"tma_branch_mispredicts", kNeutralBadSpeculation},
+          {"tma_core_bound", kNeutralBackendBound},
+          {"tma_memory_bound", kNeutralBackendBound},
+          {"tma_memory_bandwidth", kNeutralBackendBound},
+          {"tma_branch_resteers", "topdown.intel.tma_fetch_latency"},
+          {"tma_dsb", "topdown.intel.tma_fetch_bandwidth"},
+          {"tma_divider", "topdown.intel.tma_core_bound"},
+          {"tma_dram_bound", "topdown.intel.tma_memory_bound"},
+          {"tma_clears_resteers", "topdown.intel.tma_branch_resteers"},
+          {"tma_divider_high", "topdown.intel.tma_divider"},
+          {"tma_dram_bandwidth", "topdown.intel.tma_dram_bound"},
+          {"tma_dram_page_miss", "topdown.intel.tma_dram_bandwidth"},
+          {"tma_divider_high_2m", "topdown.intel.tma_divider_high"},
+          {"tma_dram_page_miss_4k", "topdown.intel.tma_dram_page_miss"},
+          {"tma_divider_high_4k", "topdown.intel.tma_divider_high_2m"},
+      }};
+  for (const auto& [row, parent] : kStatedParents) {
+    const TopdownNode* node = nodeNamed(deep, qualified(row));
+    check(node != nullptr,
+          "each deeper row of the fixture reaches a node of its own (FR-013)");
+    check(node != nullptr && node->parent == parent,
+          "that node names the parent its own `_group` token states (FR-013)");
+  }
+  check(deep.nodes.size() == kIntelLevelOneNames.size() + kStatedParents.size(),
+        "no deeper row of the fixture stands apart from the table above, so no "
+        "node carries a parent the rows state for no row (FR-013)");
+  check(deeperParentsStand(deep),
+        "every parent stands in the tree as a node one level above its child "
+        "(FR-013)");
+
+  // The row whose only `_group` token is `tma_L2_group`, a stem no row of the
+  // directory carries: the tree holds no node for it, and the token states no
+  // parent for any other row either (FR-013).
+  check(nodeNamed(deep, qualified("tma_orphan_row")) == nullptr,
+        "a level-2 row whose stem names no row reaches no node (FR-013)");
+  check(deeperParentsStand(deep),
+        "every parent names a node the table published, so the pass invents no "
+        "parent for a row whose stem names no row (FR-013)");
+
+  // The AMD spelling of the same token, with no `tma_` prefix ahead of the stem
+  // (FR-013, spec D-2). `theAmdLevelTwoRowsStandRowForRow` names all eight rows
+  // of a pipeline table and the parent of each.
+  const TopdownTree zen4 = asked(
+      plantedTable(kZen4Directory, topdownZen4Rows()), 2, amdIdentity(25, 17));
+  check(deeperParentsStand(zen4) && nodesAtLevel(zen4, 2) > 0,
+        "the `<name>_group` spelling resolves too, so one token rule covers "
+        "both vendors (FR-013, research D-02)");
 }
 
 // FR-008 and FR-020: the asked level clamps to the deepest level the table
@@ -727,6 +918,76 @@ auto levelTwoNamesDifferBetweenTheTwoAmdTables() -> void
           "the two spellings name one parent, so the difference is a name and "
           "no shape (FR-013, FR-052)");
   }
+}
+
+// FR-013, FR-014, FR-052 and spec D-2: the eight level-2 rows of the two AMD
+// pipeline tables stand row for row, `backend_bound_cpu` of Zen 4 against
+// `backend_bound_by_cpu` of Zen 5 with the seven that differ the same way, each
+// under the level-1 parent its own `<name>_group` token states.
+auto theAmdLevelTwoRowsStandRowForRow() -> void
+{
+  // The level-1 parent of each row of `kZenLevelTwoNames`, in the order both
+  // pipeline files spell their rows: two rows under each of the four shared
+  // names, and none under the fifth name `smt_contention` of FR-011.
+  constexpr std::array<std::string_view, 8> kZenLevelTwoParents {
+      {kNeutralFrontendBound,
+       kNeutralFrontendBound,
+       kNeutralBadSpeculation,
+       kNeutralBadSpeculation,
+       kNeutralBackendBound,
+       kNeutralBackendBound,
+       kNeutralRetiring,
+       kNeutralRetiring}};
+  const TopdownTree zen4 = asked(
+      plantedTable(kZen4Directory, topdownZen4Rows()), 2, amdIdentity(25, 17));
+  const TopdownTree zen5 = asked(
+      plantedTable(kZen5Directory, topdownZen5Rows()), 2, amdIdentity(26, 17));
+  check(nodesAtLevel(zen4, 2) == kZenLevelTwoParents.size()
+            && nodesAtLevel(zen5, 2) == kZenLevelTwoParents.size(),
+        "each pipeline table answers the eight level-2 nodes the file spells "
+        "(FR-052)");
+  check(deepestLevel(zen4) == 2 && deepestLevel(zen5) == 2,
+        "a pipeline table holds no level below the two its tokens name "
+        "(FR-014)");
+
+  for (std::size_t index = 0; index != kZenLevelTwoNames.size(); ++index) {
+    const std::string_view four = kZenLevelTwoNames[index].first;
+    const std::string_view five = kZenLevelTwoNames[index].second;
+    const TopdownNode* left = nodeNamed(zen4, qualifiedAmd(four));
+    const TopdownNode* right = nodeNamed(zen5, qualifiedAmd(five));
+    check(left != nullptr && right != nullptr,
+          "the row of that index reaches a node in each table (FR-052)");
+    check(left != nullptr && left->level == 2 && right != nullptr
+              && right->level == 2,
+          "the `PipelineL2` token of each row of the pair states level 2 "
+          "(FR-014)");
+    check(left != nullptr && left->parent == kZenLevelTwoParents[index]
+              && right != nullptr && right->parent == kZenLevelTwoParents[index],
+          "each row of the pair stands under the level-1 parent its own "
+          "`<name>_group` token states (FR-013)");
+  }
+
+  // The pair FR-052 names. The row under `topdown.backend_bound` is
+  // `backend_bound_cpu` in the Zen 4 file and `backend_bound_by_cpu` in the Zen
+  // 5 file, and both stand at the same index of the pair list above.
+  const TopdownNode* cpu = nodeNamed(zen4, qualifiedAmd("backend_bound_cpu"));
+  const TopdownNode* byCpu =
+      nodeNamed(zen5, qualifiedAmd("backend_bound_by_cpu"));
+  check(cpu != nullptr && byCpu != nullptr
+            && cpu->parent == kNeutralBackendBound
+            && byCpu->parent == kNeutralBackendBound,
+        "`backend_bound_cpu` and `backend_bound_by_cpu` stand under "
+        "`topdown.backend_bound` (FR-013, FR-052)");
+
+  // The parents the eight rows state are the four shared names of FR-011, so
+  // the fifth name an AMD table answers alone carries no row below it.
+  bool underSmt = false;
+  for (const TopdownNode& node : zen4.nodes) {
+    underSmt = underSmt || node.parent == kNeutralSmtContention;
+  }
+  check(!underSmt && nodeNamed(zen4, kNeutralSmtContention) != nullptr,
+        "the fifth name of an AMD table stands as a root of its own and as no "
+        "row's parent (FR-011, FR-013)");
 }
 
 // FR-010: a node reaches the published view with the spine of its row and the
@@ -1068,11 +1329,14 @@ auto main() -> int
   productionTableCarriesItsSourceRecord();
   levelOneCarriesTheSharedNames();
   parentsComeFromTheGroupText();
+  theLevelTokenOfEachGroupSpellingStatesTheLevel();
+  everyDeeperNodeNamesTheParentItsOwnGroupTokenStates();
   levelDeeperThanTheTableClamps();
   refusedRowsStayInTheDocument();
   rowsUnderTwoObjectsBothReach();
   thresholdRidesAsTextUnchanged();
   levelTwoNamesDifferBetweenTheTwoAmdTables();
+  theAmdLevelTwoRowsStandRowForRow();
   aNodeCarriesItsFormulaAndItsEventList();
   twoCallsOnOneIdentityAnswerOneTree();
   std::printf("counters_topdown_select_test PASS: the selection answers the "

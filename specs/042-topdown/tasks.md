@@ -640,35 +640,32 @@ and SC-03's two tolerances over the scripted source.
   cached value, the conditional over the constant folds to the same value when a table
   resolves, and the reading is taken from the mask this process holds before any
   narrowing a live probe applies inside the walk (FR-042, FR-043, spec D-6). The line as landed reads `topdown: core-wide coverage=whole_core` or `topdown: core-wide coverage=one_thread`, with no line for a reading that stands absent, and the page task that documents the console carries those words as they stand.
-- [ ] T040 [US2] In `test/source/counters_topdown_select_test.cpp`, add the
+- [x] T040 [US2] In `test/source/counters_topdown_select_test.cpp`, add the
   level-token cases of FR-014: rows grouped `TopdownL1` to `TopdownL6` answer
   levels 1 to 6, rows grouped `PipelineL1` and `PipelineL2` answer 1 and 2, and
   a row whose group carries no level token among its `;` tokens, the AMD
   `total_dispatch_slots` helper, yields no node and no refusal (FR-014, research
-  D-02, SC-01). This case lands with T047 in one commit (FR-048).
-
-- [ ] T041 [US2] In `test/source/counters_topdown_select_test.cpp`, add the
+  D-02, SC-01). This case lands with T047 in one commit (FR-048). The case prints green against the state it starts from, so it pins the rule `T047` records rather than turning new code green.
+- [x] T041 [US2] In `test/source/counters_topdown_select_test.cpp`, add the
   multi-level selection case over the fixture: every node below level 1 names
   the parent its own `_group` token states, the Intel `tma_<name>_group` and the
   AMD `<name>_group` spellings both resolve, and a level-2 row whose stem names
   no row of the directory yields no node and no invented parent (FR-013, SC-02).
-  This case lands with T047 in one commit (FR-048).
-
+  This case lands with T047 in one commit (FR-048). The case prints green against the state it starts from, so it pins the rule `T047` records rather than turning new code green.
 - [ ] T042 [US2] In `test/source/counters_topdown_select_test.cpp`, add the
   clamp case: over the fixture table whose deepest level is 4, an asked level of
   6 answers `TopdownTree::depth` 4 and holds no node below level 4, and an asked
   level of 4 answers the same node set (FR-008, FR-009, FR-020). This case lands
   with T048 in one commit (FR-048).
 
-- [ ] T043 [US2] In `test/source/counters_topdown_select_test.cpp`, add
+- [x] T043 [US2] In `test/source/counters_topdown_select_test.cpp`, add
   `theAmdLevelTwoRowsStandRowForRow`: name the eight level-2 nodes of each AMD
   pipeline table the fixture T009 wrote, `backend_bound_cpu` of Zen 4 against
   `backend_bound_by_cpu` of Zen 5 with the seven that differ the same way, each
   under its own level-1 parent (FR-013, FR-014, FR-052, spec D-2). Phase 2 wrote
   these rows and `levelTwoNamesDifferBetweenTheTwoAmdTables` already names the
   two tables, so this case adds the row-for-row pairing and the parent of each
-  row. It lands with T047 in one commit (FR-048).
-
+  row. It lands with T047 in one commit (FR-048). The case prints green against the state it starts from, so it pins the rule `T047` records rather than turning new code green.
 - [ ] T044 [US2] In `test/source/harness_topdown_run_test.cpp`, add the
   multi-level run over the fixture: at level 2 and at level 3 the collected set
   holds every node of that level and of every level above, the block states the
@@ -695,13 +692,12 @@ and SC-03's two tolerances over the scripted source.
 
 ### Implementation for User Story 4
 
-- [ ] T047 [US2] In `source/counters/linux_pmu/topdown_select.cpp`, read level
+- [x] T047 [US2] In `source/counters/linux_pmu/topdown_select.cpp`, read level
   and parent from the group text: split on `;`, take the level from the one
   token matching `TopdownL([1-6])` or `PipelineL([12])`, take the parent from
   the remaining `*_group` token whose stem names another row of the directory,
   and hold no node for a row with no level token (FR-013, FR-014, research D-02;
-  turns T040, T041 and T043 green).
-
+  turns T040, T041 and T043 green). No code change landed with these cases. The level token of each group spelling, the parent a deeper row's own `_group` token states over both vendor spellings, and the clamp of an ask deeper than the table arrived with `T024` at `28b5bb6a`, whose ledger text already names all three. Each claim is still proven live: a break is compiled into a copy of `topdown_select.cpp` outside the tree and linked ahead of the archive, and each break prints the case it breaks. Five of the seven print an older Phase 2 line first, because those cases read the same rule over the selected directory.
 - [ ] T048 [US2] In `source/counters/linux_pmu/topdown_select.cpp`, settle
   `TopdownTree::depth` to the deepest level the selected table holds whatever
   the asked level, and collect only the levels at or below it (FR-008, FR-009,
