@@ -31,6 +31,11 @@
 // preset-none narrowing, the two skipped L3 groups, the mid-batch fit
 // beside the probe, and the unavailable answers, which run in a fresh
 // exec of this binary whose fake publishes no tsc leaf (FR-037, E-07).
+//
+// T005 and T006 append the method grammar of specs/043-fwq-ftq: the
+// method word, the head rule, the modes over every method, the three
+// ranges, and the 16 refusal rows, each one line at status 2 (FR-001 to
+// FR-004, FR-026, SC-005).
 // ============================================================================
 
 #include <algorithm>
@@ -2353,6 +2358,128 @@ auto scenarioIdleHighIndex() -> int
   return 0;
 }
 
+// specs/043-fwq-ftq T005: the method grammar of contracts/cli-options.md.
+// The three quick-run arguments every grammar scenario stands on: one
+// quiet benchmark, one repetition, two iterations (FR-001, FR-004).
+auto quickArguments() -> std::vector<std::string>
+{
+  return {"--filter=bmQuiet", "--repetitions=1", "--iterations=2"};
+}
+
+// FR-001, D-1: the value reads one method word. Each of the three words
+// parses and the run reaches the batch.
+auto scenarioMethodWordAccepted() -> int
+{
+  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  for (const auto* word : {"tsc", "fwq", "ftq"}) {
+    auto arguments = quickArguments();
+    arguments.push_back("--jitter-probe=" + cpu + ",method=" + word
+                        + ",precheck=1");
+    check(captureRun(arguments).find("bmQuiet") != std::string::npos,
+          "the method word stands accepted and runs the batch (FR-001)");
+  }
+  return 0;
+}
+
+// FR-002, R-02: the head stands first and mandatory. The value that
+// opens with the cpu token runs the batch, and the value that opens with
+// a key answers the standing cpu-token line with the token quoted.
+auto scenarioHeadStandsFirst() -> int
+{
+  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  auto accepted = quickArguments();
+  accepted.push_back("--jitter-probe=" + cpu + ",method=tsc,precheck=1");
+  check(captureRun(accepted).find("bmQuiet") != std::string::npos,
+        "the head-first value runs the batch (FR-002, R-02)");
+  auto headLast = quickArguments();
+  headLast.push_back("--jitter-probe=method=tsc," + cpu);
+  const auto note = captureError(headLast, 2);
+  checkOneLine(note,
+               "a value that opens with a key stands rejected (FR-002)");
+  check(note.find("'method=tsc'") != std::string::npos,
+        "the refusal names the head token it read (FR-002, FR-003)");
+  return 0;
+}
+
+// FR-002, R-02: a head token that carries `=` names no cpu, so it
+// answers the standing cpu-token line, the round 2 answer.
+auto scenarioHeadCarriesEquals() -> int
+{
+  for (const auto* token : {"method=fwq", "quantum=100"}) {
+    auto arguments = quickArguments();
+    arguments.push_back(std::string("--jitter-probe=") + token);
+    const auto note = captureError(arguments, 2);
+    checkOneLine(note,
+                 "a head token that carries an equals stands rejected "
+                 "(FR-002)");
+    check(note.find(std::string("'") + token + "'") != std::string::npos,
+          "the refusal names the head token it read (FR-002, FR-003)");
+  }
+  return 0;
+}
+
+// FR-004, D-9: the modes run every method. Each mode word beside each
+// method word parses, and the run reaches the batch.
+auto scenarioModesRunEveryMethod() -> int
+{
+  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  for (const auto* word : {"tsc", "fwq", "ftq"}) {
+    for (const auto* mode : {"alongside", "precheck", "both"}) {
+      auto arguments = quickArguments();
+      arguments.push_back("--jitter-probe=" + cpu + ",method=" + word
+                          + ",mode=" + mode + ",precheck=1");
+      check(captureRun(arguments).find("bmQuiet") != std::string::npos,
+            "the mode word runs its method through the batch (FR-004)");
+    }
+  }
+  return 0;
+}
+
+// FR-002: the quantum range. The two bounds and the default parse beside
+// the method that reads the quantum.
+auto scenarioQuantumRange() -> int
+{
+  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  for (const auto* value : {"10", "100", "100000"}) {
+    auto arguments = quickArguments();
+    arguments.push_back("--jitter-probe=" + cpu + ",method=ftq,quantum=" + value
+                        + ",precheck=1");
+    check(captureRun(arguments).find("bmQuiet") != std::string::npos,
+          "a quantum inside the range stands accepted (FR-002)");
+  }
+  return 0;
+}
+
+// FR-002: the work range. The two bounds parse beside the method that
+// reads the work count.
+auto scenarioWorkRange() -> int
+{
+  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  for (const auto* value : {"1", "16777216"}) {
+    auto arguments = quickArguments();
+    arguments.push_back("--jitter-probe=" + cpu + ",method=fwq,work=" + value
+                        + ",precheck=1");
+    check(captureRun(arguments).find("bmQuiet") != std::string::npos,
+          "a work count inside the range stands accepted (FR-002)");
+  }
+  return 0;
+}
+
+// FR-002: the noise range. The three whole values parse, the method that
+// reads no noise gate accepting the key beside its disclosure (FR-021).
+auto scenarioNoiseRange() -> int
+{
+  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  for (const auto* value : {"0", "1", "100"}) {
+    auto arguments = quickArguments();
+    arguments.push_back("--jitter-probe=" + cpu + ",noise=" + value
+                        + ",precheck=1");
+    check(captureRun(arguments).find("bmQuiet") != std::string::npos,
+          "a noise value inside the range stands accepted (FR-002)");
+  }
+  return 0;
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmQuiet);
@@ -2823,6 +2950,17 @@ auto main(int argc, char** argv) -> int
     }
     std::remove(path.c_str());
   }
+
+  // specs/043-fwq-ftq T005: the method grammar of the value. The method
+  // word, the head rule, the modes over every method, and the three
+  // ranges (FR-001, FR-002, FR-004, R-02).
+  check(scenarioMethodWordAccepted() == 0, "methodWordAccepted");
+  check(scenarioHeadStandsFirst() == 0, "headStandsFirst");
+  check(scenarioHeadCarriesEquals() == 0, "headCarriesEquals");
+  check(scenarioModesRunEveryMethod() == 0, "modesRunEveryMethod");
+  check(scenarioQuantumRange() == 0, "quantumRange");
+  check(scenarioWorkRange() == 0, "workRange");
+  check(scenarioNoiseRange() == 0, "noiseRange");
 
   // contracts/cli-options.md: `--jitter-probe` with no argument keeps
   // the standing getopt_long missing-argument path, and an unknown flag
