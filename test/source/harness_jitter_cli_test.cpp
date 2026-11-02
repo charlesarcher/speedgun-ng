@@ -2510,6 +2510,71 @@ auto scenarioQuantumRefused() -> int
   return 0;
 }
 
+// FR-004, FR-020, E-27: the pre-check record of a `both` run that names a
+// method. The alongside loop runs on while the record builds, so the fold
+// reads the prefix the latch snapshotted, and the block prints the
+// method's figures beside the batch's rows.
+auto scenarioBothMethodPrecheckSeries() -> int
+{
+  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  auto arguments = quickArguments();
+  arguments.push_back("--jitter-probe=" + cpu
+                      + ",mode=both,precheck=1,method=fwq,gaps=256");
+  const auto report = captureRun(arguments);
+  check(report.find("bmQuiet") != std::string::npos,
+        "the both-mode method run reaches the batch (FR-004)");
+  check(report.find("method: fwq") != std::string::npos,
+        "the calibration lines of the method stand disclosed (FR-019)");
+  check(report.find("jitter probe: cpus ") != std::string::npos,
+        "the pre-check block prints beside the batch (FR-013, FR-019)");
+  return 0;
+}
+
+// FR-019, R-01: the batch probe beside a threaded instance the handle
+// leaves unpinned. The walk's narrowing precheck skips every threaded
+// instance that carries no placement, the way it skips one that carries
+// a placement, so the mask stands whole and the run goes on.
+auto childThreadedUnpinnedProbed() -> int
+{
+  scriptedProvider();
+  auto handle = sg::registerBenchmark(&bmQuiet, "bmThreadedUnpinned");
+  handle.threads(2);
+  const std::string probe = std::to_string(pickCpus(1).front());
+  std::vector<std::string> arguments {"--filter=bmThreadedUnpinned",
+                                      "--repetitions=1",
+                                      "--iterations=2",
+                                      "--jitter-probe=" + probe};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  const int status =
+      sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+  std::fflush(stdout);
+  std::fflush(stderr);
+  return status;
+}
+
+auto scenarioThreadedUnpinnedProbed() -> int
+{
+  const Captured run =
+      runExecChild("--jitter-cli-child=threaded-unpinned-probed",
+                   "threaded-unpinned-probed");
+  check(run.status == 0,
+        "the unpinned threaded run beside a batch probe continues (FR-019)");
+  check(run.out.find("bmThreadedUnpinned") != std::string::npos,
+        "the threaded instance ran beside the probe (FR-019)");
+  check(run.out.find("affinity mask narrowed for 'bmThreadedUnpinned")
+            != std::string::npos,
+        "the walk narrows the mask of an unpinned threaded entry beside the "
+        "probe, the entry the skip of a placed instance leaves it (FR-019, "
+        "R-01)");
+  check(run.out.find("UNAPPLIED") == std::string::npos,
+        "no pin stands unapplied (FR-005, VI)");
+  return 0;
+}
+
 // FR-003, SC-005: the work rows. A count of 0, a count above the range,
 // a value that reads no number, and a fractional value each name the
 // value on one line at status 2.
@@ -2704,6 +2769,11 @@ auto main(int argc, char** argv) -> int
     {
       return childFileOverSuite();
     }
+    if (mode == "--jitter-cli-child=threaded-unpinned-probed"
+        && redirect("threaded-unpinned-probed"))
+    {
+      return childThreadedUnpinnedProbed();
+    }
     if (mode == "--jitter-cli-child=unavailable" && redirect("unavailable")) {
       return childUnavailable(false);
     }
@@ -2757,6 +2827,8 @@ auto main(int argc, char** argv) -> int
   check(scenarioFitBesideProbe() == 0, "fitBesideProbe");
   check(scenarioInterleaveProbe() == 0, "interleaveProbe");
   check(scenarioUnavailableProbe() == 0, "unavailableProbe");
+  check(scenarioBothMethodPrecheckSeries() == 0, "bothMethodPrecheckSeries");
+  check(scenarioThreadedUnpinnedProbed() == 0, "threadedUnpinnedProbed");
   check(scenarioUnavailableBlocked() == 0, "unavailableBlocked");
   check(scenarioUnavailableThreaded() == 0, "unavailableThreaded");
   check(scenarioUnavailableStrict() == 0, "unavailableStrict");
