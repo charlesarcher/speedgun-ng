@@ -938,7 +938,6 @@ The run writes its document at `--json=path`, loads it back with `loadReport`, a
 | `renderPlot` | free function | Renders one column's series as the SVG plot | [report views](#report-views) |
 | `renderPage` | free function | Renders the static HTML page carrying the two figures | [report views](#report-views) |
 | `renderText` | free function | Renders the two figures as terminal text | [report views](#report-views) |
-
 | `GraphRecord` | type | The graph record one run's document carries | [execution graphs](#execution-graphs) |
 | `GraphRunRecord` | type | One threaded run's nodes, edges, held nodes and stopped nodes | [execution graphs](#execution-graphs) |
 | `GraphNodeRecord` | type | One node's name, slot and outcome word | [execution graphs](#execution-graphs) |
@@ -990,6 +989,7 @@ The run writes its document at `--json=path`, loads it back with `loadReport`, a
 | `--hunt-emit-set` | Writes the ranked hunt events to a file, one address per line |
 | `--hunt-emit-rules` | Writes the promoted hunt events as comparison rules to a file |
 | `--hunt-baseline` | Sets the baseline document the delta rank matches against |
+| `--topdown` | Prints the top-down tree of the running cpu at the level the option names, level 1 when the word stands bare |
 
 ## Planned work
 

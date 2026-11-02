@@ -723,6 +723,14 @@ struct RunOptions
   // reads no environment variable for the row. The entry point reads the
   // named file once, ahead of the first context (FR-011).
   std::optional<std::string> graphPath;
+
+  // specs/042-topdown FR-019, FR-050, D-5: the level `--topdown` asks for. An
+  // absent optional is the row standing given nowhere, and an engaged value is
+  // the row standing with that level, the bare word having settled 1. The row
+  // names no environment source and stands in no option file, so only the
+  // words of a command line settle this member, and no second flag says the
+  // option stood.
+  std::optional<std::uint64_t> topdownLevel;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it

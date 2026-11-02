@@ -11,12 +11,12 @@
 // seven new names take the constants 290 to 296 that spec D-24 reserves.
 // The expected rows stand here as literals, the master name to value
 // mapping of FR-013 among them.
-// The contract fixes 42 rows in one order. The 20 rows master carries keep
+// The contract fixes 43 rows in one order. The 20 rows master carries keep
 // their spelling, their argument kind and their internal value, the seven
 // new names take the constants 290 to 296 that spec D-24 reserves, the
 // noise tracer's name takes 320, the graph row takes 330, the layout row
-// takes 340, and the eleven hunt names take the block 270 to 289 the hunt
-// lane reserves: the
+// takes 340, the top-down row takes 350, and the eleven hunt names take
+// the block 270 to 289 the hunt lane reserves: the
 // eight of specs/029-hunter-core at 270 to 277, `hunt-emit-set` of
 // specs/033-hunter-budgets at 280, and the two of specs/040-hunter-
 // sensitivity at 281 and 282. The expected rows stand here as literals,
@@ -52,7 +52,7 @@
 //
 // Check map:
 //   theTableAnswersARowList        one source file yields rows
-//   theTableHoldsFortyTwoRows     the row count is the contract's 42
+//   theTableHoldsFortyThreeRows   the row count is the contract's 43
 //                                  (FR-001, FR-004, SC-001)
 //   theNamesStandInTheContractOrder
 //                                  the names in table order equal the
@@ -116,6 +116,10 @@
 //                                  answers inside that block
 //                                  (specs/039 FR-011, FR-004)
 //   theCarriedConstantsNameTheirOptions
+//   theTopdownRowStandsInItsBlock  the top-down row answers inside
+//                                  350 to 359, and no other row
+//                                  answers inside that block
+//                                  (specs/042 FR-019, FR-004)
 //                                  256 to 259 name `metric-method`,
 //                                  `compare`, `compare-rule` and
 //                                  `compare-strict` (FR-003, SC-001)
@@ -241,7 +245,7 @@ constexpr char kNoArgument = 'n';
 constexpr int kHuntEmitRulesValue = 281;
 constexpr int kHuntBaselineValue = 282;
 
-constexpr std::array<ExpectedRow, 42> kContract = {{
+constexpr std::array<ExpectedRow, 43> kContract = {{
     {"filter", kRequired, 'f'},
     {"list", kNoArgument, 'l'},
     {"repetitions", kRequired, 'r'},
@@ -284,23 +288,31 @@ constexpr std::array<ExpectedRow, 42> kContract = {{
     {"hunt-emit-set", kRequired, 280},
     {"hunt-emit-rules", kRequired, kHuntEmitRulesValue},
     {"hunt-baseline", kRequired, kHuntBaselineValue},
+    {"topdown", kOptional, 350},
 }};
 
 // The rows master carries today; the rows after them are the ones the
 // lanes bring, the graph row of specs/037 and the layout row of specs/039
-// closing that group, and the eleven hunt rows close the table: the eight
-// of specs/029-hunter-core, `hunt-emit-set` of specs/033-hunter-budgets
-// and the two of specs/040-hunter-sensitivity.
+// closing that group, and the eleven hunt rows following: the eight of
+// specs/029-hunter-core, `hunt-emit-set` of specs/033-hunter-budgets
+// and the two of specs/040-hunter-sensitivity. The top-down row of
+// specs/042-topdown closes the table, so it stands past every hunt row.
 constexpr std::size_t kMasterRows = 20;
 constexpr std::size_t kRowsBeforeHunt = 31;
+// The index of the tail row: every hunt row stands before it, so the
+// partition reads the row at that index as a new row and not as a hunt row
+// (specs/042-topdown FR-019).
+constexpr std::size_t kTailRow = 42;
 
-// The bounds of the three value blocks: the constants the harness carried
+// The bounds of the value blocks: the constants the harness carried
 // before this feature, the constants the hunt lane reserves for its eleven
 // names, the constants spec D-24 reserves for the seven new names, the
-// tracer block at 320, the graph block at 330, and the layout block at
-// 340, the free parts left for the lanes that follow
+// tracer block at 320, the graph block at 330, the layout block at 340,
+// and the top-down block at 350, the free parts left for the lanes that
+// follow
 // (FR-004, FR-079; specs/029 FR-083, D-22; specs/033 FR-010, R-13;
-// specs/037 FR-002; specs/039 FR-011; specs/040 FR-020).
+// specs/037 FR-002; specs/039 FR-011; specs/040 FR-020;
+// specs/042-topdown FR-019).
 constexpr int kCarriedLow = 256;
 constexpr int kCarriedHigh = 259;
 constexpr int kHuntLow = 270;
@@ -317,6 +329,9 @@ constexpr int kGraphBlockLow = 330;
 constexpr int kGraphBlockHigh = 339;
 constexpr int kGroupBlockLow = 340;
 constexpr int kGroupBlockHigh = 349;
+constexpr int kTopdownValue = 350;
+constexpr int kTopdownBlockLow = 350;
+constexpr int kTopdownBlockHigh = 359;
 
 // The eleven hunt rows and the numbers the three hunt contracts assign
 // them; the rule binds the number, whichever constant spells it
@@ -732,13 +747,13 @@ auto theTableAnswersARowList(const std::vector<Row>& rows) -> void
   check(!rows.empty(), "the table source answers a row list (FR-079)");
 }
 
-auto theTableHoldsFortyTwoRows(const std::vector<Row>& rows) -> void
+auto theTableHoldsFortyThreeRows(const std::vector<Row>& rows) -> void
 {
   if (rows.size() == kContract.size()) {
     return;
   }
-  report("the table holds the 42 rows of the contract (FR-001, FR-004, SC-001)",
-         "42 rows",
+  report("the table holds the 43 rows of the contract (FR-001, FR-004, SC-001)",
+         "43 rows",
          std::to_string(rows.size()) + " rows");
 }
 
@@ -812,15 +827,17 @@ auto theBaseOptionsKeepTheirMasterValues(const std::vector<Row>& rows) -> void
 // The value block of the rows the lanes after master bring: the
 // constants 290 to 296 that spec D-24 reserves, the jitter row at 260, the
 // tracer rows in the block 320 to 329, the graph rows in the block 330 to
-// 339, and the layout rows in the block 340 to 349
-// (FR-004; specs/037 FR-002; specs/039 FR-011).
+// 339, the layout rows in the block 340 to 349, and the top-down row in
+// the block 350 to 359
+// (FR-004; specs/037 FR-002; specs/039 FR-011; specs/042-topdown FR-019).
 auto inNewBlock(const int value) -> bool
 {
   return (value >= kReservedLow && value <= kReservedHigh)
       || value == kJitterProbeValue
       || (value >= kTracerLow && value <= kTracerHigh)
       || (value >= kGraphBlockLow && value <= kGraphBlockHigh)
-      || (value >= kGroupBlockLow && value <= kGroupBlockHigh);
+      || (value >= kGroupBlockLow && value <= kGroupBlockHigh)
+      || (value >= kTopdownBlockLow && value <= kTopdownBlockHigh);
 }
 
 auto theNewNamesTakeTheReservedConstants(const std::vector<Row>& rows) -> void
@@ -938,7 +955,7 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
   for (std::size_t index = 0; index < rows.size(); ++index) {
     const Row& row = rows[index];
     const bool master = index < kMasterRows;
-    const bool hunt = index >= kRowsBeforeHunt;
+    const bool hunt = index >= kRowsBeforeHunt && index < kTailRow;
     const bool inside = hunt
         ? inHuntBlock(row.value)
         : (master ? inMasterBlock(row.value) : inNewBlock(row.value));
@@ -951,8 +968,8 @@ auto theValueBlocksStayUniqueAndDisjoint(const std::vector<Row>& rows) -> void
              hunt         ? "a constant from 270 to 289"
                  : master ? "a letter or a constant from 256 to 259"
                           : "a constant from 290 to 296, the lane block's 260, "
-                            "the noise tracer's 320, the graph row's 330, or "
-                            "the layout row's 340",
+                            "the noise tracer's 320, the graph row's 330, the "
+                            "layout row's 340, or the top-down row's 350",
              valueWord(row.value));
     }
     if (hunt) {
@@ -1115,6 +1132,27 @@ auto theLayoutRowStandsInItsBlock(const std::vector<Row>& rows) -> void
         "(specs/039 FR-011)");
   check(blockHoldsNoOtherRow(rows, layout, kGroupBlockLow, kGroupBlockHigh),
         "no other row answers inside the layout block 340 to 349 (FR-004)");
+}
+
+// The top-down row stands in the block 350 to 359, and no other row
+// answers inside it (specs/042-topdown FR-019, FR-004).
+auto theTopdownRowStandsInItsBlock(const std::vector<Row>& rows) -> void
+{
+  const std::vector<std::string_view> topdown = {"topdown"};
+  const Row* const row = rowNamed(rows, "topdown");
+  check(row != nullptr,
+        "the table carries one row named 'topdown' (specs/042-topdown FR-019)");
+  if (row == nullptr) {
+    return;
+  }
+  check(row->value == kTopdownValue,
+        "the top-down row answers the constant 350 (specs/042-topdown FR-019)");
+  check(row->value >= kTopdownBlockLow && row->value <= kTopdownBlockHigh,
+        "the top-down row answers inside the top-down block 350 to 359 "
+        "(specs/042-topdown FR-019)");
+  check(
+      blockHoldsNoOtherRow(rows, topdown, kTopdownBlockLow, kTopdownBlockHigh),
+      "no other row answers inside the top-down block 350 to 359 (FR-004)");
 }
 
 // The nine hunt rows of the table, each at the number its contract states:
@@ -1962,7 +2000,7 @@ auto main(int argc, char** argv) -> int
   }
 
   theTableAnswersARowList(rows);
-  theTableHoldsFortyTwoRows(rows);
+  theTableHoldsFortyThreeRows(rows);
   theNamesStandInTheContractOrder(rows);
   eachRowCarriesItsArgumentKind(rows);
   eachRowCarriesItsValue(rows);
@@ -1973,6 +2011,7 @@ auto main(int argc, char** argv) -> int
   graphRowValueBlockAndUniqueness(rows, header);
   theTracerRowsStandInTheirBlock(rows);
   theLayoutRowStandsInItsBlock(rows);
+  theTopdownRowStandsInItsBlock(rows);
   theHuntNamesTakeTheReservedConstants(rows);
   theFixtureTwinReportsItsPlantedDefects();
   theCarriedConstantsNameTheirOptions(rows);
