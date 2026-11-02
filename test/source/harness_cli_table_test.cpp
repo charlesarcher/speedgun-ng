@@ -1388,8 +1388,8 @@ auto theVersionBindingsReadTheMovedNumbers(const std::filesystem::path& start)
         "the project version reads 0.28.0 (FR-050)");
   check(cmake.find("SOVERSION 19") != std::string::npos,
         "the harness SOVERSION line reads SOVERSION 19 (FR-050)");
-  check(cmake.find("SOVERSION 4") != std::string::npos,
-        "the archive SOVERSION line reads SOVERSION 4 (FR-050)");
+  check(cmake.find("SOVERSION 5") != std::string::npos,
+        "the archive SOVERSION line reads SOVERSION 5 (FR-050)");
 }
 
 // FR-015, FR-018, SC-008: one line per table row, in table order, each

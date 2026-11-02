@@ -241,9 +241,10 @@ auto run() -> int
   // The version and the SOVERSION record of the move this task lands
   // (specs/039-context-groups FR-005, FR-032, D-2; specs/037 R-13): the
   // project block reads 0.28.0, the harness target answers SOVERSION 19,
-  // and the archive target keeps SOVERSION 4. specs/039 took 0.27.0 and
-  // 18 on master while this lane stood open, so the lane takes the next
-  // pair.
+  // and the archive target keeps SOVERSION 5, the move the exclusions
+  // cleanup carries on the public counter header. specs/039 took 0.27.0
+  // and 18 on master while this lane stood open, so the lane takes the
+  // next pair.
   {
     auto const cmake = rootCMakeText();
     check(!cmake.empty(), "pass: the root CMakeLists.txt can be read");
@@ -251,8 +252,8 @@ auto run() -> int
           "pass: the project version reads 0.28.0");
     check(cmake.find("SOVERSION 19") != std::string::npos,
           "pass: the harness SOVERSION line reads SOVERSION 19");
-    check(cmake.find("SOVERSION 4") != std::string::npos,
-          "pass: the archive SOVERSION line reads SOVERSION 4");
+    check(cmake.find("SOVERSION 5") != std::string::npos,
+          "pass: the archive SOVERSION line reads SOVERSION 5");
   }
 
   // ---- The resolver block (specs/038 T004; FR-004 to FR-006, B-1,
