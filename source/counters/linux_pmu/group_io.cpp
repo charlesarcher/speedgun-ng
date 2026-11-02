@@ -265,38 +265,18 @@ struct PmuWindow final : WindowReader
   ~PmuWindow() override
   {
     for (auto& group : groups) {
-      // LCOV_EXCL_START : coverage exclusion (T140): the member release. A
-      // window holding members needs a `perf_event_open` the kernel granted,
-      // so a runner whose `perf_event_open` is refused holds none and
-      // releases none, while the host that grants the syscall releases every
-      // member it opened here.
       for (const int fd : group.members) {
         kernelCalls().closeFd(fd);
       }
-      // LCOV_EXCL_STOP
     }
   }
 
-  // LCOV_EXCL_START : coverage exclusion (T140): the group read. It samples a
-  // window whose members exist, and every member needs a granted
-  // `perf_event_open`. A runner whose `perf_event_open` is refused opens no
-  // group and never enters this body; the host that grants the syscall reads
-  // every group it opened here, once per sampling action.
   void readPoints(PointSink& sink) noexcept override
   {
     gapped = false;
     for (auto& group : groups) {
       const auto want = static_cast<std::size_t>(
           (kHeaderWords + group.members.size()) * sizeof(std::uint64_t));
-      // LCOV_EXCL_STOP
-      // LCOV_EXCL_START : coverage exclusion (T066): the arm needs a group
-      // the kernel cannot serve in this shape, a leader answering with fewer
-      // than the three header words. `open_group_window` enables every group
-      // with `PERF_EVENT_IOC_ENABLE` before returning, so the kernel always
-      // reports the header. The scratch is sized in the constructor, and
-      // every leaf opens into exactly one group, so the buffer covers the
-      // header and one word per member of any group: the read below never
-      // grows it, and the sampling path allocates nothing (FR-026).
       const auto got =
           kernelCalls().readGroup(group.leader, scratch.data(), want);
       if (groupReadShort(got, kHeaderWords * sizeof(std::uint64_t)))
@@ -306,26 +286,19 @@ struct PmuWindow final : WindowReader
         // zero counts, and the pair discloses ratio 0. A count is never
         // fabricated.
         gapped = true;
-        group.enabled = 0;  // LCOV_EXCL_LINE
-        group.running = 0;  // LCOV_EXCL_LINE
-        std::ranges::fill(group.values, 0);  // LCOV_EXCL_LINE
-        continue;  // LCOV_EXCL_LINE
-      }  // LCOV_EXCL_BR_LINE
-      // LCOV_EXCL_STOP
-      // LCOV_EXCL_START : coverage exclusion (T140): the header and the slot
-      // dispatch of the same group read. The group carries members the
-      // kernel granted, so a runner whose `perf_event_open` is refused never
-      // reaches this half, and the host that grants it fills and dispatches
-      // every group on every sampling action.
+        group.enabled = 0;
+        group.running = 0;
+        std::ranges::fill(group.values, 0);
+        continue;
+      }
       const auto count = static_cast<std::size_t>(scratch[0]);
       group.enabled = scratch[1];
       group.running = scratch[2];
       for (std::size_t member = 0; member < group.members.size(); ++member) {
-        group.values[member] = member < count  // LCOV_EXCL_BR_LINE
-            ? scratch[kHeaderWords + member]  // LCOV_EXCL_LINE
-            : 0;  // LCOV_EXCL_LINE
-      }  // LCOV_EXCL_BR_LINE
-    }  // LCOV_EXCL_BR_LINE
+        group.values[member] =
+            member < count ? scratch[kHeaderWords + member] : 0;
+      }
+    }
     for (const auto& slot : slots) {
       const auto& group = groups[slot.group];
       // LCOV_EXCL_BR_START : coverage exclusion (T066): the "fewer values
@@ -361,8 +334,6 @@ struct PmuWindow final : WindowReader
   {
     static_cast<PmuWindow&>(base).readPoints(sink);
   }
-
-  // LCOV_EXCL_STOP
 };  // LCOV_EXCL_BR_STOP
 
 // The fast-mode window: one mapped page per member leaf, read inside one
@@ -400,11 +371,6 @@ struct PmuFastWindow final : WindowReader
 
   ~PmuFastWindow() override;
 
-  // LCOV_EXCL_START : coverage exclusion (T140): the mapped-page read and the
-  // thunk that drives it. Both need member contexts over mappings the kernel
-  // granted, so a runner whose `perf_event_open` is refused opens no member
-  // and never enters this body; the host that grants the syscall reads every
-  // member page here, once per sampling action.
   void readPoints(PointSink& sink) noexcept override
   {
     gapped = false;
@@ -428,15 +394,14 @@ struct PmuFastWindow final : WindowReader
       // page refuses, and a retry that also fails, publish no count, so
       // the point is zero and the action is marked beside it
       // (FR-002, FR-003).
-      // LCOV_EXCL_BR_START : coverage exclusion (T140): the refused and
-      // still-unstable arms on a granted mapping. They need the kernel to
-      // clear the capability bit, or to move the page sequence across both
-      // reads, which a test cannot force; every verdict is covered for both
-      // arms by `fastDecode` over synthetic pages in
-      // `test/source/counters_linux_pmu_seam_test.cpp`.
+      // LCOV_EXCL_BR_START : coverage exclusion (T140): the ok verdict. It
+      // needs the processor to serve the instruction over a mapped counter,
+      // which no fixture page stands in for: a page that indexes nothing or
+      // grants no read takes the arms above, and the granted hosts take the
+      // ok arm in `counters_pmu_test`'s real fast windows.
       if (verdict != FastReadVerdict::OK) {  // LCOV_EXCL_BR_LINE
-        one.value = 0;  // LCOV_EXCL_LINE
-        gapped = true;  // LCOV_EXCL_LINE
+        one.value = 0;
+        gapped = true;
       }  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_BR_STOP
     }
@@ -504,8 +469,6 @@ struct PmuFastWindow final : WindowReader
   {
     static_cast<PmuFastWindow&>(base).readPoints(sink);
   }
-
-  // LCOV_EXCL_STOP
 };
 
 namespace
@@ -519,15 +482,14 @@ namespace
 // release and none of them can release twice.
 void releaseFastMembers(std::vector<PmuFastWindow::Member>& acquired) noexcept
 {
-  for (auto& one : acquired) {  // LCOV_EXCL_BR_LINE
-    // LCOV_EXCL_BR_START : coverage exclusion (T056): the member carrying no
-    // context. Every push into this vector sits after the open's own null
-    // check, and that check returns before the push, so a member reaches
-    // this loop only with a context to release (FR-014).
-    if (one.context) {  // LCOV_EXCL_LINE
-      fastContextClose(*one.context);  // LCOV_EXCL_LINE
-    }
-    // LCOV_EXCL_BR_STOP
+  for (auto& one : acquired) {
+    // Every push into this vector sits after the open's own null check,
+    // and that check returns before the push, so a member reaches this
+    // loop only with a context to release (FR-014).
+    SG_ASSERT(
+        one.context != nullptr,
+        "every member a fast window releases holds its context " "(FR-014)");
+    fastContextClose(*one.context);
   }
   acquired.clear();
 }
