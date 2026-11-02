@@ -26,6 +26,7 @@
 #include <cstdlib>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <thread>
 #include <type_traits>
 #include <vector>
@@ -975,6 +976,74 @@ auto fwqSpectrumReadsTheSeriesAboveTheCap() -> void
       });
 }
 
+// specs/043 T070, FR-017, FR-018, FR-019, R-12: the guards that leave the
+// transform unread. The record of no sample, the record that counts
+// samples the state keeps none of, the FWQ median of 0 and the FTQ
+// quantum of 0 each answer no point and no period; and the console word
+// of a value outside the closed enumeration answers the last word.
+auto theSpectrumGuardsLeaveTheTransformUnread() -> void
+{
+  const auto cpu = pickCpus(1).at(0);
+  sg::detail::ProbeCpuState bare;
+  bare.cpu = cpu;
+  bare.method = sg::JitterMethod::FWQ;
+  bare.series = {1000};
+  bare.seriesKept = 0;
+  bare.unitTimeNs = 1000;
+
+  auto empty = sg::detail::seriesStatsOf(bare);
+  check(empty.sampleCount == 0,
+        "the record of an empty kept set counts no sample (FR-007)");
+  sg::detail::addSpectrumTo(bare, empty);
+  check(empty.spectrumPoints == 0 && empty.periods.empty(),
+        "theSpectrumGuardsLeaveTheTransformUnread: a series with no sample "
+        "reads no transform (FR-018, R-12)");
+
+  auto unkept = sg::detail::seriesStatsOf(bare);
+  unkept.sampleCount = 5;
+  sg::detail::addSpectrumTo(bare, unkept);
+  check(unkept.spectrumPoints == 0 && unkept.periods.empty(),
+        "theSpectrumGuardsLeaveTheTransformUnread: a kept set of no sample "
+        "reads no transform (FR-018, R-12)");
+
+  auto flat = sg::detail::seriesStatsOf(bare);
+  flat.sampleCount = 1;
+  flat.medianValue = 0;
+  bare.seriesKept = 1;
+  sg::detail::addSpectrumTo(bare, flat);
+  check(flat.spectrumPoints == 0 && flat.resampleStepNs == 0
+            && flat.periods.empty(),
+        "theSpectrumGuardsLeaveTheTransformUnread: a FWQ median of 0 leaves "
+        "the resample unread (FR-017, FR-018, R-12)");
+
+  sg::detail::ProbeCpuState ftq;
+  ftq.cpu = cpu;
+  ftq.method = sg::JitterMethod::FTQ;
+  ftq.series = {1, 2, 3};
+  ftq.seriesKept = 3;
+  auto open = sg::detail::seriesStatsOf(ftq);
+  open.quantumNs = 0;
+  sg::detail::addSpectrumTo(ftq, open);
+  check(open.spectrumPoints == 0 && open.periods.empty(),
+        "theSpectrumGuardsLeaveTheTransformUnread: a FTQ quantum of 0 leaves "
+        "the transform unread (FR-017, FR-018, R-12)");
+
+  // FR-019: the three words of the table, and the last word for a value
+  // outside the closed enumeration.
+  const std::string_view tsc =
+      sg::detail::jitterMethodName(sg::JitterMethod::TSC);
+  const std::string_view fwq =
+      sg::detail::jitterMethodName(sg::JitterMethod::FWQ);
+  const std::string_view ftqName =
+      sg::detail::jitterMethodName(sg::JitterMethod::FTQ);
+  const std::string_view outside =
+      sg::detail::jitterMethodName(static_cast<sg::JitterMethod>(7));
+  check(tsc == "tsc" && fwq == "fwq" && ftqName == "ftq" && outside == "ftq",
+        "theMethodNameOfAValueOutsideTheTableAnswersTheLastWord: the console "
+        "spells the three words and the last word for a value outside the "
+        "enumeration (FR-019)");
+}
+
 // FR-004: mode=precheck runs the selected method. The pre-check phase of
 // a FWQ run records unit times, and the phase ends at its scripted span.
 auto precheckModeRunsTheSelectedMethod() -> void
@@ -1433,6 +1502,7 @@ auto main() -> int
   oneSampleSeriesReadsThatSample();
   fwqResampleReachesThePeriodList();
   fwqSpectrumReadsTheSeriesAboveTheCap();
+  theSpectrumGuardsLeaveTheTransformUnread();
   precheckModeRunsTheSelectedMethod();
 
   // T013: the FTQ rows (US2, FR-009, FR-015, FR-016, FR-022, FR-025,
