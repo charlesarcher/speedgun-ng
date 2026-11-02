@@ -32,6 +32,10 @@ mkdir -p "$OUT"
 # facts of the section, the command line, the exit status, and the
 # captured output to the record, then keeps going. META carries the
 # facts, and LOG keeps the captured output for the figures block.
+#
+# The benchmark stands unbuffered: a run that dies on a signal leaves
+# its stdio buffer behind, and the record loses every figure the run
+# printed. stdbuf keeps the record whole for such a run.
 META=""
 LOG=""
 STATUS=0
@@ -291,7 +295,8 @@ for method in fwq ftq; do
 - load command line: none"
       fi
       run "${method^^} on cpu $cpu of L3 group $id, $load" \
-        "$BIN/benchmark_example" --filter=bmTouch --min-time=10 --repetitions=1 \
+        stdbuf --output=0 "$BIN/benchmark_example" \
+        --filter=bmTouch --min-time=10 --repetitions=1 \
         --jitter-probe="$cpu,method=$method,mode=$PROBE_MODE,precheck=$PRECHECK_MS,gaps=$gaps"
       if [ "$load" = loaded ]; then
         stop_load
