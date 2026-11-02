@@ -1287,13 +1287,17 @@ auto printJitterReport(bool available,
 /// so `requestedEngine` carries the not-available signal: an engine
 /// that names a tracer prints the one disclosure line (specs/036
 /// FR-016), and a run that requests no tracer prints no tracer line
-/// (specs/036 FR-012).
+/// (specs/036 FR-012). specs/043 T068, FR-021, D-9, R-15: `noisePercent`
+/// is the parsed `noise=` threshold, the same number the strict refusal
+/// reads: a planned cpu whose noise fraction stands under it prints no
+/// warning line, and one at or above it prints one.
 ///
 /// \pre none
 /// \post none
 auto printPrecheckReport(
     const PrecheckRecord& record,
-    sg::TracerEngine requestedEngine = sg::TracerEngine::NONE) -> void;
+    sg::TracerEngine requestedEngine = sg::TracerEngine::NONE,
+    std::uint32_t noisePercent = sg::kDefaultNoisePercent) -> void;
 /// @brief specs/029 T035, FR-012, FR-013, data-model E-07: the plan line of
 /// one hunt run, and the one line a cut plan adds below it.
 ///

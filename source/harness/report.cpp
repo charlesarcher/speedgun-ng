@@ -1298,7 +1298,8 @@ auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
 // (FR-012, FR-013, the clarify answers). The strict refusal never
 // reaches this printer: the run stops at the error surface (FR-014).
 auto printPrecheckReport(const PrecheckRecord& record,
-                         sg::TracerEngine requestedEngine) -> void
+                         sg::TracerEngine requestedEngine,
+                         const std::uint32_t noisePercent) -> void
 {
   const auto figureText =
       [](const std::optional<std::uint64_t>& value) -> std::string
@@ -1424,14 +1425,17 @@ auto printPrecheckReport(const PrecheckRecord& record,
   if (!candidatesStand) {
     std::printf("precheck candidates: none\n");
   }
-  // specs/043 T037, FR-004, FR-021, D-9, R-15: the pair the pre-check
-  // lines read. The window of a run that names a method keeps a series,
-  // and the pair stands the method's own: the noise fraction with the
-  // maximum unit time for FWQ, the noise fraction with the minimum count
-  // for FTQ. The FTQ series names a quantum and the FWQ series names
-  // none, so a non-zero quantum names the run whose second figure is the
-  // count. A `tsc` window keeps no series, and its standing gap pair and
-  // gap-rate rank stay byte-identical (FR-031).
+  // specs/043 T037, T068, FR-004, FR-021, D-9, R-15: the pair the
+  // pre-check lines read. The window of a run that names a method keeps a
+  // series, and the pair stands the method's own: the noise fraction with
+  // the maximum unit time for FWQ, the noise fraction with the minimum
+  // count for FTQ. The FTQ series names a quantum and the FWQ series
+  // names none, so a non-zero quantum names the run whose second figure
+  // is the count. A `tsc` window keeps no series, and its standing gap
+  // pair and gap-rate rank stay byte-identical (FR-031). The warning rule
+  // reads the fraction against the `noise=` threshold the caller hands
+  // over, the number the strict refusal reads: a fraction under it stands
+  // no warning line, and one at or above it stands one (FR-021, D-9).
   const auto secondName = [](const PrecheckCpuRecord& entry) -> const char*
   { return entry.series->quantumNs > 0 ? "minValue" : "maxValue"; };
   const auto secondField = [](const PrecheckCpuRecord& entry) -> std::uint64_t
@@ -1444,8 +1448,9 @@ auto printPrecheckReport(const PrecheckRecord& record,
     if (!entry.planned) {
       continue;
     }
-    if (entry.series.has_value() ? entry.series->noisePercent > 0.0
-                                 : entry.stats.gapCount > 0)
+    if (entry.series.has_value()
+            ? entry.series->noisePercent >= static_cast<double>(noisePercent)
+            : entry.stats.gapCount > 0)
     {
       noisy.push_back(&entry);
     }
