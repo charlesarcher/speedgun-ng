@@ -33,6 +33,7 @@
 #include "speedgun-ng/counters.hpp"
 
 #include <linux/perf_event.h>
+#include <sched.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
@@ -951,6 +952,64 @@ auto multiplexScenario() -> void
   }
 }
 
+// The cpu a cpu-target plan samples on, with this process narrowed to it.
+// A cpu-target plan names the processor its contexts opened on, and the fast
+// read path reads on the thread that stands on that processor (FR-045), so a
+// scenario that opens one picks a cpu, runs its window there, and hands the
+// affinity back once the window has been read. The mask this process already
+// holds chooses the cpu, so a run its parent narrowed keeps working, and a
+// mask that refuses the narrowing leaves no cpu for the scenario to name. The
+// cursor is a `std::size_t` because `/usr/include/bits/cpu-set.h` binds the
+// operand of `__CPU_ISSET_S` to `size_t` on this host.
+struct OneCpuSampler
+{
+  int cpu = -1;
+  bool narrowed = false;
+  cpu_set_t wider {};
+};
+
+auto narrowToOneCpu() -> OneCpuSampler;
+
+auto narrowToOneCpu() -> OneCpuSampler
+{
+  OneCpuSampler sampler {};
+  cpu_set_t allowed {};
+  CPU_ZERO(&allowed);
+  if (::sched_getaffinity(0, sizeof(allowed), &allowed) != 0) {
+    return sampler;
+  }
+  for (std::size_t cpu = 0; cpu < CPU_SETSIZE; ++cpu) {
+    if (CPU_ISSET(cpu, &allowed) != 0) {
+      sampler.cpu = static_cast<int>(cpu);
+      break;
+    }
+  }
+  if (sampler.cpu < 0) {
+    return sampler;
+  }
+  CPU_ZERO(&sampler.wider);
+  if (::sched_getaffinity(0, sizeof(sampler.wider), &sampler.wider) != 0) {
+    sampler.cpu = -1;
+    return sampler;
+  }
+  cpu_set_t single {};
+  CPU_ZERO(&single);
+  CPU_SET(static_cast<std::size_t>(sampler.cpu), &single);
+  if (::sched_setaffinity(0, sizeof(single), &single) != 0) {
+    sampler.cpu = -1;
+    return sampler;
+  }
+  sampler.narrowed = true;
+  return sampler;
+}
+
+auto widenBack(const OneCpuSampler& sampler) -> void
+{
+  if (sampler.narrowed) {
+    (void)::sched_setaffinity(0, sizeof(sampler.wider), &sampler.wider);
+  }
+}
+
 // A per-cpu target reaches the kernel with a cpu bound and no pid, so
 // the kernel grants it only at a paranoia level this host does not
 // offer. The refusal surfaces as a recoverable construction error in the
@@ -986,8 +1045,15 @@ auto cpuTargetScenario() -> void
   const auto leaf = cpu.counter<Events>(work);
   check(leaf.has_value(), "the instruction counter resolves");
   const sg::counters::Expression<Events> over {*leaf};
+  auto sampler = narrowToOneCpu();
+  if (!sampler.narrowed) {
+    std::printf("SKIP cpu-target: this process cannot narrow its affinity to "
+                "one cpu, so a cpu-target plan has no sampling thread that "
+                "stands on the processor it names (FR-045)\n");
+    return;
+  }
   const sg::counters::Target pinned {.kind = sg::counters::TargetKind::CPU,
-                                     .cpu = 0};
+                                     .cpu = sampler.cpu};
   const auto refused = compile(System::local(), pinned, over);
   if (refused.has_value()) {
     // A host that grants per-cpu events binds the plan and folds it.
@@ -996,6 +1062,7 @@ auto cpuTargetScenario() -> void
     window.finish();
     check(window.metric(over).value >= 0.0,
           "a granted per-cpu plan samples and folds");
+    widenBack(sampler);
     std::printf("cpu target: granted, plan folds\n");
     return;
   }
@@ -1003,6 +1070,7 @@ auto cpuTargetScenario() -> void
             != std::string::npos,
         "a per-cpu target the kernel refuses is a recoverable construction "
         "error (FR-024)");
+  widenBack(sampler);
   std::printf("cpu target: %s\n", refused.error().message.c_str());
 }
 
@@ -1056,8 +1124,15 @@ auto scopeRefusedCpuTargetScenario(const std::vector<const Object*>& pmuObjects)
   check(leaf->avail() == Availability::SCOPE_REFUSED,
         "the resolved handle carries the published scope refusal (FR-022)");
   const Expression<Events> over {*leaf};
+  auto sampler = narrowToOneCpu();
+  if (!sampler.narrowed) {
+    std::printf("SKIP cpu-target: this process cannot narrow its affinity to "
+                "one cpu, so a cpu-target plan has no sampling thread that "
+                "stands on the processor it names (FR-045)\n");
+    return;
+  }
   const sg::counters::Target pinned {.kind = sg::counters::TargetKind::CPU,
-                                     .cpu = 0};
+                                     .cpu = sampler.cpu};
   const auto compiled = compile(System::local(), pinned, over);
   if (compiled.has_value()) {
     Scope window {*compiled};
@@ -1071,6 +1146,7 @@ auto scopeRefusedCpuTargetScenario(const std::vector<const Object*>& pmuObjects)
         "cpu target over scope-refused %s/%s: granted, plan " "folds\n",
         std::string(refusedOn->path()).c_str(),
         refusedName.c_str());
+    widenBack(sampler);
     return;
   }
   const std::string& message = compiled.error().message;
@@ -1089,6 +1165,7 @@ auto scopeRefusedCpuTargetScenario(const std::vector<const Object*>& pmuObjects)
         "the refusal names the window and not the catalog availability, so a "
         "caller tells a scope refusal the scope, not the encoding, "
         "produced (FR-022)");
+  widenBack(sampler);
   std::printf("cpu target over scope-refused %s/%s: %s\n",
               std::string(refusedOn->path()).c_str(),
               refusedName.c_str(),
