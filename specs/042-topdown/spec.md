@@ -562,11 +562,11 @@ registered benchmark prints no row.
 - **FR-005**: When the identity names an Arm part, the selection shall answer
   unsupported, name the `MIDR`, and state that no Arm table is vendored.
   (D-7.)
-- **FR-006**: When the mapping file selects a hybrid directory for the
-  identity, the selection shall answer unsupported and state that this
-  feature makes no claim for a hybrid part, because the core type stands
-  absent (FR-003) and no hybrid host stands in the acceptance set. (D-13,
-  SC-12.)
+- **FR-006**: When the selected directory publishes rows for two core scopes,
+  `cpu_core` and `cpu_atom`, the selection shall answer unsupported and state
+  that this feature makes no claim for a hybrid part, because the core type
+  stands absent (FR-003) and no hybrid host stands in the acceptance set. A
+  directory that publishes one scope shall select normally. (D-13, SC-12.)
 - **FR-007**: When the selected table holds no row of any top-down group, in
   either the Intel or the AMD spelling (FR-014), the selection shall answer
   unsupported and name the directory it read.
@@ -803,10 +803,19 @@ registered benchmark prints no row.
   library already reads: vendor, family, model, stepping. The hybrid core type
   and the Arm `MIDR` stand absent on every production host here, because no
   reader exists for either, and a test hands in both (FR-003, D-13).
-- Q: Does the source record name one file? → A: No. The Skylake-X directory
-  holds 16 JSON files, and a level's rows come from more than one of them, so
-  the record carries one entry per contributing file: the name the embedded
-  table gives and that file's manifest hash (FR-015, PC-12).
+- Q: Does the source record name one file? → A: It names each file that
+  contributed. The Skylake-X directory holds 15 JSON files and all 102 of its
+  top-down rows stand in `skx-metrics.json`, while other directories spread
+  their rows across several files, so the record carries one entry per
+  contributing file: the name the embedded table gives and that file's
+  manifest hash (FR-015, PC-12).
+- Q: How does the selection know a part is hybrid without a core-type reader?
+  → A: From the selected directory's own rows. A hybrid directory publishes
+  rows for two core scopes, `cpu_core` and `cpu_atom`, and a single-scope
+  directory publishes one. Measured over the vendored tree, five directories
+  carry the atom scope: `alderlake`, `arrowlake`, `lunarlake`, `meteorlake`
+  and `pantherlake`. Atom-only parts (`grandridge`, `sierraforest`,
+  `alderlaken`) carry one scope and select normally (FR-006).
 
 - Q: Which top-down rows of Skylake-X does the host-constant gap refuse, and
   is a level-1 row among them? → A: Yes, all four. `#core_wide` sits in
