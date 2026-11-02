@@ -108,6 +108,14 @@ struct ProbeCpuState
   std::uint64_t calibrationSpanNs = 0;
   std::vector<std::uint64_t> series;
   std::size_t seriesKept = 0;
+  // specs/043 FR-004, FR-020, E-27, R-04: the kept count the series
+  // buffer stood at as the item passed the latch line, the end of the
+  // pre-check phase. The buffer fills by index and drops what exceeds
+  // it, so the samples below this count stand written and never written
+  // again: the pre-check record of a `mode=both` run folds this prefix
+  // while the alongside loop runs on, and no read of the live buffer
+  // stands needed.
+  std::size_t seriesKeptAtLatch = 0;
   std::uint64_t droppedSamples = 0;
   // specs/043 FR-020, R-11, E-26: the stamp the first series store
   // wrote, the base the window fold recovers each sample's stamp from.
@@ -210,6 +218,23 @@ private:
 /// \post an empty kept set leaves the series figures at 0 (FR-008)
 [[nodiscard]] auto seriesStatsOf(const ProbeCpuState& state)
     -> JitterSeriesStats;
+
+/// @brief specs/043-fwq-ftq FR-004, FR-020, E-27, R-04: the series fold
+/// of one probe cpu over a prefix of its kept samples: the figures of
+/// the first `prefixCount` samples of the series buffer, the shape the
+/// pre-check record of a `mode=both` run reads from the count the latch
+/// snapshotted. The buffer fills by index and drops what exceeds it, so
+/// the prefix stands written and never written again, and the fold reads
+/// it while the alongside loop runs on.
+///
+/// \pre `prefixCount` stands at or below `state.seriesKept`
+/// \post the fold answers the figures of the first `prefixCount`
+///       samples, the calibration figures and the drop count carrying
+///       the state's own (FR-007, FR-022)
+/// \post minValue <= medianValue <= p90Value <= p99Value <= p999Value
+///       <= p9999Value <= maxValue
+[[nodiscard]] auto seriesStatsOf(const ProbeCpuState& state,
+                                 std::size_t prefixCount) -> JitterSeriesStats;
 
 /// @brief specs/043-fwq-ftq: the per-benchmark series fold: the kept
 /// samples of one probe cpu whose recovered stamp falls inside the

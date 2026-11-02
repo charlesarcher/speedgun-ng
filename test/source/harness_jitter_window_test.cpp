@@ -2551,6 +2551,45 @@ auto main() -> int
               "(FR-019)");
       }
     }
+
+    // specs/043 T066, US1, US2, FR-004, FR-020, E-27, R-04: the pre-check
+    // series of a `mode=both` run. The alongside loop runs on while the
+    // pre-check record builds, and the standing precondition bars a read
+    // of the live buffer: the fold reads the prefix the latch
+    // snapshotted, the count that stands stable once the phase ends
+    // there. The dipping clock keeps unit times of 1,000 ns with a dip
+    // every 16th unit, so the prefix names a kept count of its own and a
+    // noise fraction of 36 percent, and the alongside phase behind the
+    // latch keeps samples the prefix leaves out.
+    if (twoCpuScenarios) {
+      sg::JitterProbeOptions options;
+      options.cpus = {cpus.at(0)};
+      options.mode = sg::JitterProbeMode::BOTH;
+      options.method = sg::JitterMethod::FWQ;
+      options.gapCount = 1024;
+      options.precheckMs = 1;
+      sg::detail::installTestReader(std::make_unique<DipSeriesReader>());
+      sg::detail::JitterProbe probe(options);
+      probe.start();
+      const auto& states = probe.states();
+      check(!states.empty(),
+            "theBothModePrecheckFoldsTheLatchedPrefix: the probe measured a "
+            "cpu (FR-004)");
+      const auto latched = states.front().seriesKeptAtLatch;
+      const auto prefix = sg::detail::seriesStatsOf(states.front(), latched);
+      probe.stopAndJoin();
+      const auto full = sg::detail::seriesStatsOf(states.front());
+      sg::detail::installTestReader(nullptr);
+      check(latched > 0 && prefix.sampleCount == latched,
+            "theBothModePrecheckFoldsTheLatchedPrefix: the prefix counts the "
+            "samples the latch snapshotted (FR-020, E-27)");
+      check(prefix.sampleCount < full.sampleCount,
+            "theBothModePrecheckFoldsTheLatchedPrefix: the alongside phase "
+            "keeps samples the prefix leaves out (FR-004, R-04)");
+      check(prefix.noisePercent > 30.0 && prefix.noisePercent < 40.0,
+            "theBothModePrecheckFoldsTheLatchedPrefix: the prefix answers "
+            "the pre-check window's noise fraction (FR-004, FR-009)");
+    }
   }
 
   // specs/043 T027, US4, FR-021, FR-030, FR-031, R-18: the rule-name table
