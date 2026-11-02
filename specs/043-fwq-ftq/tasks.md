@@ -827,7 +827,9 @@ every record, and the standing contracts carry the deltas.
   the two defects as read. Run `bash tools/noise/fwq_ftq_acceptance.sh`
   again on the lane host, keep the eight sections, and land the new record
   beside the quickstart link (FR-027, FR-028, SC-008).
-  Verify: `grep -c "^## " specs/043-fwq-ftq/results/acceptance-<date>.md` reads 8, `grep -c "exit status: 0\|exit: 0" specs/043-fwq-ftq/results/acceptance-<date>.md` reads 8, and each section names a `workCount` above 1 and a drop count of 0
+  The script names its record by date, so a same-day re-record lands
+  with a suffix and the standing record keeps its name.
+  Verify: `grep -c "^## " specs/043-fwq-ftq/results/acceptance-2026-11-02-rerun.md` reads 8, `grep -ci "^Exit status: 0$" specs/043-fwq-ftq/results/acceptance-2026-11-02-rerun.md` reads 8, the four FWQ sections name a `workCount` above 1, the four FTQ sections name 1, and each section shows a drop count of 0
 
 - [ ] T070 Close the coverage shortfall the lane head reads, from the
   `coverage` target of the `ci-coverage` preset: lines 16,568 of 16,612
