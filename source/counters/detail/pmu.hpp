@@ -281,12 +281,28 @@ enum class FastReadVerdict : std::uint8_t
 // measured correctly (FR-040, R-011).
 constexpr std::uint32_t kRnpmcCounterWidth = 48;
 
-// The highest counter index the rdpmc instruction is given. The kernel
-// publishes a one-based index in the event page and the caller reads
-// `rdpmc(index - 1)`, so an index past this names no counter any host
-// has. The gate bounds the instruction operand and states no property of
-// any page (FR-040, R-011).
+// The highest counter number the bound accepts. The kernel publishes a
+// one-based index in the event page and the caller reads `rdpmc(index - 1)`,
+// so a number past this names no counter any host has. The bound reads that
+// number with the fixed-counter mark masked off, so a fixed spelling is
+// bounded by the counter it names, and the gate states no property of any
+// page (FR-040, FR-053, R-011).
 constexpr std::uint32_t kRnpmcMaxIndex = 1024;
+
+// The mark the kernel sets on the event-page index of a fixed counter,
+// leaving the one-based counter number in the bits below it, so a fixed
+// spelling publishes the mark added to its number: `cpu/cpu-cycles`
+// arrives as 0x40000002 (FR-053, spec D-18). Postcondition of the bound in
+// `fastIndexValid`: the mark is the only bit it masks, and it stands above
+// every number kRnpmcMaxIndex admits, so masking turns no refused number
+// into an accepted one. The instruction operand keeps the mark, since the
+// mark is what selects a fixed counter, and `fastIndexValid` is the reader
+// that masks it off.
+constexpr std::uint32_t kFixedCounterIndexMark = 1U << 30;
+
+static_assert(kFixedCounterIndexMark > kRnpmcMaxIndex,
+              "the fixed-counter mark stands above every counter number the "
+              "bound admits (FR-053)");
 
 // The pure halves of the mapped-page protocol over the fields the
 // kernel's event page publishes (FR-040, R-011, T066; plan.md Coverage

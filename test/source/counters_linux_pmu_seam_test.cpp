@@ -430,6 +430,18 @@ auto pageGateScenario() -> void
   check(!fastIndexValid(kRnpmcMaxIndex + 1),
         "an index past the operand bound is refused");
 
+  // A fixed counter arrives marked: for a fixed spelling the kernel sets
+  // bit 30 of the published index, so `cpu/cpu-cycles` publishes
+  // 0x40000002 on the host PC-7 measured. The bound reads the counter
+  // number beneath the mark (FR-053, D-18).
+  check(fastIndexValid(0x40000002U),
+        "a marked index naming counter 2 is a valid index (FR-053)");
+  check(!fastIndexValid(0x40000000U + kRnpmcMaxIndex + 1U),
+        "a marked index past the operand bound is refused (FR-053)");
+  check(!fastIndexValid(0x40000000U),
+        "the mark over counter 0 names no counter and falls back to the "
+        "group read (FR-053)");
+
   // The width the decode masks to: the published width, or the fallback
   // when the page publishes none. A host whose counters are wider or
   // narrower than the fallback is read at the width it publishes.
@@ -461,6 +473,26 @@ auto pageGateScenario() -> void
               == FastReadVerdict::OK
           && value == 0xabc,
       "a page with a valid index decodes to the raw read");
+
+  // The same decode over a page whose index carries the fixed-counter
+  // mark. The fixture writes the field the kernel writes, so the marked
+  // reading is covered with no event opened (FR-053, D-18).
+  const SyntheticPage marked {.index = 0x40000002U, .pmc_width = 0};
+  std::uint64_t markedValue = 0x999;
+  check(
+      fastIndexValid(marked.index)
+          && sg::counters::detail::fastDecode(11,
+                                              11,
+                                              marked.index,
+                                              1,
+                                              0xdef,
+                                              0,
+                                              fastCounterWidth(marked.pmc_width),
+                                              markedValue)
+              == FastReadVerdict::OK
+          && markedValue == 0xdef,
+      "a page whose index carries the fixed-counter mark decodes to the raw "
+      "read");
 }
 
 // The probe's verdict over the three fields the mapped event page

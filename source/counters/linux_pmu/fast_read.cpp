@@ -92,14 +92,18 @@ auto FastContext::operator=(FastContext&& other) noexcept -> FastContext&
   return *this;
 }
 
-// One-based counter-index validity over the page `index` (FR-040,
-// R-011). Index 0 means the kernel published no usable counter, and an
-// index past the operand bound names no counter any host has; both fall
-// back to the group read. Pure over the published value, so a synthetic
+// One-based counter-index validity over the page `index` (FR-040, R-011,
+// FR-053). Index 0 means the kernel published no usable counter, and a
+// counter number past the operand bound names no counter any host has;
+// both fall back to the group read. A fixed counter arrives with
+// kFixedCounterIndexMark set above its number, so the bound reads the
+// number beneath the mark and leaves the marked index for the instruction,
+// which the mark selects. Pure over the published value, so a synthetic
 // page covers it in CI (T066; plan.md Coverage strategy).
 auto fastIndexValid(const std::uint32_t index) noexcept -> bool
 {
-  return index != 0 && index <= kRnpmcMaxIndex;
+  const auto counterNumber = index & ~kFixedCounterIndexMark;
+  return counterNumber != 0 && counterNumber <= kRnpmcMaxIndex;
 }
 
 // The counter width a page publishes, or the width the protocol reads at
