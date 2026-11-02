@@ -978,6 +978,23 @@ target_compile_definitions(
 )
 add_test(NAME harness_noise_report_test COMMAND harness_noise_report_test)
 
+# The bytes a tsc run owes, unchanged (specs/043 T026): the document of a
+# run that names no method against the fixture bytes of master's writer, the
+# console block of the same probe state, the new keys standing absent, and
+# the schema at the stamped minor (FR-026, FR-031, SC-004, R-19). The schema
+# path enters the way `harness_json_report_test` takes it.
+add_executable(harness_jitter_bytes_test
+               source/harness_jitter_bytes_test.cpp)
+target_link_libraries(harness_jitter_bytes_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_jitter_bytes_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_jitter_bytes_test PRIVATE cxx_std_23)
+target_compile_definitions(
+    harness_jitter_bytes_test
+    PRIVATE SG_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/docs/schema/report-v1.json"
+)
+add_test(NAME harness_jitter_bytes_test COMMAND harness_jitter_bytes_test)
+
 # The idle resolver, the overlap check and the mask decision over
 # installed layouts (T017; US2, FR-016 to FR-020, D-3 to D-5, D-9, R-07,
 # PC-2).
