@@ -213,7 +213,7 @@ docs/pages/harness.md                     # + the keys, the 30 field rows, the
 README.md                                 # + the 18-line section, four rows, the trim
 example/docs/fwq_ftq.cpp                  # new: one FWQ family, one FTQ family
 example/docs/fwq_ftq.expected             # new: the recorded run
-example/docs/jitter_probe.cpp             # the shared region stays whole
+example/docs/jitter_probe.cpp             # the region splits into two units
 example/CMakeLists.txt                    # + add_docs_example(fwq_ftq)
 tools/docs/example_drift.py               # + the section row, the owner row,
                                           #   the cap ledger comment
@@ -420,8 +420,9 @@ and no second framework join.
   `Noise tracer` (`:764-786`). Prose lines inside those three sections
   give back 35 lines, and the new section with its four rows lands 22.
   The section quotes regions of the new example
-  `example/docs/fwq_ftq.cpp`, and the shared 17-line region
-  (`example/docs/jitter_probe.cpp:9-25`) stays whole, so every quoted
+  `example/docs/fwq_ftq.cpp`, and the standing region of
+  `example/docs/jitter_probe.cpp:9-25` splits into two complete top-level
+  units, so every quoted
   region stands one complete top-level unit and `snippet_compile`
   passes. The page lands at or below 1004 lines, the cap staying 1004.
 - **R-24 The example and the fold (spec FR-029).**
@@ -714,7 +715,7 @@ struct SpectrumResult
 | `README.md` | the new section after `### Noise tracer` (`:764-786`); four quick-reference rows after `PrecheckRecord::tracer` (`:938`); the `--jitter-probe` row (`:966`) gains the keys; the region split that keeps the page at or below 1004 lines |
 | `docs/pages/harness.md` | the value rows after `strict` (`:1832`); the 30 series field rows after `droppedGaps` (`:1853`); the names rows after `JitterEntryFold` (`:1866`); the block sample (`:1798-1820`); the version sentence (`:1399`) reads `1.12`; the field rows stand prose the console block governs, and no gate reads the table |
 | `example/docs/fwq_ftq.cpp`, `example/docs/fwq_ftq.expected` | new: one FWQ run and one FTQ run; the `fwq-run` region and the `ftq-run` region each carry one complete top-level unit, and the `report` region carries the recorded run; the README section quotes the two run regions |
-| `example/docs/jitter_probe.cpp` | the shared 17-line region (`:9-25`) stays whole, the markers staying at `:8` and `:27`; the README quotes of this file stay as they are |
+| `example/docs/jitter_probe.cpp` | the standing region (`:9-25`) splits into `probe-unit` and `probe-main`, each a complete top-level unit, the drift gate barring a marker nested inside an open region; `Jitter probe` quotes `probe-unit`, `Host noise pre-check` and `Noise tracer` quote `probe-main`, and the guide page quotes `probe-main`; the example's output bytes stay unchanged |
 | `example/CMakeLists.txt` | `add_docs_example(fwq_ftq)` after `:78`, the function at `:40-48` |
 | `test/CMakeLists.txt` | `harness_fwq_ftq_test` and `harness_spectrum_test` after the `harness_jitter_preset_test` block (`:973-984`), the shape of `:874-880`; `harness_jitter_bytes_test` with the schema define, the shape of `:958-968`; the shape fold after `report_shape_jitter_sample` (`:1905-1922`) |
 | `test/source/harness_fwq_ftq_test.cpp` | new: the scripted series, the calibration, the noise fractions, the drop rule, the resample path |

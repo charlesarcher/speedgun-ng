@@ -684,8 +684,8 @@ gate reads no finding over the branch range.
   `:966`) with the keys; shorten the quoted regions of the two sections
   the lane owns that do not carry the shared region: add two 8-line
   regions to `example/docs/jitter_probe.cpp` and point `Host noise
-  pre-check` and `Noise tracer` at them, the shared 17-line region
-  staying whole, the cap staying 1004 (FR-023, IV.1, R-23). The page total
+  pre-check` and `Noise tracer` at them, the standing region split into
+  two complete units, the cap staying 1004 (FR-023, IV.1, R-23). The page total
   lands only after T042 registers the section, and T042 counts the page.
   (depends on T035, which prints the lines the section teaches)
   Verify: `python3 tools/docs/example_drift.py .` exits 0 with no line printed, and `sed -n '/^### Fixed work and time quanta$/,/^### Hunter mode$/p' README.md | head -n -1 | wc -l` reads 18
@@ -712,8 +712,9 @@ gate reads no finding over the branch range.
 - [x] T042 [US6] Register the title `Fixed work and time quanta` in
   `SECTIONS` (`tools/docs/example_drift.py:33-68`), the owner row
   `("fwq_ftq.cpp",)` in `SECTION_OWNERS` (`:73-108`) and the cap ledger
-  comment (`:178-183`). The shared 17-line region of
-  `example/docs/jitter_probe.cpp:9-25` stays whole, and the new section
+  comment (`:178-183`). The standing region of
+  `example/docs/jitter_probe.cpp:9-25` splits into `probe-unit` and
+  `probe-main`, each a complete top-level unit, and the new section
   quotes regions of `example/docs/fwq_ftq.cpp` alone, so every region
   stays a complete top-level unit and `snippet_compile` compiles every
   emitted block. The registration rows stand as the work FR-034 requires,
