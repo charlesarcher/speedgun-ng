@@ -144,7 +144,8 @@ force. No implementer reopens them.
   `test/source/harness_noise_report_test.cpp:457`), and two plant the next
   minor as the example of a later report
   (`test/source/harness_json_load_test.cpp:107`, `:1202`), so those take
-  `1.13`. The guide page states the stamp in prose
+  `1.13`. Seven further lines name the minor in a message or a comment and move
+  with it, so the tree states one minor. The guide page states the stamp in prose
   (`docs/pages/harness.md:1399`, which still reads `1.10` today) and moves
   with it. If the other lane lands first, this
   lane takes the next free minor and the next free schema minor and re-runs
