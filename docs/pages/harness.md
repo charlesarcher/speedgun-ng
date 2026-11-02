@@ -1409,7 +1409,9 @@ the `not available` the console prints. `reason`, `label`, `noiseWarning`,
 `counterDisclosure` and `fit` stand `null` where the run carries none, and a
 statistic whose sample set stands empty answers `null` for every quantity.
 `passSpread` and each metric column's `pass` stand `null` where fewer than two
-passes measured the run.
+passes measured the run. An entry of a run that named no `--topdown` carries no
+`topdown` key at all, and a node the merge left as a gap stands `null` in its
+`value`, where a counted node carries a number.
 
 ### The raw column rule
 

@@ -886,19 +886,19 @@ naming a deeper node, one naming no node, and one with no tree.
   `specs/042-topdown/contracts/topdown-report-key.md:118-143` names for a minor
   that adds one object, the value the writer appends at `:992` (spec D-17; turns
   every `stamp_*` case green). Eleven sites across five units moved with the stamp, and the guide page carried an ungated stamp stale at `1.10` beside the `1.11` the code held; `T069` moves it.
-- [ ] T069 [US3] In `docs/pages/harness.md`, move the figure in the sentence at
+- [x] T069 [US3] In `docs/pages/harness.md`, move the figure in the sentence at
   `:1399`, inside the version-rule body at `:1396-1401` under the heading at
   `:1394`, from `1.10` to `1.12` and name the `topdown` object as what the minor
   added; the page reads `1.10` while the writer has stamped `1.11` since
   specs/037, so this move closes a gap that stands today (spec D-17; lands with
-  T068 in one commit).
-- [ ] T070 [US3] In `docs/pages/harness.md`, add to the null-rule body at
+  T068 in one commit). The page reads `A run writes 1.12` beside the object the stamp names, and the sentence that named `group` now names the record of the entry.
+- [x] T070 [US3] In `docs/pages/harness.md`, add to the null-rule body at
   `:1405-1410`, under the heading at `:1403`, the two top-down facts
   `specs/042-topdown/contracts/topdown-page.md:124` states: an entry written
   without the option carries no `topdown` key at all, and a gap node carries
   `null` in its `value` where a counted node carries a number; leave the
   existing list of keys that stand null otherwise unchanged (FR-033, FR-035;
-  lands with T065 in one commit).
+  lands with T065 in one commit). The null rule gains the one sentence the tree needs: a node whose row the host refuses carries a gap where its figure would stand.
 - [ ] T071 [US3] In `docs/pages/harness.md`, add the `topdown : <label>`
   alternative to the second line of the `<value>` production at `:1461`, inside
   the grammar fence that runs `:1458-1466`, beside `counter`, `metric` and
