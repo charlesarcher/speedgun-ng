@@ -990,6 +990,18 @@ add_test(NAME harness_jitter_preset_test
 # slots cover one threaded run (030 FR-003).
 set_tests_properties(harness_jitter_preset_test PROPERTIES PROCESSORS 4)
 
+# The spectrum kernel as a pure function over a sample span: the tone,
+# constant, one-sample, cap, truncation, six-tone, median and threshold rows,
+# and the three resample rows (T060, T008, T009; US3, FR-017, FR-018, FR-025,
+# SC-002, D-5, R-12, R-13).
+add_executable(harness_spectrum_test
+               source/harness_spectrum_test.cpp)
+target_link_libraries(harness_spectrum_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_spectrum_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_spectrum_test PRIVATE cxx_std_23)
+add_test(NAME harness_spectrum_test COMMAND harness_spectrum_test)
+
 # The public surface the fixed work quanta and fixed time quanta probes
 # stand on: the three method enumerators, the four option fields with their
 # defaults, the bounds the parser enforces, and the series and run records
