@@ -362,6 +362,36 @@ auto anEmptyBinTakesThePreviousSample() -> void
   }
 }
 
+// FR-017: the trailing open bin takes the mean of the unit times that stand
+// inside it, and the bins past it take that sample in turn.
+auto theTrailingOpenBinTakesItsOwnMean() -> void
+{
+  const std::vector<std::uint64_t> unitTimes {1000, 1500};
+  const auto samples = sg::detail::resampleUnitTimes(
+      unitTimes, kStepNs, sg::detail::kSpectrumCap);
+
+  check(samples.size() == 2,
+        "the resample answers one sample per whole step (FR-017)");
+  if (samples.size() == 2) {
+    check(sameValue(samples[0], 1000.0),
+          "the closed bin keeps its own mean (FR-017)");
+    check(sameValue(samples[1], 1500.0),
+          "the trailing open bin takes the mean of the unit time inside it "
+          "(FR-017)");
+  }
+
+  const auto wide =
+      sg::detail::resampleUnitTimes(std::vector<std::uint64_t> {1000, 2500},
+                                    kStepNs,
+                                    sg::detail::kSpectrumCap);
+  check(wide.size() == 3,
+        "the resample answers one sample per whole step (FR-017)");
+  if (wide.size() == 3) {
+    check(sameValue(wide[1], 2500.0) && sameValue(wide[2], 2500.0),
+          "the bins past the trailing open bin take that sample (FR-017)");
+  }
+}
+
 // FR-017: the step stands at the median unit time of the kept series, and
 // the cap bounds the count the resample answers.
 auto theResampleStepStandsAtTheMedian() -> void
@@ -402,6 +432,7 @@ auto main() -> int
   aBinBelowTheThresholdStandsDropped();
   theResampleAveragesEachBin();
   anEmptyBinTakesThePreviousSample();
+  theTrailingOpenBinTakesItsOwnMean();
   theResampleStepStandsAtTheMedian();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
