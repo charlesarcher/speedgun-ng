@@ -518,6 +518,27 @@ target_link_libraries(counters_pmu_provider_test
 target_compile_features(counters_pmu_provider_test PRIVATE cxx_std_23)
 add_test(NAME counters_pmu_provider_test
          COMMAND counters_pmu_provider_test)
+# The source record a table owes the reader (specs/042-topdown T006; FR-015,
+# PC-12, spec D-12): the reference the manifest states, the digest of every
+# contributing file, and the file every loaded row names. The fixture tree is
+# written into the build tree at run time, as the seam test above does, and
+# the define names it for both counters units of this feature. A run whose
+# build tree holds no writable fixture directory reports its reason and exits
+# 2, the skip code the `test/tier_labels.sh` row of T001 reserves.
+add_executable(counters_topdown_source_test
+               source/counters_topdown_source_test.cpp)
+target_link_libraries(counters_topdown_source_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_topdown_source_test PRIVATE cxx_std_23)
+target_compile_definitions(
+    counters_topdown_source_test
+    PRIVATE
+        "SG_TOPDOWN_TABLE_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/counters_topdown_source_tables\""
+)
+add_test(NAME counters_topdown_source_test
+         COMMAND counters_topdown_source_test)
+set_tests_properties(counters_topdown_source_test PROPERTIES
+                     SKIP_RETURN_CODE 2)
 
 # Metric formulas of the vendored event table (T013..T019, T027..T034;
 # FR-003..FR-021). The grammar test drives the parse seam as a pure

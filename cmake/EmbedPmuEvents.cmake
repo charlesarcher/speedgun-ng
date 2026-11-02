@@ -16,6 +16,13 @@ function(speedgun_embed_pmu_events target vendored_root)
   if(NOT IS_DIRECTORY "${vendored_root}/arch/x86")
     message(FATAL_ERROR "no vendored event tree at ${vendored_root}")
   endif()
+  # The manifest rides with the tree it lists: the reference and the per-file
+  # digest the library publishes are read from it, so a tree without one
+  # carries tables no reader can trace (specs/042 FR-015, spec D-12).
+  set(record "${vendored_root}/RECORD")
+  if(NOT EXISTS "${record}")
+    message(FATAL_ERROR "no manifest at ${record}")
+  endif()
 
   set(gen_dir "${CMAKE_CURRENT_BINARY_DIR}/generated/pmu_events")
   file(MAKE_DIRECTORY "${gen_dir}")
@@ -40,8 +47,12 @@ function(speedgun_embed_pmu_events target vendored_root)
   add_custom_command(
     OUTPUT ${generated}
     COMMAND ${CMAKE_COMMAND} -DEMBED_ROOT=${vendored_root}
-            -DEMBED_OUT=${gen_dir} -P "${SPEEDGUN_EMBED_SCRIPT}"
-    DEPENDS "${SPEEDGUN_EMBED_SCRIPT}" ${arch_dirs}
+            -DEMBED_OUT=${gen_dir} -DEMBED_RECORD=${record}
+            -P "${SPEEDGUN_EMBED_SCRIPT}"
+    # The manifest is a dependency beside the directories, because a re-pin
+    # moves a digest or the reference and the emitted data has to move with
+    # it (specs/042 FR-015).
+    DEPENDS "${SPEEDGUN_EMBED_SCRIPT}" "${record}" ${arch_dirs}
     COMMENT "Embedding the vendored PMU event tables"
     VERBATIM)
 

@@ -606,6 +606,19 @@ void parseJsonBytes(std::string_view bytes, std::vector<PmuTableEntry>& table)
   parsePadded(simdjson::padded_string {bytes}, table);
 }
 
+// Names the file every row appended since `first` stands above came out of.
+// The name is the bare file name the embedded index gives, which is also the
+// tail of the path a manifest line states a digest for, so a published row
+// reaches the digest of its own file (FR-015, PC-12, spec D-12).
+void tagFile(std::vector<PmuTableEntry>& table,
+             const std::size_t first,
+             const std::string_view name)
+{
+  for (std::size_t row = first; row < table.size(); ++row) {
+    table[row].fileName.assign(name);
+  }
+}
+
 }  // namespace
 
 // The vendored mapfile patterns use POSIX classes ([[:xdigit:]]);
@@ -815,7 +828,14 @@ auto pmuLoadTable(const std::string& directory)
       // The registry's index is a generated C array and its count is the
       // bound on this loop, so the subscript is in range by construction.
       // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      parseJsonBytes(embeddedFileBytes(*dir, dir->files[i].name), table);
+      const std::size_t first = table.size();
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      const std::string_view name {dir->files[i].name};
+      parseJsonBytes(embeddedFileBytes(*dir, name), table);
+      // The file a row came out of is the fact a published row owes the
+      // reader, because the digest and the reference it reaches next belong
+      // to that file and to no other (FR-015, PC-12).
+      tagFile(table, first, name);
     }
   }
   return cache.emplace(directory, std::move(table)).first->second;
@@ -824,7 +844,12 @@ auto pmuLoadTable(const std::string& directory)
 void pmuParseTableFile(const std::string_view path,
                        std::vector<PmuTableEntry>& out)
 {
-  parseJsonFile(std::filesystem::path(std::string(path)), out);
+  const std::filesystem::path file {std::string(path)};
+  const std::size_t first = out.size();
+  parseJsonFile(file, out);
+  // A fixture file is a table file like any other, so its rows name it and a
+  // fixture reaches the same record a vendored directory answers.
+  tagFile(out, first, file.filename().string());
 }
 
 }  // namespace sg::counters::detail

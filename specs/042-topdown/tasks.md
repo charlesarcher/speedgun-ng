@@ -121,7 +121,7 @@ and every story calls `topdownTree`.
   unreadable, and it answers no slot width (FR-042 as settled at `754867de`; red
   there). This case lands in the commit of T016 (FR-048).
 
-- [ ] T006 [P] In `test/source/counters_topdown_source_test.cpp`, a new file,
+- [x] T006 [P] In `test/source/counters_topdown_source_test.cpp`, a new file,
   write the source record over a two-file fixture directory: the reference is
   the manifest `ref:` line, each contributing file answers its `TableFile` name
   and `manifestHash` from the `RECORD` line beside it, the files stand in the
@@ -246,14 +246,14 @@ and every story calls `topdownTree`.
   lands, and hold no private reader beside it (FR-042, FR-043, spec D-6; turns
   `coreWideAnswersThroughThePublishedQuery` of T008 green).
 
-- [ ] T018 [P] In `cmake/embed_pmu_blob.cmake` and `cmake/EmbedPmuEvents.cmake`,
+- [x] T018 [P] In `cmake/embed_pmu_blob.cmake` and `cmake/EmbedPmuEvents.cmake`,
   pass the `RECORD` path to the generator, read the `ref:` line and each file's
   sha256, emit both into the index and the registry, and refuse a file that
   holds no hash line; in `source/counters/linux_pmu/embedded_tables.hpp`, give
   `EmbeddedFile` its `sha256` and `EmbeddedDir` its `reference` beside
   `embeddedFindDir` (FR-015, spec D-12; turns the source record of T006 green).
 
-- [ ] T019 In `source/counters/detail/pmu.hpp` and
+- [x] T019 In `source/counters/detail/pmu.hpp` and
   `source/counters/linux_pmu/table_parse.cpp`, give `PmuTableEntry` a `fileName`
   and tag every entry `pmuLoadTable` appends with the embedded file it came
   from, so a published row can name its file (PC-12). No case of its own stands

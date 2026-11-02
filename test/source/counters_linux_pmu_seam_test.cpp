@@ -2417,9 +2417,10 @@ auto findRow(const std::vector<PmuTableEntry>& table,
 }
 
 // One vendored table row for the description assertions below. The
-// seam type declares eight members and the build treats a partial
+// seam type declares nine members and the build treats a partial
 // initializer as an error, so the row is built here; the four metric
-// members stay empty, because this row is an event row.
+// members stay empty, because this row is an event row, and the file
+// name stays empty because no embedded file stands behind a built row.
 auto tableRow(std::string name,
               std::string description,
               std::string unit = "",
@@ -2433,7 +2434,8 @@ auto tableRow(std::string name,
                         .metricName = {},
                         .metricExpr = {},
                         .scaleUnit = {},
-                        .group = {}};
+                        .group = {},
+                        .fileName = {}};
 }
 
 // The sysfs event_attr decoder, the hexadecimal event code, and the two

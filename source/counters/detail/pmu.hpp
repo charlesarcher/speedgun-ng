@@ -55,6 +55,13 @@ struct PmuTableEntry
   std::string metricExpr;
   std::string scaleUnit;
   std::string group;
+  // The table file this row was parsed out of, named the way the embedded
+  // index names it: a bare file name, so it is also the tail of the path the
+  // manifest states a digest for. A loader that reads a whole directory tags
+  // every row it appends, and a row built by hand or read from no file names
+  // nothing. A published row reads its digest through this name (FR-015,
+  // PC-12, spec D-12).
+  std::string fileName;
 };
 
 // CPU identification read once at open (FR-038): vendor string, family
