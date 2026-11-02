@@ -753,6 +753,7 @@ private:
     row.scope = entry.unit;
     row.scaleUnit = entry.scaleUnit;
     row.description = entry.description;
+    row.threshold = entry.threshold;
     auto tree = parseFormula(entry.metricExpr);
     if (tree.has_value()) {
       row.tree = std::move(*tree);
@@ -1015,6 +1016,10 @@ private:
     def.group = row.group;
     def.unit = row.scaleUnit;
     def.description = row.description;
+    // The threshold text rides a published row and a refused row alike: it
+    // states the table's condition and this pass adds no verdict to it
+    // (specs/042-topdown FR-017, spec D-9).
+    def.threshold = row.threshold;
     def.objectPath = std::string(kRootObject);
     if (!row.parsed) {
       def.refusal = row.refusal;
@@ -1532,6 +1537,7 @@ auto metricListingsOnHost(const MetricHost& host) -> std::vector<MetricListing>
     line.group = def.group;
     line.unit = def.unit;
     line.description = def.description;
+    line.threshold = def.threshold;
     line.avail = def.avail;
     line.refusal = def.refusal;
     line.published = def.published;
@@ -1598,6 +1604,7 @@ auto metricViewResponse(const std::expected<MetricDefinition, Error>& def)
   view.expression.core = def->core;
   view.group = def->group;
   view.unit = def->unit;
+  view.threshold = def->threshold;
   return view;
 }
 

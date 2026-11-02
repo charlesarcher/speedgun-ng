@@ -50,9 +50,11 @@
 #include "../source/counters/linux_pmu/embedded_tables.hpp"
 #include "../source/counters/linux_pmu/kernel_calls.hpp"
 #include "../source/counters/linux_pmu/pmu_ident.hpp"
+#include "../source/counters/linux_pmu/metric_formula.hpp"
 #include "speedgun-ng/counters_clock.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_provider.hpp"
+#include "speedgun-ng/counters_system.hpp"
 #include "speedgun-ng/dbc.hpp"  // SG_CONTRACTS_SEMANTIC
 
 #ifndef SG_SEAM_TABLE_DIR
@@ -86,8 +88,12 @@ using sg::counters::detail::FormatRange;
 using sg::counters::detail::kRnpmcCounterWidth;
 using sg::counters::detail::loadDevice;
 using sg::counters::detail::mergeVendored;
+using sg::counters::detail::metricDefinition;
+using sg::counters::detail::MetricHost;
+using sg::counters::detail::metricViewResponse;
 using sg::counters::detail::parseAttr;
 using sg::counters::detail::parseFormatField;
+using sg::counters::detail::parseMetricRows;
 using sg::counters::detail::pmuComposeConfig;
 using sg::counters::detail::PmuDevice;
 using sg::counters::detail::PmuEntry;
@@ -2417,8 +2423,8 @@ auto findRow(const std::vector<PmuTableEntry>& table,
 }
 
 // One vendored table row for the description assertions below. The
-// seam type declares nine members and the build treats a partial
-// initializer as an error, so the row is built here; the four metric
+// seam type declares ten members and the build treats a partial
+// initializer as an error, so the row is built here; the five metric
 // members stay empty, because this row is an event row, and the file
 // name stays empty because no embedded file stands behind a built row.
 auto tableRow(std::string name,
@@ -2435,6 +2441,7 @@ auto tableRow(std::string name,
                         .metricExpr = {},
                         .scaleUnit = {},
                         .group = {},
+                        .threshold = {},
                         .fileName = {}};
 }
 
@@ -2711,6 +2718,79 @@ auto tableObjectScenario() -> void
   check(num != nullptr && fieldsOf(*num) == "event=7"
             && num->unit == "uncore_imc" && num->description == "number",
         "an object-shaped row carries its unit and description");
+}
+
+// The threshold text of a metric row: the table's own condition reaches the
+// parsed entry, the parsed metric row and the published view unchanged, and
+// no part of the library reads it as a condition, because the formula
+// grammar refuses every threshold text the vendored Intel table states
+// (T007, T020; specs/042-topdown FR-017, spec D-9, D-11). Both rows carry a
+// literal formula, so the resolution reads no leaf and the case stands on a
+// host that counts nothing.
+auto thresholdTextReachesThePublishedView() -> void
+{
+  constexpr std::string_view kThreshold {
+      "tma_bad_speculation > 0.15 & tma_retiring > 0.7"};
+  const std::string path = writeFixture("metric_thresholds.json", R"([
+  {
+    "MetricName": "tma_bad_speculation",
+    "MetricExpr": "1",
+    "MetricGroup": "TopdownL1;tma_L1_group",
+    "MetricThreshold": "tma_bad_speculation > 0.15 & tma_retiring > 0.7",
+    "BriefDescription": "a level row whose table states a condition"
+  },
+  {
+    "MetricName": "tma_retiring",
+    "MetricExpr": "2",
+    "MetricGroup": "TopdownL1;tma_L1_group",
+    "BriefDescription": "a level row whose table states no condition"
+  }
+])");
+
+  std::vector<PmuTableEntry> table;
+  sg::counters::detail::pmuParseTableFile(path, table);
+  const auto* gated = findRow(table, "tma_bad_speculation");
+  const auto* bare = findRow(table, "tma_retiring");
+  check(gated != nullptr && bare != nullptr,
+        "both metric rows of the file reach the parsed table (FR-001, T025)");
+  check(gated != nullptr && gated->threshold == kThreshold,
+        "the parsed entry carries the table threshold text byte for byte "
+        "(FR-017, spec D-11)");
+  check(bare != nullptr && bare->threshold.empty(),
+        "a row that carries no MetricThreshold key leaves the text empty "
+        "(FR-017)");
+
+  const auto parsed = parseMetricRows(table);
+  check(parsed.rows.size() == 2,
+        "the two definition rows of the file enter the parsed metric table "
+        "(FR-002, T026)");
+  check(parsed.rows.size() == 2 && parsed.rows[0].threshold == kThreshold,
+        "the parsed metric row keeps the threshold text of its entry "
+        "(FR-017, spec D-11)");
+  check(parsed.rows.size() == 2 && parsed.rows[1].threshold.empty(),
+        "the parsed metric row of a keyless row answers the empty text "
+        "(FR-017)");
+
+  // The file holds definition rows alone, so the resolution is handed no
+  // event row, and a literal formula asks for none.
+  const std::vector<PmuTableEntry> events;
+  MetricHost host;
+  host.system = &sg::counters::System::local();
+  const auto shown =
+      metricDefinition(parsed, events, host, "tma_bad_speculation");
+  check(shown.has_value(),
+        "a row whose formula is a literal publishes over a host that counts "
+        "nothing (FR-002, FR-016)");
+  const auto view = metricViewResponse(shown);
+  check(view.has_value() && view->threshold == kThreshold,
+        "the published view carries the table threshold text byte for byte "
+        "(FR-017, spec D-11)");
+
+  const auto plain = metricDefinition(parsed, events, host, "tma_retiring");
+  const auto plainView = metricViewResponse(plain);
+  check(plainView.has_value() && plainView->threshold.empty(),
+        "the published view of a row with no threshold answers the empty "
+        "text (FR-017)");
 }
 
 // A synthetic catalog over the core PMU type, built from the seam's own
@@ -4216,6 +4296,7 @@ auto main() -> int
   pageGateScenario();
   tableArrayScenario();
   tableObjectScenario();
+  thresholdTextReachesThePublishedView();
   mapfileScenario();
   ecmaScenario();
   mapfileRowScenario();

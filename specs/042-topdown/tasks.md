@@ -134,7 +134,7 @@ and every story calls `topdownTree`.
   `test/CMakeLists.txt:484-489`, each naming its own build-tree fixture
   directory. This case lands with T018 and T019 in one commit (FR-048).
 
-- [ ] T007 In `test/source/counters_linux_pmu_seam_test.cpp`, add
+- [x] T007 In `test/source/counters_linux_pmu_seam_test.cpp`, add
   `thresholdTextReachesThePublishedView`: a seam table file carrying
   `MetricThreshold` shows the text reaching the parsed entry and the published
   `MetricView` byte for byte, and a row that carries no key answers the empty
@@ -264,7 +264,7 @@ and every story calls `topdownTree`.
   here: the row of `counters_topdown_source_test` that names each contributing
   file, T006, is its test, so this change rides that case's commit with T018.
 
-- [ ] T020 In `source/counters/detail/pmu.hpp`,
+- [x] T020 In `source/counters/detail/pmu.hpp`,
   `source/counters/linux_pmu/table_parse.cpp`,
   `source/counters/linux_pmu/metric_formula.hpp`,
   `source/counters/linux_pmu/metric_formula.cpp` and

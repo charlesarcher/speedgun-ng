@@ -110,6 +110,32 @@ auto loadedFixture(std::string_view name) -> sg::ReportData
   return std::move(loaded).value();
 }
 
+// The `SOVERSION` numbers of the build file, space separated and in the
+// order the file states them: one per property line whose first word is
+// `SOVERSION`. A comment is read by nothing here, because the harness chain
+// says four times that an earlier lane left the counters archive at its
+// number, and a search for that number alone reads one of those sentences
+// and calls it a binding (specs/042-topdown FR-017, FR-047).
+auto soVersionNumbers(std::string const& cmake) -> std::string
+{
+  auto numbers = std::string {};
+  std::istringstream lines(cmake);
+  auto line = std::string {};
+  while (std::getline(lines, line)) {
+    auto const word = line.find_first_not_of(" \t");
+    if (word == std::string::npos || line.compare(word, 10, "SOVERSION ") != 0)
+    {
+      continue;
+    }
+    if (!numbers.empty()) {
+      numbers += ' ';
+    }
+    numbers += line.substr(word + 10,
+                           line.find_first_of(" \t", word + 10) - word - 10);
+  }
+  return numbers;
+}
+
 // The number of times one text stands inside another: the histogram
 // block counts the elements of a figure this way.
 auto occurrences(std::string const& text,
@@ -255,6 +281,9 @@ auto run() -> int
           "pass: the harness SOVERSION line reads SOVERSION 20");
     check(cmake.find("SOVERSION 5") != std::string::npos,
           "pass: the archive SOVERSION line reads SOVERSION 5");
+    check(soVersionNumbers(cmake) == "5 20",
+          "pass: the two archive SOVERSION lines read 5 for the counters "
+          "archive and 20 for the harness archive, in file order");
   }
 
   // ---- The resolver block (specs/038 T004; FR-004 to FR-006, B-1,

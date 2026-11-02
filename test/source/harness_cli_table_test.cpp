@@ -124,8 +124,8 @@
 //   theVersionBindingsReadTheMovedNumbers
 //                                  the project block reads 0.29.0, the
 //                                  harness target answers SOVERSION 20,
-//                                  and the archive target keeps
-//                                  SOVERSION 4 (FR-050)
+//                                  and the counters archive answers
+//                                  SOVERSION 5 (FR-050)
 //   theHelpAnswerPrintsOneLinePerRow
 //                                  `--help` prints one line per table row
 //                                  in table order, each the two leading
@@ -1372,11 +1372,38 @@ auto projectVersion(const std::filesystem::path& start) -> std::string
   return {};
 }
 
+// The `SOVERSION` numbers of the build file, space separated and in the
+// order the file states them: one per property line whose first word is
+// `SOVERSION`. A comment is read by nothing here, because the harness chain
+// says four times that an earlier lane left the counters archive at its
+// number, and a search for that number alone reads one of those sentences
+// and calls it a binding (FR-050).
+auto soVersionNumbers(const std::string& cmake) -> std::string
+{
+  std::string numbers;
+  std::istringstream lines(cmake);
+  std::string line;
+  while (std::getline(lines, line)) {
+    const std::size_t word = line.find_first_not_of(" \t");
+    if (word == std::string::npos || line.compare(word, 10, "SOVERSION ") != 0)
+    {
+      continue;
+    }
+    if (!numbers.empty()) {
+      numbers += ' ';
+    }
+    numbers += line.substr(word + 10,
+                           line.find_first_of(" \t", word + 10) - word - 10);
+  }
+  return numbers;
+}
+
 // FR-050: the version bindings read the numbers the version move lands:
-// the project version `0.29.0`, the harness `SOVERSION 20` and the
-// archive `SOVERSION 4`. specs/043 FR-005 took the pair from the 0.28.0
-// and 19 that specs/037 landed, and these rows read the moved numbers
-// (specs/043 SC-009).
+// the project version `0.29.0`, the harness archive `SOVERSION 20` and the
+// counters archive `SOVERSION 5`. specs/043 FR-005 took the project and the
+// harness pair from the 0.28.0 and 19 that specs/037 landed, and the counters
+// number 5 stands from the layout specs/042-topdown FR-017 adds. Each figure
+// above reads the property line that states it.
 ///
 /// \pre the root `CMakeLists.txt` can be read
 /// \post the three rows answer the numbers FR-050 moves
@@ -1391,6 +1418,9 @@ auto theVersionBindingsReadTheMovedNumbers(const std::filesystem::path& start)
         "the harness SOVERSION line reads SOVERSION 20 (FR-050)");
   check(cmake.find("SOVERSION 5") != std::string::npos,
         "the archive SOVERSION line reads SOVERSION 5 (FR-050)");
+  check(soVersionNumbers(cmake) == "5 20",
+        "the two archive SOVERSION lines read 5 for the counters archive and "
+        "20 for the harness archive, in file order (FR-050)");
 }
 
 // FR-015, FR-018, SC-008: one line per table row, in table order, each
