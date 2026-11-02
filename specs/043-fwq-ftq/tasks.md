@@ -673,9 +673,11 @@ gate reads no finding over the branch range.
   `fwq-ftq` region of `example/docs/fwq_ftq.cpp`; one result sentence
   naming the block the run prints. Add the four quick-reference rows after
   `PrecheckRecord::tracer` (`:938`); extend the `--jitter-probe` row (
-  `:966`) with the keys; take the 35 lines from the prose lines inside the
-  three jitter sections the lane owns (`:718-740`, `:741-763`,
-  `:764-786`), the cap staying 1004 (FR-023, IV.1, R-23). The page total
+  `:966`) with the keys; shorten the quoted regions of the two sections
+  the lane owns that do not carry the shared region: add two 8-line
+  regions to `example/docs/jitter_probe.cpp` and point `Host noise
+  pre-check` and `Noise tracer` at them, the shared 17-line region
+  staying whole, the cap staying 1004 (FR-023, IV.1, R-23). The page total
   lands only after T042 registers the section, and T042 counts the page.
   (depends on T035, which prints the lines the section teaches)
   Verify: `python3 tools/docs/example_drift.py .` exits 0 with no line printed, and `sed -n '/^### Fixed work and time quanta$/,/^### Hunter mode$/p' README.md | head -n -1 | wc -l` reads 18
@@ -709,7 +711,7 @@ gate reads no finding over the branch range.
   emitted block. The registration rows stand as the work FR-034 requires,
   and both caps stay (FR-023, FR-034, R-23).
   (depends on T039, T041)
-  Verify: `ctest --test-dir build -R "example_drift|snippet_compile|example_run" --output-on-failure` exits 0, and `wc -l < README.md` reads 991 against `PAGE_LINE_CAP = 1004`
+  Verify: `ctest --test-dir build -R "example_drift|snippet_compile|example_run" --output-on-failure` exits 0, and `wc -l < README.md` reads at or below 1004, the cap ledger naming the count
 - [ ] T043 [US6] Add the shape fold entry `report_shape_fwq_ftq_sample`
   after `report_shape_jitter_sample` (`test/CMakeLists.txt:1905-1922`),
   and the three fold rows of
@@ -724,7 +726,7 @@ gate reads no finding over the branch range.
   (depends on T041)
   Verify: `ctest --test-dir build -R "report_shape_fwq_ftq_sample|report_shape_jitter_sample|report_shape_fixtures" --output-on-failure` exits 0
 
-**Checkpoint**: the docs stand green: the page lands at 991 lines, the
+**Checkpoint**: the docs stand green: the page lands at or below 1004 lines, the
 example builds, runs and folds, and the prose gate reads no finding.
 
 ---

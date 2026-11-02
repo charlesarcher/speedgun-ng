@@ -128,7 +128,7 @@ ctest --test-dir build -R "report_shape_fwq_ftq_sample|example_run|example_drift
 
 Expected: one FWQ family and one FTQ family print, each with its
 calibration lines and its series block; the fold prints no difference;
-the drift gate reads the 18-line section, and the page stands at 991
+the drift gate reads the 18-line section, and the page stands at or below 1004
 lines against `PAGE_LINE_CAP = 1004` (`tools/docs/example_drift.py:240`,
 spec FR-023, FR-029, SC-007).
 

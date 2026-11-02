@@ -1032,9 +1032,12 @@ periods.
 - **FR-023** (IV.1): The main page SHALL carry one section of at most
   25 lines that teaches the two methods, their keys and the calibration
   disclosure, with its quick-reference rows. The page stands at 1004
-  lines against the cap, so the lane SHALL trim within the three jitter
-  sections it owns, `Jitter probe`, `Host noise pre-check` and `Noise
-  tracer`, and SHALL keep the page at or below 1004 lines. No other
+  lines against the cap, so the lane SHALL shorten the quoted regions
+  inside the three jitter sections it owns, `Jitter probe`, `Host noise
+  pre-check` and `Noise tracer`: a marked region is the floor of a
+  section, so a shorter region is the trim. The shared 17-line region
+  SHALL stay whole for the section that owns it. The lane SHALL keep the
+  page at or below 1004 lines. No other
   section SHALL move, and the cap SHALL stay 1004.
 - **FR-024**: No test SHALL sleep and no test SHALL read a clock: the
   series and the time edges come from the injected time source through
