@@ -19,7 +19,7 @@ gains the series record. The four layout moves, over
 `ReportData`, are the ABI check of spec FR-005: the
 version stands at `0.29.0` (`CMakeLists.txt:45`), the harness
 `SOVERSION` at `20` (`CMakeLists.txt:375`), and the archive
-`SOVERSION` at `4` (`CMakeLists.txt:110`).
+`SOVERSION` at `5` (`CMakeLists.txt:110`).
 
 ## Surface rows
 
