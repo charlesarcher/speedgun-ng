@@ -601,6 +601,40 @@ auto calibrationStandsBehindTheWindow() -> void
       });
 }
 
+// FR-002, FR-010, FR-011, D-2: a `work=` count the value names stands as the
+// unit count, and the search reads nothing for that cpu. The calibration
+// span reads 0, the target keeps the value the method names, and the
+// measured unit time reads the first unit of that cpu's window.
+auto namedWorkCountStandsAndSkipsTheSearch() -> void
+{
+  calibrationPlan(0, {}, 4);
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FWQ;
+  options.workCount = 1000;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(scriptParked[0].load() == kScriptPassReads + kScriptLatchRead + 4,
+              "the named count leaves the search no read (FR-010)");
+        check(probed.workCount == 1000,
+              "the count the value names stands as the unit count (FR-002, "
+              "FR-010)");
+        check(probed.calibrationSpanNs == 0,
+              "the calibration span of a named count reads 0 (FR-011)");
+        check(probed.targetNs == sg::kTargetUnitTimeNs,
+              "the target keeps the value the method names (FR-011)");
+        check(probed.unitTimeNs == probed.series.at(0)
+                  && probed.unitTimeNs == 1000,
+              "the measured unit time reads the window's first unit (FR-011)");
+        check(probed.seriesKept == 4 && seriesSum(probed) == 4000,
+              "the window runs its units at the named count (FR-010, FR-012)");
+      });
+}
+
 // ============================================================================
 // T012: the fixed work quanta series (US1). One unit is the calibrated
 // loop body, timed by one read, and the unit time stands at the delta
@@ -1338,6 +1372,7 @@ auto main() -> int
   calibrationKeepsTheClosestCount();
   calibrationRunsOncePerProbeCpu();
   calibrationStandsBehindTheWindow();
+  namedWorkCountStandsAndSkipsTheSearch();
 
   // T012: the FWQ series rows (US1, FR-004, FR-007 to FR-009, FR-012,
   // FR-014, FR-022, SC-001, R-08, R-09, R-10, R-14).
