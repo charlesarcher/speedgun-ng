@@ -513,6 +513,23 @@ auto plantGroup(TopdownTable& table,
   return text;
 }
 
+// The nodes of one answer as one text: the name, the parent and the level of
+// each, in the order the answer holds them. Two asks that collect one set
+// answer one text here, whatever each of them asked (FR-008, FR-009).
+[[nodiscard]] auto nodeSetText(const TopdownTree& tree) -> std::string
+{
+  std::string text;
+  for (const TopdownNode& node : tree.nodes) {
+    text += node.name;
+    text += ' ';
+    text += node.parent;
+    text += ' ';
+    text += std::to_string(node.level);
+    text += '\n';
+  }
+  return text;
+}
+
 // The four level-1 rows of the Intel fixture table, each pair the table's own
 // name and the shared name of FR-011, in the order the table spells them.
 constexpr std::array<std::pair<std::string_view, std::string_view>, 4>
@@ -788,6 +805,58 @@ auto levelDeeperThanTheTableClamps() -> void
   check(
       nodeNamed(second, qualified("tma_branch_resteers")) == nullptr,
       "a row of a level the answer does not reach stands in no node (FR-008)");
+}
+
+// FR-008, FR-009 and FR-020: an ask deeper than the selected table holds
+// answers the deepest level that table holds, holds no node below it, and
+// answers the node set the ask that names that level answers. FR-008 states the
+// shape over the shallowest table of all: level-1 rows and no deeper row answer
+// a level-1 tree, whatever deeper levels the request asked for.
+auto anAskDeeperThanTheTableHoldsAnswersTheLevelItHolds() -> void
+{
+  const CpuIdentity intel = intelIdentity(6, 85, 4);
+  const TopdownTable shallow =
+      plantedTable(kIntelDirectory, topdownIntelShallowRows());
+  const TopdownTree sixth = asked(shallow, 6, intel);
+  const TopdownTree fifth = asked(shallow, 5, intel);
+  const TopdownTree fourth = asked(shallow, 4, intel);
+  check(sixth.depth == 4 && fifth.depth == 4 && fourth.depth == 4,
+        "an ask of 6, an ask of 5 and an ask of 4 settle on the deepest level "
+        "the table holds (FR-008, FR-020)");
+  check(nodesAtLevel(sixth, 5) == 0 && nodesAtLevel(sixth, 6) == 0
+            && deepestLevel(sixth) == 4,
+        "the clamped answer holds no node below the level it states (FR-008)");
+  check(!nodeSetText(sixth).empty(),
+        "the answer measured below holds nodes (FR-009)");
+  check(nodeSetText(fifth) == nodeSetText(sixth)
+            && nodeSetText(fourth) == nodeSetText(sixth),
+        "an ask deeper than the table holds answers the node set the ask that "
+        "names its deepest level answers (FR-008, FR-009)");
+
+  // The table FR-008 states in its own words: the four level-1 rows of the
+  // fixture and no deeper row, the event rows beside them so each spine
+  // resolves (FR-008, FR-016).
+  std::vector<MetricRow> rootsOnly;
+  for (const MetricRow& row : topdownIntelRows()) {
+    const bool levelOne = row.group.find("TopdownL1") != std::string_view::npos;
+    if (row.metricName.empty() || levelOne) {
+      rootsOnly.push_back(row);
+    }
+  }
+  const TopdownTable roots = plantedTable(kIntelDirectory, rootsOnly);
+  check(roots.rows.size() == kIntelLevelOneNames.size(),
+        "the roots-only table holds the four level-1 rows of the fixture and "
+        "no deeper row (FR-008)");
+  const TopdownTree rootsAtSix = asked(roots, 6, intel);
+  check(rootsAtSix.depth == 1 && deepestLevel(rootsAtSix) == 1
+            && rootsAtSix.nodes.size() == kIntelLevelOneNames.size(),
+        "a table of level-1 rows and no deeper row answers a level-1 tree to "
+        "an ask of 6 (FR-008)");
+  const TopdownTree rootsAtOne = asked(roots, 1, intel);
+  check(nodeSetText(rootsAtOne) == nodeSetText(rootsAtSix)
+            && rootsAtOne.depth == 1,
+        "the level-1 tree stands the same for an ask of 1 and an ask of 6 "
+        "(FR-008, FR-009)");
 }
 
 // FR-016: a refused row stands in the document with the metric layer's kind and
@@ -1332,6 +1401,7 @@ auto main() -> int
   theLevelTokenOfEachGroupSpellingStatesTheLevel();
   everyDeeperNodeNamesTheParentItsOwnGroupTokenStates();
   levelDeeperThanTheTableClamps();
+  anAskDeeperThanTheTableHoldsAnswersTheLevelItHolds();
   refusedRowsStayInTheDocument();
   rowsUnderTwoObjectsBothReach();
   thresholdRidesAsTextUnchanged();
