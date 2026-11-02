@@ -1115,22 +1115,20 @@ finding,
 case FR-058 names, the gate order, the two static analyzers, the contract gate,
 the two sanitizer builds, the coverage evidence, the acceptance record spec
 D-16 names, and the one timing bound PC-13 measures. The block the page quotes prints node names. The figures a host prints carry the PC-7 gap on this machine, where `tma_info_thread_clks` reads zero, so the page states no figure and the repair stands at FR-053 with its acceptance row pending.
-- [ ] T090 [P] Write `example/memory_walk.cpp`, a new file: one memory-bound
+- [x] T090 [P] Write `example/memory_walk.cpp`, a new file: one memory-bound
   benchmark whose working set stands above the 19.3 MiB last-level cache of the
   acceptance host, where the largest shipped set stands at 64 KiB of
   `example/docs/throughput.cpp:25`; its verification is the acceptance run of
   `specs/042-topdown/quickstart.md`, which names it at `:59` and `:60` (FR-058,
-  SC-10).
-
-- [ ] T091 Register the benchmark of T090 in `example/CMakeLists.txt`:
+  SC-10). The first version put the barrier inside the loop on the chase index, and `objdump` showed no dependent load at `-O3`, a row reading 0.668 ns for a walk over 32 MiB; the shape `docs/pages/barrier-rule.md` states, the barrier after the loop on the accumulator, brings the load back.
+- [x] T091 Register the benchmark of T090 in `example/CMakeLists.txt`:
   `add_example(memory_walk)` beside `add_example(first_benchmark)` at `:33` with
   `target_link_libraries(memory_walk PRIVATE speedgun-ng::harness)` on the shape
   of `:29-34`, the two lines that make the harness examples one speedgun
   executable, so `./build/example/memory_walk` exists for the acceptance run. No
   run gate covers it: `test/example_run.sh:39` walks `example/docs/*.cpp` alone,
   so a program under `example/` is out of its list because of that glob and not
-  because of a missing registration (FR-058).
-
+  because of a missing registration (FR-058). `test/example_run.sh:39` walks `example/docs/*.cpp`, so a program that stands directly under `example/` sits outside that glob and no run gate covers it.
 - [ ] T092 Run the gate order of `specs/042-topdown/quickstart.md` end to end,
   `python3 tools/docs/example_drift.py .`, `cmake -P cmake/prose-lint.cmake`,
   `bash test/time_source_gate.sh .`, `cmake -P cmake/spell.cmake`, the

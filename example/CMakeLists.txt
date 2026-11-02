@@ -33,6 +33,12 @@ target_link_libraries(benchmark_example PRIVATE speedgun-ng::harness)
 add_example(first_benchmark)
 target_link_libraries(first_benchmark PRIVATE speedgun-ng::harness)
 
+# The memory-bound case the acceptance run reads (T090, T091, FR-058): one
+# speedgun executable on the shape above, so `example/memory_walk` exists for
+# the two runs `specs/042-topdown/quickstart.md:59` names.
+add_example(memory_walk)
+target_link_libraries(memory_walk PRIVATE speedgun-ng::harness)
+
 # A docs example is one complete program per main-page section (D-12): the page
 # copies its marked regions and `test/example_run.sh` runs it, so the target
 # carries the `docs_` prefix and a `run_docs_` runner beside the `run_`
