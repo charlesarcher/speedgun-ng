@@ -1129,7 +1129,7 @@ D-16 names, and the one timing bound PC-13 measures. The block the page quotes p
   run gate covers it: `test/example_run.sh:39` walks `example/docs/*.cpp` alone,
   so a program under `example/` is out of its list because of that glob and not
   because of a missing registration (FR-058). `test/example_run.sh:39` walks `example/docs/*.cpp`, so a program that stands directly under `example/` sits outside that glob and no run gate covers it.
-- [ ] T092 Run the gate order of `specs/042-topdown/quickstart.md` end to end,
+- [x] T092 Run the gate order of `specs/042-topdown/quickstart.md` end to end,
   `python3 tools/docs/example_drift.py .`, `cmake -P cmake/prose-lint.cmake`,
   `bash test/time_source_gate.sh .`, `cmake -P cmake/spell.cmake`, the
   `cmake/lint.cmake` format pass, `bash test/snippet-compile/run.sh .`,
@@ -1141,44 +1141,44 @@ D-16 names, and the one timing bound PC-13 measures. The block the page quotes p
   step `tools/ci/prepush.sh:203` runs, which answers `CM.FOOTER-APPROVAL` for a
   message with no `Approved-by:` footer, so every commit of this lane carries
   that footer and its `Refs: specs/042-topdown` line (spec D-16, FR-048,
-  FR-049).
+  FR-049). Measured at `f2a9f14a`: drift silent, prose-lint `152 sources, 9245 units examined, 0 findings`, time-source `clean`, spell silent, the format pass silent, `snippet-compile: 38 snippet`, `example_run` 33 programs each `PASS`, the commit read `78 sources, 2055 units examined, 0 findings`, the full suite `100% tests passed out of 171` in 2097.34 s, and the two-cpu quick run `99% tests passed, 1 tests failed out of 164` with `prose_gate_fixtures` as that failure. Raw output stands under `/tmp/n42/g1/` with its `MANIFEST`.
 
-- [ ] T093 Build the release developer tree that carries the two static
+- [x] T093 Build the release developer tree that carries the two static
   analyzers: `cmake --preset=ci-ubuntu` then `cmake --build build`, the preset
   that inherits the clang-tidy and cppcheck configurations `ci-rocky` omits, and
   record that neither tool answers a finding in a file this change writes, the
   gate the `lint` job of `.github/workflows/ci.yml` runs and an unoptimized tree
-  cannot report.
+  cannot report. Measured at `f2a9f14a`: `cppcheck` answers 0 findings, and the gate check of `.clang-tidy:21` answered one, the naming of the constant at `encode.cpp:141`, which `3b872ab2` renames to `kPrefix`. The pass runs in the `build/dev` tree the workflow configures, since the `flags.make` of the `build` tree carries no launcher line and its build recompiles no unit. The 308 findings the wider check set answers in the changed files stand outside the checks the gate enables.
 
-- [ ] T094 Run the design-by-contract gate the CI matrix runs:
+- [x] T094 Run the design-by-contract gate the CI matrix runs:
   `cmake --build build/dev -t dbc-gate` at `.github/workflows/ci.yml:1290` then
   `ctest -R dbc_gate_fixtures --output-on-failure --no-tests=error` at `:1297`,
   and record that every `\pre` and `\post` this change documents stands in the
   pair gate's own table, `tools/dbc/dbc_pair_gate.py:17-23` answering for a
   documented precondition the source does not enforce and for an enforced one no
-  header documents (FR-051, PC-9).
+  header documents (FR-051, PC-9). Measured: `doc-gate: 342 interfaces, 0 gaps`, `pair-gate: 342 interfaces, 0 gaps`, `dbc_gate_fixtures` passed, and all 14 top-down rows of the pair table answer `status: ok`. The `dbc-gate` target records whichever python CMake finds, and this host's answers without PyYAML, so the two commands of `cmake/dbc-gate.cmake` ran with `/usr/bin/python3` and identical paths.
 
-- [ ] T095 Run the sanitizer build the matrix runs:
+- [x] T095 Run the sanitizer build the matrix runs:
   `cmake --preset=ci-sanitize`, which configures address and undefined behaviour
   sanitizers into `build/sanitize`, then
   `cmake --build build/sanitize -j "$(nproc)"` and
   `ctest --test-dir build/sanitize --output-on-failure --no-tests=error`, the
   `sanitize` job of `.github/workflows/ci.yml:147`, and record that no report
-  reaches the new units (FR-051).
+  reaches the new units (FR-051). Measured: the build in 369.11 s, `96% tests passed, 6 tests failed out of 166`, zero `ERROR: AddressSanitizer` lines and zero `runtime error:` lines. The six reach a timeout: `base_cli_matrix` measures 286.2 s against its 120 s property, and five cli units reach the 300 s bound.
 
-- [ ] T096 Run the thread-sanitizer build the matrix runs:
+- [x] T096 Run the thread-sanitizer build the matrix runs:
   `cmake --preset=ci-tsan`, which configures `-fsanitize=thread` into
   `build/tsan`, then `cmake --build build/tsan -j "$(nproc)"` and
   `ctest --test-dir build/tsan --output-on-failure --no-tests=error`, the `tsan`
   job of `.github/workflows/ci.yml:230`, and record that the one-provider offer
-  of T014 answers no data race (FR-051, spec D-21).
+  of T014 answers no data race (FR-051, spec D-21). Measured: the build in 223.71 s, two full passes at `97% tests passed, 5 tests failed out of 167`, zero `WARNING: ThreadSanitizer` lines. Four failures reach a timeout and one is the published-floor check of FR-025 and FR-026, which passes alone in 3.25 s and passed in the other two trees.
 
 - [ ] T097 [P] Run the coverage build to `tools/dbc/coverage_gate.sh`:
   `lines......: 100.0%` at `:45-48`, the branch shortfall inside the standing
   `allowance=21` at `:102`, and no new exclusion marker anywhere in the tree
-  (FR-051, SC-09).
+  (FR-051, SC-09). Unrun on this host, and the reason is the tool: lcov stops at `Perl API version v5.42.0 of XString.c does not match v5.44.0`, so no line ratio and no branch ratio stand written here, and the `coverage` job of `.github/workflows/ci.yml` carries the verdict. The marker audit `d454bcff..HEAD` answers no new marker: the pair `967889a0` added at `source/counters/linux_pmu/topdown_select.cpp:106` is gone at `a1ea5892`, where the arm reaches a unit instead.
 
-- [ ] T098 Write the acceptance record spec D-16 names into
+- [x] T098 Write the acceptance record spec D-16 names into
   `specs/042-topdown/quickstart.md` and the pull-request body: the host, the
   kernel, the level-1 values, the refused rows, and the test counts, with the
   two-cpu run
@@ -1189,9 +1189,9 @@ D-16 names, and the one timing bound PC-13 measures. The block the page quotes p
   clock, or sleeps, `installTestProcRoot` standing a directory in place of `/`
   and `registerMetricHost` of `test/source/detail/metric_fixture.hpp:311-368`
   answering with no event opened, the audit `test/tier_labels.sh` holds at
-  `:77-86` and `:91-96` keeping that honest.
+  `:77-86` and `:91-96` keeping that honest. Written into `specs/042-topdown/quickstart.md`: the host, the kernel, the level-1 values, the refused rows with the budget that refuses them, the test counts and the two-cpu run, each read from a command snapshotted under `/tmp/n42/g1/`. The refused-action count an early draft carried is dropped, since no published column carries it, and the paragraph states twelve refusals instead.
 
-- [ ] T099 Record PC-13 in the acceptance record of
+- [x] T099 Record PC-13 in the acceptance record of
   `specs/042-topdown/quickstart.md` as the measured fact it is:
   `test/prose-gate-fixture/run_prose_gate_fixtures.py:84` bounds one whole-tree
   prose-gate run at 10.0 seconds, the entry run measures 8.911 to 8.989 seconds
@@ -1199,7 +1199,8 @@ D-16 names, and the one timing bound PC-13 measures. The block the page quotes p
   passes, so no bound moves and no owner choice stands open; the 11.559 seconds
   the same timed run answers inside the loaded two-cpu suite is the host load
   condition PC-13 and PC-8 already record, which this feature does not touch
-  (PC-13).
+  (PC-13). Recorded in `specs/042-topdown/quickstart.md`: the bound of 10.0 s at `test/prose-gate-fixture/run_prose_gate_fixtures.py:84`, three unloaded runs at 9.123, 9.238 and 9.721 s over `921 sources, 169672 units examined`, and the loaded measures 12.954 s under `-j 12` and 11.565 s in the two-cpu run, named as the host load condition PC-13.
+
 - [x] T100 Pin the sampling thread of the cpu-target scenarios of
       `test/source/counters_pmu_test.cpp` to the cpu whose plan they open, so
       the fast read path those scenarios reach answers its precondition once
