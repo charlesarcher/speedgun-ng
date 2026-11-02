@@ -1970,9 +1970,10 @@ auto aMissingSeriesKeyLeavesTheFoldsEmpty() -> void
             && !loaded->results[0].jitterFolds.at(0).series.has_value(),
         "aMissingSeriesKeyLeavesTheFoldsEmpty: the entry's fold carries no "
         "series (FR-020, E-08)");
-  check(!loaded->jitterRun.has_value(),
+  check(loaded->jitterRun.has_value()
+            && loaded->jitterRun->method == sg::JitterMethod::FWQ,
         "aMissingSeriesKeyLeavesTheFoldsEmpty: the run record reads the "
-        "method the document carries (FR-020)");
+        "method the document carries (FR-020, E-25)");
 }
 
 // FR-020, FR-029, SC-007: one plant per new key, each of a kind the reader
