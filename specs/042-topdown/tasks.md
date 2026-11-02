@@ -652,12 +652,11 @@ and SC-03's two tolerances over the scripted source.
   AMD `<name>_group` spellings both resolve, and a level-2 row whose stem names
   no row of the directory yields no node and no invented parent (FR-013, SC-02).
   This case lands with T047 in one commit (FR-048). The case prints green against the state it starts from, so it pins the rule `T047` records rather than turning new code green.
-- [ ] T042 [US2] In `test/source/counters_topdown_select_test.cpp`, add the
+- [x] T042 [US2] In `test/source/counters_topdown_select_test.cpp`, add the
   clamp case: over the fixture table whose deepest level is 4, an asked level of
   6 answers `TopdownTree::depth` 4 and holds no node below level 4, and an asked
   level of 4 answers the same node set (FR-008, FR-009, FR-020). This case lands
-  with T048 in one commit (FR-048).
-
+  with T048 in one commit (FR-048). The case prints green against the state it starts from, so it pins the rule `T048` records rather than turning new code green.
 - [x] T043 [US2] In `test/source/counters_topdown_select_test.cpp`, add
   `theAmdLevelTwoRowsStandRowForRow`: name the eight level-2 nodes of each AMD
   pipeline table the fixture T009 wrote, `backend_bound_cpu` of Zen 4 against
@@ -698,11 +697,10 @@ and SC-03's two tolerances over the scripted source.
   the remaining `*_group` token whose stem names another row of the directory,
   and hold no node for a row with no level token (FR-013, FR-014, research D-02;
   turns T040, T041 and T043 green). No code change landed with these cases. The level token of each group spelling, the parent a deeper row's own `_group` token states over both vendor spellings, and the clamp of an ask deeper than the table arrived with `T024` at `28b5bb6a`, whose ledger text already names all three. Each claim is still proven live: a break is compiled into a copy of `topdown_select.cpp` outside the tree and linked ahead of the archive, and each break prints the case it breaks. Five of the seven print an older Phase 2 line first, because those cases read the same rule over the selected directory.
-- [ ] T048 [US2] In `source/counters/linux_pmu/topdown_select.cpp`, settle
+- [x] T048 [US2] In `source/counters/linux_pmu/topdown_select.cpp`, settle
   `TopdownTree::depth` to the deepest level the selected table holds whatever
   the asked level, and collect only the levels at or below it (FR-008, FR-009,
-  FR-020; turns T042 green).
-
+  FR-020; turns T042 green). No code change landed with it, for the reason `T047` states. One arm of this task, collecting only the levels at or below the depth the answer states, is pinned by `levelDeeperThanTheTableClamps` of Phase 2 rather than by the new case, and a break of that arm prints that older case's claim.
 - [ ] T049 [US2] In `source/harness/runner.cpp`, append one metric column per
   node of the clamped level and of every level above it after the `--metric`
   loop at `:1315-1326`, hand the whole set to the standing planner, and record
