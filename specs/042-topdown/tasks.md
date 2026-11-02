@@ -149,7 +149,7 @@ and every story calls `topdownTree`.
   second call, so no caller needs a reader of its own (FR-042; red before the
   query lands). This case lands in the commit of T017 (FR-048).
 
-- [ ] T009 [P] In `test/source/detail/topdown_fixture.hpp`, a new file, write
+- [x] T009 [P] In `test/source/detail/topdown_fixture.hpp`, a new file, write
   the synthetic tables the selection reads: Intel level-1 to level-6 rows with
   both parent spellings, one group-free helper row, a level whose rows print
   under two objects, refused rows with kind and reason, threshold text, and both
@@ -322,7 +322,7 @@ and every story calls `topdownTree`.
   `pmuSelectDirectory` at `:99-100` (E-01 to E-05; turns both cases of T010
   green).
 
-- [ ] T023 [P] In `tools/docs/example_drift.py`, add `"counters_topdown.hpp"` to
+- [x] T023 [P] In `tools/docs/example_drift.py`, add `"counters_topdown.hpp"` to
   `NAME_SCAN_HEADERS` at `:530-538`, so a quick-reference name row for the new
   header answers no `quick-reference name ... is not in` finding (FR-044; spec
   Constraints). No unit test covers the tool:
