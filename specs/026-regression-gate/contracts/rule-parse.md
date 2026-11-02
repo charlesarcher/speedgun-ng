@@ -31,7 +31,9 @@ stand in [data-model.md](./data-model.md) E-01.
 <rule>    ::= <value> [ @ <aggregate> ] : <direction> : <threshold> [ : <filter> ]
 <value>   ::= time | real_time | cpu_time | p <point>
             | counter : <label> | metric : <label> | stat : <label>
+            | topdown : <node>
             | jitter : [ run : ] <jitter-cpu> : <jitter-field>
+<node>    ::= a node name with its leading "topdown." dropped, dots included
 <point>   ::= digits [ . digits ]
 <jitter-cpu> ::= any | digits
 <jitter-field> ::= one of the sixteen field names of `JitterStats`,
@@ -61,11 +63,20 @@ The parse rules, each closing its FR:
   label (FR-020, FR-021, D-06, spec D-15 carried). An unescaped `@`
   after a `stat:` label ends the name where the parser reads the
   aggregate marker.
+- The `topdown:` value name of specs/042-topdown (FR-037) names one node
+  of the top-down object of one entry. The name is that node's neutral
+  name with its leading `topdown.` dropped, dots included, so the first
+  unescaped colon ends the name and leaves the direction and the
+  threshold text whole. The parse consults no report: a node the pair
+  carries nowhere, and a report that holds no top-down object, are the
+  comparison's usage errors, one line and exit status 2 (specs/042
+  FR-038, FR-039, D-14).
 - The `@` suffix names one of the four aggregates and defaults to
   `median` for a statistics name (FR-016). A written suffix on a
-  `p<point>` or `stat:` name is a fault: the `@median` default applies
-  only to a value the report holds as a statistics record (FR-018,
-  spec D-21).
+  `p<point>`, `stat:` or `topdown:` name is a fault: the `@median`
+  default applies to a value the report holds as a statistics record,
+  and a node and a custom statistic each carry one value (FR-018,
+  spec D-21, specs/042 FR-037).
 - The direction word is required (FR-012).
 - The threshold field carries a percent, an `abs=` number, or the two
   in that order (FR-022, FR-023, D-07). The percent answers a fraction
@@ -93,6 +104,8 @@ The parse rules, each closing its FR:
 | `jitter:any:madeUpNs:lower:abs=1` | the field name: none of the sixteen jitter fields (specs/027 FR-038) |
 | `jitter:x:p99Ns:lower:abs=1` | the cpu token: neither an index nor `any` (specs/027 FR-030) |
 | `jitter:any:p99Ns@mean:lower:abs=1` | a written aggregate marker on a jitter name: the jitter stats carry one value each (specs/027 FR-030) |
+| `topdown:` | the value name: the prefix names nothing (specs/042 FR-037) |
+| `topdown:backend_bound@median:lower:5%` | a written aggregate suffix on a top-down node: the node carries one value (specs/042 FR-037, FR-018) |
 | `time@median:lower:5%,abs=12.5` | accepted: the percent then the `abs=` marker |
 | `counter:cache\:misses@mean:higher:2%` | accepted: the escaped colon inside the label |
 

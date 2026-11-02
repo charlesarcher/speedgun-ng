@@ -49,11 +49,11 @@ namespace sg
 namespace
 {
 
-// The three value-name prefixes that carry a label of their own, read
+// The four value-name prefixes that carry a label of their own, read
 // before the rest of the text splits so a label holding its own colon
-// reads whole (FR-015, FR-021).
-constexpr std::array<std::string_view, 3> kLabelPrefixes {
-    "counter:", "metric:", "stat:"};
+// reads whole (FR-015, FR-021, specs/042 FR-037).
+constexpr std::array<std::string_view, 4> kLabelPrefixes {
+    "counter:", "metric:", "stat:", "topdown:"};
 
 // The marker that opens the absolute threshold (FR-023, spec D-22).
 constexpr std::string_view kAbsoluteMarker = "abs=";
@@ -459,7 +459,11 @@ auto readRule(std::string_view text) -> std::expected<CompareRule, std::string>
           "the '" + detail::quotedText(prefix) + "' prefix names nothing");
     }
     rule.valueName = std::string(prefix) + name;
-    statisticsValue = prefix != "stat:";
+    // FR-016, FR-018, FR-032, specs/042 FR-037: a counter column and a
+    // metric column are summarized in a record of their own, so their names
+    // read an aggregate. A custom statistic and a top-down node each carry
+    // the one value they hold, so a written aggregate on either is a fault.
+    statisticsValue = prefix != "stat:" && prefix != "topdown:";
   } else if (name == "jitter" && afterName < text.size()
              && text[afterName] == ':')
   {
@@ -617,7 +621,9 @@ struct ValueSite
 // run, whose aggregate row carries the records and no column of its own
 // (source/harness/runner.cpp:2163 to :2264). A row whose primary fold
 // reported a gap carries no primary time, so a name that reads that column
-// stands nowhere in it (FR-036).
+// stands nowhere in it (FR-036). One name reads no row at all: a `topdown:`
+// name reads the node of the record the result carries beside its rows
+// (specs/042 FR-037).
 auto valueSiteOf(const BenchmarkResult& result,
                  const ResultRow& row,
                  std::string_view name) -> ValueSite
@@ -686,6 +692,28 @@ auto valueSiteOf(const BenchmarkResult& result,
                   : std::nullopt,
               .stats = index < row.metricStats.size() ? &row.metricStats[index]
                                                       : nullptr};
+    }
+    if (prefix == "topdown:") {
+      // FR-037, FR-038, specs/042 FR-032: the label is the neutral name of one
+      // node with its `topdown.` head dropped, so the head comes back before
+      // the node is sought. The node answers its own value and stands in no
+      // statistics record, the way a custom statistic does (spec D-21). A node
+      // the record carries nowhere answers nothing, the way a metric label
+      // outside the label list does, and a node the merge published as a gap
+      // answers its empty value as the same missing value (FR-030).
+      if (!result.topdown.has_value()) {
+        return {};
+      }
+      const auto& nodes = result.topdown->nodes;
+      const std::string node = "topdown." + std::string(label);
+      const auto found = std::find_if(nodes.begin(),
+                                      nodes.end(),
+                                      [&node](const TopdownNode& candidate)
+                                      { return candidate.name == node; });
+      if (found == nodes.end()) {
+        return {};
+      }
+      return {.value = found->value, .stats = nullptr};
     }
     // FR-015, spec D-21: a custom statistic holds one value and no record.
     for (const auto& statistic : result.statisticValues) {
@@ -1105,7 +1133,8 @@ auto selectCompareRow(const BenchmarkResult& result) -> const ResultRow*
  * FR-014, FR-015, FR-016, FR-017, D-09, D-10, spec D-18).
  *
  * \pre `rule` is a rule the parse answered, so its value name carries one of
- *      the seven forms and no aggregate suffix on a single-value name
+ *      the forms the grammar answers and no aggregate suffix on a
+ *      single-value name
  * \post the value in the stored unit of the name, and nothing when the
  *       result holds no readable row or the name matches no value of it; the
  *       call reads no file, runs no benchmark and repairs no value
@@ -1474,7 +1503,8 @@ auto matchPair(const ReportData& baseline,
 
 // The fault text of the missing-value and uncountable-metric rows of the
 // table of specs/026-regression-gate/contracts/compare-call.md, naming the
-// rule, the benchmark and the report (FR-036, FR-037, FR-038).
+// rule, the value, the benchmark and the report the rule looked in (FR-036,
+// FR-037, FR-038, specs/042 FR-038, FR-039).
 auto missingValueFault(const CompareRule& rule,
                        std::string_view name,
                        std::string_view report,
