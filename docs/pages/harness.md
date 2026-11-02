@@ -707,6 +707,7 @@ variable.
 | `hunt-emit-set` | required |  | Writes the ranked hunt events to that file |
 | `hunt-emit-rules` | required |  | Writes the promoted hunt events as comparison rules to that file |
 | `hunt-baseline` | required |  | Sets the baseline document the delta rank matches against |
+| `topdown` | optional |  | Prints the top-down tree of the running cpu at that level |
 
 The highest source that sets an option wins: the command line, then the option
 file, then the environment, then the built-in default. A repeatable option from

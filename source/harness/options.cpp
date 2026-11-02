@@ -454,6 +454,32 @@ auto missingValueLine(int value) -> std::string
   return std::string("option '--") + found->name + "' needs a value";
 }
 
+// The level `--topdown` asks for: the bare word carries no text and asks for
+// level 1, and any other text is digits alone that read 1 to 6
+// (specs/042-topdown FR-019, D-5). A text outside that range answers the one
+// line the range rule states, on standard error, and leaves the process at
+// status 2 before any benchmark runs. The line is the shape of the hunt range
+// reader (`source/harness/hunt_cli.cpp:44`), which holds the same rule for its
+// own option (FR-050).
+auto readTopdownLevel(const char* text) -> std::uint64_t
+{
+  if (text == nullptr) {
+    return 1;
+  }
+  const std::string_view value {text};
+  std::uint64_t level = 0;
+  const auto read =
+      std::from_chars(value.data(), value.data() + value.size(), level);
+  if (read.ec != std::errc {} || read.ptr != value.data() + value.size()
+      || level < 1 || level > 6)
+  {
+    std::fprintf(
+        stderr, "%s: %s, got '%s'\n", "--topdown", "expected 1 to 6", text);
+    std::exit(2);
+  }
+  return level;
+}
+
 // The argument part of one help line, from the row's own kind: ` <value>`
 // for a required value, ` [<value>]` for an optional one, nothing for
 // none (FR-015, contracts/help-and-version.md).
@@ -768,6 +794,17 @@ auto optionRows() -> std::span<const OptionRow>
        false,
        "Sets the baseline document the delta rank matches against",
        "FR-020"},
+      // specs/042-topdown FR-019, FR-050, D-5: `getopt_long` reads an
+      // optional argument in the attached form only, so `--topdown=2`
+      // asks for level 2 and `--topdown 2` asks for level 1 and leaves
+      // `2` positional. The command line owns the row: no environment
+      // name, and no option file.
+      {"topdown",
+       kTopdownOptionValue,
+       OptionArgument::OPTIONAL,
+       false,
+       "Prints the top-down tree of the running cpu at that level",
+       "specs/042"},
   });
   return kRows;
 }
@@ -914,6 +951,15 @@ auto scanCommandLine(int argc, char** argv)
         // and an empty value stands stored so its refusal reads the
         // empty token (FR-011, R-06).
         options.jitterProbeText = optarg;
+        break;
+      case kTopdownOptionValue:
+        // specs/042-topdown FR-019, FR-050, D-5: a null `optarg` is the
+        // bare word, and the bare word asks for level 1. Any other text
+        // names a level, and the reader answers a text outside 1 to 6
+        // with the one line at status 2. The row takes no arm in
+        // `applySourceValue`, so a line of an option file keeps the
+        // refusal that names the rows no file may hold (FR-031).
+        options.topdownLevel = readTopdownLevel(optarg);
         break;
       // specs/029-hunter-core FR-080 to FR-082, PD-17: one call per hunt row,
       // each body standing in `hunt_cli.cpp` with its own refusal line.

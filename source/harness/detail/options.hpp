@@ -78,8 +78,9 @@ enum class StopKind
 // (specs/029 FR-080, D-22), the hunt budgets hold 280 to 289, the
 // command-line lane holds 290 to 296, 297 to 319 stay free, the tracer
 // block holds 320 to 329 with `--os-noise` at 320 and 321 to 329 free
-// for tracers (specs/036 FR-001), the graph row holds 330 to 339, and
-// the layout row holds 340 to 349 (specs/039 FR-011).
+// for tracers (specs/036 FR-001), the graph row holds 330 to 339,
+// the layout row holds 340 to 349 (specs/039 FR-011), and the top-down
+// row holds 350 to 359 (specs/042-topdown FR-019).
 inline constexpr int kMetricMethodOption = 256;
 inline constexpr int kCompareOptionValue = 257;
 inline constexpr int kCompareRuleOptionValue = 258;
@@ -95,6 +96,8 @@ inline constexpr int kVersionOptionValue = 296;
 inline constexpr int kOsNoiseOptionValue = 320;
 inline constexpr int kGraphOptionValue = 330;
 inline constexpr int kGroupLayoutOptionValue = 340;
+// specs/042-topdown FR-019, D-5: the top-down lane holds the block 350 to 359.
+inline constexpr int kTopdownOptionValue = 350;
 
 // specs/029-hunter-core FR-080 to FR-082, D-22: the value each hunt option
 // answers. The hunt lane reserves the block 270 to 279: 278 and 279 stay

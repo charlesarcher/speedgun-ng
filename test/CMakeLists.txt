@@ -2209,6 +2209,20 @@ if(TARGET docs_execution_graphs)
   set_tests_properties(report_shape_execution_graphs_sample PROPERTIES TIMEOUT 120)
 endif()
 
+# ---- Top-down analysis: option surface (specs/042-topdown) ----
+
+# The two forms of `--topdown`, the level each settles, the refusals, and the
+# environment name the row does not carry (specs/042-topdown T025; US1;
+# FR-019, FR-031, FR-050, D-5). The unit reads the harness internals, so it
+# carries the source/harness include directory the way harness_hunt_plan_test
+# does. No case skips: a level answers in this process and a refusal answers in
+# a child, so the entry carries no skip rule.
+add_executable(harness_topdown_option_test source/harness_topdown_option_test.cpp)
+target_link_libraries(harness_topdown_option_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_topdown_option_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_topdown_option_test PRIVATE cxx_std_23)
+add_test(NAME harness_topdown_option_test COMMAND harness_topdown_option_test)
+
 # ---- Tier labels and budgets ----
 
 # The entries a fast local run may leave out (030 P-05, FR-025): one row per

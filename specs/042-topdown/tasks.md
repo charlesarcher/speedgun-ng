@@ -371,7 +371,7 @@ exact for a fake event source. Here the fixture tree of
 rule and no page is needed.
 
 ### Tests for User Story 3 (write first, observe failure) The commit also carries that declaration, which `T022` held back. That pass also fills `TopdownTable::rows`: the verdict of each row comes from the table once it is parsed, and the claim that the tree stays pure (FR-002) rests on a resolution reading that parsed table, which `T024` measures rather than assumes. That pass re-parents one row of `test/source/detail/topdown_fixture.hpp`: `tma_memory_bandwidth` stood under a row of its own level, which no vendored table does, measured over 98 group tokens of `arch/x86/skylakex/` and 111 of `arch/x86/sapphirerapids/` that stem to a row of the same table, every one of them one level above. The fixture followed the tables and the shape the contract states, because no part of the library may bend the shape to a scripted table.
-- [ ] T025 [P] [US1] In `test/source/harness_topdown_option_test.cpp`, a new
+- [x] T025 [P] [US1] In `test/source/harness_topdown_option_test.cpp`, a new
   file, write the option cases on the re-exec shape of
   `test/source/harness_hunt_cli_test.cpp`: `theBareWordAsksLevelOne` and
   `anAttachedLevelAsksThatLevel` read the level `detail::scanCommandLine`
@@ -391,9 +391,8 @@ rule and no page is needed.
   `add_executable` plus `add_test` block to `test/CMakeLists.txt` in the same
   commit, on the shape of `test/CMakeLists.txt:1579-1583` with the
   `source/harness` include directory. This case lands with T033 in one commit
-  (FR-048).
-
-- [ ] T026 [P] [US1] In `test/source/harness_cli_table_test.cpp`, move the table
+  (FR-048). The unit registers without `SKIP_RETURN_CODE` and with no row in `test/tier_labels.sh`: it answers 0 or 1, and `test_tier_labels` passes with it registered. Five arm mutations ran, one per arm, and each prints the case it breaks: the bare word asks level 2, the range admits 7, the attached text is dropped, `applySourceValue` gains an arm for the row, and the row's environment flag turns on. The environment flag mutation moves the table unit as well, which pins that flag in two readers. The tree was restored byte for byte after each cycle.
+- [x] T026 [P] [US1] In `test/source/harness_cli_table_test.cpp`, move the table
   oracle to the 43rd row: `kContract` holds 43 rows and ends
   `{"topdown", kOptional, 350}` (`:244`); `theTableHoldsFortyTwoRows` becomes
   `theTableHoldsFortyThreeRows` with its entry in the check-map comment at `:55`
@@ -465,7 +464,7 @@ rule and no page is needed.
 
 ### Implementation for User Story 3
 
-- [ ] T032 [US1] In `source/harness/detail/options.hpp`, add
+- [x] T032 [US1] In `source/harness/detail/options.hpp`, add
   `kTopdownOptionValue = 350` after `kGroupLayoutOptionValue` at `:97`; in
   `source/harness/options.cpp`, append the `topdown` row after `hunt-baseline`
   at `:765` inside the array that closes at `:771`, with
@@ -482,9 +481,8 @@ rule and no page is needed.
   `:954`, spelled `--topdown[=<level>]` there, paid by the one named trim of the
   split blank at `README.md:946`, so the page holds the `PAGE_LINE_CAP` of 1004
   that `python3 tools/docs/example_drift.py .` reads (FR-019, FR-044; turns the
-  43-row oracle of T026 green).
-
-- [ ] T033 [US1] In `source/harness/detail/internal.hpp`, give `RunOptions` the
+  43-row oracle of T026 green). This row, `T026`, `T033` and `T025` land in one commit: `source/harness/options.cpp` reads an option name from a row, so the arm of `T033` answers nothing before the row stands, and the row moves the table oracle to 43 rows, asks the guide page for its row and asks `README.md` for a row and a trim inside the 1004-line page budget. The row spells `--topdown`, the exact long option the drift gate compares every row against, and the trim is the blank line that split the quick-reference names table, which now stands as one.
+- [x] T033 [US1] In `source/harness/detail/internal.hpp`, give `RunOptions` the
   one member `std::optional<std::uint64_t> topdownLevel` beside `graphPath` at
   `:701`, an engaged value being the option standing, so no second presence flag
   joins the record; in `source/harness/options.cpp`, give the row its own arm
