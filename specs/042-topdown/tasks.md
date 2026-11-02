@@ -406,7 +406,7 @@ rule and no page is needed.
   This case lands with T032 in one commit, because that commit is where the live
   table gains its 43rd row (FR-048).
 
-- [ ] T027 [US1] In `test/source/harness_topdown_run_test.cpp`, a new file,
+- [x] T027 [US1] In `test/source/harness_topdown_run_test.cpp`, a new file,
   write the collection cases over the fixture tree of
   `test/source/detail/topdown_fixture.hpp` and the scripted source of
   `test/source/detail/pass_fixture.hpp`, driving `detail::Runner` the way
@@ -421,6 +421,11 @@ rule and no page is needed.
   commit, on the shape of `test/CMakeLists.txt:1483-1487` with the
   `source/harness` include directory. This case lands with T034 in one commit
   (FR-048).
+  The four cases stand as scenarios of one re-exec parent, each over its
+  own scripted provider, and the registration carries `SKIP_RETURN_CODE 2`
+  for a host this build vendors no table for. Each case printed its own fault
+  against a tree where the option's field stood with no collection behind it,
+  and prints it again under one mutation of that collection.
 
 - [ ] T028 [US1] In `test/source/harness_topdown_run_test.cpp`, the new file of
   T027, write the record and strip cases: `theNodeFigureStandsInTheRecord` holds
@@ -491,7 +496,7 @@ rule and no page is needed.
   no arm to `applySourceValue`, so a file line keeps the `default:` refusal at
   `:1517-1528` (FR-019, FR-050, spec D-5; turns T025 green).
 
-- [ ] T034 [US1] In `source/harness/runner.cpp`, call
+- [x] T034 [US1] In `source/harness/runner.cpp`, call
   `sg::counters::cpuIdentity()` once after the `--metric` loop at `:1315-1326`
   and ahead of the core gather at `:1328`, ask `sg::counters::topdownTree` for
   `*m_options.topdownLevel`, and append one `MetricColumn` per collected node
@@ -503,6 +508,10 @@ rule and no page is needed.
   `specs/042-topdown/contracts/topdown-selection.md` gives a test, taken from a
   null-by-default member beside the new option in `RunOptions` (FR-018, FR-019,
   FR-021, FR-023; turns T027 green).
+  Four arms each printed their own fault under one mutation: the two sets
+  standing as alternatives, the node columns at the head of the vector, a
+  refused row taking a column, and the new source's limit reaching no plan.
+  The tree came back byte for byte after each.
 
 - [ ] T035 [US1] In `source/harness/detail/internal.hpp`, declare
   `stripTopdownColumns` with the `\pre` that every stripped position names a

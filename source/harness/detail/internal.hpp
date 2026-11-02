@@ -22,6 +22,7 @@
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_metrics.hpp"
+#include "speedgun-ng/counters_topdown.hpp"
 #include "speedgun-ng/execution_context.hpp"
 #include "speedgun-ng/hunt.hpp"
 
@@ -731,6 +732,14 @@ struct RunOptions
   // words of a command line settle this member, and no second flag says the
   // option stood.
   std::optional<std::uint64_t> topdownLevel;
+
+  // specs/042-topdown FR-018, PC-9: the rows the selection reads, spelled the
+  // way `TopdownSelection::table` spells the table a test hands in. An absent
+  // optional is a production run, where the selection reads the table of the
+  // identity the cpu states. The runner copies the field into the selection and
+  // reads nothing else from it, so no default here names a directory, holds a
+  // row, or picks a level.
+  std::optional<sg::counters::TopdownTable> topdownTable;
 };
 
 /// @brief The one interrupt flag: SIGINT sets it, the runner reads it
