@@ -74,6 +74,9 @@ tmp, reg_test, reg_example = sys.argv[1:4]
 # tier list, the budget exceptions, and the skip rules. The tier list is
 # T011's and the exceptions block is T044's, so a missing one reads as an
 # empty list here, which is what the audit says about a tree without it.
+# The two top-down rows reserve the skip code for the units T006 and T010
+# register. A name no registration lists yet answers nothing to the check
+# below, so the row costs nothing until its unit exists.
 MASTER_SKIP = {
     "counters_pmu_test": "2",
     "counters_metric_formula_test": "2",
@@ -83,6 +86,8 @@ MASTER_SKIP = {
     "counters_overhead": "2",
     "counters_counter_limits_test": "2",
     "counters_objects_limit_test": "2",
+    "counters_topdown_select_test": "2",
+    "counters_topdown_source_test": "2",
 }
 
 # FR-048 closes the list of constructs a registration may not carry, and
