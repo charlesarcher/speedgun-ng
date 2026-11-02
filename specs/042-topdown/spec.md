@@ -64,9 +64,9 @@ force. No implementer reopens them.
   line scan collapses a bare optional value to the seed text `0`
   (`source/harness/options.cpp:1001-1006`), so the option word alone and the
   attached `=0` reach the parse arm as one text, and FR-019 with FR-050 needs
-  two answers. The plan names the change that separates them and keeps the four
-  optional rows that exist today (three of them, at
-  `source/harness/options.cpp:632`, `:676` and `:700`) answering as they do
+  two answers. The plan names the change that separates them and keeps the three
+  optional rows that exist today (`source/harness/options.cpp:632`, `:676` and
+  `:700`) answering as they do
   now.
 - **D-6 Host constants (Q-3).** Every Intel level-1 row reaches the constant
   `#core_wide` through the table's own slot rows, measured at the audit
@@ -175,13 +175,16 @@ force. No implementer reopens them.
 - **D-20 Rows that print under another object (PC-11).** The loader drops
   nothing: it answers a verdict for every metric row of the selected directory,
   and specs/022 bars a silent drop. The duty lands on the reader. The selection
-  reads the whole published listing, keeps the rows that print under `cpu/` or
-  an uncore object, and one test names a level whose rows print under two
-  objects. No loader change and no new refusal kind.
+  reads the whole published listing and keeps each row of the asked level
+  wherever it prints. Measured on this host, 69 of the 102 level rows print under
+  `machine/`, among them all four level-1 rows, and 33 print under `cpu/`, so a
+  filter on the printing object would drop the level SC-01 requires. One test
+  names a level whose rows print under two objects. No loader change and no new
+  refusal kind.
 - **D-21 The entry point offers its PMU provider once (PC-8).** The local fix
   is one line at `source/harness/cli.cpp:579`: offer the provider once per
   process, since every later construction is refused anyway. That takes the two
-  thousand-call windows from about 63 minutes to seconds and makes the full
+  thousand-call windows from about 59 minutes to seconds and makes the full
   suite and the `taskset -c 0,1` run of the acceptance list finishable on this
   host, so this lane carries it in its own commit with its test first. The wider
   shape stays out: a process-static PMU state in the counters library, so a
@@ -248,8 +251,9 @@ Measured on this machine on 2026-11-01 before any file changed.
   a `;` separated list. Each row of level 2 to 6 carries exactly one group
   of the shape `tma_<name>_group` whose stem names another top-down row of
   the same file, and no row carries two of them. Measured over all 98 deeper
-  rows: 98 rows with one parent, 0 rows without, 0 rows with two. The per-row
-  table is `skx-topdown-rows.csv` in the audit record. AMD spells the same
+  rows: 98 rows with one parent, 0 rows without, 0 rows with two. The count
+   comes from a walk over `skx-metrics.json` that prints each row's group
+   tokens. AMD spells the same
   fact without the `tma_` prefix: `amdzen4/pipeline.json` and
   `amdzen5/pipeline.json` each hold 14 rows, five `PipelineL1` rows with no
   parent, eight `PipelineL2` rows with one `<name>_group` parent token each,
@@ -310,7 +314,7 @@ Measured on this machine on 2026-11-01 before any file changed.
   of one thousand in-process entry-point calls (`test/source/harness_cli_test.cpp:1277-1289`)
   each cost 1.7 to 1.9 seconds, because every call builds a fresh PMU provider
   and re-probes the host: one provider build issues 49,330 event opens, 995 of
-  them granted. About 2,040 calls then need about 63 minutes. The cause sits at
+  them granted. About 2,040 calls then need about 59 minutes. The cause sits at
   `source/harness/cli.cpp:579`: the entry point constructs a `PmuProvider` on
   every call, and the open system refuses it after its first call
   (`source/counters/system.cpp:218`), so each call pays 1.35 to 1.72 seconds of
@@ -582,10 +586,13 @@ registered benchmark prints no row.
 - **FR-005**: When the identity names an Arm part, the selection shall answer
   unsupported, name the `MIDR`, and state that no Arm table is vendored.
   (D-7.)
-- **FR-006**: When the selected directory publishes rows for two core scopes,
-  `cpu_core` and `cpu_atom`, the selection shall answer unsupported and state
-  that this feature makes no claim for a hybrid part, because the core type
-  stands absent (FR-003) and no hybrid host stands in the acceptance set. A
+- **FR-006**: When the selected directory publishes event rows for two core
+  scopes, `cpu_core` and `cpu_atom`, the selection shall answer unsupported and
+  state that this feature makes no claim for a hybrid part, because the core type
+  stands absent (FR-003) and no hybrid host stands in the acceptance set. The
+  parser already reads an event row's scope into `PmuTableEntry::description`
+  (`source/counters/detail/pmu.hpp:37-38`), so the test reads data the library
+  holds, and no name list stands in its place. A
   directory that publishes one scope shall select normally. (D-13, SC-12.)
 - **FR-007**: When the selected table holds no row of any top-down group, in
   either the Intel or the AMD spelling (FR-014), the selection shall answer
@@ -648,11 +655,12 @@ registered benchmark prints no row.
   multi-pass planner of specs/024 as one set, and the run shall state the
   passes the planner produced.
 - **FR-022**: The feature shall read the programmable-counter limit only
-  through the published object fact, and shall change no code under
-  `source/counters/linux_pmu/` beyond the three repairs D-18, D-19 and D-21
-  name, each in its own commit with its test first. The limit code
-  `source/counters/linux_pmu/counter_limits.cpp` stands untouched, and the
-  harness registration line D-21 changes is harness code.
+  through the published object fact. It shall change no limit code: no edit to
+  `source/counters/linux_pmu/counter_limits.cpp`, to the limit computation, or to
+  the path that reads counters. The three repairs D-18, D-19 and D-21 name ride in
+  their own commits with their tests first. The selection, the threshold carrier,
+  the two host facts and the source record change other files of that directory,
+  and Scope names each one.
 
 - **FR-023**: When a run carries metric columns and asks for the tree, the
   harness shall collect both in one plan, one set of passes, and shall keep
@@ -740,9 +748,11 @@ registered benchmark prints no row.
   its quick-reference rows and its option row, and the page shall stay within
   its line cap by the trim recorded in the same change. (D-15,
   constitution IV.1.)
-- **FR-045**: The feature shall carry a runnable example under `example/`
-  that prints the level-1 values on a host with a source and the unsupported
-  message on a host without one, and that the run gate executes.
+- **FR-045**: The feature shall carry a runnable example under `example/` that
+  reads the host identity, prints the level-1 values on a host with a source and
+  the unsupported message on a host without one, and registers one benchmark, so
+  the run gate's listing demand and its exit-status demand both hold when it
+  runs the binary.
 - **FR-046**: The guide shall carry the longer explanation: the names, the
   levels, the source record, the unsupported reasons, and the rule form.
 
@@ -786,15 +796,15 @@ registered benchmark prints no row.
   source the five sum to 100 percent within 0.1 percentage point. (D-3,
   SC-03.)
 
-- **FR-057**: The report of this feature shall name each part with no host
-  (Intel parts measured through `PERF_METRICS`, Intel hybrid parts, Arm parts)
-  as a pending row, and shall state no hardware claim for one. (SC-11,
-  SC-12.)
+- **FR-057**: The acceptance record D-16 names shall list each part with no host
+  (Intel parts measured through `PERF_METRICS`, Intel hybrid parts, Arm parts) as
+  a pending row, and shall state no hardware claim for one. (SC-11, SC-12.)
 
 - **FR-058**: The example set shall carry one memory-bound benchmark whose
   working set exceeds the last-level cache of the acceptance host, because the
   acceptance run needs a memory-bound case and the shipped examples hold none:
-  the largest working set today is 32 KiB against a 19.3 MiB last-level cache.
+  the largest working set today is 64 KiB (`example/docs/throughput.cpp:25`)
+  against a 19.3 MiB last-level cache.
   (SC-10.)
 ## Clarifications
 
@@ -967,7 +977,11 @@ the `topdown:` rule form, the unsupported message, the `#core_wide` reader, the
 three prerequisite repairs D-18, D-19 and D-21 name (FR-053 to FR-055), the
 public header, the version and `SOVERSION` checks, the docs section, the
 runnable example, the memory-bound example benchmark the acceptance run needs
-  (FR-058), and the tests.
+  (FR-058), and the tests. Inside `source/counters/linux_pmu/` the change adds
+  `topdown_select.cpp` and edits `table_parse.cpp`, `metric_formula.hpp`,
+  `metric_formula.cpp`, `metric_tables.hpp` and `embedded_tables.hpp`; it edits
+  `fast_read.cpp` for FR-053 only. No other file of that directory changes
+  (FR-022).
 
 Out, each with its owner:
 
@@ -1003,14 +1017,17 @@ Out, each with its owner:
   table data, so the tree counts the rows of a level to find its width.
 - `#core_wide` is a coverage flag, and it carries no width. Upstream defines
   it as true when a measurement covers a whole core with all of its SMT threads
-  (`tools/perf/util/smt.h` in the vendored tree), and no generator supplies a
-  value for it: the slot width rides the table as a literal, `4 *
+  (the kernel's `tools/perf/util/smt.h`, outside this tree), and no generator
+  supplies a value for it: the slot width rides the table as a literal, `4 *
   tma_info_core_core_clks` at `skx-metrics.json:1461`, in the 21 directories
   that predate `TOPDOWN.SLOTS`. So the reader answers the flag for the run's
   target set, answers 0 for a per-thread window, and reads no width. The
   reader's exact source of the target set is a plan decision, and this spec
   states only that the flag is published, fakeable and needed by every Intel
-  level-1 row.
+  level-1 row. The vendored rows show the use: a broadwell row tests
+  `if #core_wide < 1 else` over two alternatives
+  (`external/pmu-events/arch/x86/broadwell/bdw-metrics.json:370`), which is how
+  a flag behaves.
 - PC-7 and PC-8 are host conditions at the audit point. This feature reports
   them, and its live-value acceptance waits on them.
 
@@ -1094,11 +1111,11 @@ Measured at the audit point, before any section was written.
 - `source/counters/linux_pmu/table_parse.cpp`: `pmuIdentCurrent` (55-106),
   `addMetricEntry` (413-433), the mapfile scan (695-774), table load
   (776-806).
-- `source/counters/linux_pmu/metric_tables.hpp`: `countObjects` (104-114),
-  `readSmtState` (130-146), `kHostFacts` (150-160).
-- `source/counters/linux_pmu/metric_formula.hpp`: `FormulaKind` (52-70),
-  `ParsedMetricRow` (115-130), `parsedMetricTable` (147-148), `MetricHost`
-  (156-160).
+- `source/counters/linux_pmu/metric_tables.hpp`: `countObjects` (105-117),
+  `readSmtState` (138-153), `kHostFacts` (161-166).
+- `source/counters/linux_pmu/metric_formula.hpp`: `FormulaKind` (43-59, `device`
+  at `:75`), `ParsedMetricRow` (110-121), `parsedMetricTable` (147-148),
+  `MetricHost` (156-160).
 - `source/counters/linux_pmu/embedded_tables.hpp`: `EmbeddedFile` (23-28),
   `EmbeddedDir` (32-40), `embeddedFindDir` (49-58), `embeddedFileBytes`
   (62-72).
