@@ -657,17 +657,37 @@ auto printResult(const BenchmarkResult& result,
   // carrier fills. A benchmark whose windows placed no kept gap prints
   // no line (E-06, FR-021).
   if (!result.jitterFolds.empty()) {
-    const sg::JitterEntryFold* worst = &result.jitterFolds.front();
-    for (const auto& fold : result.jitterFolds) {
-      if (fold.stats.maxNs > worst->stats.maxNs) {
+    // specs/043 T065, FR-019, FR-020, D-7: a run that names a method
+    // places no gap, so the standing line answers three zeros for every
+    // entry. The fold of such a run carries a series, and the line names
+    // its figures: the kept count, the largest unit time, and the noise
+    // fraction, the worst cpu the cpu carrying the largest unit time. A
+    // `tsc` fold carries no series, and its gap line stands byte-
+    // identical (FR-031, SC-004).
+    const auto& folds = result.jitterFolds;
+    const auto seriesRun = folds.front().series.has_value();
+    const sg::JitterEntryFold* worst = &folds.front();
+    for (const auto& fold : folds) {
+      if (seriesRun ? fold.series.has_value()
+                  && fold.series->maxValue > worst->series->maxValue
+                    : fold.stats.maxNs > worst->stats.maxNs)
+      {
         worst = &fold;
       }
     }
-    std::printf("jitter: worst cpu %u gaps=%llu max=%llu total=%.2f\n",
-                static_cast<unsigned>(worst->cpu),
-                static_cast<unsigned long long>(worst->stats.gapCount),
-                static_cast<unsigned long long>(worst->stats.maxNs),
-                worst->stats.totalPercent);
+    if (seriesRun && worst->series.has_value()) {
+      std::printf("jitter: worst cpu %u samples=%llu max=%llu noise=%.2f\n",
+                  static_cast<unsigned>(worst->cpu),
+                  static_cast<unsigned long long>(worst->series->sampleCount),
+                  static_cast<unsigned long long>(worst->series->maxValue),
+                  worst->series->noisePercent);
+    } else {
+      std::printf("jitter: worst cpu %u gaps=%llu max=%llu total=%.2f\n",
+                  static_cast<unsigned>(worst->cpu),
+                  static_cast<unsigned long long>(worst->stats.gapCount),
+                  static_cast<unsigned long long>(worst->stats.maxNs),
+                  worst->stats.totalPercent);
+    }
   }
 
   // specs/029 T027, T074, T126, FR-040, FR-041, PD-15, data-model E-07: the
