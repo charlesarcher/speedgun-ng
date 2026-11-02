@@ -130,6 +130,17 @@ auto dftPeriods(std::span<const double> samples, std::uint64_t stepNs)
   }
   const auto window = samples.subspan(samples.size() - points, points);
 
+  // The window mean stands removed ahead of the bin loop. The mean feeds
+  // only the DC bin, which the filter excludes, so bins 1 through N/2 keep
+  // the value each carries, and a level series leaves them equal with the
+  // recurrence's rounding floor at zero, the case the strict compare reads
+  // (FR-018, SC-002, R-7). The pass allocates nothing.
+  double windowSum = 0.0;
+  for (const double sample : window) {
+    windowSum += sample;
+  }
+  const double mean = windowSum / static_cast<double>(points);
+
   // One span of N bin powers, allocated ahead of the loop (FR-017).
   std::vector<double> power(static_cast<std::size_t>(points), 0.0);
   const double turn = kTwoPi / static_cast<double>(points);
@@ -145,8 +156,9 @@ auto dftPeriods(std::span<const double> samples, std::uint64_t stepNs)
     // advances by the bin's own angle once per sample, and no library call
     // stands in the loop (FR-018, R-13).
     for (const double sample : window) {
-      real += sample * cosRun;
-      imag -= sample * sinRun;
+      const double centred = sample - mean;
+      real += centred * cosRun;
+      imag -= centred * sinRun;
       const double nextCos = cosRun * stepCos - sinRun * stepSin;
       sinRun = sinRun * stepCos + cosRun * stepSin;
       cosRun = nextCos;

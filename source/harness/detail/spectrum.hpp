@@ -76,8 +76,11 @@ struct SpectrumResult
 /// recurrence, so no library call stands in the inner loop. The cost stands
 /// at `N x N/2` complex multiply-adds, four real each, and the call
 /// allocates one span of N bin powers before its loop and nothing inside
-/// it. A bin stands kept when its power stands above `kSpectrumMedianFactor`
-/// times the median of bins 1 through N/2, the DC bin out. The list sorts by
+/// it. The window mean stands removed ahead of the bin loop, feeding only
+/// the DC bin, so a constant series at any level leaves bins 1 through N/2
+/// equal and answers an empty list. A bin stands kept when its power stands
+/// above `kSpectrumMedianFactor` times the median of bins 1 through N/2,
+/// the DC bin out. The list sorts by
 /// power, strongest first, ties in period order, and cuts at
 /// `kSpectrumTop`. The period of bin k stands at `(N x stepNs) / k`
 /// (FR-019).

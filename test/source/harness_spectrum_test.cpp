@@ -125,6 +125,20 @@ auto aConstantSeriesAnswersAnEmptyList() -> void
         "a constant series names no period (FR-018, SC-002)");
 }
 
+// FR-018, SC-002, R-7: a constant at 1000.0 stands level across the span,
+// so the window mean stands removed ahead of the bin loop, bins 1 through
+// N/2 read equal power, the floor the recurrence leaves reads zero, and the
+// strict compare against three times the median keeps nothing.
+auto aNonzeroConstantAnswersAnEmptyList() -> void
+{
+  const std::vector<double> samples(1024, 1000.0);
+  const auto answer = sg::detail::dftPeriods(samples, kStepNs);
+
+  check(answer.points == 1024, "the transform reads the whole span (FR-018)");
+  check(answer.periods.empty(),
+        "a constant series at 1000.0 names no period (FR-018, SC-002)");
+}
+
 // FR-018: a one-sample span leaves no bin, so the list stands empty.
 auto oneSampleAnswersAnEmptyList() -> void
 {
@@ -379,6 +393,7 @@ auto main() -> int
   aPureToneNamesItsPeriod();
   twoTonesRankStrongestFirst();
   aConstantSeriesAnswersAnEmptyList();
+  aNonzeroConstantAnswersAnEmptyList();
   oneSampleAnswersAnEmptyList();
   theCapReadsEveryPoint();
   aLongerSeriesDisclosesTheSkippedCount();
