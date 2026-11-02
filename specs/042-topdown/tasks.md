@@ -65,7 +65,7 @@ needs shared scaffolding: both archives glob their sources, no build file gains
 a source entry, and each new test file takes its registration in the commit that
 writes its first real cases.
 
-- [ ] T001 [P] In `test/tier_labels.sh`, add the rows
+- [x] T001 [P] In `test/tier_labels.sh`, add the rows
   `counters_topdown_select_test` and `counters_topdown_source_test`, each at
   skip code 2, to the `MASTER_SKIP` baseline at `:77-86`, so the tier gate
   accepts the skip rule the two counters units of T006 and T010 carry. Each unit
@@ -93,13 +93,13 @@ and every story calls `topdownTree`.
 
 ### Tests for this phase (write first, observe failure)
 
-- [ ] T002 [P] In `test/source/counters_linux_pmu_seam_test.cpp`, extend
+- [x] T002 [P] In `test/source/counters_linux_pmu_seam_test.cpp`, extend
   `pageGateScenario` with the fixed-counter case: `fastIndexValid(0x40000002)`
   answers true, `0x40000000 + kRnpmcMaxIndex + 1` and `0` still refuse, and a
   `fastDecode` at the marked index answers OK, with no event opened (FR-053; red
   at `754867de`). This case lands in the commit of T013 (FR-048).
 
-- [ ] T003 [P] In `test/source/harness_cli_test.cpp`, add
+- [x] T003 [P] In `test/source/harness_cli_test.cpp`, add
   `pmuProviderIsOfferedOncePerProcess`: the entry point's offer helper in
   `source/harness/detail/internal.hpp` answers offered on the first call and
   already offered on the second in one process, so a second entry point call
@@ -204,12 +204,12 @@ and every story calls `topdownTree`.
   the path together with T015, whose commit carries this move (FR-054, spec
   D-19).
 
-- [ ] T013 [P] In `source/counters/linux_pmu/fast_read.cpp`, bound the counter
+- [x] T013 [P] In `source/counters/linux_pmu/fast_read.cpp`, bound the counter
   number in `fastIndexValid` with the fixed-counter mark masked off, keep the
   unmarked operand for the instruction, and correct the comment above the bound
   (FR-053, spec D-18; turns `pageGateScenario` of T002 green).
 
-- [ ] T014 In `source/harness/cli.cpp`, offer `counters::PmuProvider` once per
+- [x] T014 In `source/harness/cli.cpp`, offer `counters::PmuProvider` once per
   process behind the helper in `source/harness/detail/internal.hpp`, beside the
   clock registration, and drop the per-call construction at
   `source/harness/cli.cpp:579` (FR-055, spec D-21; turns
