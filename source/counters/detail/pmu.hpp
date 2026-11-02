@@ -410,17 +410,10 @@ struct FastContext
 [[nodiscard]] inline auto leaderPid(const Target& where) noexcept
     -> std::pair<pid_t, int>
 {
-  // LCOV_EXCL_BR_START : coverage exclusion (T140): both arcs. A cpu-pinned
-  // plan binds an event with this arm, and a plan reaches one only where its
-  // leaf is countable, which is a granted `perf_event_open`: a runner whose
-  // `perf_event_open` is refused reports no countable leaf, so
-  // `counters_pmu_test.cpp`'s cpu-target scenario skips and this arm runs
-  // there; the host that grants the syscall runs it on every pinned plan.
-  if (where.kind == TargetKind::CPU) {  // LCOV_EXCL_BR_LINE
-    return {-1, where.cpu};  // LCOV_EXCL_LINE
+  if (where.kind == TargetKind::CPU) {
+    return {-1, where.cpu};
   }
   return {0, -1};
-  // LCOV_EXCL_BR_STOP
 }
 
 // The kernel's own self-monitor time recipe, over the fields the page
