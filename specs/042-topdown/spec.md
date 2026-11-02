@@ -857,8 +857,9 @@ registered benchmark prints no row.
   collected set.
 - **Unsupported answer**: one message with a vendor, an identity and a
   reason, plus the record the report carries.
-- **Threshold text**: the table's own condition for a node, kept as text and
-  marked on the console when a node passes it.
+- **Threshold text**: the table's own condition for a node, carried as text,
+  printed beside the node unchanged, and evaluated by no part of this feature
+  (D-9).
 
 ## Success Criteria *(mandatory)*
 
@@ -1026,7 +1027,11 @@ Measured at the audit point, before any section was written.
   `tools/docs/example_drift.py:683` when one list moves without the other.
 - Tests: one counters test registers in six lines
   (`test/CMakeLists.txt:515-522`) and one harness test takes the same shape.
-  Three new test files join that list. A counters test that answers
+  Each half carries its own units: the counters half a selection seam unit and
+  an addition to the existing fast-path seam unit, the harness half units for
+  the option surface, the report round trip and the rule prefix. The plan names
+  the file count, and every file takes that registration shape. A counters test
+  that answers
   `SKIP_RETURN_CODE 2` also needs a row in `MASTER_SKIP`
   (`test/tier_labels.sh:77-86`), because the tier-label gate faults an
   unregistered skip rule.
