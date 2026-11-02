@@ -105,7 +105,10 @@ public:
   // next line reports a count.
   ObjectSink() = default;  // LCOV_EXCL_LINE
 
-  ObjectSink(const ObjectSink&) = default;
+  // The defaulted copy constructor sits in the same class: the compiler
+  // attributes its call to the derived type's own copy, so no execution
+  // advances a line record here either.
+  ObjectSink(const ObjectSink&) = default;  // LCOV_EXCL_LINE
   ObjectSink(ObjectSink&&) = delete;
   auto operator=(const ObjectSink&) -> ObjectSink& = default;
   auto operator=(ObjectSink&&) -> ObjectSink& = delete;
