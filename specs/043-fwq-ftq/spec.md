@@ -768,6 +768,8 @@ periods.
   and the window runs.
 - A buffer that fills: each lost record counts, the count discloses,
   and the statistics read the kept records only.
+- A `work=1000` run: the count reads 1000, no search runs, the
+  calibration span reads 0, and the window runs at that count.
 - A `work=` count with `method=ftq`, and a `quantum=` value with
   `method=fwq`: each refuses one line with exit status 2.
 - A `noise=` value outside the range 0 to 100, a `noise=` value that is
@@ -903,13 +905,17 @@ periods.
   reading the probe's own time source twice around the body. The search
   SHALL end at the trial cap, at the count cap 16,777,216, or when the
   bisection interval holds one count, so a scripted clock that never
-  passes the target stands bounded at 98 reads. The run SHALL keep the closest count it measured, and the
-  calibration span SHALL stay out of the window's runtime.
+  passes the target stands bounded at 98 reads. A `work=` count the value names SHALL stand as the unit count, and
+  the search SHALL not run for that cpu. The run SHALL keep the closest
+  count it measured, and the calibration span SHALL stay out of the
+  window's runtime.
 - **FR-011** (D-2, AC-c2): The run SHALL disclose the calibration of
   each probe cpu before that cpu's window starts, on the console and in
   the JSON: the work count, the measured unit time, the target, the
-  calibration span, and the quantum for FTQ. The JSON SHALL carry them
-  inside that cpu's `series` item (FR-006).
+  calibration span, and the quantum for FTQ. For a run whose count the value names, the calibration span reads 0,
+  and the measured unit time reads the first unit of that cpu's window.
+  The JSON SHALL carry them inside that cpu's `series` item (FR-006,
+  FR-010).
 
 ### FWQ: the fixed work quanta series (D)
 
