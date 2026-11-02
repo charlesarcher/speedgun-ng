@@ -279,8 +279,10 @@ struct SPEEDGUN_NG_EXPORT TopdownRefusal
  *
  * `nodes` holds every node of every level at or above `depth`, in table order,
  * and `refused` holds every row of those levels the host refuses. The two are
- * disjoint and together they cover every level row the table holds at or above
- * `depth`.
+ * disjoint, and together they cover every row of those levels whose own
+ * `_group` token names a row of the table: a deeper row that names no parent
+ * reaches neither carrier, because no part of this feature invents one
+ * (FR-013).
  *
  * The struct is data: it has no call to guard. The shape no member may break
  * is that no node stands that a row does not state.
