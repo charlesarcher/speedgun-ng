@@ -48,9 +48,67 @@
 
 #  include "../detail/pmu.hpp"
 #  include "embedded_tables.hpp"
+#  include "pmu_ident.hpp"
 
 namespace sg::counters::detail
 {
+
+auto readCpuidWords() noexcept -> CpuidWords
+{
+#  if defined(__x86_64__) || defined(__i386__)
+  CpuidWords words;
+  unsigned int eax = 0;
+  unsigned int ebx = 0;
+  unsigned int ecx = 0;
+  unsigned int edx = 0;
+  static_cast<void>(__get_cpuid_count(0, 0, &eax, &ebx, &ecx, &edx));
+  words.leaf0Eax = eax;
+  words.leaf0Ebx = ebx;
+  words.leaf0Edx = edx;
+  words.leaf0Ecx = ecx;
+  words.leaf1Answered = __get_cpuid_count(1, 0, &eax, &ebx, &ecx, &edx) != 0;
+  words.leaf1Eax = eax;
+  return words;
+#  else
+  return CpuidWords {};
+#  endif
+}
+
+auto pmuIdentFromWords(const CpuidWords& words) -> PmuIdent
+{
+  PmuIdent id;
+  // The vendor string lives in EBX:EDX:ECX of leaf 0, captured whenever
+  // leaf 0 answers with a highest basic leaf of one or more. A leaf
+  // that does not answer reads as zero, so the same test stands for
+  // both the unanswered and the below-one case.
+  if (words.leaf0Eax >= 1) {
+    const std::uint32_t vendor[3] = {
+        words.leaf0Ebx, words.leaf0Edx, words.leaf0Ecx};
+    id.vendor.resize(12);
+    for (int w = 0; w < 3; ++w) {
+      for (int b = 0; b < 4; ++b) {
+        const auto index =
+            static_cast<std::size_t>(w) * 4U + static_cast<std::size_t>(b);
+        id.vendor[index] = static_cast<char>((vendor[w] >> (8 * b)) & 0xFFU);
+      }
+    }
+  }
+  if (words.leaf1Answered) {
+    const auto eax = words.leaf1Eax;
+    const auto baseFamily = static_cast<int>((eax >> 8) & 0xFU);
+    const auto extFamily = static_cast<int>((eax >> 20) & 0xFFU);
+    const auto baseModel = static_cast<int>((eax >> 4) & 0xFU);
+    const auto extModel = static_cast<int>((eax >> 16) & 0xFU);
+    id.family = baseFamily + extFamily;
+    // The mapfile's hex-model spelling (kernel jevents convention).
+    id.model = baseModel | (extModel << 4);
+    // EAX bits 3..0: the stepping. The two model-55 rows of the
+    // mapping file split the model by it, so a key without it names no
+    // row for a model-55 part (FR-034, FR-035).
+    id.stepping = static_cast<int>(eax & 0xFU);
+  }
+  return id;
+}
 
 auto pmuIdentCurrent() -> PmuIdent
 {
@@ -58,50 +116,8 @@ auto pmuIdentCurrent() -> PmuIdent
   static const PmuIdent kIdent = []
   {
 #  if defined(__x86_64__) || defined(__i386__)
-    PmuIdent id;
-    unsigned int eax = 0;
-    unsigned int ebx = 0;
-    unsigned int ecx = 0;
-    unsigned int edx = 0;
-    // LCOV_EXCL_BR_START : coverage exclusion (T066): a CPU that does not
-    // answer CPUID leaf 0, or answers it with a highest basic leaf below 1.
-    // Every x86 CPU that runs this code answers leaf 0, and its EAX is the
-    // highest basic leaf number, which is at least 1 on any CPU that also
-    // answers leaf 1.
-    if (__get_cpuid(0, &eax, &ebx, &ecx, &edx)  // LCOV_EXCL_BR_LINE
-        && eax >= 1)
-    {  // LCOV_EXCL_BR_LINE
-      // The vendor string lives in EBX:EDX:ECX of leaf 0. Leaf 1
-      // overwrites those registers, so the string is captured before
-      // the family and model are read.
-      const unsigned int words[3] = {ebx, edx, ecx};
-      id.vendor.resize(12);
-      for (int w = 0; w < 3; ++w) {
-        for (int b = 0; b < 4; ++b) {
-          const auto index =
-              static_cast<std::size_t>(w) * 4U + static_cast<std::size_t>(b);
-          id.vendor[index] = static_cast<char>((words[w] >> (8 * b)) & 0xFFU);
-        }  // LCOV_EXCL_LINE
-      }  // LCOV_EXCL_LINE
-    }  // LCOV_EXCL_BR_LINE
-    // LCOV_EXCL_BR_STOP
-    // LCOV_EXCL_BR_START : coverage exclusion (T066): a CPU whose highest
-    // basic leaf is 0, which predates every CPU this library targets.
-    if (__get_cpuid(1, &eax, &ebx, &ecx, &edx)) {  // LCOV_EXCL_BR_LINE
-      const auto baseFamily = static_cast<int>((eax >> 8) & 0xFU);
-      const auto extFamily = static_cast<int>((eax >> 20) & 0xFFU);
-      const auto baseModel = static_cast<int>((eax >> 4) & 0xFU);
-      const auto extModel = static_cast<int>((eax >> 16) & 0xFU);
-      id.family = baseFamily + extFamily;
-      // The mapfile's hex-model spelling (kernel jevents convention).
-      id.model = baseModel | (extModel << 4);
-      // EAX bits 3..0: the stepping. The two model-55 rows of the
-      // mapping file split the model by it, so a key without it names no
-      // row for a model-55 part (FR-034, FR-035).
-      id.stepping = static_cast<int>(eax & 0xFU);
-    }  // LCOV_EXCL_BR_LINE
-    // LCOV_EXCL_BR_STOP
-    return id;
+    const CpuidWords words = readCpuidWords();
+    return pmuIdentFromWords(words);
 #  else
     return PmuIdent {};
 #  endif
