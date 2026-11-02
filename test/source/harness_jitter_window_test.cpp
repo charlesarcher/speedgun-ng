@@ -546,6 +546,38 @@ auto doubleValueAfter(const std::string& document,
   return value;
 }
 
+// The end of the object that opens at `at`: the position of its closing
+// brace, so a key search inside the object stops at its border (FR-006).
+auto objectEndAt(const std::string& document, std::size_t at) -> std::size_t
+{
+  std::size_t depth = 0;
+  for (std::size_t i = at; i < document.size(); ++i) {
+    if (document.at(i) == '{') {
+      ++depth;
+    }
+    else if (document.at(i) == '}' && --depth == 0) {
+      return i;
+    }
+  }
+  return std::string::npos;
+}
+
+// The unsigned value one integral key carries inside the object that
+// spans `from` to `to`, and 0 for a key the object leaves out: the
+// writer writes the two method figures only for the method that uses
+// them, and the reader answers 0 for a key that stands absent (FR-006).
+auto integerValueIn(const std::string& document,
+                    std::size_t from,
+                    std::size_t to,
+                    const char* key) -> std::uint64_t
+{
+  const auto at = document.find(std::string("\"") + key + "\":", from);
+  if (at == std::string::npos || at > to) {
+    return 0;
+  }
+  return integerValueAfter(document, at, key);
+}
+
 // The loaded result whose name the entry carries, the lookup the
 // round-trip scenario compares the entries through (FR-029).
 auto resultNamed(const std::vector<sg::BenchmarkResult>& results,
@@ -696,57 +728,74 @@ auto checkSeriesRoundTrip(const sg::JitterSeriesStats& series,
                           std::size_t itemAt,
                           const char* what) -> void
 {
-  check(integerValueAfter(document, itemAt, "workCount") == series.workCount,
+  const auto itemEnd = objectEndAt(document, itemAt);
+  check(itemEnd != std::string::npos, what);
+  check(integerValueIn(document, itemAt, itemEnd, "workCount")
+            == series.workCount,
         what);
-  check(integerValueAfter(document, itemAt, "unitTimeNs") == series.unitTimeNs,
+  check(integerValueIn(document, itemAt, itemEnd, "unitTimeNs")
+            == series.unitTimeNs,
         what);
-  check(integerValueAfter(document, itemAt, "targetNs") == series.targetNs,
+  check(integerValueIn(document, itemAt, itemEnd, "targetNs")
+            == series.targetNs,
         what);
-  check(integerValueAfter(document, itemAt, "quantumNs") == series.quantumNs,
+  check(integerValueIn(document, itemAt, itemEnd, "quantumNs")
+            == series.quantumNs,
         what);
-  check(integerValueAfter(document, itemAt, "calibrationSpanNs")
+  check(integerValueIn(document, itemAt, itemEnd, "calibrationSpanNs")
             == series.calibrationSpanNs,
         what);
-  check(integerValueAfter(document, itemAt, "sampleCount")
+  check(integerValueIn(document, itemAt, itemEnd, "sampleCount")
             == series.sampleCount,
         what);
-  check(integerValueAfter(document, itemAt, "minValue") == series.minValue,
+  check(integerValueIn(document, itemAt, itemEnd, "minValue")
+            == series.minValue,
         what);
-  check(integerValueAfter(document, itemAt, "medianValue")
+  check(integerValueIn(document, itemAt, itemEnd, "medianValue")
             == series.medianValue,
         what);
   check(std::fabs(doubleValueAfter(document, itemAt, "meanValue")
                   - series.meanValue)
             <= 1e-9,
         what);
-  check(integerValueAfter(document, itemAt, "p90Value") == series.p90Value,
+  check(integerValueIn(document, itemAt, itemEnd, "p90Value")
+            == series.p90Value,
         what);
-  check(integerValueAfter(document, itemAt, "p99Value") == series.p99Value,
+  check(integerValueIn(document, itemAt, itemEnd, "p99Value")
+            == series.p99Value,
         what);
-  check(integerValueAfter(document, itemAt, "p999Value") == series.p999Value,
+  check(integerValueIn(document, itemAt, itemEnd, "p999Value")
+            == series.p999Value,
         what);
-  check(integerValueAfter(document, itemAt, "p9999Value") == series.p9999Value,
+  check(integerValueIn(document, itemAt, itemEnd, "p9999Value")
+            == series.p9999Value,
         what);
-  check(integerValueAfter(document, itemAt, "maxValue") == series.maxValue,
+  check(integerValueIn(document, itemAt, itemEnd, "maxValue")
+            == series.maxValue,
         what);
   check(std::fabs(doubleValueAfter(document, itemAt, "noisePercent")
                   - series.noisePercent)
             <= 1e-9,
         what);
-  check(integerValueAfter(document, itemAt, "seriesRuntimeNs")
+  check(integerValueIn(document, itemAt, itemEnd, "seriesRuntimeNs")
             == series.seriesRuntimeNs,
         what);
-  check(integerValueAfter(document, itemAt, "droppedSamples")
+  check(integerValueIn(document, itemAt, itemEnd, "droppedSamples")
             == series.droppedSamples,
         what);
-  check(integerValueAfter(document, itemAt, "resampleStepNs")
+  check(integerValueIn(document, itemAt, itemEnd, "resampleStepNs")
             == series.resampleStepNs,
         what);
-  check(integerValueAfter(document, itemAt, "spectrumPoints")
+  check(integerValueIn(document, itemAt, itemEnd, "spectrumPoints")
             == series.spectrumPoints,
         what);
   const auto periodsAt = document.find("\"periods\":[", itemAt);
-  check(periodsAt != std::string::npos, what);
+  if (periodsAt == std::string::npos || periodsAt > itemEnd) {
+    // The per-entry item carries no period list, so the reading answers
+    // none (FR-020).
+    check(series.periods.empty(), what);
+    return;
+  }
   const auto itemsAt = periodsAt + std::strlen("\"periods\":");
   const auto close = document.find(']', itemsAt);
   check(close != std::string::npos, what);
@@ -758,15 +807,16 @@ auto checkSeriesRoundTrip(const sg::JitterSeriesStats& series,
     check(index < series.periods.size(), what);
     check(integerValueAfter(document, at, "periodNs")
               == series.periods.at(index).periodNs,
-        what);
+          what);
     check(std::fabs(doubleValueAfter(document, at, "powerRatio")
                     - series.periods.at(index).powerRatio)
               <= 1e-9,
-        what);
+          what);
     ++index;
   }
   check(index == series.periods.size(), what);
 }
+
 
 // The flat clock: a stamp that never moves, so every unit time the FWQ
 // window keeps stands 0 and every FTQ quantum stands open. The two guards
@@ -1990,10 +2040,13 @@ auto main() -> int
   // reads a bounded span (FR-014, FR-018).
   {
     const std::string probeCpu = std::to_string(cpus.at(0));
+    // The series buffer sizes the kept span: the standing scripted clock
+    // steps a unit time of 2 ms, so a 16,384-entry buffer spans the whole
+    // batch and each entry's windows keep samples of their own (FR-014).
     const std::string fwqValue =
-        "--jitter-probe=" + probeCpu + ",method=fwq,gaps=256";
+        "--jitter-probe=" + probeCpu + ",method=fwq,gaps=16384";
     const std::string ftqValue =
-        "--jitter-probe=" + probeCpu + ",method=ftq,gaps=256";
+        "--jitter-probe=" + probeCpu + ",method=ftq,gaps=16384";
     const std::vector<std::string> quick {
         "--filter=bmQuiet", "--repetitions=1", "--iterations=2"};
 
@@ -2064,9 +2117,13 @@ auto main() -> int
             "the entry carries its jitter object (FR-027, E-08)");
       const auto entryItem = seriesItemAt(document, entryJitter);
       auto wanted = wantedSeriesKeys("quantumNs");
-      wanted.erase(
-          std::find(wanted.begin(), wanted.end(), std::string("periods")),
-          wanted.end());
+      // The per-entry copy carries no spectrum: the period list rides the
+      // run-level item alone, so the resample step the transform read
+      // stands out of it too, and a FWQ item stands at 19 keys (FR-020).
+      wanted.erase(std::find(wanted.begin(), wanted.end(),
+                             std::string("periods")));
+      wanted.erase(std::find(wanted.begin(), wanted.end(),
+                             std::string("resampleStepNs")));
       check(jsonKeysAt(document, entryItem) == wanted,
             "theSeriesItemCarriesEveryKey: the per-entry item carries the "
             "same keys with no method and no periods (FR-020)");
@@ -2293,8 +2350,10 @@ auto main() -> int
 
     // FR-021, FR-031: the run-scoped name reads the run record's series,
     // and the bare name reads the entry's own.
+    // The series buffer spans the batch, so the entry's windows keep
+    // samples of their own and the bare name has a series to read.
     const std::string fwqValue =
-        "--jitter-probe=" + cpu + ",method=fwq,gaps=256";
+        "--jitter-probe=" + cpu + ",method=fwq,gaps=16384";
     const std::vector<std::string> quick {
         "--filter=bmQuiet", "--repetitions=1", "--iterations=2"};
     const std::string basePath = "harness_jitter_rule_series_base.json";
@@ -2338,7 +2397,8 @@ auto main() -> int
       const std::string pairPath = "harness_jitter_rule_series_pair.json";
       auto arguments = quick;
       arguments.push_back("--json=" + pairPath);
-      arguments.push_back("--jitter-probe=" + cpuList + ",method=fwq,gaps=256");
+      arguments.push_back(
+          "--jitter-probe=" + cpuList + ",method=fwq,gaps=16384");
       captureRun(arguments);
       const auto pairDocument = readDocument(pairPath);
       const auto root = pairDocument.find("\"jitter\":{");
@@ -2357,14 +2417,16 @@ auto main() -> int
         out.close();
       }
       const std::string anyRule =
-          "--compare-rule=jitter:any:sampleCount:lower:abs=1";
+          "--compare-rule=jitter:run:any:sampleCount:lower:abs=1";
       const auto anyMoved =
           captureRun({"--compare=" + pairPath + "," + pairEdited, anyRule}, 1);
       check(anyMoved.find("REGRESSED") != std::string::npos,
             "theAnyReadingAnswersTheLargestCount: the any reading answers the "
             "largest count of the probe cpus (FR-021, D-11)");
+      const std::string namedRule =
+          "--compare-rule=jitter:run:" + cpu + ":sampleCount:lower:abs=1";
       const auto namedCpu =
-          captureRun({"--compare=" + pairPath + "," + pairEdited, entryRule},
+          captureRun({"--compare=" + pairPath + "," + pairEdited, namedRule},
                      0);
       check(namedCpu.find("REGRESSED") == std::string::npos,
             "theAnyReadingAnswersTheLargestCount: the named cpu's own count "
