@@ -112,20 +112,18 @@ enum class CoreCoverage : std::uint8_t
 /// of a table reads through, so the query and a folded row answer one thing
 /// and a caller that states the scope of a run asks here.
 ///
+/// Nothing stands settled before the first call. One value then stands for
+/// the life of the process, because a table resolves once per directory and
+/// the conditional over the constant folds when it resolves, so a second call
+/// answers what the first answered and a caller carries no reader of its own
+/// (FR-042, spec D-6). A settled value never moves inside one process. The
+/// value names a whole core with every sibling of it, or one thread of a
+/// core, and states no slot width: the width is a literal of the table. An
+/// absent answer keeps the standing refusal of `#core_wide`, so a row that
+/// needs the fact stays refused (FR-043).
+///
 /// \pre none
-/// \post Nothing stands settled before the first read of a metric table, and
-///       one value stands for the life of the process afterwards, because a
-///       conditional over the constant folds when the table resolves and the
-///       resolved table is cached per directory (FR-042, spec D-6). A read of
-///       this query is a read of the fact, so the first call settles the
-///       value this process keeps and a second call answers it again: the
-///       caller needs no reader of its own. The value names a whole core with
-///       every sibling of it, or one thread of a core, and states no slot
-///       width: the width is a literal of the table (FR-042). An absent
-///       answer keeps the standing refusal of `#core_wide`, so a row that
-///       needs the fact stays refused (FR-043).
-/// \invariant A settled value never moves inside one process (FR-042, spec
-///       D-6).
+/// \post none
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto coreWideCoverage()
     -> std::optional<CoreCoverage>;
 

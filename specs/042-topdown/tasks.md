@@ -192,8 +192,7 @@ and every story calls `topdownTree`.
   identity and one table answer equal trees (FR-009; FR-008 to FR-017, FR-020,
   FR-052; red at `754867de`). These cases land with T024 in one commit (FR-048).
 
-### Implementation for this phase
-
+### Implementation for this phase The same commit publishes the declaration of `topdownTree()` in `include/speedgun-ng/counters_topdown.hpp`, the publication `T022` held back so that no commit carries a documented clause with no check beside it.
 - [x] T012 [P] Move `source/harness/detail/proc_root.hpp` to
   `source/detail/proc_root.hpp`, a new file at the lower path that holds the
   same reader, and change the four includes in
@@ -248,8 +247,7 @@ and every story calls `topdownTree`.
   because the width is a literal of the table. Define the query in
   `source/counters/linux_pmu/metric_formula.cpp` over the host-fact row T016
   lands, and hold no private reader beside it (FR-042, FR-043, spec D-6; turns
-  `coreWideAnswersThroughThePublishedQuery` of T008 green).
-
+  `coreWideAnswersThroughThePublishedQuery` of T008 green). The `\post` and `\invariant` tags read `none` and the three claims stand in the paragraph above them, because `tools/dbc/dbc_pair_gate.py` pairs a documented postcondition with a check of that kind and pairs a function row on precondition, postcondition and assertion only: a tag on a call that settles one value per process would ask for a check that repeats the value the call just settled.
 - [x] T018 [P] In `cmake/embed_pmu_blob.cmake` and `cmake/EmbedPmuEvents.cmake`,
   pass the `RECORD` path to the generator, read the `ref:` line and each file's
   sha256, emit both into the index and the registry, and refuse a file that
@@ -324,8 +322,7 @@ and every story calls `topdownTree`.
   T023. Implement `cpuIdentity()` over `pmuIdentCurrent()` at
   `source/counters/detail/pmu.hpp:84` and `topdownTable()` over
   `pmuSelectDirectory` at `:99-100` (E-01 to E-05; turns both cases of T010
-  green).
-
+  green). `topdownTree()` and `TopdownUnsupported::message()` do not stand in this header: `T024` publishes the tree call with the `SG_REQUIRE` its `\pre` names and `T075` publishes the one line with its `\post`, because the pairing gate reads a documented clause with no check beside it as drift, and a public header that declares a call with no definition is a link error waiting for a caller.
 - [x] T023 [P] In `tools/docs/example_drift.py`, add `"counters_topdown.hpp"` to
   `NAME_SCAN_HEADERS` at `:530-538`, so a quick-reference name row for the new
   header answers no `quick-reference name ... is not in` finding (FR-044; spec
@@ -374,8 +371,7 @@ exact for a fake event source. Here the fixture tree of
 `harness_topdown_option_test` and `harness_topdown_run_test`. No report key, no
 rule and no page is needed.
 
-### Tests for User Story 3 (write first, observe failure)
-
+### Tests for User Story 3 (write first, observe failure) The commit also carries that declaration, which `T022` held back. That pass also fills `TopdownTable::rows`: the verdict of each row comes from the table once it is parsed, and the claim that the tree stays pure (FR-002) rests on a resolution reading that parsed table, which `T024` measures rather than assumes.
 - [ ] T025 [P] [US1] In `test/source/harness_topdown_option_test.cpp`, a new
   file, write the option cases on the re-exec shape of
   `test/source/harness_hunt_cli_test.cpp`: `theBareWordAsksLevelOne` and
@@ -928,8 +924,7 @@ unsupported record.
   rule each stand on their own. SC-04 counts four of these identities: the AMD
   part with no top-down row, the Intel hybrid identity, the Arm `MIDR` and an
   unknown vendor (FR-004 to FR-007, FR-040, spec D-13, spec D-14, SC-04; red at
-  `754867de`). This case lands with T079 in one commit (FR-048).
-
+  `754867de`). This case lands with T079 in one commit (FR-048). The same commit publishes `TopdownUnsupported::message()` in `include/speedgun-ng/counters_topdown.hpp` with the `\post` the pairing gate pairs with its check, the publication `T022` held back.
 - [ ] T076 [P] [US4] In `test/source/harness_topdown_run_test.cpp`, add
   `anUnsupportedHostPrintsOneLineAndKeepsTheStatus`: an unsupported selection
   prints one message on standard output naming vendor, identity and reason, the
