@@ -207,6 +207,45 @@ auto passSeries(std::uint64_t step) -> std::vector<std::uint64_t>
   return points;
 }
 
+// One armed span over one method's measured loop: the counting hooks
+// arm over the loop passes the fake's read counter names, so the setup
+// allocations, the buffer's first touch, the calibration and the
+// measurement pass stand outside the count (FR-014, D-6, R-08). The
+// span ends past the point the method's loop is recorded to have run, so
+// a clean count cannot come from a loop that never opened.
+auto runArmedSpan(const sg::JitterProbeOptions& loopOptions,
+                  const std::uint64_t armAt,
+                  const std::uint64_t spanEnd,
+                  const char* what) -> void
+{
+  auto& provider = scriptedProvider();
+  provider.setPoints("machine", "tsc", passSeries(1), 1);
+  const auto baseActions = provider.readActions();
+  sg::detail::JitterProbe probe(loopOptions);
+  probe.start();
+  std::uint64_t spins = 0;
+  while (provider.readActions() < baseActions + armAt) {
+    std::this_thread::yield();
+    if (++spins > 1000000000ULL) {
+      fail("the loop never opened its window (FR-041)");
+    }
+  }
+  allocationCount.store(0, std::memory_order_relaxed);
+  countAllocations.store(true, std::memory_order_relaxed);
+  spins = 0;
+  while (provider.readActions() < baseActions + spanEnd) {
+    std::this_thread::yield();
+    if (++spins > 1000000000ULL) {
+      fail("the loop never ran the armed passes (FR-041)");
+    }
+  }
+  countAllocations.store(false, std::memory_order_relaxed);
+  probe.stopAndJoin();
+  check(allocationCount.load() == 0, what);
+  check(probe.states().at(0).seriesKept > 0,
+        "the armed span covered the method's measured loop (FR-014, D-6)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -263,6 +302,33 @@ auto main() -> int
     ::operator delete(alignedPlant,
                       std::align_val_t {sg::detail::kCacheLineBytes});
     countAllocations.store(false, std::memory_order_relaxed);
+  }
+
+  // FR-014, D-6, R-08: the FWQ unit loop. The calibration prefix of 98
+  // reads and the standing 1,024-read pass open the window at read 1,123,
+  // so the span arms inside the unit loop and runs 18,800 armed passes.
+  {
+    sg::JitterProbeOptions fwqOptions;
+    fwqOptions.cpus = pickCpus(1);
+    fwqOptions.method = sg::JitterMethod::FWQ;
+    runArmedSpan(fwqOptions,
+                 1200,
+                 20000,
+                 "the FWQ unit loop takes no allocation (FR-014, D-6)");
+  }
+
+  // FR-014, FR-016, D-6, R-08: the FTQ quantum loop. A 10 us quantum
+  // closes every 10,000 reads, so the span of 28,800 armed passes covers
+  // two edge crossings, the store, the reset and the edge advance.
+  {
+    sg::JitterProbeOptions ftqOptions;
+    ftqOptions.cpus = pickCpus(1);
+    ftqOptions.method = sg::JitterMethod::FTQ;
+    ftqOptions.quantumUs = 10;
+    runArmedSpan(ftqOptions,
+                 1200,
+                 30000,
+                 "the FTQ quantum loop takes no allocation (FR-014, D-6)");
   }
 
   std::puts("harness_jitter_probe_alloc_test: ok");
