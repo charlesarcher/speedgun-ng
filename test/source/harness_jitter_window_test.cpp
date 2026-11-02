@@ -29,6 +29,7 @@
 #include <memory>
 #include <mutex>
 #include <sstream>
+#include <span>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -635,6 +636,57 @@ public:
     sink.put(thread.stamp);
   }
 };
+
+// specs/043 T019, FR-020, R-11: the scripted series the two folds read.
+// The series record carries one value and no stamp, so the fold
+// recovers the stamp from the start: the FWQ stamp stands at the start
+// plus the running sum of the unit times, and the FTQ stamp at the
+// start plus the sample rank plus one, times the quantum. The four
+// unit times below recover the stamps 1000, 3000, 4000 and 5000 from a
+// start of 0, and the three counts recover 1100, 2100 and 3100 from a
+// start of 100 at a 1 us quantum.
+auto fillFwqSeries(sg::detail::ProbeCpuState& state) -> void
+{
+  state.cpu = 3;
+  state.method = sg::JitterMethod::FWQ;
+  state.series.assign({1000, 2000, 1000, 1000});
+  state.seriesKept = 4;
+  state.seriesStartNs = 0;
+  state.workCount = 7;
+  state.unitTimeNs = 1000;
+  state.targetNs = 1000;
+  state.quantumNs = 0;
+  state.calibrationSpanNs = 500;
+}
+
+auto fillFtqSeries(sg::detail::ProbeCpuState& state) -> void
+{
+  state.cpu = 3;
+  state.method = sg::JitterMethod::FTQ;
+  state.series.assign({5, 0, 3});
+  state.seriesKept = 3;
+  state.seriesStartNs = 100;
+  state.workCount = 40;
+  state.unitTimeNs = 1;
+  state.targetNs = 1000;
+  state.quantumNs = 1000;
+  state.calibrationSpanNs = 900;
+}
+
+// The one-window set the entry fold reads, in the shape the carrier of
+// E-06 fills: the attempt attribution rides the window.
+auto seriesWindow(std::uint64_t start, std::uint64_t end)
+    -> std::vector<sg::detail::TimedWindow>
+{
+  return {sg::detail::TimedWindow {
+      .start = start,
+      .end = end,
+      .entry = 0,
+      .repetition = 0,
+      .chunk = 0,
+      .pass = 0,
+  }};
+}
 
 }  // namespace
 
@@ -1268,6 +1320,193 @@ auto main() -> int
               && absent.maxNs == 0,
           "a record outside every window stands absent from the stats "
           "(E-06, FR-021)");
+  }
+
+  // specs/043 T019, US1, US2, US4, FR-007 to FR-009, FR-020, R-09,
+  // R-10, R-11: the two series folds over a scripted series. The run
+  // fold answers the figures of the kept samples, and the entry fold
+  // keeps the samples whose recovered stamp falls inside a half-open
+  // window, standing null where the windows place none. The rows call
+  // the folds on the seam header, so the red this scenario predicts is
+  // the undefined reference the definitions answer (Principle III).
+  {
+    sg::detail::ProbeCpuState fwq;
+    fillFwqSeries(fwq);
+    const auto run = sg::detail::seriesStatsOf(fwq);
+    check(run.sampleCount == 4, "the run fold counts the kept samples (FR-007)");
+    check(run.minValue == 1000 && run.maxValue == 2000,
+          "the run fold names the kept extremes (FR-007)");
+    check(run.medianValue == 1000 && run.p90Value == 2000
+              && run.p99Value == 2000 && run.p999Value == 2000
+              && run.p9999Value == 2000,
+          "the five points read the nearest rank over the kept samples "
+          "(FR-008)");
+    check(std::fabs(run.meanValue - 1250.0) <= 1e-9,
+          "the mean divides the kept sum by the sample count (FR-007)");
+    check(std::fabs(run.noisePercent - 20.0) <= 1e-9,
+          "the FWQ fraction reads the kept unit times over their sum "
+          "(FR-009, R-09)");
+    check(run.seriesRuntimeNs == 5000,
+          "the runtime is the recovered stamp span, the calibration span "
+          "out (FR-007, FR-010)");
+    check(run.droppedSamples == 0, "the drop count rides the state (FR-022)");
+    check(run.workCount == 7 && run.unitTimeNs == 1000 && run.targetNs == 1000
+              && run.quantumNs == 0 && run.calibrationSpanNs == 500,
+          "the five calibration figures ride the state (FR-011, E-22)");
+
+    const auto placed = sg::detail::seriesStatsOf(fwq,
+                                                  seriesWindow(1500, 4500));
+    check(placed.has_value(),
+          "thePerEntrySeriesFoldsTheWindows: the windows place samples, so "
+          "the entry fold stands present (FR-020)");
+    check(placed->sampleCount == 2,
+          "thePerEntrySeriesFoldsTheWindows: the entry fold counts the "
+          "samples the windows placed (FR-020)");
+    check(placed->minValue == 1000 && placed->maxValue == 2000,
+          "the entry fold names the placed extremes (FR-007, FR-020)");
+    check(placed->medianValue == 1000 && placed->p90Value == 2000,
+          "the entry's points read the nearest rank over the placed set "
+          "(FR-008)");
+    check(std::fabs(placed->meanValue - 1500.0) <= 1e-9,
+          "the entry's mean divides the placed sum by its count (FR-007)");
+    check(std::fabs(placed->noisePercent - 100.0 / 3.0) <= 1e-9,
+          "the entry's fraction reads the placed unit times (FR-009, FR-020)");
+    check(placed->seriesRuntimeNs == 3000,
+          "the entry's runtime is the window's total (FR-007, E-03)");
+
+    // The half-open rule at both ends: the window's start places the
+    // stamp that stands on it, and its end stands past the stamp that
+    // stands on it (E-06, R-04, R-11).
+    const std::vector<sg::detail::TimedWindow> edges {
+        seriesWindow(1000, 3000).front(), seriesWindow(5000, 6000).front()};
+    const auto boundary = sg::detail::seriesStatsOf(fwq, edges);
+    check(boundary.has_value() && boundary->sampleCount == 2,
+          "the start places its stamp and the end stands past its own "
+          "(FR-020, R-11)");
+    check(boundary->minValue == 1000 && boundary->maxValue == 1000,
+          "the two placed unit times stand equal (FR-007)");
+    check(std::fabs(boundary->noisePercent) <= 1e-9,
+          "equal unit times answer a zero fraction (FR-009, SC-001)");
+    check(boundary->seriesRuntimeNs == 3000,
+          "the covered span is the windows' total (E-03)");
+
+    check(!sg::detail::seriesStatsOf(fwq, seriesWindow(10000, 20000))
+               .has_value(),
+          "thePerEntrySeriesStandsNullWithoutSamples: the windows that "
+          "place no sample leave the entry fold null (FR-020)");
+    check(!sg::detail::seriesStatsOf(
+               fwq,
+               std::span<const sg::detail::TimedWindow> {})
+               .has_value(),
+          "no window places no sample, so the entry fold stands null (FR-020)");
+  }
+
+  // specs/043 T019, US2, FR-007 to FR-009, FR-020, R-10, R-11: the FTQ
+  // fold reads counts, the stamp of a count stands at the start plus
+  // its rank plus one times the quantum, and a maximum count of 0
+  // answers 100.
+  {
+    sg::detail::ProbeCpuState ftq;
+    fillFtqSeries(ftq);
+    const auto run = sg::detail::seriesStatsOf(ftq);
+    check(run.sampleCount == 3, "the FTQ fold counts the kept counts (FR-007)");
+    check(run.minValue == 0 && run.maxValue == 5,
+          "the FTQ fold names the kept counts (FR-007)");
+    check(run.medianValue == 3 && run.p90Value == 5 && run.p99Value == 5
+              && run.p999Value == 5 && run.p9999Value == 5,
+          "the five points read the nearest rank over the counts (FR-008)");
+    check(std::fabs(run.meanValue - 8.0 / 3.0) <= 1e-9,
+          "the mean divides the count sum by the sample count (FR-007)");
+    check(std::fabs(run.noisePercent - 700.0 / 15.0) <= 1e-9,
+          "the FTQ fraction reads the counts against the sample count "
+          "times the maximum (FR-009, R-10)");
+    check(run.seriesRuntimeNs == 3000,
+          "the runtime is the recovered stamp span of the three quanta "
+          "(FR-007, FR-015)");
+
+    const auto placed = sg::detail::seriesStatsOf(ftq, seriesWindow(1100, 2100));
+    check(placed.has_value() && placed->sampleCount == 1,
+          "the edge the window opens on places its count, and the edge it "
+          "closes on stands past (FR-020, R-11)");
+    check(placed->minValue == 5 && placed->maxValue == 5
+              && std::fabs(placed->noisePercent) <= 1e-9,
+          "one count stands its own maximum, so the fraction reads 0 "
+          "(FR-009)");
+    check(placed->seriesRuntimeNs == 1000,
+          "the entry's runtime is the window's total (FR-007, E-03)");
+
+    sg::detail::ProbeCpuState silent;
+    fillFtqSeries(silent);
+    silent.series.assign({0, 0});
+    silent.seriesKept = 2;
+    const auto quiet = sg::detail::seriesStatsOf(silent);
+    check(quiet.maxValue == 0 && std::fabs(quiet.noisePercent - 100.0) <= 1e-9,
+          "a maximum count of 0 answers 100 (FR-009, R-10)");
+
+    sg::detail::ProbeCpuState idle;
+    fillFwqSeries(idle);
+    idle.series.assign({0, 0});
+    idle.seriesKept = 2;
+    const auto still = sg::detail::seriesStatsOf(idle);
+    check(still.maxValue == 0 && std::fabs(still.noisePercent) <= 1e-9,
+          "a kept set of zero unit times answers a zero fraction (FR-009)");
+    check(still.seriesRuntimeNs == 0,
+          "the recovered stamps of a zero series span nothing (FR-007)");
+
+    sg::detail::ProbeCpuState bare;
+    fillFwqSeries(bare);
+    bare.seriesKept = 0;
+    const auto none = sg::detail::seriesStatsOf(bare);
+    check(none.sampleCount == 0 && none.minValue == 0 && none.maxValue == 0
+              && none.medianValue == 0 && none.p9999Value == 0
+              && std::fabs(none.meanValue) <= 1e-9
+              && std::fabs(none.noisePercent) <= 1e-9,
+          "an empty kept set leaves every figure at 0 (FR-008)");
+    check(none.workCount == 7 && none.calibrationSpanNs == 500,
+          "the calibration figures ride the state through the empty set "
+          "(FR-011, E-22)");
+  }
+
+  // specs/043 T019, US4, FR-020, R-11: the split fills the entry's
+  // series record over that benchmark's timed windows. A FWQ run keeps
+  // no gap, so the entry's fold stands on its series alone: the entry
+  // carries a jitter object once the fold lands. A pre-check run's
+  // phase closes before the batch opens, so its windows place no
+  // sample and its entry stands null.
+  {
+    auto& provider = scriptedProvider();
+    provider.setPoints("machine", "tsc", {}, 1);
+    const std::string path = "harness_jitter_window_series.json";
+    captureRun({"--filter=bmQuiet",
+                "--repetitions=1",
+                "--iterations=2",
+                "--json=" + path,
+                "--jitter-probe=" + std::to_string(cpus.at(0)) + ",method=fwq"});
+    const auto document = readDocument(path);
+    std::remove(path.c_str());
+    const auto quietName = document.find("\"bmQuiet\"");
+    check(quietName != std::string::npos, "the document carries the entry (FR-020)");
+    check(document.find("\"jitter\":{\"stats\"", quietName) != std::string::npos,
+          "thePerEntrySeriesFoldsTheWindows: the FWQ entry carries the fold "
+          "its series placed (FR-020, R-11)");
+  }
+  {
+    auto& provider = scriptedProvider();
+    provider.setPoints("machine", "tsc", {}, 1);
+    const std::string path = "harness_jitter_window_series_precheck.json";
+    captureRun({"--filter=bmQuiet",
+                "--repetitions=1",
+                "--iterations=2",
+                "--json=" + path,
+                "--jitter-probe=" + std::to_string(cpus.at(0))
+                    + ",method=fwq,mode=precheck,precheck=1"});
+    const auto document = readDocument(path);
+    std::remove(path.c_str());
+    const auto quietName = document.find("\"bmQuiet\"");
+    check(quietName != std::string::npos, "the document carries the entry (FR-020)");
+    check(document.find("\"jitter\":null", quietName) != std::string::npos,
+          "thePerEntrySeriesStandsNullWithoutSamples: the windows of a "
+          "pre-check run place no sample, so the entry stands null (FR-020)");
   }
 
   // US4 scenario 1, FR-030, FR-031, D-11, contracts/rule-names.md: the
