@@ -1318,13 +1318,19 @@ auto speedgunMain(int argc, char** argv) -> int
           // pre-check window rides beside the gaps. The fold reads the
           // buffer behind the join edge, the state standing quiescent
           // only in the precheck mode, where the start stops and joins
-          // the probe before it returns; in `both` the alongside loop
-          // runs on, so the record carries no series (R-04). A TSC run
-          // keeps no series to carry (FR-006).
-          if (state.method != JitterMethod::TSC
-              && options.jitterProbe->mode == JitterProbeMode::PRECHECK)
-          {
-            entry.series = detail::seriesStatsOf(state);
+          // the probe before it returns. In `both` the alongside loop
+          // runs on, so the record folds the prefix the latch
+          // snapshotted: the samples below that count stand written and
+          // never written again, and no read of the live buffer stands
+          // needed (T066, E-27, R-04). A TSC run keeps no series to
+          // carry (FR-006).
+          if (state.method != JitterMethod::TSC) {
+            if (options.jitterProbe->mode == JitterProbeMode::PRECHECK) {
+              entry.series = detail::seriesStatsOf(state);
+            } else if (options.jitterProbe->mode == JitterProbeMode::BOTH) {
+              entry.series =
+                  detail::seriesStatsOf(state, state.seriesKeptAtLatch);
+            }
           }
           entry.attribution = detail::precheckAttributionDelta(
               beforeSnapshot.at(state.cpu), afterSnapshot.at(state.cpu));

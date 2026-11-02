@@ -561,6 +561,12 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
   // FR-014, R-04).
   session->latch->arriveAndWait();
 
+  // specs/043 FR-004, FR-020, E-27, R-04: the latch line ends the
+  // pre-check phase, so the kept count stands stable from here: the
+  // snapshot names the prefix the pre-check record of a `mode=both` run
+  // folds while the alongside loop below runs on.
+  state->seriesKeptAtLatch = state->seriesKept;
+
   // The wait stands outside the record: the alongside phase compares
   // each stamp with the one read here, behind the latch, so the time
   // the item spent waiting on the latch names no gap (FR-006, R-04).
@@ -961,11 +967,15 @@ auto gapStatsOf(const ProbeCpuState& state) -> JitterStats
 }
 
 /**
- * @brief specs/043-fwq-ftq: the run-level series fold of one probe
- * cpu (FR-007, FR-008, FR-009, R-09, R-10): the figures over the whole
- * kept set, the five calibration figures of E-22, and the noise
- * fraction of the method that filled the buffer. The covered span the
- * runtime names is the span the kept samples' recovered stamps cover,
+ * @brief specs/043-fwq-ftq: the series fold of one probe cpu over a
+ * prefix of its kept samples (FR-007, FR-008, FR-009, R-09, R-10): the
+ * figures of the first `prefixCount` samples, the five calibration
+ * figures of E-22, and the noise fraction of the method that filled the
+ * buffer. The run-level fold of FR-007 reads the whole kept set through
+ * this function with the kept count, and the pre-check record of a
+ * `mode=both` run reads the prefix the latch snapshotted (FR-004,
+ * FR-020, E-27). The covered span the runtime names is the span the kept
+ * samples' recovered stamps cover,
  * the only duration the joined per-cpu state carries, the calibration
  * span standing out of it (FR-010). The empty kept set answers the
  * zero figures and none of the rows below.
@@ -979,10 +989,12 @@ auto gapStatsOf(const ProbeCpuState& state) -> JitterStats
  * \post `seriesRuntimeNs` is the recovered stamp span of the kept
  *       samples, the calibration span out (FR-007, FR-010)
  */
-auto seriesStatsOf(const ProbeCpuState& state) -> JitterSeriesStats
+auto seriesStatsOf(const ProbeCpuState& state,
+                   const std::size_t prefixCount) -> JitterSeriesStats
 {
-  const std::span<const std::uint64_t> kept(state.series.data(),
-                                            state.seriesKept);
+  SG_REQUIRE(prefixCount <= state.seriesKept,
+             "the prefix stands inside the kept set (FR-020, E-27)");
+  const std::span<const std::uint64_t> kept(state.series.data(), prefixCount);
   auto stats = seriesFigures(state, kept);
 
   // The span the recovered stamps cover: an FWQ stamp stands at the
@@ -992,7 +1004,7 @@ auto seriesStatsOf(const ProbeCpuState& state) -> JitterSeriesStats
   // and the sample count times the quantum for FTQ (R-11, FR-007,
   // FR-010).
   std::uint64_t span = 0;
-  for (std::size_t index = 0; index < state.seriesKept; ++index) {
+  for (std::size_t index = 0; index < prefixCount; ++index) {
     if (state.method == JitterMethod::FTQ) {
       span += state.quantumNs;
     } else {
@@ -1010,11 +1022,16 @@ auto seriesStatsOf(const ProbeCpuState& state) -> JitterSeriesStats
                 && stats.p999Value <= stats.p9999Value
                 && stats.p9999Value <= stats.maxValue,
             "the percentile chain stands ordered (FR-008, PC-4)");
-  SG_ENSURE(stats.sampleCount == state.seriesKept
+  SG_ENSURE(stats.sampleCount == prefixCount
                 && stats.noisePercent >= 0.0 && stats.noisePercent <= 100.0,
             "the count answers the kept samples and the fraction stands in "
             "the range 0 to 100 (FR-007, FR-009)");
   return stats;
+}
+
+auto seriesStatsOf(const ProbeCpuState& state) -> JitterSeriesStats
+{
+  return seriesStatsOf(state, state.seriesKept);
 }
 
 /**
