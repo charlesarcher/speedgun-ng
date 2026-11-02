@@ -703,6 +703,10 @@ auto installTestReader(std::unique_ptr<counters::WindowReader> reader) -> void
 namespace
 {
 
+// specs/043 FR-002: the top of the `noise` percent range, the bound the
+// value parser enforces at the command-line boundary.
+constexpr std::uint64_t kMaxNoisePercent = 100;
+
 // FR-011 with the value grammar of contracts/cli-options.md: a number
 // with no sign and no trailing text; the cpu tokens admit zero, the
 // keys do not.
@@ -883,6 +887,61 @@ auto parseJitterProbeValue(const std::string& value,
             + "' is not alongside, precheck or both";
         return false;
       }
+    } else if (key == "method") {
+      // specs/043 FR-001, D-1: one method per run, the three words the
+      // value names; a value with no method key keeps the standing
+      // method.
+      if (keyArgument == "tsc") {
+        parsed.method = JitterMethod::TSC;
+      } else if (keyArgument == "fwq") {
+        parsed.method = JitterMethod::FWQ;
+      } else if (keyArgument == "ftq") {
+        parsed.method = JitterMethod::FTQ;
+      } else {
+        message = "the method '" + quotedText(keyArgument)
+            + "' is not tsc, fwq or ftq";
+        return false;
+      }
+    } else if (key == "quantum") {
+      // specs/043 FR-002, FR-003: the quantum in microseconds, a whole
+      // number inside 10 through 100,000; the standing number grammar
+      // reads the digits and refuses a fractional token.
+      std::uint64_t number = 0;
+      if (!parseProbeNumber(keyArgument, number, false)
+          || number < kMinQuantumUs || number > kMaxQuantumUs)
+      {
+        message = "the quantum '" + quotedText(keyArgument)
+            + "' is not a number between 10 and 100000";
+        return false;
+      }
+      parsed.quantumUs = static_cast<std::uint32_t>(number);
+    } else if (key == "work") {
+      // specs/043 FR-002, FR-003: the work count of one unit, a whole
+      // number inside 1 through 16,777,216; the count 0 names the
+      // calibration, so the key admits no zero.
+      std::uint64_t number = 0;
+      if (!parseProbeNumber(keyArgument, number, false)
+          || number > kMaxWorkCount)
+      {
+        message = "the work '" + quotedText(keyArgument)
+            + "' is not a number between 1 and 16777216";
+        return false;
+      }
+      parsed.workCount = static_cast<std::uint32_t>(number);
+    } else if (key == "noise") {
+      // specs/043 FR-002, FR-003: the noise percent, a whole number
+      // inside 0 through 100. The value accepts the key beside every
+      // method, and the run discloses it as unused where no gate reads
+      // it (FR-021).
+      std::uint64_t number = 0;
+      if (!parseProbeNumber(keyArgument, number, true)
+          || number > kMaxNoisePercent)
+      {
+        message = "the noise '" + quotedText(keyArgument)
+            + "' is not a number between 0 and 100";
+        return false;
+      }
+      parsed.noisePercent = static_cast<std::uint32_t>(number);
     } else if (key == "precheck") {
       // specs/034 FR-002: the key carries two accepted forms, the
       // millisecond number and the word `serial`; a token that is
@@ -922,6 +981,17 @@ auto parseJitterProbeValue(const std::string& value,
           + "' stands more than once in '" + quotedText(value) + "'";
       return false;
     }
+  }
+  // specs/043 FR-003, R-03: the method and its key pair. The quantum
+  // names the FTQ measure and the work count the FWQ measure, so a key
+  // that belongs to the other method answers one quoted line.
+  if (parsed.method == JitterMethod::FWQ && seenKeys.contains("quantum")) {
+    message = "the key 'quantum' stands with the method 'fwq'";
+    return false;
+  }
+  if (parsed.method == JitterMethod::FTQ && seenKeys.contains("work")) {
+    message = "the key 'work' stands with the method 'ftq'";
+    return false;
   }
   return true;
 }
