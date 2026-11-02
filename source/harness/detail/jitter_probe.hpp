@@ -234,6 +234,22 @@ private:
                                  std::span<const TimedWindow> windows)
     -> std::optional<JitterSeriesStats>;
 
+/// @brief specs/043-fwq-ftq FR-017, FR-018, FR-022: the spectrum keys of
+/// one cpu's series record: the transform reads the FTQ count series at
+/// the quantum, or the FWQ unit times resampled to the median unit time,
+/// and the record gains the resample step, the point count and the
+/// period list. The console block and the JSON record share this one
+/// reading, so the two surfaces name the same periods (FR-019, R-12).
+///
+/// \pre `series` carries the figures of `state`'s kept set
+/// \post a series with no sample, a FWQ median of 0 and a FTQ quantum of
+///       0 leave the transform unread, and the record keeps 0 points and
+///       an empty period list (FR-017, FR-018, R-12)
+/// \post the point count names the span the transform read, and the
+///       period list stands sorted by power, strongest first (FR-018)
+auto addSpectrumTo(const ProbeCpuState& state,
+                   JitterSeriesStats& series) -> void;
+
 /// @brief The reader-install seam: a reader installed here stands in
 /// place of the one the probe opens over the `machine/tsc` leaf, and
 /// the seam installs a counters `WindowReader`; no second time source

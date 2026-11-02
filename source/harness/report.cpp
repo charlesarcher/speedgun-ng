@@ -13,7 +13,9 @@
 #include <sched.h>
 
 #include "detail/internal.hpp"
+#include "detail/jitter_probe.hpp"
 #include "detail/json_report.hpp"
+#include "detail/spectrum.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/dbc.hpp"
@@ -718,6 +720,118 @@ auto printResult(const BenchmarkResult& result,
   printNoiseWarning(result);
 }
 
+namespace
+{
+
+// specs/043 FR-019: the console spelling of the method, the lower-case
+// words the value takes. The JSON writer keeps its own upper-case table
+// beside its own keys, the standing reading of the availability names
+// above (FR-019, FR-006).
+constexpr std::array<const char*, 3> kJitterMethodNames {"tsc", "fwq", "ftq"};
+static_assert(kJitterMethodNames.size()
+              == std::to_underlying(JitterMethod::FTQ) + 1);
+
+// specs/043 T035, FR-013, FR-016, FR-019, FR-022, R-14: the 30 series
+// lines of the console block, in the standing order: the calibration
+// group of four, the 16 figures of FR-021, then the five periods and
+// their five powers. Each field prints once, with one column per probe
+// cpu in the order the block walks, and a rank a cpu does not carry
+// prints 0. The figures read the run-level series fold, and the periods
+// the transform the record reads, so the console and the document name
+// the same periods (FR-019, FR-020).
+auto printSeriesLines(const std::vector<const ProbeCpuState*>& states) -> void
+{
+  std::vector<JitterSeriesStats> folds;
+  folds.reserve(states.size());
+  for (const auto* state : states) {
+    folds.push_back(seriesStatsOf(*state));
+    addSpectrumTo(*state, folds.back());
+  }
+
+  const auto printUint = [&folds](const std::string& name, auto get)
+  {
+    std::printf("%s:", name.c_str());
+    for (const auto& fold : folds) {
+      std::printf(" %llu", static_cast<unsigned long long>(get(fold)));
+    }
+    std::printf("\n");
+  };
+  const auto printReal = [&folds](const std::string& name, auto get)
+  {
+    std::printf("%s:", name.c_str());
+    for (const auto& fold : folds) {
+      std::printf(" %.2f", get(fold));
+    }
+    std::printf("\n");
+  };
+
+  std::printf("method:");
+  for (const auto* state : states) {
+    std::printf(" %s",
+                kJitterMethodNames.at(std::to_underlying(state->method)));
+  }
+  std::printf("\n");
+  printUint("workCount",
+            [](const JitterSeriesStats& fold) { return fold.workCount; });
+  printUint("targetNs",
+            [](const JitterSeriesStats& fold) { return fold.targetNs; });
+  printUint("calibrationSpanNs",
+            [](const JitterSeriesStats& fold)
+            { return fold.calibrationSpanNs; });
+  printUint("sampleCount",
+            [](const JitterSeriesStats& fold) { return fold.sampleCount; });
+  printUint("minValue",
+            [](const JitterSeriesStats& fold) { return fold.minValue; });
+  printUint("medianValue",
+            [](const JitterSeriesStats& fold) { return fold.medianValue; });
+  printReal("meanValue",
+            [](const JitterSeriesStats& fold) { return fold.meanValue; });
+  printUint("p90Value",
+            [](const JitterSeriesStats& fold) { return fold.p90Value; });
+  printUint("p99Value",
+            [](const JitterSeriesStats& fold) { return fold.p99Value; });
+  printUint("p999Value",
+            [](const JitterSeriesStats& fold) { return fold.p999Value; });
+  printUint("p9999Value",
+            [](const JitterSeriesStats& fold) { return fold.p9999Value; });
+  printUint("maxValue",
+            [](const JitterSeriesStats& fold) { return fold.maxValue; });
+  printReal("noisePercent",
+            [](const JitterSeriesStats& fold) { return fold.noisePercent; });
+  printUint("seriesRuntimeNs",
+            [](const JitterSeriesStats& fold) { return fold.seriesRuntimeNs; });
+  printUint("droppedSamples",
+            [](const JitterSeriesStats& fold) { return fold.droppedSamples; });
+  printUint("unitTimeNs",
+            [](const JitterSeriesStats& fold) { return fold.unitTimeNs; });
+  printUint("quantumNs",
+            [](const JitterSeriesStats& fold) { return fold.quantumNs; });
+  printUint("resampleStepNs",
+            [](const JitterSeriesStats& fold) { return fold.resampleStepNs; });
+  printUint("spectrumPoints",
+            [](const JitterSeriesStats& fold) { return fold.spectrumPoints; });
+  for (std::size_t rank = 0; rank < kSpectrumTop; ++rank) {
+    printUint("period" + std::to_string(rank + 1) + "Ns",
+              [rank](const JitterSeriesStats& fold)
+              {
+                return rank < fold.periods.size()
+                    ? fold.periods.at(rank).periodNs
+                    : std::uint64_t {0};
+              });
+  }
+  for (std::size_t rank = 0; rank < kSpectrumTop; ++rank) {
+    printReal("period" + std::to_string(rank + 1) + "Power",
+              [rank](const JitterSeriesStats& fold)
+              {
+                return rank < fold.periods.size()
+                    ? fold.periods.at(rank).powerRatio
+                    : 0.0;
+              });
+  }
+}
+
+}  // namespace
+
 // T012, FR-023, R-08: the console probe block. One line per stats field
 // in the E-03 order, one value per probe cpu; the disclosure lines
 // follow in the end-of-report region the noise warning owns (FR-036,
@@ -794,6 +908,19 @@ auto printJitterReport(const bool available,
                  [](const JitterStats& fold) { return fold.loopPeriodNs; });
   printUintField("droppedGaps",
                  [](const JitterStats& fold) { return fold.droppedGaps; });
+
+  // specs/043 T035, FR-013, FR-016, FR-019, FR-022, R-14: the 30 series
+  // lines, one field per line and one column per probe cpu in the cpu
+  // order the block already walks. The calibration group of four opens
+  // them, the 16 figures of FR-021 follow, then the five periods and
+  // their five powers, a rank a cpu does not carry printing 0. The
+  // console spells the method in the lower-case words the value takes,
+  // the JSON in upper case (FR-019). A `tsc` run keeps no series, so it
+  // prints none of the 30 lines and keeps the bytes it printed before
+  // (FR-031, SC-004).
+  if (states.front()->method != JitterMethod::TSC) {
+    printSeriesLines(states);
+  }
 
   // FR-036, E-09: the disclosure lines: the availability and the cpus,
   // the measured points, the per-cpu counts, and the kept-gaps-only

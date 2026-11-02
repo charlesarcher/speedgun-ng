@@ -33,10 +33,39 @@ order and the named figures.
 [after the blocks, the non-strict path]
   warning: cpu <n> gapsPerSecond <figure> maxNs <figure>     [per noisy planned cpu]
   pinning candidates: cpu <n> <rate> ... (lowest gap rate first)
+[the fold block, after the benchmark tables, FWQ or FTQ, specs/043]
+  jitter probe: cpus <list>
+  <the sixteen gap field lines, at 0>
+  <the 30 series lines, one column per probe cpu>
+  jitter: probe on cpus <list>
+  jitter: cpu <n> kept <n> dropped <n>       [per probe cpu]
+  jitter: split and percentiles use the kept gaps only
 [strict and a noisy planned cpu: the block stands unprinted]
   --jitter-probe: <the cpu, the gap rate, the max gap>
   one line on standard error, exit status 2, the error surface
 ```
+
+## The series lines
+
+The fold block of a run that names `method=fwq` or `method=ftq` gains 30
+lines, one field each, one column per probe cpu in the standing cpu
+order, each field printing once (specs/043 FR-019). A `tsc` run keeps no
+series and prints none of them, so every standing line of this contract
+stays byte-identical for it (specs/043 FR-031, SC-004). The order:
+
+1. The calibration group: `method`, `workCount`, `targetNs` and
+   `calibrationSpanNs`.
+2. The 16 figures `sampleCount`, `minValue`, `medianValue`, `meanValue`,
+   `p90Value`, `p99Value`, `p999Value`, `p9999Value`, `maxValue`,
+   `noisePercent`, `seriesRuntimeNs`, `droppedSamples`, `unitTimeNs`,
+   `quantumNs`, `resampleStepNs` and `spectrumPoints` (specs/043 FR-021).
+3. `period1Ns` through `period5Ns`, then `period1Power` through
+   `period5Power`.
+
+The console spells the method `tsc`, `fwq` and `ftq`, the words the
+value takes, and the JSON spells it `TSC`, `FWQ` and `FTQ` (specs/043
+FR-019). A rank a cpu does not carry prints 0, and the drop count
+stands disclosed for every method (specs/043 FR-019, FR-022).
 
 ## Rules
 
@@ -76,3 +105,6 @@ order and the named figures.
   (specs/036 FR-012, FR-015).
 - The `sg::NoiseWarning` disclosure of the standing report stands
   beside this block unchanged (spec FR-025).
+- Each of the 30 series fields prints once, one column per probe cpu in
+  the standing cpu order, and a rank a cpu does not carry prints 0
+  (specs/043 FR-019).
