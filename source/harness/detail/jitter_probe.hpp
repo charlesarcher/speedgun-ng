@@ -234,6 +234,21 @@ private:
                                  std::span<const TimedWindow> windows)
     -> std::optional<JitterSeriesStats>;
 
+/// @brief specs/043-fwq-ftq FR-021, D-9, R-15: the planned cpus whose
+/// pre-check window kept a noise fraction at or above the `noise=`
+/// threshold, in the order the planned list names. The gate reads the
+/// method's own figure: a FWQ window and a FTQ window keep no gaps, so
+/// the standing gap rule reads nothing there. A `tsc` window keeps no
+/// series, and a cpu the states do not name stands unjudged.
+///
+/// \pre none
+/// \post the answer names each planned cpu at or above the threshold,
+///       in the order the planned list names
+[[nodiscard]] auto precheckNoisyCpus(
+    const std::vector<ProbeCpuState>& states,
+    const std::vector<std::uint32_t>& plannedCpus,
+    std::uint32_t noisePercent) -> std::vector<std::uint32_t>;
+
 /// @brief specs/043-fwq-ftq FR-019: the console spelling of one method,
 /// the lower-case words the value takes: `tsc`, `fwq` and `ftq`. The
 /// JSON writer keeps its own upper-case table beside its own keys, and

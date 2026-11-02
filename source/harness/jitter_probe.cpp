@@ -1171,6 +1171,26 @@ auto seriesStatsOf(const ProbeCpuState& state,
   return stats;
 }
 
+auto precheckNoisyCpus(const std::vector<ProbeCpuState>& states,
+                       const std::vector<std::uint32_t>& plannedCpus,
+                       const std::uint32_t noisePercent)
+    -> std::vector<std::uint32_t>
+{
+  std::vector<std::uint32_t> noisy;
+  for (const auto cpu : plannedCpus) {
+    const auto found = std::ranges::find_if(
+        states, [cpu](const ProbeCpuState& state) { return state.cpu == cpu; });
+    if (found == states.end() || found->method == JitterMethod::TSC) {
+      continue;
+    }
+    if (seriesStatsOf(*found).noisePercent >= static_cast<double>(noisePercent))
+    {
+      noisy.push_back(cpu);
+    }
+  }
+  return noisy;
+}
+
 auto jitterMethodName(const JitterMethod method) -> const char*
 {
   // The names sit in a table indexed by the enumerator, the reading the
