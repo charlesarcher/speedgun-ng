@@ -1680,6 +1680,133 @@ the two. The split, the merge and the disclosure run in
 `test/source/harness_pass_collect_test.cpp` and
 `test/source/harness_pass_report_test.cpp`, on the fake provider with a set
 counter limit.
+## Top-down analysis
+
+`--topdown` asks one run for the top-down tree of the running cpu. The option
+names a level from 1 to 6, and the bare word asks level 1. One block prints
+under the rows of every benchmark the run measured, so a run of three
+benchmarks prints three blocks. A run that names no `--topdown` prints no
+block, writes no `topdown` key in its document, and holds the bytes it held
+before the option stood.
+
+The tree has one source: the table of the running cpu. The vendor, the family,
+the model and the stepping of that cpu select one directory of the vendored
+tables, and the selection reads no counter, opens no event and reads no clock.
+The figures are the run's own: the run collects the events of every node it
+shows and folds the formula of each row.
+
+### The names
+
+Level 1 carries the four names every supported vendor shares:
+`topdown.frontend_bound`, `topdown.bad_speculation`, `topdown.backend_bound`
+and `topdown.retiring`. An AMD table adds the fifth name
+`topdown.smt_contention`, and the block states with it that the four shared
+values add to less than 100 percent without that node. Below level 1 a node
+takes the name `topdown.<vendor>.<table name>`, so the Intel row
+`tma_fetch_latency` reaches `topdown.intel.tma_fetch_latency`.
+
+One line prints one node: the neutral name, the row's own table name beside it,
+and the figure in percent. A node the merge left as a gap prints `not
+available` and no figure. A node whose row carries threshold text prints that
+text at the end of the line, spelled as the table file spells it, with no
+verdict on it.
+
+### The levels
+
+The table states the level of every row. Intel spells the level token
+`TopdownL1` to `TopdownL6`, and AMD spells `PipelineL1` and `PipelineL2`. The
+block states the level it shows in its first line, prints the level-1 nodes
+next, and indents every deeper node by two spaces per level below level 1. A
+deeper node stands under the parent its own group text names, and a row whose
+parent no row of the same table states reaches no node: the tree holds no
+invented parent.
+
+An ask deeper than the table holds clamps to the deepest level the table
+holds, and the block states that clamp on a line of its own, `topdown: the
+table holds no level deeper than 4`. The document records both figures, the
+level the option asked for and the level the block shows.
+
+### The source record
+
+```text
+topdown: level=1 passes=2 table=arch/x86/skylakex/
+topdown: reference=linux-7.2.4
+topdown: file cache.json 2408215a8a087bfef3c79d6ccfd9fda7f370449d57267a3a6ae71d42869b8e6c
+```
+
+Those three lines open the block one run on the acceptance host printed, and
+twelve more `file` lines follow them. The first line names the level shown, the
+number of passes the collection measured, and the selected directory spelled
+the way the vendored mapping file spells it. The `reference=` line carries the
+reference the manifest of that table states. One `file` line stands per file
+that contributed a row, with its name and the digest its manifest line states.
+
+A metric set wider than the host's published counter limit measures in passes,
+and the pass line under the row carries `method=`, `count=` and `spread=`.
+Ahead of the first measurement the run states the scope of the core-wide
+constant as `topdown: core-wide coverage=whole_core` or
+`topdown: core-wide coverage=one_thread`. A host that answers no value for that
+constant prints no such line, and a row that reaches the constant keeps its
+refusal.
+
+### A host with no source
+
+A selection that can answer no tree answers one line, and the command line
+prints that line once ahead of the first measurement. The line names the
+vendor, the identity and the reason:
+
+```text
+topdown: <vendor> family <f> model <m> stepping <s>: <reason>
+```
+
+The identity carries `stepping <s>` where the cpu states a stepping, and an Arm
+part carries its `MIDR` in that place. The five reasons form one closed set:
+
+- no vendored table carries the vendor,
+- the mapping file names no table for that identity,
+- the selected directory publishes rows for the two core scopes of a hybrid
+  part,
+- the identity is an Arm part and no Arm table is vendored,
+- the selected directory holds no row of any top-down group.
+
+The exit status of the run is the status the same run answers without the
+option. The document records that same line as the reason of the entry, beside
+an empty node list, so a later reader learns why the tree stands absent.
+
+### The rule form
+
+A comparison rule names a node with the `topdown:` prefix and drops the leading
+`topdown.` of the node name, so `topdown:backend_bound` reads one level-1 node
+and `topdown:intel.tma_fetch_latency` reads a deeper one. The value is the
+figure the run wrote for that node, and a node no report carries is a fault
+line naming the rule, the value, the benchmark and the report. The whole
+grammar stands at [the rule grammar](#the-rule-grammar).
+
+### The example program
+
+`example/docs/topdown.cpp` is the program the main page quotes. It reads the
+identity of the running cpu, asks one tree at level 1, prints the node names
+that tree carries, and prints the refusal line on a host that has no source.
+Its own four lines on the acceptance host read:
+
+```text
+topdown.backend_bound  tma_backend_bound
+topdown.bad_speculation  tma_bad_speculation
+topdown.frontend_bound  tma_frontend_bound
+topdown.retiring  tma_retiring
+```
+
+The run of that program prints the collected figures beside those four lines,
+and `test/example_run.sh` builds the program and reads its row.
+
+The selection, the tree and the five refusals run in
+`test/source/counters_topdown_select_test.cpp`, the source record in
+`test/source/counters_topdown_source_test.cpp`, the option in
+`test/source/harness_topdown_option_test.cpp`, the collection, the block and
+the scope line in `test/source/harness_topdown_run_test.cpp`, and the document
+key in `test/source/harness_topdown_report_test.cpp`. Each of them drives a
+scripted host, so no unit of this feature opens the kernel event interface,
+reads a clock or sleeps.
 ## Jitter probe
 The `--jitter-probe` option and the `runJitterProbe` call state the probe options of the run: a spinning context per touched L3 group counts the gaps the host inserts above a threshold while the batch runs, and the report prints one block of the folds after the benchmark tables. An empty `cpus` field names the `idle` preset: in `precheck` mode the probe runs on the planned cpus, and in the other modes on one cpu of each L3 group the plans leave free. In `precheck` and `both` modes the run prints the pre-check block before the benchmark tables: one block per measured cpu carrying the sixteen field lines, the attribution deltas each naming its source, then the host settings once, then one warning line per noisy planned cpu and the pinning-candidate line ranked by gap rate. The fold block opens with `jitter probe: cpus`, carries one field line per stats field from `gapCount:` to `droppedGaps:`, one value per probe cpu, carries the series lines of the `fwq` and `ftq` methods, and closes with the disclosure lines.
 <!-- sg-example: example/docs/jitter_probe.cpp#probe-main -->
