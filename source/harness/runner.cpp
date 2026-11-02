@@ -768,6 +768,17 @@ auto stripTopdownColumns(sg::BenchmarkResult& result,
     if (availability != sg::counters::Availability::COUNTABLE) {
       value.reset();
     }
+    if (value.has_value() && !figureIsReportable(*value)) {
+      // The rule of PC-17 stands here, where the figure of a node is composed.
+      // `ABSENT` is the state the library already gives a denominator that is
+      // not there: `hunt.cpp:273` states it for a column no window gave a rate,
+      // and a node whose denominator measured no delta is that condition one
+      // level up, so the word carries no new meaning. The block print and the
+      // document writer read the same predicate, so no page reaches this
+      // figure.
+      value.reset();
+      availability = sg::counters::Availability::ABSENT;
+    }
     record.nodes.push_back(sg::TopdownNode {
         .name = node.name,
         .vendorName = node.vendorName,

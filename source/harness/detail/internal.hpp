@@ -2,6 +2,7 @@
 #define SG_HARNESS_INTERNAL_HPP
 
 #include <atomic>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <expected>
@@ -46,6 +47,22 @@ inline constexpr std::size_t kMaxFamilySize = 100;
 
 namespace detail
 {
+
+/// @brief specs/042-topdown PC-17: true when a figure can reach a reader. A
+///        division whose denominator measured no delta leaves a figure that is
+///        no number, and no surface that carries a figure to a reader can print
+///        or record one.
+///
+/// \pre none
+/// \post answers true for every finite figure and false for a not-a-number and
+///       for either infinity; it is the one test the assembly of a node makes
+///       and the print of a node makes, so the two surfaces cannot disagree
+///       about which nodes answered nothing
+[[nodiscard]] inline constexpr auto figureIsReportable(
+    const double figure) noexcept -> bool
+{
+  return std::isfinite(figure);
+}
 
 // specs/025 data-model.md E-01: the ordinal that names no core and no
 // group, the same maximum `kNoPin` of the public header holds for a cpu

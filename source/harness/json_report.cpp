@@ -260,7 +260,18 @@ auto putOrNull(Builder& builder,
                const std::optional<double>& value) noexcept -> void
 {
   object.key(key);
-  if (!value.has_value()) {
+  if (!value.has_value() || !figureIsReportable(*value)) {
+    // The belt, and the rule is elsewhere. The rule refuses a figure no
+    // arithmetic could take where the node is composed (`runner.cpp`), and it
+    // leaves none for this line to write. This line stands because the builder
+    // below turns a figure that is no number into a finite magnitude: the
+    // vendored `simdjson::builder::string_builder` writes a not-a-number as
+    // `2.696539702293474e+308` and an infinity as `1.797693134862316e+308`,
+    // which a schema key typed `["number","null"]` accepts as a figure, and the
+    // first of them stands above `DBL_MAX`, so this library's reader refuses
+    // the whole document over it and the second reads back as a figure. A test
+    // that only forbade the text `nan` would read that as a measurement, so
+    // deleting this line as redundant publishes a fabricated number (PC-17).
     builder.append_null();
     return;
   }
