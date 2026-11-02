@@ -249,8 +249,6 @@ auto writeCoreDevice(const std::filesystem::path& root,
   writeDevice(root, "cpu", "4", {{"config", "config:0-47"}}, events);
 }
 
-
-
 /// Runs one provider over the fixture tree and answers the catalog it
 /// seeded.
 auto enumerate() -> RecordingSink
@@ -296,9 +294,101 @@ auto paranoidReadScenario() -> void
   resetFixture();
 }
 
+// ---- P2: device discovery -------------------------------------------------
+
+/// The fixture alias's entry inside the object the provider seeded, or
+/// no pointer when the object carries none: the vendor table merges its
+/// own rows beside the fixture aliases, so the assertions name the
+/// fixture entries and read the pair apart from them.
+auto findEntry(const RecordingSink& sink,
+               const std::string& object,
+               const std::string& name) -> const RecordingSink::Entry*
+{
+  for (std::size_t index = 0; index < sink.paths.size(); ++index) {
+    if (sink.paths[index] != object) {
+      continue;
+    }
+    for (const auto& entry : sink.entries[index]) {
+      if (entry.name == name) {
+        return &entry;
+      }
+    }
+  }
+  return nullptr;
+}
+
+/// The devices the provider walks: the loadable ones seed the catalog,
+/// the device with no usable `type` file is skipped, the device with a
+/// negative type is skipped, and the device with nothing to describe
+/// is dropped (FR-039).
+auto deviceDiscoveryScenario() -> void
+{
+  auto calls = scriptedCalls();
+  resetFixture();
+  const auto root = freshRoot();
+  writeCoreDevice(root);
+  writeDevice(root, "empty-type", "", {}, {});
+  writeDevice(root, "negative-type", "-1", {}, {});
+  writeDevice(root,
+              "bad-format",
+              "5",
+              {{"junk", "garbage"}},
+              {{"alias", "config=0x1"}});
+  writeDevice(root, "unknown-field", "6", {}, {{"alias", "event=0x1"}});
+  writeDevice(root, "no-entries", "7", {}, {});
+  writeDevice(
+      root,
+      "with-attr",
+      "8",
+      {{"config", "config:0-47"}},
+      {{"cache-misses", "config=0x2d"}, {"cache-misses.percpu", "some=thing"}});
+  writeDevice(root,
+              "scoped",
+              "9",
+              {{"config", "config:0-47"}},
+              {{"alias", "config=0x1"}},
+              true);
+  gDevicesRoot = root;
+  writeParanoid("2\n");
+  installKernelCalls(&calls);
+  const auto sink = enumerate();
+  check(sink.paths.size() == 5,
+        "the five loadable devices seed five objects (FR-039)");
+  const auto has = [&sink](const std::string& path)
+  {
+    for (const auto& one : sink.paths) {
+      if (one == path) {
+        return true;
+      }
+    }
+    return false;
+  };
+  check(has("cpu") && has("bad-format") && has("unknown-field")
+            && has("with-attr") && has("scoped"),
+        "the loadable devices seed the catalog");
+  check(!has("empty-type") && !has("negative-type"),
+        "a device with no usable type file is skipped (FR-039)");
+  check(
+      !has("no-entries"),
+      "a device with nothing countable or describable is dropped " "(FR-039)");
+  // The attribute file beside the alias is no event of its own: the
+  // with-attr device carries the alias alone (FR-037).
+  for (std::size_t index = 0; index < sink.paths.size(); ++index) {
+    if (sink.paths[index] != "with-attr") {
+      continue;
+    }
+    check(findEntry(sink, "with-attr", "cache-misses") != nullptr,
+          "the alias itself seeds the catalog");
+    check(findEntry(sink, "with-attr", "cache-misses.percpu") == nullptr,
+          "the attribute file beside the alias names no event (FR-037)");
+  }
+  resetFixture();
+}
+
 auto main() -> int
 {
   paranoidReadScenario();
+  deviceDiscoveryScenario();
   if (failures != 0) {
     return 1;
   }

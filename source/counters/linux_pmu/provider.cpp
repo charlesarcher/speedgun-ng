@@ -322,20 +322,13 @@ auto loadDevice(const std::filesystem::path& dir)
 {
   std::error_code code;
   const std::string typeText = slurp(dir / "type");
-  // LCOV_EXCL_START : coverage exclusion (T066): both device guards. Every
-  // directory the kernel publishes under
-  // `/sys/bus/event_source/devices/` carries a non-empty numeric `type`
-  // file, and the directory is a read-only sysfs entry, so a test cannot
-  // supply one that is empty or unparsable. The 24 devices of the
-  // reference host all load.
-  if (typeText.empty()) {  // LCOV_EXCL_BR_LINE
-    return std::nullopt;  // LCOV_EXCL_LINE
-  }  // LCOV_EXCL_LINE
+  if (typeText.empty()) {
+    return std::nullopt;
+  }
   const int type = std::atoi(typeText.c_str());
-  if (type < 0) {  // LCOV_EXCL_BR_LINE
-    return std::nullopt;  // LCOV_EXCL_LINE
-  }  // LCOV_EXCL_LINE
-  // LCOV_EXCL_STOP
+  if (type < 0) {
+    return std::nullopt;
+  }
   detail::PmuDevice device;
   device.path = dir.filename().string();
   device.type = type;
@@ -355,14 +348,7 @@ auto loadDevice(const std::filesystem::path& dir)
        it.increment(code))
   {
     std::vector<detail::FormatRange> ranges;
-    // LCOV_EXCL_BR_LINE : coverage exclusion (T066): the refusing side. Every
-    // file the kernel publishes under a PMU `format/` directory describes a
-    // config-bit field, and sysfs is read-only, so no fixture can place a
-    // file there that the parser rejects.
-    if (detail::parseFormatField(  // LCOV_EXCL_BR_LINE
-            slurp(it->path()),
-            ranges))
-    {  // LCOV_EXCL_BR_LINE
+    if (detail::parseFormatField(slurp(it->path()), ranges)) {
       device.formats.emplace_back(it->path().filename().string(),
                                   std::move(ranges));
     }
@@ -374,40 +360,20 @@ auto loadDevice(const std::filesystem::path& dir)
        it.increment(code))
   {
     const std::string name = it->path().filename().string();
-    // LCOV_EXCL_BR_START : coverage exclusion (T140): the skip. It needs a
-    // `/sys/bus/event_source/devices/<device>/events/` directory publishing
-    // a file that is no event, and a runner whose `perf_event_open` is
-    // refused loads no core-PMU device at all, so it iterates no such
-    // directory; the host that grants the syscall iterates the core device's
-    // directory, whose entries all name events.
-    if (!isEventFile(name)) {  // LCOV_EXCL_BR_LINE
-      continue;  // LCOV_EXCL_LINE
-    }  // LCOV_EXCL_LINE
-    // LCOV_EXCL_BR_STOP
+    if (!isEventFile(name)) {
+      continue;
+    }
     const std::string text = slurp(it->path());
     detail::PmuEntry entry;
     entry.name = name;
     entry.description = detail::aliasDescription(name, text);
-    // LCOV_EXCL_BR_START : coverage exclusion (T066): the refusing side. It
-    // needs a kernel alias naming a field the device `format/` directory does
-    // not publish, or a value wider than the published ranges. Both facts
-    // live in read-only sysfs.
-    if (!detail::pmuComposeConfig(  // LCOV_EXCL_BR_LINE
-            detail::parseAttr(text),
-            device.formats,
-            entry.words))  // LCOV_EXCL_BR_LINE
+    if (!detail::pmuComposeConfig(
+            detail::parseAttr(text), device.formats, entry.words))
     {
-      entry.words.clear();  // LCOV_EXCL_LINE
-    }  // LCOV_EXCL_LINE
-    // LCOV_EXCL_BR_STOP
+      entry.words.clear();
+    }
     device.entries.push_back(std::move(entry));
-  }  // LCOV_EXCL_LINE
-  // LCOV_EXCL_LINE : coverage exclusion (T140): the block gcov attributes to
-  // the loop's closing brace, marked on the brace above. A runner whose
-  // `perf_event_open` is refused publishes no event source, so its `events/`
-  // loop ends through the `directory_iterator` error path and the brace block
-  // stays at zero; the host that grants the syscall reaches it once per
-  // event-sysfs loop.
+  }
   return device;
   // LCOV_EXCL_LINE : coverage exclusion (T066): the closing block of
   // `load_device`. `gcov -b` reports it as an unexecuted block on every
@@ -825,15 +791,9 @@ PmuProvider::PmuProvider()
 
   for (const auto& dir : devices) {
     auto device = detail::loadDevice(dir);
-    // LCOV_EXCL_BR_START : coverage exclusion (T066): the skip arm. It needs
-    // a directory under `/sys/bus/event_source/devices/` with no usable
-    // `type` file, which is the read-only sysfs case the two `load_device`
-    // guards above are excluded for. All 24 devices of the reference host
-    // load.
-    if (!device.has_value()) {  // LCOV_EXCL_BR_LINE
-      continue;  // LCOV_EXCL_LINE
-    }  // LCOV_EXCL_LINE
-    // LCOV_EXCL_BR_STOP
+    if (!device.has_value()) {
+      continue;
+    }
     // Every device takes the vendored rows its own scope reaches, so an
     // uncore row lands on the uncore device and a core row on each core
     // device the scope covers (FR-019). A row scoped to a class this host
@@ -844,27 +804,19 @@ PmuProvider::PmuProvider()
     // do not decide it (FR-017, D-10).
     const bool fastCapable = detail::devicePageFastVerdict(*device);
     detail::probeDevice(*device, fastCapable);
-    // LCOV_EXCL_BR_START : coverage exclusion (T140): the refusal wording,
-    // on the same kernel-gate ground as the mode ternary in `probeDevice`.
     const std::string verdict = levelNote
-        + (fastCapable  // LCOV_EXCL_BR_LINE
-               ? "; this device's event page grants user counter reads; "  // LCOV_EXCL_LINE
-                 "entries disclose fast_rdpmc"  // LCOV_EXCL_LINE
-               : "; this device's event page keeps user counter reads in "  // LCOV_EXCL_LINE
-                 "syscall mode");  // LCOV_EXCL_LINE
-    // LCOV_EXCL_BR_STOP
+        + (fastCapable ? "; this device's event page grants user counter "
+                         "reads; " "entries disclose fast_rdpmc"
+                       : "; this device's event page keeps user counter reads "
+                         "in " "syscall mode");
     // A device with nothing countable and nothing described is absent
     // from the catalog (FR-039); the tree never seeds an empty object.
-    // LCOV_EXCL_START : coverage exclusion (T066): dropping a device with no
-    // entries. It needs a published event source carrying neither a
-    // countable nor a describable event, which is again read-only sysfs.
-    if (!device->entries.empty()) {  // LCOV_EXCL_BR_LINE
-      device->description += verdict;  // LCOV_EXCL_LINE
-      m_state->devices.push_back(std::move(*device));  // LCOV_EXCL_LINE
-    }  // LCOV_EXCL_LINE
-    // LCOV_EXCL_STOP
-  }  // LCOV_EXCL_LINE
-}  // LCOV_EXCL_LINE
+    if (!device->entries.empty()) {
+      device->description += verdict;
+      m_state->devices.push_back(std::move(*device));
+    }
+  }
+}
 
 PmuProvider::~PmuProvider() = default;
 
