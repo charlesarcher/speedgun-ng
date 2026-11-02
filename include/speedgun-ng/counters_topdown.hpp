@@ -24,6 +24,7 @@
 #define SG_COUNTERS_TOPDOWN_HPP
 
 #include <cstdint>
+#include <expected>
 #include <optional>
 #include <string>
 #include <vector>
@@ -219,7 +220,8 @@ struct SPEEDGUN_NG_EXPORT TopdownTable
  *
  * The struct is data: it has no call to guard. The shape no member may break
  * is the tree's own: a node's level stands one below its parent's level, and
- * its parent names a row the table states.
+ * its parent names a published row that the vector of the tree holds ahead of
+ * this node.
  *
  * \pre none
  * \post none
@@ -353,6 +355,60 @@ struct SPEEDGUN_NG_EXPORT TopdownUnsupported
   std::string identity;  ///< `family 6 model 85 stepping 4`, or the `MIDR`.
   std::string detail;  ///< The directory read, or the Arm sentence.
 };
+
+/**
+ * @brief The tree one selection asks for, built from the rows of one table
+ * (specs/042-topdown FR-002, FR-008 to FR-016, FR-020; data-model E-08).
+ *
+ * The answer follows from `options.identity` and from one table: the planted
+ * `options.table` where one stands, and the table of the identity where none
+ * stands. The call reads no counter, opens no event, reads no clock and calls
+ * no cpu reader of its own, so two calls over one identity and one table answer
+ * one tree (FR-002, FR-009). The rows reach the call as the verdicts the metric
+ * layer answers, and a directory resolves once, so the pass that builds a tree
+ * reads those verdicts as data.
+ *
+ * A row reaches a node when its group text carries a level token of `TopdownL1`
+ * to `TopdownL6`, `PipelineL1` or `PipelineL2`, when that level stands at or
+ * above the depth the answer states, and when its parent already stands in the
+ * tree (FR-013, FR-014). A level-1 row roots a node and names no parent. A
+ * deeper row names its parent with the `_group` token of its own group text:
+ * Intel spells that token `tma_<name>_group` and AMD spells it `<name>_group`,
+ * and the stem of either names another row of the table. A row whose token
+ * stems to no row reaches no node, and no part of this feature invents a parent
+ * for it (FR-013). The rows are walked level by level, so every parent names an
+ * earlier element of `nodes`: a caller folds a parent before it folds the
+ * children of that parent. A node's level stands one below its parent's level.
+ * Measured over the vendored tables: 98 group tokens of `arch/x86/skylakex/`
+ * and 111 of `arch/x86/sapphirerapids/` stem to a row of the same table, and
+ * every one of them names a row exactly one level above.
+ *
+ * `depth` is the asked level clamped to the deepest level token the table
+ * holds, so a table of level-1 rows answers level 1 whatever the ask (FR-008,
+ * FR-020). A row the host refuses stands in `refused` with the metric layer's
+ * kind and reason beside its own name, its parent and its level, and it builds
+ * no node (FR-016, FR-031). A node carries the spine of its row and the address
+ * of every leaf that spine reads, which is what a run groups its passes on
+ * (FR-010, FR-021).
+ *
+ * An identity no table serves answers one `TopdownUnsupported` that carries a
+ * kind and the fields that identity states: an `MIDR` names an Arm part, a
+ * vendor text of neither vendor names an unknown vendor, and a table with no
+ * directory names a mapping-file miss. `message()` owns the one line a caller
+ * prints, and the two refusals a table's own rows state are T079 (FR-004 to
+ * FR-007, FR-040, spec D-14).
+ *
+ * \pre `options.level` stands in 1 to 6, and `SG_REQUIRE` enforces that.
+ * \post The answer is pure over the identity and the rows: no counter read, no
+ *       event open, no clock read and no CPUID read stand behind it (FR-002,
+ *       FR-009). `depth` is the asked level clamped to the deepest level the
+ *       table holds (FR-008, FR-020), and no node stands that a row of the
+ *       table does not state (FR-013).
+ * \invariant none
+ */
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto topdownTree(
+    const TopdownSelection& options)
+    -> std::expected<TopdownTree, TopdownUnsupported>;
 
 }  // namespace sg::counters
 

@@ -180,7 +180,7 @@ and every story calls `topdownTree`.
   `test/tier_labels.sh` row of T001 and with the `SG_TOPDOWN_TABLE_DIR` define
   T006 adds. This case lands with T022 in one commit (FR-048).
 
-- [ ] T011 In `test/source/counters_topdown_select_test.cpp`, write the tree
+- [x] T011 In `test/source/counters_topdown_select_test.cpp`, write the tree
   cases over the fixture table: `levelOneCarriesTheSharedNames`,
   `parentsComeFromTheGroupText`, `levelDeeperThanTheTableClamps`,
   `refusedRowsStayInTheDocument`, `rowsUnderTwoObjectsBothReach`,
@@ -329,7 +329,7 @@ and every story calls `topdownTree`.
   `python3 tools/docs/example_drift.py .` reads it, and this change lands after
   T022 writes the header it scans.
 
-- [ ] T024 In `source/counters/linux_pmu/topdown_select.cpp`, the new file of
+- [x] T024 In `source/counters/linux_pmu/topdown_select.cpp`, the new file of
   T022, implement `topdownTree()`: the `SG_REQUIRE` that `options.level` stands
   in 1 to 6, the enforcement site
   `specs/042-topdown/contracts/topdown-selection.md:50` names and
@@ -370,7 +370,7 @@ exact for a fake event source. Here the fixture tree of
 `harness_topdown_option_test` and `harness_topdown_run_test`. No report key, no
 rule and no page is needed.
 
-### Tests for User Story 3 (write first, observe failure) The commit also carries that declaration, which `T022` held back. That pass also fills `TopdownTable::rows`: the verdict of each row comes from the table once it is parsed, and the claim that the tree stays pure (FR-002) rests on a resolution reading that parsed table, which `T024` measures rather than assumes.
+### Tests for User Story 3 (write first, observe failure) The commit also carries that declaration, which `T022` held back. That pass also fills `TopdownTable::rows`: the verdict of each row comes from the table once it is parsed, and the claim that the tree stays pure (FR-002) rests on a resolution reading that parsed table, which `T024` measures rather than assumes. That pass re-parents one row of `test/source/detail/topdown_fixture.hpp`: `tma_memory_bandwidth` stood under a row of its own level, which no vendored table does, measured over 98 group tokens of `arch/x86/skylakex/` and 111 of `arch/x86/sapphirerapids/` that stem to a row of the same table, every one of them one level above. The fixture followed the tables and the shape the contract states, because no part of the library may bend the shape to a scripted table.
 - [ ] T025 [P] [US1] In `test/source/harness_topdown_option_test.cpp`, a new
   file, write the option cases on the re-exec shape of
   `test/source/harness_hunt_cli_test.cpp`: `theBareWordAsksLevelOne` and
