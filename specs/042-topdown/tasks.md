@@ -480,7 +480,7 @@ rule and no page is needed.
   provider, reads the header its own record states and answers status 0, so no case
   depends on which table the host selects. Nine arms, one per case, each printed its
   own claim and left the tree byte-identical.
-- [ ] T031 [US1] In `test/source/harness_topdown_run_test.cpp`, the case
+- [x] T031 [US1] In `test/source/harness_topdown_run_test.cpp`, the case
   `theRunStatesTheCoreWideScopeBeforeTheFirstMeasurement`: a top-down run states
   once on the console, ahead of its first measurement, which way the flag
   settled, whole core or one thread of it, and a run without the option prints
@@ -488,6 +488,18 @@ rule and no page is needed.
   (FR-048).
 
 ### Implementation for User Story 3
+  The case re-executes this binary through `sg::speedgunMain` over two benchmarks,
+  because the claim is an order on the console: it reads the whole console, the line
+  the child probes from its own `coreWideCoverage()` call, and holds that a run with
+  the option states the settled reading once for the process, behind the banner the
+  entry point prints and ahead of the row of the first run that measured. The probe
+  is what keeps the case host-independent: one call settles the cached value D-6
+  describes, so the probe and the stated line are one reading, and a host whose cpu
+  set or sibling lists stand unreadable answers nothing, which the case reads as no
+  line at all. The variant without the option states neither the line nor a block.
+  Four arms on `source/harness/cli.cpp` moved the line into the walk, moved it behind
+  the batch, swapped the two readings and dropped the option guard, and each printed
+  its own claim.
 
 - [x] T032 [US1] In `source/harness/detail/options.hpp`, add
   `kTopdownOptionValue = 350` after `kGroupLayoutOptionValue` at `:97`; in
@@ -589,7 +601,7 @@ rule and no page is needed.
   column states its passes above its block. One case of T030 holds both halves, and
   the arm that restores the guard as it stood moves that case alone.
 
-- [ ] T039 [US1] In `source/harness/cli.cpp`, print that one scope line once
+- [x] T039 [US1] In `source/harness/cli.cpp`, print that one scope line once
   from `speedgunMain`, ahead of the walk that calls `runner.run` at
   `source/harness/cli.cpp:1544`, naming the settled reading `coreWideCoverage()`
   T017 publishes and printing nothing when it answers nothing (FR-042, spec D-6;
@@ -620,7 +632,14 @@ parents and the clamp over the fixture tables, and
 and SC-03's two tolerances over the scripted source.
 
 ### Tests for User Story 4 (write first, observe failure)
-
+  The line reads `topdown: core-wide coverage=whole_core` and
+  `topdown: core-wide coverage=one_thread`, the tag the block already carries and the
+  enumerator's own spelling, so a reader greps one tag and a value matches the enum
+  and the document's snake case. The call stands ahead of the walk, and the comment
+  beside it states that the query is the one reader of the flag: that call settles the
+  cached value, the conditional over the constant folds to the same value when a table
+  resolves, and the reading is taken from the mask this process holds before any
+  narrowing a live probe applies inside the walk (FR-042, FR-043, spec D-6). The line as landed reads `topdown: core-wide coverage=whole_core` or `topdown: core-wide coverage=one_thread`, with no line for a reading that stands absent, and the page task that documents the console carries those words as they stand.
 - [ ] T040 [US2] In `test/source/counters_topdown_select_test.cpp`, add the
   level-token cases of FR-014: rows grouped `TopdownL1` to `TopdownL6` answer
   levels 1 to 6, rows grouped `PipelineL1` and `PipelineL2` answer 1 and 2, and

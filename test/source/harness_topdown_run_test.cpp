@@ -536,6 +536,17 @@ constexpr const char* kErrPath = "harness_topdown_run_err.txt";
   return buffer.str();
 }
 
+// The lines of one captured console text.
+[[nodiscard]] auto linesOf(const std::string& text) -> std::vector<std::string>
+{
+  std::vector<std::string> lines;
+  std::istringstream stream(text);
+  for (std::string line; std::getline(stream, line);) {
+    lines.push_back(line);
+  }
+  return lines;
+}
+
 // The two streams of one call, held apart from the test's own output. A `check`
 // of the redirect itself prints to the redirected stream, because nothing else
 // stands between the two, so both restores are checked before the text is read.
@@ -603,12 +614,7 @@ auto runMeasuredQuietly(sg::Instance& instance,
 {
   const CapturedStreams streams =
       captureStreams([&] { sg::detail::printResult(result); });
-  std::vector<std::string> lines;
-  std::istringstream stream(streams.out);
-  for (std::string line; std::getline(stream, line);) {
-    lines.push_back(line);
-  }
-  return lines;
+  return linesOf(streams.out);
 }
 
 // The lines of a printed report that carry the block's tag, and the index of
@@ -1751,6 +1757,97 @@ auto runEntryPointChild() -> int
   return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
 }
 
+// The mode that re-executes this binary to read the scope of a run off the
+// whole console. The variant names whether the option stands. The child prints
+// one probe line with what `coreWideCoverage()` answered before the entry point
+// ran, because FR-042 lets an unreadable cpu set answer nothing and a case may
+// not assume which way this host settled; two benchmarks stand so that a line
+// printed once per benchmark is visible as what it is (FR-042).
+constexpr std::string_view kScopeChildMode {"scope-child"};
+constexpr std::string_view kScopeOptionVariant {"option"};
+constexpr std::string_view kScopeProbeMarker {"PROBE_COVERAGE="};
+constexpr std::string_view kScopeLinePrefix {"topdown: core-wide coverage="};
+
+// The two words the console carries for the two readings in the enumerator's
+// own spelling, and `none` for a host that states no sibling lists. The probe
+// line and the console line carry the same words, because one call of
+// `coreWideCoverage()` settles the cached value D-06 describes: the child's
+// probe and the line the entry point prints are one reading, so the case
+// compares a statement against the value it restates.
+[[nodiscard]] auto coverageText(
+    const std::optional<sg::counters::CoreCoverage>& coverage) -> std::string
+{
+  if (!coverage.has_value()) {
+    return "none";
+  }
+  return *coverage == sg::counters::CoreCoverage::WHOLE_CORE ? "whole_core"
+                                                             : "one_thread";
+}
+
+auto runScopeChild(const std::string& variant) -> int
+{
+  registerFixture(kNarrowCoreLimit);
+  static_cast<void>(sg::registerBenchmark(&plainBody, "bmTopdownScopeFirst"));
+  static_cast<void>(sg::registerBenchmark(&plainBody, "bmTopdownScopeSecond"));
+  std::printf("%s%s\n",
+              std::string {kScopeProbeMarker}.c_str(),
+              coverageText(sg::counters::coreWideCoverage()).c_str());
+  std::fflush(stdout);
+  std::vector<std::string> arguments {};
+  if (variant == kScopeOptionVariant) {
+    arguments.push_back("--topdown");
+  }
+  arguments.push_back("--iterations=1");
+  arguments.push_back("--repetitions=1");
+  std::vector<char*> argv {const_cast<char*>(selfPath)};
+  for (std::string& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
+// The whole console of one scope child: its exit status, its lines, and the
+// reading its own probe answered.
+struct ScopeConsole
+{
+  int status = -1;
+  std::vector<std::string> lines;
+  std::string probe;
+};
+
+[[nodiscard]] auto scopeConsole(const std::string& variant) -> ScopeConsole
+{
+  const std::string command = "\"" + std::string {selfPath} + "\" "
+      + std::string {kScopeChildMode} + " " + variant + " > " + kOutPath
+      + " 2>&1";
+  ScopeConsole console;
+  console.status = std::system(command.c_str());
+  std::istringstream stream(textOf(kOutPath));
+  const std::string marker {kScopeProbeMarker};
+  for (std::string line; std::getline(stream, line);) {
+    if (line.rfind(marker, 0) == 0) {
+      console.probe = line.substr(marker.size());
+      continue;
+    }
+    console.lines.push_back(line);
+  }
+  return console;
+}
+
+// The lines of one console that carry the scope statement.
+[[nodiscard]] auto scopeLines(const ScopeConsole& console)
+    -> std::vector<std::string>
+{
+  std::vector<std::string> found;
+  const std::string prefix {kScopeLinePrefix};
+  for (const std::string& line : console.lines) {
+    if (line.rfind(prefix, 0) == 0) {
+      found.push_back(line);
+    }
+  }
+  return found;
+}
+
 // The seventh scenario of the block: the option word with no attached value
 // prints a tree at level one and leaves the run's status at zero, the fifth
 // case SC-05 names beside its four refusal statuses (FR-018, FR-025; SC-05).
@@ -1778,16 +1875,103 @@ auto scenarioTheBareWordPrintsATreeAtStatusZero() -> int
   check(output.contains(header),
         "the bare word prints a tree at the level it shows, which is one, and the "
         "block of a run driven through the entry point reaches the console (FR-018, FR-025)");
-  // The directory the header names is the one this identity selects, so the
-  // case reads the record of its own run and not a constant (FR-026). The
-  // number of file lines is whatever that record states: the vendored path
-  // fills the reference and the contributing files at no task of this feature
-  // yet, so the scripted case above is where the print rule of FR-015 stands.
+  // The directory, the reference and the contributing files are the ones this
+  // identity's record states, so the case reads its own run's source and no
+  // constant. The loader fills all three for a production table, so the print
+  // rule of FR-015 stands on the vendored path beside the planted one (FR-015,
+  // T101).
   check(output.contains(header + "passes=")
             && output.contains("table=" + vendored.source.directory),
         "the header states the table this identity selects (FR-026, FR-015)");
+  const std::vector<std::string> lines = linesOf(output);
+  const std::vector<std::string> block = blockLinesOf(lines);
+  std::size_t fileLines = 0;
+  for (const std::string& entry : block) {
+    fileLines +=
+        entry.rfind(std::string {kBlockTag} + " file ", 0) == 0 ? 1U : 0U;
+  }
+  check(!vendored.source.reference.empty()
+            && blockLinesOf(block).size() == block.size()
+            && lineAt(block, "topdown: reference=").has_value()
+            && block[*lineAt(block, "topdown: reference=")]
+                == std::string {kBlockTag}
+                    + " reference=" + vendored.source.reference,
+        "the block of a production run names the reference its own record "
+        "states (FR-015)");
+  check(fileLines == vendored.source.files.size() && fileLines > 0,
+        "the block of a production run carries one line per contributing file "
+        "of " "its record (FR-015)");
 
   std::puts("the-bare-word-prints-a-tree-at-status-zero: ok");
+  return 0;
+}
+
+// The scope of the run, stated once on the console ahead of the first
+// measurement. The child reads the whole console of a run of two benchmarks
+// through the entry point, because the claim is about order on the console: the
+// line stands once for the process, after the banner the entry point prints and
+// before the row of the first run that measured. The probe line names the
+// reading the one reader settled, so the case holds what this host answered,
+// which way it settled, and the rule that an unreadable cpu set states nothing
+// (FR-042).
+auto scenarioTheRunStatesTheCoreWideScopeBeforeTheFirstMeasurement() -> int
+{
+  const ScopeConsole withOption =
+      scopeConsole(std::string {kScopeOptionVariant});
+  const ScopeConsole withoutOption = scopeConsole("plain");
+  check(WIFEXITED(withOption.status) && WEXITSTATUS(withOption.status) == 0,
+        "the run that states its scope leaves the status at zero (FR-042)");
+  check(
+      WIFEXITED(withoutOption.status) && WEXITSTATUS(withoutOption.status) == 0,
+      "the run that states no scope leaves the status at zero (FR-042)");
+  check(!withOption.probe.empty() && !withoutOption.probe.empty(),
+        "both children state the reading their own call settled (FR-042)");
+  check(withOption.probe == withoutOption.probe,
+        "one reading stands for the process, so the option prints no reading "
+        "of " "its own (FR-042)");
+
+  const std::vector<std::string> stated = scopeLines(withOption);
+  if (withOption.probe == "none") {
+    check(
+        stated.empty(),
+        "an unreadable cpu set or sibling list states no scope line (FR-042)");
+  } else {
+    check(stated.size() == 1,
+          "the run states its scope once for the process, beside two "
+          "benchmarks " "(FR-042)");
+    check(stated.size() == 1
+              && stated.front()
+                  == std::string {kScopeLinePrefix} + withOption.probe,
+          "the line names the way the flag settled, whole core or one thread "
+          "of it (FR-042)");
+    const auto banner = lineAt(withOption.lines, "speedgun-ng ");
+    const auto firstRow = [&]() -> std::optional<std::size_t>
+    {
+      const auto found =
+          std::find_if(withOption.lines.begin(),
+                       withOption.lines.end(),
+                       [](const std::string& line)
+                       {
+                         return line.rfind("bmTopdownScope", 0) == 0
+                             && line.contains("iterations=");
+                       });
+      if (found == withOption.lines.end()) {
+        return std::nullopt;
+      }
+      return static_cast<std::size_t>(found - withOption.lines.begin());
+    }();
+    const auto scope = lineAt(withOption.lines, std::string {kScopeLinePrefix});
+    check(banner.has_value() && firstRow.has_value() && scope.has_value()
+              && *scope > *banner && *scope < *firstRow,
+          "the scope line stands ahead of the first measurement (FR-042)");
+  }
+
+  check(blockLinesOf(withoutOption.lines).empty()
+            && scopeLines(withoutOption).empty(),
+        "a run without the option prints the scope line not at all (FR-042)");
+
+  std::puts(
+      "the-run-states-the-core-wide-scope-before-the-first-measurement: ok");
   return 0;
 }
 
@@ -1797,7 +1981,7 @@ struct Scenario
   int (*run)();
 };
 
-constexpr std::array<Scenario, 17> kScenarios {{
+constexpr std::array<Scenario, 18> kScenarios {{
     Scenario {"nodes-share-one-plan-with-the-metric-columns",
               &scenarioNodesShareOnePlanWithTheMetricColumns},
     Scenario {"the-metric-columns-keep-their-bytes",
@@ -1832,6 +2016,8 @@ constexpr std::array<Scenario, 17> kScenarios {{
               &scenarioTheDeeperTreePrintsItsIndentationAndItsGap},
     Scenario {"an-unsupported-record-prints-no-block",
               &scenarioAnUnsupportedRecordPrintsNoBlock},
+    Scenario {"the-run-states-the-core-wide-scope-before-the-first-measurement",
+              &scenarioTheRunStatesTheCoreWideScopeBeforeTheFirstMeasurement},
 }};
 
 }  // namespace
@@ -1854,6 +2040,10 @@ auto main(int argc, char** argv) -> int
   }
   if (requested == kEntryPointMode) {
     return runEntryPointChild();
+  }
+  if (requested == kScopeChildMode) {
+    return runScopeChild(argc > 2 && argv[2] != nullptr ? argv[2]
+                                                        : std::string());
   }
   if (!requested.empty()) {
     std::fprintf(stderr,
