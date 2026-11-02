@@ -20,7 +20,7 @@ value in the option table is unique (FR-011).
 ## Value grammar
 
 ```text
---jitter-probe=<cpu-list|idle>[,threshold=<ns>][,mode=alongside|precheck|both][,precheck=<ms>|serial][,gaps=<n>][,strict]
+--jitter-probe=<cpu-list|idle>[,threshold=<ns>][,mode=alongside|precheck|both][,precheck=<ms>|serial][,gaps=<n>][,strict][,method=tsc|fwq|ftq][,quantum=<us>][,work=<n>][,noise=<percent>]
 ```
 
 | Part | Meaning | Default | Requirement |
@@ -32,12 +32,20 @@ value in the option table is unique (FR-011).
 | `precheck=serial` | the word `serial`: the pre-check runs one measured cpu per window, ascending cpu order, the planned cpus before the candidates (specs/034 FR-002, D-2) | absent: all measured cpus run in one window | specs/034 FR-009 |
 | `gaps=<n>` | the gap buffer size per probe cpu, 1 to 16,777,216 | 65,536 | FR-009 |
 | `strict` | a flag: an unavailable TSC stops the run | absent: an unavailable TSC is disclosed and the run continues | FR-037 |
+| `method=` | `tsc`, `fwq`, or `ftq`: one method per run, the words the value takes | `tsc` | specs/043 FR-001, FR-002, D-1 |
+| `quantum=<us>` | the FTQ quantum in microseconds, 10 to 100,000 | 100 us | specs/043 FR-002, FR-015, D-4 |
+| `work=<n>` | the FWQ work count of one unit, 1 to 16,777,216 | 0: the calibration measures the count on the probe cpu | specs/043 FR-002, FR-010, D-2 |
+| `noise=<percent>` | the noise percent at which a strict run refuses, 0 to 100, a whole number | 1 | specs/043 FR-002, FR-021, D-9 |
 
 Each key stands once in
 a value; a second occurrence of one key is an invalid value with the
 standing error shape (FR-038). A cpu that stands twice in one value,
 in any form the tokens name, is an invalid value with the same shape
 (FR-011).
+
+The head stands first and mandatory: the parser reads token 0 as the
+head, and a head token that carries `=` answers the standing cpu-token
+line (specs/043 FR-002, the round 2 answer).
 
 ## Parse point and stop rule
 
@@ -46,6 +54,8 @@ in any form the tokens name, is an invalid value with the same shape
 | `--jitter-probe=idle` | the `idle` preset resolves one probe cpu per L3 group the plans touch (D-4) |
 | `--jitter-probe=2,5` | the probe runs on cpus 2 and 5 |
 | `--jitter-probe=idle,mode=precheck` | the pre-check phase runs on the planned cpus the `idle` preset names (D-13, R-10) |
+| `--jitter-probe=idle,method=fwq` | the FWQ method runs on one probe cpu per L3 group the plans touch (specs/043 D-1) |
+| `--jitter-probe=idle,method=ftq,quantum=1000` | the FTQ method runs with a 1,000 us quantum (specs/043 FR-015) |
 | `--jitter-probe` with no argument | the standing `getopt_long` missing-argument path, exit status 2 |
 | An unknown flag | the standing unknown-option line and exit status 2 |
 | No option at all | no probe exists: the console report and the JSON carry the same fields and shape as master's (FR-013, D-1) |
@@ -84,6 +94,14 @@ and exits with status 2, before the first run starts (FR-038, SC-002):
 | An overlap in `alongside` mode or in the alongside phase of `both`: a probe cpu that is a planned cpu of a benchmark context, or an SMT sibling of one | the cpu and the benchmark | 2 |
 | An unpinned benchmark whose affinity mask the probe cpus empty | the benchmark | 2 |
 | The `machine/tsc` leaf missing, with `strict` | the availability fact | 2 |
+| A method word outside the three | the word | 2 |
+| `quantum=0`, a value outside 10 to 100,000, a value that is not a number | the value | 2 |
+| `work=0`, a value above 16,777,216, a value that is not a number | the value | 2 |
+| `noise=` a value outside 0 to 100, a value that is not a number | the value | 2 |
+| `quantum=10.5`, a fractional value | the value | 2 |
+| `work=10.5`, a fractional value | the value | 2 |
+| `noise=0.5`, a fractional value | the value | 2 |
+| A `quantum` key with `method=fwq`, and a `work` key with `method=ftq` | the key | 2 |
 
 Message shape: `--jitter-probe: <message>`, one line, carrying the
 offending token and the reason; from an option file line the shape is
@@ -104,6 +122,7 @@ plan (FR-025):
 | A group with no free cpu under `idle` | the group is skipped, the report discloses it, and the run continues (FR-017) |
 | An unpinned benchmark with cpus left after the probe cpus leave | the mask change is disclosed and the run continues (D-5) |
 | Cpusets limit the probe cpus | the report discloses the limit (D-12, FR-036) |
+| A `noise=` value with no `strict`, and a `noise=` value with `method=tsc` | the run accepts the value, discloses it as unused, and continues with status 0 (specs/043 FR-021) |
 
 ## `--json-raw=gaps`
 
