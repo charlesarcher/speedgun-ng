@@ -337,7 +337,7 @@ inline constexpr std::string_view kLevelTwoThreshold {
                     "fixture_data_reads / cpu_core@fixture_time@",
                     "1MB/s",
                     kMemoryScope,
-                    intelGroup(2, "TmaL2", "memory_bound")),
+                    intelGroup(2, "TmaL2", "backend_bound")),
       fixtureMetric("tma_orphan_row",
                     "tma_retiring",
                     "100%",
