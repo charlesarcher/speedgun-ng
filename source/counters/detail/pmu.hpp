@@ -43,6 +43,14 @@ struct PmuTableEntry
   // catalog carried only the kernel's own aliases (FR-014, FR-015, FR-019,
   // D-08).
   std::string unit;
+  // The fixed counter the row's `Counter` key names, and -1 for every
+  // other row. A vendored row for a fixed counter states no `EventCode`:
+  // the counter is silicon of its own, and the row's `UMask` names that
+  // counter, and it names no bit of an event, so the row for fixed counter 1
+  // carries `UMask` `0x2`. A row naming a programmable range ("0,1,2,3")
+  // states no fixed counter, keeps -1, and composes from its own fields
+  // (FR-037, PC-7).
+  int fixedCounter = -1;
   // Semantic config fields: format-field name to value. The
   // convention-mapped names: "event" (EventCode), "umask" (UMask),
   // plus any other JSON key that names a format field.
@@ -187,6 +195,49 @@ struct FormatRange
     const std::vector<std::pair<std::string, std::vector<FormatRange>>>&
         formats,
     std::vector<std::pair<int, std::uint64_t>>& words) -> bool;
+
+// The fixed counter a `Counter` text names, or -1 for a text that names a
+// programmable range. The vendored spelling is "Fixed counter 0" with a
+// decimal number, and any other text, "0,1,2,3" among them, names a range
+// the encoder composes from the row's own fields (FR-037, PC-7).
+[[nodiscard]] auto fixedCounterDesignation(std::string_view text) noexcept
+    -> int;
+
+// Whether a row takes the fixed-counter composition: it names one fixed
+// counter and states no event code of its own. A row naming a programmable
+// range, and a row stating its own event code, keep the standing
+// composition (FR-037, PC-7).
+[[nodiscard]] auto pmuRowTakesFixedAlias(
+    const std::vector<std::pair<std::string, std::uint64_t>>& fields,
+    int fixedCounter) noexcept -> bool;
+
+// The kernel alias whose event_attr text names fixed counter `number`.
+// Fixed 0 counts `INST_RETIRED.ANY` and the kernel publishes it as
+// `instructions`, fixed 1 counts `CPU_CLK_UNHALTED.THREAD` as `cpu-cycles`,
+// and fixed 2 counts `CPU_CLK_UNHALTED.REF_TSC` as `ref-cycles`
+// (`/sys/bus/event_source/devices/<pmu>/events/`). A number outside those
+// three answers the empty text (FR-037, PC-7).
+[[nodiscard]] auto pmuFixedCounterAlias(std::uint32_t number) noexcept
+    -> std::string_view;
+
+// The config words of a row that names a fixed counter and states no event
+// code (PC-7). `aliasWords` are the words the kernel alias of that counter
+// composed, and they carry the event: the kernel publishes the encoding its
+// own counter accepts, and the row's `UMask` names the counter, and it
+// names no bit of the event, so a composition of that umask alone programs
+// an
+// event that counts nothing. The row contributes every field except
+// `umask`, so an `any` field still reaches the word. Nothing is
+// half-composed: a refusal leaves `words` as it stands and fills
+// `refusal` with the sentence the catalog publishes (FR-037, PC-7).
+[[nodiscard]] auto pmuComposeFixedCounterRow(
+    std::uint32_t number,
+    const std::vector<std::pair<int, std::uint64_t>>& aliasWords,
+    const std::vector<std::pair<std::string, std::uint64_t>>& fields,
+    const std::vector<std::pair<std::string, std::vector<FormatRange>>>&
+        formats,
+    std::vector<std::pair<int, std::uint64_t>>& words,
+    std::string& refusal) -> bool;
 
 // Probe one config through a test-open against the PMU `type` for one
 // target kind (provider.cpp, FR-039): the availability the kernel grants

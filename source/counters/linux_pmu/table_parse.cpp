@@ -187,17 +187,20 @@ auto carriesNoObligation(const std::string_view key) noexcept -> bool
   return std::ranges::find(kNoObligation, key) != std::end(kNoObligation);
 }
 
-// The constraint and deprecation keys. They name a condition on when a
-// counter is meaningful. Neither names a bit in an encoding register, so
-// they carry
-// no encoding obligation either. The kernel publishes no format for either
-// name, and a row reaching the encoder with either one resolves to nothing
-// and publishes `not_encodable` for a field no format reads (FR-012,
-// FR-013, D-06).
+// The deprecation key. It names a condition on when a counter is
+// meaningful, no bit in an encoding register, and no fact the composition
+// reads. The kernel publishes no format under that name, and a row reaching
+// the encoder with it resolves to nothing and publishes `not_encodable` for
+// a field no format reads (FR-012, FR-013, D-06).
+//
+// `Counter` stood here as well. Its `Fixed counter N` form names the
+// silicon the event lands on, which the composition needs: such a row states
+// no event code, and the umask it carries names the counter, and it names
+// no bit of the event. That form is read above, and the programmable-range
+// form ("0,1,2,3") still carries no fact the encoder uses (FR-037, PC-7).
 auto carriesNoConstraint(const std::string_view key) noexcept -> bool
 {
-  constexpr std::array<std::string_view, 2> kNoConstraint {
-      "Counter",
+  constexpr std::array<std::string_view, 1> kNoConstraint {
       "Deprecated",
   };
   return std::ranges::find(kNoConstraint, key) != std::end(kNoConstraint);
@@ -485,6 +488,15 @@ void addEntry(std::vector<PmuTableEntry>& table,
     } else if (key == "UMask" || key == "Umask") {
       if (parseScalar(value, number)) {
         entry.fields.emplace_back("umask", number);
+      }
+    } else if (key == "Counter") {
+      // The fixed designation rides the row as data, never as a field: the
+      // kernel publishes no format named `Counter`, so a field of that name
+      // would refuse the row whole. The composition reads the number
+      // against the kernel's own alias for that counter (FR-037, PC-7).
+      std::string_view text;
+      if (value.get_string().get(text) == simdjson::SUCCESS) {
+        entry.fixedCounter = fixedCounterDesignation(text);
       }
     } else if (key == "UMASK_EXT") {
       if (parseScalar(value, number)) {

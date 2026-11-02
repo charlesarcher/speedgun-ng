@@ -1801,6 +1801,171 @@ auto intelEncodableRowsScenario() -> void
 auto findRow(const std::vector<PmuTableEntry>& table,
              const std::string& name) -> const PmuTableEntry*;
 
+// A row that names a fixed counter states no event code, because the fixed
+// counter is silicon of its own, and its `UMask` names that counter with a
+// number one above the number the kernel publishes. Such a row composes the
+// config of the kernel alias for that counter and keeps its own remaining
+// fields; the marker umask lands on no bit (FR-037, PC-7). The alias words
+// and the formats are synthetic here, so no event is opened and no host
+// answers any arm of the check (R-003).
+auto fixedCounterScenario() -> void
+{
+  using sg::counters::detail::fixedCounterDesignation;
+  using sg::counters::detail::pmuComposeFixedCounterRow;
+  using sg::counters::detail::pmuFixedCounterAlias;
+  using sg::counters::detail::pmuRowTakesFixedAlias;
+
+  const PmuDevice device = syntheticCoreDevice();
+  std::string reason;
+  std::vector<std::pair<int, std::uint64_t>> words;
+  auto holds =
+      [](const std::vector<std::pair<std::string, std::uint64_t>>& fields,
+         const std::string_view name)
+  {
+    return std::ranges::any_of(
+        fields, [name](const auto& field) { return field.first == name; });
+  };
+
+  check(fixedCounterDesignation("Fixed counter 0") == 0
+            && fixedCounterDesignation("Fixed counter 1") == 1
+            && fixedCounterDesignation("Fixed counter 12") == 12,
+        "a fixed-counter designation reads the number the table spells");
+  check(fixedCounterDesignation("Fixed counter") < 0
+            && fixedCounterDesignation("Fixed counter 1x") < 0
+            && fixedCounterDesignation("fixed counter 1") < 0
+            && fixedCounterDesignation("0,1,2,3") < 0
+            && fixedCounterDesignation("") < 0,
+        "a text naming no fixed counter answers no counter number");
+  check(pmuFixedCounterAlias(0) == "instructions"
+            && pmuFixedCounterAlias(1) == "cpu-cycles"
+            && pmuFixedCounterAlias(2) == "ref-cycles"
+            && pmuFixedCounterAlias(3).empty(),
+        "each fixed counter names the kernel alias whose config it composes, "
+        "and a number past that set names none");
+
+  check(pmuRowTakesFixedAlias({{"umask", 2}}, 1)
+            && pmuRowTakesFixedAlias({{"umask", 3}}, 2)
+            && pmuRowTakesFixedAlias({}, 0),
+        "a row naming a fixed counter and stating no event code takes the "
+        "fixed-counter composition");
+  check(!pmuRowTakesFixedAlias({{"event", 0x3c}, {"umask", 2}}, 1),
+        "a row stating an event code of its own keeps the standing "
+        "composition whatever counter it names");
+  check(!pmuRowTakesFixedAlias({{"umask", 1}}, -1)
+            && !pmuRowTakesFixedAlias({{"event", 0x9c}, {"umask", 1}}, -1),
+        "a row naming no fixed counter keeps the standing composition");
+
+  // CPU_CLK_UNHALTED.THREAD: fixed counter 1 with the marker umask 0x2,
+  // against the alias config 0x3c the kernel publishes for `cpu-cycles`.
+  check(pmuComposeFixedCounterRow(1, {{0, 0x3c}}, {{"umask", 2}},
+                                  device.formats, words, reason)
+            && words.size() == 1 && words[0].first == 0
+            && words[0].second == 0x3c,
+        "a row naming a fixed counter composes the alias config, and the "
+        "marker umask reaches no bit (FR-037)");
+  // CPU_CLK_UNHALTED.THREAD_ANY: the same counter with the kernel's
+  // any-thread field beside it, the spelling the kernel itself publishes
+  // for topdown-total-slots.
+  check(pmuComposeFixedCounterRow(1,
+                                  {{0, 0x3c}},
+                                  {{"umask", 2}, {"any", 1}},
+                                  device.formats,
+                                  words,
+                                  reason)
+            && words.size() == 1 && words[0].second == 0x20003c,
+        "a fixed-counter row keeps its own field beside the alias config");
+  // CPU_CLK_UNHALTED.REF_TSC: the marker umask 0x3 already spelled the alias
+  // config of `ref-cycles` bit for bit, so the alias path answers the same
+  // words and the catalog keeps its bytes for that row.
+  check(pmuComposeFixedCounterRow(2, {{0, 0x300}}, {{"umask", 3}},
+                                  device.formats, words, reason)
+            && words.size() == 1 && words[0].second == 0x300,
+        "a row whose marker umask already spelled the alias config composes "
+        "config that does not change");
+  check(pmuComposeFixedCounterRow(1,
+                                  {{0, 0x3c}},
+                                  {{"umask", 2}, {"edge", 1}},
+                                  device.formats,
+                                  words,
+                                  reason)
+            && words.size() == 1 && words[0].second == 0x4003c,
+        "a row field whose bits the alias leaves clear joins the config");
+
+  words.clear();
+  words.push_back({0, 0xdeadbeef});
+  check(!pmuComposeFixedCounterRow(1, {}, {{"umask", 2}}, device.formats,
+                                   words, reason)
+            && words.size() == 1 && words[0].second == 0xdeadbeef
+            && reason.contains("fixed counter 1"),
+        "a device publishing no alias for the counter a row names refuses, "
+        "naming that counter, and leaves the caller's words untouched");
+  check(!pmuComposeFixedCounterRow(
+            1, {{0, 0x3c}}, {{"umask", 2}, {"event", 0x3c}}, device.formats,
+            words, reason)
+            && reason.contains("fixed counter 1")
+            && words[0].second == 0xdeadbeef,
+        "a row placing bits the alias of its counter already places is "
+        "refused whole");
+  check(!pmuComposeFixedCounterRow(1, {{0, 0x3c}}, {{"nosuchfield", 1}},
+                                   device.formats, words, reason)
+            && reason.contains("fixed counter 1")
+            && words[0].second == 0xdeadbeef,
+        "a row holding a field the device publishes no format for is refused, "
+        "naming its counter");
+
+  // The parse half: the designation reaches the composition step, the key
+  // never becomes an encoding field, and a row naming a programmable range
+  // keeps no designation (FR-012, FR-037, D-013).
+  const std::string path = writeFixture("fixed_counter_rows.json", R"([
+  {"EventName":"fx_thread","Counter":"Fixed counter 1","UMask":"0x2",
+   "BriefDescription":"a row naming a fixed counter with a marker umask"},
+  {"EventName":"fx_thread_any","Counter":"Fixed counter 1","UMask":"0x2",
+   "AnyThread":"1","BriefDescription":"a fixed row naming one more field"},
+  {"EventName":"fx_range","Counter":"0,1,2,3","EventCode":"0x9c",
+   "UMask":"0x1","BriefDescription":"a row naming a programmable range"},
+  {"EventName":"fx_none","EventCode":"0xc0",
+   "BriefDescription":"a row naming no counter"}
+])");
+  std::vector<PmuTableEntry> table;
+  sg::counters::detail::pmuParseTableFile(path, table);
+  check(table.size() == 4, "the fixture table parses its four rows");
+  const auto* thread = findRow(table, "fx_thread");
+  const auto* threadAny = findRow(table, "fx_thread_any");
+  const auto* range = findRow(table, "fx_range");
+  const auto* noCounter = findRow(table, "fx_none");
+  check(thread != nullptr && threadAny != nullptr && range != nullptr
+            && noCounter != nullptr,
+        "the fixture table parses every row it spells");
+  check(thread != nullptr && thread->fixedCounter == 1 && threadAny != nullptr
+            && threadAny->fixedCounter == 1,
+        "a row naming a fixed counter keeps the number it names");
+  check(range != nullptr && range->fixedCounter < 0
+            && noCounter != nullptr && noCounter->fixedCounter < 0,
+        "a row naming a programmable range or naming no counter states no "
+        "fixed counter");
+  std::size_t designations = 0;
+  std::size_t markers = 0;
+  std::size_t anyFields = 0;
+  for (const auto& row : table) {
+    check(!holds(row.fields, "Counter"),
+          "a counter designation never becomes an encoding field (FR-012, "
+          "D-013)");
+    designations += row.fixedCounter >= 0;
+    markers += holds(row.fields, "umask");
+    anyFields += holds(row.fields, "any");
+  }
+  check(designations == 2 && markers == 3 && anyFields == 1,
+        "the marker umask and the extra field stay available to the "
+        "composition step, and two rows name a fixed counter");
+  std::vector<std::pair<int, std::uint64_t>> rowWords;
+  check(range != nullptr && !pmuRowTakesFixedAlias(range->fields,
+                                                   range->fixedCounter)
+            && pmuComposeConfig(range->fields, device.formats, rowWords)
+            && rowWords.size() == 1 && rowWords[0].second == 0x19c,
+        "a row naming a programmable range composes the config it composed "
+        "before this rule, unchanged");
+}
+
 // Each vendored row lands on the device its table scope names, and no
 // uncore row appears under the core device (FR-019). A hybrid host
 // publishes core and atom devices beside an uncore device, and a row
@@ -4276,6 +4441,7 @@ auto main() -> int
   fixtureScenario();
   formatScenario();
   composeScenario();
+  fixedCounterScenario();
   attrTextScenario();
   decodeScenario();
   decodeRecipeScenario();

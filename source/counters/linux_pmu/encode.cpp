@@ -8,8 +8,10 @@
 #ifdef __linux__
 
 #  include <algorithm>
+#  include <charconv>
 #  include <cstdint>
 #  include <limits>
+#  include <string>
 #  include <string_view>
 #  include <utility>
 #  include <vector>
@@ -138,6 +140,62 @@ auto parseFormatField(const std::string_view spec,
   return true;
 }
 
+auto fixedCounterDesignation(const std::string_view text) noexcept -> int
+{
+  // The vendored spelling is "Fixed counter 0" with a decimal number, and
+  // the number is the whole tail: "Fixed counter x" and "Fixed counter 1x"
+  // name no counter the table means. A range text such as "0,1,2,3" names
+  // the programmable counters and reaches the same answer, because the
+  // composition of such a row already reads its own event code (FR-037).
+  constexpr std::string_view prefix = "Fixed counter ";
+  if (!text.starts_with(prefix)) {
+    return -1;
+  }
+  const auto tail = text.substr(prefix.size());
+  int number = -1;
+  const auto parsed =
+      std::from_chars(tail.data(), tail.data() + tail.size(), number);
+  if (parsed.ec != std::errc() || parsed.ptr != tail.data() + tail.size()) {
+    return -1;
+  }
+  return number < 0 ? -1 : number;
+}
+
+auto pmuRowTakesFixedAlias(
+    const std::vector<std::pair<std::string, std::uint64_t>>& fields,
+    const int fixedCounter) noexcept -> bool
+{
+  // Two facts settle it. The row names one fixed counter, and the row
+  // states no event code of its own. A row that states an event already
+  // names the bits the composition places, whatever counter it names, so
+  // the standing composition stands for it (FR-037, PC-7).
+  return fixedCounter >= 0
+      && !std::ranges::any_of(
+             fields,
+             [](const std::pair<std::string, std::uint64_t>& field)
+             { return field.first == "event"; });
+}
+
+auto pmuFixedCounterAlias(const std::uint32_t number) noexcept
+    -> std::string_view
+{
+  // The three architectural fixed counters, each under the alias name the
+  // kernel publishes beside the `format/` directory it composes against
+  // (/sys/bus/event_source/devices/cpu/events/). A host publishing none of
+  // these names no fixed counter, and the row that asks for one is refused
+  // below, so it never composes the degraded umask (PC-7).
+  switch (number) {
+    case 0:
+      return "instructions";
+    case 1:
+      return "cpu-cycles";
+    case 2:
+      return "ref-cycles";
+    default:
+      return {};
+  }
+}
+
 auto pmuComposeConfig(
     const std::vector<std::pair<std::string, std::uint64_t>>& fields,
     const std::vector<std::pair<std::string, std::vector<FormatRange>>>&
@@ -195,6 +253,70 @@ auto pmuComposeConfig(
     }
   }
   words = std::move(composed);
+  return true;
+}
+
+auto pmuComposeFixedCounterRow(
+    const std::uint32_t number,
+    const std::vector<std::pair<int, std::uint64_t>>& aliasWords,
+    const std::vector<std::pair<std::string, std::uint64_t>>& fields,
+    const std::vector<std::pair<std::string, std::vector<FormatRange>>>&
+        formats,
+    std::vector<std::pair<int, std::uint64_t>>& words,
+    std::string& refusal) -> bool
+{
+  // The event comes from the alias, because that text is the encoding this
+  // kernel publishes for the counter it names. The row contributes its own
+  // fields with the `umask` left out: on a fixed row the umask is the
+  // counter's number, one above the number the kernel publishes, and it
+  // lands on the umask bits of a programmable event. No bit reaches the
+  // fixed counter, which is why the degraded composition counts nothing
+  // (PC-7).
+  if (aliasWords.empty()) {
+    refusal = "this kernel publishes no alias for fixed counter "
+        + std::to_string(number)
+        + ", so the row names a counter with no encoding on this host";
+    return false;
+  }
+  std::vector<std::pair<std::string, std::uint64_t>> own;
+  own.reserve(fields.size());
+  for (const auto& field : fields) {
+    if (field.first != "umask") {
+      own.push_back(field);
+    }
+  }
+  std::vector<std::pair<int, std::uint64_t>> composed;
+  if (!pmuComposeConfig(own, formats, composed)) {
+    refusal = "the row for fixed counter " + std::to_string(number)
+        + " carries a field this device publishes no format for";
+    return false;
+  }
+  // The two halves describe one event, so a bit the alias places and a bit
+  // the row places cannot share a position. A row stating an event code of
+  // its own would meet that guard, and the caller excludes that row before
+  // this function runs: such a row states an event and composes from its
+  // own fields.
+  auto merged = aliasWords;
+  for (const auto& [word, value] : composed) {
+    bool placed = false;
+    for (auto& target : merged) {
+      if (target.first != word) {
+        continue;
+      }
+      if ((target.second & value) != 0) {
+        refusal = "the row for fixed counter " + std::to_string(number)
+            + " places bits the kernel alias of that counter already places";
+        return false;
+      }
+      target.second |= value;
+      placed = true;
+      break;
+    }
+    if (!placed) {
+      merged.emplace_back(word, value);
+    }
+  }
+  words = std::move(merged);
   return true;
 }
 

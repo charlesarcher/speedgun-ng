@@ -119,6 +119,28 @@ auto hostWatchdogValue() -> int
 namespace detail
 {
 
+namespace
+{
+
+// The composed words the device already holds under `name`, and none where
+// it publishes no such entry. The kernel aliases are placed ahead of the
+// vendored rows, so an alias the kernel published is here by the time a row
+// asks for it (FR-037, PC-7).
+auto aliasWordsOf(const detail::PmuDevice& device, const std::string_view name)
+    -> std::vector<std::pair<int, std::uint64_t> >
+{
+  if (name.empty()) {
+    return {};
+  }
+  const auto found =
+      std::ranges::find(device.entries, name, &detail::PmuEntry::name);
+  return found == device.entries.end()
+      ? std::vector<std::pair<int, std::uint64_t> > {}
+      : found->words;
+}
+
+}  // namespace
+
 // The vendored table belongs to the core PMU: the mapfile selects one
 // architecture directory for the running CPU, and those rows describe
 // core events (FR-038). Kernel aliases of the same name win.
@@ -156,7 +178,32 @@ auto mergeVendored(detail::PmuDevice& device) -> void
     detail::PmuEntry entry;
     entry.name = row.name;
     entry.description = detail::tableDescription(row);
-    if (!detail::pmuComposeConfig(row.fields, device.formats, entry.words)) {
+    if (detail::pmuRowTakesFixedAlias(row.fields, row.fixedCounter)) {
+      // A row for a fixed counter states no event code, and the umask it
+      // carries names that counter, and it names no bit of an event, so its
+      // own fields compose to a programmable event that counts nothing. The
+      // event comes from the alias the kernel publishes for the counter,
+      // and the row contributes the fields above it (FR-037, PC-7).
+      const auto number = static_cast<std::uint32_t>(row.fixedCounter);
+      std::string refusal;
+      if (!detail::pmuComposeFixedCounterRow(
+              number,
+              aliasWordsOf(device, detail::pmuFixedCounterAlias(number)),
+              row.fields,
+              device.formats,
+              entry.words,
+              refusal))
+      {
+        entry.words.clear();
+        // The state a refused row publishes is `not_encodable`, and the
+        // sentence says which counter had no encoding: the catalog line is
+        // where a reader learns why the node that needs the row reads `not
+        // available` (FR-039, PC-7).
+        entry.description += "; refused: " + refusal;
+      }
+    } else if (!detail::pmuComposeConfig(
+                   row.fields, device.formats, entry.words))
+    {
       entry.words.clear();
     }
     device.entries.push_back(std::move(entry));
