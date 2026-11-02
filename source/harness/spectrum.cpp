@@ -106,8 +106,8 @@ auto resampleUnitTimes(std::span<const std::uint64_t> unitTimes,
   return samples;
 }
 
-auto dftPeriods(std::span<const double> samples, std::uint64_t stepNs)
-    -> SpectrumResult
+auto dftPeriods(std::span<const double> samples,
+                std::uint64_t stepNs) -> SpectrumResult
 {
   SG_REQUIRE(!samples.empty(),
              "the transform reads a span with at least one sample (FR-018)");

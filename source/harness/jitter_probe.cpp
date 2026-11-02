@@ -1150,8 +1150,7 @@ auto seriesStatsOf(const ProbeCpuState& state,
     const bool inside = std::any_of(
         windows.begin(),
         windows.end(),
-        [&](const TimedWindow& window) noexcept -> bool
-        {
+        [&](const TimedWindow& window) noexcept -> bool {
           return window.start <= recoveredStamp && recoveredStamp < window.end;
         });
     if (inside) {
