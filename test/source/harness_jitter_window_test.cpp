@@ -498,6 +498,57 @@ constexpr std::array<std::string_view, 16> kStatFields {"gapCount",
                                                         "loopPeriodNs",
                                                         "droppedGaps"};
 
+// specs/043 T033, FR-019, R-14: the 30 series lines the console gains, in
+// the standing order: the calibration group of four, the 16 figures of
+// FR-021, then the five periods and their five powers.
+constexpr std::array<std::string_view, 30> kSeriesLines {
+    "method",       "workCount",    "targetNs",        "calibrationSpanNs",
+    "sampleCount",  "minValue",     "medianValue",     "meanValue",
+    "p90Value",     "p99Value",     "p999Value",       "p9999Value",
+    "maxValue",     "noisePercent", "seriesRuntimeNs", "droppedSamples",
+    "unitTimeNs",   "quantumNs",    "resampleStepNs",  "spectrumPoints",
+    "period1Ns",    "period2Ns",    "period3Ns",       "period4Ns",
+    "period5Ns",    "period1Power", "period2Power",    "period3Power",
+    "period4Power", "period5Power"};
+
+// specs/043 T033, FR-019: the line that opens with one field name, and the
+// count of lines that do: a field the block prints twice stands caught by
+// the count, and a field it leaves out by the position.
+auto fieldLineIndex(const std::vector<std::string>& lines,
+                    const std::string& field,
+                    std::size_t& occurrences) -> std::size_t
+{
+  const std::string head = field + ":";
+  std::size_t found = 0;
+  occurrences = 0;
+  for (std::size_t index = 0; index < lines.size(); ++index) {
+    if (lines.at(index).rfind(head, 0) == 0) {
+      if (occurrences == 0) {
+        found = index;
+      }
+      ++occurrences;
+    }
+  }
+  return found;
+}
+
+// specs/043 T033, FR-019: the count of columns one field line carries: the
+// tokens after the field's colon, the block printing one per probe cpu.
+auto fieldColumns(const std::vector<std::string>& lines,
+                  std::size_t index,
+                  const std::string& field) -> std::size_t
+{
+  const std::string line = lines.at(index);
+  check(line.rfind(field + ":", 0) == 0, "the field line names its field");
+  std::size_t columns = 0;
+  std::istringstream stream(line.substr(field.size() + 1));
+  std::string token;
+  while (stream >> token) {
+    ++columns;
+  }
+  return columns;
+}
+
 auto splitLines(const std::string& text) -> std::vector<std::string>
 {
   std::istringstream stream(text);
@@ -826,6 +877,33 @@ public:
   {
     sink.put(0);
   }
+};
+
+// specs/043 T033, FR-019: the dipping clock the console block reads. Each
+// thread's stamps step 1,000 ns per read, and every 16th read steps nine
+// thousand ns more, so a FWQ window keeps unit times with a dip at a
+// 16-unit period: the median unit time stands 1,000, the resample spreads
+// each dipped unit over ten bins, and the transform names the period the
+// cycle carries (FR-012, FR-017, FR-018). The per-thread state keeps the
+// two probe cpus' series apart, the way the seam's other readers do (R-02).
+class DipSeriesReader final : public sg::counters::WindowReader
+{
+public:
+  auto readPoints(sg::counters::PointSink& sink) noexcept -> void override
+  {
+    thread_local std::uint64_t calls = 0;
+    thread_local std::uint64_t stamp = 0;
+    ++calls;
+    stamp += kStepNs;
+    if (calls % kDipEvery == 0) {
+      stamp += kDipExtraNs;
+    }
+    sink.put(stamp);
+  }
+
+  static inline constexpr std::uint64_t kStepNs = 1000;
+  static inline constexpr std::uint64_t kDipEvery = 16;
+  static inline constexpr std::uint64_t kDipExtraNs = 9000;
 };
 
 // The per-thread stamp state of the seam reader below: each probe
@@ -2295,6 +2373,180 @@ auto main() -> int
                 && document.find("\"series\"") == std::string::npos,
             "aTscRunWritesNoNewKey: the tsc run writes neither the method "
             "key nor the series array (FR-006, FR-026, FR-031)");
+    }
+  }
+
+  // specs/043 T033, US1, US2, FR-011, FR-013, FR-016, FR-019, FR-022, R-14:
+  // the console block of a run that names a method. The 30 series lines
+  // stand in the standing order, one field per line and one column per
+  // probe cpu, each field printing once; the calibration group stands
+  // ahead of the batch's first run; and a rank a cpu does not carry prints
+  // 0. Observe red before T035 and T036 land: the block prints the 16 gap
+  // lines and nothing of the series.
+  {
+    const std::string probeCpu = std::to_string(cpus.at(0));
+    const std::vector<std::string> quick {
+        "--filter=bmQuiet", "--repetitions=1", "--iterations=2"};
+
+    // FR-013, FR-019, FR-022, R-14: the FWQ block. The dipping clock
+    // keeps unit times of 1,000 ns with a dip every 16th unit, so the
+    // block names the kept figures, the calibration figures, the unit
+    // time, the resample step, and the period the cycle carries.
+    if (twoCpuScenarios) {
+      auto arguments = quick;
+      arguments.push_back("--jitter-probe=" + cpuList
+                          + ",method=fwq,gaps=1024");
+      sg::detail::installTestReader(std::make_unique<DipSeriesReader>());
+      const auto report = captureRun(arguments);
+      sg::detail::installTestReader(nullptr);
+      const auto lines = splitLines(report);
+      std::size_t previous = 0;
+      for (const auto field : kSeriesLines) {
+        const std::string name(field);
+        std::size_t occurrences = 0;
+        const auto at = fieldLineIndex(lines, name, occurrences);
+        check(occurrences == 1,
+              "theFwqBlockPrintsTheThirtyNewLines: each series field prints "
+              "once (FR-019)");
+        check(at > 0 && at > previous,
+              "theFwqBlockPrintsTheThirtyNewLines: the series lines stand in "
+              "the standing order (FR-019, R-14)");
+        check(fieldColumns(lines, at, name) == 2,
+              "theFwqBlockPrintsTheThirtyNewLines: one column per probe cpu "
+              "(FR-019)");
+        previous = at;
+      }
+      std::size_t occurrences = 0;
+      const auto methodAt = fieldLineIndex(lines, "method", occurrences);
+      check(lines.at(methodAt) == "method: fwq fwq",
+            "theFwqBlockPrintsTheThirtyNewLines: the console spells the "
+            "method in lower case (FR-019)");
+      const auto workAt = fieldLineIndex(lines, "workCount", occurrences);
+      check(lines.at(workAt) == "workCount: 1 1",
+            "theFwqBlockPrintsTheThirtyNewLines: the calibration count "
+            "stands disclosed (FR-011, FR-013)");
+      const auto unitAt = fieldLineIndex(lines, "unitTimeNs", occurrences);
+      check(lines.at(unitAt) == "unitTimeNs: 1000 1000",
+            "theFwqBlockPrintsTheThirtyNewLines: the measured unit time rides "
+            "the 16 figures (FR-013, FR-019)");
+      const auto maxAt = fieldLineIndex(lines, "maxValue", occurrences);
+      check(lines.at(maxAt) == "maxValue: 10000 10000",
+            "theFwqBlockPrintsTheThirtyNewLines: the maximum names the dipped "
+            "unit (FR-007, FR-013)");
+      const auto medianAt = fieldLineIndex(lines, "medianValue", occurrences);
+      check(lines.at(medianAt) == "medianValue: 1000 1000",
+            "theFwqBlockPrintsTheThirtyNewLines: the median stands the equal "
+            "units (FR-007, FR-008)");
+      const auto stepAt = fieldLineIndex(lines, "resampleStepNs", occurrences);
+      check(lines.at(stepAt) == "resampleStepNs: 1000 1000",
+            "theFwqBlockPrintsTheThirtyNewLines: the resample step stands the "
+            "median unit time (FR-017, FR-019)");
+      const auto periodAt = fieldLineIndex(lines, "period1Ns", occurrences);
+      check(lines.at(periodAt) != "period1Ns: 0 0"
+                && lines.at(periodAt).find(' ') != std::string::npos,
+            "theFwqBlockPrintsTheThirtyNewLines: the strongest period stands "
+            "disclosed (FR-018, FR-019)");
+      const auto powerAt = fieldLineIndex(lines, "period1Power", occurrences);
+      check(lines.at(powerAt) == "period1Power: 1.00 1.00",
+            "theFwqBlockPrintsTheThirtyNewLines: the strongest period's power "
+            "stands 1 (FR-018, FR-019)");
+      const auto droppedAt =
+          fieldLineIndex(lines, "droppedSamples", occurrences);
+      check(fieldColumns(lines, droppedAt, "droppedSamples") == 2,
+            "theFwqBlockPrintsTheThirtyNewLines: the drop count stands "
+            "disclosed for every method (FR-022)");
+
+      // FR-011, FR-019, SC-003: the calibration group stands ahead of the
+      // batch's first run, so each cpu's window opens behind its own four
+      // lines.
+      const auto calibrationAt = methodAt;
+      std::size_t firstRow = 0;
+      for (std::size_t index = 0; index < lines.size(); ++index) {
+        if (lines.at(index).rfind("bmQuiet", 0) == 0) {
+          firstRow = index;
+          break;
+        }
+      }
+      check(calibrationAt > 0 && firstRow > 0 && calibrationAt < firstRow,
+            "theCalibrationLinesStandBeforeTheWindow: the calibration lines "
+            "stand before the window (FR-011, FR-019, SC-003)");
+      const auto targetAt = fieldLineIndex(lines, "targetNs", occurrences);
+      const auto spanAt =
+          fieldLineIndex(lines, "calibrationSpanNs", occurrences);
+      check(calibrationAt < targetAt && targetAt < spanAt
+                && spanAt < firstRow,
+            "theCalibrationLinesStandBeforeTheWindow: the four calibration "
+            "lines stand together ahead of the window (FR-011)");
+    }
+
+    // FR-016, FR-019: the FTQ block names the quantum among the 16
+    // figures, the counts of FR-007 among them, and the resample step the
+    // count series needs none of at 0.
+    {
+      auto arguments = quick;
+      arguments.push_back("--jitter-probe=" + probeCpu
+                          + ",method=ftq,gaps=1024");
+      sg::detail::installTestReader(std::make_unique<DipSeriesReader>());
+      const auto report = captureRun(arguments);
+      sg::detail::installTestReader(nullptr);
+      const auto lines = splitLines(report);
+      std::size_t occurrences = 0;
+      const auto methodAt = fieldLineIndex(lines, "method", occurrences);
+      check(occurrences == 1 && lines.at(methodAt) == "method: ftq",
+            "theFtqBlockPrintsTheQuantumLines: the console spells the method "
+            "ftq (FR-019)");
+      const auto quantumAt = fieldLineIndex(lines, "quantumNs", occurrences);
+      check(occurrences == 1
+                && lines.at(quantumAt) == "quantumNs: 100000",
+            "theFtqBlockPrintsTheQuantumLines: the quantum stands among the "
+            "16 figures (FR-016, FR-019)");
+      const auto samplesAt = fieldLineIndex(lines, "sampleCount", occurrences);
+      check(occurrences == 1
+                && lines.at(samplesAt) != "sampleCount: 0",
+            "theFtqBlockPrintsTheQuantumLines: the closed quanta stand counted "
+            "(FR-007, FR-016)");
+      const auto stepAt = fieldLineIndex(lines, "resampleStepNs", occurrences);
+      check(occurrences == 1 && lines.at(stepAt) == "resampleStepNs: 0",
+            "theFtqBlockPrintsTheQuantumLines: a count series needs no "
+            "resample step (FR-017, FR-019)");
+      const auto pointsAt =
+          fieldLineIndex(lines, "spectrumPoints", occurrences);
+      check(occurrences == 1 && lines.at(pointsAt) != "spectrumPoints: 0",
+            "theFtqBlockPrintsTheQuantumLines: the transform reads the count "
+            "series (FR-017, FR-019)");
+    }
+
+    // FR-018, FR-019: a rank a cpu does not carry prints 0. The standing
+    // scripted clock steps one tick per read, so the kept unit times stand
+    // equal, the resampled series stands constant, and the transform keeps
+    // no period: every one of the ten period lines prints 0.
+    {
+      auto arguments = quick;
+      arguments.push_back("--jitter-probe=" + probeCpu
+                          + ",method=fwq,gaps=1024");
+      const auto report = captureRun(arguments);
+      const auto lines = splitLines(report);
+      std::size_t occurrences = 0;
+      const auto pointsAt =
+          fieldLineIndex(lines, "spectrumPoints", occurrences);
+      check(occurrences == 1 && lines.at(pointsAt) != "spectrumPoints: 0",
+            "theRankACpuOmitsPrintsZero: the transform read the series "
+            "(FR-017, FR-019)");
+      for (const auto field : kSeriesLines) {
+        const std::string name(field);
+        if (name.rfind("period", 0) != 0) {
+          continue;
+        }
+        std::size_t periodOccurrences = 0;
+        const auto at = fieldLineIndex(lines, name, periodOccurrences);
+        check(periodOccurrences == 1,
+              "theRankACpuOmitsPrintsZero: each period line prints once "
+              "(FR-019)");
+        const std::string wanted = name + ": 0";
+        check(lines.at(at) == wanted,
+              "theRankACpuOmitsPrintsZero: a rank the cpu omits prints 0 "
+              "(FR-019)");
+      }
     }
   }
 
