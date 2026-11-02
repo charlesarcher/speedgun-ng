@@ -196,6 +196,14 @@ struct CalibrationSearch
   bool haveBest = false;
 };
 
+// The distance of a measured unit time to the target, the pair the
+// search compares to pick the closest count (FR-010).
+auto unitDistance(const std::uint64_t unit,
+                  const std::uint64_t target) noexcept -> std::uint64_t
+{
+  return unit > target ? unit - target : target - unit;
+}
+
 // One trial of the search: two reads around `count` loop bodies closed
 // on `sg::doNotOptimize`, the unit time standing at the delta divided by
 // the count. The closest unit time to the target wins, a tie keeping the
@@ -218,10 +226,8 @@ auto calibrationTrial(CalibrationSearch& search,
   search.spanEnd = readStamp();
   const std::uint64_t unit = (search.spanEnd - first) / count;
   const std::uint64_t target = search.target;
-  const std::uint64_t distance = unit > target ? unit - target : target - unit;
-  const std::uint64_t bestDistance = search.bestUnit > target
-      ? search.bestUnit - target
-      : target - search.bestUnit;
+  const std::uint64_t distance = unitDistance(unit, target);
+  const std::uint64_t bestDistance = unitDistance(search.bestUnit, target);
   if (!search.haveBest || distance < bestDistance) {
     search.haveBest = true;
     search.bestUnit = unit;
@@ -249,29 +255,32 @@ auto calibrateUnit(ProbeCpuState& state,
   std::uint64_t lo = 1;
   std::uint64_t hi = kMaxWorkCount;
   std::uint64_t count = 1;
-  std::uint64_t trials = 0;
-  while (trials < kCalibrationTrials) {
+  // The doubling reads counts 1, 2, 4 through kMaxWorkCount, the
+  // `kCalibrationTrials` trials the search allows, and ends at the first
+  // count whose unit time passes the target, bracketing it by the count
+  // below (FR-010, R-02).
+  while (true) {
     const std::uint64_t unit = calibrationTrial(search, readStamp, count);
-    ++trials;
     if (unit >= search.target) {
       hi = count;
       lo = count / 2;
       break;
     }
     // The count cap ends the doubling with no count above the target, so
-    // the bisection reads the whole range and runs its full 24 steps
-    // (FR-010, R-02).
-    if (count >= kMaxWorkCount) {
+    // the bisection reads the whole range and runs its full
+    // `kCalibrationSteps` steps (FR-010, R-02).
+    if (count == kMaxWorkCount) {
       lo = 1;
       break;
     }
     count *= 2;
   }
-  std::uint64_t steps = 0;
-  while (hi - lo > 1 && steps < kCalibrationSteps) {
+  // The bisection halves the bracket the doubling left: an interval of
+  // `kMaxWorkCount` halves `kCalibrationSteps` times and ends holding one
+  // count (FR-010).
+  while (hi - lo > 1) {
     const std::uint64_t mid = lo + (hi - lo) / 2;
     const std::uint64_t unit = calibrationTrial(search, readStamp, mid);
-    ++steps;
     if (unit >= search.target) {
       hi = mid;
     } else {
