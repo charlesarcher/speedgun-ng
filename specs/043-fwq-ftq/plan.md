@@ -129,7 +129,8 @@ it.
 **Gate weakening requested**: no. **Gate strengthening requested**: no.
 No budget figure moves: the README section lands at 18 lines inside the
 standing 25-line section cap (`tools/docs/example_drift.py:241`), the page
-lands at 991 lines against `PAGE_LINE_CAP = 1004`
+lands at or below `PAGE_LINE_CAP = 1004` once the
+two sections quote their own regions
 (`tools/docs/example_drift.py:240`), the schema minor moves to `1.12` on
 the standing key-growth rule, and the coverage branch allowance stays 21.
 
@@ -422,7 +423,7 @@ and no second framework join.
   `example/docs/fwq_ftq.cpp`, and the shared 17-line region
   (`example/docs/jitter_probe.cpp:9-25`) stays whole, so every quoted
   region stands one complete top-level unit and `snippet_compile`
-  passes. The page lands at 991 lines, and the cap shall stay 1004.
+  passes. The page lands at or below 1004 lines, the cap staying 1004.
 - **R-24 The example and the fold (spec FR-029).**
   `example/docs/fwq_ftq.cpp` carries one FWQ family and one FTQ family,
   because one run carries one method. The line `add_docs_example(fwq_ftq)`
@@ -552,8 +553,8 @@ brace marks the parallel group.
   the page length only above the cap at `tools/docs/example_drift.py:656-657`,
   and each
   section length at `:667-673` against `SECTION_LINE_CAP = 25` (`:241`).
-  The trim stands inside the three jitter sections, and the page lands at
-  991 lines.
+  The trim stands inside the three jitter sections as a region
+  split, and the page lands at or below 1004 lines.
 - **The scripted calibration prefix stands longer than a test states.** A
   scripted clock that never passes the target runs the full search, so
   the prefix reaches 98 reads. Check: every builder takes the prefix
@@ -710,7 +711,7 @@ struct SpectrumResult
 | `source/harness/json_load.cpp` | `readJitterSeriesCpu` after `readJitterCpu` (`:544`); the two keys in `readJitterRecord` (`:1265-1282`); `data.jitterRun` at the root arm (`:2700`); the entry series at the per-entry arm (`:2193-2206`) |
 | `source/harness/compare.cpp` | the value reader of `JitterField` takes the fold (`:241-245`); `kJitterFields` grows 16 to 32 (`:251-292`); the fault text (`:366-369`); the two call sites (`:1477`, `:1489`) |
 | `docs/schema/report-v1.json` | `method` and `series` in the `jitter` `x-order` after `loopPeriodNs` (`:47-55`); the two properties after `loopPeriodNs` (`:72`); the closed series item and the closed `periods` item; `required` (`:56-64`) and `additionalProperties` (`:65`) stay |
-| `README.md` | the new section after `### Noise tracer` (`:764-786`); four quick-reference rows after `PrecheckRecord::tracer` (`:938`); the `--jitter-probe` row (`:966`) gains the keys; the trim that keeps the page at 991 lines |
+| `README.md` | the new section after `### Noise tracer` (`:764-786`); four quick-reference rows after `PrecheckRecord::tracer` (`:938`); the `--jitter-probe` row (`:966`) gains the keys; the region split that keeps the page at or below 1004 lines |
 | `docs/pages/harness.md` | the value rows after `strict` (`:1832`); the 30 series field rows after `droppedGaps` (`:1853`); the names rows after `JitterEntryFold` (`:1866`); the block sample (`:1798-1820`); the version sentence (`:1399`) reads `1.12`; the field rows stand prose the console block governs, and no gate reads the table |
 | `example/docs/fwq_ftq.cpp`, `example/docs/fwq_ftq.expected` | new: one FWQ run and one FTQ run; the `fwq-run` region and the `ftq-run` region each carry one complete top-level unit, and the `report` region carries the recorded run; the README section quotes the two run regions |
 | `example/docs/jitter_probe.cpp` | the shared 17-line region (`:9-25`) stays whole, the markers staying at `:8` and `:27`; the README quotes of this file stay as they are |
@@ -858,7 +859,8 @@ touches and the gate that closes it.
    `example/CMakeLists.txt`, `tools/docs/example_drift.py`,
    `test/CMakeLists.txt`. The wave proves: the section runs 18 lines and
    the four quick-reference rows name fields the header declares; the page
-   lands at 991 lines; the three split regions match their markers; the
+   lands at or below 1004 lines; the split regions match their
+   markers; the
    guide page carries the keys, the 30 field rows and the recorded run;
    the example builds, runs and folds. Gate: `example_drift`,
    `snippet_compile`, `example_run`, `report_shape_fwq_ftq_sample`,
@@ -1028,7 +1030,8 @@ then the instrumented builds.
 
 Gate 16 is the coverage reading the plan states. Gate 12 is the FR-024
 reading. Gate 1 is the FR-023 reading, and the trim stands inside the
-three jitter sections. The page total lands at 991 lines, and one task
+three jitter sections as a region split. The page total lands at or
+below 1004 lines, and one task
 counts it with `wc -l README.md`, because the drift gate prints a page
 length only above the cap. Gates 9 and 10 run as named selections inside
 the full `ctest` of T048.
