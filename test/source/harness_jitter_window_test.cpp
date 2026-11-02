@@ -2735,6 +2735,64 @@ auto main() -> int
       std::remove(pairEdited.c_str());
       std::remove(pairPath.c_str());
     }
+
+    // FR-021, FR-030, E-22: every one of the sixteen series fields reads
+    // through its own reader of the field table. One comparison run carries
+    // one rule per field over two documents that carry the same series, so
+    // each reader answers both reports' values and the run reads no fault.
+    {
+      const std::string allPath = "harness_jitter_rule_series_all.json";
+      auto arguments = quick;
+      arguments.push_back("--json=" + allPath);
+      arguments.push_back(fwqValue);
+      captureRun(arguments);
+      std::vector<std::string> fieldArguments {"--compare=" + allPath + ","
+                                               + allPath};
+      for (const auto field : kSeriesFields) {
+        fieldArguments.push_back(
+            "--compare-rule=jitter:any:" + std::string(field) + ":lower:abs=1");
+      }
+      const auto fields = captureRun(fieldArguments, 0);
+      check(fields.find("error:") == std::string::npos,
+            "every series field of the table reads without a fault (FR-021, "
+            "FR-030, E-22)");
+      std::remove(allPath.c_str());
+    }
+
+    // FR-021, FR-032, E-22: a fold that carries no series answers 0 for
+    // every series field, the reading of a run that kept no samples. A
+    // `tsc` run keeps gaps and writes no series key, so each of the sixteen
+    // readers reaches the empty series a fold leaves behind.
+    {
+      const std::string tscPath = "harness_jitter_rule_series_tsc.json";
+      auto& provider = scriptedProvider();
+      provider.setPoints("machine", "tsc", {}, 1);
+      seriesJump() = kSeriesJump;
+      installGateReader(1);
+      captureRun({"--filter=bmGate",
+                  "--repetitions=1",
+                  "--iterations=2",
+                  "--json=" + tscPath,
+                  "--jitter-probe=" + cpu + ",method=tsc"});
+      clearGateReader();
+      provider.setPoints("machine", "tsc", {}, 1);
+      const auto tscDocument = readDocument(tscPath);
+      check(tscDocument.find("\"series\":[") == std::string::npos,
+            "the tsc run writes no series array (FR-006, SC-004)");
+      check(tscDocument.find("\"jitter\":{\"stats\"") != std::string::npos,
+            "the tsc run's folds carry the probe cpu (E-08)");
+      std::vector<std::string> fieldArguments {"--compare=" + tscPath + ","
+                                               + tscPath};
+      for (const auto field : kSeriesFields) {
+        fieldArguments.push_back(
+            "--compare-rule=jitter:any:" + std::string(field) + ":lower:abs=1");
+      }
+      const auto fields = captureRun(fieldArguments, 0);
+      check(fields.find("error:") == std::string::npos,
+            "theTscFoldsAnswerTheEmptySeries: each series field reads the "
+            "empty series of a tsc fold (FR-021, FR-032, E-22)");
+      std::remove(tscPath.c_str());
+    }
   }
 
   std::puts("harness_jitter_window_test: ok");
