@@ -67,6 +67,8 @@ int gIoctlAnswer = 0;
 // refusal carries the errno a runner's kernel answers with, so the
 // refusal paths see the same value the real refusal carries.
 int gRefuseAt = -1;
+// The ioctl ordinal the scripted kernel refuses; -1 refuses none.
+int gIoctlFailAt = -1;
 long (*gReadAnswer)(void* buffer, std::size_t count) = nullptr;
 void* gReadBuffer = nullptr;
 // The page each open's descriptor maps: the fast window reads one page
@@ -104,7 +106,12 @@ auto scriptedCalls() -> sg::counters::detail::KernelCalls
   };
   calls.ioctlEvent = [](int, unsigned long request, unsigned long arg) -> int
   {
+    const int ordinal = static_cast<int>(gIoctls.size());
     gIoctls.emplace_back(request, arg);
+    if (gIoctlFailAt == ordinal) {
+      errno = EINVAL;
+      return -1;
+    }
     return gIoctlAnswer;
   };
   calls.closeFd = [](int fd) -> int
@@ -128,6 +135,7 @@ auto resetFixture() -> void
   gReadSizes.clear();
   gIoctlAnswer = 0;
   gRefuseAt = -1;
+  gIoctlFailAt = -1;
   gReadAnswer = nullptr;
   gReadBuffer = nullptr;
   gPages.clear();
@@ -344,7 +352,7 @@ auto groupWindowShortHeaderScenario() -> void
     sink.checkAction();
     check(cells[0] == 5,
           "the member the header reported carries its value (FR-026)");
-    check(cells[1] == 0, "the member past the reported count stands at zero");
+    check(cells[2] == 0, "the member past the reported count stands at zero");
   }
   window.reset();
   check(gClosedFds.size() == 2, "both members released on destruction");
@@ -379,6 +387,66 @@ auto groupWindowOpenRefusalScenario() -> void
   check(gClosedFds.size() == 1, "the partial window released its leader");
   check(gClosedFds.front() == gOpenedFds.front(),
         "the release closes the descriptor the open granted");
+  resetFixture();
+}
+
+/// The reset and the enable: one group ioctl pair per group, the
+/// refusal of either half refusing the window, and the members the
+/// partial window holds released on the way out (FR-026, FR-013).
+auto groupWindowEnableScenario() -> void
+{
+  const PmuState state = syntheticState();
+  const Target where {};
+  auto calls = scriptedCalls();
+  resetFixture();
+  gReadAnswer = [](void*, std::size_t) -> long
+  { return writeGroupPayload(2, 800, 400, {11, 22}); };
+  installKernelCalls(&calls);
+  auto window =
+      pmuOpenWindow(state, leafSetOf({"cpu/work", "cpu/cycle"}), where);
+  check(window != nullptr,
+        "the granted open and the enabled group return " "a window");
+  if (window != nullptr) {
+    check(gIoctls.size() == 2,
+          "one reset and one enable, in the kernel's own order (FR-026)");
+    check(gIoctls[0].first == PERF_EVENT_IOC_RESET
+              && gIoctls[1].first == PERF_EVENT_IOC_ENABLE,
+          "the group is reset before it is enabled (FR-026)");
+    check((gIoctls[0].second & PERF_IOC_FLAG_GROUP) != 0
+              && (gIoctls[1].second & PERF_IOC_FLAG_GROUP) != 0,
+          "both ioctls carry the group flag");
+    std::uint64_t cells[4] = {};
+    PointSink sink {cells, 2, 2, 2, 0};
+    window->readPoints(sink);
+    sink.checkAction();
+    check(cells[0] == 11 && cells[2] == 22,
+          "the read after the enable carries both members' values");
+  }
+  window.reset();
+  check(gClosedFds.size() == 2, "both members released on destruction");
+  resetFixture();
+
+  // The reset the scripted kernel refuses: no window, and the leader
+  // the open granted is released with the partial window (FR-026,
+  // FR-013).
+  gIoctlFailAt = 0;
+  installKernelCalls(&calls);
+  auto resetRefused =
+      pmuOpenWindow(state, leafSetOf({"cpu/work", "cpu/cycle"}), where);
+  check(resetRefused == nullptr, "a refused reset refuses the window");
+  check(gClosedFds.size() == 2,
+        "the partial window released both members it had opened");
+  resetFixture();
+
+  // The enable the scripted kernel refuses, on a window whose reset
+  // succeeded: the same refusal and the same release (FR-026, FR-013).
+  gIoctlFailAt = 1;
+  installKernelCalls(&calls);
+  auto enableRefused =
+      pmuOpenWindow(state, leafSetOf({"cpu/work", "cpu/cycle"}), where);
+  check(enableRefused == nullptr, "a refused enable refuses the window");
+  check(gClosedFds.size() == 2,
+        "the partial window released both members it had opened");
   resetFixture();
 }
 
@@ -500,6 +568,7 @@ auto main() -> int
   groupWindowGappedScenario();
   groupWindowShortHeaderScenario();
   groupWindowOpenRefusalScenario();
+  groupWindowEnableScenario();
 #if defined(__x86_64__) || defined(__i386__)
   fastWindowReadScenario();
   fastWindowOpenRefusalScenario();
