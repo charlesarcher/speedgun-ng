@@ -206,6 +206,17 @@ list back.
   green)
   Verify: `ctest --test-dir build -R harness_spectrum_test --output-on-failure` exits 0
 
+- [ ] T063 [US3] Remove the window mean in `dftPeriods` in
+  `source/harness/spectrum.cpp`, ahead of the bin loop. Add
+  `aNonzeroConstantAnswersAnEmptyList` to
+  `test/source/harness_spectrum_test.cpp`. A constant at 1000.0 leaves
+  every bin at a rounding floor. The median reads that floor, so the
+  strict compare keeps 113 bins at 1,024 points. Removing the mean leaves
+  bins 1 through N/2 equal in value and drops the floor to zero. The
+  constant case then answers an empty list at any level (FR-018, SC-002,
+  R-7).
+  Verify: `ctest --test-dir build -R harness_spectrum_test --output-on-failure` exits 0, and the new row passes at the level 1000.0
+
 **Checkpoint**: the kernel stands green as a pure function: the tone,
 constant, one-sample, cap, truncation, six-tone and resample rows
 all pass, and no probe runs.
