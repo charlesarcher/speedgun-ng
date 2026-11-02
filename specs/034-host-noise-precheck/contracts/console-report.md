@@ -32,7 +32,10 @@ order and the named figures.
   tracer: not available                                    [specs/036, the not-available case]
 [after the blocks, the non-strict path]
   warning: cpu <n> gapsPerSecond <figure> maxNs <figure>     [per noisy planned cpu]
+  warning: cpu <n> noisePercent <figure> maxValue <figure>   [FWQ, per noisy planned cpu, specs/043]
+  warning: cpu <n> noisePercent <figure> minValue <figure>   [FTQ, per noisy planned cpu, specs/043]
   pinning candidates: cpu <n> <rate> ... (lowest gap rate first)
+  pinning candidates: cpu <n> <noisePercent> ... (lowest noise fraction first, specs/043)
 [the fold block, after the benchmark tables, FWQ or FTQ, specs/043]
   jitter probe: cpus <list>
   <the sixteen gap field lines, at 0>
@@ -85,6 +88,15 @@ stands disclosed for every method (specs/043 FR-019, FR-022).
 - The pinning line names every planned cpu with its gap rate, the
   lowest rate first; tied cpus stand in cpu order (spec FR-013, the
   clarify answer).
+- The pre-check pair stands the method's own: the noise fraction and
+  the maximum unit time for FWQ, the noise fraction and the minimum
+  count for FTQ. The figure's key is `noisePercent`. The warning line
+  prints for a planned cpu whose noise fraction stands above zero, the
+  standing rule's shape; the strict refusal reads that pair against
+  `noise=`, 1 percent by default (specs/043 FR-021).
+- The pinning-candidate line ranks by the noise fraction ascending,
+  ties in cpu order, for FWQ and FTQ; the standing gap-rate ranking
+  stays for `tsc` (specs/043 FR-021).
 - The strict refusal stands after the full window (every window in
   serial mode), names the first noisy planned cpu in cpu order with
   the two figures, and exits 2 before any benchmark starts; the
