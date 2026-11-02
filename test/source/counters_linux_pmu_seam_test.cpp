@@ -48,6 +48,7 @@
 
 #include "../source/counters/detail/pmu.hpp"
 #include "../source/counters/linux_pmu/embedded_tables.hpp"
+#include "../source/counters/linux_pmu/kernel_calls.hpp"
 #include "../source/counters/linux_pmu/pmu_ident.hpp"
 #include "speedgun-ng/counters_clock.hpp"
 #include "speedgun-ng/counters_core.hpp"
@@ -4008,6 +4009,152 @@ auto pmuIdentDecodeScenario() -> void
         "a thread-bound target counts the calling thread");
 }
 
+// The scripted kernel stands a descriptor and a page in wherever the
+// test points the seam, so the granted open, the mapping refusal, the
+// withheld-instruction arm of the read, and the pair read all carry
+// their own counts over the fixture page (G-19, G-21; Phase A).
+// The fixture state the captureless wrappers read: the fixture page and
+// its descriptor.
+void* fixturePage = nullptr;
+int fixtureFd = -1;
+
+auto scriptedKernelScenario() -> void
+{
+  using sg::counters::Target;
+  using sg::counters::TargetKind;
+  using sg::counters::detail::FastContext;
+  using sg::counters::detail::fastContextOpen;
+  using sg::counters::detail::fastContextRead;
+  using sg::counters::detail::fastContextTimePair;
+  using sg::counters::detail::FastReadVerdict;
+  using sg::counters::detail::installKernelCalls;
+  using sg::counters::detail::kernelCalls;
+  using sg::counters::detail::KernelCalls;
+
+  // The fixture page: one scratch file, grown to a page, mapped
+  // read-write, carrying the layout the test writes before each read.
+  const long pageSize = ::sysconf(_SC_PAGESIZE);
+  std::filesystem::path path = std::filesystem::temp_directory_path()
+      / ("pmu-page-" + std::to_string(::getpid()) + ".scratch");
+  {
+    std::FILE* handle = std::fopen(path.c_str(), "w");
+    check(handle != nullptr, "the page fixture file opens");
+    std::fclose(handle);
+  }
+  std::filesystem::resize_file(path, static_cast<std::uintmax_t>(pageSize));
+  const int pageFd = ::open(path.c_str(), O_RDWR);
+  check(pageFd >= 0, "the page fixture answers a descriptor");
+  void* page = ::mmap(nullptr,
+                      static_cast<std::size_t>(pageSize),
+                      PROT_READ | PROT_WRITE,
+                      MAP_SHARED,
+                      pageFd,
+                      0);
+  check(page != MAP_FAILED, "the page fixture maps");
+  auto* layout = static_cast<perf_event_mmap_page*>(page);
+  const auto clearPage = [&layout]() { *layout = perf_event_mmap_page {}; };
+  clearPage();
+
+  // The scripted set: the open answers the fixture descriptor, the map
+  // answers the fixture page, the close and the unmap answer success
+  // without touching the fixture, and the rest stand in with fixed
+  // answers no call in this scenario drives.
+  // The scripted set's fields are plain function references, so the
+  // fixture state travels through two file-scope holders the captureless
+  // wrappers read.
+  fixturePage = page;
+  fixtureFd = pageFd;
+  KernelCalls scripted {};
+  scripted.openEvent = [](void*, int, int, int, unsigned long) -> long
+  { return fixtureFd; };
+  scripted.mapPage = [](void*, std::size_t, int, int, int, long long) -> void*
+  { return fixturePage; };
+  scripted.unmapPage = [](void*, std::size_t) -> int { return 0; };
+  scripted.readGroup = [](int, void*, std::size_t) -> long { return -1; };
+  scripted.ioctlEvent = [](int, unsigned long, unsigned long) -> int
+  { return 0; };
+  scripted.closeFd = [](int) -> int { return 0; };
+  scripted.devicesRoot = []() -> std::filesystem::path { return {}; };
+  scripted.paranoidPath = []() -> std::filesystem::path { return {}; };
+  installKernelCalls(&scripted);
+
+  const Target where {TargetKind::THREAD, -1};
+
+  // The granted open: the descriptor the scripted open answers becomes
+  // the context descriptor, the fixture page becomes the mapping, and
+  // the context answers owned on the calling thread (FR-031, FR-040).
+  std::string refusal;
+  auto opened = fastContextOpen(PERF_TYPE_HARDWARE, 0, where, &refusal);
+  check(opened != nullptr, "the scripted grant opens a context");
+  if (opened != nullptr) {
+    check(std::this_thread::get_id() == opened->owner,
+          "the context answers owned on the thread that opened it");
+    check(opened->fd == pageFd,
+          "the context carries the scripted " "descriptor");
+    check(opened->map == page, "the context maps the fixture page");
+  }
+
+  // The cpu-pinned target pins the context to the cpu the target names,
+  // the pin the sampling preconditions check on every read (FR-045).
+  const Target pinned {TargetKind::CPU, 3};
+  auto pinnedContext = fastContextOpen(PERF_TYPE_HARDWARE, 0, pinned, &refusal);
+  check(pinnedContext != nullptr, "the pinned grant opens a context");
+  if (pinnedContext != nullptr) {
+    check(pinnedContext->pinnedCpu == 3,
+          "a cpu-pinned target pins the context to its cpu");
+  }
+
+  // The mapping refusal: the same grant with a map that refuses, and
+  // the refusal names the mapping, the way the open refusal names the
+  // syscall (FR-040).
+  KernelCalls refusing = scripted;
+  refusing.mapPage = [](void*, std::size_t, int, int, int, long long) -> void*
+  { return MAP_FAILED; };
+  installKernelCalls(&refusing);
+  auto refusedContext = fastContextOpen(PERF_TYPE_HARDWARE, 0, where, &refusal);
+  check(refusedContext == nullptr, "a map that refuses opens no context");
+  check(refusal.find("could not be mapped") != std::string::npos,
+        "the refusal names the mapping");
+
+  // The read over a page that indexes nothing withholds the
+  // instruction and hands the verdict the decode applies (FR-040).
+  installKernelCalls(&scripted);
+  clearPage();
+  layout->cap_user_rdpmc = 1;
+  layout->index = 0;
+  layout->offset = 0;
+  layout->pmc_width = 0;
+  std::uint64_t value = 0;
+  const auto verdict = fastContextRead(*opened, value);
+  check(verdict == FastReadVerdict::NOT_ALLOWED,
+        "a page that indexes nothing answers no count");
+
+  // The pair read over a stable page that names the time capability
+  // carries the pair the page holds (FR-041, R-011).
+  clearPage();
+  layout->lock = 2;  // An even sequence: the snapshot stands stable.
+  layout->cap_user_time = 1;
+  // An equal pair names no delta: the page's counts measure the whole
+  // span and the recipe copies them exactly, so the read echoes the
+  // page without the cycle conversion the live counter would skew.
+  layout->time_enabled = 900;
+  layout->time_running = 900;
+  layout->time_mult = 1 << 10;
+  layout->time_shift = 10;
+  std::uint64_t enabled = 0;
+  std::uint64_t running = 0;
+  check(fastContextTimePair(*opened, enabled, running),
+        "a stable page with the time capability discloses the pair");
+  check(enabled == 900 && running == 900,
+        "the pair echoes the page's own counts");
+
+  installKernelCalls(nullptr);
+  opened.reset();
+  ::munmap(page, static_cast<std::size_t>(pageSize));
+  ::close(pageFd);
+  std::filesystem::remove(path);
+}
+
 auto main() -> int
 {
   availabilityGateScenario();
@@ -4056,6 +4203,7 @@ auto main() -> int
   contextOpenRefusalScenario();
   devicePageVerdictScenario();
   pmuIdentDecodeScenario();
+  scriptedKernelScenario();
   std::printf("counters_linux_pmu_seam_test PASS: encoder and protocol\n");
   return 0;
 }
