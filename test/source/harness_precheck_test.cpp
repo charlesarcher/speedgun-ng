@@ -269,13 +269,139 @@ auto noisyRecord(std::vector<std::uint32_t> cpus) -> sg::PrecheckRecord
   return record;
 }
 
+// specs/043 T034, FR-004, FR-021, D-9, R-15: the record of a method run:
+// two planned cpus, each carrying the series of its pre-check window. The
+// two noise fractions stand apart so the rank stands unambiguous, and the
+// quantum names the method the pair reads: FTQ carries one, FWQ reads the
+// maximum unit time.
+auto methodRecord(std::vector<std::uint32_t> cpus,
+                  const bool ftq,
+                  const double sharedNoise = 0.0) -> sg::PrecheckRecord
+{
+  sg::PrecheckRecord record;
+  for (const auto cpu : cpus) {
+    sg::PrecheckCpuRecord entry;
+    entry.cpu = cpu;
+    entry.planned = true;
+    sg::JitterSeriesStats series;
+    series.noisePercent =
+        sharedNoise > 0.0 ? sharedNoise : (cpu == cpus.front() ? 12.5 : 3.25);
+    series.maxValue = 1000 + cpu;
+    series.minValue = 10 + cpu;
+    series.quantumNs = ftq ? 100000U : 0U;
+    entry.series = series;
+    record.cpus.push_back(entry);
+  }
+  return record;
+}
+
+// specs/043 T034, FR-021: the mask the exec'd children's synthetic layout
+// names: the scenario stands on a mask that holds four cpus, the standing
+// skip the small-mask hosts take (FR-021).
+auto maskHoldsFourCpus() -> bool
+{
+  cpu_set_t held {};
+  CPU_ZERO(&held);
+  check(sched_getaffinity(0, sizeof(held), &held) == 0,
+        "the process affinity mask is readable (FR-021)");
+  return CPU_COUNT(&held) >= 4;
+}
+
+// specs/043 T034, FR-014, FR-021: the count of a child's own standard
+// error lines: the coverage build's profiler prints bookkeeping lines of
+// its own into an exec'd child, and a refusal stands the one line the
+// contract counts (FR-014, the exec-self pattern the CLI tests carry).
+auto errorLineCount(const std::string& text) -> std::size_t
+{
+  std::size_t lines = 0;
+  std::size_t scan = 0;
+  while (scan <= text.size()) {
+    const auto stop = text.find('\n', scan);
+    const auto line = text.substr(
+        scan, stop == std::string::npos ? std::string::npos : stop - scan);
+    if (!line.empty() && !line.starts_with("libgcov profiling error:")) {
+      ++lines;
+    }
+    if (stop == std::string::npos) {
+      break;
+    }
+    scan = stop + 1;
+  }
+  return lines;
+}
+
+// specs/043 T034, FR-014, FR-021, D-9, R-15: one exec'd child, its exit
+// status and its two streams read back: the layout install stands in the
+// child, whose own first layout read answers the install, and the
+// scenario's status stands the parent's check (T011).
+struct ChildRun
+{
+  int status = 0;
+  std::string out;
+  std::string err;
+};
+
+auto runChild(const std::string& scenario) -> ChildRun
+{
+  const std::string outPath = "harness_precheck_refusal_out.txt";
+  const std::string errPath = "harness_precheck_refusal_err.txt";
+  const pid_t pid = fork();
+  check(pid >= 0, "the fork stands (T011)");
+  if (pid == 0) {
+    const auto self = std::filesystem::path("/proc/self/exe");
+    const std::vector<char*> childArgv {const_cast<char*>(self.c_str()),
+                                        const_cast<char*>(scenario.c_str()),
+                                        nullptr};
+    execv(self.c_str(), childArgv.data());
+    std::_Exit(127);
+  }
+  int childStatus = 0;
+  waitpid(pid, &childStatus, 0);
+  const auto read = [](const std::string& path)
+  {
+    std::ifstream file(path);
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::remove(path.c_str());
+    return buffer.str();
+  };
+  return ChildRun {
+      WIFEXITED(childStatus) ? WEXITSTATUS(childStatus) : -1,
+      read(outPath),
+      read(errPath),
+  };
+}
+
 }  // namespace
 
-// T011: the exec'd child of the full-run refusal scenario: the layout
+// specs/043 T034, FR-004, FR-021, D-9, R-15: the probe value each exec'd
+// child runs: the standing strict gap refusal, the noise refusal of a
+// method run, the alongside run whose `strict` word keeps its standing
+// meaning, the two unused `noise=` disclosures, and the tsc run's gap
+// refusal. The gap value sizes the series buffer, so a scripted window
+// stays bounded (FR-014, FR-021).
+auto childProbeValue(const std::string& scenario) -> std::string
+{
+  if (scenario == "noise-refusal") {
+    return "idle,mode=precheck,strict,method=fwq,noise=1,gaps=256";
+  }
+  if (scenario == "alongside-strict") {
+    return "idle,method=fwq,strict,noise=1,gaps=256";
+  }
+  if (scenario == "noise-unused-plain") {
+    return "idle,method=fwq,noise=5,gaps=256";
+  }
+  if (scenario == "noise-unused-tsc") {
+    return "idle,noise=5,gaps=256";
+  }
+  return "idle,mode=precheck,strict";
+}
+
+// T011: the exec'd child of the full-run refusal scenarios: the layout
 // install stands before the child's own first layout read, so the
 // cached read answers the install, and the run's refusal stands the
 // exit status the parent checks (T011, FR-014).
-auto runStrictRefusalChild() -> int
+auto runChildScenario(const std::string& scenario) -> int
 {
   cpu_set_t held {};
   CPU_ZERO(&held);
@@ -327,7 +453,7 @@ auto runStrictRefusalChild() -> int
       "--filter=bmPinned",
       "--repetitions=1",
       "--iterations=2",
-      "--jitter-probe=idle,mode=precheck,strict"};
+      "--jitter-probe=" + childProbeValue(scenario)};
   std::vector<char*> argv;
   argv.push_back(const_cast<char*>("harness_precheck_test"));
   for (const auto& argument : arguments) {
@@ -343,8 +469,8 @@ auto runStrictRefusalChild() -> int
 auto main(int argc, char** argv) -> int
 {
   scriptedProvider();
-  if (argc > 1 && std::string(argv[1]) == "strict-refusal") {
-    return runStrictRefusalChild();
+  if (argc > 1) {
+    return runChildScenario(argv[1]);
   }
   // T009, FR-009, R-06: the serial shape re-reads the jump as its own
   // baseline, so neither cpu keeps the gap; the parallel shape keeps
@@ -505,6 +631,124 @@ auto main(int argc, char** argv) -> int
       check(refusalOut.find("bmPinned") == std::string::npos,
             "no benchmark row prints beside the refusal (FR-014)");
     }
+  }
+
+  // specs/043 T034, US4, FR-004, FR-021, D-9, R-15: the pre-check pair of
+  // a method run. The warning line and the pinning rank read the method's
+  // own pair: the noise fraction with the maximum unit time for FWQ, the
+  // noise fraction with the minimum count for FTQ, the rank sorted by the
+  // noise fraction ascending with ties in cpu order. The standing `tsc`
+  // figures stay, and the noise refusal stops the run at status 2.
+  {
+    const auto cpus = pickCpus(2);
+    const auto record = methodRecord(cpus, false);
+    const auto block = capturePrecheck(record);
+    const auto firstWarning = block.find(
+        "warning: cpu " + std::to_string(cpus.at(0))
+        + " noisePercent 12.50 maxValue " + std::to_string(1000 + cpus.at(0)));
+    const auto secondWarning = block.find(
+        "warning: cpu " + std::to_string(cpus.at(1))
+        + " noisePercent 3.25 maxValue " + std::to_string(1000 + cpus.at(1)));
+    check(firstWarning != std::string::npos && secondWarning != std::string::npos,
+          "theFwqPrecheckPairCarriesNoiseAndMaximum: the FWQ warning line "
+          "names the noise fraction and the maximum unit time (FR-021, R-15)");
+    check(block.find("warning: cpu " + std::to_string(cpus.at(0))
+                     + " gapsPerSecond") == std::string::npos,
+          "theFwqPrecheckPairCarriesNoiseAndMaximum: the FWQ warning line "
+          "reads no gap pair (FR-021, D-9)");
+    check(block.find("gapCount: 0") != std::string::npos,
+          "theFwqPrecheckPairCarriesNoiseAndMaximum: the standing stats lines "
+          "stay (FR-031)");
+  }
+  {
+    const auto cpus = pickCpus(2);
+    const auto record = methodRecord(cpus, true);
+    const auto block = capturePrecheck(record);
+    const auto warning = block.find("warning: cpu " + std::to_string(cpus.at(0))
+                                    + " noisePercent 12.50 minValue "
+                                    + std::to_string(10 + cpus.at(0)));
+    check(warning != std::string::npos,
+          "theFtqPrecheckPairCarriesNoiseAndMinimum: the FTQ warning line "
+          "names the noise fraction and the minimum count (FR-021, R-15)");
+  }
+  {
+    const auto cpus = pickCpus(2);
+    const auto record = methodRecord(cpus, false);
+    const auto block = capturePrecheck(record);
+    const auto pinning =
+        block.find("pinning candidates: cpu " + std::to_string(cpus.at(1))
+                   + " 3.25 cpu " + std::to_string(cpus.at(0)) + " 12.50");
+    check(pinning != std::string::npos,
+          "thePinningRankSortsByNoiseFraction: the rank sorts by the noise "
+          "fraction ascending (FR-021, R-15)");
+
+    const auto tied = methodRecord(cpus, false, 7.5);
+    const auto tiedBlock = capturePrecheck(tied);
+    const auto tiedRank =
+        tiedBlock.find("pinning candidates: cpu " + std::to_string(cpus.at(0))
+                       + " 7.50 cpu " + std::to_string(cpus.at(1)) + " 7.50");
+    check(tiedRank != std::string::npos,
+          "thePinningRankSortsByNoiseFraction: tied cpus stand in cpu order "
+          "(FR-021, R-15)");
+  }
+  if (!maskHoldsFourCpus()) {
+    std::printf("the method refusal scenarios: SKIPPED (the mask holds fewer "
+                "than four cpus)\n");
+  }
+  if (maskHoldsFourCpus()) {
+    const auto refusal = runChild("noise-refusal");
+    check(refusal.status == 2,
+          "theNoiseRefusalStopsAtStatusTwo: the noise refusal exits 2 "
+          "(FR-021, D-9)");
+    check(errorLineCount(refusal.err) == 1,
+          "theNoiseRefusalStopsAtStatusTwo: the refusal stands one line "
+          "(FR-021)");
+    check(refusal.err.find("--jitter-probe: cpu ") == 0
+              && refusal.err.find("noisePercent") != std::string::npos,
+          "theNoiseRefusalStopsAtStatusTwo: the line names the option, the "
+          "cpu and the noise fraction (FR-021, R-15)");
+    check(refusal.out.find("bmPinned") == std::string::npos,
+          "theNoiseRefusalStopsAtStatusTwo: no benchmark output stands ahead "
+          "of the refusal (FR-021, SC-005)");
+
+    const auto alongside = runChild("alongside-strict");
+    check(alongside.status == 0,
+          "theAlongsideStrictWordKeepsItsMeaning: an alongside run with "
+          "strict and a noise value continues (FR-021, D-9)");
+    check(alongside.out.find("bmPinned") != std::string::npos,
+          "theAlongsideStrictWordKeepsItsMeaning: the alongside run records "
+          "its benchmark (FR-004)");
+    check(alongside.err.find("--jitter-probe: cpu ") == std::string::npos,
+          "theAlongsideStrictWordKeepsItsMeaning: no noise gate fires in "
+          "mode=alongside (FR-021, D-9)");
+
+    const auto unusedPlain = runChild("noise-unused-plain");
+    check(unusedPlain.status == 0,
+          "anUnusedNoiseValueStandsDisclosed: a noise value with no strict "
+          "stands accepted (FR-021)");
+    check(unusedPlain.out.find("noise=5") != std::string::npos
+              && unusedPlain.out.find("unused") != std::string::npos,
+          "anUnusedNoiseValueStandsDisclosed: the run discloses the unused "
+          "noise value (FR-021)");
+
+    const auto unusedTsc = runChild("noise-unused-tsc");
+    check(unusedTsc.status == 0,
+          "anUnusedNoiseValueStandsDisclosed: a noise value with the tsc "
+          "method stands accepted (FR-021)");
+    check(unusedTsc.out.find("noise=5") != std::string::npos
+              && unusedTsc.out.find("unused") != std::string::npos,
+          "anUnusedNoiseValueStandsDisclosed: the tsc run discloses the "
+          "unused noise value (FR-021)");
+
+    const auto tscRefusal = runChild("tsc-gap-refusal");
+    check(tscRefusal.status == 2,
+          "aTscRunKeepsTheGapRefusal: the tsc run keeps the standing gap "
+          "refusal (FR-021, FR-031)");
+    check(tscRefusal.err.find("gapsPerSecond") != std::string::npos
+              && tscRefusal.err.find("maxNs") != std::string::npos
+              && tscRefusal.err.find("noisePercent") == std::string::npos,
+          "aTscRunKeepsTheGapRefusal: the refusal names the standing gap "
+          "figures (FR-021, R-15)");
   }
 
   // T007, FR-010, R-01: the measured set carries the planned cpus
