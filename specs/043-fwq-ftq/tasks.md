@@ -329,6 +329,17 @@ spans record zero allocations.
   (depends on T017)
   Verify: `ctest --test-dir build -R "harness_fwq_ftq_test|harness_jitter_probe_alloc_test" --output-on-failure` exits 0, and `bash test/time_source_gate.sh .` prints `time_source_gate: clean` and exits 0
 
+- [ ] T064 [US2] Add the FTQ arm to the pre-check phase of
+  `source/harness/jitter_probe.cpp`, beside the FWQ arm. Edge k stands at
+  the phase first stamp plus k quanta. The read compares against the next
+  edge, and the phase ends at its span. Add
+  `ftqPrecheckRunsTheSelectedMethod` to
+  `test/source/harness_fwq_ftq_test.cpp`. FR-004 says every mode runs the
+  selected method. A `method=ftq` run answers the standing gap pass today,
+  so its pre-check record carries gaps and an empty series. The noise gate
+  of T038 then reads nothing (FR-004, FR-015, FR-021, D-9, R-15).
+  Verify: `ctest --test-dir build -R harness_fwq_ftq_test --output-on-failure` exits 0, and the new row names counts in the pre-check series
+
 **Checkpoint**: the probe body stands green behind the seam: the five
 calibration stops, the FWQ unit times, the FTQ edges, the drop rule
 and the two armed spans all pass, and the time-source gate stands
