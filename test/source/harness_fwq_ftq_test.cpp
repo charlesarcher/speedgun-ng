@@ -1240,6 +1240,49 @@ auto ftqDipEveryMillisecondNamesThePeriod() -> void
       });
 }
 
+// FR-004, FR-015, FR-021, D-9, R-15: mode=precheck runs the selected
+// method. The pre-check phase of a FTQ run closes its quanta from edges
+// standing at the phase's first stamp, and the phase ends at its span, so
+// the pre-check record carries the count of each closed quantum and the
+// noise gate reads a series. The standing gap pass records no gap here.
+auto ftqPrecheckRunsTheSelectedMethod() -> void
+{
+  ftqPlan(kFtqQuantumUs, kFtqUnitsPerQuantum * 10, kFtqUnitDelta);
+  scriptPlan.park = false;
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  options.method = sg::JitterMethod::FTQ;
+  options.quantumUs = kFtqQuantumUs;
+  options.mode = sg::JitterProbeMode::PRECHECK;
+  options.precheckMs = 1;
+  runScripted(
+      options,
+      1,
+      [](const auto& states)
+      {
+        const auto& probed = states.at(0);
+        check(scriptParked[0].load() == 2 + kScriptPassReads + kScriptLatchRead
+                  + kFtqUnitsPerQuantum * 10,
+              "the pre-check phase reads its scripted span, then the read "
+              "behind the latch (FR-004, FR-015)");
+        check(probed.seriesKept == 10,
+              "the pre-check phase of a FTQ run keeps one count per quantum "
+              "(FR-004, FR-015)");
+        check(probed.droppedSamples == 0,
+              "the count buffer never filled (FR-014, FR-022)");
+        bool counts = true;
+        for (std::size_t index = 0; index < probed.seriesKept; ++index) {
+          counts = counts && probed.series.at(index) == kFtqUnitsPerQuantum;
+        }
+        check(counts,
+              "the pre-check series names 1,000 units in each closed quantum "
+              "(FR-015, FR-016)");
+        check(probed.kept == 0,
+              "the pre-check phase of a FTQ run records no gap "
+              "(FR-004, FR-021)");
+      });
+}
+
 }  // namespace
 
 auto main() -> int
@@ -1319,6 +1362,9 @@ auto main() -> int
   ftqBufferFullCountsDrops();
   ftqQuantumOfTenNanosecondsTarget();
   ftqDipEveryMillisecondNamesThePeriod();
+  // T064: the FTQ arm of the pre-check phase (US2, FR-004, FR-015, FR-021,
+  // D-9, R-15).
+  ftqPrecheckRunsTheSelectedMethod();
 
   std::puts("harness_fwq_ftq_test: ok");
   return 0;
