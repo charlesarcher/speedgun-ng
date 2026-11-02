@@ -619,6 +619,89 @@ auto percentileField(const std::vector<double>& sorted,
       sorted.at(static_cast<std::size_t>(rank) - 1));
 }
 
+// The noise fraction of one kept set, the method's rule of FR-009:
+// FWQ divides the kept unit times' sum, minus the sample count times
+// the minimum unit time, by that sum, times 100, and FTQ divides the
+// sample count times the maximum count, minus the counts' sum, by that
+// product, times 100. Each denominator that stands at 0 answers its
+// own figure: a maximum count of 0 answers 100, and a sum of zero unit
+// times answers 0, the equal units carrying no noise (FR-009, R-10).
+auto seriesNoisePercent(const JitterMethod method,
+                        const std::uint64_t sampleCount,
+                        const std::uint64_t minValue,
+                        const std::uint64_t maxValue,
+                        const std::uint64_t total) noexcept -> double
+{
+  if (method == JitterMethod::FTQ) {
+    const std::uint64_t span = sampleCount * maxValue;
+    if (span == 0) {
+      return 100.0;
+    }
+    return static_cast<double>(span - total) * 100.0
+        / static_cast<double>(span);
+  }
+  if (total == 0) {
+    return 0.0;
+  }
+  return static_cast<double>(total - sampleCount * minValue) * 100.0
+      / static_cast<double>(total);
+}
+
+// The figures of one kept set of the series, the shape the gap folds
+// carry: the values copy into the sorted double vector `percentileAt`
+// reads, the five points read through `percentileField` with the
+// standing minimum sample count, and the five calibration figures and
+// the drop count ride the state (FR-007, FR-008, R-09). The two series
+// folds share the reading, the run fold over the kept set and the
+// window fold over the set the windows placed.
+//
+// \pre `values` holds the samples one fold folds, in any order
+auto seriesFigures(const ProbeCpuState& state,
+                   std::span<const std::uint64_t> values)
+    -> JitterSeriesStats
+{
+  JitterSeriesStats stats {};
+  stats.workCount = state.workCount;
+  stats.unitTimeNs = state.unitTimeNs;
+  stats.targetNs = state.targetNs;
+  stats.quantumNs = state.quantumNs;
+  stats.calibrationSpanNs = state.calibrationSpanNs;
+  stats.droppedSamples = state.droppedSamples;
+  stats.sampleCount = values.size();
+  if (values.empty()) {
+    return stats;
+  }
+
+  std::vector<double> sorted;
+  sorted.reserve(values.size());
+  std::uint64_t total = 0;
+  for (const auto value : values) {
+    sorted.push_back(static_cast<double>(value));
+    total += value;
+  }
+  std::sort(sorted.begin(), sorted.end());
+
+  stats.minValue = static_cast<std::uint64_t>(sorted.front());
+  stats.maxValue = static_cast<std::uint64_t>(sorted.back());
+  stats.meanValue =
+      static_cast<double>(total) / static_cast<double>(sorted.size());
+  stats.medianValue = percentileField(sorted, 50.0);
+  stats.p90Value = percentileField(sorted, 90.0);
+  stats.p99Value = percentileField(sorted, 99.0);
+  stats.p999Value = percentileField(sorted, 99.9);
+  stats.p9999Value = percentileField(sorted, 99.99);
+  stats.noisePercent = seriesNoisePercent(
+      state.method, stats.sampleCount, stats.minValue, stats.maxValue, total);
+  SG_ENSURE(stats.minValue <= stats.medianValue
+                && stats.medianValue <= stats.p90Value
+                && stats.p90Value <= stats.p99Value
+                && stats.p99Value <= stats.p999Value
+                && stats.p999Value <= stats.p9999Value
+                && stats.p9999Value <= stats.maxValue,
+            "the percentile chain stands ordered (E-03, PC-4)");
+  return stats;
+}
+
 }  // namespace
 
 // The duration-division relation of E-03: the fields the fold filled
@@ -679,6 +762,10 @@ auto JitterProbe::start() -> void
   m_states = std::vector<ProbeCpuState>(m_options.cpus.size());
   for (std::size_t index = 0; index < m_options.cpus.size(); ++index) {
     m_states.at(index).cpu = m_options.cpus.at(index);
+    // specs/043 FR-009, R-10: the method the run selected rides the
+    // state, so the series fold reads the noise fraction of the method
+    // that fills this cpu's buffer.
+    m_states.at(index).method = m_options.method;
   }
 
   // The party count: every chosen cpu at the item's start line, and the
@@ -865,6 +952,56 @@ auto gapStatsOf(const ProbeCpuState& state) -> JitterStats
             "the covered span is the kept records' stamp span (E-03)");
   SG_ENSURE(durationDivisionsHold(stats),
             "the duration divisions answer the covered span (E-03, R-05)");
+  return stats;
+}
+
+/**
+ * @brief specs/043-fwq-ftq: the run-level series fold of one probe
+ * cpu (FR-007, FR-008, FR-009, R-09, R-10): the figures over the whole
+ * kept set, the five calibration figures of E-22, and the noise
+ * fraction of the method that filled the buffer. The covered span the
+ * runtime names is the span the kept samples' recovered stamps cover,
+ * the only duration the joined per-cpu state carries, the calibration
+ * span standing out of it (FR-010). The empty kept set answers the
+ * zero figures and none of the rows below.
+ *
+ * \post minValue <= medianValue <= p90Value <= p99Value <= p999Value
+ *       <= p9999Value <= maxValue
+ * \post `sampleCount` counts the kept samples, and `droppedSamples`
+ *       counts the samples the full buffer dropped (FR-007, FR-022)
+ * \post the noise fraction answers the method's rule of FR-009, a
+ *       maximum count of 0 answering 100 (R-10)
+ * \post `seriesRuntimeNs` is the recovered stamp span of the kept
+ *       samples, the calibration span out (FR-007, FR-010)
+ */
+auto seriesStatsOf(const ProbeCpuState& state) -> JitterSeriesStats
+{
+  const std::span<const std::uint64_t> kept(state.series.data(),
+                                            state.seriesKept);
+  auto stats = seriesFigures(state, kept);
+
+  // The span the recovered stamps cover: an FWQ stamp stands at the
+  // start plus the running sum of the unit times, and an FTQ stamp at
+  // the start plus the rank plus one, times the quantum, so the span
+  // from the start to the last stamp is the unit times' sum for FWQ
+  // and the sample count times the quantum for FTQ (R-11, FR-007,
+  // FR-010).
+  std::uint64_t span = 0;
+  for (std::size_t index = 0; index < state.seriesKept; ++index) {
+    span += state.method == JitterMethod::FTQ
+        ? state.quantumNs
+        : state.series.at(index);
+  }
+  stats.seriesRuntimeNs = span;
+  SG_ENSURE(stats.sampleCount == state.seriesKept
+                && stats.droppedSamples == state.droppedSamples,
+            "the counts answer the kept and dropped samples (FR-007, FR-022)");
+  SG_ENSURE(stats.workCount == state.workCount
+                && stats.unitTimeNs == state.unitTimeNs
+                && stats.targetNs == state.targetNs
+                && stats.quantumNs == state.quantumNs
+                && stats.calibrationSpanNs == state.calibrationSpanNs,
+            "the calibration figures carry the state's own (FR-011, E-22)");
   return stats;
 }
 
