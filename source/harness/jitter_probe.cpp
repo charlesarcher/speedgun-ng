@@ -36,6 +36,7 @@
 #include "detail/options.hpp"
 #include "detail/percentiles.hpp"
 #include "detail/proc_root.hpp"
+#include "detail/spectrum.hpp"
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_system.hpp"
@@ -1167,6 +1168,48 @@ auto seriesStatsOf(const ProbeCpuState& state,
             "the count answers the placed samples and the fraction stands in "
             "the range 0 to 100 (FR-020, FR-009)");
   return stats;
+}
+
+auto addSpectrumTo(const ProbeCpuState& state,
+                   JitterSeriesStats& series) -> void
+{
+  const std::span<const std::uint64_t> kept {state.series.data(),
+                                             state.seriesKept};
+  if (series.sampleCount == 0 || kept.empty()) {
+    return;
+  }
+  std::vector<double> counts;
+  std::span<const double> samples {};
+  std::uint64_t stepNs = 0;
+  if (state.method == JitterMethod::FWQ) {
+    stepNs = series.medianValue;
+    if (stepNs == 0) {
+      return;
+    }
+    samples = resampleUnitTimes(kept, stepNs, kSpectrumCap);
+  } else {
+    stepNs = series.quantumNs;
+    if (stepNs == 0) {
+      return;
+    }
+    counts.reserve(kept.size());
+    for (const auto count : kept) {
+      counts.push_back(static_cast<double>(count));
+    }
+    samples = counts;
+  }
+  if (samples.empty()) {
+    return;
+  }
+  const auto answer = dftPeriods(samples, stepNs);
+  series.spectrumPoints = answer.points;
+  if (state.method == JitterMethod::FWQ) {
+    series.resampleStepNs = answer.stepNs;
+  }
+  for (const auto& period : answer.periods) {
+    series.periods.push_back(JitterPeriodRecord {
+        .periodNs = period.periodNs, .powerRatio = period.powerRatio});
+  }
 }
 
 auto installTestReader(std::unique_ptr<counters::WindowReader> reader) -> void
