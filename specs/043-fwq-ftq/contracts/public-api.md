@@ -13,7 +13,10 @@ The fields join `JitterProbeOptions` at
 `JitterEntryFold` at `include/speedgun-ng/benchmark.hpp:645` beside
 `JitterStats` at `include/speedgun-ng/benchmark.hpp:512`, and
 `ReportData` at `include/speedgun-ng/benchmark.hpp:984` gains the run
-record. The three layout moves are the ABI check of spec FR-005: the
+record. `PrecheckCpuRecord` at `include/speedgun-ng/benchmark.hpp:576`
+gains the series record. The four layout moves, over
+`JitterProbeOptions`, `JitterEntryFold`, `PrecheckCpuRecord` and
+`ReportData`, are the ABI check of spec FR-005: the
 version stands at `0.29.0` (`CMakeLists.txt:45`), the harness
 `SOVERSION` at `20` (`CMakeLists.txt:375`), and the archive
 `SOVERSION` at `4` (`CMakeLists.txt:110`).
@@ -37,7 +40,7 @@ Four lines join the struct block after line 34, the block that runs
 JitterMethod      method       = JitterMethod::TSC;      // one method per run
 std::uint32_t     quantumUs    = kDefaultQuantumUs;      // 100 us
 std::uint32_t     workCount    = 0;                      // 0 names the calibration
-double            noisePercent = kDefaultNoisePercent;   // 1 percent
+std::uint32_t     noisePercent = kDefaultNoisePercent;   // 1 percent
 ```
 
 ## Field rows
@@ -53,22 +56,28 @@ Four rows join the field table after line 45, in the standing columns
 | `noisePercent` | inside 0 through 100; the strict refusal reads it in the pre-check phase | specs/043 FR-002, FR-021 |
 
 The field carries microseconds and the JSON key `quantumNs` carries
-nanoseconds, one unit per surface (spec FR-002, FR-006, FR-019).
+nanoseconds, one unit per surface (spec FR-002, FR-006, FR-019). The
+option field `noisePercent` is a whole number, and the series figure
+`noisePercent` is a real, the standing percent shape of `totalPercent`
+(spec FR-002, FR-009).
 
-## Precondition line
+## The enforcement line
 
-One line joins the `runJitterProbe` block after line 66, the block
+One sentence joins the `runJitterProbe` block after line 66, the block
 that runs 57 to 71:
 
 ```text
-\pre `options` carries a `quantumUs` value inside 10 through
-     100,000, a `workCount` of 0 or a value inside 1 through
-     16,777,216, and a `noisePercent` inside 0 through 100
-     (specs/043 FR-002)
+The parser `parseJitterProbeValue` stands the enforcement site for the
+three ranges: it refuses a `quantumUs` value outside 10 through
+100,000, a `workCount` outside 1 through 16,777,216, and a
+`noisePercent` outside 0 through 100, each with one quoted line at exit
+status 2 (specs/043 FR-002, FR-003).
 ```
 
-`BenchmarkHandle::jitterProbe` reads the same precondition through its
-standing line at line 85.
+`runJitterProbe` gains no documented precondition, so the pair gate
+finds no documented contract with no enforcement site.
+`BenchmarkHandle::jitterProbe` keeps its standing line at line 85
+unchanged.
 
 ## JitterSeriesStats
 
@@ -126,10 +135,10 @@ seriesStatsOf(...)
 - `harness_cli_table_test` reads the version rows at
   `test/source/harness_cli_table_test.cpp:1382-1393` (spec FR-005,
   SC-009).
-- The coverage gate reads 100.0% lines and 100.0% branches (spec
-  FR-032, SC-006). The 156 new branch positions each stand reached by
-  a named test, so the branch allowance stays 21
-  (`tools/dbc/coverage_gate.sh:102`).
+- The coverage gate reads 100.0% lines and 100.0% branches, with a
+  branch shortfall of 0 rows (spec FR-032, SC-006). The 172 new branch
+  positions each stand reached by a named test, so the branch allowance
+  stays 21 (`tools/dbc/coverage_gate.sh:102`).
 
 ## Consumers
 

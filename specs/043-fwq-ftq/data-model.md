@@ -29,11 +29,11 @@ name the carriers: `JitterProbeOptions`
 Every cite reads the working tree at `d454bcff` (2026-11-01), the base
 of branch `043-fwq-ftq`. The FR ids this file leans on stand in
 `specs/043-fwq-ftq/spec.md`: FR-001 `:812`, FR-002 `:816`, FR-003
-`:826`, FR-005 `:841`, FR-006 `:850`, FR-008 `:880`, FR-009 `:884`,
-FR-010 `:894`, FR-011 `:904`, FR-012 `:912`, FR-014 `:924`, FR-015
-`:932`, FR-017 `:947`, FR-018 `:955`, FR-019 `:969`, FR-020 `:983`,
-FR-021 `:998`, FR-022 `:1022`, FR-025 `:1041`, FR-031 `:1113`, FR-034
-`:1128`, SC-004 `:1184`, SC-009 `:1196`, Key Entities `:1131`.
+`:828`, FR-005 `:844`, FR-006 `:853`, FR-008 `:883`, FR-009 `:887`,
+FR-010 `:897`, FR-011 `:907`, FR-012 `:915`, FR-014 `:927`, FR-015
+`:935`, FR-017 `:950`, FR-018 `:958`, FR-019 `:972`, FR-020 `:986`,
+FR-021 `:1001`, FR-022 `:1025`, FR-025 `:1044`, FR-031 `:1116`, FR-034
+`:1131`, SC-004 `:1192`, SC-009 `:1209`, Key Entities `:1139`.
 
 ## Entity map
 
@@ -43,7 +43,7 @@ JitterMethod (new, public enum) ......................... E-21
 JitterProbeOptions (public, +4 fields) .................. E-27
   ├─ method: JitterMethod                TSC | FWQ | FTQ
   ├─ quantumUs: uint32_t                 100 us default
-  ├─ workCount: optional<uint32_t>       empty names the calibration
+  ├─ workCount: uint32_t                 0 names the calibration
   └─ noisePercent: uint32_t              1 percent default
 ProbeCpuState (standing) ── gains ──▶ the series buffer .. E-26
   ├─ series: vector<uint64_t>, gapCount entries, 8 bytes each
@@ -142,8 +142,8 @@ and the JSON disclose them (FR-010, FR-011, AC-c2).
   - The console prints the calibration lines before the window starts
     (FR-019, SC-003).
   - The record carries five keys: FR-006
-    (`specs/043-fwq-ftq/spec.md:853`) and FR-011 (`:904`) name them,
-    and the Key Entities row names all five (`:1146-1149`).
+    (`specs/043-fwq-ftq/spec.md:853`) and FR-011 (`:907`) name them,
+    and the Key Entities row names all five (`:1154-1157`).
 
 ## E-23: the series record
 
@@ -216,7 +216,7 @@ surface beside `JitterStats` (FR-020, D-7).
     reads the one gap buffer (`source/harness/jitter_probe.cpp:614-688`),
     so no second buffer joins (FR-020).
   - 16 names join the rule table `kJitterFields`
-    (`source/harness/compare.cpp:241-292`), which grows from 16 to 32
+    (`source/harness/compare.cpp:251-292`), which grows from 16 to 32
     entries, and the fault text reads `names none of the thirty-two
     jitter fields` (FR-021, `source/harness/compare.cpp:366-369`).
   - A bare rule name reads the per-benchmark series and `jitter:run:`
@@ -290,9 +290,10 @@ resample step and the point count (FR-020).
     for a `TSC` run (FR-006).
   - The resample step and the point count ride each cpu's `series` item
     as well (FR-020).
-  - The member is the third exported layout move FR-005 names, beside
-    the option fields of E-27 and the series record of E-23, and SC-009
-    reads the commit that records the three (FR-005, SC-009).
+  - The member is the fourth exported layout move FR-005 names, beside
+    the option fields of E-27, the series record of E-23 and the series
+    record of `PrecheckCpuRecord`, and SC-009 reads the commit that
+    records the four (FR-005, SC-009).
   - The `jitter:run:` scope reads the run-level `series` items, the
     carrier `runJitterStats` carries (FR-021,
     `source/harness/compare.cpp:1462-1465`).
@@ -315,7 +316,7 @@ holds them inside the measured loop (FR-014, D-6).
   into the figures of E-23, and `droppedSamples` carries the drop count
   (FR-022). No raw sample list joins the document: the closed root
   `jitter` object refuses a key FR-006 does not list
-  (`docs/schema/report-v1.json:65`, `source/harness/json_load.cpp:2532-2543`).
+  (`docs/schema/report-v1.json:65`, `source/harness/json_load.cpp:2538-2542`).
 - Carrier and file: the fields join `ProbeCpuState`
   (`source/harness/detail/jitter_probe.hpp:63-74`), beside the standing
   gap buffer, harness-internal behind
@@ -366,7 +367,7 @@ grammar with no new option row (FR-002, D-1).
 | --- | --- | --- | --- | --- |
 | `method` | `JitterMethod` | `TSC` | one of the three words | never |
 | `quantumUs` | `std::uint32_t` | 100 | us | an `FTQ` run carries the value; a `TSC` run and an `FWQ` run leave it unused |
-| `workCount` | `std::optional<std::uint32_t>` | no value, which names the calibration | loop bodies | an `FWQ` run carries the value; a `TSC` run and an `FTQ` run leave it unused |
+| `workCount` | `std::uint32_t` | 0, which names the calibration | loop bodies | an `FWQ` run carries the value; a `TSC` run and an `FTQ` run leave it unused |
 | `noisePercent` | `std::uint32_t` | 1 | percent | a run with no `strict`, and a `TSC` run, leave it accepted and disclosed as unused |
 
 - Fields: the four names above, each with a default member initializer,
@@ -397,16 +398,18 @@ grammar with no new option row (FR-002, D-1).
     a `quantum` value outside the range, a `quantum` value that is not a
     number, a `work` count of 0, a `work` count above 16,777,216, a
     `work` value that is not a number, a `noise` value outside the
-    range, a `noise` value that is not a number, a `quantum` key with
-    `method=fwq`, a `work` key with `method=ftq`, and a repeated key
-    (FR-003, SC-005).
+    range, a `noise` value that is not a number, a fractional `quantum`,
+    `work` or `noise` value, a `quantum` key with `method=fwq`, a `work`
+    key with `method=ftq`, and a repeated key (FR-003, SC-005).
   - Numbers parse with no sign and no trailing text, the standing
     integer grammar
     (`source/harness/jitter_probe.cpp:698-719`, FR-002).
   - A bad value from an option file line names the path, the line and
     the token (`source/harness/options.cpp:1820-1841`).
-  - The four fields are the first of the three exported layout moves
-    FR-005 names.
+  - The four fields are the first of the four exported layout moves
+    FR-005 names: the series record of `JitterEntryFold`, the series
+    record of `PrecheckCpuRecord` and the run record of `ReportData`
+    stand the other three.
   - The fields carry no bool parameter (spec Constraints, the standing
     spec-level rule).
 
@@ -501,7 +504,7 @@ nested closed objects (FR-006, D-7).
     key set, the key order and the value kinds
     (`source/harness/json_load.cpp:2613`), and a closed object refuses
     a key the schema does not list
-    (`source/harness/json_load.cpp:2532-2543`).
+    (`source/harness/json_load.cpp:2538-2542`).
   - A `TSC` run writes the standing keys and nothing else, so its
     document matches master apart from the `schemaVersion` value and the
     version figures (FR-006, SC-004).
@@ -612,11 +615,11 @@ closes one and fixes the shared spelling.
 
 - The calibration record carries 5 keys. The note records that the Key
   Entities list once named four and left `calibrationSpanNs` out. The
-  list at `specs/043-fwq-ftq/spec.md:1149-1152` names five, and FR-011
-  (`:904`) carries the span, so the record carries five keys.
+  list at `specs/043-fwq-ftq/spec.md:1154-1157` names five, and FR-011
+  (`:907`) carries the span, so the record carries five keys.
 - The closed `series` item carries 21 keys, in the FR-006 order
   (`specs/043-fwq-ftq/spec.md:853`). The per-benchmark copy carries 20,
-  with no `method` key and no `periods` key (FR-020, `:983`).
+  with no `method` key and no `periods` key (FR-020, `:986`).
 - The item's `required` list carries 19 names and omits `quantumNs` and
   `resampleStepNs`, the two keys a method leaves absent
   (`docs/schema/report-v1.json:98-116`).
@@ -632,4 +635,4 @@ closes one and fixes the shared spelling.
   (`docs/schema/report-v1.json:131`, E-23).
 - The acceptance record shows a drop count of 0 with `--repetitions=1`
   (FR-027, `specs/043-fwq-ftq/spec.md:1072`), and the console prints 30
-  new lines (FR-019, `:969`).
+  new lines (FR-019, `:972`).

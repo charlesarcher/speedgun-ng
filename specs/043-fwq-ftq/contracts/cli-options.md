@@ -25,8 +25,8 @@ Four rows join the part table after line 34, in the standing columns
 | --- | --- | --- | --- |
 | `method=` | `tsc`, `fwq`, or `ftq`: one method per run, the words the value takes | `tsc` | specs/043 FR-001, FR-002, D-1 |
 | `quantum=<us>` | the FTQ quantum in microseconds, 10 to 100,000 | 100 us | specs/043 FR-002, FR-015, D-4 |
-| `work=<n>` | the FWQ work count of one unit, 1 to 16,777,216 | none: the calibration measures the count on the probe cpu | specs/043 FR-002, FR-010, D-2 |
-| `noise=<percent>` | the noise percent at which a strict run refuses, 0 to 100 | 1 | specs/043 FR-002, FR-021, D-9 |
+| `work=<n>` | the FWQ work count of one unit, 1 to 16,777,216 | 0: the calibration measures the count on the probe cpu | specs/043 FR-002, FR-010, D-2 |
+| `noise=<percent>` | the noise percent at which a strict run refuses, 0 to 100, a whole number | 1 | specs/043 FR-002, FR-021, D-9 |
 
 The option and the public field carry microseconds, and the JSON key
 carries nanoseconds (spec FR-002, FR-006, FR-019).
@@ -59,7 +59,7 @@ names the path, the line and the token (spec FR-003).
 
 ## Error-surface rows
 
-Five rows join the error table after line 86, in the standing columns
+Eight rows join the error table after line 86, in the standing columns
 `| Case | The line names | Status |`:
 
 | Case | The line names | Status |
@@ -68,6 +68,9 @@ Five rows join the error table after line 86, in the standing columns
 | `quantum=0`, a value outside 10 to 100,000, a value that is not a number | the value | 2 |
 | `work=0`, a value above 16,777,216, a value that is not a number | the value | 2 |
 | `noise=` a value outside 0 to 100, a value that is not a number | the value | 2 |
+| `quantum=10.5`, a fractional value | the value | 2 |
+| `work=10.5`, a fractional value | the value | 2 |
+| `noise=0.5`, a fractional value | the value | 2 |
 | A `quantum` key with `method=fwq`, and a `work` key with `method=ftq` | the key | 2 |
 
 Each row prints the standing `--jitter-probe: <message>` line, one
@@ -100,7 +103,7 @@ columns `| Case | Behavior |`:
 
 ## Gate
 
-- `harness_jitter_cli_test` reads the grammar and the 13 refusal rows,
+- `harness_jitter_cli_test` reads the grammar and the 16 refusal rows,
   each with one line and status 2 (spec FR-003, SC-005).
 - `harness_cli_table_test` reads the option table: no new row, the
   value `260`, and the version rows at

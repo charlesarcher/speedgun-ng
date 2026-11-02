@@ -64,7 +64,7 @@ kernel `7.3.1-1-cachyos` with `CONFIG_HZ=1000`.
   key whose range stands 0 to 100 percent (`specs/043-fwq-ftq/spec.md:816`),
   so the figure must land inside it. The scripted series then answer
   0.09 percent for 10,000 units with one unit at ten times the unit time
-  (SC-001, `:1172`), and 0.05 percent for 1,000 quanta with one quantum
+  (SC-001, `:1180`), and 0.05 percent for 1,000 quanta with one quantum
   at half the best count.
 - **Alternatives considered**: The standing `totalPercent` denominator,
   the covered span (`source/harness/jitter_probe.cpp:575-576`). The sum
@@ -108,8 +108,9 @@ kernel `7.3.1-1-cachyos` with `CONFIG_HZ=1000`.
   opens behind the latch line (`source/harness/jitter_probe.cpp:306-311`),
   so a clock change during the window scales the whole axis and moves
   the planted period off-bin. Nearest-sample resampling loses too: one
-  slow unit lands in one bin, and the three-times-median-bin test
-  reports a spike with no period.
+  slow unit lands in one bin, and the test that keeps a bin above three
+  times the median of bins 1 through N/2 reports a spike with no
+  period.
 
 ## R-6: which DFT form, its cost, and its recurrence
 
@@ -123,8 +124,8 @@ kernel `7.3.1-1-cachyos` with `CONFIG_HZ=1000`.
   `-O2` and 14.6 s at `-O0` with `--coverage` for one cap call, against
   the 300 s ceiling every entry with no own value takes
   (`test/CMakeLists.txt:2126`). The same call with a libm `cos` and
-  `sin` per sample reads 47.8 s at `-O0` with `--coverage`
-  (`specs/043-fwq-ftq/spec.md:399-405`).
+  `sin` per sample reads 47.8 s at `-O0` with `--coverage`, measured on
+  the lane host the same day.
 - **Alternatives considered**: A libm call per sample in the inner loop.
   The sanitizer builds run two to three times over 47.8 s and crowd the
   entry's whole budget. A windowed transform, a filter, a chirp
@@ -332,7 +333,7 @@ one flag and fixes the shared spelling.
 - The closed `series` item carries 21 keys, the list FR-006 states
   (`specs/043-fwq-ftq/spec.md:853`).
 - The calibration record carries 5 keys, the list FR-011 states
-  (`:904`) and the Key Entities row repeats (`:1146-1149`).
+  (`:907`) and the Key Entities row repeats (`:1154-1157`).
 - One series buffer element stays 8 bytes: one `std::uint64_t` per
   sample, sized from `gaps=<n>` (FR-014, E-26 of data-model.md).
 - `noise=` follows the standing integer grammar of `parseProbeNumber`

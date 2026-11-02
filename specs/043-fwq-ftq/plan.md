@@ -78,7 +78,8 @@ clock outside `sg::counters`. The calibration runs before the window, at
 most 98 reads per probe cpu. The transform runs after the window: 65,536
 points cost 2,147,483,648 complex multiply-adds, measured on the lane host
 on 2026-11-01 at 3.3 s with `-O2` and 14.6 s with `-O0` and `--coverage`.
-No benchmark baseline is claimed, so none is promised.
+No benchmark baseline is claimed, and the tree names no baseline
+mechanism, so none is promised.
 
 **Constraints**: every time value flows through `sg::counters`, so the
 time-source gate stays green; 100% line and branch coverage with the
@@ -87,9 +88,11 @@ exclusion; no sleep, no clock read and no fixed cpu number in a test; one
 quoted line and exit status 2 for every bad value; no lambda inside an
 `SG_*` macro; `[[maybe_unused]]` on contract-only helpers; simdjson stands
 the only JSON reader; the docs gates bind the README section, the guide
-page and the example; the prose gate binds every generated line; no new
-option row, option value, dependency, CI change or gate-configuration
-change (spec FR-033, FR-034).
+page and the example; the prose gate binds every generated line; the lane
+adds no option row, no option value, no dependency and no CI change, and
+moves no cap, threshold, preset, job, exclusion or allowance; the
+registration rows a gate requires stand as required work (spec FR-033,
+FR-034).
 
 **Scale/Scope**: one new detail header (`source/harness/detail/spectrum.hpp`)
 and one new source (`source/harness/spectrum.cpp`); the public types grow
@@ -104,24 +107,24 @@ acceptance script and the six standing contracts move.
 observed failing before the code that turns it green exists; the Test Plan
 records the waves, the files each wave touches and the gate that closes
 it.
+
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1
-design.*
+*GATE: Must pass before Phase 0 research.*
 
 | Principle | Gate | Status |
 | --- | --- | --- |
 | I. Standard-first | C++23 surface. The transform uses `std::span`, `std::vector` and the standard math header for one bin's sine and cosine; no compiler extension and no new dependency joins | PASS |
-| II. Design by contract | The new enum, the four option fields, the series record, the period record and the run record carry doxygen `\pre`, `\post` and `\invariant`; the two kernel functions and the two folds carry them; the parser arms and the loader carry `SG_REQUIRE` and `SG_ENSURE` at their seams | PASS |
+| II. Design by contract | The new enum, the four option fields, the series record, the period record and the run record carry doxygen `\pre`, `\post` and `\invariant`; the two kernel functions and the two folds carry them; the parser enforces the three ranges at the command-line boundary (FR-003); the loader carries `SG_REQUIRE` and `SG_ENSURE` at its seams | PASS |
 | III. R-DCUT | FR-001 to FR-034 map to the decisions R-01 to R-24 below and to `tasks.md` (landing with `/speckit.tasks`). Both views stand below, and the Test Plan records TDD | PASS |
-| IV. Documentation | The README section `Fixed work and time quanta` runs 18 lines inside the 25-line cap, with four quick-reference rows (IV.1, spec FR-023); the guide page carries the keys, the 30 series lines and the recorded run; the example and its `.expected` fold (spec FR-029) | PASS |
-| V. Style | clang-format, clang-tidy and cppcheck clean at the feature head; every new name follows V.1 and the naming rules N-1 to N-12 (R-20) | PASS |
-| VI. Coverage | 100% line and branch on the new paths; the 156 new branch positions each stand reached by a named test; the allowance stays 21 (`tools/dbc/coverage_gate.sh:102`); no exclusion marker joins (spec FR-032) | PASS |
-| VII. Performance | The calibration runs before the window and the transform runs after it; the unit loop and the quantum loop keep the standing no-allocation, no-I/O, no-syscall and no-lock rules; time comes from `sg::counters` alone | PASS |
+| IV. Documentation | The README section `Fixed work and time quanta` runs 18 lines inside the 25-line cap, with four quick-reference rows (IV.1, spec FR-023); its marked block quotes the `fwq-run` region of `example/docs/fwq_ftq.cpp`; the guide page carries the keys, the 30 series lines and the recorded run; the example and its `.expected` fold (spec FR-029) | PASS |
+| V. Style | clang-format 18.1.8, clang-tidy and cppcheck clean at the feature head; every new name follows V.1 and the naming rules N-1 to N-12 (R-20) | PASS |
+| VI. Coverage | 100% line and branch on the new paths; the 172 new branch positions each stand reached by a named test, so the branch shortfall stands 0 rows; the allowance stays 21 (`tools/dbc/coverage_gate.sh:102`); no exclusion marker joins (spec FR-032) | PASS |
+| VII. Performance | The calibration runs before the window and the transform runs after it; the unit loop, the quantum loop and the transform kernel stand the designated critical paths; the loops keep the standing no-allocation, no-I/O, no-syscall and no-lock rules, and the kernel keeps its per-bin recurrence with no library call in the inner loop; time comes from `sg::counters` alone | PASS |
 | VIII. CI gates | Every hard gate runs at the feature head: format-check, spell-check, tidy, cppcheck, sanitizers, tsan, coverage, name-check, prose, time-source, DBC, the schema shape check over every written document, and the docs gates; the Gate commands table names each command | PASS |
 | IX. Spec-driven | Spec, plan, research, data model, contracts, quickstart and results stand in `specs/043-fwq-ftq/`; `tasks.md` lands with `/speckit.tasks` before code | PASS |
 | X. Anti-slop | The methods ride the standing probe; the fold reads the one series buffer; the transform is a pure function with no library; the public surface grows by one enum, four fields, two records and one run record; no second buffer, no second seam and no second framework join (spec Out of scope) | PASS |
-| XI. Prose | The gate walks `git ls-files`, so at this point it clears the tracked tree only, while these artifacts stand untracked and await the run that lands with the branch's first commit, the way specs/025 and specs/027 recorded | PASS for the tracked tree, pending for these artifacts |
+| XI. Prose | The gate walks `git ls-files`, so at this point it clears the tracked tree only; these artifacts stand untracked, and the branch's first commit, the one that lands `specs/043-fwq-ftq/`, closes the row, the way specs/025 and specs/027 recorded | PASS for the tracked tree, pending for these artifacts |
 
 **Gate weakening requested**: no. **Gate strengthening requested**: no.
 No budget figure moves: the README section lands at 18 lines inside the
@@ -209,7 +212,7 @@ docs/pages/harness.md                     # + the keys, the 30 field rows, the
 README.md                                 # + the 18-line section, four rows, the trim
 example/docs/fwq_ftq.cpp                  # new: one FWQ family, one FTQ family
 example/docs/fwq_ftq.expected             # new: the recorded run
-example/docs/jitter_probe.cpp             # the shared region splits into three
+example/docs/jitter_probe.cpp             # the shared region stays whole
 example/CMakeLists.txt                    # + add_docs_example(fwq_ftq)
 tools/docs/example_drift.py               # + the section row, the owner row,
                                           #   the cap ledger comment
@@ -221,7 +224,7 @@ test/source/harness_spectrum_test.cpp     # new: the kernel as a pure function
 test/source/harness_jitter_bytes_test.cpp # new: the byte identity of a tsc run
 test/source/harness_jitter_window_test.cpp # + the block, the record, the names
 test/source/harness_precheck_test.cpp     # + the pair, the ranking, the refusal
-test/source/harness_jitter_cli_test.cpp   # + the grammar rows, the 13 refusals
+test/source/harness_jitter_cli_test.cpp   # + the grammar rows, the 16 refusals
 test/source/harness_json_load_test.cpp    # + the read-back rows
 test/source/harness_json_schema_test.cpp  # + the schema rows
 test/source/harness_jitter_probe_alloc_test.cpp # + the two armed spans
@@ -236,6 +239,7 @@ lives. The methods grow inside the standing probe item, so the phases,
 the cpu set, the overlap rule and the tracer of spec 036 stay untouched
 (spec FR-004, FR-031). No new target, no second seam, no second buffer
 and no second framework join.
+
 ## Design
 
 ### Decision index
@@ -322,21 +326,27 @@ and no second framework join.
   cosine by recurrence, keeps a bin whose power stands above three times
   the median of bins 1 through N/2, and answers at most five periods. It
   runs after the window, outside every measured loop. The section "The
-  spectrum kernel" states the kernel.
+  spectrum kernel" states the kernel. The kernel stands a designated
+  critical path (Principle VII), because the cap budget binds it: one cap
+  call measured 3.3 s at `-O2` and 14.6 s under `--coverage` on the lane
+  host for 65,536 points, against the 300 s test timeout.
 - **R-14 The console gains 30 lines (spec FR-013, FR-019, D-7).**
   `printJitterReport` (`source/harness/report.cpp:726-813`) keeps the 16
   standing field lines (`:771-796`) and the disclosure lines (`:802-812`),
-  and adds 30 lines after `:796`. Each field prints once, with one column
-  per probe cpu in the cpu order the block already walks (`:738-743`). A
+  and adds 30 lines after `:796`. The 30 open with the four calibration
+  lines `method`, `workCount`, `targetNs` and `calibrationSpanNs`, then
+  the 16 figures of FR-021, then the ten period lines. Each field prints
+  once, with one column per probe cpu in the cpu order the block already
+  walks (`:738-743`). A
   rank a cpu carries no period prints 0. The console spells the method
   `tsc`, `fwq`, `ftq`, and the JSON spells it `TSC`, `FWQ`, `FTQ`.
 - **R-15 The pre-check pair and the noise refusal (spec FR-004, FR-021,
   D-9).** `printPrecheckReport` (`source/harness/report.cpp:1172`) keeps
   its line shape and swaps the pair the warning line reads (`:1305-1310`)
   and the ranking reads (`:1311-1321`) for the method pair: the noise
-  fraction and the maximum unit time for FWQ, the missing share and the
-  minimum count for FTQ. The pinning line ranks by the noise fraction
-  ascending, ties in cpu order. The refusal fires in the pre-check phase,
+  fraction and the maximum unit time for FWQ, the noise fraction and the
+  minimum count for FTQ. The figure's key is `noisePercent`. The pinning
+  line ranks by the noise fraction ascending, ties in cpu order. The refusal fires in the pre-check phase,
   beside the standing strict refusal (`source/harness/cli.cpp:1155-1176`),
   with one line and exit status 2. In `mode=alongside` the `strict` word
   keeps its standing meaning, and a `noise=` value with no `strict`, or
@@ -371,7 +381,7 @@ and no second framework join.
   from the `schemaVersion` value (`source/harness/json_report.cpp:43`,
   `:992`) and the version figures the report carries. The check runs over
   an inline fixture of master's bytes, the shape
-  `test/source/harness_noise_report_test.cpp:456-462` carries, and each
+  `test/source/harness_noise_report_test.cpp:456-461` carries, and each
   mask checks that its span holds a number, the way `maskHostFloor` does.
 - **R-20 The naming (V.1).** `JitterMethod`, `JitterSeriesStats`,
   `JitterPeriodRecord` and `JitterRunRecord` take PascalCase;
@@ -391,25 +401,29 @@ and no second framework join.
   passes `gaps=10485760` for FWQ and `gaps=131072` for FTQ. Each record
   shall show a drop count of 0. The script is a script, and no CI gate
   stands on it.
-- **R-22 The coverage plan (spec FR-032).** The new code adds 156 branch
+- **R-22 The coverage plan (spec FR-032).** The new code adds 172 branch
   positions, and each stands reached by a named test in the Coverage plan
-  below. The allowance stays 21 (`tools/dbc/coverage_gate.sh:102`), the
-  shortfall stays the two ledger rows the gate records at `:61-79`, and
-  no exclusion marker joins.
+  below, so the branch shortfall stands 0 rows. The allowance stays 21
+  (`tools/dbc/coverage_gate.sh:102`), the 21 accepted ledger rows at
+  `:61-79` stay as they are, and no exclusion marker joins.
 - **R-23 The README budget (spec FR-023, IV.1).** The page runs 1004
   lines against `PAGE_LINE_CAP = 1004` (`tools/docs/example_drift.py:240`),
   so the lane pays inside the three jitter sections it owns: `Jitter
   probe` (`README.md:718-740`), `Host noise pre-check` (`:741-763`) and
-  `Noise tracer` (`:764-786`). The shared 17-line region
-  (`example/docs/jitter_probe.cpp:9-25`) splits into three regions of 8,
-  4 and 4 lines, so 35 lines come back and 22 land. The page lands at
-  991 lines, and the cap shall stay 1004.
+  `Noise tracer` (`:764-786`). Prose lines inside those three sections
+  give back 35 lines, and the new section with its four rows lands 22.
+  The section quotes regions of the new example
+  `example/docs/fwq_ftq.cpp`, and the shared 17-line region
+  (`example/docs/jitter_probe.cpp:9-25`) stays whole, so every quoted
+  region stands one complete top-level unit and `snippet_compile`
+  passes. The page lands at 991 lines, and the cap shall stay 1004.
 - **R-24 The example and the fold (spec FR-029).**
   `example/docs/fwq_ftq.cpp` carries one FWQ family and one FTQ family,
   because one run carries one method. The line `add_docs_example(fwq_ftq)`
   joins `example/CMakeLists.txt:78`, and the function stands at `:40-48`.
   The fold entry `report_shape_fwq_ftq_sample` joins after
   `report_shape_jitter_sample` (`test/CMakeLists.txt:1905-1922`).
+
 ### Modules and dependency order
 
 The feature splits into nine modules; each carries its public surface,
@@ -435,15 +449,16 @@ brace marks the parallel group.
   `JitterProbeOptions`, `JitterPeriodRecord`, `JitterSeriesStats`,
   `JitterRunRecord`, `JitterEntryFold::series`,
   `PrecheckCpuRecord::series`, `ReportData::jitterRun`. Contracts: the
-  doxygen paragraphs of the new members and types, and the bounds:
-  `quantumUs` inside 10 to 100,000, `workCount` at 0 or inside 1 to
-  16,777,216, `noisePercent` inside 0 to 100. Test plan: the version rows
+  doxygen paragraphs of the new members and types, and the bounds the
+  parser enforces at the command-line boundary (FR-003): `quantumUs`
+  inside 10 to 100,000, `workCount` at 0 or inside 1 to 16,777,216,
+  `noisePercent` inside 0 to 100. Test plan: the version rows
   of `harness_cli_table_test:1382-1393` move to `0.29.0`, `SOVERSION 20`
   and `SOVERSION 4` (wave 1). Nothing else builds before M-A lands.
 - **M-B the value grammar** (`source/harness/jitter_probe.cpp`). Public
   surface: none beyond M-A. Contracts: the grammar, the ranges and the
   error surface of [contracts/cli-options.md](./contracts/cli-options.md).
-  Test plan: the grammar rows and the 13 refusal rows of
+  Test plan: the grammar rows and the 16 refusal rows of
   `harness_jitter_cli_test` (wave 1). Depends on M-A.
 - **M-E the spectrum kernel** (`source/harness/detail/spectrum.hpp`,
   `source/harness/spectrum.cpp`). Public surface: none (`sg::detail`):
@@ -456,7 +471,7 @@ brace marks the parallel group.
 - **M-C the probe body** (`source/harness/detail/jitter_probe.hpp`,
   `source/harness/jitter_probe.cpp`). Public surface: none (detail):
   `SeriesRecord`, the series fields of `ProbeCpuState`, `calibrateUnit`,
-  `keepSeriesOrDrop`. Contracts: `SeriesRecord` carries the 16-byte
+  `keepSeriesOrDrop`. Contracts: `SeriesRecord` carries the 8-byte
   `static_assert` after `GapRecord` (`:35-41`), the series fields join
   `ProbeCpuState` before the `alignas` stop word (`:73`), and
   `calibrateUnit` carries the caps of R-04. Test plan: the calibration,
@@ -517,18 +532,19 @@ brace marks the parallel group.
 - **A `tsc` run document moves.** The closed `jitter` object
   (`docs/schema/report-v1.json:65`) refuses a key it does not list, and
   the checker names a key out of the `x-order`
-  (`source/harness/json_load.cpp:2545-2558`), so a key written for `tsc`,
+  (`source/harness/json_load.cpp:2545-2557`), so a key written for `tsc`,
   a key out of order, or a `required` list that moves breaks the
   byte-identity contract of SC-004. Check: the byte-identity test over an
   inline fixture of master's bytes, the shape
-  `test/source/harness_noise_report_test.cpp:456-462` carries, and
+  `test/source/harness_noise_report_test.cpp:456-461` carries, and
   `harness_json_schema_test` (`test/CMakeLists.txt:691-699`) over every
   written document.
 - **The main page passes 1004 lines.** `README.md` measures 1004 lines
   against `PAGE_LINE_CAP = 1004` (`tools/docs/example_drift.py:240`),
   zero headroom, and the new section plus its rows add 22 lines (FR-023).
   Check: `example_drift` (`test/CMakeLists.txt:1800-1805`), which reports
-  the page length at `tools/docs/example_drift.py:656-657` and each
+  the page length only above the cap at `tools/docs/example_drift.py:656-657`,
+  and each
   section length at `:667-673` against `SECTION_LINE_CAP = 25` (`:241`).
   The trim stands inside the three jitter sections, and the page lands at
   991 lines.
@@ -671,12 +687,13 @@ struct SpectrumResult
   at most five entries (FR-017, FR-018).
 - The target list needs no edit: `CMakeLists.txt:256-260` globs
   `source/harness/*.cpp` with `CONFIGURE_DEPENDS`.
+
 ### Physical view
 
 | File | Added, at the line read at `d454bcff` |
 | --- | --- |
 | `include/speedgun-ng/benchmark.hpp` | `JitterMethod` after `JitterProbeMode` (`:2182-2187`); the bounds after `kDefaultPrecheckMs` (`:2195`); `JitterPeriodRecord`, `JitterSeriesStats` and `JitterRunRecord` after `JitterStats` (`:512-530`); `series` in `JitterEntryFold` after `stats` (`:648`); `series` in `PrecheckCpuRecord` after `stats` (`:576`); `jitterRun` in `ReportData` after `graph` (`:1001`); four fields in `JitterProbeOptions` after `tracerCpus` (`:2258`) |
-| `source/harness/detail/jitter_probe.hpp` | `SeriesRecord` with its 16-byte `static_assert` after `GapRecord` (`:35-41`); the series fields in `ProbeCpuState` before the `alignas` stop word (`:73`); two `seriesStatsOf` declarations after `gapStatsOf` (`:121`, `:136`) |
+| `source/harness/detail/jitter_probe.hpp` | `SeriesRecord` with its 8-byte `static_assert` after `GapRecord` (`:35-41`); the series fields in `ProbeCpuState` before the `alignas` stop word (`:73`); two `seriesStatsOf` declarations after `gapStatsOf` (`:121`, `:136`) |
 | `source/harness/detail/spectrum.hpp` | new: the two kernel declarations, `SpectrumPeriod`, `SpectrumResult`, `kSpectrumCap`, `kSpectrumTop`, `kSpectrumMedianFactor` |
 | `source/harness/spectrum.cpp` | new: the kernel definitions; the target list needs no edit (`CMakeLists.txt:256-260`) |
 | `source/harness/jitter_probe.cpp` | `keepSeriesOrDrop` beside `keepOrDrop` (`:106-120`); `calibrateUnit` before `ProbeItem` (`:160`); the calibration call after the buffer first touch (`:209`); the method arms around the pre-check loop (`:266-298`) and the alongside loop (`:318-329`); the two `seriesStatsOf` definitions after `gapStatsOf` (`:688`); four key arms after the `mode` arm (`:866-877`); the pairing check beside the cpu-duplicate check (`:910-917`) |
@@ -688,9 +705,9 @@ struct SpectrumResult
 | `source/harness/compare.cpp` | the value reader of `JitterField` takes the fold (`:241-245`); `kJitterFields` grows 16 to 32 (`:251-292`); the fault text (`:366-369`); the two call sites (`:1477`, `:1489`) |
 | `docs/schema/report-v1.json` | `method` and `series` in the `jitter` `x-order` after `loopPeriodNs` (`:47-55`); the two properties after `loopPeriodNs` (`:72`); the closed series item and the closed `periods` item; `required` (`:56-64`) and `additionalProperties` (`:65`) stay |
 | `README.md` | the new section after `### Noise tracer` (`:764-786`); four quick-reference rows after `PrecheckRecord::tracer` (`:938`); the `--jitter-probe` row (`:966`) gains the keys; the trim that keeps the page at 991 lines |
-| `docs/pages/harness.md` | the value rows after `strict` (`:1832`); the 30 series field rows after `droppedGaps` (`:1853`); the names rows after `JitterEntryFold` (`:1866`); the block sample (`:1798-1820`); the version sentence (`:1399`) reads `1.12` |
-| `example/docs/fwq_ftq.cpp`, `example/docs/fwq_ftq.expected` | new: one FWQ run and one FTQ run, with the `fwq-ftq` region markers and the `report` region |
-| `example/docs/jitter_probe.cpp` | the shared 17-line region (`:9-25`) splits into regions of 8, 4 and 4 lines, the markers staying at `:8` and `:27` |
+| `docs/pages/harness.md` | the value rows after `strict` (`:1832`); the 30 series field rows after `droppedGaps` (`:1853`); the names rows after `JitterEntryFold` (`:1866`); the block sample (`:1798-1820`); the version sentence (`:1399`) reads `1.12`; the field rows stand prose the console block governs, and no gate reads the table |
+| `example/docs/fwq_ftq.cpp`, `example/docs/fwq_ftq.expected` | new: one FWQ run and one FTQ run; the `fwq-run` region and the `ftq-run` region each carry one complete top-level unit, and the `report` region carries the recorded run; the README section quotes the two run regions |
+| `example/docs/jitter_probe.cpp` | the shared 17-line region (`:9-25`) stays whole, the markers staying at `:8` and `:27`; the README quotes of this file stay as they are |
 | `example/CMakeLists.txt` | `add_docs_example(fwq_ftq)` after `:78`, the function at `:40-48` |
 | `test/CMakeLists.txt` | `harness_fwq_ftq_test` and `harness_spectrum_test` after the `harness_jitter_preset_test` block (`:973-984`), the shape of `:874-880`; `harness_jitter_bytes_test` with the schema define, the shape of `:958-968`; the shape fold after `report_shape_jitter_sample` (`:1905-1922`) |
 | `test/source/harness_fwq_ftq_test.cpp` | new: the scripted series, the calibration, the noise fractions, the drop rule, the resample path |
@@ -698,7 +715,7 @@ struct SpectrumResult
 | `test/source/harness_jitter_bytes_test.cpp` | new: the byte identity of a run with no `method` key, and its standing console lines |
 | `test/source/harness_jitter_window_test.cpp` | the block, record and rule-name rows, in the shape of the field-line walk at `:655-662` and the name rows at `:1180-1441` |
 | `test/source/harness_precheck_test.cpp` | the pair, ranking and refusal rows over `capturePrecheck` (`:234-252`), the exec'd child shape at `:278-341` |
-| `test/source/harness_jitter_cli_test.cpp` | the grammar rows and the 13 refusal rows in the block at `:2660-2825` |
+| `test/source/harness_jitter_cli_test.cpp` | the grammar rows and the 16 refusal rows in the block at `:2660-2825` |
 | `test/source/harness_json_load_test.cpp` | the read-back rows, the kind rows and the closed-item rows |
 | `test/source/harness_json_schema_test.cpp` | the stamped-minor row and the planted-disagreement rows, the shape at `:41-117`, `:158-189` |
 | `test/source/harness_jitter_probe_alloc_test.cpp` | two armed spans: the FWQ unit loop and the FTQ quantum loop, the shape at `:212-266` |
@@ -738,10 +755,12 @@ gains no field, because the series rides the fold it already carries
 ### Version and `SOVERSION`
 
 The version moves to `0.29.0` (the next free minor at branch time,
-`CMakeLists.txt:45`). Three public layouts move: the new fields of
+`CMakeLists.txt:45`). Four public layouts move: the new fields of
 `JitterProbeOptions` (`include/speedgun-ng/benchmark.hpp:2248`), the
-series record of `JitterEntryFold` (`:645`) and the run record of
-`ReportData` (`:962`). That is a public-ABI change, so the harness
+series record of `JitterEntryFold` (`:645`), the series record of
+`PrecheckCpuRecord` (`:576`) and the run record of `ReportData` (`:962`).
+The version comment block names the four types. That is a public-ABI
+change, so the harness
 `SOVERSION` rises from `19` to `20` (`CMakeLists.txt:375`); the archive
 `SOVERSION` stays `4` (`CMakeLists.txt:110`), because no public counters
 header moves. The schema minor moves to `1.12`
@@ -749,12 +768,13 @@ header moves. The schema minor moves to `1.12`
 method key, the series array and its nested period list join the closed
 `jitter` object.
 One commit shall carry the four numbers and record the version check,
-the ABI check with the three layout moves named, and the schema check
+the ABI check with the four layout moves named, and the schema check
 beside them (spec FR-005, FR-006, D-8, SC-009), the way the comment blocks at
 `CMakeLists.txt:14-44`, `:104-109` and `:352-374` record every lane that
 moved one. A rebase shall take the next free value of each and record the
 check, because N6-P plans `0.29.0` and N10 plans the next and neither has
 merged.
+
 ## Test Plan
 
 TDD waves; each wave's tests shall stand written and observed failing
@@ -769,7 +789,7 @@ touches and the gate that closes it.
    wave proves: the version rows read `0.29.0`, `SOVERSION 20` and
    `SOVERSION 4`; the three method words stand accepted with the head
    first; a head token that carries `=` answers the standing cpu-token
-   line; each of the 13 refusal rows prints one quoted line at status 2;
+   line; each of the 16 refusal rows prints one quoted line at status 2;
    the value-block rows stay green with no new row. Gate: `ctest` on
    `harness_jitter_cli_test` and `harness_cli_table_test`.
 2. **Wave 2, the spectrum kernel (FR-017, FR-018, FR-025, SC-002).**
@@ -789,8 +809,9 @@ touches and the gate that closes it.
    The wave proves: the five calibration stops, one calibration per probe
    cpu, the calibration out of the window runtime; a clean FWQ series
    answers equal figures; one slow unit moves the maximum and the noise
-   fraction; the FTQ edges stand from the first stamp; a trailing open
-   quantum records nothing; a maximum count of 0 answers 100; a full
+   fraction; the FTQ edges stand from the first stamp; one planted 1 ms
+   dip names its period; a trailing open quantum records nothing; a
+   maximum count of 0 answers 100; a full
    buffer counts drops; the read counts match the scripted layout; the two
    armed spans record zero allocations. Gate: `ctest` on
    `harness_fwq_ftq_test` and `harness_jitter_probe_alloc_test`, and
@@ -820,7 +841,7 @@ touches and the gate that closes it.
    once; a rank a cpu omits prints 0; the calibration lines stand before
    the window; the JSON method word stands upper case; the FWQ pair
    carries the noise fraction and the maximum unit time; the FTQ pair
-   carries the missing share and the minimum count; the pinning rank sorts
+   carries the noise fraction and the minimum count; the pinning rank sorts
    by noise fraction; the refusal stops at status 2; the alongside
    `strict` word keeps its meaning; an unused `noise=` value stands
    disclosed. Gate: `ctest` on `harness_precheck_test` and
@@ -835,14 +856,16 @@ touches and the gate that closes it.
    guide page carries the keys, the 30 field rows and the recorded run;
    the example builds, runs and folds. Gate: `example_drift`,
    `snippet_compile`, `example_run`, `report_shape_fwq_ftq_sample`,
-   `report_shape_jitter_sample`, the prose gate.
+   `report_shape_jitter_sample`, and the prose gate, which T040 runs
+   over the two pages.
 7. **Wave 7, the gates, the contracts and the evidence (FR-024, FR-027,
    FR-028, FR-030 to FR-033, SC-006, SC-008).** Files:
    `tools/noise/fwq_ftq_acceptance.sh`, `specs/043-fwq-ftq/results/`,
    `specs/043-fwq-ftq/quickstart.md`, the six standing contracts of
    FR-030. The wave proves: the suite passes under `taskset -c 0,1` and on
-   a 2-cpu host; coverage reads 100.0% lines and 100.0% branches with the
-   allowance at 21; sanitizers and tsan stand clean; the six contract
+   a 2-cpu host; coverage reads 100.0% lines and 100.0% branches with a
+   branch shortfall of 0 rows and the allowance unchanged at 21;
+   sanitizers and tsan stand clean; the six contract
    deltas stand joined in the commits that land the code; the acceptance
    record carries eight sections, each with a drop count of 0. Gate: the
    full CI matrix, the coverage preset, `taskset -c 0,1 ctest`, and
@@ -854,13 +877,13 @@ touches and the gate that closes it.
 | --- | --- |
 | FR-001 | `scenarioMethodWordAccepted`, `scenarioMethodWordRefused` (`harness_jitter_cli_test`, wave 1); `aTscRunWritesNoNewKey` (wave 4) |
 | FR-002 | `scenarioHeadStandsFirst`, `scenarioHeadCarriesEquals`, the range rows of `scenarioQuantumRange`, `scenarioWorkRange`, `scenarioNoiseRange` (wave 1) |
-| FR-003 | the 13 refusal rows of `harness_jitter_cli_test` (wave 1) |
-| FR-004 | `precheckModeRunsTheSelectedMethod` (wave 3); `scenarioModesRunEveryMethod` (wave 1); the phase rows of `harness_precheck_test` (wave 5) |
+| FR-003 | the 16 refusal rows of `harness_jitter_cli_test` (wave 1) |
+| FR-004 | `scenarioModesRunEveryMethod` (wave 1); the phase rows of `harness_precheck_test` (wave 5) |
 | FR-005 | `theVersionBindingsReadTheMovedNumbers` (`harness_cli_table_test:1382-1393`, wave 1) |
 | FR-006 | `theMethodWordStandsUpperCase`, `theSeriesItemCarriesEveryKey`, `aTscRunWritesNoNewKey`, `theSeriesKeysPairAtTheStampedMinor` (wave 4) |
 | FR-007 | `fwqCleanSeriesAnswersEqualFigures`, `ftqCleanCountsAnswerEqualFigures` (wave 3) |
 | FR-008 | `seriesPercentilesReadTheKeptSamples`, `oneSampleSeriesReadsThatSample` (wave 3); `harness_percentile_test` runs unchanged |
-| FR-009 | `fwqNoiseFractionOfASlowUnit`, `ftqMissingShareOfALowQuantum`, `ftqZeroMaximumAnswersOneHundred` (wave 3) |
+| FR-009 | `fwqNoiseFractionOfASlowUnit`, `ftqNoiseFractionOfALowQuantum`, `ftqZeroMaximumAnswersOneHundred` (wave 3) |
 | FR-010 | the five calibration stops and `calibrationRunsOncePerProbeCpu` (wave 3) |
 | FR-011 | `theCalibrationLinesStandBeforeTheWindow` (wave 5); `calibrationStaysOutOfTheWindowRuntime` (wave 3) |
 | FR-012 | the read-count checks inside `fwqCleanSeriesAnswersEqualFigures`, `ftqCleanCountsAnswerEqualFigures` (wave 3) |
@@ -890,14 +913,15 @@ touches and the gate that closes it.
 | SC | Covering test (the wave that runs it) |
 | --- | --- |
 | SC-001 | `fwqCleanSeriesAnswersEqualFigures`, `fwqOneSlowUnitMovesTheMaximum`, `fwqNoiseFractionOfASlowUnit` (wave 3) |
-| SC-002 | `aPureToneNamesItsPeriod`, `aConstantSeriesAnswersAnEmptyList` (wave 2); the planted 1 ms dip row (wave 3) |
+| SC-002 | `aPureToneNamesItsPeriod`, `aConstantSeriesAnswersAnEmptyList` (wave 2); `ftqDipEveryMillisecondNamesThePeriod` (wave 3) |
 | SC-003 | `theCalibrationLinesStandBeforeTheWindow` (wave 5); `theSeriesItemCarriesEveryKey` (wave 4) |
 | SC-004 | `aTscRunMatchesTheFixtureBytes`, `theNewKeysStandAbsentFromTheDocument`, `theStandingConsoleLinesMatchTheRecordedBytes` (wave 4) |
-| SC-005 | the 13 refusal rows, each with `checkOneLine` and status 2 (wave 1) |
+| SC-005 | the 16 refusal rows, each with `checkOneLine` and status 2 (wave 1) |
 | SC-006 | the coverage preset, `tools/dbc/coverage_gate.sh`, `taskset -c 0,1 ctest` (wave 7) |
 | SC-007 | `example_drift`, `snippet_compile`, `report_shape_fwq_ftq_sample`, the prose gate (wave 6) |
 | SC-008 | the acceptance records and the `quickstart.md` links (wave 7) |
-| SC-009 | `theVersionBindingsReadTheMovedNumbers` (wave 1); the version commit names the three layout moves |
+| SC-009 | `theVersionBindingsReadTheMovedNumbers` (wave 1); the version commit names the four layout moves |
+
 ### Coverage plan
 
 gcov counts one condition as two branch positions, so the count column
@@ -929,6 +953,7 @@ carries positions. Each row names the arm and the test that reaches it.
 | parser: the noise range, the number read | 4 | `scenarioNoiseRange`, `scenarioNoiseNotNumber` |
 | parser: the cross-method key, two keys | 4 | `scenarioQuantumWithFwq`, `scenarioWorkWithFtq` |
 | parser: a key that stands twice | 2 | `scenarioKeyStandsTwice` |
+| parser: a fractional `quantum`, `work` or `noise` value | 6 | `scenarioQuantumFractional`, `scenarioWorkFractional`, `scenarioNoiseFractional` |
 | writer: the method key present, absent | 2 | `aTscRunWritesNoNewKey` |
 | writer: the series array loop | 2 | `theSeriesItemCarriesEveryKey` |
 | writer: an empty period list, a filled one | 2 | `thePeriodsArrayRidesTheCpuItem` |
@@ -940,23 +965,30 @@ carries positions. Each row names the arm and the test that reaches it.
 | console: the 30-line loop | 2 | `theFwqBlockPrintsTheThirtyNewLines` |
 | console: a rank present, a rank absent | 2 | `theRankACpuOmitsPrintsZero` |
 | console: the three method words | 6 | `theMethodWordStandsUpperCase` |
-| pre-check: the FWQ pair, the FTQ pair | 4 | `theFwqPrecheckPairCarriesNoiseAndMaximum`, `theFtqPrecheckPairCarriesMissingAndMinimum` |
+| pre-check: the FWQ pair, the FTQ pair | 4 | `theFwqPrecheckPairCarriesNoiseAndMaximum`, `theFtqPrecheckPairCarriesNoiseAndMinimum` |
 | pre-check: the noise compare against `noise=` | 2 | `theNoiseRefusalStopsAtStatusTwo` |
 | pre-check: the pre-check phase, the alongside phase | 2 | `theAlongsideStrictWordKeepsItsMeaning` |
 | pre-check: an unused `noise=` value | 2 | `anUnusedNoiseValueStandsDisclosed` |
 | fold: the window loop, an empty kept set | 4 | `thePerEntrySeriesFoldsTheWindows` |
-| total | 156 | |
+| compare: the name scan hits, the name scan misses | 2 | `theSixteenNewRuleNamesResolve`, `theFaultTextNamesThirtyTwoFields` |
+| compare: the run-scoped name, the bare name | 2 | `theRunScopedNameReadsTheRunRecord`, `theAnyReadingAnswersTheLargestCount` |
+| compare: the fold carries a series, the fold stands empty | 2 | `thePerEntrySeriesFoldsTheWindows`, `thePerEntrySeriesStandsNullWithoutSamples` |
+| compare: the `any` maximum over a series, over one cpu | 2 | `theAnyReadingAnswersTheLargestCount` |
+| compare: the run record present, absent | 2 | `aMissingMethodKeyLeavesTheRunRecordEmpty` |
+| total | 172 | |
 
 The allowance counts positions the trace holds at taken zero
-(`tools/dbc/coverage_gate.sh:102`, `:114-120`). Each of the 156 new
-positions stands reached by a named test, so none joins the shortfall. The
-shortfall stays the two ledger rows the gate records: 19 rows of the 030
-round and 2 rows of specs/031 at
-`source/harness/host_record_check.cpp:266` (`coverage_gate.sh:61-79`). The
-gate reads `coverage-gate: branch shortfall 21 rows, within the D-14
-recorded allowance of 21 (accepted classes)`. No `LCOV_EXCL` marker, no
-`--omit-lines` entry, no `--ignore-errors` entry and no `--remove` entry
-shall join, and no code shall join only to reach a branch (spec FR-032).
+(`tools/dbc/coverage_gate.sh:102`, `:114-120`). Each of the 172 new
+positions stands reached by a named test, so the new code adds no row to
+the shortfall. The lane's reading stands lines 100.0%, branches 100.0%,
+and a branch shortfall of 0 rows, with the allowance unchanged at 21. The
+gate passes on a branch reading of 100.0%, and it prints the shortfall
+line only when branches stand below 100.0% (`coverage_gate.sh:104-117`).
+The ledger keeps its 21 accepted rows: 19 rows of the 030 round and 2
+rows of specs/031 at `source/harness/host_record_check.cpp:266`
+(`coverage_gate.sh:61-79`). No `LCOV_EXCL` marker, no `--omit-lines`
+entry, no `--ignore-errors` entry and no `--remove` entry shall join, and
+no code shall join only to reach a branch (spec FR-032).
 
 ### Gate commands
 
@@ -965,9 +997,9 @@ then the instrumented builds.
 
 | Order | Command | A pass looks like |
 | --- | --- | --- |
-| 1 | `python3 tools/docs/example_drift.py .` | exit 0, no line printed; `README.md` reads 991 lines against `PAGE_LINE_CAP = 1004` (`tools/docs/example_drift.py:240`) |
+| 1 | `python3 tools/docs/example_drift.py .` | exit 0, no line printed; a page above `PAGE_LINE_CAP = 1004` prints its length (`tools/docs/example_drift.py:656-657`) |
 | 2 | `bash test/time_source_gate.sh .` | the probe lines, then `time_source_gate: clean`, exit 0 |
-| 3 | `cmake -D FORMAT_COMMAND=clang-format -P cmake/lint.cmake` | exit 0, no file named |
+| 3 | `cmake -D FORMAT_COMMAND=clang-format -P cmake/lint.cmake` | exit 0, no file named; CI pins clang-format `18.1.8`, and `tools/ci/prepush.sh:186-194` refuses another version |
 | 4 | `cmake -P cmake/spell.cmake` | exit 0 |
 | 5 | `python3 tools/prose/prose_gate.py --base origin/master` | `prose-lint: <n> sources, <n> units examined, 0 findings, <n> skipped`, exit 0 |
 | 6 | `cmake --preset=ci-rocky` | `Configuring done`, `Generating done`, exit 0 |
@@ -975,12 +1007,12 @@ then the instrumented builds.
 | 8 | `ctest --test-dir build --output-on-failure` | `100% tests passed, 0 tests failed out of <N>`; each new entry prints `***Passed` |
 | 9 | `ctest --test-dir build -R 'harness_fwq_ftq_test\|harness_spectrum_test\|harness_jitter_bytes_test' --output-on-failure` | three `***Passed` lines, each binary prints its `ok` line |
 | 10 | `ctest --test-dir build -R 'harness_cli_table_test\|harness_json_schema_test\|harness_json_load_test\|harness_compare_test' --output-on-failure` | each `***Passed`; the version rows read `0.29.0`, `SOVERSION 20`, `SOVERSION 4` |
-| 11 | `ctest --test-dir build -R 'example_drift\|snippet_compile\|example_run\|report_shape_fwq_ftq_sample\|report_shape_jitter_sample' --output-on-failure` | each `***Passed`; the fold prints no difference |
+| 11 | `ctest --test-dir build -R 'example_drift\|snippet_compile\|example_run\|report_shape_fwq_ftq_sample\|report_shape_jitter_sample\|example_drift_fixtures\|example_run_fixtures\|report_shape_fixtures' --output-on-failure` | each `***Passed`; the fold prints no difference; the three fixture entries prove the scans inspect something |
 | 12 | `taskset -c 0,1 ctest --test-dir build --output-on-failure` | the same pass line; the two-cpu rows print the standing `SKIPPED` note at `harness_jitter_window_test.cpp:623-626` and `harness_precheck_test.cpp:443-445` |
 | 13 | `cmake --preset=ci-coverage` | exit 0 |
 | 14 | `cmake --build build/coverage -j "$(nproc)"` | exit 0 |
 | 15 | `ctest --test-dir build/coverage -j 1 --output-on-failure --no-tests=error` | `100% tests passed`; the cap case finishes inside 300 s |
-| 16 | `cmake --build build/coverage -t coverage` | `lines......: 100.0%`, one `branches...:` line, then the branch shortfall line at 21 rows, exit 0 |
+| 16 | `cmake --build build/coverage -t coverage` | `lines......: 100.0%`, `branches...: 100.0%`, exit 0; the shortfall line prints only when branches stand below 100.0% |
 | 17 | `cmake --preset=ci-sanitize`, `cmake --build build/sanitize -j "$(nproc)"`, `ctest --test-dir build/sanitize --output-on-failure -j "$(nproc)"` | `100% tests passed`; no `AddressSanitizer`, no `runtime error` line |
 | 18 | `CXX=clang++ cmake --preset=ci-tsan`, `cmake --build build/tsan -j "$(nproc)"`, `ctest --test-dir build/tsan --output-on-failure -j "$(nproc)"` | `100% tests passed`; no `WARNING: ThreadSanitizer` line |
 | 19 | `cmake --preset=ci-ubuntu`, `cmake --build build` | exit 0; clang-tidy and cppcheck print no new finding |
@@ -989,17 +1021,22 @@ then the instrumented builds.
 | 22 | `bash tools/noise/fwq_ftq_acceptance.sh` | one markdown record under `specs/043-fwq-ftq/results/`, eight sections, each with a drop count of 0, exit 0; no CI gate stands on it |
 
 Gate 16 is the coverage reading the plan states. Gate 12 is the FR-024
-reading. Gate 1 is the FR-023 reading, and the page stands at 991 lines
-against the cap, so the trim stands inside the three jitter sections.
+reading. Gate 1 is the FR-023 reading, and the trim stands inside the
+three jitter sections. The page total lands at 991 lines, and one task
+counts it with `wc -l README.md`, because the drift gate prints a page
+length only above the cap. Gates 9 and 10 run as named selections inside
+the full `ctest` of T048.
 
-## Constitution Check
-
-*Re-check after Phase 1 design.*
+## Constitution Check: design re-check
 
 - **P0**: critical-path techniques apply only to code the design names
-  critical-path, and stand documented (constitution.md:484-487). The unit
-  loop and the quantum loop stand named here, and the plan keeps one time
-  read per unit, no allocation, no I/O, no syscall and no lock there.
+  critical-path, and stand documented (constitution.md:484-487, `:718`).
+  The unit loop, the quantum loop and the transform kernel stand named
+  here. The plan keeps one time read per unit, no allocation, no I/O, no
+  syscall and no lock in the two loops. The kernel keeps its per-bin sine
+  and cosine recurrence, with no library call in the inner loop, because
+  the cap budget binds it: 3.3 s at `-O2` and 14.6 s under `--coverage`
+  for 65,536 points on the lane host, against the 300 s test timeout.
 - **P1**: project conventions bind the lane: the constitution and the
   established repository patterns (constitution.md:488-490). The plan
   copies the standing probe lifecycle, the parser arms, the writer shape,
@@ -1017,31 +1054,49 @@ against the cap, so the trim stands inside the three jitter sections.
 - **II**: every public declaration carries `\pre`, `\post` and
   `\invariant`, and the code enforces it (constitution.md:504-508). The
   enum, the four fields, the three records, the two folds and the two
-  kernel functions carry them, and the parser arms carry `SG_REQUIRE`.
+  kernel functions carry them, and the parser enforces the three ranges
+  at the command-line boundary (FR-003).
 - **III**: R-DCUT asks for EARS requirements, a design with both views, a
   test plan, code and tests in one change (constitution.md:533-551). The
   logical view, the physical view, the public surface and the TDD waves
   stand above, and each wave precedes the code it turns green.
 - **IV**: IV.1 binds a feature that changes user-visible behavior
   (constitution.md:581-584). The lane lands one 18-line section, one
-  marked snippet, one result sentence, four quick-reference rows, and the
-  example target that builds and runs the region (R-23, R-24).
+  marked snippet that quotes the `fwq-run` region of
+  `example/docs/fwq_ftq.cpp`, one result sentence, four quick-reference
+  rows, and the example target that builds and runs the region (R-23,
+  R-24).
 - **V**: clang-format, the naming rules N-1 to N-12, and the pinned
   warning set bind every new name (constitution.md:602-651). R-20 fixes
   the spellings, and the public names match the JSON keys one for one.
 - **VI**: 100% lines, 100% branches and 100% DBC stand as hard gates
   (constitution.md:698-699). The Coverage plan names the covering test for
-  each of the 156 new branch positions, and the allowance stays 21.
+  each of the 172 new branch positions, so the branch shortfall stands 0
+  rows, and the allowance stays 21.
 - **VII**: time comes from `sg::counters` alone, and a contended host
-  updates no baseline (constitution.md:1163-1180, `:728-730`). The
-  calibration runs before the window, the transform runs after it, and the
-  noise figures stand recorded on the lane host, never asserted in a test.
+  updates no baseline (constitution.md:1163-1180, `:728-730`). The lane
+  names the unit loop, the quantum loop and the transform kernel as the
+  critical paths, and adds the two armed-span allocation tests of
+  `harness_jitter_probe_alloc_test`. The baseline clause stays dormant:
+  the tree names no baseline mechanism and the CI job set carries no
+  performance job, so the VIII clause that runs once baselines exist
+  (`constitution.md:794-795`) binds nothing here. The calibration runs
+  before the window, the transform runs after it, and the noise figures
+  stand recorded on the lane host, never asserted in a test.
 - **VIII**: every hard gate runs at the feature head, and a silent gate
   weakening is forbidden (constitution.md:734-803). The Gate commands table
   names all 22 commands, and no gate configuration moves (spec FR-033).
+  The registration rows a gate requires stand as required work: the
+  drift-gate `SECTIONS` and `SECTION_OWNERS` rows, the ctest entry of each
+  new test executable, and the fold rows and golden pairs of the shape
+  gate (FR-034).
 - **IX**: the workflow produces spec, plan, tasks and code, and a missing
   artifact is a failed feature (constitution.md:810-831). `plan.md` stands
-  here, and `tasks.md` lands with `/speckit.tasks` before code.
+  here, and `tasks.md` lands with `/speckit.tasks` before code. IX names
+  `ctest --preset=dev` for the per-task loop (`:822-828`), and the tree
+  carries no `dev` configure preset, so every task verify runs the `build`
+  tree of `ci-rocky`, the daily loop a fresh clone drives, and each feature
+  also builds `ci-ubuntu` once.
 - **X**: the minimum code that satisfies the requirement stands written,
   and every changed line traces to a requirement (constitution.md:862-888).
   The lane adds no second buffer, no second seam, no second framework and

@@ -68,8 +68,8 @@
   `--jitter-probe` grammar as new keys, so the row stays at value
   `260` inside the `260` to `269` block the N13a lane recorded
   (`source/harness/detail/options.hpp:77`), and the same header
-  records `300` to `319` free. The lane takes no value at all, so the
-  block N10 reserves for a later option stays clear. The name and
+  records `297` to `319` free. The lane takes no value at all, so that
+  free block stays clear for a later lane. The name and
   value uniqueness test
   (`test/source/harness_cli_table_test.cpp`) stays green with no new
   row (FR-001, D-1).
@@ -292,7 +292,7 @@ Round 2, from the clarification review of 2026-11-01:
 - Q: Which figures fill the standing pre-check lines for FWQ and FTQ,
   and in which phase does the noise-based refusal fire? → A: The line
   shape stays and the pair stands the method's own: the noise fraction
-  and the maximum unit time for FWQ, the missing share and the minimum
+  and the maximum unit time for FWQ, the noise fraction and the minimum
   count for FTQ. The warning rule and the strict refusal read that pair
   against `noise=`, the pinning-candidate line ranks by the noise
   fraction ascending with ties in cpu order, and the refusal fires in
@@ -339,7 +339,7 @@ Round 2, from the clarification review of 2026-11-01:
   count riding the per-cpu series item, the way spec 037 moved the
   harness `SOVERSION` when
   `ReportData` gained its graph member. The ABI check of FR-005 names
-  all three layout moves (FR-005, FR-020).
+  all four layout moves (FR-005, FR-020).
 - Q: Where do the calibration and the period list sit: root level, or
   per probe cpu? → A: Per probe cpu. The search runs on the cpu that
   will run the loop, because the lane host's two L3 groups run at
@@ -559,7 +559,7 @@ A performance engineer wants to see how much work the host lets the
 probe finish inside each fixed quantum. The run counts whole units per
 quantum, 100 us by default, and prints the count statistics per probe
 cpu: the minimum, the median, the mean, `p90` through `p99.99`, the
-maximum, and the missing share against the best quantum. A quantum
+maximum, and the noise fraction against the best quantum. A quantum
 with a low count shows the noise directly.
 
 **Why this priority**: FTQ is the second method of the roadmap item,
@@ -576,11 +576,11 @@ the statistics match the scripted counts.
 
 1. **Given** a scripted series where every quantum finishes the same
    count, **When** the run reads it, **Then** the minimum, the median,
-   the mean and the maximum stand equal and the missing share stands
+   the mean and the maximum stand equal and the noise fraction stands
    0.
 2. **Given** a scripted series of 1,000 quanta where one quantum
    finishes half the best count, **When** the run reads it, **Then**
-   the minimum names that quantum and the missing share stands 0.05.
+   the minimum names that quantum and the noise fraction stands 0.05.
 3. **Given** a value with `quantum=10`, **When** the run binds the
    value, **Then** the quantum stands at 10 us and the calibration
    aims at one unit near 10 ns of target unit time.
@@ -656,7 +656,7 @@ checker passes it against `docs/schema/report-v1.json`, and
    `CMakeLists.txt` and the report, **Then** the version stands
    `0.29.0`, the harness `SOVERSION` stands `20`, the archive
    `SOVERSION` stands `4`, and the commit that moved them names the
-   three layout moves.
+   four layout moves.
 
 ---
 
@@ -847,9 +847,9 @@ periods.
   free value of each and record the check. The commit that moves the
   numbers SHALL record the version check, the ABI check and the schema
   check beside them. The ABI check SHALL name
-  the three layout moves: the new fields of `JitterProbeOptions`, the
-  series record of `JitterEntryFold`, and the run record of
-  `ReportData`.
+  the four layout moves: the new fields of `JitterProbeOptions`, the
+  series record of `JitterEntryFold`, the series record of
+  `PrecheckCpuRecord`, and the run record of `ReportData`.
 - **FR-006** (D-7, D-8): The report schema minor SHALL stand at `1.12`
   above master at branch time, and a rebase SHALL take the next free
   minor. The root `jitter` object SHALL gain two keys after
@@ -1129,7 +1129,12 @@ periods.
   time-source gate clean, the drift gate clean, and the prose gate
   clean on every generated line.
 - **FR-034**: The lane SHALL add no option row, no option value, no
-  dependency, no CI change and no gate-configuration change.
+  dependency, no CI change and no gate-configuration change. It SHALL
+  move no cap, threshold, preset, job, exclusion or allowance. The
+  registration rows a gate requires stand as required work: the
+  section entry and the owner row of the drift gate, the ctest entry
+  of each new test executable, and the fold rows and golden pairs of
+  the shape gate.
 
 ## Key Entities *(include if feature involves data)*
 
@@ -1190,21 +1195,21 @@ periods.
   byte-identical.
 - **SC-005**: Every refusal row of FR-003 prints one line and exits
   with status 2, and no benchmark output stands ahead of the refusal.
-- **SC-006**: The coverage gate reads 100.0% lines and 100.0% branches
-  with the branch allowance at 21, and the suite passes under
-  `taskset -c 0,1`.
+- **SC-006**: The coverage gate reads 100.0% lines and 100.0% branches,
+  so the branch shortfall stands at 0 rows, and the recorded allowance
+  stays 21. The suite passes under `taskset -c 0,1`.
 - **SC-007**: The docs gates stand green: the drift gate, the snippet
   compile gate, the shape fold and the prose gate read no finding, and
   the main page stands at or below 1004 lines.
-- **SC-009**: The version stands at `0.29.0`, the harness `SOVERSION`
-  at `20` and the archive `SOVERSION` at `4`, and the commit that moved
-  them records the version check, the ABI check with the three layout
-  moves named, and the schema check.
 - **SC-008**: The results directory carries the acceptance records on
   the lane host: two methods, one idle cpu per L3 group, with and
   without a sibling load, each record naming the kernel, `CONFIG_HZ`,
   the calibration figures and the detected periods, and the quickstart
   links every record.
+- **SC-009**: The version stands at `0.29.0`, the harness `SOVERSION`
+  at `20` and the archive `SOVERSION` at `4`, and the commit that moved
+  them records the version check, the ABI check with the four layout
+  moves named, and the schema check.
 
 ## Constraints
 
@@ -1229,7 +1234,10 @@ periods.
   line, the prose gate clean, and the commit template of Principle XI
   in every commit: a title of 50 characters or fewer, a body wrapped at
   72 columns, and the footer block with `Refs: specs/043-fwq-ftq` and
-  the approval line as its last lines.
+  the approval line as its last lines. The constitution template puts
+  the approval line first and names an issue keyword line. The lane
+  follows the order every repository commit carries since spec 031,
+  and records the departure here. The lane names no issue number.
 - Names: no person is named anywhere in the repository, the copyright
   line of `LICENSE` standing as the one exception.
 - History: rebase only, no merge commit, one push with
