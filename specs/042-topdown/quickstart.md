@@ -103,7 +103,7 @@ counts. Each row holds today's measured state and what changes it.
 | Entry | Measured today | Changes with |
 | --- | --- | --- |
 | `--topdown=1` and `--topdown=3` on one compute-bound benchmark | exit 2, `unknown option '--topdown'; --help lists the options`; 33 of the 102 rows that carry a `TopdownL` token publish, none of them at levels 1 and 2 | FR-018 and FR-019 (D-5), FR-042, FR-053, FR-054 |
-| Memory-bound benchmark (FR-058) | `./build/example/memory_walk: No such file or directory`, exit 127; the largest shipped set is 32 KiB (`example/benchmark_example.cpp:16`) against `L3 cache: 19.3 MiB` (`lscpu`) | FR-058 |
+| Memory-bound benchmark (FR-058) | `./build/example/memory_walk: No such file or directory`, exit 127; the largest shipped set is 64 KiB (`example/docs/throughput.cpp:25`) against `L3 cache: 19.3 MiB` (`lscpu`) | FR-058 |
 | Refused-row record (FR-033) | 69 refused rows of 102: 48 `UNKNOWN_CONSTANT` (39 `#core_wide`, 9 `#SMT_on`), 20 `UNRESOLVED`, 1 `UNSUPPORTED`; by level 4/4, 8/8, 15/25, 21/34, 10/17, 11/14 | FR-042, FR-054 |
 | Live values | `zero count: cpu/cpu-cycles mode 1 value 0.000` printed by `./build/test/counters_pmu_test` | FR-053 |
 | Test counts | `ctest --test-dir build -E harness_cli_test -j 12 --timeout 120 --output-on-failure`: `99% tests passed, 1 tests failed out of 165` in 252.32 s | FR-055 |
