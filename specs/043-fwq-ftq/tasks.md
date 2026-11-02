@@ -777,7 +777,7 @@ the detected periods, and each showing a drop count of 0.
   quickstart (FR-028, SC-008).
   (depends on T045)
   Verify: `grep -c "results/acceptance" specs/043-fwq-ftq/quickstart.md` counts one link per record
-- [ ] T047 [US7] Check that the six standing contract deltas stand
+- [x] T047 [US7] Check that the six standing contract deltas stand
   landed in the commits that land the code they record (FR-030):
   `specs/027-jitter-probe/contracts/cli-options.md` gains the four keys
   and the head rule at T007; `public-api.md` gains the four option fields
