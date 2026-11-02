@@ -487,6 +487,13 @@ equal for a `tsc` run.
   (`:249-259`), the writer postconditions (`:290-312`), and the method and
   series items in `buildJitterReportRecord` (
   `source/harness/cli.cpp:402-469`) (FR-006, FR-019, FR-020, D-7, R-16).
+  The five rows that pin the stamped minor move in this commit. Three
+  stand outside the plan's file table:
+  `test/source/harness_json_report_test.cpp:546`,
+  `test/source/harness_hunt_json_test.cpp:1537` and
+  `test/source/harness_noise_report_test.cpp:426`, with its fixture at
+  `:457`. The comments that name the minor move with them (FR-006,
+  FR-031).
   (depends on T023, T024, T025, T026, T027)
   Verify: `cmake --build build` exits 0 with no warning line
 - [ ] T029 [US4] Read the keys back: `readJitterSeriesCpu` after
