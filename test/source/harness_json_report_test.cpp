@@ -710,6 +710,125 @@ auto anEmptyDisclosureWritesNoRunObject() -> void
   }
 }
 
+// FR-015: the shared word-table reader of the writer. An index inside the
+// table answers its own word, and an index at or past the end answers the
+// guard word the document carries for a value outside the enumeration.
+auto theGuardWordStandsPastTheTable() -> void
+{
+  static constexpr std::array<std::string_view, 3> kWords {"A", "B", "C"};
+  check(sg::detail::enumWord(kWords, 0) == "A"
+            && sg::detail::enumWord(kWords, 2) == "C",
+        "an index inside the table answers its own word (FR-015)");
+  check(sg::detail::enumWord(kWords, 3) == "UNKNOWN"
+            && sg::detail::enumWord(kWords, 99) == "UNKNOWN",
+        "theGuardWordStandsPastTheTable: an index at or past the table's end "
+        "answers the guard word (FR-015)");
+}
+
+// FR-020, E-23, FR-006: the arm that skips a fold with no series inside a
+// run that carries one. The run record and the entry each carry two probe
+// cpus, the first with a series and the second with none, so each series
+// array writes one item and names the cpu that kept samples.
+auto seriesOfCpu(const std::uint64_t base) -> sg::JitterSeriesStats
+{
+  sg::JitterSeriesStats series;
+  series.workCount = base + 1;
+  series.unitTimeNs = base + 2;
+  series.targetNs = base + 3;
+  series.quantumNs = base + 4;
+  series.calibrationSpanNs = base + 5;
+  series.sampleCount = base + 6;
+  series.minValue = base + 7;
+  series.medianValue = base + 8;
+  series.meanValue = static_cast<double>(base) + 9.5;
+  series.p90Value = base + 10;
+  series.p99Value = base + 11;
+  series.p999Value = base + 12;
+  series.p9999Value = base + 13;
+  series.maxValue = base + 14;
+  series.noisePercent = static_cast<double>(base) + 0.5;
+  series.seriesRuntimeNs = base + 16;
+  series.droppedSamples = base + 17;
+  series.resampleStepNs = base + 18;
+  series.spectrumPoints = base + 19;
+  return series;
+}
+
+auto theFoldWithNoSeriesStandsSkipped() -> void
+{
+  constexpr const char* const kPath = "harness_json_report_series_skip.json";
+  sg::detail::RunOptions options;
+  options.fixedIterations = sg::test::kWindowIterations;
+  const auto run = sg::test::scriptedRun(options);
+
+  sg::ReportData data;
+  data.results.push_back(run.result);
+  data.rowRaw = run.rowRaw;
+  data.contextRaw = run.contextRaw;
+  data.results.back().jitterFolds.push_back(
+      sg::JitterEntryFold {.cpu = 2, .series = seriesOfCpu(100)});
+  data.results.back().jitterFolds.push_back(sg::JitterEntryFold {.cpu = 3});
+
+  sg::detail::JitterReportRecord record;
+  record.method = sg::JitterMethod::FWQ;
+  record.thresholdNs = 200;
+  record.loopPeriodNs = 20;
+  record.cpus = {2, 3};
+  for (const std::uint32_t cpu : record.cpus) {
+    sg::detail::JitterReportCpu line;
+    line.cpu = cpu;
+    line.stats.gapCount = 1;
+    if (cpu == 2) {
+      line.series = seriesOfCpu(200);
+    }
+    record.stats.push_back(line);
+  }
+  record.disclosure = "the run's disclosure";
+
+  check(sg::detail::writeReport(kPath, data, {}, record),
+        "the writer wrote the document of the mixed record (FR-020)");
+  const auto document = sg::test::readText(kPath);
+
+  const auto root = document.find("\"jitter\":{");
+  const auto rootSeries = document.find("\"series\":[", root);
+  const auto rootEnd = document.find(']', rootSeries);
+  check(
+      rootSeries != std::string::npos,
+      "the run record of a method run writes a series array (FR-019, FR-020)");
+  check(document.find("\"cpu\":2", rootSeries) < rootEnd
+            && document.find("\"cpu\":3", rootSeries) > rootEnd,
+        "theFoldWithNoSeriesStandsSkipped: the run array writes the cpu that "
+        "kept samples and skips the one that kept none (FR-020, E-23)");
+
+  const auto entry = document.find("\"benchmarks\":[");
+  const auto entrySeries = document.find("\"series\":[", entry);
+  const auto entryEnd = document.find(']', entrySeries);
+  check(entrySeries != std::string::npos,
+        "the entry of a run that carries a series writes its own array (E-23)");
+  check(document.find("\"cpu\":2", entrySeries) < entryEnd
+            && document.find("\"cpu\":3", entrySeries) > entryEnd,
+        "theFoldWithNoSeriesStandsSkipped: the entry array writes one item, "
+        "the fold that carries a series (FR-020, E-23)");
+
+  const auto loaded = sg::loadReport(kPath);
+  check(loaded.has_value(), "the document of the mixed record loads (FR-020)");
+  if (loaded.has_value()) {
+    check(loaded->results.size() == 1
+              && loaded->results[0].jitterFolds.size() == 2
+              && loaded->results[0].jitterFolds[0].series.has_value()
+              && !loaded->results[0].jitterFolds[1].series.has_value(),
+          "theFoldWithNoSeriesStandsSkipped: the read leaves the bare fold "
+          "without a series (FR-020, E-08)");
+    check(loaded->runJitterStats.has_value()
+              && loaded->runJitterStats->size() == 2
+              && loaded->runJitterStats->at(0).series.has_value()
+              && !loaded->runJitterStats->at(1).series.has_value(),
+          "theFoldWithNoSeriesStandsSkipped: the run record reads back the "
+          "same shape (FR-020, E-07)");
+  }
+  std::remove(kPath);
+}
+
 }  // namespace
 
 auto main() -> int
@@ -729,6 +848,8 @@ auto main() -> int
   aRefusedWriteAnswersFalse();
   aRefusedOpenQuotesTheReportPath();
   aRowWithoutARawEntryWritesNoColumns();
+  theFoldWithNoSeriesStandsSkipped();
+  theGuardWordStandsPastTheTable();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;
