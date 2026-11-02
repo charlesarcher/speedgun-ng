@@ -4,9 +4,8 @@
 
 Every entity this feature adds or changes, its fields, the relationships, the
 validation rules with the requirement that states each one, and the states one
-run goes through. `FR-nnn`, `D-n`, `PC-n` and `SC-nn` cite `spec.md`. `§n`
-cites `/tmp/n42/plan-counters.md`; `H§n` cites `/tmp/n42/plan-harness.md`.
-The house shape comes from `specs/024-multipass-collection/data-model.md` and
+run goes through. `FR-nnn`, `D-n`, `PC-n` and `SC-nn` cite `spec.md`. The
+house shape comes from `specs/024-multipass-collection/data-model.md` and
 `specs/022-metric-formulas/data-model.md`.
 
 ## Evidence
@@ -31,14 +30,14 @@ and host facts carry the command that produced them.
 
 ## Library model
 
-New public header `include/speedgun-ng/counters_topdown.hpp` (§1). A public
+New public header `include/speedgun-ng/counters_topdown.hpp` (D-4). A public
 addition moves the archive `SOVERSION` from 4 to 5 (`CMakeLists.txt:110`).
 
 ### E-01 `CpuIdentity` (this feature's own seam, D-13)
 
 | Field | Type | Meaning | Fixed by |
 | --- | --- | --- | --- |
-| `vendor` | `std::string` | The vendor text CPUID leaf 0 answers; empty names an unreadable cpu | FR-003, §1 |
+| `vendor` | `std::string` | The vendor text CPUID leaf 0 answers; empty names an unreadable cpu | FR-003, D-4 |
 | `family` | `int` | Decimal, the mapping-file spelling | FR-003 |
 | `model` | `int` | The mapping-file spelling | FR-003 |
 | `stepping` | `int` | Negative names no stepping class; it splits `skylakex` from `cascadelakex` | FR-003, `source/counters/detail/pmu.hpp:62-72` |
@@ -57,7 +56,7 @@ in all six (FR-003).
 | `TableFile` | `sha256` | `std::string` | The file's hash, read from `RECORD` at build time | FR-015, D-12, PC-12 |
 | `TopdownSource` | `reference` | `std::string` | The `ref:` line of the manifest: `linux-7.2.4` | FR-015, D-12 |
 | `TopdownSource` | `directory` | `std::string` | The selected directory, for example `arch/x86/skylakex/` | FR-001, FR-015 |
-| `TopdownSource` | `files` | `std::vector<TableFile>` | One entry per file that contributed a row, in the embedder's sorted order | FR-015, §4 |
+| `TopdownSource` | `files` | `std::vector<TableFile>` | One entry per file that contributed a row, in the embedder's sorted order | FR-015, D-12 |
 
 ### E-04 `TopdownRow` and E-05 `TopdownTable` (the listing the selection reads)
 
@@ -114,7 +113,7 @@ inputs: no counter read, no event open, no clock read, no CPUID call inside
 
 ### E-12 `EmbeddedFile` and `EmbeddedDir` (build-time source data)
 
-`EmbeddedFile` gains `sha256` and `EmbeddedDir` gains `reference` (§4). Both
+`EmbeddedFile` gains `sha256` and `EmbeddedDir` gains `reference` (D-12). Both
 are internal to `source/counters/linux_pmu/embedded_tables.hpp`, so neither
 moves an exported layout. The values come from `RECORD` at build time, and no
 run-time path read reaches them (D-12, PC-12). `PmuTableEntry`
@@ -138,7 +137,7 @@ fallback reads. The three constants `#num_dies`, `#SYSTEM_TSC_FREQ` and
 
 | Field | Type | Meaning | Fixed by |
 | --- | --- | --- | --- |
-| `topdownLevel` | `std::optional<std::uint64_t>` | An engaged optional is the option stood; the value is the level asked | FR-019, D-5, H§2 |
+| `topdownLevel` | `std::optional<std::uint64_t>` | An engaged optional is the option stood; the value is the level asked | FR-019, D-5 |
 
 `RunOptions` is harness-internal (`source/harness/detail/internal.hpp:606`),
 so this member moves no exported layout. No bool flag stands beside it.
@@ -175,7 +174,7 @@ read by the standing leaf grouping and limit read
 (`source/harness/runner.cpp:1348-1364`), so one plan covers both sets (FR-021,
 FR-023). `stripTopdownColumns` moves each node's figure into
 `result.topdown` and drops that position from every metric view of the result
-(H§2). `printPassDisclosure` returns on empty `metricLabels`
+(FR-023, FR-032). `printPassDisclosure` returns on empty `metricLabels`
 (`source/harness/report.cpp:301-307`), so that guard gains the record test and
 a `--topdown` run with no `--metric` still states its passes (FR-021).
 
@@ -227,10 +226,10 @@ TopdownTree E-08 --stripTopdownColumns--> TopdownRecord E-16 --writeEntryTopdown
 
 | Rule | Refusal | Stated by |
 | --- | --- | --- |
-| `topdownTree` takes a level outside 1 to 6 | `SG_REQUIRE` fires in the source; no value reaches the tree | FR-019, §1 |
+| `topdownTree` takes a level outside 1 to 6 | `SG_REQUIRE` fires in the source; no value reaches the tree | FR-019, D-4 |
 | `midr` stands | `TopdownUnsupported` with `ARM`; the line names the `MIDR` and states that no Arm table is vendored | FR-005, D-7 |
 | Vendor is neither `GenuineIntel` nor `AuthenticAMD` | `UNKNOWN_VENDOR` with the vendor text | FR-004 |
-| Mapping file matched no row | `NO_DIRECTORY` with vendor, family and model | FR-001, §2 |
+| Mapping file matched no row | `NO_DIRECTORY` with vendor, family and model | FR-001, D-1 |
 | Selected directory is a hybrid directory, or `coreType` stands | `HYBRID` with the sentence that this feature makes no claim for a hybrid part | FR-006, D-13 |
 | Selected table holds no level token in either spelling | `NO_TOPDOWN_ROWS` with the directory it read, for example `arch/x86/amdzen3/` | FR-007 |
 | A row carries no level token | It is no node and no refusal; `total_dispatch_slots` of both AMD tables is that row | FR-014, PC-4 |
@@ -241,10 +240,10 @@ TopdownTree E-08 --stripTopdownColumns--> TopdownRecord E-16 --writeEntryTopdown
 | Threshold text reaches the feature | It rides as text into the tree, the block and the record; `parseFormula` (`source/counters/linux_pmu/metric_formula.hpp:102-103`) refuses all of it, so no part evaluates a verdict | FR-017, D-9 |
 | A collected node reads a gap | The node prints `not available` with no number, and the record keeps `value` empty with its availability | FR-030 |
 | `--topdown` with no attached value | Level 1, and the run prints a tree at status 0 | FR-019, SC-05 |
-| `--topdown=0`, `=7`, `=x` | One quoted line and status 2: `--topdown: expected 1 to 6, got '0'`, in the shape of `source/harness/options.cpp:227` | FR-050, H§1 |
-| `--topdown` in an option file | `the option 'topdown' cannot stand in an option file` from the default arm at `source/harness/options.cpp:1517-1528` | D-5, H§1 |
-| `--topdown 2` with a space | The level is not taken, because `getopt_long` reads an optional value attached only, the rule `--hunt` records at `source/harness/options.cpp:694-697` | D-5, H§1 |
-| A rule writes `topdown:<node>@mean` | `this value carries one value and takes no aggregate` from `source/harness/compare.cpp:431-435` | FR-037, H§5 |
+| `--topdown=0`, `=7`, `=x` | One quoted line and status 2: `--topdown: expected 1 to 6, got '0'`, in the shape of `source/harness/options.cpp:227` | FR-050 |
+| `--topdown` in an option file | `the option 'topdown' cannot stand in an option file` from the default arm at `source/harness/options.cpp:1517-1528` | D-5 |
+| `--topdown 2` with a space | The level is not taken, because `getopt_long` reads an optional value attached only, the rule `--hunt` records at `source/harness/options.cpp:694-697` | D-5 |
+| A rule writes `topdown:<node>@mean` | `this value carries one value and takes no aggregate` from `source/harness/compare.cpp:431-435`, a refusal this feature adds: `:400` gives every prefix but `stat:` an aggregate today, and FR-037 compares one node value, so `contracts/topdown-rule.md:46` excludes `topdown:` | FR-037 |
 | A rule names a node no report carries, or runs against a report with no top-down | One quoted line and status 2 from `missingValueFault` (`source/harness/compare.cpp:1416-1424`): `the rule '<text>' finds no topdown:backend_bound for '<name>' in the contender report` | FR-038, FR-039, D-14 |
 | A `topdown` key stands in a document with a missing or unknown inner key | The loader refuses the document against the closed key set, the shape `readEntryHunt` uses (`source/harness/json_load.cpp:1799`) | FR-034 |
 | A node in a written record carries no parent below level 1 | The loader refuses it with the existing malformed-document shape; an absent object and an empty object both read | edge case, FR-034 |
@@ -291,8 +290,8 @@ set, and a gap keeps its state to the record: no state revisits an earlier one
 | `MetricView` (`include/speedgun-ng/counters_metrics.hpp:63-68`) | gains `threshold` | yes | same archive rise (D-11) |
 | `BenchmarkResult` (`include/speedgun-ng/benchmark.hpp:651`) | gains `std::optional<TopdownRecord> topdown` | yes | harness `SOVERSION` 19 to 20 (`CMakeLists.txt:375`, the specs/037 shape at `:369-374`, D-4) |
 | `TopdownRecord`, `TopdownNode`, `TopdownRefusal` | new exported records in that header | yes | the same harness rise, because they sit in the exported layout (D-4) |
-| `PmuTableEntry`, `ParsedMetricRow`, `MetricDefinition`, `EmbeddedFile`, `EmbeddedDir` | gain `threshold`, `fileName`, `sha256`, `reference` | no | internal carriers; no SOVERSION move (D-11, PC-12, §3, §4) |
-| `RunOptions`, `MetricColumn`, `OptionRow`, `CompareRule`, `PassPlan` | unchanged shape | no | the option joins the table and the prefix list, so no layout moves (H§1, H§5) |
+| `PmuTableEntry`, `ParsedMetricRow`, `MetricDefinition`, `EmbeddedFile`, `EmbeddedDir` | gain `threshold`, `fileName`, `sha256`, `reference` | no | internal carriers; no SOVERSION move (D-11, D-12, PC-12) |
+| `RunOptions`, `MetricColumn`, `OptionRow`, `CompareRule`, `PassPlan` | unchanged shape | no | the option joins the table and the prefix list, so no layout moves (D-5, FR-037) |
 
 Two libraries, two independent numbers, each with the comment that names the
 record and the requirement (FR-047).

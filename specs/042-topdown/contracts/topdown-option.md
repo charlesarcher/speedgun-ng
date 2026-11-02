@@ -74,9 +74,10 @@ shape is the range reader's: `"%s: %s, got '%s'"` then `std::exit(2)`
 | `topdown` in an option file | `<file>:<line>: the option 'topdown' cannot stand in an option file` |
 
 Measured on the nearest rows today: `--hunt-top=0 --list` answers `--hunt-top:
-expected 1 to 10000, got '0'` at status 2, and a file line `hunt=1` answers
-`/tmp/n42/opts_hunt.txt:1: the option 'hunt' cannot stand in an option file` at
-status 2. The row takes no arm in `applySourceValue`, so a file line lands in
+expected 1 to 10000, got '0'` at status 2, and `printf 'hunt=1\n' |
+./build/example/first_benchmark --options /dev/stdin --list` answers
+`/dev/stdin:1: the option 'hunt' cannot stand in an option file` at status 2.
+The row takes no arm in `applySourceValue`, so a file line lands in
 the `default:` arm that builds that text (`options.cpp:1517-1528`), and `refuse`
 puts the origin in front of it (`:1494-1495`).
 

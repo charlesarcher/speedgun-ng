@@ -70,7 +70,7 @@ classes and `pantherlake` carries both on event rows.
 **Alternatives considered**: (a) The counters brief's closed set of four
 names. Rejected: it omits `pantherlake`, which
 `external/pmu-events/arch/x86/mapfile.csv:29` selects for models `CC` and
-`D5`, and `specs/042-topdown/spec.md:815-817` lists five. (b) A list of five
+`D5`, and `specs/042-topdown/spec.md:845-847` lists five. (b) A list of five
 names. Rejected: a new hybrid directory would answer a tree while its own rows
 state two classes.
 
@@ -193,19 +193,20 @@ alone (`pmu.hpp:284-289`). The constant stands beside `kRnpmcMaxIndex`
 `./build/test/counters_pmu_test | grep -i "zero count"` answers
 `zero count: cpu/cpu-cycles mode 1 value 0.000`, set by a non-OK verdict with
 the gap flag (`source/counters/linux_pmu/group_io.cpp:435-438`). Measured
-cause: `/tmp/n42/pc7-index-probe` answers
-`cpu-cycles (fixed 1) index=0x40000002 cap_user_rdpmc=1 pmc_width=48` and
-`cache-references (gp) index=0x00000001`, so the mark rides fixed spellings
-alone. The mask keeps the bound over counter numbers and leaves the bit-29
-mark refused, which is today's answer. The seam opens no event
-(`test/source/counters_linux_pmu_seam_test.cpp:384-400`): `0x40000002`
-publishes, `0` and one over the bound refuse, and a `fastDecode` at the marked
-index answers OK.
+cause: PC-7 records `cpu/cpu-cycles`, a fixed spelling, at page index
+`0x40000002` with bit 30 set on a host where the open is granted
+(`specs/042-topdown/spec.md:290-294`), so the mark rides a fixed spelling
+and the standing bound refuses it. The mask keeps the bound over counter
+numbers and leaves the bit-29 mark refused, which is today's answer. The
+seam opens no event (`test/source/counters_linux_pmu_seam_test.cpp:384-400`):
+`0x40000002` publishes, `0` and one over the bound refuse, and a `fastDecode`
+at the marked index answers OK.
 
 **Alternatives considered**: Widen the bound, by raising `kRnpmcMaxIndex` or
 accepting an index up to the mark plus the bound. Rejected: the gate guards
-the `_rdpmc` operand, so an unmarked index of 1073742850 would reach an
-operand no host answers, a fault where the present answer is a refusal.
+the `_rdpmc` operand, so a bound of the mark plus 1024 would still accept
+the unmarked index 1025, whose operand 1024 stands past the bound at
+`pmu.hpp:289`, a fault where the present answer is a refusal.
 
 ## D-09 - One PMU provider per process
 
@@ -215,16 +216,18 @@ second entry-point call builds no provider and pays no device walk (FR-055,
 spec D-21). The counters rule stands untouched: a provider cannot register
 after the system opens (`source/counters/system.cpp:216-223`).
 
-**Rationale**: Measured here: three runs of
-`./build/example/first_benchmark --version` take 1.741, 1.729 and 1.727 s, and
-that answer leaves at `cli.cpp:597`, after the scan at `:586`, so the time is
-the two registrations alone. PC-8 measures the same cost per in-process call
-and about 63 minutes for 2,040 calls, which is why `harness_cli_test` cannot
-finish inside the default 300 s (`test/CMakeLists.txt:2121-2128`).
+**Rationale**: Measured here: seven runs of
+`./build/example/first_benchmark --version` take a median of 1.771 s, and that
+answer leaves at `cli.cpp:601-603`, after the scan at `:586`, so the time is
+the two registrations alone. PC-8 measures the same cost per in-process call,
+and its two windows with the two runs that stand before them, 2,002 calls
+(`test/source/harness_cli_test.cpp:1266-1290`), cost about 59 minutes, which
+is why `harness_cli_test` cannot finish inside the default 300 s
+(`test/CMakeLists.txt:2121-2128`).
 
 **Alternatives considered**: (a) Process-static PMU state in the counters
 library. Rejected: spec D-21 gives it to the counters lane and it changes
-every caller's cost. (b) Raise the test timeout. Rejected: it hides 63 minutes
+every caller's cost. (b) Raise the test timeout. Rejected: it hides 59 minutes
 and leaves FR-049's `taskset -c 0,1` run unfinishable.
 
 ## D-10 - One option row, its own scan arm, and the bare value
@@ -243,11 +246,13 @@ and no option file or environment carries it.
 seed text `0` (`options.cpp:1003-1006`), so a row routed there cannot tell
 `--topdown` from `--topdown=0`, which FR-019 and FR-050 need to answer
 differently; `--hunt` avoids it the same way (`:920-923`). Measured: 42 rows
-in the array and 42 in `docs/pages/harness.md`; `kContract` moves 42 to 43
-(`test/source/harness_cli_table_test.cpp:244`).
+in the array, and 42 in the README option table at `README.md:954-997`, where
+the new row joins; `docs/pages/harness.md` holds 21 option rows across the
+four tables at `:1024`, `:1119`, `:1954` and `:1977`; `kContract` moves 42 to
+43 at `test/source/harness_cli_table_test.cpp:244`.
 
 **Alternatives considered**: (a) A presence flag or a bool in `RunOptions`:
-`specs/042-topdown/spec.md:929` bars a new bool. (b) A seventh `OptionRow`
+`specs/042-topdown/spec.md:960` bars a new bool. (b) A seventh `OptionRow`
 field holding the bare seed: the row carries six fields
 (`options.hpp:133-140`).
 
@@ -300,8 +305,10 @@ per benchmark.
 
 **Decision**: The report gains a `topdown` record written beside the hunt
 record and read back by `source/harness/json_load.cpp`;
-`docs/schema/report-v1.json` gains the key in root `x-order` and in
-`properties` (`:7`, `:10`); `kSchemaVersion` moves 1.11 to 1.12
+`docs/schema/report-v1.json` gains the key in the benchmark entry's
+`x-order` after `"hunt"` (`:406`) and in one entry property beside the entry
+`hunt` (`:827`); the root object holds neither (`:7`, `:10`);
+`kSchemaVersion` moves 1.11 to 1.12
 (`source/harness/json_report.cpp:43`); the harness SOVERSION moves 19 to 20
 (`CMakeLists.txt:375`) and the counters archive SOVERSION moves 4 to 5
 (`:110`), because `MetricView` and `MetricListing` gain a field.
