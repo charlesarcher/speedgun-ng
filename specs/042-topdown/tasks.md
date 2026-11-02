@@ -167,7 +167,7 @@ and every story calls `topdownTree`.
   so it carries no case of its own and lands in the commit of T010, the first
   unit that reads it.
 
-- [ ] T010 In `test/source/counters_topdown_select_test.cpp`, a new file, write
+- [x] T010 In `test/source/counters_topdown_select_test.cpp`, a new file, write
   `cpuIdentityCarriesTheReadersFourFields` and `selectsTheTableOfTheIdentity`:
   model 85 stepping 4 selects `arch/x86/skylakex/`, family 25 model 17 selects
   `amdzen4`, family 26 model 17 selects `amdzen5`, the four production fields
@@ -306,7 +306,7 @@ and every story calls `topdownTree`.
   (FR-032, FR-033, E-16, spec D-4, FR-047). The member answers in the commit of
   T035, where `theNodeFigureStandsInTheRecord` of T028 reads it.
 
-- [ ] T022 In `include/speedgun-ng/counters_topdown.hpp` and
+- [x] T022 In `include/speedgun-ng/counters_topdown.hpp` and
   `source/counters/linux_pmu/topdown_select.cpp`, each a new file, publish
   `CpuIdentity`, `TableFile`, `TopdownSource`, `TopdownRow`, `TopdownTable`,
   `TopdownNode`, `TopdownRefusal`, `TopdownTree`, `TopdownSelection`,

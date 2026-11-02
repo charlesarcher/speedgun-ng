@@ -540,6 +540,28 @@ add_test(NAME counters_topdown_source_test
 set_tests_properties(counters_topdown_source_test PROPERTIES
                      SKIP_RETURN_CODE 2)
 
+# The identity a selection reads and the table it selects (specs/042-topdown
+# T010; FR-001, FR-002, FR-003, FR-009). Every case reads the two private
+# seams of `source/counters/detail/pmu.hpp` over identities the unit hands in,
+# so no scenario needs a host other than the one it runs on. A build that
+# carries no vendored architecture directory answers no selection at all, so
+# the unit reports its reason and exits 2, the skip code the
+# `test/tier_labels.sh` row of T001 reserves.
+add_executable(counters_topdown_select_test
+               source/counters_topdown_select_test.cpp)
+target_link_libraries(counters_topdown_select_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_topdown_select_test PRIVATE cxx_std_23)
+target_compile_definitions(
+    counters_topdown_select_test
+    PRIVATE
+        "SG_TOPDOWN_TABLE_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/counters_topdown_select_tables\""
+)
+add_test(NAME counters_topdown_select_test
+         COMMAND counters_topdown_select_test)
+set_tests_properties(counters_topdown_select_test PROPERTIES
+                     SKIP_RETURN_CODE 2)
+
 # Metric formulas of the vendored event table (T013..T019, T027..T034;
 # FR-003..FR-021). The grammar test drives the parse seam as a pure
 # function; the lookup test resolves the fixture table against the fixture
