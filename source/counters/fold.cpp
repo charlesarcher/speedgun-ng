@@ -138,8 +138,11 @@ struct FoldContext
     }
   }
   // Every leaf slot belongs to a group, so the scan returns inside the
-  // loop. The plan's own column is the single-group answer a caller reads
-  // when it names no leaf.
+  // loop on every plan: the compiler refuses a zero-leaf expression, so
+  // the layout always carries the groups its leaves open. The plan's own
+  // column below is the arm no input takes, and the marker stays for it
+  // (G-21): the function is file-local, so no test can stand a groupless
+  // layout in its place.
   return ctx.layout.disclosureSlot;  // LCOV_EXCL_LINE
 }
 
@@ -153,17 +156,15 @@ struct FoldContext
                              const std::size_t slot) -> std::optional<double>
 {
   const auto& entry = ctx.layout.slots[slot];
-  // LCOV_EXCL_BR_START : coverage exclusion (T066): the second operand can
-  // never be the deciding one. `link_ratio_slots` (`plan.cpp:135-158`) writes
-  // `ratio_enabled` and `ratio_running` together at `plan.cpp:150-156` or
-  // leaves both at `no_ratio_slot`, so a slot that passes the first test
-  // always passes the second.
-  if (entry.ratioEnabled == PlanImpl::kNoRatioSlot
-      || entry.ratioRunning == PlanImpl::kNoRatioSlot)  // LCOV_EXCL_BR_LINE
-  {
-    return std::nullopt;  // LCOV_EXCL_LINE
-  }  // LCOV_EXCL_BR_LINE
-  // LCOV_EXCL_BR_STOP
+  // `link_ratio_slots` (plan.cpp) writes `ratio_enabled` and
+  // `ratio_running` together or leaves both at `no_ratio_slot`, so the
+  // enabled slot alone decides: the running slot carries the same
+  // answer by the writer's own rule, and the contract stands beside it.
+  if (entry.ratioEnabled == PlanImpl::kNoRatioSlot) {
+    return std::nullopt;
+  }
+  SG_ASSERT(entry.ratioRunning != PlanImpl::kNoRatioSlot,
+            "the ratio pair is written together or left together (FR-004)");
   const auto* enabled = ctx.rec.columns + entry.ratioEnabled * ctx.rec.stride;
   const auto* running = ctx.rec.columns + entry.ratioRunning * ctx.rec.stride;
   const auto elapsed = enabled[ctx.j] - enabled[ctx.i];
@@ -194,15 +195,13 @@ struct RatioResult
   for (std::size_t index = 0; index < core.leaves.size(); ++index) {
     const auto& leaf = core.leaves[index];
     const auto located = ctx.layout.byAddress.find(leaf.address);
-    // LCOV_EXCL_BR_START : coverage exclusion (T066): a fan-out
-    // instantiates the exemplar for every selected path and compiles those
-    // instances (`plan.cpp:551-572`), so every address a fan-out fold looks
-    // up is in the layout address table by construction. A plain plan
-    // compiles the caller own expression, so its leaves are in the table
-    // as well.
-    if (located == ctx.layout.byAddress.end()) {  // LCOV_EXCL_BR_LINE
-      continue;  // LCOV_EXCL_LINE
-    }  // LCOV_EXCL_BR_STOP
+    // A fan-out instantiates the exemplar for every selected path and
+    // compiles those instances (plan.cpp), and a plain plan compiles the
+    // caller own expression, so every address the fold looks up is in
+    // the layout address table by construction; the contract stands
+    // where a reader expects the miss arm.
+    SG_ASSERT(located != ctx.layout.byAddress.end(),
+              "every leaf address is in the layout address table (FR-002)");
     const auto one = leafRatio(ctx, located->second);
     if (!one.has_value()) {
       continue;
