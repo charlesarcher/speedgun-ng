@@ -738,7 +738,7 @@ back and runs it through the rule set with a rule naming a level-1 node, one
 naming a deeper node, one naming no node, and one with no tree.
 
 ### Tests for User Story 5 (write first, observe failure) The two lines this task adds read `topdown: the table holds no level deeper than 4` under the header of a clamped run, and the node line carries the row's threshold text after its figure.
-- [ ] T052 [US3] In `test/source/harness_topdown_report_test.cpp`, a new file,
+- [x] T052 [US3] In `test/source/harness_topdown_report_test.cpp`, a new file,
   add `theRecordRoundTrips`: a written tree with its source, its two levels, a
   gapped node with its availability and threshold, and its refused rows reads
   back field for field unchanged through the report reader, the two file entries
@@ -747,23 +747,22 @@ naming a deeper node, one naming no node, and one with no tree.
   FR-034, SC-07). Add the new file's `add_executable` plus `add_test` block to
   `test/CMakeLists.txt` in the same commit, on the shape of
   `test/CMakeLists.txt:1483-1487` with the `source/harness` include directory.
-  This case lands with T065, T066 and T067 in one commit (FR-048).
-
-- [ ] T053 [US3] In `test/source/harness_topdown_report_test.cpp`, add
+  This case lands with T065, T066 and T067 in one commit (FR-048). One scenario, `aDocumentWithoutTheKeyLoads`, stood green at the baseline and says so in its own text: it pins that a document without the key loads with the member empty.
+- [x] T053 [US3] In `test/source/harness_topdown_report_test.cpp`, add
   `aDocumentWithoutTheKeyLoads` and `aRunWithoutTheOptionWritesNoKey`: a
   document with no `topdown` key loads with the member absent, and a run without
   the option writes no key, so its bytes differ from the same run before this
   feature in the schema version alone (FR-034, FR-035, SC-06). This case lands
   with T065 and T066 in one commit (FR-048).
 
-- [ ] T054 [US3] In `test/source/harness_topdown_report_test.cpp`, add
+- [x] T054 [US3] In `test/source/harness_topdown_report_test.cpp`, add
   `theWrittenTreePassesTheSchemaWithTheKeyAfterHunt`: hand the writer's own
   document to the schema checker the way
   `test/source/harness_json_schema_test.cpp:57` does, and read `topdown`
   standing after `hunt` in the entry order with no out-of-order finding (FR-032,
   FR-036). This case lands with T065 and T067 in one commit (FR-048).
 
-- [ ] T055 [US3] In `test/source/harness_json_schema_test.cpp`, add the
+- [x] T055 [US3] In `test/source/harness_json_schema_test.cpp`, add the
   planted-finding rows the check at `:111` reads: a `topdown` key written before
   `hunt` answers out of the order the schema states, and an inner key the object
   does not list answers unlisted (FR-032, FR-036). This case lands with T067 in
@@ -799,7 +798,7 @@ naming a deeper node, one naming no node, and one with no tree.
   same number, the two archive rows having moved with their own Phase 2 commits
   (FR-047, spec D-4). This case lands with T073 in one commit (FR-048).
 
-- [ ] T060 [P] [US3] In `test/source/harness_json_report_test.cpp`, move the
+- [x] T060 [P] [US3] In `test/source/harness_json_report_test.cpp`, move the
   stamp check of `theDocumentStampsTheMinorThisFeatureRequires` at `:546`, the
   case at `:543`, and its prose line at `:547` from `1.11` to `1.12`, the minor
   T068 stamps and the table at
@@ -807,7 +806,7 @@ naming a deeper node, one naming no node, and one with no tree.
   move (FR-036, spec D-17). These lines land with T068 in one commit, the writer
   being the code that stamps the minor they read (FR-048).
 
-- [ ] T061 [US3] In `test/source/harness_json_schema_test.cpp`, move the stamp
+- [x] T061 [US3] In `test/source/harness_json_schema_test.cpp`, move the stamp
   check of `entryHuntKeysPairAtStampedMinor` at `:186`, the case at `:158`, and
   the two prose lines at `:157` and `:187` from `1.11` to `1.12`, the minor T068
   stamps and the table at
@@ -815,7 +814,7 @@ naming a deeper node, one naming no node, and one with no tree.
   move (FR-036, spec D-17). These lines land with T068 in one commit, the writer
   being the code that stamps the minor they read (FR-048).
 
-- [ ] T062 [P] [US3] In `test/source/harness_json_load_test.cpp`, move the first
+- [x] T062 [P] [US3] In `test/source/harness_json_load_test.cpp`, move the first
   `Mutation` entry at `:829` of the list opened at `:828`, which
   `brokenDocumentsRefuseWithPointers` reads at `:1080`, and move both
   later-minor plants to `1.13` so they keep gating a later minor: the stamp
@@ -827,14 +826,14 @@ naming a deeper node, one naming no node, and one with no tree.
   move (FR-036, spec D-17). These lines land with T068 in one commit, the writer
   being the code that stamps the minor they read (FR-048).
 
-- [ ] T063 [P] [US3] In `test/source/harness_hunt_json_test.cpp`, move the
+- [x] T063 [P] [US3] In `test/source/harness_hunt_json_test.cpp`, move the
   `schemaConformance` stamp check at `:1537`, the case at `:1534`, and its prose
   line at `:1538` from `1.11` to `1.12`, the minor T068 stamps and the table at
   `specs/042-topdown/contracts/topdown-report-key.md:118-143` names for this
   move (FR-036, spec D-17). These lines land with T068 in one commit, the writer
   being the code that stamps the minor they read (FR-048).
 
-- [ ] T064 [P] [US3] In `test/source/harness_noise_report_test.cpp`, move the
+- [x] T064 [P] [US3] In `test/source/harness_noise_report_test.cpp`, move the
   stamp check of `theWrittenTracerDocumentPassesTheSchema` at `:426`, the case
   at `:415`, the file-scope `kDocumentFixture` bytes at `:456-461`, which
   `theTracerLessDocumentMatchesTheFixtureBytes` compares at `:463`, and the
@@ -846,7 +845,7 @@ naming a deeper node, one naming no node, and one with no tree.
 
 ### Implementation for User Story 5
 
-- [ ] T065 [US3] In `source/harness/json_report.cpp`, write the object after the
+- [x] T065 [US3] In `source/harness/json_report.cpp`, write the object after the
   `hunt` key block that closes at `:718`, inside the entry writer that closes at
   `:719`, with the nine keys
   `specs/042-topdown/contracts/topdown-report-key.md:33-64` lists in their
@@ -858,9 +857,8 @@ naming a deeper node, one naming no node, and one with no tree.
   number with no exponent and `null` for a gap node; and write the availability
   as the exact JSON word of `kAvailabilityWords` at
   `source/harness/detail/json_report.hpp:57-64` (FR-032, FR-033, FR-056; turns
-  T052 and T054 green).
-
-- [ ] T066 [US3] In `source/harness/json_load.cpp`, declare the loaded record
+  T052 and T054 green). This set lands as one commit with `T066`, `T067`, `T068` and the eleven pin sites, because the writer, the schema, the reader and the pins cannot be green apart.
+- [x] T066 [US3] In `source/harness/json_load.cpp`, declare the loaded record
   and node types beside the hunt load helpers and define the reader in the same
   translation unit, taking the key through `optionalField` at `:85-93` the way
   `hunt` does at `:2342-2349`, so an absent key leaves the member disengaged
@@ -872,7 +870,7 @@ naming a deeper node, one naming no node, and one with no tree.
   `:2534-2542` and the out-of-order key at `:2545-2556` (FR-034, FR-050; turns
   T052 and T053 green).
 
-- [ ] T067 [US3] In `docs/schema/report-v1.json`, add `topdown` after `hunt` in
+- [x] T067 [US3] In `docs/schema/report-v1.json`, add `topdown` after `hunt` in
   the entry `x-order` that closes at `:407`, add the `topdown` property after
   the `hunt` object that closes at `:902` inside the `properties` block opened
   at `:430`, and leave the entry `required` list at `:408-427` and the
@@ -883,19 +881,17 @@ naming a deeper node, one naming no node, and one with no tree.
   is at `:890-899`; in `test/source/harness_json_schema_test.cpp`, mirror the
   shape the schema gains (FR-032, FR-036; turns T054 and T055 green).
 
-- [ ] T068 [US3] In `source/harness/json_report.cpp`, set `kSchemaVersion` at
+- [x] T068 [US3] In `source/harness/json_report.cpp`, set `kSchemaVersion` at
   `:43` from `"1.11"` to `"1.12"`, the pair
   `specs/042-topdown/contracts/topdown-report-key.md:118-143` names for a minor
   that adds one object, the value the writer appends at `:992` (spec D-17; turns
-  every `stamp_*` case green).
-
+  every `stamp_*` case green). Eleven sites across five units moved with the stamp, and the guide page carried an ungated stamp stale at `1.10` beside the `1.11` the code held; `T069` moves it.
 - [ ] T069 [US3] In `docs/pages/harness.md`, move the figure in the sentence at
   `:1399`, inside the version-rule body at `:1396-1401` under the heading at
   `:1394`, from `1.10` to `1.12` and name the `topdown` object as what the minor
   added; the page reads `1.10` while the writer has stamped `1.11` since
   specs/037, so this move closes a gap that stands today (spec D-17; lands with
   T068 in one commit).
-
 - [ ] T070 [US3] In `docs/pages/harness.md`, add to the null-rule body at
   `:1405-1410`, under the heading at `:1403`, the two top-down facts
   `specs/042-topdown/contracts/topdown-page.md:124` states: an entry written
@@ -903,7 +899,6 @@ naming a deeper node, one naming no node, and one with no tree.
   `null` in its `value` where a counted node carries a number; leave the
   existing list of keys that stand null otherwise unchanged (FR-033, FR-035;
   lands with T065 in one commit).
-
 - [ ] T071 [US3] In `docs/pages/harness.md`, add the `topdown : <label>`
   alternative to the second line of the `<value>` production at `:1461`, inside
   the grammar fence that runs `:1458-1466`, beside `counter`, `metric` and

@@ -37,12 +37,14 @@ using Builder = simdjson::builder::string_builder;
 // root `hunt` object, at 1.9 since specs/040 added the three rank fields
 // inside the per-entry `hunt` object, at 1.10 since specs/039 added the
 // optional `group` key of the context record, at 1.11 since specs/037
-// added the top-level `graph` record, and at 1.12 since specs/043 added
-// the `method` key and the `series` array of the `jitter` object, the move
-// specs/023/contracts/ schema-file.md states for a key added inside major 1
-// (specs/027 FR-026, specs/028 FR-086, specs/033 FR-022, specs/040 FR-032,
-// PC-6, specs/039 FR-030, FR-032, specs/037 FR-005, specs/043 FR-006).
-constexpr std::string_view kSchemaVersion = "1.12";
+// added the top-level `graph` record, at 1.12 since specs/043 added the
+// `method` key and the `series` array of the `jitter` object, and at 1.13
+// since specs/042-topdown added the `topdown` object of the entry record,
+// the move specs/023/contracts/ schema-file.md states for a key added inside
+// major 1 (specs/027 FR-026, specs/028 FR-086, specs/033 FR-022,
+// specs/040 FR-032, PC-6, specs/039 FR-030, FR-032, specs/037 FR-005,
+// specs/043 FR-006, specs/042-topdown FR-036).
+constexpr std::string_view kSchemaVersion = "1.13";
 
 // The `source` word of one disclosed use, spelled as the enum of
 // `docs/schema/report-v1.json` states it (specs/028 E-04, FR-040). The
@@ -606,6 +608,65 @@ void writeEntryHunt(Builder& builder, const hunt::EntryHunt& record)
   }
 }
 
+// specs/042-topdown FR-032, FR-033 (contracts/topdown-report-key.md, data-model
+// E-16): the entry's top-down object. The nine keys stand in the order the
+// schema states and every one of them stands in every record: the source the
+// rows came from, the level asked and the level shown, the nodes in
+// parent-before-child order, and the rows that table refused. A record of a
+// host with no table answers its one reason beside three empty arrays (D-14),
+// and a node the merge left as a gap answers `null` in place of its figure
+// (FR-030). No key states a vendor: a node below level 1 carries the vendor in
+// its own neutral name.
+void writeTopdown(Builder& builder, const TopdownRecord& record)
+{
+  JsonObjectWriter object(builder);
+  put(builder, object, "supported", record.supported);
+  put(builder, object, "reason", record.reason);
+  put(builder, object, "reference", record.reference);
+  put(builder, object, "directory", record.directory);
+  object.key("files");
+  {
+    JsonArrayWriter files(builder);
+    for (const counters::TableFile& file : record.files) {
+      files.item();
+      JsonObjectWriter item(builder);
+      put(builder, item, "name", file.name);
+      put(builder, item, "manifest_hash", file.manifestHash);
+    }
+  }
+  put(builder, object, "asked_level", record.askedLevel);
+  put(builder, object, "level", record.level);
+  object.key("nodes");
+  {
+    JsonArrayWriter nodes(builder);
+    for (const TopdownNode& node : record.nodes) {
+      nodes.item();
+      JsonObjectWriter item(builder);
+      put(builder, item, "name", node.name);
+      put(builder, item, "vendor_name", node.vendorName);
+      put(builder, item, "parent", node.parent);
+      put(builder, item, "level", node.level);
+      putOrNull(builder, item, "value", node.value);
+      put(builder,
+          item,
+          "availability",
+          enumWord(kAvailabilityWords, std::to_underlying(node.availability)));
+      put(builder, item, "threshold", node.threshold);
+    }
+  }
+  object.key("refused");
+  {
+    JsonArrayWriter refused(builder);
+    for (const TopdownRefusal& row : record.refused) {
+      refused.item();
+      JsonObjectWriter item(builder);
+      put(builder, item, "name", row.name);
+      put(builder, item, "kind", row.refusal);
+      put(builder, item, "reason", row.reason);
+    }
+  }
+}
+
 void writeEntry(Builder& builder,
                 const ReportData& data,
                 std::size_t index,
@@ -787,6 +848,14 @@ void writeEntry(Builder& builder,
   if (result.hunt.has_value()) {
     object.key("hunt");
     writeEntryHunt(builder, *result.hunt);
+  }
+  // specs/042-topdown FR-032, FR-035: the top-down object follows the hunt
+  // key. An entry of a run that named no `--topdown` writes no key, the rule
+  // that leaves such a document the bytes it wrote before this feature, apart
+  // from the stamp (FR-035).
+  if (result.topdown.has_value()) {
+    object.key("topdown");
+    writeTopdown(builder, *result.topdown);
   }
 }
 

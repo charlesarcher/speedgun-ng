@@ -342,9 +342,9 @@ auto theStandingConsoleLinesMatchTheRecordedBytes() -> void
 auto aTscRunPassesTheSchemaAtTheStampedMinor() -> void
 {
   const std::string document = tscDocument();
-  check(document.find("\"schemaVersion\":\"1.12\"") != std::string::npos,
+  check(document.find("\"schemaVersion\":\"1.13\"") != std::string::npos,
         "aTscRunPassesTheSchemaAtTheStampedMinor: the writer stamps the minor "
-        "1.12 (FR-026, R-16)");
+        "1.13 (FR-026, R-16, specs/042-topdown FR-036)");
   const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, document);
   check(clean.has_value(),
         "aTscRunPassesTheSchemaAtTheStampedMinor: the tsc document passes the "

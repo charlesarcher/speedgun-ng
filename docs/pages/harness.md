@@ -1397,9 +1397,10 @@ that measured the value. `docs/schema/report-v1.json` states the whole shape.
 `schemaVersion` names the shape of the document. A document whose major stands
 at 1 loads, whatever its minor says; a later major is refused, and the refusal
 names the version the document carries. The writer moves the minor for a key
-it adds inside major 1. A run writes `1.12`, the shape that added the `method`
-key and the `series` array of the `jitter` object; a `1.0` document, which
-carries neither the hunt keys nor the pass fields, loads through the same rule.
+it adds inside major 1. A run writes `1.13`, the shape that carries the
+`method` key and the `series` array of the `jitter` object and the `topdown`
+object of the entry record; a `1.0` document, which carries neither the hunt
+keys nor the pass fields, loads through the same rule.
 
 ### The null rule
 

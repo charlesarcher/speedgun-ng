@@ -2065,6 +2065,219 @@ auto readEntryHunt(Element value, const std::string& where)
   return record;
 }
 
+// specs/042-topdown FR-034, FR-050 (data-model.md E-16,
+// contracts/topdown-report-key.md): one file of the source record, the pair the
+// carrier holds as `name` and `manifestHash` (D-12).
+auto readTopdownFile(Element value, const std::string& where)
+    -> std::expected<sg::counters::TableFile, std::string>
+{
+  if (!value.is_object()) {
+    return std::unexpected(wrongKind(where, value, "an object"));
+  }
+  std::vector<std::pair<std::string, std::expected<Element, std::string>>>
+      parts {
+          {"name", field(value, where, "name")},
+          {"manifest_hash", field(value, where, "manifest_hash")},
+      };
+  auto keys = settled(parts);
+  if (!keys.has_value()) {
+    return std::unexpected(keys.error());
+  }
+  auto name = asString(parts[0].second.value(), where + "/name");
+  auto digest = asString(parts[1].second.value(), where + "/manifest_hash");
+  auto settledValues = allSettled(name, digest);
+  if (!settledValues.has_value()) {
+    return std::unexpected(settledValues.error());
+  }
+  return sg::counters::TableFile {
+      .name = std::move(*name),
+      .manifestHash = std::move(*digest),
+  };
+}
+
+// specs/042-topdown FR-034, FR-030: one node of the tree. The value stands
+// `null` for a gap node and a number for a counted one, so the reader answers
+// an empty optional and a figure from the same two lines it reads the
+// availability from.
+auto readTopdownNode(Element value, const std::string& where)
+    -> std::expected<sg::TopdownNode, std::string>
+{
+  if (!value.is_object()) {
+    return std::unexpected(wrongKind(where, value, "an object"));
+  }
+  std::vector<std::pair<std::string, std::expected<Element, std::string>>>
+      parts {
+          {"name", field(value, where, "name")},
+          {"vendor_name", field(value, where, "vendor_name")},
+          {"parent", field(value, where, "parent")},
+          {"level", field(value, where, "level")},
+          {"value", field(value, where, "value")},
+          {"availability", field(value, where, "availability")},
+          {"threshold", field(value, where, "threshold")},
+      };
+  auto keys = settled(parts);
+  if (!keys.has_value()) {
+    return std::unexpected(keys.error());
+  }
+  auto name = asString(parts[0].second.value(), where + "/name");
+  auto vendorName = asString(parts[1].second.value(), where + "/vendor_name");
+  auto parent = asString(parts[2].second.value(), where + "/parent");
+  auto level = asUnsigned(parts[3].second.value(), where + "/level");
+  auto availability =
+      asEnum<sg::counters::Availability>(detail::kAvailabilityWords,
+                                         parts[5].second.value(),
+                                         where + "/availability");
+  auto threshold = asString(parts[6].second.value(), where + "/threshold");
+  auto settledValues =
+      allSettled(name, vendorName, parent, level, availability, threshold);
+  if (!settledValues.has_value()) {
+    return std::unexpected(settledValues.error());
+  }
+  std::optional<double> figure;
+  if (!parts[4].second.value().is_null()) {
+    auto counted = asDouble(parts[4].second.value(), where + "/value");
+    if (!counted.has_value()) {
+      return std::unexpected(counted.error());
+    }
+    figure = *counted;
+  }
+  return sg::TopdownNode {
+      .name = std::move(*name),
+      .vendorName = std::move(*vendorName),
+      .parent = std::move(*parent),
+      .level = *level,
+      .value = figure,
+      .availability = *availability,
+      .threshold = std::move(*threshold),
+  };
+}
+
+// specs/042-topdown FR-034, FR-033: one refused row. The kind word the metric
+// layer answered with rides the `kind` key, and the reason rides its own.
+auto readTopdownRefusal(Element value, const std::string& where)
+    -> std::expected<sg::TopdownRefusal, std::string>
+{
+  if (!value.is_object()) {
+    return std::unexpected(wrongKind(where, value, "an object"));
+  }
+  std::vector<std::pair<std::string, std::expected<Element, std::string>>>
+      parts {
+          {"name", field(value, where, "name")},
+          {"kind", field(value, where, "kind")},
+          {"reason", field(value, where, "reason")},
+      };
+  auto keys = settled(parts);
+  if (!keys.has_value()) {
+    return std::unexpected(keys.error());
+  }
+  auto name = asString(parts[0].second.value(), where + "/name");
+  auto refusal = asString(parts[1].second.value(), where + "/kind");
+  auto reason = asString(parts[2].second.value(), where + "/reason");
+  auto settledValues = allSettled(name, refusal, reason);
+  if (!settledValues.has_value()) {
+    return std::unexpected(settledValues.error());
+  }
+  return sg::TopdownRefusal {
+      .name = std::move(*name),
+      .refusal = std::move(*refusal),
+      .reason = std::move(*reason),
+  };
+}
+
+// specs/042-topdown FR-034 (contracts/topdown-report-key.md): the entry's
+// top-down object, read in the order the schema states. Every key of the closed
+// object is required, so a document that carries the key and lacks one of its
+// fields reads as the corrupt document it is, while the key itself stands
+// optional at the entry (`readEntry` takes it through `optionalField`).
+auto readTopdownRecord(Element value, const std::string& where)
+    -> std::expected<sg::TopdownRecord, std::string>
+{
+  if (!value.is_object()) {
+    return std::unexpected(wrongKind(where, value, "an object"));
+  }
+  std::vector<std::pair<std::string, std::expected<Element, std::string>>>
+      parts {
+          {"supported", field(value, where, "supported")},
+          {"reason", field(value, where, "reason")},
+          {"reference", field(value, where, "reference")},
+          {"directory", field(value, where, "directory")},
+          {"files", field(value, where, "files")},
+          {"asked_level", field(value, where, "asked_level")},
+          {"level", field(value, where, "level")},
+          {"nodes", field(value, where, "nodes")},
+          {"refused", field(value, where, "refused")},
+      };
+  auto keys = settled(parts);
+  if (!keys.has_value()) {
+    return std::unexpected(keys.error());
+  }
+  auto supported = asBool(parts[0].second.value(), where + "/supported");
+  auto reason = asString(parts[1].second.value(), where + "/reason");
+  auto reference = asString(parts[2].second.value(), where + "/reference");
+  auto directory = asString(parts[3].second.value(), where + "/directory");
+  auto askedLevel = asUnsigned(parts[5].second.value(), where + "/asked_level");
+  auto level = asUnsigned(parts[6].second.value(), where + "/level");
+  auto settledValues =
+      allSettled(supported, reason, reference, directory, askedLevel, level);
+  if (!settledValues.has_value()) {
+    return std::unexpected(settledValues.error());
+  }
+  sg::TopdownRecord record {
+      .supported = *supported,
+      .reason = std::move(*reason),
+      .reference = std::move(*reference),
+      .directory = std::move(*directory),
+      .files = {},
+      .askedLevel = *askedLevel,
+      .level = *level,
+      .nodes = {},
+      .refused = {},
+  };
+  auto files = asArray(parts[4].second.value(), where + "/files");
+  if (!files.has_value()) {
+    return std::unexpected(files.error());
+  }
+  std::size_t index = 0;
+  for (const auto item : *files) {
+    auto read =
+        readTopdownFile(item, where + "/files/" + std::to_string(index));
+    if (!read.has_value()) {
+      return std::unexpected(read.error());
+    }
+    record.files.push_back(std::move(*read));
+    ++index;
+  }
+  auto nodes = asArray(parts[7].second.value(), where + "/nodes");
+  if (!nodes.has_value()) {
+    return std::unexpected(nodes.error());
+  }
+  index = 0;
+  for (const auto item : *nodes) {
+    auto read =
+        readTopdownNode(item, where + "/nodes/" + std::to_string(index));
+    if (!read.has_value()) {
+      return std::unexpected(read.error());
+    }
+    record.nodes.push_back(std::move(*read));
+    ++index;
+  }
+  auto refused = asArray(parts[8].second.value(), where + "/refused");
+  if (!refused.has_value()) {
+    return std::unexpected(refused.error());
+  }
+  index = 0;
+  for (const auto item : *refused) {
+    auto read =
+        readTopdownRefusal(item, where + "/refused/" + std::to_string(index));
+    if (!read.has_value()) {
+      return std::unexpected(read.error());
+    }
+    record.refused.push_back(std::move(*read));
+    ++index;
+  }
+  return record;
+}
+
 // The run-level hunt object of specs/029 (contracts/hunt-json.md): the
 // settled option values beside the plan the run ran (E-08, PD-10). As in the
 // entry record, every key of the closed node is required.
@@ -2561,6 +2774,20 @@ auto readEntry(Element value,
       return std::unexpected(record.error());
     }
     result.hunt = *record;
+  }
+  // specs/042-topdown FR-034, FR-035: the top-down object the writer appends
+  // after the hunt key. A document written before this feature, and a run of
+  // this build that named no `--topdown`, write no key at all: the member stays
+  // empty, which is the reading of a run that collected no tree, and the rest
+  // of the entry reads as it did. A key that stands present keeps its own kind
+  // and its own refusal.
+  const auto tree = optionalField(value, "topdown");
+  if (tree.has_value()) {
+    auto record = readTopdownRecord(*tree, where + "/topdown");
+    if (!record.has_value()) {
+      return std::unexpected(record.error());
+    }
+    result.topdown = std::move(*record);
   }
   return {};
 }

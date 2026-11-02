@@ -2242,6 +2242,21 @@ target_compile_features(harness_topdown_run_test PRIVATE cxx_std_23)
 add_test(NAME harness_topdown_run_test COMMAND harness_topdown_run_test)
 set_tests_properties(harness_topdown_run_test PROPERTIES SKIP_RETURN_CODE 2)
 
+# The top-down object of the written record: the tree a run writes, the reader
+# that brings every field back, and the key the schema lists after `hunt`
+# (specs/042-topdown T052, T053, T054; US3; FR-032, FR-033, FR-034, FR-035,
+# FR-036, SC-06, SC-07). The schema path enters the way
+# `harness_hunt_json_test` takes it, so the checker reads the shipped file.
+add_executable(harness_topdown_report_test source/harness_topdown_report_test.cpp)
+target_link_libraries(harness_topdown_report_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_topdown_report_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_topdown_report_test PRIVATE cxx_std_23)
+target_compile_definitions(
+    harness_topdown_report_test
+    PRIVATE SG_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/docs/schema/report-v1.json"
+)
+add_test(NAME harness_topdown_report_test COMMAND harness_topdown_report_test)
+
 # ---- Tier labels and budgets ----
 
 # The entries a fast local run may leave out (030 P-05, FR-025): one row per
