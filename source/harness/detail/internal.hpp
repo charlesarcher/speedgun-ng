@@ -509,6 +509,30 @@ enum class WalkStep : std::uint8_t
  */
 [[nodiscard]] auto batchDefaultTimeUnit() -> std::optional<TimeUnit>&;
 
+/// @brief The two answers of the offer a process makes for its pmu provider
+/// (FR-055): the call that takes the offer, and a call that finds the offer
+/// already taken.
+enum class PmuOffer : std::uint8_t
+{
+  OFFERED,
+  ALREADY_OFFERED,
+};
+
+/**
+ * @brief Take the one offer of a pmu provider that a process makes (FR-055).
+ *
+ * @param offered the flag that records whether its owner has taken the
+ *                offer; the call sets it when it hands back `OFFERED`.
+ * @pre `offered` records the state of one owner only, so a flag that stands
+ *      unset hands back `OFFERED`.
+ * @post an `OFFERED` answer leaves `offered` standing set; an
+ *       `ALREADY_OFFERED` answer leaves it standing as it was.
+ * @invariant one offer passes per flag, so a process that holds one flag for
+ *           its life registers one pmu provider and walks no device tree
+ *           twice (spec D-21).
+ */
+[[nodiscard]] auto offerPmuProvider(bool& offered) noexcept -> PmuOffer;
+
 /**
  * @brief The suite-level jitter probe binding `runJitterProbe` writes
  * (FR-015). The batch reads it where the command line named none, and

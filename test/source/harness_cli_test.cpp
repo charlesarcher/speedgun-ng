@@ -16,6 +16,10 @@
 // document both carry the project version the tree records (FR-003, FR-006,
 // R-13).
 //
+// T003 of specs/042-topdown adds `pmuProviderIsOfferedOncePerProcess`:
+// the offer helper of the entry point hands one offer per process, so the
+// second entry-point call of a process builds no pmu provider (FR-055).
+//
 // A scripted FakeProvider owns the machine time leaves and one events leaf,
 // so the option effects are read as exact numbers in the captured report and
 // no run can grow into a long calibration. The usage-error cases exit the
@@ -852,6 +856,24 @@ auto versionPrintsPlannedMinor() -> void
   std::remove(document.c_str());
 }
 
+// specs/042-topdown T003, FR-055, spec D-21: the entry point offers its pmu
+// provider once per process. The gate answers `OFFERED` on the call that takes
+// the offer and `ALREADY_OFFERED` on every later call of that flag, so a second
+// entry-point call of one process builds no provider and pays no device walk.
+// The reading is of one flag the case owns, so it stands ahead of any
+// entry-point call the same process has already made.
+auto pmuProviderIsOfferedOncePerProcess() -> void
+{
+  bool offered = false;
+  check(sg::detail::offerPmuProvider(offered) == sg::detail::PmuOffer::OFFERED,
+        "the first call of one process takes the offer (FR-055)");
+  check(offered, "the call that offers leaves its flag standing set (FR-055)");
+  check(sg::detail::offerPmuProvider(offered)
+            == sg::detail::PmuOffer::ALREADY_OFFERED,
+        "a later call of one flag finds the offer taken, so a second "
+        "entry-point call builds no provider (FR-055)");
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmAlpha);
@@ -939,6 +961,15 @@ auto main(const int argc, char** argv) -> int
     std::fprintf(
         stderr, "%s\n", methodRuns > 0 ? "BENCHMARK_RAN" : "BENCHMARK_NO_RUN");
     return status;
+  }
+
+  if (mode == "offeronce") {
+    // specs/042-topdown T003: the offer gate reads on its own, ahead of the
+    // two windows of 1,000 in-process runs that fill the rest of this binary.
+    // Nothing registers here, so the case costs no benchmark and no provider.
+    pmuProviderIsOfferedOncePerProcess();
+    std::puts("harness_cli_test: ok");
+    return 0;
   }
 
   scriptedProvider();
@@ -1974,6 +2005,9 @@ auto main(const int argc, char** argv) -> int
   // FR-003, FR-006, R-13: the version the lane records reaches the console line
   // and the document.
   versionPrintsPlannedMinor();
+
+  // specs/042-topdown FR-055: the pmu provider offer of the entry point.
+  pmuProviderIsOfferedOncePerProcess();
 
   std::puts("harness_cli_test: ok");
   return 0;

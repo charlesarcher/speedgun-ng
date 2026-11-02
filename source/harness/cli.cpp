@@ -327,6 +327,15 @@ auto environmentRows(char* const* table) -> std::vector<EnvironmentRow>
   return rows;
 }
 
+auto offerPmuProvider(bool& offered) noexcept -> PmuOffer
+{
+  if (offered) {
+    return PmuOffer::ALREADY_OFFERED;
+  }
+  offered = true;
+  return PmuOffer::OFFERED;
+}
+
 }  // namespace detail
 
 /**
@@ -637,7 +646,16 @@ auto speedgunMain(int argc, char** argv) -> int
   // The metric leaves reach the catalog through the pmu provider; a host
   // that cannot count a leaf keeps that metric unavailable with its
   // refusal kind while the benchmark still runs (FR-023, SC-008).
-  (void)sys.registerProvider(std::make_unique<counters::PmuProvider>());
+  //
+  // specs/042-topdown FR-055, spec D-21: construction walks the device
+  // tree, a measured 1.35 to 1.72 seconds per call, so one process offers
+  // the provider once. `System::local()` lives for the process, so a later
+  // entry-point call of the same process reads the registration this call
+  // made and pays no second walk.
+  static bool pmuOffered = false;
+  if (detail::offerPmuProvider(pmuOffered) == detail::PmuOffer::OFFERED) {
+    (void)sys.registerProvider(std::make_unique<counters::PmuProvider>());
+  }
 
   // specs/028 FR-002, FR-010, FR-011, SC-013: the scan stands behind
   // its own seam and reads the one option table, so the entry point
