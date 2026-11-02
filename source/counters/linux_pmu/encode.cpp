@@ -147,11 +147,11 @@ auto fixedCounterDesignation(const std::string_view text) noexcept -> int
   // name no counter the table means. A range text such as "0,1,2,3" names
   // the programmable counters and reaches the same answer, because the
   // composition of such a row already reads its own event code (FR-037).
-  constexpr std::string_view prefix = "Fixed counter ";
-  if (!text.starts_with(prefix)) {
+  constexpr std::string_view kPrefix = "Fixed counter ";
+  if (!text.starts_with(kPrefix)) {
     return -1;
   }
-  const auto tail = text.substr(prefix.size());
+  const auto tail = text.substr(kPrefix.size());
   int number = -1;
   const auto parsed =
       std::from_chars(tail.data(), tail.data() + tail.size(), number);
