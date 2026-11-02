@@ -106,7 +106,7 @@ and every story calls `topdownTree`.
   builds no provider (FR-055; red at `754867de`). This case lands in the commit
   of T014 (FR-048).
 
-- [ ] T004 In `test/source/counters_metric_trees_test.cpp`, add
+- [x] T004 In `test/source/counters_metric_trees_test.cpp`, add
   `smtStateFallsBackToTheSiblingList`: over the coreless tree with a fake root
   from `installTestProcRoot`, `#SMT_on` answers 1 from a
   `cpu<N>/topology/core_cpus_list` of `0,12`, 0 from a list naming one id, and
@@ -114,7 +114,7 @@ and every story calls `topdownTree`.
   priority (FR-054; red at `754867de`). This case lands with T015 and the moved
   header of T012 in one commit.
 
-- [ ] T005 In `test/source/counters_metric_trees_test.cpp`, add
+- [x] T005 In `test/source/counters_metric_trees_test.cpp`, add
   `coreWideAnswersFromTheProcessCpuSet`: from the process's own affinity and a
   fake sibling list, `#core_wide` answers 1 when the mask holds every sibling of
   every cpu it holds, 0 when one stands outside, and nothing when a list is
@@ -215,14 +215,14 @@ and every story calls `topdownTree`.
   `source/harness/cli.cpp:579` (FR-055, spec D-21; turns
   `pmuProviderIsOfferedOncePerProcess` of T003 green).
 
-- [ ] T015 In `source/counters/linux_pmu/metric_tables.hpp`, give `readSmtState`
+- [x] T015 In `source/counters/linux_pmu/metric_tables.hpp`, give `readSmtState`
   its sibling-list fallback over `procRootPath` from
   `source/detail/proc_root.hpp`: `core_cpus_list`, then `thread_siblings_list`,
   the cpu from `::sched_getcpu()`, and nothing when that read fails (FR-054;
   turns `smtStateFallsBackToTheSiblingList` of T004 green). The moved header of
   T012 rides this commit.
 
-- [ ] T016 In `source/counters/linux_pmu/metric_tables.hpp`, add the fifth
+- [x] T016 In `source/counters/linux_pmu/metric_tables.hpp`, add the fifth
   `kHostFacts` row `core_wide` over the standing `bool(System&, double&)`
   reader, reading the mask with `sched_getaffinity` and each sibling list
   through the fallback reader of T015, and move `#core_wide` out of the header

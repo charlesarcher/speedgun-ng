@@ -396,7 +396,6 @@ auto constantScenario() -> void
   for (const auto& name : {
            "has_pmem",
            "num_dies",
-           "core_wide",
            "SYSTEM_TSC_FREQ",
        })
   {
