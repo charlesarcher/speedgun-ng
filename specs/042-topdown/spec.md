@@ -134,10 +134,19 @@ force. No implementer reopens them.
 - **D-17 Version and schema numbers.** The feature takes version 0.29.0:
   the lane planned for 0.29.0 holds no merge at branch time, checked against
   `specs/`, the remote branches and the open pull requests. The report gains
-  one key, so the schema moves from 1.11 to 1.12. The report reader plants
-  `1.12` as the example of a later minor in two tests
-  (`test/source/harness_json_load_test.cpp:107`, `:1199-1202`), so the move
-  moves those plants one minor up as well. If the other lane lands first, this
+  one key, so the schema moves from 1.11 to 1.12. Eight test sites carry the
+  stamp and all eight move with it: six assert or embed the current minor
+  (`test/source/harness_json_report_test.cpp:546`,
+  `test/source/harness_json_schema_test.cpp:186`,
+  `test/source/harness_json_load_test.cpp:829`,
+  `test/source/harness_hunt_json_test.cpp:1537`,
+  `test/source/harness_noise_report_test.cpp:426`, and the byte fixture at
+  `test/source/harness_noise_report_test.cpp:457`), and two plant the next
+  minor as the example of a later report
+  (`test/source/harness_json_load_test.cpp:107`, `:1202`), so those take
+  `1.13`. The guide page states the stamp in prose
+  (`docs/pages/harness.md:1399`, which still reads `1.10` today) and moves
+  with it. If the other lane lands first, this
   lane takes the next free minor and the next free schema minor and re-runs
   every gate.
 
