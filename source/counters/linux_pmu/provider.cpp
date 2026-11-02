@@ -18,6 +18,7 @@
 
 #include "../detail/pmu.hpp"
 #include "counter_limits.hpp"
+#include "kernel_calls.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_pmu.hpp"
 #include "speedgun-ng/counters_provider.hpp"
@@ -65,8 +66,6 @@ std::unique_ptr<WindowReader> PmuProvider::open(const LeafSet& /*leaves*/,
 namespace
 {
 
-constexpr std::string_view kDevicesRoot = "/sys/bus/event_source/devices";
-
 // Sysfs publishes per-alias attributes beside an event file as
 // "<alias>.<attribute>". A file name carrying a dot describes an
 // attribute of a named event, never an event of its own.
@@ -88,7 +87,7 @@ auto slurp(const std::filesystem::path& path) -> std::string
 // and the catalog then says so (FR-039).
 auto readParanoid() -> int
 {
-  std::ifstream file("/proc/sys/kernel/perf_event_paranoid");
+  std::ifstream file(sg::counters::detail::kernelCalls().paranoidPath());
   int value = -1;
   // LCOV_EXCL_BR_START : coverage exclusion (T066): the whole read is
   // excluded because its false side needs the sysctl to be unreadable; see
@@ -805,7 +804,7 @@ PmuProvider::PmuProvider()
   std::error_code code;
   std::vector<std::filesystem::path> devices;
   for (auto it = std::filesystem::directory_iterator(
-           std::filesystem::path(kDevicesRoot), code);
+           sg::counters::detail::kernelCalls().devicesRoot(), code);
        it != std::filesystem::directory_iterator();
        it.increment(code))
   {

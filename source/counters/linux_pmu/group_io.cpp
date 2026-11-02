@@ -20,6 +20,7 @@
 #  include <unistd.h>
 
 #  include "../detail/pmu.hpp"
+#  include "kernel_calls.hpp"
 #  include "speedgun-ng/counters_provider.hpp"
 #  include "speedgun-ng/dbc.hpp"
 
@@ -270,7 +271,7 @@ struct PmuWindow final : WindowReader
       // releases none, while the host that grants the syscall releases every
       // member it opened here.
       for (const int fd : group.members) {
-        ::close(fd);
+        kernelCalls().closeFd(fd);
       }
       // LCOV_EXCL_STOP
     }
@@ -296,7 +297,8 @@ struct PmuWindow final : WindowReader
       // every leaf opens into exactly one group, so the buffer covers the
       // header and one word per member of any group: the read below never
       // grows it, and the sampling path allocates nothing (FR-026).
-      const auto got = ::read(group.leader, scratch.data(), want);
+      const auto got =
+          kernelCalls().readGroup(group.leader, scratch.data(), want);
       if (groupReadShort(got, kHeaderWords * sizeof(std::uint64_t)))
       {  // A group the kernel could not
          // read this action reports no
@@ -594,12 +596,12 @@ auto openGroupWindow(const PmuState& state,
     // below nor the loop it never completes; the host that grants the
     // syscall opens every member here and completes the loop on every plan
     // it serves.
-    const long fd = ::syscall(SYS_perf_event_open,
-                              &attr,
-                              pid,
-                              cpu,
-                              isLeader ? -1 : window->groups[group].leader,
-                              PERF_FLAG_FD_CLOEXEC);
+    const long fd =
+        kernelCalls().openEvent(&attr,
+                                pid,
+                                cpu,
+                                isLeader ? -1 : window->groups[group].leader,
+                                PERF_FLAG_FD_CLOEXEC);
     if (fd < 0) {  // LCOV_EXCL_BR_LINE
       return nullptr;
     }
@@ -626,8 +628,12 @@ auto openGroupWindow(const PmuState& state,
     group.values.assign(group.members.size(), 0);  // LCOV_EXCL_LINE
     // Reset and enable the group once, so every member shares one
     // enable instant and the enabled/running pair describes the group.
-    if (::ioctl(group.leader, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP) != 0
-        || ::ioctl(group.leader, PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP)
+    if (kernelCalls().ioctlEvent(
+            group.leader, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP)
+            != 0
+        || kernelCalls().ioctlEvent(group.leader,
+                                    PERF_EVENT_IOC_ENABLE,
+                                    PERF_IOC_FLAG_GROUP)
             != 0)  // LCOV_EXCL_BR_LINE
     {
       return nullptr;  // LCOV_EXCL_LINE
