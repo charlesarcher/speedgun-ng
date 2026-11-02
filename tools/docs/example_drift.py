@@ -547,6 +547,7 @@ NAME_SCAN_HEADERS = (
     "execution_context.hpp",
     "counters_metrics.hpp",
     "counters_system.hpp",
+    "counters_topdown.hpp",
     "hunt.hpp",
     "views.hpp",
 )
