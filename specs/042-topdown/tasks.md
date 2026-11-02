@@ -443,11 +443,16 @@ rule and no page is needed.
   because the plan of the run names them, and each case printed its own fault with
   the strip's call taken out.
 
-- [ ] T029 [US1] In `test/source/harness_topdown_run_test.cpp`, add
+- [x] T029 [US1] In `test/source/harness_topdown_run_test.cpp`, add
   `anUnsupportedHostCollectsNothingAndStaysItself`: a planted refusal answers no
   node column, no block and an unsupported record with its reason, while the
   run's status equals the same run without the option (FR-040, FR-041; the one
   message line is T080's). This case lands with T036 in one commit (FR-048).
+  The scenario runs both arms over one scripted provider and reads the refusal's
+  two streams out of files, the way `harness_aggregates_only_test.cpp` reads a
+  report, so the claim that nothing prints is read and not assumed. The planted
+  table holds four published rows and no directory, so the case shows a refusal
+  outranking the rows it carries.
 
 - [ ] T030 [US1] In `test/source/harness_topdown_run_test.cpp`, write the block
   cases: `theBlockStandsAfterTheResultTables` holds one block per benchmark
@@ -534,10 +539,18 @@ rule and no page is needed.
   content faults of three cases. `detail/internal.hpp` stands outside the doc
   gate's `INPUT`, so the pair gate counts neither the tags nor these checks.
 
-- [ ] T036 [US1] In `source/harness/runner.cpp`, take the refusal side of the
+- [x] T036 [US1] In `source/harness/runner.cpp`, take the refusal side of the
   `std::expected` answer at T034's call: append no column, record the reason and
   no node, print nothing and change no status, leaving the one line to
   `source/harness/cli.cpp` (FR-040, FR-041; turns T029 green).
+  The refusal branch stands beside the branch that collects, and it stores the
+  refusal's `detail` in `TopdownRecord::reason` with no sentence composed in the
+  harness. The reason text for a kind whose detail stands empty arrives when T079
+  implements `message()`, which replaces that store with the library's line and
+  pins the whole line in its own case, so no reader mistakes an empty `reason` in a
+  mid-feature document for a defect: FR-033 stands satisfied at the end of the
+  feature, because T079 and T080 land in this branch. Five arms each printed their
+  own claim, and no arm left the refusal printing or moving a status.
 
 - [ ] T037 [US1] In `source/harness/report.cpp`, add
   `printTopdownBlock(const BenchmarkResult&)` in the anonymous namespace that
