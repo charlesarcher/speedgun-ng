@@ -36,6 +36,7 @@
 #include "detail/options.hpp"
 #include "detail/percentiles.hpp"
 #include "detail/proc_root.hpp"
+#include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
 #include "speedgun-ng/counters_system.hpp"
 #include "speedgun-ng/execution_context.hpp"
@@ -155,8 +156,128 @@ auto openSystemRecorder(
 
 struct ProbeSession;
 
-// The per-cpu work item: the buffer's first touch, the measurement pass,
-// the phases, and the four-move loop (FR-005, FR-009, R-03, R-04).
+// specs/043 FR-010, FR-011, D-2, R-04: the calibration of one probe cpu.
+// The search runs on the probe cpu, after the buffer's first touch and
+// before the measurement pass, so its span stands out of the window's
+// runtime and the latch line, hence `start()`, stands behind it (R-05).
+// The doubling starts at one loop body and runs at most 25 trials over
+// counts 1 through `kMaxWorkCount`; the bisection runs at most 24 steps;
+// each trial reads the time source twice around a body closed on
+// `sg::doNotOptimize`, so the search costs at most 98 reads. The search
+// ends at the trial cap, at the count cap, or when the bisection
+// interval holds one count, and the closest count it measured stands
+// kept. The target stands at `kTargetUnitTimeNs` for FWQ and at one
+// thousandth of the quantum for FTQ, the quantum in ns standing
+// `quantumUs` x 1,000.
+
+// The running state of one calibration search (FR-010, E-22).
+struct CalibrationSearch
+{
+  std::uint64_t target = kTargetUnitTimeNs;
+  std::uint64_t spanStart = 0;
+  std::uint64_t spanEnd = 0;
+  std::uint64_t bestCount = 1;
+  std::uint64_t bestUnit = 0;
+  bool haveBest = false;
+};
+
+// One trial of the search: two reads around `count` loop bodies closed
+// on `sg::doNotOptimize`, the unit time standing at the delta divided by
+// the count. The closest unit time to the target wins, a tie keeping the
+// earlier trial (FR-010, D-2).
+//
+// \pre `readStamp` reads the probe's own time source and `count` stands
+//      at or above 1
+// \post the answer carries the measured unit time and the search keeps
+//       the closest count it has measured
+template<class ReadStamp>
+auto calibrationTrial(CalibrationSearch& search,
+                      const ReadStamp& readStamp,
+                      const std::uint64_t count) noexcept -> std::uint64_t
+{
+  const std::uint64_t first = readStamp();
+  if (!search.haveBest) {
+    search.spanStart = first;
+  }
+  std::uint64_t work = 0;
+  for (std::uint64_t index = 0; index < count; ++index) {
+    sg::doNotOptimize(work);
+  }
+  search.spanEnd = readStamp();
+  const std::uint64_t unit = (search.spanEnd - first) / count;
+  const std::uint64_t target = search.target;
+  const std::uint64_t distance = unit > target ? unit - target : target - unit;
+  const std::uint64_t bestDistance = search.bestUnit > target
+      ? search.bestUnit - target
+      : target - search.bestUnit;
+  if (!search.haveBest || distance < bestDistance) {
+    search.haveBest = true;
+    search.bestUnit = unit;
+    search.bestCount = count;
+  }
+  return unit;
+}
+
+// The search itself: the doubling, then the bisection over the bracket
+// the doubling left (FR-010, FR-011, R-04).
+//
+// \pre `readStamp` reads the probe's own time source
+// \post the state carries the kept count, its measured unit time, the
+//       target, the quantum for FTQ, and the span of the search's reads
+//       (FR-011, E-22)
+template<class ReadStamp>
+auto calibrateUnit(ProbeCpuState& state,
+                   const JitterProbeOptions& options,
+                   const ReadStamp& readStamp) noexcept -> void
+{
+  CalibrationSearch search;
+  search.target = options.method == JitterMethod::FTQ
+      ? static_cast<std::uint64_t>(options.quantumUs)
+      : kTargetUnitTimeNs;
+  std::uint64_t lo = 1;
+  std::uint64_t hi = kMaxWorkCount;
+  std::uint64_t count = 1;
+  std::uint64_t trials = 0;
+  while (trials < kCalibrationTrials) {
+    const std::uint64_t unit = calibrationTrial(search, readStamp, count);
+    ++trials;
+    if (unit >= search.target) {
+      hi = count;
+      lo = count / 2;
+      break;
+    }
+    // The count cap ends the doubling with no count above the target, so
+    // the bisection reads the whole range and runs its full 24 steps
+    // (FR-010, R-02).
+    if (count >= kMaxWorkCount) {
+      lo = 1;
+      break;
+    }
+    count *= 2;
+  }
+  std::uint64_t steps = 0;
+  while (hi - lo > 1 && steps < kCalibrationSteps) {
+    const std::uint64_t mid = lo + (hi - lo) / 2;
+    const std::uint64_t unit = calibrationTrial(search, readStamp, mid);
+    ++steps;
+    if (unit >= search.target) {
+      hi = mid;
+    } else {
+      lo = mid;
+    }
+  }
+  state.workCount = search.bestCount;
+  state.unitTimeNs = search.bestUnit;
+  state.targetNs = search.target;
+  state.quantumNs = options.method == JitterMethod::FTQ
+      ? static_cast<std::uint64_t>(options.quantumUs) * 1000ULL
+      : 0;
+  state.calibrationSpanNs = search.spanEnd - search.spanStart;
+}
+
+// The per-cpu work item: the buffer's first touch, the calibration, the
+// measurement pass, the phases, and the four-move loop (FR-005, FR-009,
+// R-03, R-04).
 struct ProbeItem
 {
   ProbeCpuState* state = nullptr;
@@ -235,6 +356,15 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
     return recorder
         ->mColumns[(recorder->mHead - 1) & (recorder->mCapacity - 1)];
   };
+
+  // The calibration: FWQ and FTQ find their work count on this cpu,
+  // after the buffer's first touch and before the measurement pass, so
+  // the search's span stands out of the window's runtime and the latch
+  // line stands behind it (FR-010, FR-011, R-04, R-05). A TSC run keeps
+  // the standing layout and reads no prefix.
+  if (options->method != JitterMethod::TSC) {
+    calibrateUnit(*state, *options, readStamp);
+  }
 
   // The measurement pass: the 1,024 reads take no record and set the
   // effective threshold, the default rising to ten times the minimum

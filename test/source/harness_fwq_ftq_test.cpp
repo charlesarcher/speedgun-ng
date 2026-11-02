@@ -35,7 +35,9 @@
 #include "detail/jitter_probe.hpp"
 #include "detail/spectrum.hpp"
 #include "speedgun-ng/benchmark.hpp"
+#include "speedgun-ng/counters_fake.hpp"
 #include "speedgun-ng/counters_provider.hpp"
+#include "speedgun-ng/counters_system.hpp"
 
 namespace
 {
@@ -192,6 +194,11 @@ struct ScriptThread
 thread_local ScriptThread scriptThread;
 std::atomic<std::uint64_t> scriptTicket {0};
 std::atomic<std::uint64_t> scriptCalls[kScriptSlots] {};
+// The read count of one probe thread at the moment the case opened the
+// gate: the count the clock reached on its own, before the stop flag
+// lands. The loop keeps reading while the stop travels, so this mirror,
+// not the live count, carries the run's read count (FR-010, FR-024).
+std::atomic<std::uint64_t> scriptParked[kScriptSlots] {};
 std::atomic<bool> scriptGateOpen {false};
 
 // The plan's read count: the prefix, the standing pass, the read behind
@@ -271,6 +278,9 @@ auto scriptReset() -> void
   for (auto& slot : scriptCalls) {
     slot.store(0, std::memory_order_relaxed);
   }
+  for (auto& slot : scriptParked) {
+    slot.store(0, std::memory_order_relaxed);
+  }
 }
 
 // The cpu indexes the scenarios pin probe threads to, taken from the
@@ -300,6 +310,30 @@ auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
   return cpus;
 }
 
+// The scripted provider: one FakeProvider declaring the machine/tsc leaf
+// at ReadMode::FAST_TSC, registered once per process, the shape
+// harness_jitter_probe_test carries. The probe's open asks the catalog
+// for that leaf and refuses the run without it, which leaves the
+// scripted clock with no read at all (FR-024, R-02).
+auto scriptedTscProvider() -> void
+{
+  static const bool registered = []
+  {
+    auto owned = std::make_unique<sg::counters::FakeProvider>();
+    owned->addCounter("machine",
+                      "tsc",
+                      "none",
+                      "raw tick counter",
+                      sg::counters::Availability::COUNTABLE,
+                      sg::counters::ReadMode::FAST_TSC);
+    const auto ok =
+        sg::counters::System::local().registerProvider(std::move(owned));
+    check(ok.has_value(), "the scripted tsc provider registers (FR-024)");
+    return true;
+  }();
+  check(registered, "the scripted tsc provider stands registered (FR-024)");
+}
+
 // One scripted case: install the clock, start the probe, and open the
 // gate once every probe thread stands parked in its last planned read.
 // The watch spins on the reader's own per-thread counts, yields, and
@@ -325,6 +359,8 @@ auto runScripted(const sg::JitterProbeOptions& options,
         fail("the scripted clock never reached its plan (FR-024)");
       }
     }
+    scriptParked[slot].store(scriptCalls[slot].load(std::memory_order_relaxed),
+                             std::memory_order_relaxed);
   }
   scriptGateOpen.store(true, std::memory_order_release);
   probe.stopAndJoin();
@@ -383,7 +419,7 @@ auto calibrationStopsAtTheFirstTrial() -> void
       [](const auto& states)
       {
         const auto& probed = states.at(0);
-        check(scriptCalls[0].load()
+        check(scriptParked[0].load()
                   == 2 + kScriptPassReads + kScriptLatchRead + 4,
               "the search costs 2 reads for a delta at the target (FR-010)");
         check(probed.workCount == 1,
@@ -416,7 +452,7 @@ auto calibrationStopsAtTheTrialCap() -> void
       [](const auto& states)
       {
         const auto& probed = states.at(0);
-        check(scriptCalls[0].load()
+        check(scriptParked[0].load()
                   == 98 + kScriptPassReads + kScriptLatchRead + 4,
               "the search costs 98 reads at its trial cap (FR-010, R-02)");
         check(probed.workCount == 1,
@@ -441,7 +477,7 @@ auto calibrationStopsAtTheCountCap() -> void
       [](const auto& states)
       {
         const auto& probed = states.at(0);
-        check(scriptCalls[0].load()
+        check(scriptParked[0].load()
                   == 98 + kScriptPassReads + kScriptLatchRead + 4,
               "the search costs 98 reads at its count cap (FR-010, R-02)");
         check(probed.workCount == 1,
@@ -467,7 +503,7 @@ auto calibrationStopsAtTheOneCountInterval() -> void
       [](const auto& states)
       {
         const auto& probed = states.at(0);
-        check(scriptCalls[0].load()
+        check(scriptParked[0].load()
                   == 4 + kScriptPassReads + kScriptLatchRead + 4,
               "the one-count interval ends the search at 4 reads (FR-010)");
         check(probed.workCount == 2,
@@ -492,7 +528,7 @@ auto calibrationKeepsTheClosestCount() -> void
       [](const auto& states)
       {
         const auto& probed = states.at(0);
-        check(scriptCalls[0].load()
+        check(scriptParked[0].load()
                   == 12 + kScriptPassReads + kScriptLatchRead + 4,
               "the search costs 12 reads over its six trials (FR-010)");
         check(probed.workCount == 6,
@@ -518,7 +554,7 @@ auto calibrationRunsOncePerProbeCpu() -> void
                 check(states.size() == 2,
                       "the two probe cpus stand probed (FR-010)");
                 for (std::size_t slot = 0; slot < 2; ++slot) {
-                  check(scriptCalls[slot].load() == 2 + kScriptPassReads
+                  check(scriptParked[slot].load() == 2 + kScriptPassReads
                     + kScriptLatchRead + 4,
                 "each probe cpu reads its own calibration prefix once "
                 "(FR-010)");
@@ -642,7 +678,7 @@ auto fwqCleanSeriesAnswersEqualFigures() -> void
       [](const auto& states)
       {
         const auto& probed = states.at(0);
-        check(scriptCalls[0].load() == 2 + kScriptPassReads + kScriptLatchRead
+        check(scriptParked[0].load() == 2 + kScriptPassReads + kScriptLatchRead
                   + 1000,
               "the clean 1,000-unit case stands 2,027 reads behind a prefix "
               "of 2 (FR-012, R-01)");
@@ -679,7 +715,7 @@ auto fwqOneSlowUnitMovesTheMaximum() -> void
       [](const auto& states)
       {
         const auto& probed = states.at(0);
-        check(scriptCalls[0].load()
+        check(scriptParked[0].load()
                   == 2 + kScriptPassReads + kScriptLatchRead + 10000,
               "the 10,000-unit case stands 11,027 reads (FR-012, R-01)");
         check(probed.seriesKept == 10000 && probed.droppedSamples == 0,
@@ -712,7 +748,7 @@ auto fwqNoiseFractionOfASlowUnit() -> void
               [](const auto& states)
               {
                 const auto& probed = states.at(0);
-                check(scriptCalls[0].load()
+                check(scriptParked[0].load()
                           == 2 + kScriptPassReads + kScriptLatchRead + 10000,
                       "the row reads the same 11,027 reads (FR-012, R-01)");
                 check(probed.seriesKept == 10000,
@@ -738,7 +774,7 @@ auto fwqBufferFullCountsDrops() -> void
       [](const auto& states)
       {
         const auto& probed = states.at(0);
-        check(scriptCalls[0].load()
+        check(scriptParked[0].load()
                   == 2 + kScriptPassReads + kScriptLatchRead + 4,
               "the gaps=2 case reads its 1,031 stamps (FR-012, R-01)");
         check(probed.seriesKept == 2,
@@ -765,7 +801,7 @@ auto seriesPercentilesReadTheKeptSamples() -> void
       [](const auto& states)
       {
         const auto& probed = states.at(0);
-        check(scriptCalls[0].load()
+        check(scriptParked[0].load()
                   == 2 + kScriptPassReads + kScriptLatchRead + 100,
               "the row reads its 1,127 stamps (FR-012, R-01)");
         check(probed.seriesKept == 100 && probed.droppedSamples == 0,
@@ -797,7 +833,7 @@ auto oneSampleSeriesReadsThatSample() -> void
       [](const auto& states)
       {
         const auto& probed = states.at(0);
-        check(scriptCalls[0].load()
+        check(scriptParked[0].load()
                   == 2 + kScriptPassReads + kScriptLatchRead + 1,
               "the one-sample case reads 1,028 stamps (FR-012, R-01)");
         check(probed.seriesKept == 1 && probed.series.at(0) == 4000,
@@ -824,7 +860,7 @@ auto fwqResampleReachesThePeriodList() -> void
       [](const auto& states)
       {
         const auto& probed = states.at(0);
-        check(scriptCalls[0].load() == 2 + kScriptPassReads + kScriptLatchRead
+        check(scriptParked[0].load() == 2 + kScriptPassReads + kScriptLatchRead
                   + 65536,
               "the dip case stands 66,563 reads over 65,536 units "
               "(FR-012, R-01)");
@@ -863,7 +899,7 @@ auto precheckModeRunsTheSelectedMethod() -> void
       [](const auto& states)
       {
         const auto& probed = states.at(0);
-        check(scriptCalls[0].load() == 2 + kScriptPassReads + 1000
+        check(scriptParked[0].load() == 2 + kScriptPassReads + 1000
                   + kScriptLatchRead,
               "the pre-check phase reads its scripted span, then the read "
               "behind the latch (FR-004, FR-012)");
@@ -936,7 +972,7 @@ auto ftqCleanCountsAnswerEqualFigures() -> void
       [](const auto& states)
       {
         const auto& probed = states.at(0);
-        check(scriptCalls[0].load() == 2 + kScriptPassReads + kScriptLatchRead
+        check(scriptParked[0].load() == 2 + kScriptPassReads + kScriptLatchRead
                   + kFtqUnitsPerQuantum * 100,
               "the 100-quanta case at a 100 us quantum stands 101,027 reads "
               "(FR-015, R-08)");
@@ -973,7 +1009,7 @@ auto ftqOneLowCountMovesTheMinimum() -> void
       [](const auto& states)
       {
         const auto& probed = states.at(0);
-        check(scriptCalls[0].load()
+        check(scriptParked[0].load()
                   == 2 + kScriptPassReads + kScriptLatchRead
                       + kFtqUnitsPerQuantum * 1000,
               "the 1,000-quanta case reads one stamp per unit (FR-015, R-08)");
@@ -1029,7 +1065,7 @@ auto ftqZeroMaximumAnswersOneHundred() -> void
       [](const auto& states)
       {
         const auto& probed = states.at(0);
-        check(scriptCalls[0].load()
+        check(scriptParked[0].load()
                   == 2 + kScriptPassReads + kScriptLatchRead
                       + kFtqUnitsPerQuantum / 2,
               "the half-quantum window reads its units and stops (FR-015)");
@@ -1084,7 +1120,7 @@ auto ftqTrailingOpenQuantumRecordsNothing() -> void
               [](const auto& states)
               {
                 const auto& probed = states.at(0);
-                check(scriptCalls[0].load()
+                check(scriptParked[0].load()
                           == 2 + kScriptPassReads + kScriptLatchRead
                               + kFtqUnitsPerQuantum * 100 + 500,
                       "the row reads its 500 units behind the 100th edge "
@@ -1138,7 +1174,7 @@ auto ftqQuantumOfTenNanosecondsTarget() -> void
       [](const auto& states)
       {
         const auto& probed = states.at(0);
-        check(scriptCalls[0].load()
+        check(scriptParked[0].load()
                   == 2 + kScriptPassReads + kScriptLatchRead
                       + 5 * kFtqUnitsPerQuantum,
               "the row reads 6,027 stamps over 5 quanta (FR-015, R-08)");
@@ -1241,6 +1277,7 @@ auto main() -> int
         "a default loaded report carries no run record (FR-020)");
 
   // T011: the calibration rows (US1, FR-010, FR-011, D-2, R-04, R-05).
+  scriptedTscProvider();
   calibrationStopsAtTheFirstTrial();
   calibrationStopsAtTheTrialCap();
   calibrationStopsAtTheCountCap();

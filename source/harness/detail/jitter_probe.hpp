@@ -78,6 +78,9 @@ struct TimedWindow
 /// pre-sizes to the same `gapCount` entries, one 8-byte sample each,
 /// and the kept count and the count of records a full buffer dropped
 /// ride beside it (specs/043 FR-014, FR-016, FR-022, E-26, D-6). The
+/// five calibration figures of E-22 stand beside `loopPeriodNs` and
+/// `thresholdNs`, the values the search measured on this cpu before its
+/// window (specs/043 FR-010, FR-011, E-22). The
 /// stop flag stands last in the field list, inside its own `alignas`
 /// block, so the one read per loop pass shares no cache line with a
 /// field the runner writes (FR-005, R-04).
@@ -91,6 +94,11 @@ struct ProbeCpuState
   std::uint64_t droppedMaxNs = 0;
   std::uint64_t loopPeriodNs = 0;
   std::uint64_t thresholdNs = 0;
+  std::uint64_t workCount = 0;
+  std::uint64_t unitTimeNs = 0;
+  std::uint64_t targetNs = 0;
+  std::uint64_t quantumNs = 0;
+  std::uint64_t calibrationSpanNs = 0;
   std::vector<std::uint64_t> series;
   std::size_t seriesKept = 0;
   std::uint64_t droppedSamples = 0;
