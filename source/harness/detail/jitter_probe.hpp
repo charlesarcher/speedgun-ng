@@ -80,13 +80,20 @@ struct TimedWindow
 /// ride beside it (specs/043 FR-014, FR-016, FR-022, E-26, D-6). The
 /// five calibration figures of E-22 stand beside `loopPeriodNs` and
 /// `thresholdNs`, the values the search measured on this cpu before its
-/// window (specs/043 FR-010, FR-011, E-22). The
-/// stop flag stands last in the field list, inside its own `alignas`
+/// window (specs/043 FR-010, FR-011, E-22). The method names the run's
+/// selection, the figure that decides which noise fraction the series
+/// fold reads (specs/043 FR-009, R-10), and `seriesStartNs` carries the
+/// stamp the first series store wrote, the base the window fold
+/// recovers every sample's stamp from (specs/043 FR-020, R-11, E-26).
+/// The stop flag stands last in the field list, inside its own `alignas`
 /// block, so the one read per loop pass shares no cache line with a
 /// field the runner writes (FR-005, R-04).
 struct ProbeCpuState
 {
   std::uint32_t cpu = 0;
+  // specs/043 FR-009, R-10: the method the run selected, so the series
+  // fold reads the noise fraction of the method that filled the buffer.
+  JitterMethod method = JitterMethod::TSC;
   std::vector<GapRecord> buffer;
   std::size_t kept = 0;
   std::uint64_t droppedGaps = 0;
@@ -102,6 +109,9 @@ struct ProbeCpuState
   std::vector<std::uint64_t> series;
   std::size_t seriesKept = 0;
   std::uint64_t droppedSamples = 0;
+  // specs/043 FR-020, R-11, E-26: the stamp the first series store
+  // wrote, the base the window fold recovers each sample's stamp from.
+  std::uint64_t seriesStartNs = 0;
   alignas(kCacheLineBytes) std::atomic<bool> stop {false};
 };
 
@@ -173,6 +183,56 @@ private:
 [[nodiscard]] auto gapStatsOf(const ProbeCpuState& state,
                               std::span<const TimedWindow> windows)
     -> JitterStats;
+
+/// @brief specs/043-fwq-ftq: the run-level series fold of one probe
+/// cpu: the figures of FR-007 over the kept samples, the five
+/// calibration figures of E-22, and the noise fraction of the method
+/// that filled the buffer (FR-007, FR-008, FR-009, R-09, R-10). The
+/// caller reads the series buffer only after the probe context is
+/// joined (R-04). That ordering is a happens-before fact between
+/// threads. The state carries no field a runtime check could read, so
+/// the contract stands as prose and no `SG_REQUIRE` pairs with it.
+///
+/// \post the percentile fields follow the nearest-rank rule of
+///       `source/harness/percentiles.cpp` over the kept samples read
+///       in place, and the fold copies no buffer (FR-008)
+/// \post minValue <= medianValue <= p90Value <= p99Value <= p999Value
+///       <= p9999Value <= maxValue
+/// \post `sampleCount` counts the kept samples and `droppedSamples`
+///       counts the samples the full buffer dropped (FR-007, FR-022)
+/// \post the FWQ fraction divides the kept unit times' sum, minus the
+///       sample count times the minimum unit time, by that sum, times
+///       100, and the FTQ fraction divides the sample count times the
+///       maximum count, minus the counts' sum, by that product, times
+///       100, a maximum count of 0 answering 100 (FR-009, R-10)
+/// \post `seriesRuntimeNs` is the span the kept samples' recovered
+///       stamps cover, the calibration span out (FR-007, FR-010)
+/// \post an empty kept set leaves every figure at 0 (FR-008)
+[[nodiscard]] auto seriesStatsOf(const ProbeCpuState& state)
+    -> JitterSeriesStats;
+
+/// @brief specs/043-fwq-ftq: the per-benchmark series fold: the kept
+/// samples of one probe cpu whose recovered stamp falls inside the
+/// half-open timed windows of one benchmark entry (FR-020, R-11). The
+/// caller reads the series buffer only after the probe context is
+/// joined (R-04), the standing happens-before rule. The fold reads the
+/// one series buffer the probe cpu owns, so no second buffer joins
+/// (FR-020, R-11).
+///
+/// \post the fold recovers each sample's stamp from
+///       `seriesStartNs`, the stamp the first series store wrote: the
+///       FWQ stamp is that start plus the running sum of the unit
+///       times, and the FTQ stamp that start plus the sample rank plus
+///       one, times the quantum (R-11, E-26)
+/// \post a kept sample folds into every window whose half-open
+///       `[start, end)` contains its recovered stamp, and the fields
+///       carry the contracts the run-level fold states (E-06, R-04)
+/// \post `seriesRuntimeNs` is the windows' total duration (E-03, R-05)
+/// \post the fold stands absent when the windows place no sample
+///       (FR-020)
+[[nodiscard]] auto seriesStatsOf(const ProbeCpuState& state,
+                                 std::span<const TimedWindow> windows)
+    -> std::optional<JitterSeriesStats>;
 
 /// @brief The reader-install seam: a reader installed here stands in
 /// place of the one the probe opens over the `machine/tsc` leaf, and
