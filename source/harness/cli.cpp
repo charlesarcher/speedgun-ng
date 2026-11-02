@@ -396,6 +396,56 @@ auto applyNarrowedMask(const cpu_set_t& narrowed) noexcept -> void
             "the affinity mask stands narrowed for the instance's run (D-5)");
 }
 
+// The states of one probe as the pointers the printers read: the states
+// stand non-copyable, the reading the batch's own pointer vector carries
+// (R-04).
+auto probeStatePointers(const std::vector<detail::ProbeCpuState>& states)
+    -> std::vector<const detail::ProbeCpuState*>
+{
+  std::vector<const detail::ProbeCpuState*> pointers;
+  pointers.reserve(states.size());
+  for (const auto& state : states) {
+    pointers.push_back(&state);
+  }
+  return pointers;
+}
+
+// specs/043 T036, FR-011, FR-019, SC-003, D-2, R-05: the calibration
+// group ahead of the batch's first run. The four lines stand behind the
+// start's latch, where every probe cpu has measured its own count on its
+// own cpu, and ahead of every benchmark, so no cpu's window opens before
+// its own figures stand disclosed. The measured unit time and the
+// quantum ride the 16 figures of the block, so no field prints twice,
+// and the JSON carries all five keys inside that cpu's series item. A
+// `tsc` run calibrates nothing and prints none of the four.
+auto printCalibrationLines(
+    const std::vector<const detail::ProbeCpuState*>& states) -> void
+{
+  if (states.empty() || states.front()->method == JitterMethod::TSC) {
+    return;
+  }
+  std::printf("method:");
+  for (const auto* state : states) {
+    std::printf(" %s", detail::jitterMethodName(state->method));
+  }
+  std::printf("\n");
+  const auto printUint = [&states](const char* name, auto get)
+  {
+    std::printf("%s:", name);
+    for (const auto* state : states) {
+      std::printf(" %llu", static_cast<unsigned long long>(get(*state)));
+    }
+    std::printf("\n");
+  };
+  printUint("workCount",
+            [](const detail::ProbeCpuState& state) { return state.workCount; });
+  printUint("targetNs",
+            [](const detail::ProbeCpuState& state) { return state.targetNs; });
+  printUint("calibrationSpanNs",
+            [](const detail::ProbeCpuState& state)
+            { return state.calibrationSpanNs; });
+}
+
 // E-07: the record the document carries, built from the joined states
 // the fold reads (R-04). The record block is one unit of the report,
 // and the entry point below stands more than seven hundred lines, so
@@ -1158,6 +1208,10 @@ auto speedgunMain(int argc, char** argv) -> int
       }
       jitterUnavailable = true;
     } else {
+      // specs/043 T036, FR-011, FR-019, SC-003: the calibration group
+      // stands behind the start's latch and ahead of the batch's first
+      // run, so each cpu's window opens behind its own four lines.
+      printCalibrationLines(probeStatePointers(jitterProbe->states()));
       // specs/034 FR-014, FR-015, R-05: in strict mode a noisy planned
       // cpu stops the batch before any benchmark starts: one line
       // naming the cpu and the two figures, exit status 2; a cpu the
@@ -1472,6 +1526,10 @@ auto speedgunMain(int argc, char** argv) -> int
         }
         covering->unavailable = true;
       }
+      // specs/043 T036, FR-011, FR-019, SC-003: the family's own probe
+      // discloses its calibration beside its start, ahead of its first
+      // instance.
+      printCalibrationLines(probeStatePointers(covering->holder->states()));
     }
     const bool familyActive =
         covering != nullptr && covering->started && !covering->unavailable;

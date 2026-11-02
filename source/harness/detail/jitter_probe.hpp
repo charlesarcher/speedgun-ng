@@ -234,6 +234,16 @@ private:
                                  std::span<const TimedWindow> windows)
     -> std::optional<JitterSeriesStats>;
 
+/// @brief specs/043-fwq-ftq FR-019: the console spelling of one method,
+/// the lower-case words the value takes: `tsc`, `fwq` and `ftq`. The
+/// JSON writer keeps its own upper-case table beside its own keys, and
+/// the console block and the calibration lines read this one, so the two
+/// console surfaces spell the method alike.
+///
+/// \pre none
+/// \post the answer names the word of the enumerator
+auto jitterMethodName(JitterMethod method) -> const char*;
+
 /// @brief specs/043-fwq-ftq FR-017, FR-018, FR-022: the spectrum keys of
 /// one cpu's series record: the transform reads the FTQ count series at
 /// the quantum, or the FWQ unit times resampled to the median unit time,

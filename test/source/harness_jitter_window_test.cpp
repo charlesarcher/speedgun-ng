@@ -2516,21 +2516,23 @@ auto main() -> int
             "series (FR-017, FR-019)");
     }
 
-    // FR-018, FR-019: a rank a cpu does not carry prints 0. The standing
-    // scripted clock steps one tick per read, so the kept unit times stand
-    // equal, the resampled series stands constant, and the transform keeps
-    // no period: every one of the ten period lines prints 0.
+    // FR-018, FR-019: a rank a cpu does not carry prints 0. The flat
+    // clock answers one stamp, so the kept unit times stand at zero, the
+    // median step stands below the one nanosecond the transform needs,
+    // and the transform reads no span: all ten period lines print 0.
     {
       auto arguments = quick;
       arguments.push_back("--jitter-probe=" + probeCpu
                           + ",method=fwq,gaps=1024");
+      sg::detail::installTestReader(std::make_unique<FlatSeriesReader>());
       const auto report = captureRun(arguments);
+      sg::detail::installTestReader(nullptr);
       const auto lines = splitLines(report);
       std::size_t occurrences = 0;
       const auto pointsAt =
           fieldLineIndex(lines, "spectrumPoints", occurrences);
-      check(occurrences == 1 && lines.at(pointsAt) != "spectrumPoints: 0",
-            "theRankACpuOmitsPrintsZero: the transform read the series "
+      check(occurrences == 1 && lines.at(pointsAt) == "spectrumPoints: 0",
+            "theRankACpuOmitsPrintsZero: the transform read no span "
             "(FR-017, FR-019)");
       for (const auto field : kSeriesLines) {
         const std::string name(field);
@@ -2542,7 +2544,8 @@ auto main() -> int
         check(periodOccurrences == 1,
               "theRankACpuOmitsPrintsZero: each period line prints once "
               "(FR-019)");
-        const std::string wanted = name + ": 0";
+        const std::string wanted =
+            name + ": " + (name.ends_with("Power") ? "0.00" : "0");
         check(lines.at(at) == wanted,
               "theRankACpuOmitsPrintsZero: a rank the cpu omits prints 0 "
               "(FR-019)");

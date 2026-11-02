@@ -723,22 +723,16 @@ auto printResult(const BenchmarkResult& result,
 namespace
 {
 
-// specs/043 FR-019: the console spelling of the method, the lower-case
-// words the value takes. The JSON writer keeps its own upper-case table
-// beside its own keys, the standing reading of the availability names
-// above (FR-019, FR-006).
-constexpr std::array<const char*, 3> kJitterMethodNames {"tsc", "fwq", "ftq"};
-static_assert(kJitterMethodNames.size()
-              == std::to_underlying(JitterMethod::FTQ) + 1);
-
-// specs/043 T035, FR-013, FR-016, FR-019, FR-022, R-14: the 30 series
-// lines of the console block, in the standing order: the calibration
-// group of four, the 16 figures of FR-021, then the five periods and
-// their five powers. Each field prints once, with one column per probe
-// cpu in the order the block walks, and a rank a cpu does not carry
-// prints 0. The figures read the run-level series fold, and the periods
-// the transform the record reads, so the console and the document name
-// the same periods (FR-019, FR-020).
+// specs/043 T035, FR-013, FR-016, FR-019, FR-022, R-14: the series lines
+// of the console block, in the standing order: the 16 figures of FR-021,
+// then the five periods and their five powers. The calibration group of
+// four stands ahead of the batch's first run, beside the start's latch,
+// so the 30 lines print once each and no field prints twice (FR-011,
+// FR-019). Each field prints once, with one column per probe cpu in the
+// order the block walks, and a rank a cpu does not carry prints 0. The
+// figures read the run-level series fold, and the periods the transform
+// the record reads, so the console and the document name the same
+// periods (FR-019, FR-020).
 auto printSeriesLines(const std::vector<const ProbeCpuState*>& states) -> void
 {
   std::vector<JitterSeriesStats> folds;
@@ -765,19 +759,6 @@ auto printSeriesLines(const std::vector<const ProbeCpuState*>& states) -> void
     std::printf("\n");
   };
 
-  std::printf("method:");
-  for (const auto* state : states) {
-    std::printf(" %s",
-                kJitterMethodNames.at(std::to_underlying(state->method)));
-  }
-  std::printf("\n");
-  printUint("workCount",
-            [](const JitterSeriesStats& fold) { return fold.workCount; });
-  printUint("targetNs",
-            [](const JitterSeriesStats& fold) { return fold.targetNs; });
-  printUint("calibrationSpanNs",
-            [](const JitterSeriesStats& fold)
-            { return fold.calibrationSpanNs; });
   printUint("sampleCount",
             [](const JitterSeriesStats& fold) { return fold.sampleCount; });
   printUint("minValue",
@@ -909,15 +890,15 @@ auto printJitterReport(const bool available,
   printUintField("droppedGaps",
                  [](const JitterStats& fold) { return fold.droppedGaps; });
 
-  // specs/043 T035, FR-013, FR-016, FR-019, FR-022, R-14: the 30 series
+  // specs/043 T035, FR-013, FR-016, FR-019, FR-022, R-14: the series
   // lines, one field per line and one column per probe cpu in the cpu
-  // order the block already walks. The calibration group of four opens
-  // them, the 16 figures of FR-021 follow, then the five periods and
-  // their five powers, a rank a cpu does not carry printing 0. The
-  // console spells the method in the lower-case words the value takes,
-  // the JSON in upper case (FR-019). A `tsc` run keeps no series, so it
-  // prints none of the 30 lines and keeps the bytes it printed before
-  // (FR-031, SC-004).
+  // order the block already walks: the 16 figures of FR-021, then the
+  // five periods and their five powers, a rank a cpu does not carry
+  // printing 0. The calibration group of four stands ahead of the
+  // batch's first run (FR-011). The console spells the method in the
+  // lower-case words the value takes, the JSON in upper case (FR-019). A
+  // `tsc` run keeps no series, so it prints none of the series lines and
+  // keeps the bytes it printed before (FR-031, SC-004).
   if (states.front()->method != JitterMethod::TSC) {
     printSeriesLines(states);
   }
