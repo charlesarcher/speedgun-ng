@@ -533,6 +533,113 @@ struct JitterStats
 };
 
 /**
+ * @brief specs/043-fwq-ftq: the method one probe run measures, the three
+ * closed values of data-model.md E-21 (FR-001, D-1).
+ *
+ * `TSC` stands the probe of specs/027 as it shipped, and a value with no
+ * `method` key takes it (FR-001, FR-031). `FWQ` times one calibrated unit
+ * of fixed work, and `FTQ` counts whole units in each fixed quantum
+ * (FR-012, FR-015). One run carries one method, and the two words the
+ * value takes name it: the console spells it in lower case and the JSON
+ * in upper case (D-1, FR-019). The enum closes the set at the type level
+ * the way `JitterProbeMode` closes the modes.
+ *
+ * \pre none
+ * \post none
+ */
+enum class JitterMethod : std::uint8_t
+{
+  TSC,
+  FWQ,
+  FTQ,
+};
+
+/**
+ * @brief specs/043-fwq-ftq: one reported period of the series spectrum,
+ * nested inside one probe cpu's series record (FR-018, FR-019, E-24).
+ *
+ * `periodNs` names the period in ns, and `powerRatio` divides the bin
+ * power by the power of the strongest bin, so the strongest period reads
+ * 1 (FR-018). The list of them stands sorted by power, strongest first,
+ * ties in period order, and a constant series yields an empty list
+ * (FR-018).
+ *
+ * \pre none
+ * \post none
+ */
+struct JitterPeriodRecord
+{
+  std::uint64_t periodNs = 0;
+  double powerRatio = 0.0;
+};
+
+/**
+ * @brief specs/043-fwq-ftq: the series record of one probe cpu: the five
+ * calibration figures of E-22, the twelve series figures of FR-007, the
+ * two spectrum keys of FR-019, and the period list of FR-018 (FR-007,
+ * FR-011, FR-019, FR-020, E-23).
+ *
+ * The method sets the unit of the series figures: ns for `FWQ`, counts
+ * for `FTQ` (FR-013, FR-016). The percentile fields follow the
+ * nearest-rank rule of `source/harness/percentiles.cpp` over the kept
+ * samples read in place, and the fold of an empty kept set leaves every
+ * field at 0 (FR-008). `noisePercent` is the method's noise fraction in
+ * the range 0 through 100, and a maximum count of 0 answers 100
+ * (FR-009). `seriesRuntimeNs` carries the window runtime, the name that
+ * keeps the rule table free of a second reading of `runtimeNs` (FR-021).
+ * `droppedSamples` counts the records a full buffer dropped (FR-014,
+ * FR-022). `resampleStepNs` and `spectrumPoints` state the resample the
+ * transform read, and `periods` carries at most five closed records,
+ * strongest first (FR-017, FR-018). The record stands absent for a `TSC`
+ * run (FR-006).
+ *
+ * \pre none
+ * \post none
+ */
+struct JitterSeriesStats
+{
+  std::uint64_t workCount = 0;
+  std::uint64_t unitTimeNs = 0;
+  std::uint64_t targetNs = 0;
+  std::uint64_t quantumNs = 0;
+  std::uint64_t calibrationSpanNs = 0;
+  std::uint64_t sampleCount = 0;
+  std::uint64_t minValue = 0;
+  std::uint64_t medianValue = 0;
+  double meanValue = 0.0;
+  std::uint64_t p90Value = 0;
+  std::uint64_t p99Value = 0;
+  std::uint64_t p999Value = 0;
+  std::uint64_t p9999Value = 0;
+  std::uint64_t maxValue = 0;
+  double noisePercent = 0.0;
+  std::uint64_t seriesRuntimeNs = 0;
+  std::uint64_t droppedSamples = 0;
+  std::uint64_t resampleStepNs = 0;
+  std::uint64_t spectrumPoints = 0;
+  std::vector<JitterPeriodRecord> periods;
+};
+
+/**
+ * @brief specs/043-fwq-ftq: the run-level record `loadReport` reads back:
+ * the method word of the run that wrote the document (FR-020, E-25).
+ *
+ * The load call fills it when the document carried the root `jitter`
+ * object with a `method` key, and the run path never fills it and never
+ * reads it, the standing reading of `runJitterStats` beside it (FR-020,
+ * FR-031). A `TSC` run writes no method key, so its document leaves the
+ * record empty (FR-006, SC-004). The resample step and the point count
+ * ride each cpu's series item (FR-020).
+ *
+ * \pre none
+ * \post none
+ */
+struct JitterRunRecord
+{
+  JitterMethod method = JitterMethod::TSC;
+};
+
+/**
  * @brief The attribution figures one pre-check measured cpu discloses,
  * beside its gap figures: the window delta of the interrupt count, one
  * delta per softirq kind the host states, and the context-switch and
@@ -570,13 +677,18 @@ struct PrecheckHostSettings
  * run plans it (the planned cpus stand the run's own; the candidates
  * stand the cpus the `idle` preset would take), the sixteen-field
  * stats of its pre-check window, and its attribution deltas
- * (specs/034 FR-010, FR-012).
+ * (specs/034 FR-010, FR-012). The series record of the same window rides
+ * beside the gap stats, so the pair of the two figures stands readable
+ * for one measured cpu (specs/043 FR-004, FR-020, E-23).
  */
 struct PrecheckCpuRecord
 {
   std::uint32_t cpu = 0;
   bool planned = false;
   JitterStats stats {};
+  // specs/043 FR-004, FR-020, E-23: the series of the same pre-check
+  // window, absent when the window kept no sample.
+  std::optional<JitterSeriesStats> series {};
   PrecheckAttribution attribution;
 };
 
@@ -640,7 +752,9 @@ struct PrecheckRecord
  * (E-08): the cpu index and the fold the split placed into them. A
  * probe cpu whose kept gaps landed inside no window of the benchmark
  * carries no entry here (E-06, FR-021). The split reads the probe's
- * buffers only after the probe contexts are joined (R-04).
+ * buffers only after the probe contexts are joined (R-04). The series
+ * record of the same windows rides beside the gap stats, and it stands
+ * absent when the windows kept no sample (specs/043 FR-020, E-23).
  *
  * \pre none
  * \post none
@@ -649,6 +763,9 @@ struct JitterEntryFold
 {
   std::uint32_t cpu = 0;
   JitterStats stats {};
+  // specs/043 FR-020, E-23: the series of the same covered windows,
+  // absent when the windows kept no sample.
+  std::optional<JitterSeriesStats> series {};
 };
 
 struct BenchmarkResult
@@ -1002,6 +1119,13 @@ struct ReportData
   // stands for a document that carries no record, the reading a run with
   // no `--graph` leaves behind (FR-006, FR-023).
   std::optional<GraphRecord> graph;
+  // specs/043-fwq-ftq FR-020, E-25: the run record the document
+  // carried, the method word of the run that wrote it. The load call
+  // fills it when the document carried the root `jitter` object with a
+  // `method` key; absent stands for a document that carries no method,
+  // the reading a run with the default method leaves behind (FR-006,
+  // FR-031).
+  std::optional<JitterRunRecord> jitterRun;
 };
 
 /**
@@ -2197,6 +2321,23 @@ inline constexpr std::uint32_t kMinGapCount = 1;
 inline constexpr std::uint32_t kMaxGapCount = 16777216;
 inline constexpr std::uint32_t kDefaultPrecheckMs = 200;
 
+// specs/043 data-model.md E-27, contracts/public-api.md: the bounds of the
+// four new option fields and the stops the calibration search reads
+// (FR-002, FR-010). The parser `parseJitterProbeValue` stands the
+// enforcement site for the three ranges: it refuses a `quantum` value
+// outside 10 through 100,000 us, a `work` count outside 1 through
+// 16,777,216 bodies, and a `noise` value outside 0 through 100 percent,
+// each with one quoted line at exit status 2 at the command-line
+// boundary (FR-002, FR-003, SC-005).
+inline constexpr std::uint32_t kDefaultQuantumUs = 100;
+inline constexpr std::uint32_t kMinQuantumUs = 10;
+inline constexpr std::uint32_t kMaxQuantumUs = 100000;
+inline constexpr std::uint32_t kMaxWorkCount = 16777216;
+inline constexpr std::uint64_t kTargetUnitTimeNs = 1000;
+inline constexpr std::uint32_t kCalibrationTrials = 25;
+inline constexpr std::uint32_t kCalibrationSteps = 24;
+inline constexpr std::uint32_t kDefaultNoisePercent = 1;
+
 /**
  * @brief The engine the `--os-noise` value names (specs/036 FR-002,
  * D-4, data-model.md E-16, R-06). The enum closes the engine set at
@@ -2238,12 +2379,26 @@ enum class TracerEngine : std::uint8_t
  * carries the tracer cpu request: an empty vector names the
  * pre-check's candidate set, and a non-empty list names cpus inside
  * the process affinity mask and the online set (specs/036 FR-008,
- * R-09). The entry
+ * R-09). `method` carries the method one run measures, and a value with
+ * no `method` key leaves `TSC` (specs/043 FR-001, D-1). `quantumUs`
+ * carries the FTQ quantum in microseconds, the unit the field keeps
+ * while the JSON key carries nanoseconds (specs/043 FR-002, FR-015).
+ * `workCount` carries the FWQ work count of one unit, and 0 names the
+ * calibration of FR-010 (specs/043 FR-002, FR-010). `noisePercent`
+ * carries the whole percent at which a strict run refuses in the
+ * pre-check phase (specs/043 FR-002, FR-021). The entry
  * points that take the options require a `thresholdNs` value at or
  * above 1 when the field carries one, `gapCount` inside the
  * `kMinGapCount` through `kMaxGapCount` range,
  * and `precheckMs` at or above 1, and enforce the bounds where they
- * parse and bind (FR-008, FR-009, D-13).
+ * parse and bind (FR-008, FR-009, D-13). The parser
+ * `parseJitterProbeValue` stands the enforcement site for the three
+ * ranges of the new fields: it refuses a `quantum` value outside 10
+ * through 100,000 us, a `work` count outside 1 through 16,777,216
+ * bodies, and a `noise` value outside 0 through 100 percent, each with
+ * one quoted line at exit status 2 at the command-line boundary, so the
+ * entry points gain no precondition over them (specs/043 FR-002,
+ * FR-003, SC-005).
  *
  * \pre none
  * \post none
@@ -2259,6 +2414,10 @@ struct JitterProbeOptions
   bool precheckSerial = false;
   TracerEngine tracerEngine = TracerEngine::NONE;
   std::vector<std::uint32_t> tracerCpus = {};
+  JitterMethod method = JitterMethod::TSC;
+  std::uint32_t quantumUs = kDefaultQuantumUs;
+  std::uint32_t workCount = 0;
+  std::uint32_t noisePercent = kDefaultNoisePercent;
 };
 
 /**
