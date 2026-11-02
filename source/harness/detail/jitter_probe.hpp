@@ -207,7 +207,7 @@ private:
 ///       100, a maximum count of 0 answering 100 (FR-009, R-10)
 /// \post `seriesRuntimeNs` is the span the kept samples' recovered
 ///       stamps cover, the calibration span out (FR-007, FR-010)
-/// \post an empty kept set leaves every figure at 0 (FR-008)
+/// \post an empty kept set leaves the series figures at 0 (FR-008)
 [[nodiscard]] auto seriesStatsOf(const ProbeCpuState& state)
     -> JitterSeriesStats;
 

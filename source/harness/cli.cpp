@@ -1217,6 +1217,18 @@ auto speedgunMain(int argc, char** argv) -> int
           entry.planned = std::find(planned.begin(), planned.end(), state.cpu)
               != planned.end();
           entry.stats = detail::gapStatsOf(state);
+          // specs/043 FR-004, FR-020, E-23: the series of the same
+          // pre-check window rides beside the gaps. The fold reads the
+          // buffer behind the join edge, the state standing quiescent
+          // only in the precheck mode, where the start stops and joins
+          // the probe before it returns; in `both` the alongside loop
+          // runs on, so the record carries no series (R-04). A TSC run
+          // keeps no series to carry (FR-006).
+          if (state.method != JitterMethod::TSC
+              && options.jitterProbe->mode == JitterProbeMode::PRECHECK)
+          {
+            entry.series = detail::seriesStatsOf(state);
+          }
           entry.attribution = detail::precheckAttributionDelta(
               beforeSnapshot.at(state.cpu), afterSnapshot.at(state.cpu));
           built.cpus.push_back(std::move(entry));
@@ -1818,10 +1830,16 @@ auto speedgunMain(int argc, char** argv) -> int
     auto& stored = report.results.at(index);
     for (const auto* state : ordered) {
       const auto fold = detail::gapStatsOf(*state, entryWindows.at(index));
-      if (fold.gapCount != 0) {
-        stored.jitterFolds.push_back(
-            sg::JitterEntryFold {.cpu = state->cpu, .stats = fold});
+      // specs/043 FR-020, R-11: the series of the same windows rides
+      // the fold beside the gaps, over the one series buffer the probe
+      // cpu owns, and a cpu whose samples landed inside no window
+      // stands absent with them.
+      const auto series = detail::seriesStatsOf(*state, entryWindows.at(index));
+      if (fold.gapCount == 0 && !series.has_value()) {
+        continue;
       }
+      stored.jitterFolds.push_back(sg::JitterEntryFold {
+          .cpu = state->cpu, .stats = fold, .series = series});
     }
   }
 
