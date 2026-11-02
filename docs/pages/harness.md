@@ -1672,17 +1672,8 @@ the two. The split, the merge and the disclosure run in
 counter limit.
 ## Jitter probe
 The `--jitter-probe` option and the `runJitterProbe` call state the probe options of the run: a spinning context per touched L3 group counts the gaps the host inserts above a threshold while the batch runs, and the report prints one block of the folds after the benchmark tables. An empty `cpus` field names the `idle` preset: in `precheck` mode the probe runs on the planned cpus, and in the other modes on one cpu of each L3 group the plans leave free. In `precheck` and `both` modes the run prints the pre-check block before the benchmark tables: one block per measured cpu carrying the sixteen field lines, the attribution deltas each naming its source, then the host settings once, then one warning line per noisy planned cpu and the pinning-candidate line ranked by gap rate. The fold block opens with `jitter probe: cpus`, carries one field line per stats field from `gapCount:` to `droppedGaps:`, one value per probe cpu, and closes with the disclosure lines.
-<!-- sg-example: example/docs/jitter_probe.cpp#jitter-probe -->
+<!-- sg-example: example/docs/jitter_probe.cpp#probe-main -->
 ```cpp
-auto bmMeasured(sg::State& state) -> void
-{
-  for (auto _ : state) {
-    sg::doNotOptimize(state.iterations());
-  }
-}
-
-SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
-
 auto main(int argc, char** argv) -> int
 {
   sg::runJitterProbe({.thresholdNs = 1000000000,

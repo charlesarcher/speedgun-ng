@@ -5,7 +5,7 @@
 // run stands quiet, the block showing the disclosure shape. The tracer
 // request stands the not-available disclosure on a host without the
 // rights the setup writes need.
-// sg-example:begin jitter-probe
+// sg-example:begin probe-unit
 auto bmMeasured(sg::State& state) -> void
 {
   for (auto _ : state) {
@@ -15,6 +15,9 @@ auto bmMeasured(sg::State& state) -> void
 
 SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
 
+// sg-example:end probe-unit
+
+// sg-example:begin probe-main
 auto main(int argc, char** argv) -> int
 {
   sg::runJitterProbe({.thresholdNs = 1000000000,
@@ -24,4 +27,4 @@ auto main(int argc, char** argv) -> int
   return sg::speedgunMain(argc, argv);
 }
 
-// sg-example:end jitter-probe
+// sg-example:end probe-main

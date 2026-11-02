@@ -76,6 +76,7 @@ add_docs_example(percentiles)
 add_docs_example(json_reports)
 add_docs_example(regression_gate)
 add_docs_example(jitter_probe)
+add_docs_example(fwq_ftq)
 
 add_docs_example(hunt_rank)
 add_docs_example(hunt_ranks)
