@@ -60,9 +60,12 @@ The reader's first run, once the option and the memory-bound benchmark exist:
 ./build/example/memory_walk --topdown=3 --min-time=1
 ```
 
-Today the option stands unwritten, so each line above answers
-`unknown option '--topdown'; --help lists the options`, exit 2. The last two
-answer `./build/example/memory_walk: No such file or directory`, exit 127.
+All four runs execute. Each answers exit 0 with the header, the scope line
+`topdown: core-wide coverage=whole_core`, the four level-1 nodes and the refused
+rows. The four figures answer `inf%` and `-inf%` on this host, because
+`tma_info_thread_slots` and `tma_info_thread_clks` read their fixed-counter
+operands as zero, and three of the four nodes divide by that zero while the
+fourth subtracts them from one (PC-7, FR-053).
 
 The finished block prints the level it shows, the level-1 values in percent,
 and each deeper node under its own parent (FR-026). Every node shows its
@@ -102,8 +105,8 @@ counts. Each row holds today's measured state and what changes it.
 
 | Entry | Measured today | Changes with |
 | --- | --- | --- |
-| `--topdown=1` and `--topdown=3` on one compute-bound benchmark | exit 2, `unknown option '--topdown'; --help lists the options`; 33 of the 102 rows that carry a `TopdownL` token publish, none of them at levels 1 and 2 | FR-018 and FR-019 (D-5), FR-042, FR-053, FR-054 |
-| Memory-bound benchmark (FR-058) | `./build/example/memory_walk: No such file or directory`, exit 127; the largest shipped set is 64 KiB (`example/docs/throughput.cpp:25`) against `L3 cache: 19.3 MiB` (`lscpu`) | FR-058 |
+| `--topdown=1` and `--topdown=3` on one compute-bound benchmark | exit 0, the header, the scope line, the four level-1 nodes and the refused rows; the four figures answer `inf%` and `-inf%` over `bmSum`, over `bmMemoryWalk` and over `--metric-method=multiplex`, which answers `not available` in their place | FR-053, FR-054 |
+| Memory-bound benchmark (FR-058) | `./build/example/memory_walk` runs: `bmMemoryWalk iterations=27039710`, `real time/iter (ns)=54.443`, `bytes_per_second=73608153`, a 32 MiB dependent chase against `L3 cache: 19.3 MiB` (`lscpu`); `cpu/CYCLE_ACTIVITY.STALLS_MEM_ANY` covers the whole iteration | FR-058, FR-053 |
 | Refused-row record (FR-033) | 69 refused rows of 102: 48 `UNKNOWN_CONSTANT` (39 `#core_wide`, 9 `#SMT_on`), 20 `UNRESOLVED`, 1 `UNSUPPORTED`; by level 4/4, 8/8, 15/25, 21/34, 10/17, 11/14 | FR-042, FR-054 |
 | Live values | `zero count: cpu/cpu-cycles mode 1 value 0.000` printed by `./build/test/counters_pmu_test` | FR-053 |
 | Test counts | `ctest --test-dir build -E harness_cli_test -j 12 --timeout 120 --output-on-failure`: `99% tests passed, 1 tests failed out of 165` in 252.32 s | FR-055 |
