@@ -1,0 +1,858 @@
+# Tasks: Fixed Work Quanta and Fixed Time Quanta Probes
+
+**Input**: Design documents from `/specs/043-fwq-ftq/`
+
+**Prerequisites**: [plan.md](./plan.md) (required), [spec.md](./spec.md)
+(required for user stories), [research.md](./research.md),
+[data-model.md](./data-model.md), [contracts/](./contracts/),
+[quickstart.md](./quickstart.md)
+
+**Tests**: TDD mode (plan.md, Execution mode): the test task of each
+wave stands written and observed failing before the code task that
+turns it green. The test and its code land in one commit.
+
+**Organization**: tasks stand grouped by user story behind the module
+landing order plan.md fixes (M-A to M-I): the public surface and the
+numbers stand first, the value grammar and the spectrum kernel land in
+one parallel block, the probe body and the folds follow, the console
+and the record follow, the docs and the evidence close, and the gates
+close the lane. Every task names its binary verify: a ctest name with
+an exit status, a gate command with its exit status, a grep with a
+match count, a byte fold, or a schema shape.
+
+## Format: `[ID] [P?] [Story] Description`
+
+- **[P]**: can run in parallel (a different file, and no shared build
+  output)
+- **[Story]**: the user story this task serves (`US1` to `US7`)
+- Every description names the exact file path, the requirements it
+  closes, and the verify command
+
+---
+
+## Phase 1: Setup and Foundational - the public surface and the numbers (module M-A, wave 1)
+
+**Purpose**: the types every story stands on, and the version record
+the lane stands on. Nothing else builds before this phase closes.
+
+- [ ] T001 [P] [US4] Register the test executable `harness_fwq_ftq_test`
+  in `test/CMakeLists.txt` after the `harness_jitter_preset_test` block (
+  `:973-984`), in the shape of `:874-880`, then write the failing
+  public-surface tests in `test/source/harness_fwq_ftq_test.cpp`:
+  `JitterMethod` names `TSC`, `FWQ`, `FTQ`; `JitterProbeOptions`
+  default-constructs with `JitterMethod::TSC`, `quantumUs` at 100,
+  `workCount` at 0 and the noise threshold at 1; a default
+  `JitterEntryFold` leaves `series` empty; a default `ReportData` leaves
+  `jitterRun` empty; the bound rows read 10 to 100,000 us, 0 or 1 to
+  16,777,216, and 0 to 100 percent (FR-001, FR-002, FR-005, FR-020, R-20).
+  Verify: `ctest --test-dir build -R harness_fwq_ftq_test --output-on-failure` exits non-zero with the new checks failing (red observed)
+- [ ] T002 [P] [US4] Move the version rows in
+  `test/source/harness_cli_table_test.cpp:1382-1393` from `0.28.0`,
+  `SOVERSION 19` and `SOVERSION 4` to `0.29.0`, `SOVERSION 20` and
+  `SOVERSION 4`, and keep the value-block rows green with no new row,
+  because the keys ride the standing value 260 (
+  `source/harness/detail/options.hpp:87`) (FR-005, FR-034, SC-009).
+  Verify: `ctest --test-dir build -R harness_cli_table_test --output-on-failure` exits non-zero (red observed)
+- [ ] T003 Add the public surface in `include/speedgun-ng/benchmark.hpp`
+  : `JitterMethod` after `JitterProbeMode` (`:2182-2187`); the bounds
+  after `kDefaultPrecheckMs` (`:2195`), naming `kDefaultQuantumUs` 100,
+  `kMinQuantumUs` 10, `kMaxQuantumUs` 100000, `kMaxWorkCount` 16777216,
+  `kTargetUnitTimeNs` 1000, `kCalibrationTrials` 25, `kCalibrationSteps`
+  24, `kDefaultNoisePercent` 1.0; `JitterPeriodRecord`,
+  `JitterSeriesStats` and `JitterRunRecord` after `JitterStats` (
+  `:512-530`); `series` in `JitterEntryFold` after `stats` (`:648`);
+  `series` in `PrecheckCpuRecord` after `stats` (`:576`); `jitterRun` in
+  `ReportData` after `graph` (`:1001`); the four fields in
+  `JitterProbeOptions` after `tracerCpus` (`:2258`); every new type and
+  member carries its doxygen contract (FR-001, FR-002, FR-005, FR-007,
+  FR-019, FR-020, D-1, D-7, R-20).
+  (depends on T001, which writes the rows this task turns green)
+  Verify: `ctest --test-dir build -R harness_fwq_ftq_test --output-on-failure` exits 0
+- [ ] T004 [US4] Move the numbers in `CMakeLists.txt`: the project
+  `VERSION` at `:45` stands `0.29.0`; the harness `SOVERSION` at `:375`
+  stands `20` with the comment naming the three layout moves, the new
+  fields of `JitterProbeOptions`, the series record of `JitterEntryFold`,
+  and the run record of `ReportData`; the archive `SOVERSION` at `:110`
+  stays `4`, because no public counters header moves; the commit message
+  records the version check, the ABI check with the three moves named, and
+  the schema check beside them (FR-005, FR-006, D-8, SC-009).
+  (depends on T002, T003)
+  Verify: `ctest --test-dir build -R harness_cli_table_test --output-on-failure` exits 0, and `grep -c "SOVERSION 20" CMakeLists.txt` reads one line
+
+**Checkpoint**: the surface stands green: the types carry the three
+methods, and the version names the three layout moves.
+
+---
+
+## Phase 2: User Story 5 - the value grammar and the 13 refusals (Priority: P2) (module M-B, wave 1)
+
+**Goal**: a `--jitter-probe` value with a method key settles
+into the four option fields; every value of the error table
+refuses one quoted line on standard error with exit status 2
+before anything runs.
+
+**Independent Test**: with each value of
+[contracts/cli-options.md](./contracts/cli-options.md), the run
+prints one quoted line naming the fault and exits 2 with no
+benchmark output.
+
+### Tests for User Story 5 (write first, observe failure)
+
+- [ ] T005 [P] [US5] Write the failing grammar tests in
+  `test/source/harness_jitter_cli_test.cpp`, in the block at `:2660-2825`
+  over `captureError` (`:265-301`) and `checkOneLine` (`:303`):
+  `scenarioMethodWordAccepted`, `scenarioHeadStandsFirst`,
+  `scenarioHeadCarriesEquals`, `scenarioModesRunEveryMethod`, and the
+  range rows of `scenarioQuantumRange`, `scenarioWorkRange`,
+  `scenarioNoiseRange` (FR-001, FR-002, FR-004, R-02).
+  (depends on T003, which declares the four fields)
+  Verify: `ctest --test-dir build -R harness_jitter_cli_test --output-on-failure` exits non-zero (red observed)
+- [ ] T006 [US5] Write the 13 refusal rows of the test plan in
+  `test/source/harness_jitter_cli_test.cpp`, each checking one line and
+  status 2: `idle,method=x`; `quantum=0`; `quantum=x`; `quantum=100001`;
+  `work=0`; `work=16777217`; `work=x`; `noise=101`; `noise=x`; a `quantum`
+  key with `method=fwq`; a `work` key with `method=ftq`; `method` standing
+  twice; and the tenth value on an option file line naming the path, the
+  line and the token (FR-003, SC-005).
+  (depends on T005, same file, behind a disjoint scenario block)
+  Verify: `ctest --test-dir build -R harness_jitter_cli_test --output-on-failure` exits non-zero (red observed)
+- [ ] T007 [US5] Add the four key arms in
+  `source/harness/jitter_probe.cpp` beside the `mode` arm (`:866-877`):
+  `method`, `quantum`, `work`, `noise`, each read once on the standing
+  number grammar of `parseProbeNumber` (`:698-719`), with the ranges of
+  FR-002; add the cross-method pairing check and the repeated-key check
+  beside the standing cpu-duplicate check (`:910-917`); a head token that
+  carries `=` answers the standing cpu-token line (`:735-737`) (FR-001,
+  FR-002, FR-003, D-1, R-02, R-03).
+  (depends on T005, T006; the grammar rows and the 13 refusal rows turn
+  green)
+  Verify: `ctest --test-dir build -R harness_jitter_cli_test --output-on-failure` exits 0, and each refusal row stands one line on standard error at exit 2 with no benchmark output ahead of it
+
+**Checkpoint**: the grammar stands green: every refusal prints one
+quoted line at status 2, and the option table gains no row.
+
+---
+
+## Phase 3: User Story 3 - the spectrum kernel (Priority: P2) (module M-E, wave 2)
+
+**Goal**: the transform is a pure function over a sample span: it
+names the strongest periods, keeps a bin above three times the
+median of bins 1 through N/2, reads at most 65,536 points, and
+resamples the FWQ unit times at the median unit time.
+
+**Independent Test**: the kernel needs no probe, no seam and no
+provider, so a test scripts a sample span and reads the period
+list back.
+
+### Tests for User Story 3 (write first, observe failure)
+
+- [ ] T008 [P] [US3] Write the failing transform tests in
+  `test/source/harness_spectrum_test.cpp`, the frameworkless shape of
+  `test/source/harness_json_schema_test.cpp:16` and `:301-312`:
+  `aPureToneNamesItsPeriod`, `twoTonesRankStrongestFirst`,
+  `aConstantSeriesAnswersAnEmptyList`, `oneSampleAnswersAnEmptyList`,
+  `theCapReadsEveryPoint`, `aLongerSeriesDisclosesTheSkippedCount`,
+  `sixTonesKeepFiveEntries`, `theMedianStandsOverBinsOneToHalf`,
+  `aBinBelowTheThresholdStandsDropped`; the entry names no `TIMEOUT`, so
+  the loop at `test/CMakeLists.txt:2123-2128` gives it 300 s, and the tone
+  cases stay at or below 4,096 points (FR-018, FR-025, SC-002).
+  (depends on T001, which registers the executable)
+  Verify: `ctest --test-dir build -R harness_spectrum_test --output-on-failure` exits non-zero (red observed)
+- [ ] T009 [US3] Write the failing resample tests in
+  `test/source/harness_spectrum_test.cpp`: `theResampleAveragesEachBin`,
+  `anEmptyBinTakesThePreviousSample`, `theResampleStepStandsAtTheMedian`
+  (FR-017).
+  (depends on T008, same file, behind a disjoint scenario block)
+  Verify: `ctest --test-dir build -R harness_spectrum_test --output-on-failure` exits non-zero (red observed)
+- [ ] T010 [US3] Add `source/harness/detail/spectrum.hpp` and
+  `source/harness/spectrum.cpp`: `kSpectrumCap` 65536, `kSpectrumTop` 5,
+  `kSpectrumMedianFactor` 3.0, `SpectrumPeriod`, `SpectrumResult`,
+  `resampleUnitTimes` and `dftPeriods` in `sg::detail`, each with its
+  `\pre` and `\post`; the kernel builds each bin sine and cosine by
+  recurrence with no library call in the inner loop, reads the last
+  `min(samples.size(), kSpectrumCap)` points, names the skipped count,
+  keeps a bin above `3.0 * median` over bins 1 through N/2, sorts by power
+  with ties in period order, and takes five; the target list needs no
+  edit, because `CMakeLists.txt:255-260` globs `source/harness/*.cpp` with
+  `CONFIGURE_DEPENDS` (FR-017, FR-018, D-5, R-12, R-13).
+  (depends on T008, T009; the tone rows and the resample rows turn
+  green)
+  Verify: `ctest --test-dir build -R harness_spectrum_test --output-on-failure` exits 0
+
+**Checkpoint**: the kernel stands green as a pure function: the tone,
+constant, one-sample, cap, truncation, six-tone and resample rows
+all pass, and no probe runs.
+
+---
+
+## Phase 4: User Stories 1 and 2 - the calibration, the FWQ loop, the FTQ loop (Priority: P1) (module M-C, wave 3)
+
+**Goal**: each probe cpu calibrates its own work count on its own
+cpu before its own window; the FWQ arm times one unit with one
+read; the FTQ arm counts whole units per quantum; one pre-sized
+buffer holds the series and counts every lost record.
+
+**Independent Test**: with the scripted `WindowReader` installed
+through `installTestReader`, the read counts match the scripted
+layout, the figures match the scripted series, and the armed
+spans record zero allocations.
+
+### Tests for User Stories 1 and 2 (write first, observe failure)
+
+- [ ] T011 [P] [US1] Write the failing calibration tests in
+  `test/source/harness_fwq_ftq_test.cpp`, the shape of
+  `test/source/harness_jitter_probe_test.cpp` with `check()`, `fail()`,
+  `pickCpus` over `sched_getaffinity` (`:100-122`), `passSeries` over
+  1,024 reads (`:233-241`) and a per-thread reader in the shape of
+  `PhasedReader` (`:297-333`): `calibrationStopsAtTheFirstTrial`,
+  `calibrationStopsAtTheTrialCap`, `calibrationStopsAtTheCountCap`,
+  `calibrationStopsAtTheOneCountInterval`,
+  `calibrationKeepsTheClosestCount`, `calibrationRunsOncePerProbeCpu`,
+  `calibrationStaysOutOfTheWindowRuntime`; every builder takes the prefix
+  length as a parameter, the two known cases standing 2 reads for a delta
+  at or above the target and 98 reads for a delta below it, and each test
+  asserts its own read count (FR-010, FR-011, D-2, R-04, R-05).
+  (depends on T003, which declares the option fields)
+  Verify: `ctest --test-dir build -R harness_fwq_ftq_test --output-on-failure` exits non-zero (red observed)
+- [ ] T012 [US1] Write the failing FWQ series tests in
+  `test/source/harness_fwq_ftq_test.cpp`:
+  `fwqCleanSeriesAnswersEqualFigures`, `fwqOneSlowUnitMovesTheMaximum`,
+  `fwqNoiseFractionOfASlowUnit`, `fwqBufferFullCountsDrops`,
+  `seriesPercentilesReadTheKeptSamples`, `oneSampleSeriesReadsThatSample`,
+  `fwqResampleReachesThePeriodList`; each row carries its read-count check
+  over the scripted layout, the clean 1,000-unit case standing 2,027 reads
+  behind a prefix of 2, the 10,000-unit case with one unit at ten times
+  standing 11,027 reads, the `gaps=2` case keeping 2 and dropping 2, and
+  the dip case standing 66,563 reads over 65,536 units (FR-007, FR-008,
+  FR-009, FR-012, FR-014, FR-022, SC-001, R-08, R-09, R-10, R-14).
+  (depends on T011, same file, behind a disjoint scenario block)
+  Verify: `ctest --test-dir build -R harness_fwq_ftq_test --output-on-failure` exits non-zero (red observed)
+- [ ] T013 [US2] Write the failing FTQ tests in
+  `test/source/harness_fwq_ftq_test.cpp`:
+  `ftqCleanCountsAnswerEqualFigures`, `ftqOneLowCountMovesTheMinimum`,
+  `ftqMissingShareOfALowQuantum`, `ftqZeroMaximumAnswersOneHundred`,
+  `ftqEdgesStandFromTheFirstStamp`, `ftqTrailingOpenQuantumRecordsNothing`
+  , `ftqBufferFullCountsDrops`, `ftqQuantumOfTenNanosecondsTarget`; the
+  100-quanta case at a 100 us quantum stands 101,027 reads and keeps 100
+  counts, and the 1,000-quanta case with one quantum at half the best
+  count keeps 1,000 counts (FR-009, FR-015, FR-016, FR-022, D-4, R-07,
+  R-08).
+  (depends on T012, same file, behind a disjoint scenario block)
+  Verify: `ctest --test-dir build -R harness_fwq_ftq_test --output-on-failure` exits non-zero (red observed)
+- [ ] T014 [P] [US1] [US2] Add the two armed spans to
+  `test/source/harness_jitter_probe_alloc_test.cpp`, the shape of the
+  armed span at `:212-266` with the counting `operator new` and
+  `operator delete` at `:63-127`: one span over the FWQ unit loop and one
+  over the FTQ quantum loop, each proving zero allocations inside the loop
+  (FR-014, D-6, R-08).
+  (depends on T011)
+  Verify: `ctest --test-dir build -R harness_jitter_probe_alloc_test --output-on-failure` exits non-zero (red observed)
+- [ ] T015 [US1] [US2] Add `SeriesRecord` with its 16-byte
+  `static_assert` after `GapRecord` in
+  `source/harness/detail/jitter_probe.hpp:35-41`, and the series fields in
+  `ProbeCpuState` before the `alignas` stop word (`:73`): the pre-sized
+  `std::vector<std::uint64_t>` at `gapCount` entries, the kept count and
+  the dropped count (FR-014, FR-016, FR-022, D-6, R-08).
+  (depends on T011, T012, T013, T014)
+  Verify: `cmake --build build` exits 0 with no warning line
+- [ ] T016 [US1] Add `calibrateUnit` in
+  `source/harness/jitter_probe.cpp` before `ProbeItem` (`:160`), called
+  inside `ProbeItem::operator()` (`:197`) after the buffer first touch (
+  `:209`) and before the 1,024-read measurement pass (`:243`, `kPassReads`
+  at `:50`): doubling from 1 in at most 25 trials, bisection in at most 24
+  steps, two reads per trial around a body closed on `sg::doNotOptimize` (
+  `include/speedgun-ng/barrier.hpp:59`, `:78`), the count cap at
+  16,777,216, the target at 1,000 ns for FWQ and one thousandth of the
+  quantum for FTQ, the closest measured count kept, the span standing out
+  of the window runtime (FR-010, FR-011, D-2, R-04, R-05).
+  (depends on T015)
+  Verify: `cmake --build build` exits 0, and the calibration rows of T011 turn green
+- [ ] T017 [US1] Add `keepSeriesOrDrop` beside `keepOrDrop` (
+  `source/harness/jitter_probe.cpp:106-120`), writing into the pre-sized
+  buffer and counting each lost record, and add the FWQ arm of the
+  alongside loop (`:318-329`) and of the pre-check loop (`:266-298`): one
+  read per unit, the unit time standing at the delta between two
+  consecutive reads, the loop allocating nothing, reading no file, taking
+  no lock and reading no clock outside `sg::counters` (FR-012, FR-014,
+  FR-022, D-3, D-6, R-06, R-08).
+  (depends on T015, T016)
+  Verify: `cmake --build build` exits 0, and the FWQ rows of T012 turn green
+- [ ] T018 [US2] Add the FTQ arm of the two loops: edge k stands at the
+  window first stamp plus k times the quantum, the read compares against
+  the next edge, the pass stores the count at the edge, resets it and
+  advances the edge by one quantum, and a trailing open quantum records no
+  count (FR-015, FR-016, FR-022, D-4, R-07, R-08).
+  (depends on T017)
+  Verify: `ctest --test-dir build -R "harness_fwq_ftq_test|harness_jitter_probe_alloc_test" --output-on-failure` exits 0, and `bash test/time_source_gate.sh .` prints `time_source_gate: clean` and exits 0
+
+**Checkpoint**: the probe body stands green behind the seam: the five
+calibration stops, the FWQ unit times, the FTQ edges, the drop rule
+and the two armed spans all pass, and the time-source gate stands
+clean.
+
+---
+
+## Phase 5: User Stories 1, 2 and 4 - the series fold (Priority: P1) (module M-D, wave 4)
+
+**Goal**: one fold reads the one series buffer twice: once for the
+run record, and once per benchmark over that benchmark half-open
+timed windows.
+
+**Independent Test**: with a scripted series and scripted windows,
+the run fold answers the figures of the kept samples, and the
+per-benchmark fold stands null where the windows keep no sample.
+
+### Tests for User Stories 1, 2 and 4 (write first, observe failure)
+
+- [ ] T019 [P] [US4] Write the failing fold tests in
+  `test/source/harness_jitter_window_test.cpp`, over the standing
+  `captureRun` (`:285-319`) and `checkStatsRoundTrip` (`:472-512`)
+  helpers: `thePerEntrySeriesFoldsTheWindows` and
+  `thePerEntrySeriesStandsNullWithoutSamples` (FR-020, R-11).
+  (depends on T003, which declares `JitterEntryFold::series`)
+  Verify: `ctest --test-dir build -R harness_jitter_window_test --output-on-failure` exits non-zero (red observed)
+- [ ] T020 [US4] Declare the two folds in
+  `source/harness/detail/jitter_probe.hpp` after `gapStatsOf` (`:121`,
+  `:136`): `seriesStatsOf(const ProbeCpuState&)` and
+  `seriesStatsOf(const ProbeCpuState&, std::span<const TimedWindow>)`,
+  each with the contracts of
+  [contracts/public-api.md](./contracts/public-api.md) (FR-007, FR-008,
+  FR-020, R-09, R-11).
+  (depends on T019)
+  Verify: `cmake --build build` exits 0 with no warning line
+- [ ] T021 [US1] [US2] Define `seriesStatsOf(const ProbeCpuState&)` in
+  `source/harness/jitter_probe.cpp` after `gapStatsOf` (`:688`): copy the
+  kept values into a sorted `std::vector<double>`, the shape `:527-535`
+  uses, read the five points through `percentileField` (`:346`) over
+  `percentileAt` (`source/harness/percentiles.cpp:104`) with the standing
+  minimum sample count, and answer the two noise fractions of FR-009, the
+  FWQ fraction over the kept unit times and the FTQ fraction over the
+  counts, a maximum count of 0 answering 100 (FR-007, FR-008, FR-009,
+  SC-001, R-09, R-10).
+  (depends on T020)
+  Verify: `cmake --build build` exits 0, and the figure rows of T011 and T012 turn green
+- [ ] T022 [US4] Define
+  `seriesStatsOf(const ProbeCpuState&, std::span<const TimedWindow>)`
+  beside the window fold (`source/harness/jitter_probe.cpp:614`), keeping
+  the values whose stamp falls in a half-open window, the rule at
+  `:636-643`, and fill `JitterEntryFold::series` in the split loop (
+  `source/harness/cli.cpp:1819-1825`) and in the pre-check record loop (
+  `:1214-1223`); no second buffer joins (FR-020, R-11).
+  (depends on T021)
+  Verify: `ctest --test-dir build -R harness_fwq_ftq_test --output-on-failure` exits 0, and the fold rows of T019 turn green
+
+**Checkpoint**: the folds stand green: the run record reads the kept
+samples, the per-benchmark fold reads the windows, and no buffer
+copy joins.
+
+---
+
+## Phase 6: User Story 4 - the record, the schema and the rule names (Priority: P2) (module M-G, wave 4)
+
+**Goal**: the document carries `method` and one closed `series` item
+per probe cpu at schema `1.12`, `loadReport` reads every key back,
+the rule table grows to 32 names, and a run with no `method` key
+stands byte-identical to master apart from the version figures.
+
+**Independent Test**: a scripted run writes the document, the schema
+checker passes it against `docs/schema/report-v1.json`,
+`loadReport` reads every new key back, and the fixture bytes fold
+equal for a `tsc` run.
+
+### Tests for User Story 4 (write first, observe failure)
+
+- [ ] T023 [P] [US4] Write the failing writer and round-trip rows in
+  `test/source/harness_jitter_window_test.cpp`:
+  `theMethodWordStandsUpperCase`, `theSeriesItemCarriesEveryKey`,
+  `thePeriodsArrayRidesTheCpuItem`, `theSeriesRoundTripsThroughLoadReport`
+  , `aTscRunWritesNoNewKey` (FR-006, FR-019, FR-020, FR-031, R-16, R-17).
+  (depends on T019, same file, behind a disjoint scenario block)
+  Verify: `ctest --test-dir build -R harness_jitter_window_test --output-on-failure` exits non-zero (red observed)
+- [ ] T024 [P] [US4] Write the failing read-back rows in
+  `test/source/harness_json_load_test.cpp`:
+  `theSeriesRecordReadsBackEveryKey`, `thePeriodListReadsBack`,
+  `aMissingMethodKeyLeavesTheRunRecordEmpty`,
+  `aMissingSeriesKeyLeavesTheFoldsEmpty`,
+  `eachNewKeyOfTheWrongKindStandsRefused`,
+  `aClosedSeriesItemRefusesAnUnknownKey`,
+  `aClosedPeriodItemRefusesAnUnknownKey`,
+  `thePerEntrySeriesReadsIntoTheFolds` (FR-020, R-17).
+  (depends on T023)
+  Verify: `ctest --test-dir build -R harness_json_load_test --output-on-failure` exits non-zero (red observed)
+- [ ] T025 [P] [US4] Write the failing schema rows in
+  `test/source/harness_json_schema_test.cpp`, the planted-disagreement
+  shape at `:41-117` and the stamped-minor shape at `:158-189`:
+  `theSeriesKeysPairAtTheStampedMinor`,
+  `aClosedSeriesItemRefusesAnAddedKey`,
+  `aSeriesKeyOutOfOrderStandsRefused`,
+  `aMethodWordOutsideTheThreeStandsRefused`, `anEmptyPeriodsArrayPasses`,
+  `aPeriodItemOfTheWrongKindStandsRefused` (FR-006, R-16).
+  (depends on T024)
+  Verify: `ctest --test-dir build -R harness_json_schema_test --output-on-failure` exits non-zero (red observed)
+- [ ] T026 [P] [US4] Write the failing byte-identity tests in
+  `test/source/harness_jitter_bytes_test.cpp`:
+  `aTscRunMatchesTheFixtureBytes`, `eachMaskedSpanHoldsANumber`,
+  `theNewKeysStandAbsentFromTheDocument`,
+  `theStandingConsoleLinesMatchTheRecordedBytes`,
+  `aTscRunPassesTheSchemaAtTheStampedMinor`; the fixture carries master
+  bytes inline, the shape of
+  `test/source/harness_noise_report_test.cpp:456-461`, and each mask
+  checks that its span holds a number, the way `maskHostFloor` does at
+  `test/source/harness_pass_report_test.cpp:267-281` (FR-026, FR-031,
+  SC-004, R-19).
+  (depends on T025)
+  Verify: `ctest --test-dir build -R harness_jitter_bytes_test --output-on-failure` exits non-zero (red observed)
+- [ ] T027 [US4] Write the failing rule-name rows in
+  `test/source/harness_jitter_window_test.cpp`, the shape of the name rows
+  at `:1180-1441`: `theSixteenNewRuleNamesResolve`,
+  `theFaultTextNamesThirtyTwoFields`, `theRunScopedNameReadsTheRunRecord`,
+  `theAnyReadingAnswersTheLargestCount` (FR-021, R-18).
+  (depends on T023, same file, behind a disjoint scenario block)
+  Verify: `ctest --test-dir build -R harness_jitter_window_test --output-on-failure` exits non-zero (red observed)
+- [ ] T028 [US4] Write the series item: `writeJitterSeriesCpu` after
+  `writeJitterCpu` (`source/harness/json_report.cpp:347`), the two root
+  keys after `loopPeriodNs` (`:1017`) inside the standing `jitter` object,
+  the per-entry `series` array beside the standing `stats` array (
+  `:630-644`) with no `method` key and no `periods` key, `kSchemaVersion`
+  at `1.12` (`:43`) with its history comment (`:30-42`),
+  `kJitterMethodWords` after `kJitterModeWords` (
+  `source/harness/detail/json_report.hpp:77-83`), the series field in
+  `JitterReportCpu` (`:232-237`), the method field in `JitterReportRecord`
+  (`:249-259`), the writer postconditions (`:290-312`), and the method and
+  series items in `buildJitterReportRecord` (
+  `source/harness/cli.cpp:402-469`) (FR-006, FR-019, FR-020, D-7, R-16).
+  (depends on T023, T024, T025, T026, T027)
+  Verify: `cmake --build build` exits 0 with no warning line
+- [ ] T029 [US4] Read the keys back: `readJitterSeriesCpu` after
+  `readJitterCpu` (`source/harness/json_load.cpp:544`), reading and
+  kind-checking each key in the written order the shape at `:494-511`
+  uses; the two keys in `readJitterRecord` (`:1243`) between the
+  `loopPeriodNs` read (`:1265-1271`) and the `cpus` read (`:1272-1282`);
+  `data.jitterRun` at the root arm (`:2695-2701`); the entry series at the
+  per-entry arm (`:2178-2207`) (FR-020, R-17).
+  (depends on T028)
+  Verify: `cmake --build build` exits 0, and the read-back rows of T024 turn green
+- [ ] T030 [US4] Extend `docs/schema/report-v1.json`: `method` and
+  `series` in the `jitter` object `x-order` after `loopPeriodNs` (`:47-55`
+  ) and in `properties` (`:72`), out of `required` (`:56-64`),
+  `additionalProperties` staying `false` (`:65`), the closed 21-key
+  `series` item with its own `x-order`, `required` of 19 names omitting
+  `quantumNs` and `resampleStepNs`, and the closed `periods` item of
+  `periodNs` and `powerRatio`, the shape the standing `stats` item carries
+  at `:78-117` (FR-006, R-16).
+  (depends on T025, T028; the schema rows of T025 turn green)
+  Verify: `ctest --test-dir build -R harness_json_schema_test --output-on-failure` exits 0
+- [ ] T031 [US4] Grow the rule table in `source/harness/compare.cpp`:
+  `kJitterFields` from 16 entries to 32 (`:251-292`) with `sampleCount`,
+  `minValue`, `medianValue`, `meanValue`, `p90Value`, `p99Value`,
+  `p999Value`, `p9999Value`, `maxValue`, `noisePercent`, `seriesRuntimeNs`
+  , `droppedSamples`, `unitTimeNs`, `quantumNs`, `resampleStepNs`,
+  `spectrumPoints`; the value reader takes the fold (`:241-245`); the
+  fault text reads `names none of the thirty-two jitter fields` (
+  `:366-369`); the two call sites pass the fold (`:1477`, `:1489`); the
+  bare form reads the per-benchmark series and `jitter:run:` reads the run
+  record, the `any` reading staying the uniform maximum (FR-021, R-18).
+  (depends on T027, T028, T029)
+  Verify: `ctest --test-dir build -R harness_compare_test --output-on-failure` exits 0, and the rule-name rows of T027 turn green
+- [ ] T032 [US4] Close the record wave: the byte identity of a run with
+  no `method` key stands green, the document writing neither new key and
+  every standing console line standing byte-identical (FR-026, FR-031,
+  SC-004, R-19).
+  (depends on T028, T029, T030, T031)
+  Verify: `ctest --test-dir build -R "harness_jitter_bytes_test|harness_json_load_test|harness_json_schema_test|harness_jitter_window_test" --output-on-failure` exits 0, and `ctest --test-dir build -R report_shape --output-on-failure` exits 0
+
+**Checkpoint**: the record stands green: the item carries its 21 keys,
+the reader reads each kind, the schema pairs at `1.12`, the 32 names
+resolve, and the `tsc` bytes fold equal.
+
+---
+
+## Phase 7: User Stories 1, 2 and 4 - the console block and the pre-check pair (Priority: P1) (module M-F, waves 4 and 5)
+
+**Goal**: the console gains 30 series lines, one field per line and
+one column per probe cpu, the calibration lines print before the
+window, the pre-check pair carries the method figures, and the noise
+refusal stops the run at status 2.
+
+**Independent Test**: with a scripted run, the block prints the 30
+lines in the standing order, the calibration lines stand ahead of
+the window, and the pre-check lines carry the method pair.
+
+### Tests for User Stories 1, 2 and 4 (write first, observe failure)
+
+- [ ] T033 [P] [US1] [US2] Write the failing console rows in
+  `test/source/harness_jitter_window_test.cpp`, the field-line walk shape
+  at `:655-662`: `theFwqBlockPrintsTheThirtyNewLines`,
+  `theFtqBlockPrintsTheQuantumLines`,
+  `theCalibrationLinesStandBeforeTheWindow`, `theRankACpuOmitsPrintsZero`
+  (FR-011, FR-013, FR-016, FR-019, FR-022, R-14).
+  (depends on T023, T027, same file, behind a disjoint scenario block)
+  Verify: `ctest --test-dir build -R harness_jitter_window_test --output-on-failure` exits non-zero (red observed)
+- [ ] T034 [P] [US4] Write the failing pre-check rows in
+  `test/source/harness_precheck_test.cpp` over `capturePrecheck` (
+  `:234-252`), the exec child shape at `:278-341` and the standing skip
+  for a mask below four cpus at `:443-445`:
+  `theFwqPrecheckPairCarriesNoiseAndMaximum`,
+  `theFtqPrecheckPairCarriesMissingAndMinimum`,
+  `thePinningRankSortsByNoiseFraction`, `theNoiseRefusalStopsAtStatusTwo`,
+  `theAlongsideStrictWordKeepsItsMeaning`,
+  `anUnusedNoiseValueStandsDisclosed`, `aTscRunKeepsTheGapRefusal`
+  (FR-004, FR-021, D-9, R-15).
+  (depends on T033)
+  Verify: `ctest --test-dir build -R harness_precheck_test --output-on-failure` exits non-zero (red observed)
+- [ ] T035 [US1] [US2] Print the 30 lines in `printJitterReport` (
+  `source/harness/report.cpp:726`) after `droppedGaps` (`:795-796`):
+  `method`, `workCount`, `targetNs`, `calibrationSpanNs`, the 16 figures
+  of FR-021, then `period1Ns` through `period5Ns` and `period1Power`
+  through `period5Power`, each field printing once with one column per
+  probe cpu in the standing cpu order (`:738-743`), a rank a cpu carries
+  printing 0, the console spelling `tsc`, `fwq`, `ftq`; add the method
+  argument at the two `printJitterReport` calls (
+  `source/harness/cli.cpp:1881`, `:1883`) (FR-013, FR-016, FR-019, FR-022,
+  D-7, R-14).
+  (depends on T033)
+  Verify: `cmake --build build` exits 0 with no warning line
+- [ ] T036 [US1] Print the calibration lines ahead of the batch first
+  run, after `jitterProbe->start()` (`source/harness/cli.cpp:1129`): the
+  work count, the measured unit time, the target, the calibration span,
+  and the quantum for FTQ, each standing before that cpu window (FR-011,
+  FR-019, SC-003, D-2, R-05).
+  (depends on T035)
+  Verify: `cmake --build build` exits 0, and the calibration rows of T033 turn green
+- [ ] T037 [US4] Swap the pair the pre-check lines read in
+  `printPrecheckReport` (`source/harness/report.cpp:1172`): the warning
+  line (`:1305-1310`) and the ranking (`:1311-1321`) take the method pair,
+  the noise fraction and the maximum unit time for FWQ and the missing
+  share and the minimum count for FTQ, and the pinning line ranks by the
+  noise fraction ascending with ties in cpu order, the standing `tsc`
+  figures staying (FR-004, FR-021, D-9, R-15).
+  (depends on T035)
+  Verify: `cmake --build build` exits 0, and the pair rows of T034 turn green
+- [ ] T038 [US4] Fire the noise refusal in the pre-check phase beside
+  the standing strict refusal (`source/harness/cli.cpp:1155-1176`): a
+  probe cpu at or above the `noise=` threshold answers one line at exit
+  status 2 after the pre-check window and before the batch first run;
+  `mode=alongside` keeps the `strict` meaning and fires no noise gate; a
+  `noise=` value with no `strict`, and a `noise=` value with `method=tsc`,
+  stand accepted and disclosed as unused (FR-021, D-9, R-15).
+  (depends on T034, T036, T037; the refusal rows of T034 turn green)
+  Verify: `taskset -c 0,1 ctest --test-dir build -R "harness_precheck_test|harness_jitter_window_test" --output-on-failure` exits 0
+
+**Checkpoint**: the console and the pre-check stand green under a
+two-cpu mask: the 30 lines print once per field, the calibration
+lines stand before the window, and the refusal stops at status 2.
+
+---
+
+## Phase 8: User Story 6 - the docs, the README budget and the example (Priority: P3) (module M-H, wave 6)
+
+**Goal**: the main page teaches the two methods inside its line
+budget, the guide page carries the keys and the 30 field rows, and
+one runnable example shows one FWQ family and one FTQ family.
+
+**Independent Test**: `example_drift`, `snippet_compile`,
+`example_run` and `report_shape_fwq_ftq_sample` pass, and the prose
+gate reads no finding over the branch range.
+
+- [ ] T039 [P] [US6] Add the README section of 18 lines after
+  `### Noise tracer` (`README.md:764-786`), teaching the two methods,
+  their keys and the calibration disclosure; add the four quick-reference
+  rows after `PrecheckRecord::tracer` (`:938`); extend the
+  `--jitter-probe` row (`:966`) with the keys; trim inside the three
+  jitter sections the lane owns (`:718-740`, `:741-763`, `:764-786`) so
+  the page lands at 991 lines against `PAGE_LINE_CAP = 1004` (
+  `tools/docs/example_drift.py:240`), the cap staying 1004 (FR-023, IV.1,
+  R-23).
+  (depends on T035, which prints the lines the section teaches)
+  Verify: `python3 tools/docs/example_drift.py .` exits 0 with no line printed, and a line count over the new section reads 18
+- [ ] T040 [P] [US6] Add the guide-page rows in `docs/pages/harness.md`:
+  the value rows after `strict` (`:1832`), the 30 series field rows after
+  `droppedGaps` (`:1853`), the names rows after `JitterEntryFold` (`:1866`
+  ), the block sample (`:1798-1820`), and the version sentence at `:1399`
+  reading `1.12` (FR-029, R-23).
+  (depends on T039)
+  Verify: `python3 tools/prose/prose_gate.py --base origin/master` reads `0 findings` and exits 0
+- [ ] T041 [US6] Add `example/docs/fwq_ftq.cpp` with one FWQ family and
+  one FTQ family, the `fwq-ftq` region markers and the `report` region,
+  the shape of `example/docs/jitter_probe.cpp`, and record
+  `example/docs/fwq_ftq.expected`; add `add_docs_example(fwq_ftq)` after
+  `:78` in `example/CMakeLists.txt`, the function standing at `:40-48`
+  (FR-029, R-24).
+  (depends on T035, T036, which print the lines the example records)
+  Verify: `cmake --build build --target docs_fwq_ftq` exits 0, and `./build/example/docs_fwq_ftq --min-time=0.01` exits 0
+- [ ] T042 [US6] Split the shared 17-line region in
+  `example/docs/jitter_probe.cpp:9-25` into three regions of 8, 4 and 4
+  lines, the markers staying at `:8` and `:27`, and register the new title
+  in `SECTIONS` (`tools/docs/example_drift.py:33-68`), the owner row in
+  `SECTION_OWNERS` (`:73-108`) and the cap ledger comment (`:178-183`),
+  both caps staying (FR-023, R-23).
+  (depends on T039, T041)
+  Verify: `ctest --test-dir build -R "example_drift|snippet_compile|example_run" --output-on-failure` exits 0
+- [ ] T043 [US6] Add the shape fold entry `report_shape_fwq_ftq_sample`
+  after `report_shape_jitter_sample` (`test/CMakeLists.txt:1905-1922`),
+  and the three fold rows of
+  [contracts/report-shape.md](./contracts/report-shape.md) in
+  `tools/docs/report_shape.py` with the golden pairs in
+  `test/example-drift-fixture/run_report_shape_fixtures.py`, the method
+  word keeping its bytes and the period figures folding their digits
+  (FR-029, SC-007, R-24).
+  (depends on T041)
+  Verify: `ctest --test-dir build -R "report_shape_fwq_ftq_sample|report_shape_jitter_sample|report_shape_fixtures" --output-on-failure` exits 0
+
+**Checkpoint**: the docs stand green: the page lands at 991 lines, the
+example builds, runs and folds, and the prose gate reads no finding.
+
+---
+
+## Phase 9: User Story 7 - the acceptance records and the standing contracts (Priority: P3) (module M-I, wave 7)
+
+**Goal**: the acceptance runs stand recorded on the lane host, one
+record per script run with eight sections, the quickstart links
+every record, and the six standing contracts stand amended in the
+commit that lands the code.
+
+**Independent Test**: the results directory carries one record per
+script run, each naming the host, the kernel, `CONFIG_HZ`, the L3
+group, the commands, the exit codes, the calibration figures and
+the detected periods, and each showing a drop count of 0.
+
+- [ ] T044 [US7] Write `tools/noise/fwq_ftq_acceptance.sh` in the shape
+  of `tools/noise/jitter_probe_acceptance.sh:35-52`: eight sections, two
+  methods, two L3 groups and two load states, the window from a named
+  benchmark run with `--min-time=10` and `--repetitions=1`,
+  `gaps=10485760` for FWQ and `gaps=131072` for FTQ, the load a busy loop
+  pinned to the SMT sibling thread recorded with its command line and its
+  cpu id, and `CONFIG_HZ` read from `/proc/config.gz`, then
+  `/boot/config-$(uname -r)`, reading `unknown` when both stand absent
+  (FR-027, FR-028, D-10, R-21).
+  (depends on T018, T038, which build the binary the script runs)
+  Verify: `bash -n tools/noise/fwq_ftq_acceptance.sh` exits 0, and `grep -c "min-time=10" tools/noise/fwq_ftq_acceptance.sh` reads at least the two method commands
+- [ ] T045 [US7] Record the acceptance run on the lane host in
+  `specs/043-fwq-ftq/results/acceptance-<date>.md`: eight sections, each
+  naming the command line, the exit status and the captured output, the
+  record naming the host, the kernel, `CONFIG_HZ`, the L3 group, the
+  calibration count, the measured unit time, the noise fraction, the
+  `gaps=` value, the kept span in milliseconds and the detected periods,
+  each section showing a drop count of 0 (FR-027, SC-008, R-21).
+  (depends on T044)
+  Verify: `bash tools/noise/fwq_ftq_acceptance.sh` exits 0, and `grep -c "^## " specs/043-fwq-ftq/results/acceptance-<date>.md` reads eight
+- [ ] T046 [US7] Link every record from the acceptance section of
+  `specs/043-fwq-ftq/quickstart.md`, the standing link rule of the
+  quickstart (FR-028, SC-008).
+  (depends on T045)
+  Verify: `grep -c "results/acceptance" specs/043-fwq-ftq/quickstart.md` counts one link per record
+- [ ] T047 [US7] Amend the six standing contracts in the commit that
+  lands the code (FR-030):
+  `specs/027-jitter-probe/contracts/cli-options.md` gains the four keys
+  and the head rule; `public-api.md` gains the four option fields and the
+  series record; `report-json.md` gains the two keys; `rule-names.md`
+  gains the 16 names, the count word `thirty-two` and the `any` reading;
+  `specs/034-host-noise-precheck/contracts/console-report.md` gains the
+  series lines and the pair; `report-shape.md` gains the three fold rows.
+  (depends on T007, T030, T031, T035, T037, T043)
+  Verify: `grep -c "method=" specs/027-jitter-probe/contracts/cli-options.md` reads at least one row, the two spec 034 contracts name the series lines and the fold rows, and `python3 tools/prose/prose_gate.py --base origin/master` reads `0 findings` and exits 0
+
+**Checkpoint**: the evidence stands recorded, the quickstart links
+every record, and the standing contracts carry the deltas.
+
+---
+
+## Phase 10: Polish and Cross-Cutting Concerns
+
+**Purpose**: the hard gates of Principle VIII at the feature head, in
+the order of the plan Gate commands table.
+
+- [ ] T048 [P] Run the release build and the full suite: configure
+  `ci-rocky`, build, and run every test (constitution VIII, FR-033).
+  (depends on every phase above)
+  Verify: `cmake --preset=ci-rocky` exits 0, `cmake --build build` exits 0 with no warning line, and `ctest --test-dir build --output-on-failure` reads `100% tests passed, 0 tests failed`
+- [ ] T049 [P] Run the full suite under a two-cpu mask and on a 2-cpu
+  host, the probe cpus coming from `sched_getaffinity` and no test naming
+  a fixed cpu number (FR-024, SC-006).
+  (depends on T048)
+  Verify: `taskset -c 0,1 ctest --test-dir build --output-on-failure` exits 0 on both hosts, and the narrow-mask rows print the standing `SKIPPED` note at `test/source/harness_jitter_window_test.cpp:623-626` and `test/source/harness_precheck_test.cpp:443-445`
+- [ ] T050 Run the coverage contract: configure the coverage preset,
+  build, run the suite with `-j 1`, and read the coverage target; the 156
+  new branch positions each stand reached by a named test, the shortfall
+  stays 21 rows, and no exclusion joins (FR-032, SC-006, R-22).
+  (depends on T048)
+  Verify: `cmake --preset=ci-coverage` exits 0, `cmake --build build/coverage -j "$(nproc)"` exits 0, `ctest --test-dir build/coverage -j 1 --output-on-failure --no-tests=error` exits 0, `cmake --build build/coverage -t coverage` reads `lines......: 100.0%` and the branch shortfall at 21 rows, and `grep -rn "LCOV_EXCL" source/harness` reads no match
+- [ ] T051 [P] Run the sanitizer and thread-sanitizer suites: configure
+  and build `ci-sanitize` and `ci-tsan`, and run each suite (constitution
+  VIII).
+  (depends on T048)
+  Verify: `cmake --preset=ci-sanitize`, `cmake --build build/sanitize -j "$(nproc)"` and `ctest --test-dir build/sanitize --output-on-failure -j "$(nproc)"` exit 0 with no `AddressSanitizer` line and no `runtime error` line, and the `ci-tsan` pair exits 0 with no `WARNING: ThreadSanitizer` line
+- [ ] T052 [P] Run the analyzer build once with clang-tidy and cppcheck
+  wired in, and the DBC gate: every new name reads clean under
+  `readability-identifier-naming`, and every other finding stands fixed
+  (constitution V, IX, FR-033).
+  (depends on T048)
+  Verify: `cmake --preset=ci-ubuntu` exits 0, `cmake --build build` exits 0 with no new finding, and `cmake -S . -B build/dev --preset=ci-ubuntu` then `cmake --build build/dev -t dbc-gate -j "$(nproc)"` exits 0
+- [ ] T053 [P] Run the time-source gate and the code-discipline review:
+  time stands from `sg::counters` alone, no lambda stands inside an `SG_*`
+  macro, contract-only helpers carry `[[maybe_unused]]`, and simdjson
+  stands the only JSON reader the change uses (FR-024, FR-033).
+  (depends on T048)
+  Verify: `bash test/time_source_gate.sh .` prints `time_source_gate: clean` and exits 0, `grep -nE "SG_(REQUIRE|ENSURE|INVARIANT)\(.*\] *\(" source/harness/spectrum.cpp source/harness/jitter_probe.cpp` reads no match, and `grep -rnE "nlohmann|rapidjson" source/harness/spectrum.cpp source/harness/detail/spectrum.hpp` reads no match
+- [ ] T054 [P] Run the docs gates and the shape folds over the branch
+  (FR-023, FR-029, SC-007).
+  (depends on T039, T040, T041, T042, T043)
+  Verify: `ctest --test-dir build -R "example_drift|snippet_compile|example_run|report_shape_fwq_ftq_sample|report_shape_jitter_sample" --output-on-failure` exits 0, each entry printing `***Passed` and the fold printing no difference
+- [ ] T055 [P] Run the prose gate, the format gate and the spell gate
+  over the branch range (constitution V, XI, FR-033).
+  (depends on T048)
+  Verify: `python3 tools/prose/prose_gate.py --base origin/master` reads `0 findings` and exits 0, `cmake -D FORMAT_COMMAND=clang-format -P cmake/lint.cmake` exits 0 with no file named, and `cmake -P cmake/spell.cmake` exits 0
+- [ ] T056 Run the pre-push script over the lane, both its forms
+  (constitution VIII).
+  (depends on T048 to T055)
+  Verify: `bash tools/ci/prepush.sh` and `bash tools/ci/prepush.sh --full` print every step ok line and exit 0
+- [ ] T057 Run the acceptance script and stand its record beside the
+  lane: the script is a script, and no CI gate stands on it (FR-027,
+  FR-028, SC-008).
+  (depends on T044, T045)
+  Verify: `bash tools/noise/fwq_ftq_acceptance.sh` exits 0 and writes one markdown record under `specs/043-fwq-ftq/results/` with eight sections, each showing a drop count of 0
+
+**Checkpoint**: every hard gate stands green at the head.
+
+---
+
+## Phase 11: Convergence
+
+**Purpose**: the closing evidence the lane lands with.
+
+- [ ] T058 Read the CI run of the pushed head end to end: every job
+  green, the coverage figures reading 100.0% lines and 100.0% branches,
+  and the run reference standing recorded beside the acceptance evidence
+  under `specs/043-fwq-ftq/results/` (constitution VIII).
+  (depends on T048 to T057)
+  Verify: the run reads every job green, including `lint`, `test`, `test-rocky`, `sanitize`, `tsan`, `static-analysis`, `coverage`, `dbc-gate`, `prose-lint`, `shared-audit`, `downstream-consumer`, and the record stands in `specs/043-fwq-ftq/results/ci-run.md`
+- [ ] T059 Re-check the constitution table of [plan.md](./plan.md)
+  against the landed tree: every gate stands as the table states it, the
+  Complexity Tracking table stands empty, and the record stands in the
+  pull-request body with the local counts, the host and the kernel
+  (constitution Governance, FR-028).
+  (depends on T058)
+  Verify: the re-check reads every row green at the feature head, and the pull-request body names the eight acceptance sections and the run reference
+
+**Checkpoint**: the lane stands closed: the CI run reads green and the
+record stands beside the evidence.
+
+---
+
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Phase 1 (M-A)**: no dependency; blocks every later phase
+- **Parallel block one**: Phase 2 (M-B) and Phase 3 (M-E) depend on
+  Phase 1 alone and land in parallel; M-B needs the option fields and
+  M-E needs no module
+- **Phase 4 (M-C)**: depends on Phase 1 and Phase 2 (the probe body
+  reads the method, the quantum, the work count and the noise
+  threshold)
+- **Phase 5 (M-D)**: depends on Phase 4 (the fold reads the series
+  buffer the loops fill)
+- **Phase 6 (M-G)**: depends on Phase 1, Phase 5 and Phase 3 (the
+  writer reads the fold, and the periods ride the kernel answer)
+- **Phase 7 (M-F)**: depends on Phase 4, Phase 5 and Phase 3 (the
+  console prints the figures of the fold and the period list)
+- **Phase 8 (M-H)**: depends on every module above, because the
+  example records the lines the printer emits
+- **Phase 9 (M-I)**: T044 needs the built binary and the lane host;
+  T045 depends on T044; T046 depends on T045; T047 depends on the
+  parser, the record, the rule table, the printer and the fold
+- **Phase 10**: depends on every phase standing green
+- **Phase 11**: depends on Phase 10
+
+### Parallel Blocks
+
+- **Block one (after Phase 1)**: Phase 2 and Phase 3 stand apart
+  behind the seams the standing code owns; Phase 2 stands in the
+  parser and the grammar block of `harness_jitter_cli_test.cpp`, and
+  Phase 3 stands in the two new kernel files and the new
+  `harness_spectrum_test.cpp`
+- **Within the phases**: the test tasks marked [P] touch disjoint
+  files and share no build output; T001 and T002 run in parallel;
+  T011 and T014 run in parallel; T023, T024, T025 and T026 run in
+  parallel across four test files; T033 and T034 run in parallel;
+  T039 and T040 run in parallel across the two pages; T049, T051,
+  T052, T053, T054 and T055 run in parallel once T048 stands green
+- **Same-file test tasks**: T006, T009, T012, T013 and T027 stand
+  behind a disjoint scenario block of a file an earlier task of the
+  same phase opens, so they follow that task in one worker; T033
+  follows the Phase 6 rows of the same file
+
+---
+
+## Parallel Example: Parallel Block One
+
+```text
+Task: "T005 to T007: the value grammar and the 13 refusals (module M-B)"
+Task: "T008 to T010: the spectrum kernel as a pure function (module M-E)"
+```
+
+The two phases touch disjoint files: M-B stands in the parser arms of
+`source/harness/jitter_probe.cpp` and the grammar block of
+`test/source/harness_jitter_cli_test.cpp`, and M-E stands in
+`source/harness/detail/spectrum.hpp`, `source/harness/spectrum.cpp`
+and `test/source/harness_spectrum_test.cpp`. Neither shares a build
+output with the other, and both stand behind the Phase 1 surface.
+
+---
+
+## Implementation Strategy
+
+### MVP First (User Stories 1 and 2 only)
+
+1. Complete Phase 1: the public surface and the numbers
+2. Complete Phase 2: the grammar and the refusals
+3. Complete Phase 4: the calibration, the FWQ loop and the FTQ loop
+4. **STOP and VALIDATE**: a run with `--jitter-probe=idle,method=fwq`
+   over the scripted reader measures the calibration and the unit
+   series, and the figures match the scripted series
+   (quickstart.md, the fixed work quanta run)
+
+### Incremental Delivery
+
+1. Phase 1: the types and the numbers stand
+2. Parallel block one: the grammar and the kernel stand (two workers)
+3. Phase 4 and Phase 5: the probe body and the folds close User
+   Stories 1 and 2
+4. Phase 6: the record closes User Story 4 in the document
+5. Phase 7: the console and the pre-check close User Stories 1, 2 and
+   4 on the console
+6. Phase 8: the docs and the example teach the two methods
+7. Phase 9: the evidence and the standing contracts close User
+   Story 7
+8. Phase 10 and Phase 11: the gates and the CI run close the lane
+
+---
+
+## Notes
+
+- [P] tasks stand in different files and share no build output
+- [Story] labels map the tasks to the spec user stories
+- Every test task stands observed failing before its code lands, and
+  the test and its code land in one commit (Principle III, VI)
+- Commit after each task or logical group, with the standing commit
+  template; the T004 commit message records the version check, the ABI
+  check with the three layout moves named, and the schema check
+  (FR-005, SC-009), and the T047 amendments ride the code commits
+  (FR-030)
+- The tasks phase reads the plan waves, the module order and the test
+  plan as one graph: wave 1 stands in Phase 1 and Phase 2, wave 2 in
+  Phase 3, wave 3 in Phase 4, wave 4 in Phase 5 and Phase 6, wave 5 in
+  Phase 7, wave 6 in Phase 8, wave 7 in Phase 9 and Phase 10
+- Three readings stand recorded for the implement phase, each read
+  from the plan and the contracts, which govern: the public record
+  type stands `JitterSeriesStats` (plan.md R-20,
+  [contracts/public-api.md](./contracts/public-api.md)), the
+  `data-model.md` names `JitterSeriesRecord` and `JitterCalibration`
+  stand as that file records them, being its own choice of names, and
+  the header lands the plan spelling; the option field types stand as
+  the contract block states them, and the `data-model.md` E-27 rows
+  for `workCount` and `noisePercent` stand read beside it; the
+  calibration prefix stands at 98 reads at the cap, the plan risk
+  reading, and the test builder takes the prefix length as a
+  parameter, so each test states its own
+- Stop at any checkpoint to validate the stories independently
