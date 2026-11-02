@@ -763,7 +763,7 @@ the detected periods, and each showing a drop count of 0.
   (FR-027, FR-028, D-10, R-21).
   (depends on T018, T038, which build the binary the script runs)
   Verify: `bash -n tools/noise/fwq_ftq_acceptance.sh` exits 0, and `grep -c "min-time=10" tools/noise/fwq_ftq_acceptance.sh` reads at least the two method commands
-- [ ] T045 [US7] Record the acceptance run on the lane host in
+- [x] T045 [US7] Record the acceptance run on the lane host in
   `specs/043-fwq-ftq/results/acceptance-<date>.md`: eight sections, each
   naming the command line, the exit status and the captured output, the
   record naming the host, the kernel, `CONFIG_HZ`, the L3 group, the
