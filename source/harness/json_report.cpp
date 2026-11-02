@@ -698,11 +698,10 @@ void writeEntry(Builder& builder,
       // array, one item per cpu whose samples landed inside this entry's
       // windows, with no method key and no period list; a `TSC` run keeps
       // no series, so it writes no key (FR-006).
-      const bool anySeries =
-          std::any_of(result.jitterFolds.begin(),
-                      result.jitterFolds.end(),
-                      [](const sg::JitterEntryFold& fold)
-                      { return fold.series.has_value(); });
+      const bool anySeries = std::any_of(result.jitterFolds.begin(),
+                                         result.jitterFolds.end(),
+                                         [](const sg::JitterEntryFold& fold)
+                                         { return fold.series.has_value(); });
       if (anySeries) {
         entryJitter.key("series");
         JsonArrayWriter series(builder);

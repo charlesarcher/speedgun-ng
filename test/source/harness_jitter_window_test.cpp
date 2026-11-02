@@ -554,8 +554,7 @@ auto objectEndAt(const std::string& document, std::size_t at) -> std::size_t
   for (std::size_t i = at; i < document.size(); ++i) {
     if (document.at(i) == '{') {
       ++depth;
-    }
-    else if (document.at(i) == '}' && --depth == 0) {
+    } else if (document.at(i) == '}' && --depth == 0) {
       return i;
     }
   }
@@ -666,8 +665,8 @@ constexpr std::array<std::string_view, 21> kSeriesKeys {"cpu",
 // stand: the walk counts the braces and the brackets, so a key of a nested
 // object stands out of the answer and the walk stops at the object's own
 // close (FR-006).
-auto jsonKeysAt(const std::string& text, std::size_t objectAt)
-    -> std::vector<std::string>
+auto jsonKeysAt(const std::string& text,
+                std::size_t objectAt) -> std::vector<std::string>
 {
   std::vector<std::string> keys;
   std::size_t depth = 0;
@@ -736,9 +735,9 @@ auto checkSeriesRoundTrip(const sg::JitterSeriesStats& series,
   check(integerValueIn(document, itemAt, itemEnd, "unitTimeNs")
             == series.unitTimeNs,
         what);
-  check(integerValueIn(document, itemAt, itemEnd, "targetNs")
-            == series.targetNs,
-        what);
+  check(
+      integerValueIn(document, itemAt, itemEnd, "targetNs") == series.targetNs,
+      what);
   check(integerValueIn(document, itemAt, itemEnd, "quantumNs")
             == series.quantumNs,
         what);
@@ -748,9 +747,9 @@ auto checkSeriesRoundTrip(const sg::JitterSeriesStats& series,
   check(integerValueIn(document, itemAt, itemEnd, "sampleCount")
             == series.sampleCount,
         what);
-  check(integerValueIn(document, itemAt, itemEnd, "minValue")
-            == series.minValue,
-        what);
+  check(
+      integerValueIn(document, itemAt, itemEnd, "minValue") == series.minValue,
+      what);
   check(integerValueIn(document, itemAt, itemEnd, "medianValue")
             == series.medianValue,
         what);
@@ -758,21 +757,21 @@ auto checkSeriesRoundTrip(const sg::JitterSeriesStats& series,
                   - series.meanValue)
             <= 1e-9,
         what);
-  check(integerValueIn(document, itemAt, itemEnd, "p90Value")
-            == series.p90Value,
-        what);
-  check(integerValueIn(document, itemAt, itemEnd, "p99Value")
-            == series.p99Value,
-        what);
+  check(
+      integerValueIn(document, itemAt, itemEnd, "p90Value") == series.p90Value,
+      what);
+  check(
+      integerValueIn(document, itemAt, itemEnd, "p99Value") == series.p99Value,
+      what);
   check(integerValueIn(document, itemAt, itemEnd, "p999Value")
             == series.p999Value,
         what);
   check(integerValueIn(document, itemAt, itemEnd, "p9999Value")
             == series.p9999Value,
         what);
-  check(integerValueIn(document, itemAt, itemEnd, "maxValue")
-            == series.maxValue,
-        what);
+  check(
+      integerValueIn(document, itemAt, itemEnd, "maxValue") == series.maxValue,
+      what);
   check(std::fabs(doubleValueAfter(document, itemAt, "noisePercent")
                   - series.noisePercent)
             <= 1e-9,
@@ -816,7 +815,6 @@ auto checkSeriesRoundTrip(const sg::JitterSeriesStats& series,
   }
   check(index == series.periods.size(), what);
 }
-
 
 // The flat clock: a stamp that never moves, so every unit time the FWQ
 // window keeps stands 0 and every FTQ quantum stands open. The two guards
@@ -902,8 +900,8 @@ auto fillFtqSeries(sg::detail::ProbeCpuState& state) -> void
 
 // The one-window set the entry fold reads, in the shape the carrier of
 // E-06 fills: the attempt attribution rides the window.
-auto seriesWindow(std::uint64_t start, std::uint64_t end)
-    -> std::vector<sg::detail::TimedWindow>
+auto seriesWindow(std::uint64_t start,
+                  std::uint64_t end) -> std::vector<sg::detail::TimedWindow>
 {
   return {sg::detail::TimedWindow {
       .start = start,
@@ -2120,10 +2118,10 @@ auto main() -> int
       // The per-entry copy carries no spectrum: the period list rides the
       // run-level item alone, so the resample step the transform read
       // stands out of it too, and a FWQ item stands at 19 keys (FR-020).
-      wanted.erase(std::find(wanted.begin(), wanted.end(),
-                             std::string("periods")));
-      wanted.erase(std::find(wanted.begin(), wanted.end(),
-                             std::string("resampleStepNs")));
+      wanted.erase(
+          std::find(wanted.begin(), wanted.end(), std::string("periods")));
+      wanted.erase(std::find(
+          wanted.begin(), wanted.end(), std::string("resampleStepNs")));
       check(jsonKeysAt(document, entryItem) == wanted,
             "theSeriesItemCarriesEveryKey: the per-entry item carries the "
             "same keys with no method and no periods (FR-020)");
@@ -2313,11 +2311,22 @@ auto main() -> int
                                           "jitter:any:",
                                           "jitter:run:" + cpu + ":",
                                           "jitter:run:any:"};
-    const std::vector<std::string_view> kSeriesFields {
-        "sampleCount",  "minValue",   "medianValue",   "meanValue",
-        "p90Value",     "p99Value",   "p999Value",     "p9999Value",
-        "maxValue",     "noisePercent", "seriesRuntimeNs", "droppedSamples",
-        "unitTimeNs",   "quantumNs",  "resampleStepNs",  "spectrumPoints"};
+    const std::vector<std::string_view> kSeriesFields {"sampleCount",
+                                                       "minValue",
+                                                       "medianValue",
+                                                       "meanValue",
+                                                       "p90Value",
+                                                       "p99Value",
+                                                       "p999Value",
+                                                       "p9999Value",
+                                                       "maxValue",
+                                                       "noisePercent",
+                                                       "seriesRuntimeNs",
+                                                       "droppedSamples",
+                                                       "unitTimeNs",
+                                                       "quantumNs",
+                                                       "resampleStepNs",
+                                                       "spectrumPoints"};
     for (const auto& head : heads) {
       for (const auto field : kSeriesFields) {
         const std::string text = head + std::string(field) + ":lower:abs=5000";
@@ -2397,8 +2406,8 @@ auto main() -> int
       const std::string pairPath = "harness_jitter_rule_series_pair.json";
       auto arguments = quick;
       arguments.push_back("--json=" + pairPath);
-      arguments.push_back(
-          "--jitter-probe=" + cpuList + ",method=fwq,gaps=16384");
+      arguments.push_back("--jitter-probe=" + cpuList
+                          + ",method=fwq,gaps=16384");
       captureRun(arguments);
       const auto pairDocument = readDocument(pairPath);
       const auto root = pairDocument.find("\"jitter\":{");
@@ -2425,9 +2434,8 @@ auto main() -> int
             "largest count of the probe cpus (FR-021, D-11)");
       const std::string namedRule =
           "--compare-rule=jitter:run:" + cpu + ":sampleCount:lower:abs=1";
-      const auto namedCpu =
-          captureRun({"--compare=" + pairPath + "," + pairEdited, namedRule},
-                     0);
+      const auto namedCpu = captureRun(
+          {"--compare=" + pairPath + "," + pairEdited, namedRule}, 0);
       check(namedCpu.find("REGRESSED") == std::string::npos,
             "theAnyReadingAnswersTheLargestCount: the named cpu's own count "
             "stands where the edit left it (FR-021, D-11)");

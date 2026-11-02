@@ -88,8 +88,7 @@ auto tscRecord() -> sg::detail::JitterReportRecord
   record.thresholdNs = 200;
   record.loopPeriodNs = 20;
   record.cpus = {0, 1};
-  for (const std::uint32_t cpu : record.cpus)
-  {
+  for (const std::uint32_t cpu : record.cpus) {
     sg::detail::JitterReportCpu line;
     line.cpu = cpu;
     line.stats.gapCount = 3;
@@ -230,28 +229,17 @@ constexpr std::string_view kConsoleBytes =
 // The keys specs/043 adds, each spelled as the document spells it
 // (FR-019, FR-026).
 constexpr std::string_view kNewKeys[] = {
-    "\"method\"",
-    "\"series\"",
-    "\"periods\"",
-    "\"workCount\"",
-    "\"unitTimeNs\"",
-    "\"targetNs\"",
-    "\"quantumNs\"",
-    "\"calibrationSpanNs\"",
-    "\"sampleCount\"",
-    "\"minValue\"",
-    "\"medianValue\"",
-    "\"meanValue\"",
-    "\"p90Value\"",
-    "\"p99Value\"",
-    "\"p999Value\"",
-    "\"p9999Value\"",
-    "\"maxValue\"",
-    "\"noisePercent\"",
-    "\"seriesRuntimeNs\"",
-    "\"droppedSamples\"",
-    "\"resampleStepNs\"",
-    "\"spectrumPoints\"",
+    "\"method\"",          "\"series\"",
+    "\"periods\"",         "\"workCount\"",
+    "\"unitTimeNs\"",      "\"targetNs\"",
+    "\"quantumNs\"",       "\"calibrationSpanNs\"",
+    "\"sampleCount\"",     "\"minValue\"",
+    "\"medianValue\"",     "\"meanValue\"",
+    "\"p90Value\"",        "\"p99Value\"",
+    "\"p999Value\"",       "\"p9999Value\"",
+    "\"maxValue\"",        "\"noisePercent\"",
+    "\"seriesRuntimeNs\"", "\"droppedSamples\"",
+    "\"resampleStepNs\"",  "\"spectrumPoints\"",
 };
 
 // The printer's own bytes, taken through the redirect the standing capture
@@ -375,6 +363,7 @@ auto main() -> int
   theNewKeysStandAbsentFromTheDocument();
   theStandingConsoleLinesMatchTheRecordedBytes();
   aTscRunPassesTheSchemaAtTheStampedMinor();
+  std::remove(kDocument);
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;

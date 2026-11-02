@@ -262,8 +262,8 @@ auto documentWithJitter() -> std::string
   cpu.stats.droppedGaps = 30;
   record.stats.push_back(cpu);
   record.disclosure = "the run's disclosure";
-  check(sg::detail::writeReport("harness_json_schema_jitter.json", data, {},
-                                record),
+  check(sg::detail::writeReport(
+            "harness_json_schema_jitter.json", data, {}, record),
         "the writer wrote the document with the jitter record (FR-006)");
   return sg::test::readText("harness_json_schema_jitter.json");
 }
