@@ -560,16 +560,14 @@ auto openGroupWindow(const PmuState& state,
                   .index = window->groups[group].members.size() - 1,
                   .source = SlotSource::MEMBER});
   }
-  // LCOV_EXCL_START : coverage exclusion (T066): both arms need a
-  // `perf_event_open` that succeeds and then fails its reset or enable.
-  // The open either refuses outright, at the `fd < 0` guard above, or
-  // returns a leader the kernel accepts; there is no in-process path that
-  // hands back a group whose ioctl the kernel then refuses.
-  for (auto& group : window->groups) {  // LCOV_EXCL_BR_LINE
-    if (group.leader < 0) {  // LCOV_EXCL_BR_LINE
-      return nullptr;  // LCOV_EXCL_LINE
-    }  // LCOV_EXCL_LINE
-    group.values.assign(group.members.size(), 0);  // LCOV_EXCL_LINE
+  for (auto& group : window->groups) {
+    // The first leaf a group carries opened as its leader: a leader open
+    // the kernel refused returned at the guard above, so a group reaching
+    // this loop holds an open leader. The guard the construction rules
+    // out stands as the contract here (FR-026).
+    SG_ASSERT(group.leader >= 0,
+              "every group the window enables opens its leader (FR-026)");
+    group.values.assign(group.members.size(), 0);
     // Reset and enable the group once, so every member shares one
     // enable instant and the enabled/running pair describes the group.
     if (kernelCalls().ioctlEvent(
@@ -578,13 +576,12 @@ auto openGroupWindow(const PmuState& state,
         || kernelCalls().ioctlEvent(group.leader,
                                     PERF_EVENT_IOC_ENABLE,
                                     PERF_IOC_FLAG_GROUP)
-            != 0)  // LCOV_EXCL_BR_LINE
+            != 0)
     {
-      return nullptr;  // LCOV_EXCL_LINE
-    }  // LCOV_EXCL_LINE
-  }  // LCOV_EXCL_BR_LINE
-  return window;  // LCOV_EXCL_LINE
-  // LCOV_EXCL_STOP
+      return nullptr;
+    }
+  }
+  return window;
 }
 
 // The body that opens a member context. The refusals are marked at their
