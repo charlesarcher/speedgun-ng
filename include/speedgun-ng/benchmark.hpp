@@ -17,6 +17,7 @@
 
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
+#include "speedgun-ng/counters_topdown.hpp"
 #include "speedgun-ng/dbc.hpp"
 #include "speedgun-ng/execution_context.hpp"
 #include "speedgun-ng/hunt.hpp"
@@ -768,6 +769,108 @@ struct JitterEntryFold
   std::optional<JitterSeriesStats> series {};
 };
 
+/**
+ * @brief One node of the top-down tree one run collected and folded
+ * (specs/042-topdown data-model.md E-16, FR-030, FR-032).
+ *
+ * `name` is the vendor-neutral name of the row and `vendorName` is that
+ * row's own table name, which the block prints beside the neutral one.
+ * `parent` is the neutral name of the parent node, and it stands empty at
+ * level 1. `level` is the node's own level. `value` is the percentage of
+ * slots the fold gave the node, and it stands empty for a node the merge
+ * published as a gap. `availability` is the state that merge published,
+ * `GAP` among them, and the two stand paired: a node with no value is a
+ * gap. `threshold` is the table's own text, which this record carries as
+ * text for the block to print, with no verdict on it (FR-017, spec D-9).
+ *
+ * The struct is data: it holds no call to guard. The shape no member may
+ * break is the tree's own: a node's level stands one below its parent's
+ * level, and a node at level 1 carries an empty `parent`.
+ *
+ * \pre none
+ * \post none
+ * \invariant none
+ */
+struct TopdownNode
+{
+  std::string name;
+  std::string vendorName;
+  std::string parent;
+  std::uint64_t level = 0;
+  std::optional<double> value;
+  counters::Availability availability = counters::Availability::GAP;
+  std::string threshold;
+};
+
+/**
+ * @brief One row of a level one run refused, as the record states it
+ * (specs/042-topdown data-model.md E-16, FR-016, FR-031, FR-033).
+ *
+ * One C++ name serves the library's refused row and this record row, the
+ * way `TopdownNode` serves the library's node and this record's node
+ * (data-model.md E-07). The report key stays `refused` and its item keys
+ * stay `name`, `kind` and `reason` (contracts/topdown-report-key.md).
+ *
+ * `name` is the neutral name of the refused row. `refusal` is the word the
+ * metric layer spells its kind with, and `reason` is the text it answered
+ * with. Both arrive unchanged: this carrier adds no verdict of its own.
+ *
+ * The struct is data: it holds no call to guard. The shape no member may
+ * break is the split of the two lists of `TopdownRecord`: a refused row
+ * stands in `refused` and in no entry of `nodes`.
+ *
+ * \pre none
+ * \post none
+ * \invariant none
+ */
+struct TopdownRefusal
+{
+  std::string name;
+  std::string refusal;
+  std::string reason;
+};
+
+/**
+ * @brief The top-down record one benchmark carries: the source of its
+ * nodes, the nodes, and the rows the table refused (specs/042-topdown
+ * data-model.md E-16, FR-032, FR-033, spec D-14).
+ *
+ * `supported` says whether the selection answered a tree, and `reason`
+ * carries the one line it answered when it answered none. `reference` and
+ * `directory` are the manifest reference and the selected directory of the
+ * table the rows came from. `files` holds one entry per file that
+ * contributed a row, with E-02's name and digest, in the sorted order the
+ * embedder emits. `askedLevel` is the level the option asked for and
+ * `level` the level the record shows, so the clamp to the table's own depth
+ * stays visible (FR-015, FR-020). `nodes` holds the collected nodes and
+ * `refused` the rows that table refused at or above that level.
+ *
+ * No vendor flag rides the record. The fifth level-1 name and the 100
+ * percent statement are printed on the block, and the document carries no
+ * key for either (FR-011, FR-028).
+ *
+ * The struct is data: it holds no call to guard. The shape no member may
+ * break is the pair the option states: an absent record carries no node,
+ * and a record that states no support carries empty `files`, `nodes` and
+ * `refused` beside its reason.
+ *
+ * \pre none
+ * \post none
+ * \invariant none
+ */
+struct TopdownRecord
+{
+  bool supported = false;
+  std::string reason;
+  std::string reference;
+  std::string directory;
+  std::vector<counters::TableFile> files;
+  std::uint64_t askedLevel = 0;
+  std::uint64_t level = 0;
+  std::vector<TopdownNode> nodes;
+  std::vector<TopdownRefusal> refused;
+};
+
 struct BenchmarkResult
 {
   std::string name;
@@ -865,6 +968,11 @@ struct BenchmarkResult
   // (PD-10). It stands empty for a run that carried no hunt, which is the
   // fact the printer, the writer and the reader test (I-8).
   std::optional<hunt::EntryHunt> hunt;
+  // specs/042-topdown data-model.md E-16, FR-032, FR-033: the top-down
+  // record of this benchmark, with its nodes and its refused rows. It
+  // stands empty for a run where the option never stood, which is the fact
+  // the printer, the writer and the reader test (FR-035).
+  std::optional<TopdownRecord> topdown;
 };
 
 /**

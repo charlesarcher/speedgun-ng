@@ -284,7 +284,7 @@ and every story calls `topdownTree`.
   lanes, so they stay and the read narrows (FR-017, spec D-11, FR-047; turns
   T007 green).
 
-- [ ] T021 In `include/speedgun-ng/benchmark.hpp`, add `TopdownNode`,
+- [x] T021 In `include/speedgun-ng/benchmark.hpp`, add `TopdownNode`,
   `TopdownRefusal` and `TopdownRecord` as `specs/042-topdown/data-model.md` E-16
   types them: `supported` and `reason`, `reference` and `directory`, `files` as
   the `std::vector<TableFile>` of contributing files with E-02's `name` and
@@ -304,8 +304,7 @@ and every story calls `topdownTree`.
   `:126` and its prose line at `:1376`, and the harness check of the version
   block at `test/source/views_test.cpp:252` with its block comment at `:243`
   (FR-032, FR-033, E-16, spec D-4, FR-047). The member answers in the commit of
-  T035, where `theNodeFigureStandsInTheRecord` of T028 reads it.
-
+  T035, where `theNodeFigureStandsInTheRecord` of T028 reads it. The `\invariant` tag on the three record types reads `none` and each type states its shape in the paragraph above the tags, the way the eleven types of `include/speedgun-ng/counters_topdown.hpp` do: the pairing gate reads a class invariant only from a member definition of that class, and a data-only record has no member definition to hold a check that is not a tautology.
 - [x] T022 In `include/speedgun-ng/counters_topdown.hpp` and
   `source/counters/linux_pmu/topdown_select.cpp`, each a new file, publish
   `CpuIdentity`, `TableFile`, `TopdownSource`, `TopdownRow`, `TopdownTable`,
