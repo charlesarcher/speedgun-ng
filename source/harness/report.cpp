@@ -302,7 +302,7 @@ auto metricMethodName(const sg::MetricMethod method) -> const char*
 // the print below reads the record.
 auto printPassDisclosure(const BenchmarkResult& result) -> void
 {
-  if (result.metricLabels.empty()
+  if ((result.metricLabels.empty() && !result.topdown.has_value())
       || result.metricMethod == sg::MetricMethod::AUTO)
   {
     return;
@@ -330,6 +330,71 @@ auto printPassDisclosure(const BenchmarkResult& result) -> void
     std::printf("warning: pass spread %.1f%% exceeds %.0f%%\n",
                 *result.passSpread,
                 kSpreadWarningLimitPercent);
+  }
+}
+
+// specs/042-topdown FR-028, D-3: the neutral name only an AMD table carries.
+// The record states no vendor flag, and its schema closes with
+// `additionalProperties: false`, so this name is how the block knows to state
+// that the four shared level-1 values add to less than 100 percent without the
+// fifth: the node stands on an AMD table alone, and FR-028 owns the statement.
+// Do not "fix" this proxy by giving the record a flag.
+constexpr std::string_view kSmtContentionName {"topdown.smt_contention"};
+
+// specs/042-topdown FR-025, FR-026, FR-027, FR-028, FR-015: the block of one
+// top-down run, printed under the tables of the benchmark it belongs to. The
+// header names the level the run shows, the passes its one plan produced and
+// the directory the rows came from; the source record follows with its
+// reference and one line per file that contributed a row, which is the whole of
+// what the loader states and never the digests of the embedded record (FR-015).
+// Each node line carries two spaces per level below one, the neutral name, the
+// vendor name of the row it came from, and the percent or `not available` for a
+// gap (FR-026, FR-027, FR-030). A record that states no support prints no
+// block: the one line for an unsupported host belongs to the command line
+// (FR-040, T080), and a run that never asked for a tree prints nothing here,
+// the bytes it printed before the option stood.
+auto printTopdownBlock(const BenchmarkResult& result) -> void
+{
+  if (!result.topdown.has_value() || !result.topdown->supported) {
+    return;
+  }
+  const sg::TopdownRecord& record = *result.topdown;
+  std::printf("topdown: level=%d passes=%zu table=%s\n",
+              static_cast<int>(record.level),
+              result.passCount,
+              record.directory.c_str());
+  if (!record.reference.empty()) {
+    std::printf("topdown: reference=%s\n", record.reference.c_str());
+  }
+  for (const sg::counters::TableFile& file : record.files) {
+    std::printf(
+        "topdown: file %s %s\n", file.name.c_str(), file.manifestHash.c_str());
+  }
+  bool statesContention = false;
+  for (const sg::TopdownNode& node : record.nodes) {
+    if (node.name == kSmtContentionName) {
+      statesContention = true;
+    }
+    const std::string indent(2 * (node.level > 0 ? node.level - 1 : 0), ' ');
+    if (node.value.has_value()
+        && node.availability == sg::counters::Availability::COUNTABLE)
+    {
+      std::printf("topdown:  %s%s  %s  %.2f%%\n",
+                  indent.c_str(),
+                  node.name.c_str(),
+                  node.vendorName.c_str(),
+                  *node.value);
+    } else {
+      std::printf("topdown:  %s%s  %s  not available\n",
+                  indent.c_str(),
+                  node.name.c_str(),
+                  node.vendorName.c_str());
+    }
+  }
+  if (statesContention) {
+    std::printf("topdown: the four shared level-1 values add to less than 100 "
+                "percent without %s\n",
+                std::string {kSmtContentionName}.c_str());
   }
 }
 
@@ -651,6 +716,10 @@ auto printResult(const BenchmarkResult& result,
   // describes, and the context disclosure below it prints what it printed
   // before the pass mechanism existed (spec D-8, N4).
   printPassDisclosure(result);
+  // specs/042-topdown FR-025: the block stands under the tables of its own
+  // benchmark, ahead of every line that followed them before the option stood,
+  // so a threaded run reaches it on the same path as a single-context run.
+  printTopdownBlock(result);
   // FR-024, R-08: the per-benchmark attribution line under the rows,
   // naming the worst probe cpu for this benchmark's windows: the fold
   // whose max stands largest, ties keeping the ascending cpu order the
