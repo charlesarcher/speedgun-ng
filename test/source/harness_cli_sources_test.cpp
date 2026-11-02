@@ -515,14 +515,18 @@ constexpr char kAmbiguousFault[] =
     "a prefix of several rows names every candidate in table "
     "order (FR-009, FR-013): ";
 
-// Every prefix of the 27-row table that starts more than one row name, each
+// A prefix of the 43-row table that starts more than one row name, each
 // answer captured byte for byte from `docs_command_line`, which prints the
 // line on standard error and answers status 2.
 constexpr AbbreviationCase kAmbiguous[] = {
     {"--i",
      "ambiguous option '--i': iterations, " "interleave"},
     {"--t",
-     "ambiguous option '--t': topology, " "threads"},
+     "ambiguous option '--t': topology, " "threads, topdown"},
+    {"--to",
+     "ambiguous option '--to': topology, " "topdown"},
+    {"--top",
+     "ambiguous option '--top': topology, " "topdown"},
     {"--compare-r",
      "ambiguous option '--compare-r': compare-rule, " "compare-rules"},
     {"--compare-ru",
