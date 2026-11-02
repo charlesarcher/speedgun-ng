@@ -1058,7 +1058,7 @@ a registered benchmark prints no row. Here that is
   which builds `docs_topdown` and hangs `run_docs_topdown` on `run-examples` for
   `test/example_run.sh` (FR-045). Same commit as the new file of T084.
 
-- [ ] T086 [US5] Add `"Top-down analysis"` to `SECTIONS` at
+- [x] T086 [US5] Add `"Top-down analysis"` to `SECTIONS` at
   `tools/docs/example_drift.py:33` and its owner key
   `"Top-down analysis": ("topdown.cpp",)` to `SECTION_OWNERS` at `:73`, so the
   drift gate demands the page section, its owner file and the region T084 wrote;
@@ -1066,8 +1066,8 @@ a registered benchmark prints no row. Here that is
   because the tool raises `KeyError` at `tools/docs/example_drift.py:683` when
   one moves without the other and reads `no '### Top-down analysis' section`
   until the page carries it (FR-044, spec Constraints). Same commit as T084,
-  T085 and T087.
-- [ ] T087 [US5] Write the 34th capability section of `README.md` under
+  T085 and T087. `SECTIONS` and `SECTION_OWNERS` move together: the tool reads `KeyError` with the owners unmoved and `no '### Top-down analysis' section` with the page unwritten, which is why one commit carries both lists and the page.
+- [x] T087 [US5] Write the 34th capability section of `README.md` under
   `## How you do it` between `### Multi-pass collection` at `:326` and
   `### Skips` at `:350`: heading, one purpose sentence, the
   `<!-- sg-example: example/docs/topdown.cpp#topdown -->` marker naming the new
@@ -1084,16 +1084,16 @@ a registered benchmark prints no row. Here that is
   `specs/042-topdown/quickstart.md`, and that `test/example_run.sh` proves the
   program builds and prints its row, the figures being the acceptance run and
   not a promise about every host (FR-044, spec D-15). Same commit as T084, T085
-  and T086.
-- [ ] T088 [US5] Add the two quick-reference name rows `topdownTree` and
+  and T086. The page moves from 1004 lines to 1004. The section adds 21 inside the 25 cap, two quick-reference rows join the table, two `## Planned work` rows naming shipped output give place to one row naming the four pending tables, and 22 blank lines carry the rest.
+- [x] T088 [US5] Add the two quick-reference name rows `topdownTree` and
   `TopdownTree` to `README.md` at the head of the graph block, above the
   `GraphRecord` row that stands at `README.md:947` at the base hash and at
   `:946` once T032's trim and option row land (2 lines), paid by the two
   remaining trims, the `## Planned work` rows at `README.md:1001` and `:1002`,
   so the page again measures 1004 lines and the drift gate finds no
   `long option '--topdown' has no option row`, that row having landed with T032
-  (FR-044, spec D-15).
-- [ ] T089 [P] [US5] Write `## Top-down analysis` in `docs/pages/harness.md`
+  (FR-044, spec D-15). `counters_topdown.hpp` already stood ahead of `views.hpp` in `NAME_SCAN_HEADERS`, so two lists moved here and not three.
+- [x] T089 [P] [US5] Write `## Top-down analysis` in `docs/pages/harness.md`
   after the `## Multi-pass collection` section that opens at `:1549`: the names,
   the levels, the source record, the five unsupported reasons and the `topdown:`
   rule form, with the same reading the acceptance record of
@@ -1114,7 +1114,7 @@ finding,
 **Purpose**: The discipline requirements that span the feature: the memory-bound
 case FR-058 names, the gate order, the two static analyzers, the contract gate,
 the two sanitizer builds, the coverage evidence, the acceptance record spec
-D-16 names, and the one timing bound PC-13 measures.
+D-16 names, and the one timing bound PC-13 measures. The block the page quotes prints node names. The figures a host prints carry the PC-7 gap on this machine, where `tma_info_thread_clks` reads zero, so the page states no figure and the repair stands at FR-053 with its acceptance row pending.
 - [ ] T090 [P] Write `example/memory_walk.cpp`, a new file: one memory-bound
   benchmark whose working set stands above the 19.3 MiB last-level cache of the
   acceptance host, where the largest shipped set stands at 64 KiB of

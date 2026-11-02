@@ -347,6 +347,27 @@ auto attachOverLimit(sg::BenchmarkHandle& handle) -> void
 }
 ```
 Each pass times its own columns, every metric field carries a `pass=<index>` tag, and a `passes` line discloses the settled `method=`, the pass `count=` and the `spread=`; the split rule, the merge rule, the spread formula and the fallback for a host that publishes no limit are at [multi-pass collection](docs/pages/harness.md#multi-pass-collection).
+### Top-down analysis
+One call reads the level-1 split of the running CPU's own table.
+<!-- sg-example: example/docs/topdown.cpp#topdown -->
+```cpp
+#include <cstdio>
+
+#include "speedgun-ng/counters_topdown.hpp"
+
+auto printTopdownLevel1(const sg::counters::CpuIdentity& identity) -> void
+{
+  const auto tree = sg::counters::topdownTree({identity, 1, {}});
+  if (!tree.has_value()) {
+    std::printf("%s\n", tree.error().message().c_str());
+    return;
+  }
+  for (const auto& node : tree->nodes) {
+    std::printf("%s  %s\n", node.name.c_str(), node.vendorName.c_str());
+  }
+}
+```
+`example/docs/topdown.cpp` holds the block, and `test/example_run.sh` builds it and reads the row of `bmTopdown`. The figures a run prints come from the acceptance host run recorded in `specs/042-topdown/quickstart.md`, each host answers from its own table, and a host with no source prints the refusal line: [top-down analysis](docs/pages/harness.md#top-down-analysis).
 ### Skips
 `skipWithMessage` ends a run early when the work cannot be done, and `skipWithError` ends it as a failure.
 <!-- sg-example: example/docs/skips.cpp#skips -->
@@ -387,7 +408,6 @@ A run that took an option from a file or the environment, or that ran `--interle
 `--help` prints one line per option and stops, and `--version` prints the project version and stops; neither runs a benchmark.
 ### Reading the report
 A run prints a version line, then one row per instance and repetition.
-
 <!-- sg-example: example/docs/reading_the_report.cpp#report-fields -->
 ```cpp
 auto bmFill(sg::State& state) -> void
@@ -407,7 +427,6 @@ SG_BENCHMARK(bmFill).argsProduct({{8}}).threadRange(1, 2);
 The row carries `bytes_per_second=` from the byte setter and the `label=` field the label setter gave it, and [Reading a report row](docs/pages/harness.md#reading-a-report-row) shows the full run with the `spread=` statistic and the `BIG_O` and `RMS` pair of the fit.
 A row gives `iterations=`, `real time/iter (ns)=`, `cpu time/iter (ns)=`, `overhead floor (ns)=`, and `endpoint samples=`. The floor is the median cost of one sampling window for the run, so a fast loop prints a floor above its own per-iteration time, and the count is the sample pair taken at the window ends, plus one point for
 each chunk when the run reports percentiles. With repetitions, a final `AGGREGATE` row gives mean, median, `sd=`, `cv=`, min, max, and `n=`. A threaded result prints its merged row, `bmFill/8/threads:2`, then the disclosure of the contexts it merged: `contexts=2  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN`.
-
 ### User counters
 <!-- sg-example: example/docs/user_counters.cpp#counter-column -->
 ```cpp
@@ -425,7 +444,6 @@ auto bmCount(sg::State& state) -> void
 SG_BENCHMARK(bmCount).argsProduct({{64}}).repetitions(3);
 ```
 A counter is a named number the loop reports beside the times, and its flags say how the value scales. A run of `bmCopyCells` prints `cells=` and the `bytes_per_second=` rate beside the two time columns, and its `AGGREGATE` row carries one statistic line for each counter, so `cells mean=` and `bytes_per_second mean=` stand under the built-in ones. Names are capped at `kMaxUserCounters`, sixteen for one benchmark, and a name must be shorter than `kMaxCounterNameBytes`, so 31 characters; both bounds are `SG_REQUIRE` preconditions on `State::setCounter`, and a breach ends the run with the bound in its message. See [user counters](docs/pages/harness.md#user-counters).
-
 ### Throughput
 <!-- sg-example: example/docs/throughput.cpp#throughput-call -->
 ```cpp
@@ -443,7 +461,6 @@ auto bmScale(sg::State& state) -> void
 SG_BENCHMARK(bmScale).argsProduct({{1}}).repetitions(3);
 ```
 `setBytesProcessed` and `setItemsProcessed` open the two rate counters the harness derives from the time it measured. The row gains `items_per_second=` and `bytes_per_second=` columns, each one the total the call passed divided by the primary time of the run, so a larger argument shows the throughput the loop held. Both calls take the total work of the whole run: a body that works a known amount per iteration passes that amount times `state.iterations()` after the loop, as the example does. See [throughput](docs/pages/harness.md#throughput).
-
 ### Labels
 A label is a trailing word a run prints after its numbers, so a row says which variant it measured.
 <!-- sg-example: example/docs/labels.cpp#labels -->
@@ -465,7 +482,6 @@ auto bmScanBlocks(sg::State& state) -> void
 SG_BENCHMARK(bmScanBlocks).argNames({"cells"}).range(256, 4096).repetitions(3);
 ```
 `label=summed` stands last on every row of the family, after the counters, and the `AGGREGATE` row carries the label the repetitions agreed on. See [labels](docs/pages/harness.md#labels).
-
 ### Custom statistics
 A custom statistic turns the repetition times of one instance into one more named number on its aggregate row.
 <!-- sg-example: example/docs/custom_statistics.cpp#custom-statistics -->
@@ -489,7 +505,6 @@ auto spreadOf(const std::vector<double>& times, double& spread) -> bool
 }
 ```
 `BenchmarkHandle::addStatistic("spread", sg::StatUnit::PERCENTAGE, &spreadOf)` attaches the callback to the family. `spread=    0.110` then prints beside the built-in statistics with the percentage unit the registration declared, and the names `mean`, `median`, `sd`, `cv`, `min`, `max` and `n` stay reserved: a callback registered under one of them breaches its precondition at the call. See [custom statistics](docs/pages/harness.md#custom-statistics).
-
 ### Aggregate-only reporting
 `reportAggregatesOnly` keeps the repetition rows out of the report and leaves the aggregate.
 <!-- sg-example: example/docs/aggregates_only.cpp#aggregates-only -->
@@ -510,7 +525,6 @@ auto bmCountWords(sg::State& state) -> void
 SG_BENCHMARK(bmCountWords).repetitions(5).reportAggregatesOnly();
 ```
 The family prints its single `AGGREGATE` row for the five repetitions and nothing above it; `displayAggregatesOnly` applies the same rule to every family from the command line. See [aggregate-only reporting](docs/pages/harness.md#aggregate-only-reporting).
-
 ### Complexity fit
 A family fitted over its complexity sizes reports the curve each of its quantities follows.
 <!-- sg-example: example/docs/complexity_fit.cpp#complexity-fit -->
@@ -534,7 +548,6 @@ SG_BENCHMARK(bmSwapPasses)
     .complexity(sg::BigO::AUTOMATIC);
 ```
 The family ends with a `BIG_O` row naming the curve and its coefficient, an `RMS` row with the fit error as a percentage, one pair for every quantity the family carries, and a `SKIPPED` row naming a quantity a member never set together with its reason. See [complexity fit](docs/pages/harness.md#complexity-fit).
-
 ### Execution contexts
 A context is a thread the library runs, with an inbox of typed work and a policy fixing its wait mode and placement.
 <!-- sg-example: example/docs/execution_contexts.cpp#noise-load -->
@@ -559,7 +572,6 @@ auto main(int argc, char** argv) -> int
 }
 ```
 The `bmQuiet` row prints while the load spins on its own context; `requestStop`, `drain`, and `join` close the context after the run. See [execution context lifecycle](docs/pages/harness.md#execution-context-lifecycle).
-
 ### Threads
 `threads(4)` runs one benchmark body on four contexts at once and prints one merged row for them.
 <!-- sg-example: example/docs/threads.cpp#threads -->
@@ -575,7 +587,6 @@ auto bmSharded(sg::State& state) -> void
 SG_BENCHMARK(bmSharded).threads(4);
 ```
 `state.threadIndex()` numbers the context running the loop, and `state.threads()` gives the count the instance asked for. See [what a threaded row merges](docs/pages/harness.md#what-a-threaded-row-merges).
-
 ### Topology placement
 `--placement` picks one of five presets, `none`, `core`, `l3`, `smt` or `compact`, and the harness plans one cpu per context from the machine layout it reads once per process: `core` takes one thread per core, `l3` one cpu per L3 group, `smt` the sibling threads of one core, and `compact` fills each L3 group before the next. A handle names its family's preset with `placement`, and the handle wins over the command line. Asking more contexts than the preset has places stops the batch with one line naming the preset and the counts. `--topology` prints the layout the plans come from. See [topology placement in detail](docs/pages/harness.md#topology-placement).
 <!-- sg-example: example/docs/topology_placement.cpp#topology-placement -->
@@ -598,7 +609,6 @@ auto bmPair(sg::State& state) -> void
 
 SG_BENCHMARK(bmPair).threads(2);
 ```
-
 ### Memory nodes
 <!-- sg-example: example/docs/numa_placement.cpp#numa-placement -->
 ```cpp
@@ -617,7 +627,6 @@ context's memory to its node at the context start; the report names the node
 beside the group and ends the field with it, `ctx0=SPIN/0@0@0/applied/node-0`,
 and `--topology` prints one line per node under the L3 lines. See [topology
 placement in detail](docs/pages/harness.md#topology-placement).
-
 ### Context groups
 A group is the set of contexts that share one start round and one stop round, and the run names its one partition from the preset `--placement` settled on or from the file `--group-layout` points at.
 <!-- sg-example: example/docs/context_groups.cpp#groups -->
@@ -632,7 +641,6 @@ auto bmGrouped(sg::State& state) -> void
 SG_BENCHMARK(bmGrouped).threads(2).placement("compact");
 ```
 The `bmGrouped/threads:2` row prints, and where the plan names a unit its disclosure line ends each context field with that group's name, `ctx0=SPIN/0@0/applied/l3-0`. A preset spells that name as the unit it reads and an ordinal, `l3-0` or `node-0`, and a file spells it as its entries state, `g0` standing for an entry that names none. A run with `--placement=none` and no file names no partition, and its context fields carry no group segment. The JSON context record carries the same text as its `group` key, present for a grouped run alone. A file beside a preset that names a partition for the machine read in hand, a file beside `--hunt`, and a batch whose instance counts disagree with the file's slots each stop the batch with one line and status 2 before any measurement. A preset above `none` that names no unit for that read runs on with its pins, and the file names the run's one partition. See [context groups in detail](docs/pages/harness.md#context-groups).
-
 ### Execution graphs
 <!-- sg-example: example/docs/execution_graphs.cpp#execution-graphs -->
 ```cpp
@@ -654,7 +662,6 @@ edges in the file's order. A node whose dependency failed prints as
 `held`, with that node beside it, and a node the stop request refuses
 prints as `stopped`. `--json` writes the same facts as the `graph`
 record. See [execution graphs in detail](docs/pages/harness.md#execution-graphs).
-
 ### Percentiles
 <!-- sg-example: example/docs/percentiles.cpp#percentiles -->
 ```cpp
@@ -672,7 +679,6 @@ auto bmRoll(sg::State& state) -> void
 SG_BENCHMARK(bmRoll).iterations(300).showPercentiles(true);
 ```
 The run divides its iterations into chunks, times each chunk, and reads the nearest rank of the chunk times, so `showPercentiles(true)` reports how one run's iterations varied. `--percentiles=50,90` sets the points of the run and `--no-percentiles` turns the lines off; a point the chunk count cannot answer prints `not available`. See [percentiles](docs/pages/harness.md#percentiles).
-
 ### JSON reports
 <!-- sg-example: example/docs/json_reports.cpp#json-reports -->
 ```cpp
@@ -690,7 +696,6 @@ auto bmDice(sg::State& state) -> void
 SG_BENCHMARK(bmDice).iterations(120).showPercentiles(true);
 ```
 `--json=path` writes the whole run as one JSON document beside the console report: the header, one entry per benchmark, and one row per repetition with its statistics, its percentile cells and its chunk columns. `--json-raw=chunks` carries those columns when the percentile lines stay off, and `loadReport(path)` reads the document back as the same `BenchmarkResult` values the run printed. The file carries no date, so two runs of one build write the same bytes. See [JSON reports](docs/pages/harness.md#json-reports).
-
 ### Regression gate
 `--compare=baseline,contender` reads two report documents and answers whether the contender holds the rules you set; the comparison consults those documents and runs no benchmark of its own.
 <!-- sg-example: example/docs/regression_gate.cpp#regression-gate -->
@@ -728,7 +733,6 @@ auto bmMeasured(sg::State& state) -> void
 
 SG_BENCHMARK(bmMeasured).threads(2).placement("compact");
 ```
-
 ### Host noise pre-check
 The pre-check measures the host noise on the planned cpus before the batch runs: it prints one block per measured cpu with the gap figures, the attribution deltas each naming its `/proc` source and the host settings, then one warning line per noisy planned cpu and the pinning-candidate line ranked by gap rate. `strict` refuses a run whose planned cpu stands noisy with status 2, and `precheck=serial` runs the pre-check windows one cpu at a time. See [jitter probe in detail](docs/pages/harness.md#jitter-probe) for the keys and the record.
 <!-- sg-example: example/docs/jitter_probe.cpp#probe-main -->
@@ -742,7 +746,6 @@ auto main(int argc, char** argv) -> int
   return sg::speedgunMain(argc, argv);
 }
 ```
-
 ### Noise tracer
 The `--os-noise` value runs the `osnoise` or the `timerlat` tracer across the pre-check window. The report prints one header line naming the engine and the tracer cpus, then one figure line per source per tracer cpu. The disclosure covers three host states: no tracefs mount at the standing path, no tracer engine, and no rights for the setup writes. It stands one line, `tracer: not available`, on the tracer lines alone, and the exit status stays 0. A `cpus=` list naming a planned cpu runs the tracer's own load beside the measured cpus. See [jitter probe in detail](docs/pages/harness.md#jitter-probe) for the value grammar, the refusal shape and the record.
 <!-- sg-example: example/docs/jitter_probe.cpp#probe-main -->
@@ -799,7 +802,6 @@ auto printRankCells(const sg::hunt::RankedEvent& event) -> void
 ```
 The run prints the two figures beside each ranked row: `correlation=` and `slope=` under the sensitivity rank, `delta=` as a signed percent under the delta rank, each cell reading `n/a` where the run measured none. The run prints its hunt on stdout behind a `hunt:` prefix. One plan line names the event count, the pass count and the settled method, one rank row gives the rate under the label of the norm beside the deviation, one skipped row gives the kind of a refusal, and one summary line counts the events that produced a usable sample. `--hunt-budget` takes one clause per bound: `120s` and `8p` bound the whole hunt in two stages, `0.5e` bounds one event inside one stage, and `32g` bounds the events of one multiplex group, and the plan line carries `sample=` and `mux=` beside `budget=` with one line under it for each budget that speaks. `--hunt-emit-set=<file>` writes the ranked addresses of the run, and `--counter=@<file>` reads such a file back as report columns.
 One line on stderr naming the value ends the run with status 2 for a value outside the range its option states, for a raw event code such as `r4a03`, and for a hunt beside `--counter`, `--metric`, `--compare`, `--placement` or `--group-layout`. A host that refuses every event prints the plan line, the skipped list and a summary that reads `events=0/N`, and the run ends with status 0. See [Hunter mode](docs/pages/harness.md#hunter-mode) for the selection forms, the options, the lines and the names.
-
 ### Report views
 One loaded report document renders four ways: the SVG histogram, the SVG plot, the static HTML page and the terminal text, all declared in `speedgun-ng/views.hpp`.
 <!-- sg-example: example/docs/report_views.cpp#report-views -->
@@ -822,7 +824,6 @@ auto printTimeView(const std::string& path) -> void
 }
 ```
 The run writes its document at `--json=path`, loads it back with `loadReport`, and prints the five repetition rows and the aggregate row, then the text view: one line naming the column, one line per bin with its range, count and bar (`100-200 ns: 2` first), and one line per recorded value (`100 ns` first).
-
 ## Quick reference
 
 | Name | Owner | What it does | Teaches |
@@ -938,6 +939,8 @@ The run writes its document at `--json=path`, loads it back with `loadReport`, a
 | `renderPlot` | free function | Renders one column's series as the SVG plot | [report views](#report-views) |
 | `renderPage` | free function | Renders the static HTML page carrying the two figures | [report views](#report-views) |
 | `renderText` | free function | Renders the two figures as terminal text | [report views](#report-views) |
+| `topdownTree` | free function | Answers the tree of one identity at the level it asks for, or the refusal a host gives | [top-down analysis](#top-down-analysis) |
+| `TopdownTree` | type | The nodes of one table at one level, beside the rows that table refused | [top-down analysis](#top-down-analysis) |
 | `GraphRecord` | type | The graph record one run's document carries | [execution graphs](#execution-graphs) |
 | `GraphRunRecord` | type | One threaded run's nodes, edges, held nodes and stopped nodes | [execution graphs](#execution-graphs) |
 | `GraphNodeRecord` | type | One node's name, slot and outcome word | [execution graphs](#execution-graphs) |
@@ -990,10 +993,8 @@ The run writes its document at `--json=path`, loads it back with `loadReport`, a
 | `--hunt-emit-rules` | Writes the promoted hunt events as comparison rules to a file |
 | `--hunt-baseline` | Sets the baseline document the delta rank matches against |
 | `--topdown` | Prints the top-down tree of the running cpu at the level the option names, level 1 when the word stands bare |
-
 ## Planned work
 
-- Structured machine-readable output
-- Histogram output
+- Top-down tables for AMD level 2, parts with `PERF_METRICS`, Intel hybrid parts and Arm parts
 
 The build page covers the platform matrix, the vendored dependencies, and the quality gates: [Building speedgun-ng](docs/pages/building.md). The name marks this library as a rethink of Speedgun, a tool its author built at Akuna: it shares no code with that project, and everything here came from the author and a local AI army.
