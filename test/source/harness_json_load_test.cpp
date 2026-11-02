@@ -2089,6 +2089,80 @@ auto aClosedPeriodItemRefusesAnUnknownKey() -> void
   }
 }
 
+// FR-020, FR-029, SC-007: the reader's own refusal arms beside a series
+// item. Each row takes out one key the item must carry, and the refusal
+// names the pointer of the key the read reached: the unsigned arm, the real
+// arm, the two keys of a period item, and the same unsigned arm beside the
+// entry's own series (FR-029).
+constexpr Mutation kSeriesKeyRefusals[] = {
+    {"\"sampleCount\":4096,",
+     "",
+     "/jitter/series/0: the key 'sampleCount' stands missing"},
+    {"\"noisePercent\":0.25,",
+     "",
+     "/jitter/series/0: the key 'noisePercent' stands missing"},
+    {"\"periodNs\":1000000,",
+     "",
+     "/jitter/series/0/periods/0: the key 'periodNs' stands missing"},
+    {",\"powerRatio\":1.0",
+     "",
+     "/jitter/series/0/periods/0: the key 'powerRatio' stands missing"},
+    {"\"sampleCount\":16,",
+     "",
+     "/benchmarks/0/jitter/series/0: the key 'sampleCount' stands missing"},
+};
+
+auto theSeriesKeyRefusalsNameTheirArms() -> void
+{
+  plantsRefuseAtTheirPointers(kSeries, kSeriesKeyRefusals, "FR-020, FR-029");
+}
+
+// FR-020, FR-029, E-07, E-08: the arm of the fold that refuses a series
+// item naming a cpu the stats array does not carry, at the run level and
+// beside one entry. The refusal names the cpu and the array that lacks it.
+auto theSeriesCpuOutsideTheStatsRefuses() -> void
+{
+  constexpr const char* const kLacks = ", which the stats array does not carry";
+
+  struct CpuPlant
+  {
+    const char* find;
+    const char* replace;
+    const char* where;
+  };
+
+  constexpr CpuPlant plants[] = {
+      {"\"cpu\":3,\"workCount\":8",
+       "\"cpu\":9,\"workCount\":8",
+       "/jitter/series: the series item names cpu 9"},
+      {"\"cpu\":3,\"workCount\":11",
+       "\"cpu\":9,\"workCount\":11",
+       "/benchmarks/0/jitter/series: the series item names cpu 9"},
+  };
+  for (const auto& plant : plants) {
+    std::string text(kSeries);
+    const auto at = text.find(plant.find);
+    check(at != std::string::npos,
+          "the document carries the series item the row plants (FR-020)");
+    text.replace(at, std::strlen(plant.find), plant.replace);
+    sg::test::writeText("harness_json_load_seriescpu.json", text);
+    const auto refused = sg::loadReport("harness_json_load_seriescpu.json");
+    if (refused.has_value()) {
+      std::printf("  the series item naming an unplanted cpu loaded\n");
+      sg::test::fail("the fold accepts a series item the stats lack (FR-020)");
+      continue;
+    }
+    const std::string names = std::string(plant.where) + kLacks;
+    const bool named = refused.error().find(names) != std::string::npos;
+    check(named,
+          "theSeriesCpuOutsideTheStatsRefuses: the refusal names the cpu and "
+          "the array that lacks it (FR-020, FR-029)");
+    if (!named) {
+      std::printf("  '%s'\n", refused.error().c_str());
+    }
+  }
+}
+
 // FR-020, E-08: the entry's series reads into the fold the comparison
 // reads, the period list standing out of the per-entry copy.
 auto thePerEntrySeriesReadsIntoTheFolds() -> void
@@ -2156,6 +2230,8 @@ auto main() -> int
   aClosedSeriesItemRefusesAnUnknownKey();
   aClosedPeriodItemRefusesAnUnknownKey();
   thePerEntrySeriesReadsIntoTheFolds();
+  theSeriesKeyRefusalsNameTheirArms();
+  theSeriesCpuOutsideTheStatsRefuses();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;
