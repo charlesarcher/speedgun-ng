@@ -15,6 +15,13 @@
 // this Intel host, so an answer that names an AMD table can only come from the
 // identity handed in: the selection reads no cpu of its own (FR-002).
 //
+// The table of the host's own identity carries the source record the manifest
+// states: the reference of the vendored tree and one digest for each file that
+// contributed a row. That case reads the expected record out of the registry
+// and the parsed table, which `counters_topdown_source_test` pins against the
+// vendored `RECORD`, so it opens no path and states no host's file count
+// (FR-015, FR-033, spec D-12).
+//
 // The directory labels are the fixture's own, from
 // `test/source/detail/topdown_fixture.hpp`, the header T009 wrote, so the
 // labels one unit reads and the labels the next unit plants rows under stand in
@@ -36,6 +43,7 @@
 // Frameworkless check()/fail() convention.
 // ============================================================================
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -87,6 +95,7 @@ using sg::counters::TopdownTable;
 using sg::counters::topdownTree;
 using sg::counters::TopdownTree;
 using sg::counters::TopdownUnsupported;
+using sg::counters::detail::EmbeddedDir;
 using sg::counters::detail::embeddedFindDir;
 using sg::counters::detail::ExprCore;
 using sg::counters::detail::ExprNode;
@@ -95,7 +104,9 @@ using sg::counters::detail::metricRows;
 using sg::counters::detail::parseMetricRows;
 using sg::counters::detail::PmuIdent;
 using sg::counters::detail::pmuIdentCurrent;
+using sg::counters::detail::pmuLoadTable;
 using sg::counters::detail::pmuSelectDirectory;
+using sg::counters::detail::PmuTableEntry;
 using sg::test::fixtureHost;
 using sg::test::kAmdLevelOneNames;
 using sg::test::kIntelDirectory;
@@ -930,6 +941,104 @@ auto oneCallReadsNoSourceOfItsOwn() -> void
   }
 }
 
+// The digest the registry states beside one file name of a directory, and an
+// empty text where the directory holds no file of that name. The registry
+// carries the digest the embedder read out of the manifest line for the file
+// (T018), so this is the manifest digest as far as a run can read it without
+// opening the vendored tree (spec D-12).
+[[nodiscard]] auto registryDigest(const EmbeddedDir& registry,
+                                  const std::string_view name) -> std::string
+{
+  for (std::size_t index = 0; index != registry.fileCount; ++index) {
+    if (registry.files[index].name == name) {
+      return {registry.files[index].sha256};
+    }
+  }
+  return {};
+}
+
+// FR-015 and FR-033, spec D-12, data-model E-02 and E-03: the source record a
+// production table reads. The case asks the table of the identity this host's
+// own reader answers, the way the production AMD scenarios do, so only the
+// fill inside `topdownTable()` can answer it and no planted record stands in
+// any part of it.
+//
+// The expected record comes from the two reads T018 and T019 put in place: the
+// registry, whose index holds a directory's files in the order the embedder
+// sorted them with one digest each, and the parsed table, which tags every row
+// with the file it came from. `counters_topdown_source_test` pins both of
+// those reads against the vendored `RECORD`, so a record that equals them
+// equals the manifest this build read (PC-12). How many files contribute is a
+// fact of the selected directory, so no case here carries one host's count as
+// a literal.
+auto productionTableCarriesItsSourceRecord() -> void
+{
+  const TopdownTable table = topdownTable(cpuIdentity());
+  if (table.source.directory.empty()) {
+    // The cpu of this host matches no row of the mapping file, so it selects
+    // no directory and no record stands here to measure. A build that carries
+    // no mapping file at all reported its reason and skipped already (FR-001).
+    return;
+  }
+  // A directory arrives with a trailing separator and the registry names it
+  // without one, which is the spelling `pmuLoadTable` reads (FR-036).
+  std::string_view key {table.source.directory};
+  if (key.ends_with('/')) {
+    key.remove_suffix(1);
+  }
+  const EmbeddedDir* registry = embeddedFindDir(key);
+  check(registry != nullptr,
+        "the registry holds the bytes of the directory the selection named "
+        "(FR-015)");
+  if (registry == nullptr) {
+    return;
+  }
+
+  check(!table.source.reference.empty(),
+        "a production table states a reference (FR-015, FR-033)");
+  check(table.source.reference == registry->reference,
+        "the reference is the `ref:` line of the manifest the embedder read "
+        "for this directory (FR-015, spec D-12)");
+
+  const std::vector<PmuTableEntry>& rows = pmuLoadTable(table.source.directory);
+  check(!rows.empty(), "the selected directory parses its rows (FR-015)");
+
+  // The files that contributed a row, in the order the index holds them, which
+  // is the sorted order the embedder emitted. A file that holds no row of the
+  // directory stands in no record (FR-015).
+  std::vector<std::string> contributing;
+  for (std::size_t index = 0; index != registry->fileCount; ++index) {
+    const std::string_view name {registry->files[index].name};
+    const bool holdsRow = std::ranges::any_of(rows,
+                                              [name](const PmuTableEntry& row)
+                                              { return row.fileName == name; });
+    if (holdsRow) {
+      contributing.push_back(std::string {name});
+    }
+  }
+  check(!contributing.empty(),
+        "a selected directory holds a file that contributed a row (FR-015)");
+  check(table.source.files.size() == contributing.size(),
+        "the record holds one entry per file that contributed a row (FR-015, "
+        "FR-033)");
+  for (std::size_t index = 0;
+       index != table.source.files.size() && index != contributing.size();
+       ++index)
+  {
+    const TableFile& file = table.source.files[index];
+    check(!file.name.empty(),
+          "every entry of the record names a file (FR-015)");
+    check(!file.manifestHash.empty(),
+          "every entry of the record carries a digest (FR-015, PC-12)");
+    check(file.name == contributing[index],
+          "the entry names the file the index gives at its own position, so "
+          "the record stands in the embedder's sorted order (FR-015)");
+    check(file.manifestHash == registryDigest(*registry, contributing[index]),
+          "the entry carries the digest the manifest line beside that name "
+          "states (FR-015, PC-12)");
+  }
+}
+
 }  // namespace
 
 auto main() -> int
@@ -956,6 +1065,7 @@ auto main() -> int
   cpuIdentityCarriesTheReadersFourFields();
   selectsTheTableOfTheIdentity();
   oneCallReadsNoSourceOfItsOwn();
+  productionTableCarriesItsSourceRecord();
   levelOneCarriesTheSharedNames();
   parentsComeFromTheGroupText();
   levelDeeperThanTheTableClamps();
