@@ -119,6 +119,10 @@ set_target_properties(
     # moves and no symbol joins or leaves the surface, but the public
     # header changes and the rule the brief carries asks the number to
     # move with it, so the hand-kept number goes to 5.
+    # specs/042-topdown FR-017, FR-047: MetricView and MetricListing gain
+    # the threshold text of their row, so the exported layouts of this
+    # archive move again and the hand-kept number goes to 5 (spec D-9,
+    # D-11, hard rule 12).
     SOVERSION 5
     EXPORT_NAME speedgun-ng
     OUTPUT_NAME speedgun-ng

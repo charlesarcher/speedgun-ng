@@ -4,9 +4,9 @@
 //
 // A metric is one row of the architecture event table: a name, a formula
 // over event names and other metric names, and the table's own group,
-// scale-and-unit and description texts. This header publishes the row in
-// the same shape a hand-composed expression has, so a metric folds, plans
-// and reports exactly like an expression the caller wrote by hand.
+// scale-and-unit, description and threshold texts. This header publishes the
+// row in the same shape a hand-composed expression has, so a metric folds,
+// plans and reports exactly like an expression the caller wrote by hand.
 //
 // The text is parsed when the directory's event table is first read, which
 // the catalog or a first lookup triggers; the lookup itself parses nothing
@@ -65,6 +65,12 @@ struct SPEEDGUN_NG_EXPORT MetricView
   Expression<Dim<0, 0>> expression;  ///< The table's formula, scaled.
   std::string_view group;  ///< The table's group text, verbatim.
   std::string_view unit;  ///< The table's scale-and-unit text.
+  /// The table's `MetricThreshold` text, byte for byte, and empty where the
+  /// row carries no such key. The formula grammar reads no threshold shape,
+  /// so no part of the library evaluates this text or marks a row by it, and
+  /// a caller prints it as the table spells it (specs/042-topdown FR-017,
+  /// spec D-9, D-11).
+  std::string_view threshold;
 };
 
 /// Resolves one metric by name against the event table of the CPU this
@@ -97,6 +103,11 @@ struct SPEEDGUN_NG_EXPORT MetricListing
   std::string_view group;
   std::string_view unit;
   std::string_view description;  ///< The table's own description text.
+  /// The table's `MetricThreshold` text, byte for byte, and empty where the
+  /// row carries no such key. A published row and a refused row carry their
+  /// own text, and the line states no verdict on it (specs/042-topdown
+  /// FR-017, spec D-9).
+  std::string_view threshold;
   Availability avail = Availability::COUNTABLE;
   MetricRefusal refusal = MetricRefusal::MALFORMED;
   bool published = false;

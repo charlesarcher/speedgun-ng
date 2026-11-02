@@ -48,13 +48,21 @@ struct PmuTableEntry
   // plus any other JSON key that names a format field.
   std::vector<std::pair<std::string, std::uint64_t>> fields;
   // A metric-definition row (specs/022-metric-formulas FR-002): the
-  // table's MetricName, its formula text, its scale-and-unit text and its
-  // group text. A row of an empty `metricName` is an event row, and a
-  // metric row carries no config fields and reaches no encoder.
+  // table's MetricName, its formula text, its scale-and-unit text, its
+  // group text and its threshold text. A row of an empty `metricName` is an
+  // event row, and a metric row carries no config fields and reaches no
+  // encoder.
   std::string metricName;
   std::string metricExpr;
   std::string scaleUnit;
   std::string group;
+  // The row's `MetricThreshold` text, verbatim, and empty where the row
+  // carries no such key. The text is the table's own condition for the
+  // metric, and it is data: the formula grammar reads no threshold shape,
+  // so nothing here evaluates it and nothing marks a row against it. A
+  // caller prints the text and states no verdict (specs/042-topdown
+  // FR-017, spec D-9, D-11).
+  std::string threshold;
   // The table file this row was parsed out of, named the way the embedded
   // index names it: a bare file name, so it is also the tail of the path the
   // manifest states a digest for. A loader that reads a whole directory tags

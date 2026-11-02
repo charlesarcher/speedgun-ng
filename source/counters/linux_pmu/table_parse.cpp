@@ -422,10 +422,11 @@ auto kernelSpelling(const std::string_view key) noexcept -> std::string_view
   return {};
 }
 
-// One metric-definition row: the four texts the metric lookup reads, beside
-// the scope and description the catalog prints as it prints an event's. The
-// row carries no config field, so no encoder ever sees it, and the provider
-// skips it when it merges the vendored table into a device (FR-002, FR-004).
+// One metric-definition row: the four texts the metric lookup reads and the
+// row's threshold text, beside the scope and description the catalog prints
+// as it prints an event's. The row carries no config field, so no encoder
+// ever sees it, and the provider skips it when it merges the vendored table
+// into a device (FR-002, FR-004; specs/042-topdown FR-017, spec D-11).
 void addMetricEntry(std::vector<PmuTableEntry>& table,
                     std::string_view name,
                     simdjson::dom::object attributes)
@@ -445,6 +446,10 @@ void addMetricEntry(std::vector<PmuTableEntry>& table,
   entry.metricExpr = textOf(attributes, "MetricExpr");
   entry.scaleUnit = textOf(attributes, "ScaleUnit");
   entry.group = textOf(attributes, "MetricGroup");
+  // The threshold rides as the table spells it, and a row that carries no
+  // key reads the empty text, which is the answer every later carrier gives
+  // for a row with no condition (specs/042-topdown FR-017, spec D-9).
+  entry.threshold = textOf(attributes, "MetricThreshold");
   table.push_back(std::move(entry));
 }
 

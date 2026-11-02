@@ -114,6 +114,11 @@ struct ParsedMetricRow
   std::string scope;
   std::string scaleUnit;
   std::string description;
+  /// The row's `MetricThreshold` text, verbatim, and empty where the row
+  /// carries no such key. The grammar reads no threshold shape, so the
+  /// parse keeps the text and evaluates none of it (specs/042-topdown
+  /// FR-017, spec D-9, D-11).
+  std::string threshold;
   FormulaTree tree;
   bool parsed = false;
   MetricRefusal refusal = MetricRefusal::MALFORMED;
@@ -174,6 +179,11 @@ struct MetricDefinition
   std::string group;  ///< The table's `MetricGroup` text, verbatim.
   std::string unit;  ///< The table's `ScaleUnit` text, verbatim.
   std::string description;
+  /// The table's `MetricThreshold` text, verbatim, and empty where the row
+  /// carries no such key. A published row and a refused row carry the same
+  /// text, and no verdict here reads it (specs/042-topdown FR-017, spec
+  /// D-9, D-11).
+  std::string threshold;
   /// The object path the listing prints the row under: the catalog object
   /// of the spine's first leaf, or the machine root while no leaf resolved.
   std::string objectPath;
