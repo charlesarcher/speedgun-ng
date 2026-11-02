@@ -53,7 +53,7 @@ in all six (FR-003).
 | Entity | Field | Type | Meaning | Fixed by |
 | --- | --- | --- | --- | --- |
 | `TableFile` | `name` | `std::string` | The name the embedded index gives the file | FR-015, D-12 |
-| `TableFile` | `sha256` | `std::string` | The file's hash, read from `RECORD` at build time | FR-015, D-12, PC-12 |
+| `TableFile` | `manifestHash` | `std::string` | The file's hash, read from `RECORD` at build time; the report spells the key `manifest_hash` (`contracts/topdown-report-key.md:46-49`) | FR-015, D-12, PC-12 |
 | `TopdownSource` | `reference` | `std::string` | The `ref:` line of the manifest: `linux-7.2.4` | FR-015, D-12 |
 | `TopdownSource` | `directory` | `std::string` | The selected directory, for example `arch/x86/skylakex/` | FR-001, FR-015 |
 | `TopdownSource` | `files` | `std::vector<TableFile>` | One entry per file that contributed a row, in the embedder's sorted order | FR-015, D-12 |
@@ -73,7 +73,19 @@ in all six (FR-003).
 | `TopdownTable.source` | `TopdownSource` | Where the rows came from | FR-015 |
 | `TopdownTable.rows` | `std::vector<TopdownRow>` | Every row of the directory, published and refused alike, in table order | FR-016, PC-11 |
 
-### E-06 `TopdownNode`, E-07 `TopdownRefused`, E-08 `TopdownTree`
+The hybrid predicate of FR-006 reads the scope of a directory's event rows. The
+scope is the row's `Unit` text: the parse stores it in `PmuTableEntry::unit`
+(`source/counters/detail/pmu.hpp:45`, filled at
+`source/counters/linux_pmu/table_parse.cpp:419` for a metric row and `:515` for
+an event row) and the resolution carries it as `ParsedMetricRow::scope`
+(`source/counters/linux_pmu/metric_formula.hpp:107-114`). Two core scopes among
+those rows, `cpu_core` and `cpu_atom`, make the directory hybrid, and one scope
+selects normally. The selection fixture `test/source/detail/topdown_fixture.hpp`
+carries event rows of both core types, so a two-scope directory stands in data
+with no host to read, and `fixtureEvent` sets that same field for the metric
+fixtures (`test/source/detail/metric_fixture.hpp:50-59`).
+
+### E-06 `TopdownNode`, E-07 `TopdownRefusal`, E-08 `TopdownTree`
 
 | Field | Type | Meaning | Fixed by |
 | --- | --- | --- | --- |
@@ -84,13 +96,20 @@ in all six (FR-003).
 | `formula` | `Expression<Dim<0, 0>>` | The row's spine, so a caller can fold it | FR-010 |
 | `events` | `std::vector<std::string>` | Each spine leaf's `LeafCore::address` (`include/speedgun-ng/counters_measurement.hpp:97-107`), the address the planner groups on | FR-010, FR-021 |
 | `threshold` | `std::string` | Table text; nothing evaluates it | FR-017, D-9 |
-| `TopdownRefused.name/parent/level` | `std::string`, `std::string`, `int` | The row's identity and depth; `parent` is empty where the table names none | FR-016 |
-| `TopdownRefused.refusal/reason` | `MetricRefusal`, `std::string` | The kind and the reason, copied unchanged | FR-016, FR-031 |
+| `TopdownRefusal.name/parent/level` | `std::string`, `std::string`, `int` | The row's identity and depth; `parent` is empty where the table names none | FR-016 |
+| `TopdownRefusal.refusal/reason` | `MetricRefusal`, `std::string` | The kind and the reason, copied unchanged | FR-016, FR-031 |
 | `TopdownTree.source` | `TopdownSource` | The source record | FR-015 |
 | `TopdownTree.depth` | `int` | The deepest level the table holds, after the clamp | FR-008, FR-020 |
 | `TopdownTree.amd` | `bool` | Chooses the fifth level-1 value and the 100 percent statement | D-3, FR-011 |
 | `TopdownTree.nodes` | `std::vector<TopdownNode>` | Every node of every level, table order | FR-010 |
-| `TopdownTree.refused` | `std::vector<TopdownRefused>` | Every refused row at or above `depth` | FR-016 |
+| `TopdownTree.refused` | `std::vector<TopdownRefusal>` | Every refused row at or above `depth` | FR-016 |
+
+One C++ name serves both refused-row carriers, `TopdownRefusal`, the library's
+row here and the record row of E-16, the way `TopdownNode` serves both node
+carriers. The JSON key stays `refused` and its item keys stay `name`, `kind` and
+`reason` (`contracts/topdown-report-key.md:58-61`). This file is the authority
+for the C++ names and the report contract is the authority for the JSON
+spellings.
 
 ### E-09 `TopdownSelection`, E-10 `TopdownUnsupport`, E-11 `TopdownUnsupported`
 
@@ -126,9 +145,12 @@ so a published row can name its file (PC-12).
 | --- | --- | --- |
 | `#core_wide` | A new reader answers the coverage flag from the process CPU set at the first table read: 1 when the set holds every SMT sibling, 0 when one stands outside, and nothing when the mask or a sibling list is unreadable. The value settles once, because a conditional folds at load, so the console states the scope. It answers no slot width; the width is a literal of the table | FR-042, D-6, PC-5 |
 | `#SMT_on` | `readSmtState` (`source/counters/linux_pmu/metric_tables.hpp:144-153`) keeps the object tree first, and one sibling-list read of one cpu answers the flag when the tree answers no core object | FR-054, D-19, PC-6 |
+| `coreWideCoverage()` | The query that publishes the settled flag, in `include/speedgun-ng/counters_metrics.hpp` beside `metricByName` (`:81`) and defined in `source/counters/linux_pmu/metric_formula.cpp` over the new host-fact row. It answers `std::optional<CoreCoverage>`, with `CoreCoverage` a closed `enum class : std::uint8_t` holding `WHOLE_CORE` and `ONE_THREAD`. It answers nothing before the first table read and one value for the life of the process afterwards, and it states no width | FR-042, D-6, PC-5 |
 
-The sibling list this host publishes for cpu 0 is `0,12`, which is the fact the
-fallback reads. The three constants `#num_dies`, `#SYSTEM_TSC_FREQ` and
+`coreWideCoverage()` is the only way a caller reads the settled flag: no
+private reader stands beside it, and `source/harness/cli.cpp` prints its reading
+as the one scope line ahead of the first run (FR-042). The sibling list this
+host publishes for cpu 0 is `0,12`, which is the fact the fallback reads. The three constants `#num_dies`, `#SYSTEM_TSC_FREQ` and
 `#has_pmem` keep their present refusal (FR-043).
 
 ## Harness model
@@ -157,12 +179,16 @@ New in `include/speedgun-ng/benchmark.hpp` beside
 | `TopdownNode` | `threshold` | `std::string` | Table text, no verdict | FR-017, FR-029 |
 | `TopdownRefusal` | `name` / `refusal` / `reason` | `std::string` × 3 | A refused row with its kind word and its reason | FR-016, FR-033 |
 | `TopdownRecord` | `supported` / `reason` | `bool`, `std::string` | Unsupported state with its one reason | FR-033, D-14 |
-| `TopdownRecord` | `reference` / `directory` / `manifestHash` | `std::string` × 3 | The source record | FR-015, FR-032 |
+| `TopdownRecord` | `reference` / `directory` | `std::string` × 2 | The manifest reference and the selected directory | FR-015, FR-032 |
+| `TopdownRecord.files` | `std::vector<TableFile>` | One entry per contributing file, E-02's `name` and `manifestHash`, in the embedder's sorted order. The report spells the pair `name` and `manifest_hash` (`contracts/topdown-report-key.md:46-49`) | FR-015, FR-032, D-12 |
 | `TopdownRecord` | `askedLevel` / `level` | `std::uint64_t` × 2 | The level asked and the level shown, so the clamp is visible | FR-020 |
 | `TopdownRecord` | `nodes` / `refused` | vectors | The tree and its refusals | FR-032, FR-033 |
 
 An absent `topdown` member means the option never stood, the way `hunt` works
-today (FR-035).
+today (FR-035). No vendor flag joins the record: `TopdownTree.amd` (E-08) is the
+library's own choice of the fifth level-1 name and of the 100 percent statement
+the block prints (FR-011, FR-028), and the closed report object carries no key
+for it (`contracts/topdown-report-key.md`).
 
 ### E-17 The tree column (changed internal carrier)
 
@@ -214,7 +240,7 @@ D-17). The schema types the version as a string and holds no number
 ```text
 CpuIdentity E-01 --maps to--> PmuIdent --directory--> TopdownTable E-05
 TopdownTable E-05 --group text--> level token + parent token
-                 --one row--> TopdownNode E-06  xor  TopdownRefused E-07
+                 --one row--> TopdownNode E-06  xor  TopdownRefusal E-07
 TopdownNode E-06 *--1 TopdownNode (parent, an earlier element)
 TopdownNode E-06 *--* LeafCore address --grouped by source--> PassPlan (024)
 TopdownTree E-08 --1 TopdownSource E-03 --build time--> RECORD ref: + per-file sha256

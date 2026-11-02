@@ -111,6 +111,21 @@ counts. Each row holds today's measured state and what changes it.
 | Two-cpu run (FR-049) | `taskset -c 0,1 ctest --test-dir build -L quick -j 2 --timeout 120`: `99% tests passed, 1 tests failed out of 159` in 834.97 s, one failure, `prose_gate_fixtures`; the counters subset on those two cpus answers `100% tests passed out of 29` in 68.54 s; `harness_cli_test` carries no quick label | FR-049, with the units FR-055 registers |
 | AMD level 2 (SC-11), parts with no host (SC-12) | no AMD host here, so no `topdown.smt_contention` line and no hardware run for a hybrid, `PERF_METRICS` or Arm part | FR-057, pending rows and seam tests only |
 
+Three facts stand under that row: no unit of this feature opens the kernel event
+interface, reads a clock, or sleeps (FR-048, SC-08). The seam units prove them
+by driving the host through a fake root: one directory stands where `/` stands,
+and no device is opened.
+`installTestProcRoot` of `source/harness/detail/proc_root.hpp`, the root FR-054
+moves to `source/detail/proc_root.hpp`, stands a directory in place of `/` the
+way `test/source/harness_precheck_test.cpp` drives it, so a sibling list is a
+file a test writes. `registerMetricHost` of
+`test/source/detail/metric_fixture.hpp:311-368` registers a `FakeProvider` whose
+object tree and scripted counters answer with no event opened. `test/tier_labels.sh`
+holds the audit that keeps the registration honest: its `MASTER_SKIP` baseline at
+`:77-86` lists the entries entitled to the `SKIP_RETURN_CODE 2` a host that
+grants no event access answers, and its `determinism` fault at `:91-96` fails a
+registration that sleeps, reads a clock for its verdict or retries.
+
 ## Coverage run
 
 ```bash

@@ -53,9 +53,11 @@ one text and FR-019 cannot hold. The row therefore takes its own arm in the
 scan switch, beside `case kHuntOption:` (`options.cpp:920-923`), where a null
 `optarg` is the bare word and any other text is a level. `hunt` holds this
 shape already (`:698-703`). The three optional rows of today keep answering as
-they do now: `interleave` (`:630`), `graph` (`:674`) and `hunt` (`:698`); spec
-D-5 numbers them `:632`, `:676` and `:700`, two lines late, and opens its seed
-range `1001-1006` two lines early. The arm writes one member of `RunOptions`:
+they do now: `interleave` opens at `:630` and carries `OptionArgument::OPTIONAL`
+at `:632`, `graph` at `:674` and `:676`, and `hunt` at `:698` and `:700`. Those
+three `OPTIONAL` lines are the three spec D-5 numbers, and its seed span
+`1001-1006` covers the two comment lines above the statement that builds the
+text, which stands at `:1003-1006`. The arm writes one member of `RunOptions`:
 an engaged `std::optional<std::uint64_t>` is the option standing, and its value
 is the level asked. No presence flag joins the record.
 
@@ -72,6 +74,12 @@ shape is the range reader's: `"%s: %s, got '%s'"` then `std::exit(2)`
 | `--topdown=x` | `--topdown: expected 1 to 6, got 'x'` |
 | `--topdown=` | `--topdown: expected 1 to 6, got ''` |
 | `topdown` in an option file | `<file>:<line>: the option 'topdown' cannot stand in an option file` |
+
+FR-050 and SC-05 count four refusals: the three values that carry a level, and
+the rule that names no known node, whose line the `topdown:` prefix contract
+carries. Two of the five lines above sit outside that count, because the empty
+value reaches the same arm as the three levels and the option file line stands
+under D-5.
 
 Measured on the nearest rows today: `--hunt-top=0 --list` answers `--hunt-top:
 expected 1 to 10000, got '0'` at status 2, and `printf 'hunt=1\n' |
@@ -115,7 +123,7 @@ once and checks the line, the stream, the status, and that no benchmark ran.
 |---|---|
 | `--topdown` asks level 1; `--topdown=4` asks level 4 | `theBareWordAsksLevelOne` (FR-019) |
 | `--topdown 4` asks level 1 and the word stays positional | `aSpaceSeparateWordIsNoLevel` (D-5) |
-| The five lines above, verbatim, at status 2 | `aBadLevelAnswersOneLine` (FR-050) |
+| The five lines above, verbatim, at status 2, three of them FR-050's levels | `aBadLevelAnswersOneLine` (FR-050, D-5) |
 | No `SPEEDGUN_TOPDOWN` name reaches the run | `noEnvironmentNameExists` (FR-019) |
 | The option file line answers the refused text with its origin | `aFileLineRefusesTheRow` (FR-031) |
 | The help answer carries the row's line, and the table holds 43 rows | `harness_cli_table_test.cpp`, `theHelpAnswerPrintsOneLinePerRow` (`:1397`) |

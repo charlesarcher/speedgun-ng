@@ -114,11 +114,15 @@ at `:89-94`), so the quoted body compiles alone.
 (`docs/pages/harness.md:1549`, which ends before `## Jitter probe` at `:1673`);
 `## Hardware counter metrics` stands at `:1280`. The page runs 2253 lines and
 carries no cap, since the cap check reads the main page alone
-(`example_drift.py:764-765`). Four edits ride with the section: the option row
-at `:666`, the `<value>` line of the rule grammar fence (`:1460-1461`), the
-null rule (`:1403-1410`), and the stamp sentence at `:1399`, which reads `A run
-writes 1.10` while `source/harness/json_report.cpp:43` stamps `1.11` today and
-`1.12` after this change (D-17).
+(`example_drift.py:764-765`). Four edits ride with the section, each at the
+lines the page carries today.
+
+| Site | Lines | Change |
+|---|---|---|
+| option table | header `:666`, delimiter `:667`, rows `:668-709` | one row added after `hunt-baseline` at `:709`, with the name `topdown`, the argument word `optional`, the environment column left empty the way the `hunt` row leaves it at `:699`, and the help text of the row this contract fixes |
+| version rule | heading `:1394`, body `:1396-1401`, the figure in the sentence at `:1399` | that sentence reads `A run writes 1.10, the shape that added the` `group` key; its figure moves to `1.12`, the stamp `source/harness/json_report.cpp:43` carries after this change and `1.11` today |
+| null rule | heading `:1403`, body `:1405-1410` | one sentence added with the two top-down facts: an entry written without the option carries no `topdown` key at all, and a gap node carries `null` in its `value` where a counted node carries a number |
+| rule grammar | fence `:1458-1466`, `<value>` production `:1460-1461` | the second line at `:1461` gains one alternative, `topdown : <label>`, beside `counter`, `metric` and `stat` |
 
 ## Naming and the gate
 

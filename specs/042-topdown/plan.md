@@ -83,6 +83,7 @@ case of FR-058, and five new test executables.
 | IX, spec-driven | pass | This plan follows `spec.md` and names the decision for every design point. |
 | X, anti-slop | pass | No fallback stands where a refusal is honest: no width is invented for `#core_wide`, no threshold is evaluated, and no node is invented for a level the table lacks. |
 | XI, prose | pass | `cmake/prose-lint.cmake` reports 0 findings over this directory. |
+| Pull Request Quality | pass | `tools/prose/prose_gate.py --check commit`, run through `cmake/prose-lint.cmake`, reads every message in the range and answers `CM.FOOTER-APPROVAL` for a commit with no `Approved-by:` footer. It runs in the `prose-lint` job (`.github/workflows/ci.yml:1377-1382`) and as the pre-push step (`tools/ci/prepush.sh:203`). The gate holds that one footer: a planted commit with no `Refs:` line passes it and one with no approval footer does not, so `Refs: specs/042-topdown` rides every commit of this change under review. |
 
 Re-check after Phase 1 design: passed. The contracts add no gate, and the
 data model adds no exported type beyond the two carriers the version plan
@@ -148,7 +149,7 @@ cmake/{embed_pmu_blob.cmake,EmbedPmuEvents.cmake}   # hash and reference in
 CMakeLists.txt                                     # version, two SOVERSIONs
 docs/schema/report-v1.json                         # x-order and one property
 docs/pages/harness.md                              # the guide section
-README.md                                          # one section, 24 lines
+README.md                                          # one section, 25 lines at most (FR-044)
 example/docs/topdown.cpp                           # the documented example
 example/                                           # one memory-bound benchmark
 tools/docs/example_drift.py                        # the new header's name scan
