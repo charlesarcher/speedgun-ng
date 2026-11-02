@@ -338,6 +338,34 @@ auto runFwqUnit(ProbeCpuState& state,
   last = stamp;
 }
 
+// One FTQ unit: the calibrated body, one read, and the count of units
+// since the last edge. The count stands incremented before the edge
+// test, and at an edge the pass stores the count, resets it and
+// advances the edge by one quantum, so a clock that skips quanta
+// records the zero counts it skipped and a trailing open quantum
+// records no count (FR-015, FR-016, D-4, R-07).
+//
+// \pre `readStamp` reads the probe's own time source, `edge` stands at
+//      the next quantum boundary and `count` at the units since the
+//      last one
+template<class ReadStamp>
+auto runFtqUnit(ProbeCpuState& state,
+                const ReadStamp& readStamp,
+                std::uint64_t& last,
+                std::uint64_t& edge,
+                std::uint64_t& count) noexcept -> void
+{
+  runUnitBody(state.workCount);
+  const std::uint64_t stamp = readStamp();
+  last = stamp;
+  ++count;
+  while (stamp >= edge) {
+    keepSeriesOrDrop(state, count);
+    count = 0;
+    edge += state.quantumNs;
+  }
+}
+
 // The state one live holder's start owns: the seam reader, the start
 // barrier, the latch, the work nodes and the probe contexts. The
 // contexts stand declared last, so their destruction runs first: a node
@@ -519,6 +547,15 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
       // store into the pre-sized series.
       while (!state->stop.load(std::memory_order_relaxed)) {
         runFwqUnit(*state, readStamp, last);
+      }
+    } else if (options->method == JitterMethod::FTQ) {
+      // FR-015, FR-016, D-4, R-07: the quantum edges stand from the
+      // window's first stamp, the read behind the latch, and one unit
+      // per pass names the count of units the next edge holds.
+      std::uint64_t edge = last + state->quantumNs;
+      std::uint64_t count = 0;
+      while (!state->stop.load(std::memory_order_relaxed)) {
+        runFtqUnit(*state, readStamp, last, edge, count);
       }
     } else {
       while (!state->stop.load(std::memory_order_relaxed)) {
