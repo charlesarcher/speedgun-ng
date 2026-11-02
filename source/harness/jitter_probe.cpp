@@ -1266,7 +1266,10 @@ auto addSpectrumTo(const ProbeCpuState& state,
   if (series.sampleCount == 0 || kept.empty()) {
     return;
   }
+  // FR-017, FR-018: each span's owner stands named beside the span, so
+  // the vector the transform reads lives for the whole call.
   std::vector<double> counts;
+  std::vector<double> resampled;
   std::span<const double> samples {};
   std::uint64_t stepNs = 0;
   if (state.method == JitterMethod::FWQ) {
@@ -1274,7 +1277,8 @@ auto addSpectrumTo(const ProbeCpuState& state,
     if (stepNs == 0) {
       return;
     }
-    samples = resampleUnitTimes(kept, stepNs, kSpectrumCap);
+    resampled = resampleUnitTimes(kept, stepNs, kSpectrumCap);
+    samples = resampled;
   } else {
     stepNs = series.quantumNs;
     if (stepNs == 0) {
