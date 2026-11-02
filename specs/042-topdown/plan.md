@@ -58,11 +58,11 @@ selection reads the embedded table once per benchmark.
 held at 21 (`tools/dbc/coverage_gate.sh:102`) and no new exclusion marker; the
 README page cap of 1004 lines
 (`tools/docs/example_drift.py:240`); a bad option value answers one quoted line
-and exit status 2; no CI file changes; no change to `counter_limits.cpp` or any
-limit code (FR-022).
+and exit status 2; no CI workflow and no job change, with the one spell allowlist
+line D-16 names; no change to `counter_limits.cpp` or any limit code (FR-022).
 
 **Scale/Scope**: one new public header, one new counters translation unit,
-twelve changed harness or counters files, two changed CMake files, one schema,
+sixteen changed harness or counters files, two changed CMake files, one schema,
 two documentation pages, two example programs including the new memory-bound
 case of FR-058, and five new test executables.
 
@@ -159,6 +159,21 @@ test/
 └── source/counters_linux_pmu_seam_test.cpp        # the bound's seam checks
 ```
 
+**Test duties**: `counters_topdown_select_test.cpp` carries the level-2 case of
+FR-052, which names the AMD level-2 nodes of both pipeline tables and states that
+their eight names differ row for row.
+`counters_topdown_source_test.cpp` carries the source record over a two-file
+directory (FR-015). `harness_topdown_option_test.cpp` carries the 43-row order and
+every refusal line (FR-019, FR-050). `harness_topdown_run_test.cpp` carries one
+plan and one pass set (FR-021, FR-023) and SC-03's two tolerances: a node value
+within 0.05 percentage point of its metric column, and the five AMD level-1 values
+within 0.1 percentage point of 100. `harness_topdown_report_test.cpp` carries the
+console block, the record round trip and the schema order (FR-025 to FR-036).
+
+**No unit test for FR-057**: a part with no host is a statement about hardware, so
+the pending rows ride in the acceptance record D-16 names and appear in
+`quickstart.md`'s acceptance table. A test cannot reach a part no host carries.
+
 **Structure Decision**: selection, the tree and the two host facts belong to the
 counters library, because that library already owns the table parse, the
 formula resolution and the host facts. The option, the pass plan, the console
@@ -167,11 +182,13 @@ are the run spine and the report. The two halves meet at one new public header,
 `include/speedgun-ng/counters_topdown.hpp`, which the harness includes directly
 the way `source/harness/catalog.cpp` includes the metric header today.
 
-**Deliberate boundaries**: no edit to `source/counters/linux_pmu/provider.cpp`,
-`counter_limits.cpp`, any limit code, or any file under `.github/`
-(FR-022, PC-10, D-16). The one exception inside those paths is named by FR-053,
-FR-054 and FR-055, which carry the three repairs, and each repair sits in its
-own commit with its test first.
+**Deliberate boundaries**: no edit to `source/counters/linux_pmu/counter_limits.cpp`,
+to any limit code, to the path that reads counters, or to any file under `.github/`
+(FR-022, PC-10, D-16). Inside `source/counters/linux_pmu/` the change adds
+`topdown_select.cpp` and edits `table_parse.cpp`, `metric_formula.hpp`,
+`metric_formula.cpp`, `metric_tables.hpp` and `embedded_tables.hpp`, and it edits
+`fast_read.cpp` for FR-053 only. `provider.cpp` stands untouched. Each of the three
+repairs FR-053, FR-054 and FR-055 sits in its own commit with its test first.
 
 ## Complexity Tracking
 
