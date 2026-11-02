@@ -137,6 +137,17 @@ auto testRegistration() -> void
   provider->setPoints("machine", "wrap", {UINT64_MAX - 3, 7});
   provider->setPoints("machine", "monotonic", {0, 1000000000});
 
+  // The narrow core the window-refusal scenario compiles against: the
+  // scripted count of two refuses a three-leaf group, which the plan
+  // compiler carries to its caller (FR-011, D-18).
+  provider->addObject(
+      "package-9/cpu-2", "scratch", "a processor with a limit of two");
+  provider->addCounter("package-9/cpu-2", "cycles", "ops", "a scripted leaf");
+  provider->addCounter(
+      "package-9/cpu-2", "instructions", "ops", "a scripted leaf");
+  provider->addCounter("package-9/cpu-2", "branches", "ops", "a scripted leaf");
+  provider->setGroupLeafLimit("package-9/cpu-2", 2);
+
   // Each scenario below reads its own counters, so the scripted position
   // starts at zero however many actions the earlier scenarios spent
   // (FR-036).
@@ -454,6 +465,16 @@ auto testScopeExactness() -> void
         "scope window folds exactly: 2100 / 200 (FR-030)");
   check(sameDouble(metric.runningRatio, 1.0) && !metric.scaled,
         "disclosure defaults: unscaled, full ratio");
+  // The raw view over a window that has committed nothing: the view
+  // stands with the plan's own provenance and a zero count, the arm
+  // the window end ternary takes before any sampling action (FR-004).
+  sg::counters::Scope zeroWindow {*compiled};
+  const auto zeroRaw =
+      ipc.raw(zeroWindow.view(), "package-1/core-3", "instructions");
+  check(zeroRaw.has_value() && zeroRaw->count == 0,
+        "the raw view over a window that committed nothing stands "
+        "with a zero count (FR-004)");
+
   const auto raw = ipc.raw(window.view(), "package-1/core-3", "instructions");
   check(raw.has_value() && raw->objectPath == "package-1/core-3"
             && raw->name == "instructions" && !raw->description.empty()
@@ -1053,7 +1074,6 @@ auto groupLeafRefusalScenario() -> void
   provider.setGroupLeafLimit("package-1/core-9", 3);
   check(provider.open(LeafSet {.addresses = wide}, where) == nullptr,
         "a later call for the same object replaces the scripted count");
-
 
   // The plan compiler hands every group's leaf set to the provider's
   // open, so the scripted count of two refuses a three-leaf group and
