@@ -2394,8 +2394,7 @@ auto scenarioHeadStandsFirst() -> int
   auto headLast = quickArguments();
   headLast.push_back("--jitter-probe=method=tsc," + cpu);
   const auto note = captureError(headLast, 2);
-  checkOneLine(note,
-               "a value that opens with a key stands rejected (FR-002)");
+  checkOneLine(note, "a value that opens with a key stands rejected (FR-002)");
   check(note.find("'method=tsc'") != std::string::npos,
         "the refusal names the head token it read (FR-002, FR-003)");
   return 0;
@@ -2409,9 +2408,9 @@ auto scenarioHeadCarriesEquals() -> int
     auto arguments = quickArguments();
     arguments.push_back(std::string("--jitter-probe=") + token);
     const auto note = captureError(arguments, 2);
-    checkOneLine(note,
-                 "a head token that carries an equals stands rejected "
-                 "(FR-002)");
+    checkOneLine(
+        note,
+        "a head token that carries an equals stands rejected " "(FR-002)");
     check(note.find(std::string("'") + token + "'") != std::string::npos,
           "the refusal names the head token it read (FR-002, FR-003)");
   }

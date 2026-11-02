@@ -126,7 +126,6 @@ static_assert(
     std::is_same_v<decltype(sg::JitterPeriodRecord::powerRatio), double>,
     "one period carries its power ratio (E-24)");
 
-
 // ============================================================================
 // T011: the calibration one probe cpu runs on its own cpu before its own
 // window (US1). The search doubles a count from 1 in at most 25 trials,
@@ -398,8 +397,8 @@ auto calibrationPlan(const std::size_t prefixReads,
 
 // `trials` trials measuring one delta: the shape of the clock that never
 // passes the target, and of the clock that passes at its first trial.
-auto flatTrialDeltas(const std::size_t trials, const std::uint64_t delta)
-    -> std::vector<std::uint64_t>
+auto flatTrialDeltas(const std::size_t trials,
+                     const std::uint64_t delta) -> std::vector<std::uint64_t>
 {
   return std::vector<std::uint64_t>(trials, delta);
 }
@@ -650,8 +649,8 @@ auto seriesSorted(const sg::detail::ProbeCpuState& state)
 // The nearest-rank point of the kept samples, the rule of spec 021 the
 // fold reads: the rank stands at the point times the sample count,
 // rounded up (FR-008).
-auto seriesRank(const std::vector<std::uint64_t>& sorted, const double point)
-    -> std::uint64_t
+auto seriesRank(const std::vector<std::uint64_t>& sorted,
+                const double point) -> std::uint64_t
 {
   const auto rank = static_cast<std::size_t>(
       std::ceil(point * static_cast<double>(sorted.size()) / 100.0));
