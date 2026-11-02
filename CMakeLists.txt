@@ -107,7 +107,12 @@ set_target_properties(
     # group-leaf refusal of T013, whose scripted member moves the layout of
     # the exported final class, so the hand-kept number goes to 4
     # (hard rule 12).
-    SOVERSION 4
+    # G-19 G-21 (T-LCOV): include/speedgun-ng/counters_system.hpp loses
+    # two guards its catalog invariants rule out. No exported layout
+    # moves and no symbol joins or leaves the surface, but the public
+    # header changes and the rule the brief carries asks the number to
+    # move with it, so the hand-kept number goes to 5.
+    SOVERSION 5
     EXPORT_NAME speedgun-ng
     OUTPUT_NAME speedgun-ng
 )
