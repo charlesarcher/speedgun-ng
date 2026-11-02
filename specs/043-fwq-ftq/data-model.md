@@ -264,19 +264,17 @@ One reported period of the series spectrum, nested inside the cpu's
 
 ## E-25: the run record
 
-The run-level record `loadReport` reads back: the method word, the
-resample step and the point count (FR-020).
+The run-level record `loadReport` reads back: the method word (FR-020).
 
 | Field | Type | Unit | Absent when |
 | --- | --- | --- | --- |
 | `method` | `JitterMethod` | one of the three words | a `TSC` run |
-| `resampleStepNs` | `std::uint64_t` | ns | a `TSC` run, and an `FTQ` run |
-| `spectrumPoints` | `std::uint64_t` | points | a `TSC` run |
 
-- Fields: the three names above.
-- JSON key mapping: the record reads the root `jitter` keys `method`,
-  `resampleStepNs` and `spectrumPoints`; the last two ride each cpu's
-  `series` item in the document (FR-006, FR-020).
+- Fields: the one name above.
+- JSON key mapping: the record reads the root `jitter` key `method`.
+  The reader takes `resampleStepNs` and `spectrumPoints` from each
+  cpu's `series` item into the series record of E-23, because the
+  writer writes both keys per cpu (FR-006, FR-020).
 - Carrier and file: `JitterRunRecord`, one `std::optional` member of
   `ReportData` beside `runJitterStats`
   (`include/speedgun-ng/benchmark.hpp:979-984`), the way spec 037 moved
