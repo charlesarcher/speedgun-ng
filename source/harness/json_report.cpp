@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cerrno>
 #include <cstdint>
@@ -35,12 +36,13 @@ using Builder = simdjson::builder::string_builder;
 // record, at 1.8 since specs/033 added the four budget keys inside the
 // root `hunt` object, at 1.9 since specs/040 added the three rank fields
 // inside the per-entry `hunt` object, at 1.10 since specs/039 added the
-// optional `group` key of the context record, and at 1.11 since specs/037
-// added the top-level `graph` record, the move specs/023/contracts/
-// schema-file.md states for a key added inside major 1 (specs/027 FR-026,
-// specs/028 FR-086, specs/033 FR-022, specs/040 FR-032, PC-6, specs/039
-// FR-030, FR-032, specs/037 FR-005).
-constexpr std::string_view kSchemaVersion = "1.11";
+// optional `group` key of the context record, at 1.11 since specs/037
+// added the top-level `graph` record, and at 1.12 since specs/043 added
+// the `method` key and the `series` array of the `jitter` object, the move
+// specs/023/contracts/ schema-file.md states for a key added inside major 1
+// (specs/027 FR-026, specs/028 FR-086, specs/033 FR-022, specs/040 FR-032,
+// PC-6, specs/039 FR-030, FR-032, specs/037 FR-005, specs/043 FR-006).
+constexpr std::string_view kSchemaVersion = "1.12";
 
 // The `source` word of one disclosed use, spelled as the enum of
 // `docs/schema/report-v1.json` states it (specs/028 E-04, FR-040). The
@@ -346,6 +348,55 @@ void writeJitterCpu(Builder& builder,
   }
 }
 
+// One per-cpu object of a `series` array: the cpu index, the five
+// calibration figures, the twelve series figures and the two spectrum keys
+// in the E-22 order, and the period list E-24 states, which the run-level
+// item alone carries (E-22, E-23, FR-006, FR-019, FR-020). The two keys the
+// method leaves unused stand out: `quantumNs` is the FTQ's quantum and
+// `resampleStepNs` the FWQ's resample step, so each stands only where the
+// run measured one (E-22, FR-015, FR-017).
+void writeJitterSeriesCpu(Builder& builder,
+                          const sg::JitterSeriesStats& series,
+                          const std::uint32_t cpu,
+                          const bool withPeriods)
+{
+  JsonObjectWriter object(builder);
+  put(builder, object, "cpu", std::uint64_t {cpu});
+  put(builder, object, "workCount", series.workCount);
+  put(builder, object, "unitTimeNs", series.unitTimeNs);
+  put(builder, object, "targetNs", series.targetNs);
+  if (series.quantumNs != 0) {
+    put(builder, object, "quantumNs", series.quantumNs);
+  }
+  put(builder, object, "calibrationSpanNs", series.calibrationSpanNs);
+  put(builder, object, "sampleCount", series.sampleCount);
+  put(builder, object, "minValue", series.minValue);
+  put(builder, object, "medianValue", series.medianValue);
+  put(builder, object, "meanValue", series.meanValue);
+  put(builder, object, "p90Value", series.p90Value);
+  put(builder, object, "p99Value", series.p99Value);
+  put(builder, object, "p999Value", series.p999Value);
+  put(builder, object, "p9999Value", series.p9999Value);
+  put(builder, object, "maxValue", series.maxValue);
+  put(builder, object, "noisePercent", series.noisePercent);
+  put(builder, object, "seriesRuntimeNs", series.seriesRuntimeNs);
+  put(builder, object, "droppedSamples", series.droppedSamples);
+  if (series.resampleStepNs != 0) {
+    put(builder, object, "resampleStepNs", series.resampleStepNs);
+  }
+  put(builder, object, "spectrumPoints", series.spectrumPoints);
+  if (withPeriods) {
+    object.key("periods");
+    JsonArrayWriter periods(builder);
+    for (const auto& period : series.periods) {
+      periods.item();
+      JsonObjectWriter record(builder);
+      put(builder, record, "periodNs", period.periodNs);
+      put(builder, record, "powerRatio", period.powerRatio);
+    }
+  }
+}
+
 // One rank of one column: the availability stands beside the value in
 // every case, and a rank the run could not answer carries `null` beside
 // a false flag, which is the pair the reader answers back the same way
@@ -633,13 +684,35 @@ void writeEntry(Builder& builder,
     } else {
       JsonObjectWriter entryJitter(builder);
       entryJitter.key("stats");
-      JsonArrayWriter stats(builder);
-      for (const auto& fold : result.jitterFolds) {
-        stats.item();
-        JitterReportCpu placed;
-        placed.cpu = fold.cpu;
-        placed.stats = fold.stats;
-        writeJitterCpu(builder, placed, false);
+      {
+        JsonArrayWriter stats(builder);
+        for (const auto& fold : result.jitterFolds) {
+          stats.item();
+          JitterReportCpu placed;
+          placed.cpu = fold.cpu;
+          placed.stats = fold.stats;
+          writeJitterCpu(builder, placed, false);
+        }
+      }
+      // specs/043 FR-020, E-23: the series array stands beside the stats
+      // array, one item per cpu whose samples landed inside this entry's
+      // windows, with no method key and no period list; a `TSC` run keeps
+      // no series, so it writes no key (FR-006).
+      const bool anySeries =
+          std::any_of(result.jitterFolds.begin(),
+                      result.jitterFolds.end(),
+                      [](const sg::JitterEntryFold& fold)
+                      { return fold.series.has_value(); });
+      if (anySeries) {
+        entryJitter.key("series");
+        JsonArrayWriter series(builder);
+        for (const auto& fold : result.jitterFolds) {
+          if (!fold.series.has_value()) {
+            continue;
+          }
+          series.item();
+          writeJitterSeriesCpu(builder, *fold.series, fold.cpu, false);
+        }
       }
     }
   }
@@ -1015,6 +1088,26 @@ auto writeReport(const std::string& path,
           enumWord(kJitterModeWords, std::to_underlying(jitter->mode)));
       put(builder, probe, "thresholdNs", jitter->thresholdNs);
       put(builder, probe, "loopPeriodNs", jitter->loopPeriodNs);
+      // specs/043 FR-019, FR-020, D-7: the method word and the series
+      // array stand after `loopPeriodNs`, and a `TSC` run writes neither
+      // key, so its bytes stand where master wrote them (FR-006, SC-004).
+      if (jitter->method != sg::JitterMethod::TSC) {
+        put(builder,
+            probe,
+            "method",
+            enumWord(kJitterMethodWords, std::to_underlying(jitter->method)));
+        probe.key("series");
+        {
+          JsonArrayWriter series(builder);
+          for (const auto& entry : jitter->stats) {
+            if (!entry.series.has_value()) {
+              continue;
+            }
+            series.item();
+            writeJitterSeriesCpu(builder, *entry.series, entry.cpu, true);
+          }
+        }
+      }
       probe.key("cpus");
       {
         JsonArrayWriter cpus(builder);

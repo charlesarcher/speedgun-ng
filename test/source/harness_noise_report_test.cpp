@@ -410,7 +410,7 @@ auto theSchemaCarriesTheTracerKey() -> void
 
 // T015, T019: the checker takes a written document that carries the tracer
 // record against the extended schema, and the writer stands the minor at
-// 1.11 (FR-006, D-3; specs/039 took 1.10 at its cut and this lane takes
+// 1.12 (FR-006, D-3; specs/039 took 1.10 at its cut and specs/043 takes
 // the minor past it).
 auto theWrittenTracerDocumentPassesTheSchema() -> void
 {
@@ -423,9 +423,9 @@ auto theWrittenTracerDocumentPassesTheSchema() -> void
         "the writer wrote the document (FR-006)");
   const std::string document =
       sg::test::readText("harness_noise_report_schema.json");
-  check(document.find("\"schemaVersion\":\"1.11\"") != std::string::npos,
-        "the writer stands the schema minor at 1.11 (D-3, R-11, specs/039"
-        " FR-032, specs/037 FR-005)");
+  check(document.find("\"schemaVersion\":\"1.12\"") != std::string::npos,
+        "the writer stands the schema minor at 1.12 (D-3, R-11, specs/039"
+        " FR-032, specs/037 FR-005, specs/043 FR-006)");
   const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, document);
   check(clean.has_value(),
         "a document carrying the tracer record passes the schema (FR-006)");
@@ -452,9 +452,9 @@ auto maskSpeedgun(std::string text) -> std::string
 
 // T016: a record without the tracer member writes a document whose bytes
 // fold equal to the fixture bytes, the fixture carrying the standing key set
-// with `schemaVersion` at 1.11 (FR-012, FR-015, R-10).
+// with `schemaVersion` at 1.12 (FR-012, FR-015, R-10).
 constexpr std::string_view kDocumentFixture =
-    "{\"schemaVersion\":\"1.11\",\"speedgun\":\"?\",\"precheck\":{"
+    "{\"schemaVersion\":\"1.12\",\"speedgun\":\"?\",\"precheck\":{"
     "\"serial\":false,\"windowMs\":0,\"cpus\":[],"
     "\"hostSettings\":{\"isolcpus\":null,\"nohz_full\":null,"
     "\"rcu_nocbs\":null,\"governors\":{},\"irqAffinity\":{}},"

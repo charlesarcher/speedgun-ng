@@ -82,6 +82,18 @@ inline constexpr std::array<std::string_view, 3> kJitterModeWords {
 static_assert(kJitterModeWords.size()
               == std::to_underlying(sg::JitterProbeMode::BOTH) + 1);
 
+// The method words of the series record (specs/043 E-21, FR-019). The
+// document spells the method with the upper-case word the enumerator
+// names, and the first word stands in no written document: a run that
+// names no method writes no method key (specs/043 FR-006, FR-019, D-7).
+inline constexpr std::array<std::string_view, 3> kJitterMethodWords {
+    "TSC",
+    "FWQ",
+    "FTQ",
+};
+static_assert(kJitterMethodWords.size()
+              == std::to_underlying(sg::JitterMethod::FTQ) + 1);
+
 // The engine words of the optional tracer record (specs/036 E-20,
 // contracts/report-json.md). The document spells the two engine words the
 // way the `--os-noise` value names them, so this table stands apart from
@@ -234,6 +246,11 @@ struct JitterReportCpu
   std::uint32_t cpu = 0;
   sg::JitterStats stats {};
   std::vector<GapRecord> gaps;
+  // specs/043 FR-020, E-23: the series of the same covered windows, the
+  // record the `series` array carries beside the standing `stats` array.
+  // A `TSC` run keeps no series, so the member stands empty for it
+  // (FR-006).
+  std::optional<sg::JitterSeriesStats> series {};
 };
 
 /**
@@ -249,6 +266,10 @@ struct JitterReportCpu
 struct JitterReportRecord
 {
   sg::JitterProbeMode mode = sg::JitterProbeMode::ALONGSIDE;
+  // specs/043 FR-019, E-21: the method the run measured. The `TSC` value
+  // is the standing spelling, and the writer writes no method key for it
+  // (FR-006, D-7).
+  sg::JitterMethod method = sg::JitterMethod::TSC;
   std::uint64_t thresholdNs = 0;
   std::uint64_t loopPeriodNs = 0;
   std::vector<std::uint32_t> cpus;
@@ -293,6 +314,16 @@ struct JitterReportRecord
  *       (FR-026, FR-027, E-08); an empty one writes neither, so a
  *       probe-free run keeps the fields and the shape master's document
  *       carries (FR-013, D-1)
+ * @post a `jitter` record whose method stands `TSC` writes neither the
+ *       `method` key nor a `series` array, in the root object or in a
+ *       per-entry object, so its bytes match the bytes this writer
+ *       produced before specs/043 apart from the `schemaVersion` value
+ *       (specs/043 FR-006, FR-020, D-7, SC-004). A record whose method
+ *       stands `FWQ` or `FTQ` writes the method word after
+ *       `loopPeriodNs`, the run-level `series` array after it with the
+ *       period list of each cpu, and the per-entry `series` array beside
+ *       the standing `stats` array with no method key and no period list
+ *       (specs/043 FR-019, FR-020, E-23)
  * @post a filled `precheck` writes the root `precheck` object after
  *       `jitter` and before `benchmarks` (specs/034 FR-024, D-8); an
  *       empty one writes no such key, so a run without the pre-check
