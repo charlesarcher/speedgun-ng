@@ -1,5 +1,5 @@
 // ============================================================================
-// T022, T023, T026: the format closes on itself (specs/023-json-reports;
+// T022, T023, T024, T026: the format closes on itself (specs/023-json-reports;
 // FR-010, FR-011, FR-022, FR-023, FR-026, SC-002, SC-010).
 //
 // One scripted run writes a document; the reader answers the run's own
@@ -23,6 +23,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "detail/json_fixture.hpp"
 
@@ -1739,6 +1740,400 @@ auto theGraphRefusalsNameTheirFields() -> void
   plantsRefuseAtTheirPointers(text, plants, "FR-023, FR-029");
 }
 
+// specs/043 T024, US4, FR-020, R-17: the series record the reader reads
+// back. The document carries the method word, two closed series items with
+// their 21 keys in the written order, and the period list of the first cpu;
+// the entry carries the same item with no method and no periods. Every
+// figure reads back equal, the two keys the method leaves out read back at
+// 0, a key of the wrong kind refuses with its own pointer, a key the closed
+// item does not list stands refused by the checker, and the two keys
+// standing absent leave the run record and the folds empty (FR-006, FR-011,
+// FR-018, FR-020).
+constexpr const char* const kSeries = R"JSON(
+{"schemaVersion":"1.12","speedgun":{"version":"0.29.0","buildType":"Release"},
+ "jitter":{"mode":"ALONGSIDE","thresholdNs":200,"loopPeriodNs":20,"method":"FWQ",
+  "series":[{"cpu":2,"workCount":7,"unitTimeNs":1000,"targetNs":1000,"quantumNs":100000,"calibrationSpanNs":500,"sampleCount":4096,"minValue":900,"medianValue":1000,"meanValue":1000.5,"p90Value":1100,"p99Value":1200,"p999Value":1300,"p9999Value":1400,"maxValue":1500,"noisePercent":0.25,"seriesRuntimeNs":4096000,"droppedSamples":3,"resampleStepNs":1000,"spectrumPoints":2048,"periods":[{"periodNs":1000000,"powerRatio":1.0},{"periodNs":500000,"powerRatio":0.5}]},
+   {"cpu":3,"workCount":8,"unitTimeNs":1001,"targetNs":1001,"quantumNs":100001,"calibrationSpanNs":501,"sampleCount":1,"minValue":2,"medianValue":3,"meanValue":4.5,"p90Value":5,"p99Value":6,"p999Value":7,"p9999Value":8,"maxValue":9,"noisePercent":1.5,"seriesRuntimeNs":10,"droppedSamples":0,"resampleStepNs":0,"spectrumPoints":0,"periods":[]}],
+  "cpus":[2,3],"stats":[{"cpu":2,"gapCount":1,"gapsPerSecond":1000.0,"minNs":200,"medianNs":200,"meanNs":200.0,"p90Ns":210,"p99Ns":220,"p999Ns":230,"p9999Ns":240,"maxNs":250,"totalNs":260,"totalPercent":0.5,"runtimeNs":270,"thresholdNs":280,"loopPeriodNs":29,"droppedGaps":30},
+   {"cpu":3,"gapCount":0,"gapsPerSecond":0.0,"minNs":0,"medianNs":0,"meanNs":0.0,"p90Ns":0,"p99Ns":0,"p999Ns":0,"p9999Ns":0,"maxNs":0,"totalNs":0,"totalPercent":0.0,"runtimeNs":0,"thresholdNs":280,"loopPeriodNs":29,"droppedGaps":0}],
+  "droppedGaps":0,"disclosure":"the run's disclosure"},
+ "benchmarks":[{"name":"bmSeries","suite":"bmSeries","case":"bmSeries",
+  "outcome":"MEASURED","reason":null,"hideRepetitionRows":false,
+  "timeUnit":"NANOSECONDS","primaryIsCpu":true,"pauseSamplesFolded":false,
+  "percentilePoints":[],"contexts":[],"noiseWarning":null,
+  "jitter":{"stats":[{"cpu":3,"gapCount":4,"gapsPerSecond":400.0,"minNs":300,"medianNs":310,"meanNs":320.0,"p90Ns":330,"p99Ns":340,"p999Ns":350,"p9999Ns":360,"maxNs":370,"totalNs":380,"totalPercent":0.6,"runtimeNs":390,"thresholdNs":400,"loopPeriodNs":41,"droppedGaps":42}],
+   "series":[{"cpu":3,"workCount":11,"unitTimeNs":12,"targetNs":13,"quantumNs":14,"calibrationSpanNs":15,"sampleCount":16,"minValue":17,"medianValue":18,"meanValue":19.5,"p90Value":20,"p99Value":21,"p999Value":22,"p9999Value":23,"maxValue":24,"noisePercent":2.5,"seriesRuntimeNs":26,"droppedSamples":27,"resampleStepNs":28,"spectrumPoints":29}]},
+  "rows":[],"metricLabels":[],"counterLabels":[],"counterStats":[],
+  "statisticValues":[],"metricMethod":"AUTO","passCount":0,
+  "passSpread":null,"spreadWarning":false}]}
+)JSON";
+
+// The span of the series array the document carries at or after `from`,
+// the whole array with its own key: the plants that take the array out, and
+// the plant that gives it a container of another kind, both need the span
+// (FR-020).
+auto seriesSpan(const std::string& text, std::size_t from)
+    -> std::pair<std::size_t, std::size_t>
+{
+  const auto at = text.find("\"series\":[", from);
+  check(at != std::string::npos,
+        "the document carries a series array (FR-020)");
+  std::size_t depth = 0;
+  std::size_t end = at + std::strlen("\"series\":");
+  for (; end < text.size(); ++end) {
+    if (text.at(end) == '[') {
+      ++depth;
+      continue;
+    }
+    if (text.at(end) == ']') {
+      --depth;
+      if (depth == 0) {
+        ++end;
+        break;
+      }
+    }
+  }
+  // The separator beside the array rides the span, so the text the plant
+  // leaves stands whole: the root object carries a comma after the array,
+  // and the per-entry object carries the comma before it.
+  auto after = end;
+  while (after < text.size()
+         && std::isspace(static_cast<unsigned char>(text.at(after))) != 0)
+  {
+    ++after;
+  }
+  if (after < text.size() && text.at(after) == ',') {
+    return {at, after + 1 - at};
+  }
+  auto before = at;
+  while (before > 0
+         && std::isspace(static_cast<unsigned char>(text.at(before - 1))) != 0)
+  {
+    --before;
+  }
+  if (before > 0 && text.at(before - 1) == ',') {
+    --before;
+  }
+  return {before, end - before};
+}
+
+// The document with every series array taken out, the reading of a document
+// written by a build that kept no series (FR-020).
+auto withoutSeries(std::string text) -> std::string
+{
+  for (std::size_t at = text.find("\"series\":["); at != std::string::npos;
+       at = text.find("\"series\":[", at))
+  {
+    const auto span = seriesSpan(text, at);
+    text.erase(span.first, span.second);
+  }
+  return text;
+}
+
+// FR-020, R-17: every key of the run-level series record reads back.
+auto theSeriesRecordReadsBackEveryKey() -> void
+{
+  sg::test::writeText("harness_json_load_series.json", kSeries);
+  const auto loaded = sg::loadReport("harness_json_load_series.json");
+  check(loaded.has_value(),
+        "the document carrying the series loads (FR-020)");
+  if (!loaded.has_value()) {
+    std::printf("  %s\n", loaded.error().c_str());
+    return;
+  }
+  check(loaded->jitterRun.has_value()
+            && loaded->jitterRun->method == sg::JitterMethod::FWQ,
+        "theSeriesRecordReadsBackEveryKey: the run record reads back the "
+        "method word (FR-020, E-25)");
+  const auto& folds = loaded->runJitterStats;
+  check(folds.has_value() && folds->size() == 2,
+        "theSeriesRecordReadsBackEveryKey: the run record carries one fold "
+        "per probe cpu (E-07)");
+  if (!folds.has_value() || folds->size() != 2) {
+    return;
+  }
+  check(folds->at(0).cpu == 2 && folds->at(1).cpu == 3,
+        "the run-level folds carry the probe cpus ascending (E-07)");
+  const auto& first = folds->at(0).series;
+  check(first.has_value(),
+        "theSeriesRecordReadsBackEveryKey: the fold reads back its series "
+        "(FR-020)");
+  if (!first.has_value()) {
+    return;
+  }
+  check(first->workCount == 7 && first->unitTimeNs == 1000
+            && first->targetNs == 1000 && first->quantumNs == 100000
+            && first->calibrationSpanNs == 500,
+        "theSeriesRecordReadsBackEveryKey: the five calibration figures read "
+        "back (FR-011, E-22)");
+  check(first->sampleCount == 4096 && first->minValue == 900
+            && first->medianValue == 1000 && first->p90Value == 1100
+            && first->p99Value == 1200 && first->p999Value == 1300
+            && first->p9999Value == 1400 && first->maxValue == 1500,
+        "theSeriesRecordReadsBackEveryKey: the ten integral figures read "
+        "back (FR-007)");
+  check(sg::test::sameValue(first->meanValue, 1000.5)
+            && sg::test::sameValue(first->noisePercent, 0.25),
+        "theSeriesRecordReadsBackEveryKey: the two real figures read back "
+        "(FR-007, FR-009)");
+  check(first->seriesRuntimeNs == 4096000 && first->droppedSamples == 3
+            && first->resampleStepNs == 1000 && first->spectrumPoints == 2048,
+        "theSeriesRecordReadsBackEveryKey: the runtime, the drop count and "
+        "the two spectrum keys read back (FR-017, FR-022)");
+  const auto& second = folds->at(1).series;
+  check(second.has_value() && second->workCount == 8
+            && second->unitTimeNs == 1001 && second->targetNs == 1001
+            && second->quantumNs == 100001 && second->calibrationSpanNs == 501
+            && second->sampleCount == 1 && second->minValue == 2
+            && second->medianValue == 3 && second->p90Value == 5
+            && second->p99Value == 6 && second->p999Value == 7
+            && second->p9999Value == 8 && second->maxValue == 9
+            && second->seriesRuntimeNs == 10 && second->droppedSamples == 0
+            && second->resampleStepNs == 0 && second->spectrumPoints == 0
+            && sg::test::sameValue(second->meanValue, 4.5)
+            && sg::test::sameValue(second->noisePercent, 1.5),
+        "theSeriesRecordReadsBackEveryKey: the second cpu's item reads back "
+        "every key (FR-020)");
+}
+
+// FR-018, E-24: the period list reads back, and an empty list reads back
+// empty.
+auto thePeriodListReadsBack() -> void
+{
+  const auto loaded = sg::loadReport("harness_json_load_series.json");
+  if (!loaded.has_value() || !loaded->runJitterStats.has_value()
+      || loaded->runJitterStats->size() != 2)
+  {
+    sg::test::fail("the series folds stand unread (FR-020)");
+    return;
+  }
+  const auto& first = loaded->runJitterStats->at(0).series;
+  check(first.has_value() && first->periods.size() == 2
+            && first->periods[0].periodNs == 1000000
+            && sg::test::sameValue(first->periods[0].powerRatio, 1.0)
+            && first->periods[1].periodNs == 500000
+            && sg::test::sameValue(first->periods[1].powerRatio, 0.5),
+        "thePeriodListReadsBack: the period list reads back item by item "
+        "(FR-018, E-24)");
+  const auto& second = loaded->runJitterStats->at(1).series;
+  check(second.has_value() && second->periods.empty(),
+        "thePeriodListReadsBack: an empty list reads back empty (FR-018)");
+}
+
+// FR-006, FR-020: the two keys stand out of the schema's required list, so
+// a document that carries neither reads, and the two members it leaves
+// behind stand empty.
+auto aMissingMethodKeyLeavesTheRunRecordEmpty() -> void
+{
+  std::string text(kSeries);
+  const auto at = text.find("\"method\":\"FWQ\",");
+  check(at != std::string::npos,
+        "the document carries the method key (FR-006)");
+  text.erase(at, std::strlen("\"method\":\"FWQ\","));
+  sg::test::writeText("harness_json_load_nomethod.json", text);
+  const auto loaded = sg::loadReport("harness_json_load_nomethod.json");
+  check(loaded.has_value(),
+        "aMissingMethodKeyLeavesTheRunRecordEmpty: a document with no method "
+        "key loads (FR-006)");
+  if (!loaded.has_value()) {
+    return;
+  }
+  check(!loaded->jitterRun.has_value(),
+        "aMissingMethodKeyLeavesTheRunRecordEmpty: the run record stands "
+        "empty (FR-020, E-25)");
+  check(loaded->runJitterStats.has_value()
+            && loaded->runJitterStats->size() == 2
+            && loaded->runJitterStats->at(0).series.has_value(),
+        "aMissingMethodKeyLeavesTheRunRecordEmpty: the series reads on "
+        "without the method key (FR-020)");
+}
+
+auto aMissingSeriesKeyLeavesTheFoldsEmpty() -> void
+{
+  sg::test::writeText("harness_json_load_noseries.json",
+                      withoutSeries(std::string(kSeries)));
+  const auto loaded = sg::loadReport("harness_json_load_noseries.json");
+  check(loaded.has_value(),
+        "aMissingSeriesKeyLeavesTheFoldsEmpty: a document with no series "
+        "array loads (FR-006)");
+  if (!loaded.has_value()) {
+    return;
+  }
+  check(loaded->runJitterStats.has_value()
+            && loaded->runJitterStats->size() == 2
+            && !loaded->runJitterStats->at(0).series.has_value()
+            && !loaded->runJitterStats->at(1).series.has_value(),
+        "aMissingSeriesKeyLeavesTheFoldsEmpty: the run-level folds carry no "
+        "series (FR-020)");
+  check(loaded->results.size() == 1
+            && loaded->results[0].jitterFolds.size() == 1
+            && !loaded->results[0].jitterFolds.at(0).series.has_value(),
+        "aMissingSeriesKeyLeavesTheFoldsEmpty: the entry's fold carries no "
+        "series (FR-020, E-08)");
+  check(!loaded->jitterRun.has_value(),
+        "aMissingSeriesKeyLeavesTheFoldsEmpty: the run record reads the "
+        "method the document carries (FR-020)");
+}
+
+// FR-020, FR-029, SC-007: one plant per new key, each of a kind the reader
+// does not take, each refused with the pointer of the key it stands at.
+auto eachNewKeyOfTheWrongKindStandsRefused() -> void
+{
+  constexpr Mutation kPlants[] = {
+      {"\"method\":\"FWQ\"", "\"method\":1", "/jitter/method"},
+      {"\"workCount\":7", "\"workCount\":\"x\"", "/jitter/series/0/workCount"},
+      {"\"unitTimeNs\":1000",
+       "\"unitTimeNs\":\"x\"",
+       "/jitter/series/0/unitTimeNs"},
+      {"\"targetNs\":1000",
+       "\"targetNs\":\"x\"",
+       "/jitter/series/0/targetNs"},
+      {"\"quantumNs\":100000",
+       "\"quantumNs\":\"x\"",
+       "/jitter/series/0/quantumNs"},
+      {"\"calibrationSpanNs\":500",
+       "\"calibrationSpanNs\":\"x\"",
+       "/jitter/series/0/calibrationSpanNs"},
+      {"\"sampleCount\":4096",
+       "\"sampleCount\":\"x\"",
+       "/jitter/series/0/sampleCount"},
+      {"\"minValue\":900", "\"minValue\":\"x\"", "/jitter/series/0/minValue"},
+      {"\"medianValue\":1000",
+       "\"medianValue\":\"x\"",
+       "/jitter/series/0/medianValue"},
+      {"\"meanValue\":1000.5",
+       "\"meanValue\":\"x\"",
+       "/jitter/series/0/meanValue"},
+      {"\"p90Value\":1100", "\"p90Value\":\"x\"", "/jitter/series/0/p90Value"},
+      {"\"p99Value\":1200", "\"p99Value\":\"x\"", "/jitter/series/0/p99Value"},
+      {"\"p999Value\":1300",
+       "\"p999Value\":\"x\"",
+       "/jitter/series/0/p999Value"},
+      {"\"p9999Value\":1400",
+       "\"p9999Value\":\"x\"",
+       "/jitter/series/0/p9999Value"},
+      {"\"maxValue\":1500", "\"maxValue\":\"x\"", "/jitter/series/0/maxValue"},
+      {"\"noisePercent\":0.25",
+       "\"noisePercent\":\"x\"",
+       "/jitter/series/0/noisePercent"},
+      {"\"seriesRuntimeNs\":4096000",
+       "\"seriesRuntimeNs\":\"x\"",
+       "/jitter/series/0/seriesRuntimeNs"},
+      {"\"droppedSamples\":3",
+       "\"droppedSamples\":\"x\"",
+       "/jitter/series/0/droppedSamples"},
+      {"\"resampleStepNs\":1000",
+       "\"resampleStepNs\":\"x\"",
+       "/jitter/series/0/resampleStepNs"},
+      {"\"spectrumPoints\":2048",
+       "\"spectrumPoints\":\"x\"",
+       "/jitter/series/0/spectrumPoints"},
+      {"\"periods\":[{\"periodNs\":1000000,\"powerRatio\":1.0},"
+       "{\"periodNs\":500000,\"powerRatio\":0.5}]",
+       "\"periods\":{}",
+       "/jitter/series/0/periods"},
+      {"\"periodNs\":1000000",
+       "\"periodNs\":\"x\"",
+       "/jitter/series/0/periods/0/periodNs"},
+      {"\"powerRatio\":1.0",
+       "\"powerRatio\":\"x\"",
+       "/jitter/series/0/periods/0/powerRatio"},
+  };
+  plantsRefuseAtTheirPointers(kSeries, kPlants, "FR-020, FR-029");
+
+  // The array itself, standing an object: the container kind the reader
+  // names beside the item's own keys.
+  const auto span = seriesSpan(std::string(kSeries), 0);
+  std::string broken(kSeries);
+  broken.replace(span.first,
+                 span.second,
+                 "\"series\":1,");
+  sg::test::writeText("harness_json_load_serieskind.json", broken);
+  const auto refused = sg::loadReport("harness_json_load_serieskind.json");
+  check(!refused.has_value()
+            && refused.error().find("/jitter/series") != std::string::npos,
+        "eachNewKeyOfTheWrongKindStandsRefused: the series array of another "
+        "kind refuses with its pointer (FR-020, FR-029)");
+}
+
+// FR-006: the closed item refuses a key the schema does not list, the
+// standing checker path the standing closed objects take (FR-010).
+auto aClosedSeriesItemRefusesAnUnknownKey() -> void
+{
+  std::string added(kSeries);
+  const auto at = added.find("\"series\":[{");
+  check(at != std::string::npos,
+        "the document carries the series item (FR-006)");
+  added.insert(at + std::strlen("\"series\":[{"), "\"extra\":true,");
+  const auto answer = sg::detail::checkReport(SG_SCHEMA_PATH, added);
+  check(!answer.has_value(),
+        "aClosedSeriesItemRefusesAnUnknownKey: the closed series item refuses "
+        "a key the schema does not list (FR-006)");
+  if (!answer.has_value()) {
+    check(answer.error().find("/jitter/series/0") != std::string::npos
+              && answer.error().find("lists no key") != std::string::npos,
+          "aClosedSeriesItemRefusesAnUnknownKey: the refusal names the item "
+          "and the key it lists nowhere (FR-006, FR-010)");
+  }
+}
+
+auto aClosedPeriodItemRefusesAnUnknownKey() -> void
+{
+  std::string added(kSeries);
+  const auto at = added.find("{\"periodNs\"");
+  check(at != std::string::npos, "the document carries a period item (FR-018)");
+  added.insert(at + 1, "\"extra\":true,");
+  const auto answer = sg::detail::checkReport(SG_SCHEMA_PATH, added);
+  check(!answer.has_value(),
+        "aClosedPeriodItemRefusesAnUnknownKey: the closed period item refuses "
+        "a key the schema does not list (FR-006)");
+  if (!answer.has_value()) {
+    check(answer.error().find("/jitter/series/0/periods/0") != std::string::npos
+              && answer.error().find("lists no key") != std::string::npos,
+          "aClosedPeriodItemRefusesAnUnknownKey: the refusal names the period "
+          "item and the key it lists nowhere (FR-006, FR-010)");
+  }
+}
+
+// FR-020, E-08: the entry's series reads into the fold the comparison
+// reads, the period list standing out of the per-entry copy.
+auto thePerEntrySeriesReadsIntoTheFolds() -> void
+{
+  const auto loaded = sg::loadReport("harness_json_load_series.json");
+  if (!loaded.has_value() || loaded->results.empty()) {
+    sg::test::fail("the series document stands unread (FR-020)");
+    return;
+  }
+  const auto& folds = loaded->results[0].jitterFolds;
+  check(folds.size() == 1 && folds.at(0).cpu == 3
+            && folds.at(0).series.has_value(),
+        "thePerEntrySeriesReadsIntoTheFolds: the entry's fold reads back its "
+        "series (FR-020, E-08)");
+  if (folds.empty() || !folds.at(0).series.has_value()) {
+    return;
+  }
+  const auto& series = folds.at(0).series.value();
+  check(series.workCount == 11 && series.unitTimeNs == 12
+            && series.targetNs == 13 && series.quantumNs == 14
+            && series.calibrationSpanNs == 15 && series.sampleCount == 16
+            && series.minValue == 17 && series.medianValue == 18
+            && series.p90Value == 20 && series.p99Value == 21
+            && series.p999Value == 22 && series.p9999Value == 23
+            && series.maxValue == 24 && series.seriesRuntimeNs == 26
+            && series.droppedSamples == 27 && series.resampleStepNs == 28
+            && series.spectrumPoints == 29
+            && sg::test::sameValue(series.meanValue, 19.5)
+            && sg::test::sameValue(series.noisePercent, 2.5),
+        "thePerEntrySeriesReadsIntoTheFolds: the entry's series reads back "
+        "every key (FR-020)");
+  check(series.periods.empty(),
+        "thePerEntrySeriesReadsIntoTheFolds: the per-entry copy carries no "
+        "period list (FR-020, E-24)");
+  check(folds.at(0).stats.gapCount == 4 && folds.at(0).stats.maxNs == 370,
+        "thePerEntrySeriesReadsIntoTheFolds: the standing gap stats read "
+        "beside the series (FR-027, E-08)");
+}
+
 auto main() -> int
 {
   roundTripClosesTheFormat();
@@ -1759,6 +2154,14 @@ auto main() -> int
   thePrecheckRecordRoundTrips();
   thePrecheckRefusalsNameTheirFields();
   theGraphRefusalsNameTheirFields();
+  theSeriesRecordReadsBackEveryKey();
+  thePeriodListReadsBack();
+  aMissingMethodKeyLeavesTheRunRecordEmpty();
+  aMissingSeriesKeyLeavesTheFoldsEmpty();
+  eachNewKeyOfTheWrongKindStandsRefused();
+  aClosedSeriesItemRefusesAnUnknownKey();
+  aClosedPeriodItemRefusesAnUnknownKey();
+  thePerEntrySeriesReadsIntoTheFolds();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;

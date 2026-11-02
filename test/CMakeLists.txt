@@ -733,6 +733,10 @@ add_executable(harness_json_load_test source/harness_json_load_test.cpp)
 target_link_libraries(harness_json_load_test PRIVATE speedgun-ng::harness)
 target_include_directories(harness_json_load_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
 target_compile_features(harness_json_load_test PRIVATE cxx_std_23)
+target_compile_definitions(
+    harness_json_load_test
+    PRIVATE SG_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/docs/schema/report-v1.json"
+)
 add_test(NAME harness_json_load_test COMMAND harness_json_load_test)
 
 # The rule grammar and the compare mode of the regression gate (specs/026
