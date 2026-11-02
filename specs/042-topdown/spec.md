@@ -395,6 +395,26 @@ Measured on this machine on 2026-11-01 before any file changed.
   runs the gate many times, counted as one run, and the entry reported as
   failing when run alone was that script invoked without its required
   fixture-directory argument, which answers usage with exit 2.
+- **PC-14: a cpu-target plan needs its reading thread on the cpu it names.
+  RESOLVED in this change.** `source/counters/linux_pmu/fast_read.cpp:283`
+  states the precondition that a cpu-target fast-mode plan reads on the
+  processor that opened its contexts (`fastPinningOk(context.pinnedCpu,
+  ::sched_getcpu())`, FR-045), so a migration of the sampling thread between
+  the pin and the read trips it. The fast-read repair (FR-053, `T013`) makes
+  three scenarios of `test/source/counters_pmu_test.cpp` reachable that the
+  unmasked bound had skipped, and one of them was written against the skip.
+  Measured on the acceptance host, 24 hardware threads, kernel
+  `7.3.0-4-cachyos`: at the base hash `d454bcff` the binary answered 12 of 12
+  unpinned runs and 4 of 4 runs pinned to one cpu, because the gate that
+  precedes those scenarios read a zero count and skipped them; with only the
+  two files of the repair applied over that base the same binary aborted 12 of
+  12 and 4 of 4, at exit code 134, on the requirement above, and pinning the
+  process to the cpu that scenario names made it answer. The repair therefore
+  exposed a defect in the scenario, which built a plan for cpu 0 while
+  sampling on whatever processor the scheduler gave the test thread. The
+  scenario now names the cpu it samples on and narrows its own affinity to it,
+  choosing that cpu from the mask its parent left it, so a narrowed run keeps
+  working. `T100` records the fix.
 ## Roadmap position
 
 N2 (022) publishes a metric row as a formula. N6 (024) splits a set of

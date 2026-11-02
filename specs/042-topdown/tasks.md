@@ -1169,6 +1169,13 @@ D-16 names, and the one timing bound PC-13 measures.
   the same timed run answers inside the loaded two-cpu suite is the host load
   condition PC-13 and PC-8 already record, which this feature does not touch
   (PC-13).
+- [x] T100 Pin the sampling thread of the cpu-target scenarios of
+      `test/source/counters_pmu_test.cpp` to the cpu whose plan they open, so
+      the fast read path those scenarios reach answers its precondition once
+      the bound repair of `T013` lets them run at all: the scenario takes the
+      first cpu of the affinity mask its process holds, narrows to it, opens
+      its window there and hands the mask back once the window has been read
+      (FR-045, FR-053, spec PC-14).
 
 **Checkpoint**: every gate of Principle VIII is green on the pushed state
 and
