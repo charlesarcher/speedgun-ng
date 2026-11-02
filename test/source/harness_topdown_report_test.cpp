@@ -109,6 +109,9 @@ constexpr const char* kOptionlessDocument =
     "harness_json_topdown_optionless.json";
 constexpr const char* kWrongKindDocument =
     "harness_json_topdown_wrongkind.json";
+constexpr const char* kRefusedRowsDocument =
+    "harness_json_topdown_refused_rows.json";
+constexpr const char* kNoSourceDocument = "harness_json_topdown_nosource.json";
 
 // The five documents of the two gate scenarios: the pair whose trees carry the
 // two nodes the two rules name, the contender whose tree carries the deeper
@@ -864,6 +867,169 @@ auto theWrittenTreePassesTheSchemaWithTheKeyAfterHunt() -> void
           " benchmarks array, and the array closes the document");
 }
 
+// The one line each of the four refusals answers, spelled as the answer table
+// of `contracts/topdown-selection.md` states it. The record carries this text
+// in `reason`, so a later reader of the document learns why the tree stands
+// absent (FR-033, FR-040, SC-04).
+constexpr std::string_view kUnknownVendorReason {
+    "topdown: NoSuchVendorXXXXX family 999 model 999: no vendored table "
+    "carries " "this vendor"};
+constexpr std::string_view kArmReason {
+    "topdown: Arm 0x410fd490: no Arm table is vendored"};
+constexpr std::string_view kHybridReason {
+    "topdown: GenuineIntel family 6 model 151 stepping 2: the selected table "
+    "'arch/x86/alderlake/' publishes rows for two core scopes, and this feature "
+    "makes no claim for a hybrid part"};
+constexpr std::string_view kNoRowsReason {
+    "topdown: AuthenticAMD family 25 model 15: the selected table "
+    "'arch/x86/amdzen3/' holds no row of any top-down group"};
+
+// The four identities SC-04 counts, beside the one line the refusal of that
+// kind answers: the vendor, the identity in the spelling the contract states,
+// and the reason, with the directory between quote marks where the rule read
+// one (FR-004 to FR-007, FR-033, SC-04).
+struct NoSourceCase
+{
+  const char* what;
+  sg::counters::CpuIdentity identity;
+  std::string_view reason;
+};
+
+// The four identities SC-04 counts: an unknown vendor, an Arm part by its
+// `MIDR`, an Intel hybrid part whose directory publishes the two core scopes,
+// and an AMD part whose directory holds no row of any top-down group. Each
+// answers out of the table this build embeds, so no case below reads a cpu of
+// the host it runs on (SC-04, spec D-13).
+[[nodiscard]] auto noSourceCases() -> std::vector<NoSourceCase>
+{
+  sg::counters::CpuIdentity unknown;
+  unknown.vendor = "NoSuchVendorXXXXX";
+  unknown.family = 999;
+  unknown.model = 999;
+
+  sg::counters::CpuIdentity arm;
+  arm.midr = std::optional<std::uint32_t> {0x410fd490};
+
+  sg::counters::CpuIdentity hybrid;
+  hybrid.vendor = "GenuineIntel";
+  hybrid.family = 6;
+  hybrid.model = 0x97;
+  hybrid.stepping = 2;
+
+  sg::counters::CpuIdentity zen3;
+  zen3.vendor = "AuthenticAMD";
+  zen3.family = 25;
+  zen3.model = 15;
+
+  return {
+      NoSourceCase {
+          "a vendor no vendored table carries", unknown, kUnknownVendorReason},
+      NoSourceCase {"an Arm part by its `MIDR`", arm, kArmReason},
+      NoSourceCase {"an Intel hybrid part", hybrid, kHybridReason},
+      NoSourceCase {
+          "an AMD part whose table holds no top-down row", zen3, kNoRowsReason},
+  };
+}
+
+// T078: the `refused` array carries the name, the kind and the reason of every
+// row of the record, and each of the four identities SC-04 counts writes the
+// record of a host that has no source: `supported` false beside its reason and
+// its empty arrays (FR-033, FR-034, SC-04).
+auto theRecordCarriesRefusedRowsAndNamesAnUnsupportedHost() -> void
+{
+  // A pair of refused rows, so the array answers for each row of a record and
+  // not for one item a single-row document could carry by accident (FR-033).
+  auto want = plantedRecord();
+  want.refused.push_back(sg::TopdownRefusal {
+      .name = "topdown.intel.bad_arity",
+      .refusal = "MALFORMED",
+      .reason = "a helper call of two arguments stands where one stands",
+  });
+  auto result = makeResult("bmTopdownRefusedRows");
+  result.topdown = want;
+  const auto text = writeDocument(kRefusedRowsDocument, result);
+  const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, text);
+  if (!clean.has_value()) {
+    failed("a tree with two refused rows disagrees with the schema: "
+           + clean.error());
+  }
+  const auto body = objectBody(text, keyAt(text, "topdown"));
+  const auto rowGap = orderGap(firstItem(body, "refused"), kRefusedKeys);
+  checked(rowGap.empty(),
+          "the first refused item carries name, kind and reason in the order "
+          "the" " schema states"
+              + rowGap);
+  checked(body.find("\"name\":\"topdown.intel.frontend_l1_bound\"")
+              != std::string_view::npos
+              && body.find("\"kind\":\"UNRESOLVED\"") != std::string_view::npos
+              && body.find("\"name\":\"topdown.intel.bad_arity\"")
+                     != std::string_view::npos
+              && body.find("\"kind\":\"MALFORMED\"") != std::string_view::npos
+              && body.find("the row names a metric no other row")
+                     != std::string_view::npos
+              && body.find("a helper call of two arguments")
+                     != std::string_view::npos,
+          "the refused array carries the name, the UPPER SNAKE kind and the "
+          "reason of each row of the record (FR-033)");
+  const auto refusedRows = loadedRecord(kRefusedRowsDocument);
+  const auto difference = recordDifference(refusedRows, want);
+  checked(difference.empty(),
+          "both refused rows read back field for field beside their tree: "
+              + difference);
+
+  for (const NoSourceCase& item : noSourceCases()) {
+    // The record of a run that met the refusal, as the runner hangs it on the
+    // result: the detail the refusal read, and nothing beside it (FR-040,
+    // FR-041).
+    auto options = sg::detail::RunOptions {};
+    options.fixedIterations = sg::test::kWindowIterations;
+    options.topdownLevel = 1;
+    options.topdownIdentity = item.identity;
+    const auto run = sg::test::scriptedRun(options);
+    if (!run.result.topdown.has_value() || run.result.topdown->supported) {
+      failed(std::string {"the run handed "} + item.what
+             + " carries no record of an unsupported host");
+    }
+    const sg::TopdownRecord& record = *run.result.topdown;
+    checked(record.reason == item.reason,
+            std::string {"the record of "} + item.what
+                + " carries the one line its refusal answers as the reason: "
+                + record.reason);
+    checked(record.nodes.empty() && record.refused.empty()
+                && record.files.empty() && record.directory.empty()
+                && record.level == 0,
+            std::string {"the record of "} + item.what
+                + " carries no node, no refused row, no file and no directory "
+                  "(FR-033)");
+
+    const auto hostText = writeDocument(kNoSourceDocument, run.result);
+    const auto reasonKey = "\"reason\":\"" + std::string {item.reason} + "\"";
+    checked(hostText.find("\"supported\":false") != std::string::npos
+                && hostText.find(reasonKey) != std::string::npos
+                && hostText.find("\"nodes\":[]") != std::string::npos
+                && hostText.find("\"refused\":[]") != std::string::npos,
+            std::string {"the document of "} + item.what
+                + " writes supported false, its reason and two empty arrays "
+                  "(FR-033, FR-034)");
+    checked(hostText.find("\"files\":[]") != std::string::npos,
+            std::string {"the document of "} + item.what
+                + " names no contributing file either, the third array the "
+                  "record's invariant closes (FR-033)");
+    const auto hostClean = sg::detail::checkReport(SG_SCHEMA_PATH, hostText);
+    if (!hostClean.has_value()) {
+      failed(std::string {"the document of "} + item.what
+             + " disagrees with the schema: " + hostClean.error());
+    }
+    const auto back = loadedRecord(kNoSourceDocument);
+    checked(!back.supported && back.reason == item.reason
+                && back.nodes.empty()
+                && back.refused.empty() && back.files.empty(),
+            std::string {"the document of "} + item.what
+                + " reads back unsupported with its reason and its empty arrays "
+                  "(FR-034)");
+  }
+}
+
 // One row of the gate's answer, read through its six fields, with the row
 // printed for the reader of a failure.
 auto checkGateRow(const sg::CompareEntry& entry,
@@ -1080,6 +1246,8 @@ auto main() -> int
       {"aRunWithoutTheOptionWritesNoKey", aRunWithoutTheOptionWritesNoKey},
       {"theWrittenTreePassesTheSchemaWithTheKeyAfterHunt",
        theWrittenTreePassesTheSchemaWithTheKeyAfterHunt},
+      {"theRecordCarriesRefusedRowsAndNamesAnUnsupportedHost",
+       theRecordCarriesRefusedRowsAndNamesAnUnsupportedHost},
       {"theGateReadsOneNodeOfEachTree", theGateReadsOneNodeOfEachTree},
       {"aGateRuleWithNoNodeToReadAnswersOneLine",
        aGateRuleWithNoNodeToReadAnswersOneLine},

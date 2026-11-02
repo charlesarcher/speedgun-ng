@@ -349,10 +349,13 @@ constexpr std::string_view kSmtContentionName {"topdown.smt_contention"};
 // what the loader states and never the digests of the embedded record (FR-015).
 // Each node line carries two spaces per level below one, the neutral name, the
 // vendor name of the row it came from, and the percent or `not available` for a
-// gap (FR-026, FR-027, FR-030). A record that states no support prints no
-// block: the one line for an unsupported host belongs to the command line
-// (FR-040, T080), and a run that never asked for a tree prints nothing here,
-// the bytes it printed before the option stood.
+// gap (FR-026, FR-027, FR-030). Behind the nodes, one line per refused row of
+// the record carries the word `refused`, the name of the row, the UPPER SNAKE
+// kind the metric layer answered with and that reason unchanged, indented at
+// the level the header states (FR-016, FR-031). A record that states no support
+// prints no block: the one line for an unsupported host belongs to the command
+// line (FR-040, T080), and a run that never asked for a tree prints nothing
+// here, the bytes it printed before the option stood.
 auto printTopdownBlock(const BenchmarkResult& result) -> void
 {
   if (!result.topdown.has_value() || !result.topdown->supported) {
@@ -406,6 +409,25 @@ auto printTopdownBlock(const BenchmarkResult& result) -> void
       std::printf("  %s", node.threshold.c_str());
     }
     std::putchar('\n');
+  }
+  // specs/042-topdown FR-031, FR-016: each refused row of the record prints
+  // once, indented at the level the block shows, with the kind word of the
+  // metric layer and the reason it answered with, both unchanged. No refused
+  // row reaches a node line above, because it stands in no entry of `nodes`.
+  // The record carries no level of its own beside a refused row, and its schema
+  // closes the three keys of the item, so the indent is the one the block
+  // states in its header.
+  const std::string shownIndent(
+      record.level > 1
+          ? std::size_t {2} * static_cast<std::size_t>(record.level - 1)
+          : 0,
+      ' ');
+  for (const sg::TopdownRefusal& row : record.refused) {
+    std::printf("topdown:  %srefused  %s  %s  %s\n",
+                shownIndent.c_str(),
+                row.name.c_str(),
+                row.refusal.c_str(),
+                row.reason.c_str());
   }
   if (statesContention) {
     std::printf("topdown: the four shared level-1 values add to less than 100 "

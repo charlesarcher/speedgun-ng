@@ -1526,19 +1526,19 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
             std::vector<sg::counters::MetricListing> {}));
       }
     } else {
-      // specs/042-topdown FR-040, FR-041, spec D-14: the refusal records itself
-      // and moves nothing else. No column joins the run, no node, no refused
-      // row and no file stand in the record, nothing prints here, and the
-      // status the run answers is the status the same run answers without the
-      // option. The one line the harness prints for a refusal belongs to the
-      // command line, and `TopdownUnsupported::message()` owns the sentence
-      // each refusal kind states once that call lands at T079, so no text
-      // composes here: the record carries the detail the refusal states, and a
-      // kind whose detail stands empty carries an empty reason until that line
-      // stands.
+      // specs/042-topdown FR-040, FR-041, FR-033, spec D-14: the refusal
+      // records itself and moves nothing else. No column joins the run, no
+      // node, no refused row and no file stand in the record, nothing prints
+      // here, and the status the run answers is the status the same run answers
+      // without the option. The reason is `TopdownUnsupported::message()`: the
+      // one line that names the vendor, the identity and the reason of the
+      // kind, so a later reader of the document learns why the tree stands
+      // absent, which is what FR-033 asks of the record. No sentence composes
+      // here, and the command line prints that same line (FR-040), so one owner
+      // states it and two carriers hold it.
       sg::TopdownRecord unsupported;
       unsupported.askedLevel = *m_options.topdownLevel;
-      unsupported.reason = answered.error().detail;
+      unsupported.reason = answered.error().message();
       result.topdown = std::move(unsupported);
     }
   }

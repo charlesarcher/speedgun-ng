@@ -281,6 +281,40 @@ auto metricNameFailure(std::span<const MetricName> names) -> int
   return 0;
 }
 
+// specs/042-topdown FR-040, spec D-14: the one line a refusal answers. The
+// counters library owns that sentence, so the command line prints `message()`
+// whole and adds nothing to it.
+[[nodiscard]] auto topdownRefusalLine(
+    const counters::TopdownUnsupported& refusal) -> std::string
+{
+  return refusal.message();
+}
+
+// specs/042-topdown FR-040, FR-041: the one line of a host that has no source.
+// The record of an unsupported run carries the detail the refusal read and no
+// sentence, so the line reads from the same pure selection the run reads: the
+// level, the identity and the table of this option set are the three the runner
+// hands `topdownTree`, so the answer here is the answer the run met. The call
+// opens no path, opens no event and reads no counter. A run that asked for no
+// tree reaches no selection at all, a host that answers a tree prints nothing,
+// and no exit status moves on this path.
+auto printTopdownRefusal(const RunOptions& options) -> void
+{
+  if (!options.topdownLevel.has_value()) {
+    return;
+  }
+  counters::TopdownSelection selection;
+  selection.identity = options.topdownIdentity.has_value()
+      ? *options.topdownIdentity
+      : counters::cpuIdentity();
+  selection.level = static_cast<int>(*options.topdownLevel);
+  selection.table = options.topdownTable;
+  const auto answered = counters::topdownTree(selection);
+  if (!answered.has_value()) {
+    std::printf("%s\n", topdownRefusalLine(answered.error()).c_str());
+  }
+}
+
 // The row one entry of the process environment carries, or no row when the
 // entry holds no `=` or names nothing the `SPEEDGUN_` prefix covers. The
 // split of one entry stands apart from the walk of the array so the shape of
@@ -1542,6 +1576,11 @@ auto speedgunMain(int argc, char** argv) -> int
   // inside the walk. An unreadable cpu set or sibling list answers nothing,
   // which keeps the standing refusal of the constant and prints no line at all
   // (FR-043).
+  // specs/042-topdown FR-040, spec D-14: the one line of a host that has no
+  // source, stated once for the process ahead of the walk, so it reaches the
+  // reader before the first measurement does. A host that answers a tree prints
+  // nothing here, and no status moves on the path of a refusal (FR-041).
+  printTopdownRefusal(options);
   if (options.topdownLevel.has_value()) {
     if (const auto coverage = counters::coreWideCoverage();
         coverage.has_value())

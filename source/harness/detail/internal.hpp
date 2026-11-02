@@ -1483,6 +1483,31 @@ auto stripTopdownColumns(sg::BenchmarkResult& result,
     -> void;
 
 /**
+ * @brief specs/042-topdown FR-040, spec D-14: the one line one refusal answers
+ * for the console.
+ *
+ * The line is `TopdownUnsupported::message()` whole, with nothing added: the
+ * counters library owns the sentence of a refusal, and a second sentence in the
+ * command line would be a second source for it.
+ */
+[[nodiscard]] auto topdownRefusalLine(
+    const sg::counters::TopdownUnsupported& refusal) -> std::string;
+
+/**
+ * @brief specs/042-topdown FR-040, FR-041: print the line of the refusal one
+ * option set answers, where it answers one.
+ *
+ * The option set carries the level the command line asked for, beside the
+ * identity and the table a test hands in: the same three fields the runner
+ * hands `topdownTree`, so the answer read here is the answer the run meets. The
+ * record of an unsupported run carries the detail the refusal read and no
+ * sentence, so the line comes from that selection, which reads no path, no
+ * event and no counter. No option reaches no selection, a tree prints nothing,
+ * and no status moves.
+ */
+auto printTopdownRefusal(const RunOptions& options) -> void;
+
+/**
  * @brief Walk the counter addresses every source named and print the first
  * refusal: the origin of the source that held the address (or the option
  * name, for the command line), the address, and what the host found there.

@@ -691,12 +691,25 @@ auto runMeasuredLedger(sg::Instance& instance,
       runner.contextRaw().back()};
 }
 
-// The detail a mapping-file miss states: the header defines the field as the
-// directory the selection read, and a miss read none. The sentence FR-040 names
-// belongs to `TopdownUnsupported::message()`, which T079 publishes, so no
-// caller composes it and a mid-feature record carries this detail alone
-// (FR-040, FR-041).
-constexpr std::string_view kRefusalDetail {};
+// The refusal one set of options hands the library, so a case can read the line
+// the run owes its record and the command line owes its console: the same three
+// fields the runner hands `topdownTree`, the identity of this process where the
+// case hands none (FR-040, FR-041).
+[[nodiscard]] auto refusalOf(const sg::detail::RunOptions& options)
+    -> sg::counters::TopdownUnsupported
+{
+  sg::counters::TopdownSelection selection;
+  selection.identity = options.topdownIdentity.has_value()
+      ? *options.topdownIdentity
+      : sg::counters::cpuIdentity();
+  selection.level = static_cast<int>(*options.topdownLevel);
+  selection.table = options.topdownTable;
+  const auto answered = sg::counters::topdownTree(selection);
+  check(!answered.has_value(),
+        "the options a case hands the selection answer no tree (FR-004 to "
+        "FR-007)");
+  return answered.error();
+}
 
 // The tag every line of the top-down block carries, the way the jitter note
 // carries `jitter:` in the same report (specs/042-topdown FR-026).
@@ -1515,9 +1528,15 @@ auto scenarioAnUnsupportedHostCollectsNothingAndStaysItself() -> int
         "the record states the level the run asked for and shows no level "
         "(FR-020, FR-041)");
 
-  check(record.reason == kRefusalDetail,
-        "the reason holds the detail the planted refusal states, and the "
-        "sentence of a refusal arrives with the library's own line (FR-040, FR-041)");
+  check(record.reason == refusalOf(asked).message(),
+        "the reason of the record is the one line the selection answered, so a "
+        "later reader of the document learns why the tree stands absent "
+        "(FR-033, FR-040)");
+  check(record.reason.starts_with("topdown: ")
+            && record.reason.contains(
+                "the mapping file names no table for this identity"),
+        "the reason of the record carries the tag and the reason of a "
+        "mapping-file miss on one line (FR-033, FR-040)");
 
   check(refusal.run.result.metricLabels == plain.result.metricLabels,
         "the refusal collects no node column (FR-040, FR-023)");
@@ -2574,13 +2593,306 @@ auto scenarioTheAmdFiveValuesAnswerTheFixtureAndSumToHundred() -> int
   return 0;
 }
 
+// The check of one claim whose fault text carries the part it names: the loop
+// below walks the four identities SC-04 counts, and a fault that names none of
+// them sends a reader to a debugger (FR-040).
+auto checked(const bool cond, const std::string& what) -> void
+{
+  if (!cond) {
+    std::fprintf(stderr, "HARNESS TOPDOWN RUN TEST FAIL: %s\n", what.c_str());
+    std::exit(1);
+  }
+}
+
+// The identity of one part SC-04 counts, handed to the print and to the run in
+// place of the identity this host states. `what` names the part, and the three
+// texts hold what FR-040 asks the line to name: the vendor, the family and
+// model or the `MIDR`, and the reason (FR-004 to FR-007, FR-040, SC-04).
+struct RefusalCase
+{
+  const char* what;
+  CpuIdentity identity;
+  std::string_view vendor;
+  std::string_view identityText;
+  std::string_view reason;
+};
+
+// The four identities SC-04 counts: the AMD part whose table holds no top-down
+// row, the Intel hybrid part, an Arm part by its `MIDR`, and a vendor no
+// vendored table carries. Each answers out of the table this build embeds and
+// the identity it is handed, so no scenario below reads a cpu, a path or a
+// counter of the host it runs on (SC-04, spec D-13).
+[[nodiscard]] auto sc04Refusals() -> std::vector<RefusalCase>
+{
+  CpuIdentity unknown;
+  unknown.vendor = "NoSuchVendorXXXXX";
+  unknown.family = 999;
+  unknown.model = 999;
+
+  CpuIdentity arm;
+  arm.midr = std::optional<std::uint32_t> {0x410fd490};
+
+  CpuIdentity hybrid;
+  hybrid.vendor = std::string {kIntelVendor};
+  hybrid.family = 6;
+  hybrid.model = 0x97;
+  hybrid.stepping = 2;
+
+  CpuIdentity zen3;
+  zen3.vendor = std::string {kAmdVendor};
+  zen3.family = 25;
+  zen3.model = 15;
+
+  return {
+      RefusalCase {"a vendor no vendored table carries",
+                   unknown,
+                   "NoSuchVendorXXXXX",
+                   "family 999 model 999",
+                   "no vendored table carries this vendor"},
+      RefusalCase {"an Arm part by its `MIDR`",
+                   arm,
+                   "Arm",
+                   "0x410fd490",
+                   "no Arm table is vendored"},
+      RefusalCase {"an Intel hybrid part",
+                   hybrid,
+                   "GenuineIntel",
+                   "family 6 model 151 stepping 2",
+                   "two core scopes"},
+      RefusalCase {"an AMD part whose table holds no top-down row",
+                   zen3,
+                   "AuthenticAMD",
+                   "family 25 model 15",
+                   "holds no row of any top-down group"},
+  };
+}
+
+// The options of a run that asks one level of one planted identity and hands no
+// planted table (FR-001, FR-044, spec D-20).
+[[nodiscard]] auto askedIdentity(const CpuIdentity& identity,
+                                 const std::uint64_t level)
+    -> sg::detail::RunOptions
+{
+  sg::detail::RunOptions options = optionsFor(kRunRepetitions);
+  options.topdownLevel = level;
+  options.topdownIdentity = identity;
+  return options;
+}
+
+// T076: the console half of SC-04. One message names the vendor, the identity
+// and the reason, the run answers the status the same run answers without the
+// option, and the record says the tree stands absent (FR-040, FR-041, SC-04).
+auto scenarioAnUnsupportedHostPrintsOneLineAndKeepsTheStatus() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("this host states no vendor this build vendors a table for");
+  }
+  registerFixture(kNarrowCoreLimit);
+  metricBenchmark("bmTopdownNoticePlain");
+  metricBenchmark("bmTopdownNoticeAsked");
+  sg::detail::expandRegistry();
+
+  for (const RefusalCase& item : sc04Refusals()) {
+    const sg::detail::RunOptions options =
+        askedIdentity(item.identity, kLevelOne);
+    const CapturedStreams stated =
+        captureStreams([&] { sg::detail::printTopdownRefusal(options); });
+    const std::vector<std::string> lines = linesOf(stated.out);
+    checked(lines.size() == 1 && stated.err.empty(),
+            std::string {"the refusal for "} + item.what
+                + " prints one message on standard output and nothing on the "
+                  "error stream (FR-040)");
+    const sg::counters::TopdownUnsupported refusal = refusalOf(options);
+    checked(lines.front() == sg::detail::topdownRefusalLine(refusal),
+            std::string {"the line printed for "} + item.what
+                + " is the line the command line composes for it (FR-040)");
+    checked(lines.front() == refusal.message(),
+            std::string {"the line printed for "} + item.what
+                + " is the library's own line, so one owner states the sentence "
+                  "(FR-040, spec D-14)");
+    checked(lines.front().starts_with("topdown: ")
+                && lines.front().contains(item.vendor)
+                && lines.front().contains(item.identityText)
+                && lines.front().contains(item.reason),
+            std::string {"the line printed for "} + item.what
+                + " names the vendor, the identity and the reason (FR-040)");
+  }
+
+  // The first identity SC-04 counts, spelled whole: the text the answer table
+  // of `contracts/topdown-selection.md` states for a table that holds no
+  // top-down row (FR-040, SC-04).
+  const std::vector<std::string> zen3 =
+      linesOf(captureStreams(
+                  [&]
+                  {
+                    sg::detail::printTopdownRefusal(askedIdentity(
+                        sc04Refusals().back().identity, kLevelOne));
+                  })
+                  .out);
+  check(zen3.front()
+            == "topdown: AuthenticAMD family 25 model 15: the selected table "
+               "'arch/x86/amdzen3/' holds no row of any top-down group",
+        "the console line of the AMD part with no top-down row stands as the "
+        "contract spells it (FR-040, SC-04)");
+
+  // The run beside the line: the option stands, the identity names a part with
+  // no top-down row, and the run stays itself (FR-041).
+  const CapturedRun refusal = runMeasuredQuietly(
+      *needInstance("bmTopdownNoticeAsked"),
+      askedIdentity(sc04Refusals().back().identity, kLevelOne));
+  const RunAccount plain = runMeasured(*needInstance("bmTopdownNoticePlain"),
+                                       optionsFor(kRunRepetitions));
+  check(refusal.out.empty() && refusal.err.empty(),
+        "the run prints nothing for its own refusal, because the one message "
+        "line stands in the command line (FR-040)");
+  check(refusal.run.result.outcome == plain.result.outcome
+            && refusal.run.result.reason == plain.result.reason,
+        "the run whose refusal printed a line answers the status the same run "
+        "answers without the option (FR-041)");
+  check(refusal.run.result.topdown.has_value()
+            && !refusal.run.result.topdown->supported,
+        "the record says the tree stands absent (FR-033, FR-040)");
+  check(refusal.run.reads == plain.reads
+            && refusal.run.result.metricLabels == plain.result.metricLabels,
+        "the refusal and its line cost the run no column and no sampling "
+        "action " "of its own (FR-040, FR-009)");
+
+  // Two arms print no line: a selection that answers a tree, and a run that
+  // names no option at all (FR-040, FR-035).
+  const CapturedStreams tree = captureStreams(
+      [&]
+      {
+        sg::detail::printTopdownRefusal(askedOptions(
+            sg::test::topdownIntelRows(), kLevelOne, kRunRepetitions));
+      });
+  check(tree.out.empty() && tree.err.empty(),
+        "a run whose selection answers a tree prints no refusal line (FR-040)");
+  const CapturedStreams unasked = captureStreams(
+      [&] { sg::detail::printTopdownRefusal(optionsFor(kRunRepetitions)); });
+  check(unasked.out.empty() && unasked.err.empty(),
+        "a run that names no option prints no refusal line, and its bytes "
+        "stand " "where they stood before this feature (FR-040, FR-035)");
+
+  std::puts("an-unsupported-host-prints-one-line-and-keeps-the-status: ok");
+  return 0;
+}
+
+// The row of the block one refused row prints: the tag, the two spaces per
+// level below one of the level the block shows, the word that names the row a
+// refused one, and the three fields the record carries for it unchanged
+// (FR-016, FR-031).
+[[nodiscard]] auto refusedLine(const std::uint64_t levelShown,
+                               const sg::TopdownRefusal& row) -> std::string
+{
+  const std::string indent(levelShown > 1 ? std::size_t {2}
+                                   * static_cast<std::size_t>(levelShown - 1)
+                                          : 0,
+                           ' ');
+  return std::string {kBlockTag} + "  " + indent + "refused  " + row.name + "  "
+      + row.refusal + "  " + row.reason;
+}
+
+// T077: the block lists each refused row once at the level it shows, with its
+// UPPER SNAKE kind and its reason unchanged, and prints no node for it (FR-016,
+// FR-031).
+auto scenarioRefusedRowsPrintAtTheLevelShown() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("this host states no vendor this build vendors a table for");
+  }
+  registerFixture(kNarrowCoreLimit);
+  metricBenchmark("bmTopdownRefusedRows");
+  sg::detail::expandRegistry();
+
+  const RunAccount deep = runMeasured(
+      *needInstance("bmTopdownRefusedRows"),
+      askedOptions(sg::test::topdownIntelRows(), kLevelTwo, kRunRepetitions));
+  check(deep.result.topdown.has_value() && deep.result.topdown->supported,
+        "the planted table answers a tree at the deeper level (FR-018)");
+  const sg::TopdownRecord& record = *deep.result.topdown;
+  check(record.level == kLevelTwo,
+        "the record shows the level two the run asked for (FR-020)");
+  check(record.refused.size() == 8,
+        "the level-2 run carries the eight refused rows of its own level and of "
+        "the level above it, and the pair of level 3 stands out of the record "
+        "(FR-016)");
+
+  const std::vector<std::string> block =
+      blockLinesOf(printedLines(deep.result));
+  check(block.size() == std::size_t {1} + record.nodes.size()
+                            + record.refused.size(),
+        "the block prints its header, one line per node and one line per refused "
+        "row, so a refused row builds no node of its own (FR-016, FR-031)");
+  for (const sg::TopdownRefusal& row : record.refused) {
+    check(std::count(block.begin(), block.end(), refusedLine(record.level, row))
+              == 1,
+          "each refused row prints once at the level the block shows, with its "
+          "kind word and its reason unchanged (FR-016, FR-031)");
+  }
+  std::size_t stated = 0;
+  for (const std::string& line : block) {
+    stated += line.contains("refused  ") ? std::size_t {1} : std::size_t {0};
+  }
+  check(stated == record.refused.size(),
+        "one refused line stands per refused row of the record, and no node "
+        "line " "carries the word (FR-031)");
+  check(block[std::size_t {1} + record.nodes.size()]
+            == refusedLine(kLevelTwo, record.refused.front()),
+        "the first refused row of the block stands indented at the level two "
+        "the " "block shows (FR-031)");
+
+  // The same two rows under a block that shows level one: the indent belongs to
+  // the level the block shows, so the same row prints with none beyond the tag
+  // (FR-031).
+  const sg::TopdownRefusal& first = record.refused.front();
+  const sg::TopdownRefusal& last = record.refused.back();
+  sg::BenchmarkResult shallow;
+  shallow.name = "bmTopdownRefusedRowsLevelOne";
+  shallow.passCount = kOnePlanPassCount;
+  sg::TopdownRecord shown;
+  shown.supported = true;
+  shown.askedLevel = kLevelOne;
+  shown.level = kLevelOne;
+  shown.directory = std::string {kIntelDirectory};
+  shown.nodes.push_back(sg::TopdownNode {
+      .name = std::string {sg::test::kNeutralBackendBound},
+      .vendorName = "tma_backend_bound",
+      .parent = {},
+      .level = kLevelOne,
+      .value = 50.0,
+      .availability = sg::counters::Availability::COUNTABLE,
+      .threshold = {},
+  });
+  shown.refused.push_back(first);
+  shown.refused.push_back(last);
+  shallow.topdown = std::move(shown);
+
+  const std::vector<std::string> shownBlock =
+      blockLinesOf(printedLines(shallow));
+  check(shownBlock.size() == 4,
+        "the block that shows level one carries its header, its one node and "
+        "one " "line for each of the two refused rows (FR-031)");
+  check(shownBlock[1]
+            == std::string {kBlockTag} + "  "
+                + std::string {sg::test::kNeutralBackendBound}
+                + "  tma_backend_bound  " + figureText(50.0),
+        "the node line keeps its bytes beside the refused rows (FR-027)");
+  check(shownBlock[2] == refusedLine(kLevelOne, first)
+            && shownBlock[3] == refusedLine(kLevelOne, last),
+        "a refused row prints with no indent beyond the tag where the block "
+        "shows level one, and the two rows keep their own order (FR-031)");
+
+  std::puts("refused-rows-print-at-the-level-shown: ok");
+  return 0;
+}
+
 struct Scenario
 {
   const char* name;
   int (*run)();
 };
 
-constexpr std::array<Scenario, 21> kScenarios {{
+constexpr std::array<Scenario, 23> kScenarios {{
     Scenario {"nodes-share-one-plan-with-the-metric-columns",
               &scenarioNodesShareOnePlanWithTheMetricColumns},
     Scenario {"the-metric-columns-keep-their-bytes",
@@ -2623,6 +2935,10 @@ constexpr std::array<Scenario, 21> kScenarios {{
               &scenarioTheNodeAndItsMetricColumnAnswerOneFigure},
     Scenario {"the-amd-five-values-answer-the-fixture-and-sum-to-hundred",
               &scenarioTheAmdFiveValuesAnswerTheFixtureAndSumToHundred},
+    Scenario {"an-unsupported-host-prints-one-line-and-keeps-the-status",
+              &scenarioAnUnsupportedHostPrintsOneLineAndKeepsTheStatus},
+    Scenario {"refused-rows-print-at-the-level-shown",
+              &scenarioRefusedRowsPrintAtTheLevelShown},
 }};
 
 }  // namespace

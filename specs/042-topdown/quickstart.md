@@ -109,9 +109,12 @@ counts. Each row holds today's measured state and what changes it.
 | Test counts | `ctest --test-dir build -E harness_cli_test -j 12 --timeout 120 --output-on-failure`: `99% tests passed, 1 tests failed out of 165` in 252.32 s | FR-055 |
 | Full suite with `harness_cli_test` | PC-8 shows no result line inside the 300 s `TIMEOUT` (`test/CMakeLists.txt:2123-2128`) and measures about 59 minutes over its 2,002 in-process calls (`test/source/harness_cli_test.cpp:1266-1290`), caused by `source/harness/cli.cpp:579` | FR-055 |
 | Two-cpu run (FR-049) | `taskset -c 0,1 ctest --test-dir build -L quick -j 2 --timeout 120`: `99% tests passed, 1 tests failed out of 159` in 834.97 s, one failure, `prose_gate_fixtures`; the counters subset on those two cpus answers `100% tests passed out of 29` in 68.54 s; `harness_cli_test` carries no quick label | FR-049, with the units FR-055 registers |
-| AMD level 2 (SC-11), parts with no host (SC-12) | no AMD host here, so no `topdown.smt_contention` line and no hardware run for a hybrid, `PERF_METRICS` or Arm part | FR-057, pending rows and seam tests only |
+| AMD level 2 (SC-11) | pending: no AMD host here, so no `topdown.smt_contention` line prints on hardware; the five level-1 values, the fifth name and the 100 percent statement answer in `harness_topdown_run_test` over the Zen 4 and Zen 5 fixture rows and the scripted source | FR-057, pending row and seam tests only |
+| `PERF_METRICS` parts (SC-12) | pending: no host here carries `PERF_METRICS`, so no hardware claim stands for the parts that answer a level-1 breakdown from that msr; the rows of the vendored tables answer in `counters_topdown_select_test` and the scripted leaves in `harness_topdown_run_test` | FR-057, pending row and seam tests only |
+| Intel hybrid parts (SC-12) | pending: no hybrid host here, so no hardware claim stands for a part whose directory publishes `cpu_core` and `cpu_atom`; the `HYBRID` refusal answers in `counters_topdown_select_test` over the event rows of `arch/x86/alderlake/` and over a second two-scope directory label | FR-057, pending row and seam tests only |
+| Arm parts (SC-12) | pending: no Arm host stands on the supported platform and this feature vendors no Arm table; the `ARM` refusal answers in `counters_topdown_select_test` over an `MIDR` a test hands in, and the same identity answers the record and the console line in the two harness units | FR-057, pending row and seam tests only |
 
-Three facts stand under that row: no unit of this feature opens the kernel event
+Three facts stand under those rows: no unit of this feature opens the kernel event
 interface, reads a clock, or sleeps (FR-048, SC-08). The seam units prove them
 by driving the host through a fake root: one directory stands where `/` stands,
 and no device is opened.
