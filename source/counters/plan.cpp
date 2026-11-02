@@ -82,21 +82,13 @@ auto instantiateCore(const detail::ExprCore& core,
 // spine or a spine spanning several objects.
 auto exemplarPrefix(const detail::ExprCore& core) -> std::string
 {
-  // LCOV_EXCL_BR_START : coverage exclusion (T066): both guards are
-  // unreachable. A zero-leaf expression is refused by `compileCore`
-  // (`plan.cpp:417`), and for a fan-out by `compileFanoutCore`
-  // (`plan.cpp:536`). Every address reaching here was written by
-  // `instantiate_core` as `path + "/" + name`: a separator is always present.
-  if (core.leaves.empty()) {  // LCOV_EXCL_BR_LINE
-    return {};  // LCOV_EXCL_LINE
-  }  // LCOV_EXCL_BR_STOP
+  // A zero-leaf expression is refused by `compileCore` and by
+  // `compileFanoutCore` for a fan-out, and every address reaching here
+  // was written by `instantiate_core` as `path + "/" + name`, so the
+  // front leaf exists and its address carries the separator the two
+  // guards a reader might expect stand by.
   const auto& address = core.leaves.front().address;
-  // LCOV_EXCL_BR_START : coverage exclusion (T066): as above, the address
-  // carries the separator `instantiate_core` wrote.
   const auto slash = address.rfind('/');
-  if (slash == std::string::npos) {  // LCOV_EXCL_BR_LINE
-    return {};  // LCOV_EXCL_LINE
-  }  // LCOV_EXCL_BR_STOP
   const std::string prefix = address.substr(0, slash);
   const std::string home = prefix + "/";
   for (const auto& leaf : core.leaves) {
@@ -144,13 +136,11 @@ void linkRatioSlots(PlanImpl& layout)
     if (!slot.hasRatioPair) {
       continue;
     }
-    // LCOV_EXCL_BR_START : coverage exclusion (T066): a slot address is
-    // written by `instantiate_core` or by resolution from the frozen tree,
-    // and both spell it `object + "/" + name`, so the separator is present.
+    // A slot address is written by `instantiate_core` or by resolution
+    // from the frozen tree, and both spell it `object + "/" + name`, so
+    // the separator is present and the guard a reader might expect
+    // stands by that rule.
     const auto slash = slot.core.address.rfind('/');
-    if (slash == std::string::npos) {  // LCOV_EXCL_BR_LINE
-      continue;  // LCOV_EXCL_LINE
-    }  // LCOV_EXCL_BR_STOP
     const std::string home = slot.core.address.substr(0, slash);
     for (const auto& [name, slotIndex] : layout.byAddress) {
       if (name == home + "/enabled") {
@@ -585,43 +575,21 @@ auto compileCore(const System& sys,
                     .disclosureColumn = group.disclosureSlot,
                 },
                 tg);
-    // LCOV_EXCL_BR_START : coverage exclusion (T140): the open refusal. It
-    // needs a provider that declines a window for leaves its own catalog
-    // already reported countable, so the refusal follows a granted
-    // `perf_event_open` the provider then does not turn into a window. A
-    // runner whose `perf_event_open` is refused refuses every leaf earlier,
-    // at the not-countable check above, and never opens here; the host that
-    // grants the syscall reaches this arm when the open it granted cannot be
-    // turned into a window.
-    if (reader == nullptr) {  // LCOV_EXCL_BR_LINE
-      // LCOV_EXCL_START : coverage exclusion (T140): the refusal itself.
+    // The provider declines the window for leaves its own catalog
+    // already reported countable: the fake provider scripts that
+    // refusal through its group leaf limit, and the compile carries it
+    // to its caller (FR-011, D-18).
+    if (reader == nullptr) {
       return std::unexpected(Error {
           .message = "provider cannot open a window for its leaves (FR-011)",
           .suggestions = {}});
-      // LCOV_EXCL_STOP
-    }  // LCOV_EXCL_BR_LINE
-    // LCOV_EXCL_BR_STOP
+    }
     group.thunk = reader->resolveThunk();
     group.reader = std::move(reader);
-  }  // LCOV_EXCL_LINE
-  // LCOV_EXCL_LINE : coverage exclusion (T140): the block gcov attributes to
-  // the loop's closing brace, marked on the brace above. A runner whose
-  // `perf_event_open` is refused opens no provider window, so its provider
-  // loop hands every group over through the push above and the brace block
-  // stays at zero; the host that grants the syscall reaches it once per
-  // provider it iterates.
-  // LCOV_EXCL_BR_START : coverage exclusion (T066): the two counts always
-  // agree. Each pending entry carries the record its leaf bound to at
-  // `plan.cpp:436`, and the refusal at `plan.cpp:442` rules a null one out.
-  // The partition at `plan.cpp:481` and `plan.cpp:492` gives every entry
-  // exactly one group, so the push at `plan.cpp:496` lands once per entry.
-  if (layout->slots.size() != pending.size()) {  // LCOV_EXCL_BR_LINE
-    return std::unexpected(  // LCOV_EXCL_LINE
-        Error {// LCOV_EXCL_LINE
-               .message =
-                   "leaf has no owning provider (FR-011)",  // LCOV_EXCL_LINE
-               .suggestions = {}});  // LCOV_EXCL_LINE
-  }  // LCOV_EXCL_BR_STOP
+  }
+  // Each pending entry carries the record its leaf bound to, and the
+  // partition gives every entry exactly one group, so the slot count
+  // and the pending count agree by construction.
   linkRatioSlots(*layout);
   return Plan(layout.release());
 }
