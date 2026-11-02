@@ -303,6 +303,20 @@ names one set and a second fold, merge and ledger duplicate three sources of
 truth. (b) Hand the leaves to `planPasses` with no column: the fold, the merge
 and the ledger index by column position.
 
+**Measured boundary**: An asked run names more leaves than a plain run, so
+its overhead floor, its chunk pair and its pass tag differ, and every view
+that derives from that geometry moves with them, while each column's values
+and every statistic set stand byte for byte and each metric view keeps its
+width with percentiles on and off
+(`test/source/harness_topdown_run_test.cpp`). FR-023 asks for one plan and one
+pass set, and FR-024 asks that no time column change, so holding the chunk
+counts equal across the two plans would ask for the second plan FR-023
+refuses. The ruling follows the two requirements: geometry follows the one
+plan, values and statistics do not move, and the case names the three geometry
+views outside its byte bar. A reader who compares a metric column's percentile
+between an asked run and a plain run reads the chunk geometry, which is the
+part the plan owns.
+
 ## D-12 - The console block hook and its lines
 
 **Decision**: One printer over the record in `source/harness/report.cpp`,
