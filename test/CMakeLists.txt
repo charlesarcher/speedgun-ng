@@ -475,6 +475,13 @@ set_tests_properties(counters_pmu_test PROPERTIES SKIP_RETURN_CODE 2)
 # two families that include a private seam header, because a pure function
 # behind it is otherwise reachable only from a host that owns the
 # hardware; the metric tests reach the formula seam the same way.
+add_executable(counters_kernel_calls_test
+               source/counters_kernel_calls_test.cpp)
+target_link_libraries(counters_kernel_calls_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_kernel_calls_test PRIVATE cxx_std_23)
+add_test(NAME counters_kernel_calls_test COMMAND counters_kernel_calls_test)
+
 add_executable(counters_linux_pmu_seam_test
                source/counters_linux_pmu_seam_test.cpp)
 target_link_libraries(counters_linux_pmu_seam_test

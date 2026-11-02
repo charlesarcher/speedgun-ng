@@ -22,6 +22,7 @@
 #include <utility>
 
 #include "../detail/pmu.hpp"
+#include "kernel_calls.hpp"
 #include "speedgun-ng/counters_provider.hpp"
 #include "speedgun-ng/dbc.hpp"
 
@@ -259,7 +260,7 @@ std::unique_ptr<FastContext> fastContextOpen(const int type,
   attr.exclude_hv = 1;
   const auto [pid, cpu] = leaderPid(where);
   const long fd =
-      ::syscall(SYS_perf_event_open, &attr, pid, cpu, -1, PERF_FLAG_FD_CLOEXEC);
+      kernelCalls().openEvent(&attr, pid, cpu, -1, PERF_FLAG_FD_CLOEXEC);
   // LCOV_EXCL_BR_START : coverage exclusion (T140): the granted arm of the
   // open. It needs a `perf_event_open` the kernel answers with a descriptor.
   // A runner whose `perf_event_open` is refused takes the refusing arm below
@@ -290,7 +291,7 @@ std::unique_ptr<FastContext> fastContextOpen(const int type,
   // refuses. Every descriptor the kernel grants maps, so no host and no
   // fixture reaches this arm; the open refusal above is the reachable
   // half and `test/source/counters_linux_pmu_seam_test.cpp` covers it.
-  void* mapping = ::mmap(
+  void* mapping = kernelCalls().mapPage(
       nullptr, context->mapLength, PROT_READ, MAP_SHARED, context->fd, 0);
   if (mapping == MAP_FAILED) {  // LCOV_EXCL_BR_LINE
     fastContextClose(*context);
@@ -441,12 +442,12 @@ void fastContextClose(FastContext& context)
   // opened itself, so no marker over this release stands and the coverage
   // gate measures it (T074, FR-027, FR-046).
   if (context.map != nullptr) {
-    ::munmap(context.map, context.mapLength);
+    kernelCalls().unmapPage(context.map, context.mapLength);
     context.map = nullptr;
     context.mapLength = 0;
   }
   if (context.fd >= 0) {
-    ::close(context.fd);
+    kernelCalls().closeFd(context.fd);
     context.fd = -1;
   }
 }
