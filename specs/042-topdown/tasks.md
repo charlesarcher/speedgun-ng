@@ -973,20 +973,20 @@ unsupported record.
   part with no top-down row, the Intel hybrid identity, the Arm `MIDR` and an
   unknown vendor (FR-004 to FR-007, FR-040, spec D-13, spec D-14, SC-04; red at
   `754867de`). This case lands with T079 in one commit (FR-048). The same commit publishes `TopdownUnsupported::message()` in `include/speedgun-ng/counters_topdown.hpp` with the `\post` the pairing gate pairs with its check, the publication `T022` held back.
-- [ ] T076 [P] [US4] In `test/source/harness_topdown_run_test.cpp`, add
+- [x] T076 [P] [US4] In `test/source/harness_topdown_run_test.cpp`, add
   `anUnsupportedHostPrintsOneLineAndKeepsTheStatus`: an unsupported selection
   prints one message on standard output naming vendor, identity and reason, the
   run's exit status equals the same run without the option, and the record says
   top-down is unsupported, the console half of the four identities SC-04 counts
   (FR-040, FR-041, SC-04). This case lands with T080 in one commit (FR-048).
 
-- [ ] T077 [US4] In `test/source/harness_topdown_run_test.cpp`, add
+- [x] T077 [US4] In `test/source/harness_topdown_run_test.cpp`, add
   `refusedRowsPrintAtTheLevelShown`: the block lists each refused row once at
   the level it shows, with its UPPER SNAKE kind and its reason unchanged, and
   prints no node for it (FR-016, FR-031). This case lands with T081 in one
   commit (FR-048).
 
-- [ ] T078 [P] [US4] In `test/source/harness_topdown_report_test.cpp`, add
+- [x] T078 [P] [US4] In `test/source/harness_topdown_report_test.cpp`, add
   `theRecordCarriesRefusedRowsAndNamesAnUnsupportedHost`: the `refused` array
   carries name, kind and reason per row, and an unsupported host writes
   `supported` false with the reason and two empty arrays, the record half of the
@@ -1005,16 +1005,16 @@ unsupported record.
   it, so a directory that publishes two scopes and no level row answers
   `NO_TOPDOWN_ROWS` (FR-004 to FR-007, FR-040, spec D-13, spec D-14; turns T075
   green). No name list stands anywhere: the hybrid answer reads the scope text the selected directory's own event rows carry, and the no-rows answer stands ahead of it. The record's `reason` carries this message, so an identity that reads no directory names the vendor and the identity in the document (FR-033).
-- [ ] T080 [P] [US4] In `source/harness/cli.cpp`, print that one message when
+- [x] T080 [P] [US4] In `source/harness/cli.cpp`, print that one message when
   the selection answers unsupported and change no exit status on that path
-  (FR-040, FR-041; turns T076 green).
-- [ ] T081 [P] [US4] In `source/harness/report.cpp`, print the refused rows in
+  (FR-040, FR-041; turns T076 green). `detail::printTopdownRefusal` in `cli.cpp` prints that message once ahead of the walk and changes no status. It repeats the selection the runner repeats, one pure pass for each process that asks the option; the band field that drops that pass waits for the coverage phase, where its cost gets measured.
+- [x] T081 [P] [US4] In `source/harness/report.cpp`, print the refused rows in
   the block, one line each at the level shown with kind and reason (FR-016,
-  FR-031; turns T077 green).
-- [ ] T082 [P] [US4] In `source/harness/json_report.cpp`, write the refused
+  FR-031; turns T077 green). The refused rows print behind the nodes, and the level the block states in its header owns their indent, because `TopdownRefusal` carries no level and the contract closes the item to three keys.
+- [x] T082 [P] [US4] In `source/harness/json_report.cpp`, write the refused
   entries and the unsupported state of the top-down object (FR-033, spec D-14;
-  turns T078 green).
-- [ ] T083 [P] [US4] Land the pending-row rule of FR-057 with no unit test,
+  turns T078 green). This pair is a pin. `T053` and `T065` already wrote the refused entries and the unsupported state, so `T078` arrived green and no code moved here; the Phase 4 precedent of `T047` and `T048` states the shape. A planted break that drops the `kind` key kills the case.
+- [x] T083 [P] [US4] Land the pending-row rule of FR-057 with no unit test,
   since a part with no host is a statement about hardware: one pending row per
   part with no host (`PERF_METRICS` parts, Intel hybrid parts, Arm parts) in the
   acceptance table of `specs/042-topdown/quickstart.md`, each naming no hardware
@@ -1039,7 +1039,7 @@ message, while the guide page carries the longer explanation.
 region in the example file, the option row with the option table, and the
 section list with the page, and the run gate executes the example and fails when
 a registered benchmark prints no row. Here that is
-`python3 tools/docs/example_drift.py .` and `bash test/example_run.sh build`.
+`python3 tools/docs/example_drift.py .` and `bash test/example_run.sh build`. Four pending rows stand in the acceptance table, naming AMD level 2, `PERF_METRICS` parts, Intel hybrid parts and Arm parts, and the sentence below the table now reads `those rows`.
 - [ ] T084 [US5] Write `example/docs/topdown.cpp`, a new file: read the host
   identity, print the level-1 values on a host with a source and the unsupported
   message on a host without one, bound the printed body between
