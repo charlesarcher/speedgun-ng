@@ -36,7 +36,8 @@ order and the named figures.
 [the fold block, after the benchmark tables, FWQ or FTQ, specs/043]
   jitter probe: cpus <list>
   <the sixteen gap field lines, at 0>
-  <the 30 series lines, one column per probe cpu>
+  <the 26 series lines that follow the calibration group, one column per
+   probe cpu>
   jitter: probe on cpus <list>
   jitter: cpu <n> kept <n> dropped <n>       [per probe cpu]
   jitter: split and percentiles use the kept gaps only
@@ -47,11 +48,14 @@ order and the named figures.
 
 ## The series lines
 
-The fold block of a run that names `method=fwq` or `method=ftq` gains 30
-lines, one field each, one column per probe cpu in the standing cpu
-order, each field printing once (specs/043 FR-019). A `tsc` run keeps no
-series and prints none of them, so every standing line of this contract
-stays byte-identical for it (specs/043 FR-031, SC-004). The order:
+A run that names `method=fwq` or `method=ftq` gains 30 lines, one field
+each, one column per probe cpu in the standing cpu order, each field
+printing once (specs/043 FR-019). The calibration group of four prints
+ahead of the batch's first run, behind the probe start's latch, and the
+fold block after the benchmark tables prints the 26 that follow
+(specs/043 FR-011, FR-019). A `tsc` run keeps no series and prints none
+of them, so every standing line of this contract stays byte-identical
+for it (specs/043 FR-031, SC-004). The order:
 
 1. The calibration group: `method`, `workCount`, `targetNs` and
    `calibrationSpanNs`.
@@ -108,3 +112,6 @@ stands disclosed for every method (specs/043 FR-019, FR-022).
 - Each of the 30 series fields prints once, one column per probe cpu in
   the standing cpu order, and a rank a cpu does not carry prints 0
   (specs/043 FR-019).
+- The calibration lines print on the probe cpu before that cpu's window
+  starts, and the calibration span stays out of the window's runtime
+  (specs/043 FR-010, FR-011).

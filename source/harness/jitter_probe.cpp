@@ -9,6 +9,7 @@
 // ============================================================================
 
 #include <algorithm>
+#include <array>
 #include <cerrno>
 #include <charconv>
 #include <cmath>
@@ -1168,6 +1169,17 @@ auto seriesStatsOf(const ProbeCpuState& state,
             "the count answers the placed samples and the fraction stands in "
             "the range 0 to 100 (FR-020, FR-009)");
   return stats;
+}
+
+auto jitterMethodName(const JitterMethod method) -> const char*
+{
+  // The names sit in a table indexed by the enumerator, the reading the
+  // availability names take: a value outside the closed enumeration
+  // answers the last word (FR-019).
+  constexpr std::array<const char*, 3> kNames {"tsc", "fwq", "ftq"};
+  static_assert(kNames.size() == std::to_underlying(JitterMethod::FTQ) + 1);
+  const auto index = std::to_underlying(method);
+  return index < kNames.size() ? kNames.at(index) : kNames.back();
 }
 
 auto addSpectrumTo(const ProbeCpuState& state,
