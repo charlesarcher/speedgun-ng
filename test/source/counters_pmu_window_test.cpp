@@ -63,6 +63,10 @@ std::vector<int> gClosedFds;
 std::vector<std::pair<unsigned long, unsigned long>> gIoctls;
 std::vector<std::size_t> gReadSizes;
 int gIoctlAnswer = 0;
+// The open ordinal the scripted kernel refuses; -1 refuses none. The
+// refusal carries the errno a runner's kernel answers with, so the
+// refusal paths see the same value the real refusal carries.
+int gRefuseAt = -1;
 long (*gReadAnswer)(void* buffer, std::size_t count) = nullptr;
 void* gReadBuffer = nullptr;
 // The page each open's descriptor maps: the fast window reads one page
@@ -78,6 +82,10 @@ auto scriptedCalls() -> sg::counters::detail::KernelCalls
   sg::counters::detail::KernelCalls calls {};
   calls.openEvent = [](void*, int, int, int, unsigned long) -> long
   {
+    if (gRefuseAt >= 0 && static_cast<int>(gOpenedFds.size()) == gRefuseAt) {
+      errno = EACCES;
+      return -1;
+    }
     const int fd = gNextFd++;
     gOpenedFds.push_back(fd);
     return fd;
@@ -119,6 +127,7 @@ auto resetFixture() -> void
   gIoctls.clear();
   gReadSizes.clear();
   gIoctlAnswer = 0;
+  gRefuseAt = -1;
   gReadAnswer = nullptr;
   gReadBuffer = nullptr;
   gPages.clear();
@@ -155,6 +164,10 @@ auto syntheticState() -> PmuState
       entry("fast", {{0, PERF_COUNT_HW_INSTRUCTIONS}}, ReadMode::FAST_RDPMC));
   device.entries.push_back(
       entry("fast2", {{0, PERF_COUNT_HW_CPU_CYCLES}}, ReadMode::FAST_RDPMC));
+  // An encoding that sets a config word above the first: the fast
+  // window refuses it, and the group path encodes the whole entry
+  // (FR-037, FR-040).
+  device.entries.push_back(entry("wide", {{1, 3}}, ReadMode::FAST_RDPMC));
   for (const char* pair : {"enabled", "running"}) {
     PmuEntry one;
     one.name = pair;
@@ -338,6 +351,86 @@ auto groupWindowShortHeaderScenario() -> void
   resetFixture();
 }
 
+/// The open refusals: a member open the scripted kernel refuses
+/// refuses the window, the group window releases the members it
+/// already holds, and no slot is registered past a refused open
+/// (FR-011, FR-013).
+auto groupWindowOpenRefusalScenario() -> void
+{
+  const PmuState state = syntheticState();
+  const Target where {};
+  auto calls = scriptedCalls();
+  resetFixture();
+
+  // The first member open is refused: no window, and no descriptor
+  // released, because none was granted (FR-011).
+  gRefuseAt = 0;
+  installKernelCalls(&calls);
+  check(pmuOpenWindow(state, leafSetOf({"cpu/work"}), where) == nullptr,
+        "a refused member open refuses the window");
+  check(gClosedFds.empty(), "no descriptor was released");
+
+  // The leader is granted and the follower refused: the partial window
+  // releases the leader on destruction (FR-013).
+  gRefuseAt = 1;
+  auto partial =
+      pmuOpenWindow(state, leafSetOf({"cpu/work", "cpu/cycle"}), where);
+  check(partial == nullptr, "a refused follower refuses the window");
+  check(gClosedFds.size() == 1, "the partial window released its leader");
+  check(gClosedFds.front() == gOpenedFds.front(),
+        "the release closes the descriptor the open granted");
+  resetFixture();
+}
+
+#if defined(__x86_64__) || defined(__i386__)
+
+/// The fast-window open refusals, and the fall-through the all-fast
+/// catalog takes when its fast window is refused (FR-040, FR-023).
+auto fastWindowOpenRefusalScenario() -> void
+{
+  const PmuState state = syntheticState();
+  const Target where {};
+  auto calls = scriptedCalls();
+  resetFixture();
+  gRefuseAt = 0;
+  installKernelCalls(&calls);
+  check(pmuOpenFastWindow(state, leafSetOf({"cpu/fast"}), where) == nullptr,
+        "a refused context open refuses the fast window");
+  // The all-fast catalog falls through to the group path, which the same
+  // refusal refuses too (FR-023).
+  check(pmuOpenWindow(state, leafSetOf({"cpu/fast"}), where) == nullptr,
+        "a refused fast window falls through to a refused group path");
+  resetFixture();
+
+  // A granted fast window over an all-fast catalog is handed over
+  // directly (FR-023, FR-040).
+  static perf_event_mmap_page grantedPage;
+  grantedPage = perf_event_mmap_page {};
+  grantedPage.cap_user_rdpmc = 1;
+  grantedPage.index = 0;
+  gPages[0] = &grantedPage;
+  installKernelCalls(&calls);
+  auto fast = pmuOpenWindow(state, leafSetOf({"cpu/fast"}), where);
+  check(fast != nullptr, "a granted fast window is handed over");
+  fast.reset();
+  check(gClosedFds.size() == 1, "the fast window released its member");
+  resetFixture();
+
+  // An entry encoded across more than the first config word refuses the
+  // fast window and takes the group path, which encodes the whole entry
+  // (FR-037, FR-040).
+  installKernelCalls(&calls);
+  check(pmuOpenFastWindow(state, leafSetOf({"cpu/wide"}), where) == nullptr,
+        "a multi-word encoding refuses the fast window");
+  auto wide = pmuOpenWindow(state, leafSetOf({"cpu/wide"}), where);
+  check(wide != nullptr, "the group path encodes the multi-word entry");
+  wide.reset();
+  check(gClosedFds.size() == 1, "the wide entry's window released its member");
+  resetFixture();
+}
+
+#endif  // x86
+
 #if defined(__x86_64__) || defined(__i386__)
 
 /// The fast window: the mapped-page read per member, the leader's page
@@ -406,8 +499,10 @@ auto main() -> int
   groupWindowReadScenario();
   groupWindowGappedScenario();
   groupWindowShortHeaderScenario();
+  groupWindowOpenRefusalScenario();
 #if defined(__x86_64__) || defined(__i386__)
   fastWindowReadScenario();
+  fastWindowOpenRefusalScenario();
 #endif
 
   if (failures != 0) {
