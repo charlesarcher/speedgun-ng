@@ -18,6 +18,9 @@ print today keeps its bytes (FR-017, FR-018).
 | the attribution delta figures, and the `not available` wording | The figure after `interrupts delta:`, after `softirq <kind> delta:`, and each schedstat delta folds; the kind word and the source tokens `(source: /proc/interrupts)`, `(source: /proc/softirqs)`, `(source: /proc/schedstat)` keep their bytes. | FR-017 |
 | the tracer figure value, and the `not available` wording | The figure after `tracer cpu <n> <source>:` folds, the `not available` wording beside a figure; the cpu index and the source word keep their bytes (specs/036 FR-023). | specs/036 FR-023 |
 | the tracer header and disclosure lines | `tracer: engine <word> cpus <list>` and `tracer: not available` carry no fold of their own: the standing digit rule folds the cpus list, and the engine word, the disclosure wording and the line order keep their bytes (specs/036 FR-023). | specs/036 FR-023 |
+| the method word | `method: tsc`, `method: fwq` and `method: ftq` carry no fold of their own: the word keeps its bytes, so a run of one method fails a block recorded from another. | specs/043 FR-019 |
+| the series figures | The digits of every series figure fold, the standing digit rule; the field name, the line order and the count of the 30 lines keep their bytes. | specs/043 FR-019 |
+| the period figures | `period<n>Ns` and `period<n>Power` fold their digits, and a rank a cpu does not carry prints 0 on both sides; the per-cpu value list folds to one entry the way the standing probe block does. | specs/043 FR-019, `tools/docs/report_shape.py:186-197` |
 
 ## What still fails
 
@@ -25,8 +28,15 @@ A renamed field, a renamed source, a renamed softirq kind, a missing
 or added line, and a reordered key fold different, the way the
 standing values do.
 
+The calibration lines print one unit per measured cpu, so the standing
+per-cpu multiplicity fold covers them the way it covers the stats lines
+(`tools/docs/report_shape.py:103-110`, `:200-247`).
+
 ## Fixture pairs
 
 `test/example-drift-fixture/run_report_shape_fixtures.py` carries the
 golden pairs of the table above, checked in both directions, beside
 the standing pairs (S-5 of specs/018).
+
+- The pairs carry one FWQ block against one FTQ block, and the fold
+  reads them different.

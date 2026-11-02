@@ -126,6 +126,15 @@ PROBE_HEAD = re.compile(r"^jitter probe: cpus ")
 PROBE_ON = re.compile(r"^jitter: probe on cpus ")
 PROBE_TAIL = re.compile(r"^jitter: ")
 VALUE_TOKEN = re.compile(r"(?:#\.)*#")
+# specs/043 FR-011, FR-019: the calibration group prints one column per probe
+# cpu ahead of the batch's first run, outside the probe fold block, so the
+# standing per-cpu list fold covers its four lines the way it covers the stats
+# lines. The method word keeps its bytes: a run of one method fails a block
+# recorded from another, so the word folds only against a repeat of itself.
+CALIBRATION_LINE = re.compile(
+    r"^(method: (?:tsc|fwq|ftq)|workCount:|targetNs:|calibrationSpanNs:)( .*)?$"
+)
+CPU_WORD = ("tsc", "fwq", "ftq")
 
 
 def mask(line: str) -> str:
@@ -185,13 +194,16 @@ class Folded(NamedTuple):
 
 def fold_cpu_lists(shape: str) -> str:
     """Read a per-cpu list as one entry. The probe fold block carries one
-    value per probe cpu on every field line, and the block and its disclosure
-    name one cpu index per probe cpu, so the count the host's cpus set folds
-    away while the field name and the value shape stay."""
+    value per probe cpu on every field line, the calibration group ahead of
+    the batch carries one column per probe cpu on its four lines, and the
+    block and its disclosure name one cpu index per probe cpu, so the count
+    the host's cpus set folds away while the field name, the method word and
+    the value shape stay."""
     shape = re.sub(r"#(,#)+", "#", shape)
     kept: list[str] = []
     for token in shape.split(" "):
-        if kept and token == kept[-1] and VALUE_TOKEN.fullmatch(token):
+        if kept and token == kept[-1] and (VALUE_TOKEN.fullmatch(token)
+                                           or token in CPU_WORD):
             continue
         kept.append(token)
     return " ".join(kept)
@@ -229,7 +241,9 @@ def fold_host(side: list[Folded], no_candidates: bool) -> list[Folded]:
             in_fold = True
         elif PROBE_TAIL.match(entry.shape):
             in_fold = False
-        if in_fold or PROBE_HEAD.match(entry.shape) or PROBE_ON.match(entry.shape):
+        if (in_fold or PROBE_HEAD.match(entry.shape)
+                or PROBE_ON.match(entry.shape)
+                or CALIBRATION_LINE.match(entry.shape)):
             entry = entry._replace(shape=fold_cpu_lists(entry.shape))
         if entry.shape == NO_CANDIDATES and no_candidates:
             index += 1

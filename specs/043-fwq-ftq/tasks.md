@@ -666,7 +666,7 @@ one runnable example shows one FWQ family and one FTQ family.
 `example_run` and `report_shape_fwq_ftq_sample` pass, and the prose
 gate reads no finding over the branch range.
 
-- [ ] T039 [P] [US6] Add the README section `Fixed work and time quanta`
+- [x] T039 [P] [US6] Add the README section `Fixed work and time quanta`
   of 18 lines after `### Noise tracer` (`README.md:764-786`), the three
   parts IV.1 asks for: one purpose sentence naming the two methods, their
   keys and the calibration disclosure; one marked snippet quoting the
@@ -681,14 +681,14 @@ gate reads no finding over the branch range.
   lands only after T042 registers the section, and T042 counts the page.
   (depends on T035, which prints the lines the section teaches)
   Verify: `python3 tools/docs/example_drift.py .` exits 0 with no line printed, and `sed -n '/^### Fixed work and time quanta$/,/^### Hunter mode$/p' README.md | head -n -1 | wc -l` reads 18
-- [ ] T040 [US6] Add the guide-page rows in `docs/pages/harness.md`:
+- [x] T040 [US6] Add the guide-page rows in `docs/pages/harness.md`:
   the value rows after `strict` (`:1832`), the 30 series field rows after
   `droppedGaps` (`:1853`), the names rows after `JitterEntryFold` (`:1866`
   ), the block sample (`:1798-1820`), and the version sentence at `:1399`
   reading `1.12` (FR-029, R-23).
   (depends on T039)
   Verify: `python3 tools/prose/prose_gate.py --base origin/master` reads `0 findings` and exits 0
-- [ ] T041 [US6] Add `example/docs/fwq_ftq.cpp` with one FWQ family and
+- [x] T041 [US6] Add `example/docs/fwq_ftq.cpp` with one FWQ family and
   one FTQ family, the shape of `example/docs/jitter_probe.cpp`, and record
   `example/docs/fwq_ftq.expected`. Mark three regions, each a complete
   top-level unit, on six marker lines: `fwq-unit` around the FWQ benchmark
@@ -701,7 +701,7 @@ gate reads no finding over the branch range.
   `:40-48` (FR-029, R-24).
   (depends on T035, T036, which print the lines the example records)
   Verify: `cmake --build build --target docs_fwq_ftq` exits 0, and `./build/example/docs_fwq_ftq --min-time=0.01` exits 0
-- [ ] T042 [US6] Register the title `Fixed work and time quanta` in
+- [x] T042 [US6] Register the title `Fixed work and time quanta` in
   `SECTIONS` (`tools/docs/example_drift.py:33-68`), the owner row
   `("fwq_ftq.cpp",)` in `SECTION_OWNERS` (`:73-108`) and the cap ledger
   comment (`:178-183`). The shared 17-line region of
@@ -712,7 +712,7 @@ gate reads no finding over the branch range.
   and both caps stay (FR-023, FR-034, R-23).
   (depends on T039, T041)
   Verify: `ctest --test-dir build -R "example_drift|snippet_compile|example_run" --output-on-failure` exits 0, and `wc -l < README.md` reads at or below 1004, the cap ledger naming the count
-- [ ] T043 [US6] Add the shape fold entry `report_shape_fwq_ftq_sample`
+- [x] T043 [US6] Add the shape fold entry `report_shape_fwq_ftq_sample`
   after `report_shape_jitter_sample` (`test/CMakeLists.txt:1905-1922`),
   and the three fold rows of
   [contracts/report-shape.md](./contracts/report-shape.md) in

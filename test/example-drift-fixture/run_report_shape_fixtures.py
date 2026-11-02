@@ -146,6 +146,56 @@ MIDDLE_CANDIDATE_BLOCK = (
 ONE_VALUE_RUN = tuple(
     line.replace("gapCount: 0 0 0", "gapCount: 0") for line in PROBE_RUN
 )
+# specs/043 FR-011, FR-019: one FWQ run. The calibration group of four prints
+# one column per probe cpu ahead of the batch, outside the fold block, and the
+# series and period lines print one column per probe cpu inside it. The method
+# word is the one token of the group that keeps its bytes, so the pair below
+# fails a block recorded from the fwq method against a run of the ftq one.
+CALIBRATION_FWQ = (
+    "method: fwq fwq fwq",
+    "workCount: 1 1 1",
+    "targetNs: 1000 1000 1000",
+    "calibrationSpanNs: 673555680 673387344 336998382",
+)
+SERIES_FWQ = (
+    "jitter probe: cpus 0,24,1",
+    "gapCount: 0 0 0",
+    "sampleCount: 65536 65536 65536",
+    "meanValue: 65.37 66.70 61.52",
+    "period1Ns: 1071063 2185596 2752512",
+    "period5Ns: 1428084 728532 550502",
+    "period1Power: 1.00 1.00 1.00",
+    "period5Power: 0.32 0.07 0.16",
+    "jitter: probe on cpus 0,24,1",
+    "jitter: cpu 0 kept 0 dropped 0",
+    "jitter: cpu 24 kept 0 dropped 0",
+    "jitter: cpu 1 kept 0 dropped 0",
+    "jitter: split and percentiles use the kept gaps only",
+)
+FWQ_RUN = (STDOUT[0], *CALIBRATION_FWQ, STDOUT[1], *SERIES_FWQ)
+# The same program on a host that gives the run one probe cpu: every column
+# count the host sets folds out of both sides, the field names and the method
+# word keeping their bytes.
+FWQ_RUN_ONE = (
+    STDOUT[0],
+    "method: fwq",
+    "workCount: 1",
+    "targetNs: 1000",
+    "calibrationSpanNs: 673555680",
+    STDOUT[1],
+    "jitter probe: cpus 0",
+    "gapCount: 0",
+    "sampleCount: 65536",
+    "meanValue: 65.37",
+    "period1Ns: 1071063",
+    "period5Ns: 0",
+    "period1Power: 1.00",
+    "period5Power: 0.00",
+    "jitter: probe on cpus 0",
+    "jitter: cpu 0 kept 0 dropped 0",
+    "jitter: split and percentiles use the kept gaps only",
+)
+FTQ_RUN = tuple(line.replace("method: fwq", "method: ftq") for line in FWQ_RUN)
 
 FAILURES: list[str] = []
 
@@ -450,6 +500,33 @@ def golden_pairs() -> None:
           in " ".join(compare([PINNED], [bound])),
           " ".join(compare([bound], [PINNED]))[:1])
 
+    # specs/043 FR-019, FR-030: the method word keeps its bytes, so a run of
+    # one method fails a block recorded from another, and the series and
+    # period figures fold their digits the way the standing figures do. A rank
+    # a cpu does not carry prints 0, the figure the pair below pins beside a
+    # stated period.
+    check("the method word of another method folds different",
+          mask("method: fwq fwq fwq") != mask("method: ftq ftq ftq"),
+          "both folded to the same shape")
+    check("the method word of the standing method folds different",
+          mask("method: fwq fwq fwq") != mask("method: tsc tsc tsc"),
+          "both folded to the same shape")
+    check("a period figure and its digits fold equal",
+          mask("period1Ns: 1071063 2185596 2752512") == mask("period5Ns: 0 0 0"),
+          f"{mask('period1Ns: 1071063 2185596 2752512')!r} against "
+          f"{mask('period5Ns: 0 0 0')!r}")
+    check("a period power and its digits fold equal",
+          mask("period1Power: 1.00 1.00 1.00") == mask("period5Power: 0.32 0.07 0.16"),
+          f"{mask('period1Power: 1.00 1.00 1.00')!r} against "
+          f"{mask('period5Power: 0.32 0.07 0.16')!r}")
+    check("a series figure and its digits fold equal",
+          mask("meanValue: 65.37 66.70 61.52") == mask("meanValue: 0.00 0.00 0.00"),
+          f"{mask('meanValue: 65.37 66.70 61.52')!r} against "
+          f"{mask('meanValue: 0.00 0.00 0.00')!r}")
+    check("a renamed series field folds different",
+          mask("meanValue: 65.37") != mask("meanTime: 65.37"),
+          "both folded to the same shape")
+
     # The line class names the finding a shape change prints. The warning's
     # presence is a host condition the fold reads out, so each class stands
     # under its own name.
@@ -557,6 +634,20 @@ def end_to_end(tool: Path) -> None:
              True, list(PROBE_RUN), SKIPPED_GROUP_RUN),
             ("a planted candidate unit dropped from the middle of the block",
              False, list(MIDDLE_CANDIDATE_BLOCK), MIDDLE_CANDIDATE_RUN),
+            # specs/043 FR-011, FR-019: the calibration group prints one
+            # column per probe cpu ahead of the batch, outside the fold
+            # block, and the series lines print one column per probe cpu
+            # inside it, so the count the host's cpus set folds out of both
+            # sides while the field names and the method word keep their
+            # bytes.
+            ("a block whose calibration group names three probe cpus beside a "
+             "run that names one", True, list(FWQ_RUN), list(FWQ_RUN_ONE)),
+            ("a run whose calibration group names three probe cpus beside a "
+             "block that names one", True, list(FWQ_RUN_ONE), list(FWQ_RUN)),
+            ("a block recorded from one method beside a run of another", False,
+             list(FWQ_RUN), list(FTQ_RUN)),
+            ("a block recorded from another method beside a run of one", False,
+             list(FTQ_RUN), list(FWQ_RUN)),
         )
         for case, want_pass, block, stdout in cases:
             root.joinpath("README.md").write_text(page_text(block))

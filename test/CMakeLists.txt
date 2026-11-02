@@ -1972,6 +1972,24 @@ if(TARGET docs_jitter_probe)
   set_tests_properties(report_shape_jitter_sample PROPERTIES TIMEOUT 120)
 endif()
 
+if(TARGET docs_fwq_ftq)
+  # The guide page carries the recorded run of the fixed-quanta example, so the
+  # selector names which recorded run this invocation owns. The fold checks the
+  # recorded file against a real run of the example, which is what keeps a
+  # quoted series block from drifting away from what the harness prints, and
+  # what fails a block recorded from one method against a run of another
+  # (043 FR-019, FR-029, SC-007).
+  add_test(
+      NAME report_shape_fwq_ftq_sample
+      COMMAND
+        python3 ${CMAKE_SOURCE_DIR}/tools/docs/report_shape.py
+        --binary $<TARGET_FILE:docs_fwq_ftq>
+        --readme ${CMAKE_SOURCE_DIR}/docs/pages/harness.md
+        --example fwq_ftq
+  )
+  set_tests_properties(report_shape_fwq_ftq_sample PROPERTIES TIMEOUT 120)
+endif()
+
 if(TARGET docs_numa_placement)
   # The guide page carries the recorded node-planned run of the numa
   # example, so the fold checks the recorded file against a real run of
