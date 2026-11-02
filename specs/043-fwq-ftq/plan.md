@@ -313,7 +313,13 @@ and no second framework join.
   in a half-open window, the rule at `:636-643`. The split loop
   (`source/harness/cli.cpp:1802-1826`) fills `BenchmarkResult::jitterFolds`
   (`include/speedgun-ng/benchmark.hpp:733`), and the record rides
-  `JitterEntryFold::series`. No second buffer joins.
+  `JitterEntryFold::series`. No second buffer joins
+  The series element carries a value and no stamp, so the window fold
+  recovers the stamp. `ProbeCpuState::seriesStartNs` stands at the stamp
+  of the first kept sample, written at the first series store. A FWQ stamp
+  is that start plus the running sum of the unit times. A FTQ stamp is
+  that start plus the sample rank plus one, times the quantum. The
+  half-open test reads the recovered stamp, and no second buffer joins.
 - **R-12 The resample (spec FR-017).** `resampleUnitTimes` (new,
   `source/harness/detail/spectrum.hpp`) turns the FWQ unit times into the
   transform input. The step stands at the median unit time of the kept

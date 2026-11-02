@@ -165,6 +165,7 @@ surface beside `JitterStats` (FR-020, D-7).
 | `noisePercent` | `double` | percent, 0 to 100 | never |
 | `seriesRuntimeNs` | `std::uint64_t` | ns | never |
 | `droppedSamples` | `std::uint64_t` | samples | never; the field stands 0 while the buffer never fills |
+| `seriesStartNs` | `std::uint64_t` | ns | a `TSC` run keeps no series |
 | `resampleStepNs` | `std::uint64_t` | ns | a `TSC` run, and an `FTQ` run |
 | `spectrumPoints` | `std::uint64_t` | points | a `TSC` run |
 | `periods` | array of E-24 | periods | a `TSC` run, and every per-benchmark copy |
@@ -307,9 +308,13 @@ holds them inside the measured loop (FR-014, D-6).
 | `series` (the buffer) | `std::vector<std::uint64_t>` | `gapCount` entries | a `TSC` run keeps the gap buffer |
 | `kept` | `std::size_t` | samples | never |
 | `droppedSamples` | `std::uint64_t` | samples | never; the field stands 0 while the buffer never fills |
+| `seriesStartNs` | `std::uint64_t` | ns | a `TSC` run keeps no series |
 
-- Fields: one 8-byte value per sample, the buffer span, the kept count
-  and the drop count, one set per probe cpu.
+- Fields: one 8-byte value per sample, the buffer span, the kept count,
+  the drop count and the stamp of the first kept sample, one set per
+  probe cpu. The window fold of R-11 recovers each sample's stamp from
+  the start, the running sum for FWQ, and the rank times the quantum
+  for FTQ.
 - JSON key mapping: no key carries the buffer. The kept prefix folds
   into the figures of E-23, and `droppedSamples` carries the drop count
   (FR-022). No raw sample list joins the document: the closed root
