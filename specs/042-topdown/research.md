@@ -128,31 +128,51 @@ and `arch/x86/amdzen5/pipeline.json`.
 D-12. (b) One hash per directory. Rejected: FR-015 names the file that holds
 the rows, and the library would name no source, the gap PC-12 records.
 
-## D-06 - `#core_wide` is a coverage flag, read from the run mask
+## D-06 - `#core_wide` is a coverage flag over the process CPU set
 
 **Decision**: A fifth `HostFact` row `core_wide` in `kHostFacts`
 (`source/counters/linux_pmu/metric_tables.hpp:161-166`), over the standing
-reader type `bool(System&, double&)` (`:93-97`). It answers 1 when every core
-touched by the calling thread's affinity mask is covered with all its siblings
-and 0 when a touched core is partial, reading the mask with
-`sched_getaffinity` and each sibling list through the reader and seam of D-07.
-An unreadable mask or list answers nothing, which keeps the standing refusal
-text (`metric_formula.cpp:1313-1317`); `#num_dies` and `#has_pmem` keep their
-refusal (FR-043).
+reader type `bool(System&, double&)` (`:93-97`). The reader calls
+`sched_getaffinity` for the calling process, reads each sibling list through
+the reader and seam of D-07, answers 1 when the mask holds every sibling of
+every CPU it holds and 0 when one sibling stands outside, and answers nothing
+when the mask or a list is unreadable, which keeps the standing refusal text
+(`metric_formula.cpp:1313-1317`). `#num_dies` and `#has_pmem` keep their
+refusal (FR-043). The value settles at the first read of the table, because a
+conditional folds at load (`:1085-1091`) and the resolved table caches per
+directory (`:1492-1511`), so the harness states the scope on the console
+(FR-042).
 
-**Rationale**: The flag settles a branch and carries no width: in
-`skx-metrics.json` line 853 holds `if #core_wide < 1 else` and line 1461
-spells `4 * tma_info_core_core_clks`, and
-`grep -rln core_wide external/pmu-events/arch/x86 | wc -l` answers 12 files.
-The value settles at load, because a conditional test settles then and the
-table caches per directory (`metric_formula.cpp:1492-1511`), so the reader
-asks the thread; the harness narrows the calling thread's affinity for the
-instance before `runner.run` (`source/harness/cli.cpp:1504-1544`), so the mask
-is the run's target set.
+**Rationale**: The flag settles a branch and carries no width: line 853 of
+`skx-metrics.json` holds `if #core_wide < 1 else`, line 1461 spells
+`4 * tma_info_core_core_clks`, and a walk over `external/pmu-events` answers
+12 files that name the constant. Measured order on this host: the provider at
+`source/harness/cli.cpp:579` reads no constant, because metric rows are
+skipped there (`source/counters/linux_pmu/provider.cpp:156`); the table
+resolves at `cli.cpp:824` through `catalogMetrics`; the mask narrows later, at
+`:1504-1543`, and only beside a live probe
+(`source/harness/detail/placement_preset.cpp:541-547`), with the restore at
+`:1546`. Three reads of the table over a 24-cpu mask, a 1-cpu mask and a
+24-cpu mask again give one cached address, so no narrowing reaches it. Both
+directions are reachable: the CLI read sees the process mask at start and
+settles true, so a one-thread window inherits a true; an embedder whose first
+read sits inside `runner.run`, or that pins its workers
+(`source/harness/execution_context.cpp:107-121`), can settle false. The wrong
+true is the costly one: the else arm then asks `#SMT_on`, which this host
+answers nothing about, so a publishable row becomes a refusal. Measured per
+thread over 200 ms windows, the two clock arms give 0.501 and 0.502 with the
+sibling idle and 1.000 and 1.003 with the sibling busy, so a wrong true halves
+the clock base of a one-thread window and a wrong false costs nothing when
+both siblings run.
 
-**Alternatives considered**: The counters brief's table answering 0 for the
-twelve directories that name the constant. Rejected: FR-042 wants both answers
-and a seam test that drives them, and a constant never answers true.
+**Alternatives considered**: A flag per benchmark, handed in with the run's
+target set: rejected, because the value would have to arrive through
+`MetricHost` (`metric_formula.hpp:156-160`), the reader type and the cache key,
+and it breaks the documented lifetime of a resolved table (`:239-240`).
+Re-resolve when the set changes: rejected, at 496 ms per measured pass against
+0.013 ms cached, twice per instance under a probe. A constant that never
+answers true: rejected, because FR-042 asks both answers and the rows that ask
+would keep their refusal under any mask that covers a whole core.
 
 ## D-07 - The SMT fallback and the root seam it needs
 
