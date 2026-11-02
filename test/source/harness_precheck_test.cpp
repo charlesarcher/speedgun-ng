@@ -415,6 +415,15 @@ auto childProbeValue(const std::string& scenario) -> std::string
   if (scenario == "noise-refusal") {
     return "idle,mode=precheck,strict,method=fwq,noise=1,gaps=256";
   }
+  // specs/043 T070, FR-016, FR-021, R-15: the FTQ arm of the same gate,
+  // whose line names the smallest quantum count, and the arm of a
+  // threshold no kept fraction reaches.
+  if (scenario == "noise-refusal-ftq") {
+    return "idle,mode=precheck,strict,method=ftq,noise=1,gaps=256,quantum=10";
+  }
+  if (scenario == "noise-calm") {
+    return "idle,mode=precheck,strict,method=fwq,noise=100,gaps=256";
+  }
   if (scenario == "alongside-strict") {
     return "idle,method=fwq,strict,noise=1,gaps=256";
   }
@@ -423,6 +432,12 @@ auto childProbeValue(const std::string& scenario) -> std::string
   }
   if (scenario == "noise-unused-tsc") {
     return "idle,noise=5,gaps=256";
+  }
+  // specs/043 T070, FR-021, D-9: the strict word beside the `tsc` method:
+  // the gate reads no fraction for that method, so the value stands
+  // disclosed with the method's own reason.
+  if (scenario == "noise-unused-tsc-strict") {
+    return "idle,strict,noise=5,gaps=256";
   }
   return "idle,mode=precheck,strict";
 }
@@ -476,7 +491,9 @@ auto runChildScenario(const std::string& scenario) -> int
   // clock, so the FWQ window keeps a noise fraction the gate can read;
   // the standing scenarios keep the serial clock, whose equal unit times
   // answer a fraction of zero.
-  if (scenario == "noise-refusal") {
+  if (scenario == "noise-refusal" || scenario == "noise-refusal-ftq"
+      || scenario == "noise-calm")
+  {
     sg::detail::installTestReader(std::make_unique<NoisySeriesReader>());
   } else {
     sg::detail::installTestReader(std::make_unique<SerialProbeReader>());
@@ -773,6 +790,40 @@ auto main(int argc, char** argv) -> int
           "theNoiseRefusalStopsAtStatusTwo: no benchmark output stands ahead "
           "of the refusal (FR-021, SC-005)");
 
+    // specs/043 T070, FR-016, FR-021, R-15: the FTQ arm of the same gate
+    // names the smallest quantum count, where the FWQ line above names
+    // the largest unit time; and a threshold no kept fraction reaches
+    // stands no refusal at all.
+    const auto ftqRefusal = runChild("noise-refusal-ftq");
+    check(ftqRefusal.status == 2,
+          "theFtqNoiseRefusalNamesTheSmallestCount: the FTQ noise refusal "
+          "exits 2 (FR-016, FR-021)");
+    check(errorLineCount(ftqRefusal.err) == 1,
+          "theFtqNoiseRefusalNamesTheSmallestCount: the refusal stands one "
+          "line (FR-021)");
+    check(ftqRefusal.err.find("minValue") != std::string::npos
+              && ftqRefusal.err.find("maxValue") == std::string::npos,
+          "theFtqNoiseRefusalNamesTheSmallestCount: the FTQ line names the "
+          "smallest quantum count (FR-016, FR-021)");
+    check(ftqRefusal.out.find("bmPinned") == std::string::npos,
+          "theFtqNoiseRefusalNamesTheSmallestCount: no benchmark output "
+          "stands ahead of the refusal (FR-021, SC-005)");
+    check(refusal.err.find("maxValue") != std::string::npos
+              && refusal.err.find("minValue") == std::string::npos,
+          "theFtqNoiseRefusalNamesTheSmallestCount: the FWQ line names the "
+          "largest unit time (FR-007, FR-021)");
+
+    const auto calm = runChild("noise-calm");
+    check(calm.status == 0,
+          "aThresholdNoFractionReachesStandsNoRefusal: a pre-check whose "
+          "threshold stands above every fraction continues (FR-021, D-9)");
+    check(calm.out.find("bmPinned") != std::string::npos,
+          "aThresholdNoFractionReachesStandsNoRefusal: the run records its "
+          "benchmark (FR-004)");
+    check(calm.err.find("--jitter-probe: cpu ") == std::string::npos,
+          "aThresholdNoFractionReachesStandsNoRefusal: no noise line prints "
+          "(FR-021)");
+
     const auto alongside = runChild("alongside-strict");
     check(alongside.status == 0,
           "theAlongsideStrictWordKeepsItsMeaning: an alongside run with "
@@ -801,6 +852,15 @@ auto main(int argc, char** argv) -> int
               && unusedTsc.out.find("unused") != std::string::npos,
           "anUnusedNoiseValueStandsDisclosed: the tsc run discloses the "
           "unused noise value (FR-021)");
+
+    const auto tscStrict = runChild("noise-unused-tsc-strict");
+    check(tscStrict.status == 0,
+          "aStrictTscRunDisclosesItsUnusedNoise: a strict tsc run beside a "
+          "noise value continues (FR-021, D-9)");
+    check(tscStrict.out.find("noise=5 stands unused: the tsc method keeps no "
+                             "noise fraction") != std::string::npos,
+          "aStrictTscRunDisclosesItsUnusedNoise: the disclosure names the "
+          "method's own reason (FR-021, FR-004)");
 
     const auto tscRefusal = runChild("tsc-gap-refusal");
     check(tscRefusal.status == 2,
@@ -1310,6 +1370,42 @@ auto main(int argc, char** argv) -> int
     const auto noisy = sg::detail::precheckNoisyCpus(states, planned);
     check(noisy.empty(),
           "a planned cpu the states do not name stands no noise " "(FR-015)");
+  }
+
+  // specs/043 T070, FR-015, FR-020: the series rule reads the same plan.
+  // A planned cpu the states do not name stands unjudged, and so does a
+  // state whose method keeps no series: the rule reads no noise figure
+  // for either, and the cpu whose kept unit times stand below the
+  // threshold stands out of the answer too.
+  {
+    const auto cpus = pickCpus(2);
+    const auto cpu0 = cpus.at(0);
+    const auto cpu1 = cpus.at(1);
+    std::vector<sg::detail::ProbeCpuState> states(3);
+    states.at(0).cpu = cpu0;
+    states.at(0).method = sg::JitterMethod::TSC;
+    states.at(0).kept = 4;
+    states.at(1).cpu = cpu1;
+    states.at(1).method = sg::JitterMethod::FWQ;
+    states.at(1).series = {1000, 2000, 1000, 1000};
+    states.at(1).seriesKept = 4;
+    states.at(1).unitTimeNs = 1000;
+    states.at(2).cpu = cpu1 + 3U;
+    states.at(2).method = sg::JitterMethod::FWQ;
+    states.at(2).series = {1000, 1000, 1000, 1000};
+    states.at(2).seriesKept = 4;
+    states.at(2).unitTimeNs = 1000;
+
+    const std::vector<std::uint32_t> planned {cpu0, cpu1, cpu0 + 9U};
+    const auto noisy = sg::detail::precheckNoisyCpus(states, planned, 0U);
+    check(noisy == std::vector<std::uint32_t> {cpu1},
+          "theSeriesRuleJudgesTheCpuThatKeepsASeries: the tsc state and the "
+          "plan the states do not name stand unjudged (FR-015, FR-020)");
+    const auto calm = sg::detail::precheckNoisyCpus(
+        states, std::vector<std::uint32_t> {cpu1 + 3U}, 1U);
+    check(calm.empty(),
+          "theSeriesRuleJudgesTheCpuThatKeepsASeries: a cpu whose unit times "
+          "stand equal falls below the threshold (FR-015, FR-020)");
   }
 
   // T015, FR-017, R-04: the host settings over fake files: the kernel
