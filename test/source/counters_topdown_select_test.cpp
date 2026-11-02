@@ -94,6 +94,7 @@ using sg::counters::topdownTable;
 using sg::counters::TopdownTable;
 using sg::counters::topdownTree;
 using sg::counters::TopdownTree;
+using sg::counters::TopdownUnsupport;
 using sg::counters::TopdownUnsupported;
 using sg::counters::detail::EmbeddedDir;
 using sg::counters::detail::embeddedFindDir;
@@ -109,6 +110,7 @@ using sg::counters::detail::pmuSelectDirectory;
 using sg::counters::detail::PmuTableEntry;
 using sg::test::fixtureHost;
 using sg::test::kAmdLevelOneNames;
+using sg::test::kHybridDirectory;
 using sg::test::kIntelDirectory;
 using sg::test::kLevelOneThreshold;
 using sg::test::kLevelTwoThreshold;
@@ -117,12 +119,15 @@ using sg::test::kNeutralBadSpeculation;
 using sg::test::kNeutralFrontendBound;
 using sg::test::kNeutralRetiring;
 using sg::test::kNeutralSmtContention;
+using sg::test::kNoLevelDirectory;
 using sg::test::kZen4Directory;
 using sg::test::kZen5Directory;
 using sg::test::kZenLevelTwoNames;
 using sg::test::MetricDefinition;
 using sg::test::MetricRow;
 using sg::test::registerMetricHost;
+using sg::test::topdownHybridEventRows;
+using sg::test::topdownHybridRows;
 using sg::test::topdownIntelRows;
 using sg::test::topdownIntelShallowRows;
 using sg::test::topdownZen4Rows;
@@ -1369,6 +1374,264 @@ auto productionTableCarriesItsSourceRecord() -> void
   }
 }
 
+// The five lines `TopdownUnsupported::message()` owns, each quoted from the
+// answer table of `specs/042-topdown/contracts/topdown-selection.md`: the tag,
+// the vendor, the identity in the spelling that table states, and the reason
+// the kind states (FR-004 to FR-007, FR-040, spec D-14).
+constexpr std::string_view kUnknownVendorText {
+    "topdown: NoSuchVendorXXXXX family 999 model 999: no vendored table "
+    "carries " "this vendor"};
+constexpr std::string_view kNoDirectoryText {
+    "topdown: GenuineIntel family 15 model 6 stepping 5: the mapping file "
+    "names " "no table for this identity"};
+constexpr std::string_view kHybridText {
+    "topdown: GenuineIntel family 6 model 151 stepping 2: the selected table "
+    "'arch/x86/alderlake/' publishes rows for two core scopes, and this feature "
+    "makes no claim for a hybrid part"};
+constexpr std::string_view kArmText {
+    "topdown: Arm 0x410fd490: no Arm table is vendored"};
+constexpr std::string_view kNoRowsText {
+    "topdown: AuthenticAMD family 25 model 15: the selected table "
+    "'arch/x86/amdzen3/' holds no row of any top-down group"};
+
+// The same `HYBRID` line with the label of the second directory of the vendored
+// tree whose rows carry the two core scopes: the rule answers it out of that
+// directory's own rows, the way it answers the first (FR-006).
+constexpr std::string_view kPantherLakeHybridText {
+    "topdown: GenuineIntel family 6 model 151 stepping 2: the selected table "
+    "'arch/x86/pantherlake/' publishes rows for two core scopes, and this "
+    "feature makes no claim for a hybrid part"};
+
+// The identity of an Arm part, spelled the way such a part states itself with
+// its `MIDR`, and no vendor text: no reader of this feature answers a vendor
+// for an Arm part (FR-007, spec D-13).
+[[nodiscard]] auto armIdentity() -> CpuIdentity
+{
+  CpuIdentity identity;
+  identity.midr = std::optional<std::uint32_t> {kHandedMidr};
+  return identity;
+}
+
+// The hybrid identity of the vendored mapping file: the model 97 part the first
+// hybrid row of the mapping file names (mapfile.csv:2).
+[[nodiscard]] auto hybridIdentity() -> CpuIdentity
+{
+  return intelIdentity(6, 0x97, 2);
+}
+
+// The identity whose model the mapping file gives `pantherlake`, the directory
+// that carries the two core scopes beside no level row (mapfile.csv:29).
+[[nodiscard]] auto pantherLakeIdentity() -> CpuIdentity
+{
+  return intelIdentity(6, 0xCC, 5);
+}
+
+// The identity of the AMD part that predates the dispatch-slot table: family 25
+// model 15, which the mapping file gives `amdzen3`.
+[[nodiscard]] auto zen3Identity() -> CpuIdentity
+{
+  return amdIdentity(25, 15);
+}
+
+// The refusal one selection answers, or the failure of a case that asked for a
+// refusal and got a tree (FR-004 to FR-007).
+[[nodiscard]] auto askedRefusal(const TopdownSelection& options)
+    -> TopdownUnsupported
+{
+  const auto answered = topdownTree(options);
+  if (answered.has_value()) {
+    std::fprintf(stderr,
+                 "COUNTERS TOPDOWN SELECT TEST FAIL: the selection answered a "
+                 "tree where its case asked a refusal\n");
+    std::exit(1);
+  }
+  return answered.error();
+}
+
+// Whether one line carries the vendor, the identity and the reason FR-040 asks
+// of every refusal.
+[[nodiscard]] auto quotesAll(const std::string& line,
+                             const std::string_view vendor,
+                             const std::string_view identityText,
+                             const std::string_view reason) -> bool
+{
+  return line.find(vendor) != std::string::npos
+      && line.find(identityText) != std::string::npos
+      && line.find(reason) != std::string::npos;
+}
+
+// FR-004 to FR-007, FR-040 and spec D-14: each kind answers one line that names
+// the vendor, the identity and the reason, and the line stands as the contract
+// spells it. One synthetic identity per kind, and no identity of this host
+// stands in any of them (spec D-13).
+auto unsupportedAnswersQuoteTheIdentity() -> void
+{
+  const TopdownUnsupported unknown =
+      askedRefusal(selection(unmatchedIdentity(), 1));
+  check(unknown.kind == TopdownUnsupport::UNKNOWN_VENDOR,
+        "a vendor the vendored tree holds no table of answers UNKNOWN_VENDOR "
+        "(FR-004)");
+  check(quotesAll(unknown.message(),
+                  "NoSuchVendorXXXXX",
+                  "family 999 model 999",
+                  "no vendored table carries this vendor"),
+        "the UNKNOWN_VENDOR line names the vendor, the family and model, and "
+        "the reason (FR-004, FR-040)");
+  check(unknown.message() == kUnknownVendorText,
+        "the UNKNOWN_VENDOR line stands as the contract spells it (FR-040)");
+
+  // The mapping file holds rows for two vendors alone, so a family outside both
+  // of them names no directory at all.
+  const TopdownUnsupported missed =
+      askedRefusal(selection(intelIdentity(15, 6, 5), 1));
+  check(missed.kind == TopdownUnsupport::NO_DIRECTORY,
+        "an identity the mapping file matched no row for answers NO_DIRECTORY "
+        "(FR-005)");
+  check(quotesAll(missed.message(),
+                  "GenuineIntel",
+                  "family 15 model 6 stepping 5",
+                  "the mapping file names no table for this identity"),
+        "the NO_DIRECTORY line names the vendor, the family and model, and the "
+        "reason (FR-005, FR-040)");
+  check(missed.message() == kNoDirectoryText,
+        "the NO_DIRECTORY line stands as the contract spells it (FR-040)");
+  check(missed.detail.empty(),
+        "a mapping-file miss read no directory, so it states none (FR-005)");
+
+  const TopdownUnsupported arm = askedRefusal(selection(armIdentity(), 1));
+  check(arm.kind == TopdownUnsupport::ARM,
+        "an `MIDR` answers ARM before any table is read (FR-007)");
+  check(arm.detail == "no Arm table is vendored",
+        "the Arm refusal carries the sentence that table states (FR-007)");
+  check(arm.message() == kArmText,
+        "the ARM line names the `MIDR` and states that no Arm table is "
+        "vendored, as the contract spells it (FR-007, FR-040)");
+  check(
+      quotesAll(arm.message(), "Arm", "0x410fd490", "no Arm table is vendored"),
+      "the ARM line names the vendor, the `MIDR` and the reason (FR-040)");
+
+  const TopdownUnsupported hybrid = askedRefusal(
+      selection(hybridIdentity(),
+                2,
+                plantedTable(kHybridDirectory, topdownHybridRows())));
+  check(hybrid.kind == TopdownUnsupport::HYBRID,
+        "a directory whose rows carry the two core scopes answers HYBRID "
+        "(FR-006)");
+  check(hybrid.detail == kHybridDirectory,
+        "the hybrid refusal names the directory it read (FR-006)");
+  check(hybrid.message() == kHybridText,
+        "the HYBRID line names the vendor, the family and model, the directory "
+        "and the claim this feature makes no hybrid part (FR-006, FR-040)");
+
+  // The same rows under the label of a second two-scope directory answer the
+  // same kind with that label in its line, so the answer follows the scopes a
+  // directory's rows publish, which is the rule FR-006 states, beside no list
+  // of directory names.
+  const TopdownUnsupported second = askedRefusal(
+      selection(hybridIdentity(),
+                2,
+                plantedTable(kNoLevelDirectory, topdownHybridRows())));
+  check(second.kind == TopdownUnsupport::HYBRID
+            && second.message() == kPantherLakeHybridText,
+        "a second two-scope directory answers the same kind with its own label "
+        "in the line (FR-006)");
+
+  // The Zen 3 directory holds metric rows and no row of any top-down group, so
+  // the rule of FR-007 answers there over the vendored data of its own.
+  const TopdownTable zen3 = topdownTable(zen3Identity());
+  check(zen3.source.directory == "arch/x86/amdzen3/",
+        "the mapping file gives the family 25 model 15 part the Zen 3 "
+        "directory " "(FR-001)");
+  const TopdownUnsupported empty = askedRefusal(selection(zen3Identity(), 1));
+  check(empty.kind == TopdownUnsupport::NO_TOPDOWN_ROWS,
+        "a directory that holds no row of any top-down group answers "
+        "NO_TOPDOWN_ROWS (FR-007)");
+  check(empty.detail == zen3.source.directory,
+        "the no-rows refusal names the directory it read (FR-007)");
+  check(empty.message() == kNoRowsText,
+        "the NO_TOPDOWN_ROWS line names the vendor, the family and model, the "
+        "directory and the reason, as the contract spells it (FR-007, FR-040)");
+  check(quotesAll(empty.message(),
+                  "AuthenticAMD",
+                  "family 25 model 15",
+                  "holds no row of any top-down group"),
+        "the NO_TOPDOWN_ROWS line names the vendor, the family and model, and "
+        "the reason (FR-007, FR-040)");
+}
+
+// FR-006: the scope rule reads the scopes a directory's own event rows publish,
+// and one core scope answers a tree.
+auto aHybridDirectoryRefusesByItsRows() -> void
+{
+  const CpuIdentity identity = hybridIdentity();
+  check(topdownTable(identity).source.directory == kHybridDirectory,
+        "the mapping file gives this hybrid identity the directory the fixture "
+        "spells for two core scopes (FR-001, FR-006)");
+  const TopdownUnsupported why = askedRefusal(selection(
+      identity, 2, plantedTable(kHybridDirectory, topdownHybridRows())));
+  check(why.kind == TopdownUnsupport::HYBRID,
+        "the fixture directory whose event rows carry both core scopes answers "
+        "HYBRID (FR-006)");
+  check(why.detail == std::string {kHybridDirectory},
+        "the answer names the directory whose rows it read (FR-006)");
+  check(why.message().find("'arch/x86/alderlake/'") != std::string::npos,
+        "the line carries the label of that directory between the quote marks "
+        "the contract spells (FR-006, FR-040)");
+}
+
+// FR-006: a directory of one core scope answers a tree, and so does one whose
+// rows carry no scope token at all, which is how the three hybrid-shaped
+// directories of the vendored tree read.
+auto aOneScopeDirectorySelectsNormally() -> void
+{
+  const TopdownTree one =
+      asked(plantedTable(kIntelDirectory, topdownIntelRows()),
+            2,
+            intelIdentity(6, 85, 4));
+  check(one.depth == 2 && !one.nodes.empty(),
+        "the fixture directory whose every event row carries one core scope "
+        "answers a tree (FR-006)");
+
+  // The hybrid fixture rows again, this time under the label of a directory
+  // whose rows carry neither core token: the same rows answer a tree there, so
+  // the two-scope fact of the rows above is what refused them.
+  const TopdownTree tokenless =
+      asked(plantedTable("arch/x86/grandridge/", topdownHybridRows()),
+            2,
+            intelIdentity(6, 0xB6, 0));
+  check(tokenless.depth == 2 && !tokenless.nodes.empty(),
+        "a directory whose event rows carry no core scope token answers a tree "
+        "over the same rows (FR-006)");
+}
+
+// FR-006 and FR-007: a directory that carries the two core scopes beside no
+// level row answers NO_TOPDOWN_ROWS, because the no-rows rule stands ahead of
+// the scope rule.
+auto noLevelRowRefusesBeforeTheScopeRule() -> void
+{
+  const CpuIdentity identity = pantherLakeIdentity();
+  check(topdownTable(identity).source.directory == kNoLevelDirectory,
+        "the mapping file gives this identity the directory the fixture spells "
+        "for two core scopes and no level row (FR-001, FR-007)");
+  // The event rows of the two scopes alone: the shape that directory answers in
+  // the vendored tree, where 606 event rows stand and no metric row stands.
+  const TopdownTable table =
+      plantedTable(kNoLevelDirectory, topdownHybridEventRows());
+  check(table.rows.empty(),
+        "the planted directory holds event rows alone, so no row of any "
+        "top-down group stands in it (FR-007)");
+  const TopdownUnsupported why = askedRefusal(selection(identity, 1, table));
+  check(why.kind == TopdownUnsupport::NO_TOPDOWN_ROWS,
+        "the no-rows answer outranks the scope answer over a directory that "
+        "publishes both scopes and no level row (FR-006, FR-007)");
+  check(why.detail == kNoLevelDirectory,
+        "the answer names the directory it read (FR-007)");
+  check(
+      why.message().find("holds no row of any top-down group")
+          != std::string::npos,
+      "the line states the reason of the rule that answered (FR-007, FR-040)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -1409,6 +1672,10 @@ auto main() -> int
   theAmdLevelTwoRowsStandRowForRow();
   aNodeCarriesItsFormulaAndItsEventList();
   twoCallsOnOneIdentityAnswerOneTree();
+  unsupportedAnswersQuoteTheIdentity();
+  aHybridDirectoryRefusesByItsRows();
+  aOneScopeDirectorySelectsNormally();
+  noLevelRowRefusesBeforeTheScopeRule();
   std::printf("counters_topdown_select_test PASS: the selection answers the "
               "table of the identity it is handed, and the tree of the rows it "
               "is given\n");

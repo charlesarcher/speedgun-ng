@@ -1,12 +1,12 @@
 // ============================================================================
 // Vendor-neutral top-down analysis over the vendored event table
-// (specs/042-topdown; FR-001 to FR-003, FR-010 to FR-017, FR-040; data-model
+// (specs/042-topdown; FR-001 to FR-007, FR-010 to FR-017, FR-040; data-model
 // E-01 to E-11).
 //
 // One cpu identity selects one architecture table directory, and the rows of
 // that directory's top-down groups form the tree a run collects. This header
 // publishes the identity, the source record of the selected table, the tree,
-// and the one refusal a selection answers.
+// and the five refusals a selection answers in place of a tree.
 //
 // The selection is pure over what it is handed: it reads no counter, opens no
 // event, reads no clock and calls no cpu reader of its own, so its answer
@@ -15,9 +15,11 @@
 // this build embedded, so the call opens no path (specs/012 FR-036, spec
 // D-12).
 //
-// The report writer owns the console block, the JSON keys and the record. This
-// header holds no text for any of them. A refused row reaches the reader as a
-// row of its own, with the metric layer's kind and reason beside it (FR-016).
+// The report writer owns the console block, the JSON keys and the record, and
+// this header holds no text for any of them. The one text it owns is
+// `TopdownUnsupported::message()`, the one line a refusal answers (FR-040). A
+// refused row reaches the reader as a row of its own, with the metric layer's
+// kind and reason beside it (FR-016).
 // ============================================================================
 
 #ifndef SG_COUNTERS_TOPDOWN_HPP
@@ -343,8 +345,9 @@ enum class TopdownUnsupport : std::uint8_t
  * an x86 part and the `MIDR` for an Arm part. `detail` is the directory the
  * selection read, or the Arm sentence.
  *
- * The struct is data: it has no call to guard. The message is the one line the
- * harness prints, and nothing else carries these fields to a caller.
+ * The struct is data beside the one call that states its line. Nothing else
+ * carries these fields to a caller, and no caller composes the line: a second
+ * copy of that sentence in a caller would be a second source for it.
  *
  * \pre none
  * \post none
@@ -356,6 +359,22 @@ struct SPEEDGUN_NG_EXPORT TopdownUnsupported
   std::string vendor;
   std::string identity;  ///< `family 6 model 85 stepping 4`, or the `MIDR`.
   std::string detail;  ///< The directory read, or the Arm sentence.
+
+  /**
+   * @brief The one line this refusal answers (specs/042-topdown FR-040, spec
+   * D-14, contracts/topdown-selection.md).
+   *
+   * The kind states the reason for the two refusals that read no directory, and
+   * `detail` states it for the other three: the directory between quote marks
+   * for the two a table's own rows state, and the Arm sentence for an `MIDR`.
+   * A caller prints the text and adds nothing to it.
+   *
+   * \pre none
+   * \post The text is one line, it carries the `topdown: ` tag ahead of the
+   *       vendor, the identity and the reason, and it names all three (FR-040,
+   *       spec D-14).
+   */
+  [[nodiscard]] auto message() const -> std::string;
 };
 
 /**
@@ -393,19 +412,25 @@ struct SPEEDGUN_NG_EXPORT TopdownUnsupported
  * of every leaf that spine reads, which is what a run groups its passes on
  * (FR-010, FR-021).
  *
- * An identity no table serves answers one `TopdownUnsupported` that carries a
- * kind and the fields that identity states: an `MIDR` names an Arm part, a
- * vendor text of neither vendor names an unknown vendor, and a table with no
- * directory names a mapping-file miss. `message()` owns the one line a caller
- * prints, and the two refusals a table's own rows state are T079 (FR-004 to
- * FR-007, FR-040, spec D-14).
+ * An identity no table serves, a table that names no directory, a directory
+ * that publishes the two core scopes of a hybrid part, an `MIDR`, and a
+ * directory that holds no row of any top-down group answer one
+ * `TopdownUnsupported` in place of a tree, in that order. Each carries a kind
+ * and the fields its rule states, so it names the vendor, the identity and the
+ * directory or sentence its rule read, and none of them reaches a node, an
+ * event or a counter (FR-004 to FR-007). The scope rule reads the `Unit` text
+ * of the directory's own event rows, so the rows carry the two-scope fact and
+ * no list of directory names stands in this feature (FR-006). `message()` owns
+ * the one line a caller prints for any of the five (FR-040, spec D-14).
  *
  * \pre `options.level` stands in 1 to 6, and `SG_REQUIRE` enforces that.
  * \post The answer is pure over the identity and the rows: no counter read, no
  *       event open, no clock read and no CPUID read stand behind it (FR-002,
  *       FR-009). `depth` is the asked level clamped to the deepest level the
  *       table holds (FR-008, FR-020), and no node stands that a row of the
- *       table does not state (FR-013).
+ *       table does not state (FR-013). A refusal carries the kind its rule
+ *       states, the vendor and identity text of the identity it read, and the
+ *       directory or sentence its rule read (FR-004 to FR-007, FR-040).
  * \invariant none
  */
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto topdownTree(
