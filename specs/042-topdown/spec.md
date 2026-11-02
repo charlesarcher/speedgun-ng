@@ -80,9 +80,22 @@ force. No implementer reopens them.
   `#core_wide` through the table's own slot rows, measured at the audit
   point, so this feature adds a reader for `#core_wide` with a seam test. A
   conditional over that constant folds when the metric table resolves, and the
-  resolved table is cached per directory, so the flag answers the CPU set of the
-  process at that first read and answers one value to every benchmark of that
-  process. The harness states the scope on the console (FR-042). No
+  resolved table is cached per directory, so the flag answers once at that first
+  read and answers one value to every benchmark of that process. Two facts settle
+  it: the sibling topology of the CPU that carries the run, read from the kernel's
+  own sibling list for that CPU, and what the run counted, which for a run whose
+  counters come from one thread is one thread on one CPU. A thread's sibling count
+  is a topology fact, and it is the only one of the two a program can read before
+  the measurement, while a run that counts one thread counts one thread whatever
+  the scheduler permits. An affinity mask settles neither: it names the CPUs a
+  process may run on, and a mask covering a core says nothing about whether the
+  counters of that core's other thread were opened or read. So the flag answers
+  whole-core when the CPU that carries the run names no sibling besides itself,
+  and answers one_thread whenever a sibling stands in the list. The harness states
+  the scope on the console (FR-042). A plan that placed the measurement on both
+  siblings of a core and summed their counts could answer whole-core on a host with
+  simultaneous multithreading, and that plan is a new specification. It extends
+  nothing here. No
   top-down row reaches `#num_dies`, `#SYSTEM_TSC_FREQ` or `#has_pmem`, so
   those three keep their present refusal. Every node the host cannot resolve
   stays visible: the report lists it with its reason.
@@ -783,16 +796,20 @@ registered benchmark prints no row.
 ### Host facts (C-8)
 
 - **FR-042**: The counters library shall answer the constant `#core_wide` as the
-  coverage flag it is. It shall read the CPU set of the calling process at the
-  first read of the metric table, answer true when that set holds every SMT
-  sibling of every CPU it holds, and answer false when one sibling stands outside
-  it. It shall answer that one value to every benchmark of one process, because a
-  conditional over the constant settles when the table resolves. The harness shall
-  state that scope on the console before the first measurement. An unreadable CPU
-  set or sibling list shall answer nothing, which keeps the standing refusal of
-  the constant. The reader shall answer no slot width: the width is a literal of
-  the table. A seam test shall drive both answers from its own affinity. (D-6,
-  PC-5.)
+  coverage flag it is, and the scope of the measurement shall settle it. It shall
+  read the sibling list the kernel publishes for the CPU that carries the run, at
+  the first read of the metric table, answer true when that list names no CPU
+  besides it, and answer false when a sibling stands in it, because no thread of
+  the run reads that sibling's counters. The CPU set of the calling process shall
+  settle nothing: it names the CPUs a process may run on, and it says no word about
+  which counters the run opened. The library shall answer that one value to every
+  benchmark of one process, because a conditional over the constant settles when
+  the table resolves. The harness shall state that scope on the console before the
+  first measurement. A sibling list that names no CPU id shall answer nothing,
+  which keeps the standing refusal of the constant. The reader shall answer no slot
+  width: the width is a literal of the table. A seam test shall drive both answers
+  from its own sibling lists, one CPU in one list and two in the other, and shall
+  show that a wide CPU set changes neither answer. (D-6, PC-5.)
 - **FR-043**: The constants `#num_dies`, `#SYSTEM_TSC_FREQ` and `#has_pmem`
   shall keep their present refusal, because no top-down row reaches any of
   them. (D-6.)
