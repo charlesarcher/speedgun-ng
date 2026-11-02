@@ -89,8 +89,9 @@ the lane stands on. Nothing else builds before this phase closes.
   header moves; the commit message records the version check and the ABI
   check with the four moves named (FR-005, FR-006, D-8, SC-009). The
   schema check rides the T030 commit, the one that writes `1.12`.
-  (depends on T002, T003)
-  Verify: `ctest --test-dir build -R harness_cli_table_test --output-on-failure` exits 0, and `grep -c "SOVERSION 20" CMakeLists.txt` reads one line
+  The three rows of `test/source/views_test.cpp:241-255` pin the
+  same numbers and move in this commit. (depends on T002, T003)
+  Verify: `ctest --test-dir build -R "harness_cli_table_test|views_test" --output-on-failure` exits 0, and `grep -c "SOVERSION 20" CMakeLists.txt` reads one line
 
 **Checkpoint**: the surface stands green: the types carry the three
 methods, and the version names the four layout moves.

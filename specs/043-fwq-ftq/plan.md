@@ -692,7 +692,7 @@ struct SpectrumResult
 
 | File | Added, at the line read at `d454bcff` |
 | --- | --- |
-| `include/speedgun-ng/benchmark.hpp` | `JitterMethod` after `JitterProbeMode` (`:2182-2187`); the bounds after `kDefaultPrecheckMs` (`:2195`); `JitterPeriodRecord`, `JitterSeriesStats` and `JitterRunRecord` after `JitterStats` (`:512-530`); `series` in `JitterEntryFold` after `stats` (`:648`); `series` in `PrecheckCpuRecord` after `stats` (`:576`); `jitterRun` in `ReportData` after `graph` (`:1001`); four fields in `JitterProbeOptions` after `tracerCpus` (`:2258`) |
+| `include/speedgun-ng/benchmark.hpp` | `JitterMethod` ahead of the record block, after `JitterStats` (`:512-530`): the run record names the enum, so the enum precedes `ReportData` (`:962`); the bounds after `kDefaultPrecheckMs` (`:2195`); `JitterPeriodRecord`, `JitterSeriesStats` and `JitterRunRecord` after `JitterStats` (`:512-530`); `series` in `JitterEntryFold` after `stats` (`:648`); `series` in `PrecheckCpuRecord` after `stats` (`:576`); `jitterRun` in `ReportData` after `graph` (`:1001`); four fields in `JitterProbeOptions` after `tracerCpus` (`:2258`) |
 | `source/harness/detail/jitter_probe.hpp` | `SeriesRecord` with its 8-byte `static_assert` after `GapRecord` (`:35-41`); the series fields in `ProbeCpuState` before the `alignas` stop word (`:73`); two `seriesStatsOf` declarations after `gapStatsOf` (`:121`, `:136`) |
 | `source/harness/detail/spectrum.hpp` | new: the two kernel declarations, `SpectrumPeriod`, `SpectrumResult`, `kSpectrumCap`, `kSpectrumTop`, `kSpectrumMedianFactor` |
 | `source/harness/spectrum.cpp` | new: the kernel definitions; the target list needs no edit (`CMakeLists.txt:256-260`) |
