@@ -772,7 +772,7 @@ the detected periods, and each showing a drop count of 0.
   each section showing a drop count of 0 (FR-027, SC-008, R-21).
   (depends on T044)
   Verify: `bash tools/noise/fwq_ftq_acceptance.sh` exits 0, and `grep -c "^## " specs/043-fwq-ftq/results/acceptance-<date>.md` reads eight
-- [ ] T046 [US7] Link every record from the acceptance section of
+- [x] T046 [US7] Link every record from the acceptance section of
   `specs/043-fwq-ftq/quickstart.md`, the standing link rule of the
   quickstart (FR-028, SC-008).
   (depends on T045)

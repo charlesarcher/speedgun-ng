@@ -158,20 +158,20 @@ groups and two load states, eight runs:
 
 ```sh
 ./build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 \
-  --jitter-probe=<cpu>,method=fwq,mode=precheck,gaps=10485760
+  --jitter-probe=<cpu>,method=fwq,mode=precheck,precheck=10000,gaps=10485760
 ./build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 \
-  --jitter-probe=<cpu>,method=ftq,mode=precheck,gaps=131072
+  --jitter-probe=<cpu>,method=ftq,mode=precheck,precheck=10000,gaps=131072
 ```
 
 Each run names one idle cpu of one L3 group, and the loaded pair adds a
 busy loop pinned to that cpu's SMT sibling. `--min-time=10` with
-`--repetitions=1` gives one 10 s window per run, and the `gaps=` value
-keeps every sample of it.
+`--repetitions=1` names the benchmark run, and `precheck=10000` opens
+the 10 s probe window on that cpu, the span the `gaps=` value prices.
 
 Expected: one markdown record per script run stands under
 [results/](./results/) at the stamped name the script prints,
-`acceptance-<date>.md`, the shape of
-`specs/027-jitter-probe/results/acceptance-2026-10-21.md`. Each record
+`acceptance-<date>.md`, the shape of the spec 027 acceptance record.
+Each record
 carries eight sections, each naming the command line, the exit status
 and the captured output, and each shows a drop count of 0. Each record
 names the host, the kernel, `CONFIG_HZ`, the L3 group, the calibration
@@ -180,6 +180,12 @@ the kept span in milliseconds and the detected periods (spec FR-027,
 FR-028, SC-008). `CONFIG_HZ` comes from `/proc/config.gz`, then
 `/boot/config-$(uname -r)`, and the record reads `unknown` when both
 stand absent. No CI gate stands on the records.
+
+The lane host run stands recorded at
+[results/acceptance-2026-11-02.md](./results/acceptance-2026-11-02.md),
+eight sections. The four FTQ sections read a drop count of 0 over a
+10,000 ms kept span. The four FWQ sections die in the transform at
+exit 139, and the record keeps that reading.
 
 ## Out of scope for the gates
 
