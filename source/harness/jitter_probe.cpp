@@ -33,10 +33,10 @@
 
 #include <sched.h>
 
+#include "../detail/proc_root.hpp"
 #include "detail/internal.hpp"
 #include "detail/options.hpp"
 #include "detail/percentiles.hpp"
-#include "detail/proc_root.hpp"
 #include "detail/spectrum.hpp"
 #include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/counters_measurement.hpp"

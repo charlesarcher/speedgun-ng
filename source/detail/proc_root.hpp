@@ -1,5 +1,5 @@
-#ifndef SG_HARNESS_PROC_ROOT_HPP
-#define SG_HARNESS_PROC_ROOT_HPP
+#ifndef SG_DETAIL_PROC_ROOT_HPP
+#define SG_DETAIL_PROC_ROOT_HPP
 
 #include <filesystem>
 #include <optional>
@@ -25,10 +25,10 @@ inline auto storage() -> std::optional<std::filesystem::path>&
 }  // namespace proc_root_detail
 
 /// @brief The file root every `/proc` and `/sys` read of the pre-check
-/// resolves under (specs/034 FR-019, R-02): the reads name one path
-/// each, the path joined under the root, so the production reads name
-/// the files the kernel owns and the tests read the files the seam
-/// installs.
+/// and of the host-fact readers resolves under (specs/034 FR-019, R-02;
+/// specs/042-topdown D-19): the reads name one path each, the path
+/// joined under the root, so the production reads name the files the
+/// kernel owns and the tests read the files the seam installs.
 ///
 /// \pre `relative` names no absolute path
 /// \post the returned path joins the active root and `relative`
