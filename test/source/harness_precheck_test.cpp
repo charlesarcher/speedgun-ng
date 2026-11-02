@@ -169,6 +169,31 @@ private:
   }
 };
 
+// specs/043 T034, FR-021, R-15: the dipping clock the noise refusal
+// reads: each thread's stamps step 1,000 ns per read, and every 16th
+// read steps 9,000 ns more, so a FWQ window keeps a noise fraction of 36
+// percent, the figure the gate reads; the serial clock, whose unit times
+// stand equal, answers a fraction of zero.
+class NoisySeriesReader final : public sg::counters::WindowReader
+{
+public:
+  auto readPoints(sg::counters::PointSink& sink) noexcept -> void override
+  {
+    thread_local std::uint64_t calls = 0;
+    thread_local std::uint64_t stamp = 0;
+    ++calls;
+    stamp += kStepNs;
+    if (calls % kDipEvery == 0) {
+      stamp += kDipExtraNs;
+    }
+    sink.put(stamp);
+  }
+
+  static inline constexpr std::uint64_t kStepNs = 1000;
+  static inline constexpr std::uint64_t kDipEvery = 16;
+  static inline constexpr std::uint64_t kDipExtraNs = 9000;
+};
+
 // The scripted provider: one FakeProvider declaring the machine/tsc
 // leaf at ReadMode::FAST_TSC (R-02), registered once per process, the
 // way harness_jitter_probe_test.cpp carries it.
@@ -442,7 +467,15 @@ auto runChildScenario(const std::string& scenario) -> int
   sg::detail::installTestLayout(machine);
   auto handle = sg::registerBenchmark(&bmPinned, "bmPinned");
   handle.threads(2).placement("l3");
-  sg::detail::installTestReader(std::make_unique<SerialProbeReader>());
+  // specs/043 T034, FR-021, R-15: the noise refusal reads a dipping
+  // clock, so the FWQ window keeps a noise fraction the gate can read;
+  // the standing scenarios keep the serial clock, whose equal unit times
+  // answer a fraction of zero.
+  if (scenario == "noise-refusal") {
+    sg::detail::installTestReader(std::make_unique<NoisySeriesReader>());
+  } else {
+    sg::detail::installTestReader(std::make_unique<SerialProbeReader>());
+  }
   if (std::freopen("harness_precheck_refusal_out.txt", "w", stdout) == nullptr
       || std::freopen("harness_precheck_refusal_err.txt", "w", stderr)
           == nullptr)

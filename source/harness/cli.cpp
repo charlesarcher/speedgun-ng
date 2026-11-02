@@ -1239,6 +1239,38 @@ auto speedgunMain(int argc, char** argv) -> int
           return 2;
         }
       }
+      // specs/043 T038, FR-004, FR-021, D-9, R-15: the noise refusal of a
+      // run that names a method. A FWQ window and a FTQ window keep no
+      // gaps, so the standing gap gate reads nothing for them: the gate
+      // here reads the method's own noise fraction against `noise=`, the
+      // first planned cpu at or above the threshold answering one line at
+      // status 2 after the window closes and before the batch's first
+      // run. `mode=alongside` keeps the standing `strict` meaning and
+      // fires no noise gate, and a `tsc` run keeps the gap gate above.
+      if (options.jitterProbe->mode != JitterProbeMode::ALONGSIDE
+          && options.jitterProbe->strict
+          && jitterProbe->states().front().method != JitterMethod::TSC)
+      {
+        const auto noisy = detail::precheckNoisyCpus(
+            jitterProbe->states(), planned, options.jitterProbe->noisePercent);
+        if (!noisy.empty()) {
+          const auto found =
+              std::ranges::find_if(jitterProbe->states(),
+                                   [&](const detail::ProbeCpuState& probeState)
+                                   { return probeState.cpu == noisy.front(); });
+          const auto fold = detail::seriesStatsOf(*found);
+          std::fprintf(
+              stderr,
+              "--jitter-probe: cpu %u is noisy: noisePercent %.2f %s %llu\n",
+              found->cpu,
+              fold.noisePercent,
+              fold.quantumNs > 0 ? "minValue" : "maxValue",
+              static_cast<unsigned long long>(
+                  fold.quantumNs > 0 ? fold.minValue : fold.maxValue));
+          jitterProbe->stopAndJoin();
+          return 2;
+        }
+      }
       // FR-018, D-3, R-10: the overlap check binds the alongside
       // phase; the precheck mode allows every overlap, and in `both`
       // the pre-check phase began with the start, before the stop
@@ -1980,6 +2012,22 @@ auto speedgunMain(int argc, char** argv) -> int
     }
     for (const auto& name : maskNarrowedNames) {
       std::printf("jitter: affinity mask narrowed for '%s'\n", name.c_str());
+    }
+    // specs/043 T038, FR-004, FR-021, D-9: a `noise=` value the run reads
+    // nowhere stands accepted and disclosed. The gate that reads it fires
+    // only for a strict pre-check of a run that names a method, so a
+    // value beside no `strict`, and a value beside the `tsc` method,
+    // change nothing and stand named beside the run's other disclosures.
+    if (options.jitterProbe.has_value()
+        && options.jitterProbe->noisePercent != kDefaultNoisePercent
+        && (!options.jitterProbe->strict
+            || options.jitterProbe->method == JitterMethod::TSC))
+    {
+      std::printf("jitter: noise=%u stands unused: %s\n",
+                  options.jitterProbe->noisePercent,
+                  options.jitterProbe->strict
+                      ? "the tsc method keeps no noise fraction"
+                      : "no strict pre-check reads the fraction");
     }
   }
 
