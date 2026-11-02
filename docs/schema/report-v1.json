@@ -48,6 +48,8 @@
         "mode",
         "thresholdNs",
         "loopPeriodNs",
+        "method",
+        "series",
         "cpus",
         "stats",
         "droppedGaps",
@@ -70,6 +72,96 @@
         },
         "thresholdNs": { "type": "integer" },
         "loopPeriodNs": { "type": "integer" },
+        "method": {
+          "type": "string",
+          "enum": ["FWQ", "FTQ", "TSC"]
+        },
+        "series": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "x-order": [
+              "cpu",
+              "workCount",
+              "unitTimeNs",
+              "targetNs",
+              "quantumNs",
+              "calibrationSpanNs",
+              "sampleCount",
+              "minValue",
+              "medianValue",
+              "meanValue",
+              "p90Value",
+              "p99Value",
+              "p999Value",
+              "p9999Value",
+              "maxValue",
+              "noisePercent",
+              "seriesRuntimeNs",
+              "droppedSamples",
+              "resampleStepNs",
+              "spectrumPoints",
+              "periods"
+            ],
+            "required": [
+              "cpu",
+              "workCount",
+              "unitTimeNs",
+              "targetNs",
+              "calibrationSpanNs",
+              "sampleCount",
+              "minValue",
+              "medianValue",
+              "meanValue",
+              "p90Value",
+              "p99Value",
+              "p999Value",
+              "p9999Value",
+              "maxValue",
+              "noisePercent",
+              "seriesRuntimeNs",
+              "droppedSamples",
+              "spectrumPoints",
+              "periods"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "cpu": { "type": "integer" },
+              "workCount": { "type": "integer" },
+              "unitTimeNs": { "type": "integer" },
+              "targetNs": { "type": "integer" },
+              "quantumNs": { "type": "integer" },
+              "calibrationSpanNs": { "type": "integer" },
+              "sampleCount": { "type": "integer" },
+              "minValue": { "type": "integer" },
+              "medianValue": { "type": "integer" },
+              "meanValue": { "type": "number" },
+              "p90Value": { "type": "integer" },
+              "p99Value": { "type": "integer" },
+              "p999Value": { "type": "integer" },
+              "p9999Value": { "type": "integer" },
+              "maxValue": { "type": "integer" },
+              "noisePercent": { "type": "number" },
+              "seriesRuntimeNs": { "type": "integer" },
+              "droppedSamples": { "type": "integer" },
+              "resampleStepNs": { "type": "integer" },
+              "spectrumPoints": { "type": "integer" },
+              "periods": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "x-order": ["periodNs", "powerRatio"],
+                  "required": ["periodNs", "powerRatio"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "periodNs": { "type": "integer" },
+                    "powerRatio": { "type": "number" }
+                  }
+                }
+              }
+            }
+          }
+        },
         "cpus": { "type": "array", "items": { "type": "integer" } },
         "stats": {
           "type": "array",

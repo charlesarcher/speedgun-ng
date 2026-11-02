@@ -18,7 +18,11 @@ version bump rides the addition (R-09).
 The key joins the root `x-order` after `speedgun` and before
 `benchmarks`, in `properties` and out of `required`, so a run with no
 probe writes no key and the document carries the same fields and shape
-as master's (FR-013, R-09). The writer writes the key exactly when the
+as master's (FR-013, R-09). The two keys specs/043 adds join the
+`x-order` after `loopPeriodNs`, in `properties` and out of `required`:
+a run whose method is `TSC`, and every run written before specs/043,
+writes neither, so its bytes stand as master wrote them (specs/043
+FR-006, FR-019, FR-026, SC-004). The writer writes the key exactly when the
 run carried a probe (FR-026). A run that requested the probe and found the TSC unavailable carried a
 probe in this sense: the writer writes the key with `mode` as
 requested, the configured `thresholdNs` (a value the option carried, or
@@ -32,6 +36,8 @@ E-07 states (FR-037).
 | `mode` | string, one of `ALONGSIDE`, `PRECHECK`, `BOTH` | the mode the run used, the words the `JitterProbeMode` enumerators name | FR-026, R-10 |
 | `thresholdNs` | integer | the effective threshold in ns | FR-007, FR-026 |
 | `loopPeriodNs` | integer | the minimum loop period the probe measured | FR-007, FR-026 |
+| `method` | string, one of `FWQ`, `FTQ`, `TSC` | the method the run measured, the words the `JitterMethod` enumerators name | specs/043 FR-006, FR-019 |
+| `series` | array of objects | one closed item per probe cpu, ascending, the 21 keys of the E-22 order | specs/043 FR-006, FR-020 |
 | `cpus` | array of integer | the probe cpu indexes, ascending | FR-026 |
 | `stats` | array of objects | one object per probe cpu: `cpu` and the sixteen fields of `JitterStats` in the E-03 order | FR-002, FR-026 |
 | `droppedGaps` | integer | the gaps the buffers dropped, summed over the probe cpus | FR-010, D-6, FR-026 |
@@ -39,6 +45,22 @@ E-07 states (FR-037).
 
 The `disclosure` text carries the facts FR-025 lists; the wording stays
 unpinned, and the schema checks the key's presence and kind.
+
+## The `series` item (specs/043)
+
+One closed object per probe cpu, in ascending cpu order, carrying the
+calibration figures, the twelve figures of the kept series fold and the
+two spectrum keys, in the E-22 order: `cpu`, `workCount`, `unitTimeNs`,
+`targetNs`, `quantumNs`, `calibrationSpanNs`, `sampleCount`, `minValue`,
+`medianValue`, `meanValue`, `p90Value`, `p99Value`, `p999Value`,
+`p9999Value`, `maxValue`, `noisePercent`, `seriesRuntimeNs`,
+`droppedSamples`, `resampleStepNs`, `spectrumPoints`, `periods`.
+
+| Rule | Detail | Requirement |
+| --- | --- | --- |
+| The two method figures | `quantumNs` is the FTQ's quantum and `resampleStepNs` the FWQ's resample step; the method leaves one of the two unused, so the writer writes a key only when its figure is not 0, and the schema's `required` lists 19 names that omit both | specs/043 FR-006, E-22 |
+| The period list | `periods` is an array of closed items of `periodNs` (integer) and `powerRatio` (real), the DFT bins the transform answers, the largest power first; a run that keeps no period list writes an empty array | specs/043 FR-018, E-24 |
+| The item stands closed | `additionalProperties: false` on the item and on the period item, so a key the schema lists nowhere refuses with the pointer of the item that carries it | specs/043 FR-006, FR-010 |
 
 ## The per-benchmark `jitter` entry
 
@@ -52,6 +74,12 @@ The key joins the entry `x-order` directly after `noiseWarning`, in
 | The run carried a probe and kept gaps landed inside the windows | an object holding `stats`, one object per probe cpu over those windows: `cpu` and the sixteen fields in the E-03 order | FR-021, FR-027 |
 | The run carried a probe and no kept gap landed inside the windows | `null` | FR-027, User Story 3 |
 | The run carried no probe | the key stands absent | FR-013 |
+
+specs/043 adds a `series` array beside the entry `stats`, one item per
+probe cpu in the same order, the item of the run-level array without
+`method` and without `periods`: the period list rides the run-level item
+alone (specs/043 FR-020, E-23). A FWQ entry item carries 19 keys, a FTQ
+entry item 20, the resample step standing in neither.
 
 A multi-pass run gives each pass its own timed windows, and the split
 covers all of them, so one benchmark's `stats` fold the gaps of every
@@ -73,6 +101,9 @@ pass (FR-022, PC-5).
 | Root `jitter` schema | `x-order` `mode`, `thresholdNs`, `loopPeriodNs`, `cpus`, `stats`, `droppedGaps`, `disclosure`; a closed three-word enum on `mode`; `additionalProperties: false` | FR-026 |
 | Entry `x-order` | `jitter` after `noiseWarning`; in `properties`, out of `required`; kind `["object", "null"]` | FR-027, R-09 |
 | Per-cpu stats object schema | `cpu` plus the sixteen fields in the E-03 order, integer or real per the `JitterStats` kinds; `additionalProperties: false`; the `gaps` array allowed only under `--json-raw=gaps` | FR-002, FR-028 |
+| Root `jitter` keys | `method` and `series` in `x-order` after `loopPeriodNs`, in `properties`, out of `required`; `additionalProperties` stays `false` | specs/043 FR-006, R-16 |
+| `series` item schema | the 21 keys in the E-22 order in `x-order`; `required` of 19 names omitting `quantumNs` and `resampleStepNs`; `additionalProperties: false`; a closed `periods` item of `periodNs` and `powerRatio` | specs/043 FR-006, FR-018, R-16 |
+| Stamped minor | the writer stamps `1.12`, the minor the series record moves; the reader accepts every 1.x, so the check runs against the schema at the stamped minor | specs/043 FR-005, SC-009 |
 
 ## The `loadReport` round trip
 
@@ -84,6 +115,9 @@ loadReport(const std::string& path) -> std::expected<ReportData, std::string>
         equal to the value the run wrote (FR-029, SC-001)
   \post the jitter keys of a probe-free document stand absent, and the
         read `ReportData` carries no jitter stats (FR-013)
+  \post a document that names a method reads with `ReportData::jitterRun`
+        carrying that method, and its series items land in the folds the
+        `jitter:run:` rule reads (specs/043 FR-020, E-25, E-28)
   \post an absent `jitter` key reads as no stats, the optional-key
         pattern of `contextPercentiles` and `raw`
         (`source/harness/json_load.cpp:90`)
