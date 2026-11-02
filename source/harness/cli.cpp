@@ -1532,6 +1532,27 @@ auto speedgunMain(int argc, char** argv) -> int
   // result of the batch in the order the results push, the alignment the
   // split reads below.
   std::vector<std::vector<sg::detail::TimedWindow>> entryWindows;
+  // specs/042-topdown FR-042, spec D-6: the scope the run measures, stated once
+  // for the process ahead of the walk, so a reader learns which way the
+  // `#core_wide` flag settled before any measurement prints. The query is the
+  // one reader of that flag, so this call is what settles the cached value and
+  // the conditional over the constant folds to the same value when a table
+  // resolves: the line and a folded row cannot disagree. It reads the cpu set
+  // this process holds here, ahead of the narrowing a live jitter probe applies
+  // inside the walk. An unreadable cpu set or sibling list answers nothing,
+  // which keeps the standing refusal of the constant and prints no line at all
+  // (FR-043).
+  if (options.topdownLevel.has_value()) {
+    if (const auto coverage = counters::coreWideCoverage();
+        coverage.has_value())
+    {
+      std::printf("topdown: core-wide coverage=%s\n",
+                  *coverage == counters::CoreCoverage::WHOLE_CORE
+                      ? "whole_core"
+                      : "one_thread");
+    }
+  }
+
   // The loop variable keeps the spelling `entry`: `test/cli_shape.sh`
   // locates this loop by the `runner.run(*entry)` line and reads the
   // flag exactly once inside it.
