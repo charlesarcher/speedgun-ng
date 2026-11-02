@@ -42,7 +42,14 @@ project(
     # the tree that has taken 0.27.0 takes the next free minor, 0.28.0.
     # The graph record joins the public loaded-report struct, so the
     # harness SOVERSION is 19 and the archive SOVERSION stays 4 (D-8).
-    VERSION 0.28.0
+    # specs/043-fwq-ftq FR-005, FR-020 (D-8): this lane takes the next
+    # free minor past 0.28.0, 0.29.0. Four public layouts move: the four
+    # new fields of JitterProbeOptions, the series record of
+    # JitterEntryFold, the series record of PrecheckCpuRecord, and the
+    # run record of ReportData, so the harness SOVERSION is 20 and the
+    # archive SOVERSION stays 5, the number specs/044 moved. The schema check rides the commit that
+    # writes the 1.12 minor.
+    VERSION 0.29.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -377,7 +384,15 @@ set_target_properties(
     # exported layouts move again and the hand-kept number rises to 19
     # past the 18 specs/039 left. The counters library surface moves
     # nothing, so that archive keeps its SOVERSION 4.
-    SOVERSION 19
+    # specs/043 FR-005, FR-020, D-8: JitterMethod, JitterPeriodRecord,
+    # JitterSeriesStats and JitterRunRecord join the public header,
+    # JitterProbeOptions gains four fields, JitterEntryFold and
+    # PrecheckCpuRecord gain the series record, and ReportData gains its
+    # run record, so the four exported layouts move again and the
+    # hand-kept number rises to 20 past the 19 specs/037 landed. The
+    # counters library surface moves nothing, so that archive keeps its
+    # SOVERSION 5, the number specs/044 landed.
+    SOVERSION 20
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )
