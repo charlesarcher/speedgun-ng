@@ -31,7 +31,7 @@ implementer reopens them.
   the next free patch: `0.30.1`, measured free at branch time over
   `CMakeLists.txt`, `docs/`, `source/`, `include/` and `test/`. The harness
   `SOVERSION` stays 20 and the counters archive `SOVERSION` stays 5, the
-  numbers `CMakeLists.txt:50-58` records for the unreleased window. The schema
+  numbers `CMakeLists.txt:49-58` records for the unreleased window. The schema
   stays 1.13.
 - **D-3 The rule set.** Three pairs of fields carry checks, in the words of the
   request: the method beside the count, the spread beside the count, and the
@@ -56,12 +56,15 @@ implementer reopens them.
   reaches, the standing rule of the loader (`firstFailingPartStopsTheFold`
   measures it at `test/source/harness_json_load_test.cpp:706-739`). The order
   that fixes is D-16, so a document that carries a tag fault and a method fault
-  answers the tag refusal.
+  answers the method refusal, and one that carries a tag fault and a spread
+  fault answers the spread refusal. Rule 1 stands ahead of rule 2, and rule 2
+  ahead of rule 3, because the method and the count are the fields the entry
+  names first.
 - **D-10 The writer, the schema file, the schema checker and the comparison
   stand unchanged.** A written document carries every key of every pair
   (measured below), so no rule of this feature can refuse one. The comparison
   already answers a refused document with status 2 and one quoted line
-  (`source/harness/compare.cpp:1876-1890`).
+  (`source/harness/compare.cpp:1876-1891`).
 - **D-11 The accepted forms.** The writer's own document for each method, a
   stopped-loop entry, and a schema 1.0 document. Each keeps its test.
 - **D-12 Coverage.** No new exclusion construct joins the tree: no
@@ -247,12 +250,12 @@ here re-anchors at plan time by symbol.
   tags 0, 1, 2 and one null. `test/data/gate_schema_20.json` names `AUTO` with
   1 and schema major 2, and the version refusal stands ahead of the entry read
   (`source/harness/json_load.cpp:3129-3135`,
-  `test/source/harness_compare_cli_test.cpp:877-883`).
+  `test/source/harness_compare_cli_test.cpp:875-884`).
 - The version is pinned in three places: `CMakeLists.txt:59`,
   `test/source/views_test.cpp:279` and
   `test/source/harness_cli_table_test.cpp:1453`.
 - The comparison answers a refused document with status 2 and one quoted line
-  (`source/harness/compare.cpp:1876-1890`), the acceptance of US-1.
+  (`source/harness/compare.cpp:1876-1891`), the acceptance of US-1.
 
 ## Roadmap position
 
@@ -442,7 +445,8 @@ reader, and load each hand-built form. Every load answers the values it wrote.
   whole load test (`test/CMakeLists.txt:775-783`), and the binary prints one
   summary line, so the count reads from the source: each case is one function
   plus one call in `main`, and `grep -c` over the call list names the count
-  (`test/source/harness_json_load_test.cpp:2205-2238`). The run's own line,
+  (`test/source/harness_json_load_test.cpp:2207-2234`, where `:2211` is one
+  declaration that carries three calls). The run's own line,
   `ok` or `N checks failed`, carries the green and red verdicts.
 - **FR-017**: No test of this feature shall sleep, read a clock, name a
   made-up cpu, or require a real PMU.
@@ -526,8 +530,8 @@ runner and the load test, and each answer below carries its measurement.
   (`source/harness/json_load.cpp:3129-3135`). (Edge Cases, D-6.)
 - Q: Does US-1's comparison scenario need a new test? → A: No. The standing path
   answers status 2 with one quoted line for any load refusal
-  (`source/harness/compare.cpp:1876-1890`), and
-  `test/source/harness_compare_cli_test.cpp:782-799` measures that shape.
+  (`source/harness/compare.cpp:1876-1891`), and
+  `test/source/harness_compare_cli_test.cpp:782-800` measures that shape.
   (FR-008.)
 - Q: What count does the writer's stopped form name, and is the rich fixture's
   stopped entry that form? → A: The writer's stopped form names a count of 0
@@ -619,14 +623,14 @@ on this host, and each answer below carries its measurement.
   `docs/pages/harness.md:1429` that name the three pairs, the pair rule, and the
   three method words. The drift gate's own classes answer no hit for the docs
   page (`tools/docs/example_drift.py:491-503`), and the scan strips inline code
-  spans first (`:455-462`), so a field name in backticks is safe. The prose rules
+  spans first (`:449-463`), so a field name in backticks is safe. The prose rules
   answer no finding. (FR-014.)
 - Q: Which spec claims does no gate verify? → A: Six, and each now names its
   check. The allowance citation, re-anchored to `coverage_gate.sh:102`. The
   coverage measurement point, named by FR-018. The gate command lines, named by
   FR-019. The docs line count, now a count of sentences and a review item
-  (FR-014). The test case count, carried by the case names in the test log
-  (FR-016). The compare pairing, carried by the plant of D-21 (FR-008).
+  (FR-014). The test case count, read from the source by `grep -c` over the
+  `main` call list (FR-016). The compare pairing, carried by the plant of D-21 (FR-008).
 - Q: What is a stopped-loop document, and what is a schema 1.0 document? → A: The
   Key Entities block names both, with the schema words for the outcome
   (`docs/schema/report-v1.json:527-530`) and the version rule
@@ -732,7 +736,7 @@ Out of scope:
   settles the overlap with specs/046.
 - The owner's four recommended answers stand as D-2, D-5, D-6 and D-7.
 - The comparison path of FR-008 needs no change, measured at
-  `source/harness/compare.cpp:1876-1890`.
+  `source/harness/compare.cpp:1876-1891`.
 
 ## Dependencies
 
@@ -743,13 +747,13 @@ Out of scope:
 
 ## Citations
 
-- `specs/024-multipass-collection/spec.md:658-676`, FR-038 as it stands.
+- `specs/024-multipass-collection/spec.md:658-671`, FR-038 as it stands.
 - `source/harness/json_load.cpp:2726-2764`, the entry's pass block.
 - `source/harness/json_load.cpp:387-395`, the metric pass tag.
 - `source/harness/json_report.cpp:849-855`, `:323`, the writer of the keys.
 - `source/harness/runner.cpp:1724-1729`, the publisher of the count.
 - `docs/schema/report-v1.json:517-520`, `:654-662`, the required keys.
-- `source/harness/compare.cpp:1876-1890`, the status 2 path.
+- `source/harness/compare.cpp:1876-1891`, the status 2 path.
 - `tools/dbc/coverage_gate.sh:102`, the allowance of 21 rows, and `:86-101` for
   the measurement point and the host reading.
 - `test/source/harness_json_load_test.cpp:181-218`, the schema 1.0 fixture.

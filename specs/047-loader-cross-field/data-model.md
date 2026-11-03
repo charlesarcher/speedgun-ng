@@ -25,9 +25,11 @@ Table facts carry the command that produced them. Paths stand short here:
 
 | Fact | Figure | Command |
 | --- | --- | --- |
-| Version, schema, the two archive numbers | `0.30.0`, `1.13`, harness 20, archive 5 | `grep -n 'VERSION 0' CMakeLists.txt` |
+| Project version | `0.30.0` | `grep -n 'VERSION 0' CMakeLists.txt` (`:59`) |
+| Schema version | `1.13` | `grep -n kSchemaVersion source/harness/json_report.cpp` (`:47`) |
+| The two archive numbers | harness 20, archive 5 | `grep -n 'SOVERSION' CMakeLists.txt` (`:407`, `:134`) |
 | The pass keys, required | the four entry keys at `report-v1.json:517-520`, the tag `pass` at `:662` | `python3` walk of that file |
-| The method words, the outcome words | `AUTO`, `PASSES`, `MULTIPLEX`; `MEASURED`, `SKIPPED`, `FAILED` | `json_report.hpp:126-130`, `report-v1.json:527-530` |
+| The method words, the outcome words | `AUTO`, `PASSES`, `MULTIPLEX`; `MEASURED`, `SKIPPED`, `FAILED` | `json_report.hpp:126-131`, `report-v1.json:527-530` |
 | The spread warning limit | 5.0 percent of the median pass time | `json_report.hpp:192` |
 | Load test cases today | 27 functions, called from `main` | walk of `harness_json_load_test.cpp:2207-2234` |
 | Branch records the three checks add | 26, plus 4 for the two guards of D-14, none taken zero | `gcov -b -c` over `/tmp/notes-047/shape/` |
@@ -41,8 +43,8 @@ of the entry read (`json_load.cpp:3129-3135`), so no check reaches it.
 
 One element of the root `benchmarks` array. `loadReport` reads it in `readEntry`
 (`json_load.cpp:2445`) and names it `/benchmarks/<index>` (`:3230-3235`). The
-eight fields the checks read, with the writer, the reader, the schema entry and
-the rule that binds each:
+eight fields, with the writer, the reader, the schema entry and the rule that
+binds each; two carry no check of this feature:
 
 | Field | Carrier | Writer | Reader | Schema | Bound by |
 | --- | --- | --- | --- | --- | --- |
@@ -155,7 +157,7 @@ Rules 2 and 3 need no waiver: a stopped collection publishes no spread and no ta
 ## E-07 The schema 1.0 document
 
 A report whose `schemaVersion` reads `1.0` and that carries no pass key, no hunt
-key and no topdown key (`json_load.cpp:3125-3135`, `docs/pages/harness.md:1395`).
+key and no topdown key (`json_load.cpp:3125-3135`, `docs/pages/harness.md:1395-1403`).
 The reader gates the major alone, so 1.0, 1.12 and 1.13 answer the same three
 rules (D-6), and each pass member stays at the default of a run that collected
 no pass (`json_load.cpp:2720-2742`).
@@ -174,9 +176,13 @@ Each refusal cell names the line of `contracts/loader-pass-pairs.md` that leads
 with the pair's non-count field. The last column keeps a guard false on every
 document the harness makes (`pass_plan.cpp:322`, `:404-408`).
 
+The contract `contracts/loader-pass-pairs.md` carries the four refusal lines in
+full, and this file quotes none of them.
+
 The order inside one entry (D-16): the rows, the standing `spreadWarning` check,
 rule 1, rule 2, rule 3 over the rows in order. The first fault stops the read
-(D-9), so a document with a tag fault and a method fault answers the tag line.
+(D-9), so a document with a tag fault and a method fault answers the method
+line, and one with a tag fault and a spread fault answers the spread line.
 
 ## Invariants
 
@@ -193,7 +199,7 @@ rule 1, rule 2, rule 3 over the rows in order. The first fault stops the read
 ## Carrier changes
 
 None. No header changes, so no `SOVERSION` moves: the harness number stays 20 and
-the archive stays 5 (`CMakeLists.txt:50-58`, D-2). The schema stays 1.13, and
+the archive stays 5 (`CMakeLists.txt:49-58`, D-2). The schema stays 1.13, and
 `report-v1.json` lists every key of every pair already (`:517-520`, `:654-662`).
 The version moves 0.30.0 to 0.30.1 at `CMakeLists.txt:59`, and the two sites that
 pin it move with it (FR-015).

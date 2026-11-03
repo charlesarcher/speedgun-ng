@@ -79,7 +79,7 @@ page; one spec amendment; three version sites.
 | VIII, hard CI gates | pass | The `ctest` pair, the five gates, both sanitizer builds and the checked build stand in the Gate commands section, with the pinned tools and the measurement point. No CI file changes. |
 | IX, spec-driven | pass | Spec, two clarify rounds, this plan, then tasks. Every design point names its decision. |
 | X, anti-slop | pass | Three checks in one reader, each one `if`: no new type, no new file, no new mechanism. |
-| XI, prose | pass | `cmake/prose-lint.cmake` reports 0 findings over this directory and over the commit range. |
+| XI, prose | pass | `python3 tools/prose/prose_gate.py --check all --mode range --base origin/master` reports 0 findings over the commit range, and the tree form over this directory answers 0. |
 | Pull Request Quality | pass | Every commit names its exact pathspecs, wraps its body at 72 columns, and ends with the two footer lines. |
 
 Two rows carry a detail worth the sentence. No public function changes, so
@@ -103,7 +103,7 @@ specs/047-loader-cross-field/
 ├── contracts/
 │   └── loader-pass-pairs.md   # The three checks, their guards, their refusal lines
 ├── checklists/
-│   └── requirements.md        # Requirements quality checklist, passed
+│   └── requirements.md        # Checklist, passed, four items unchecked by design
 └── tasks.md                   # Phase 2 output, not written by this file
 ```
 
@@ -157,7 +157,7 @@ lane refuses documents, it writes none.
 
 | Decision | Landing point |
 | --- | --- |
-| D-1 number, branch, version | the branch, `CMakeLists.txt:59` |
+| D-1 number, branch | the branch, `specs/047-loader-cross-field` |
 | D-2 patch version 0.30.1 | the version commit, three sites |
 | D-3 three pairs | the three checks in `readEntry` |
 | D-4, D-17 pair rule and presence | the guard of each check |
@@ -250,7 +250,7 @@ full path (D-15). Four lines stand, one per refusal arm:
 The shape is the standing one: the path, a colon, the words
 (`json_load.cpp:57-58`, `:2759-2761`). No new error type joins the reader
 (FR-007). The comparison quotes the line and answers status 2 through the path
-it has today (`compare.cpp:1876-1890`, FR-008).
+it has today (`compare.cpp:1876-1891`, FR-008).
 
 ### Physical view
 
@@ -267,7 +267,7 @@ One file, one function, one insertion point:
 
 `SG_PROJECT_VERSION` is a `PRIVATE` define of the harness target
 (`CMakeLists.txt:323-327`), so the version commit rebuilds the harness library
-whole and relinks every harness test (D-20 of the clarify record, FR-015).
+whole and relinks every harness test (the round-2 clarify answer on the version move, research R-12, FR-015).
 
 ### Public API surface added
 
@@ -305,12 +305,12 @@ body.
 | FR-006 rule 3, per row, 0-based | `thePassTagRefusesItsCount` |
 | FR-007 the refusal text | `thePassPairRefusalNamesItsPartnerPath` |
 | FR-008 the compare pairing | `aPassFieldDisagreementAnswersOneQuotedLine` in `harness_compare_cli_test.cpp` |
-| FR-009 the standing warning check keeps its place | `thePassPairChecksRunInReadOrder`, beside the standing case at `:2752` |
-| FR-010, FR-011, FR-012 the accepted forms | `everyWrittenPassFormLoads`, `aStoppedEntryKeepsItsMethodAndCount`, beside the standing `aDocumentPredatingThePassFieldsLoads` |
+| FR-009 the standing warning check keeps its place | `thePassPairChecksRunInReadOrder`, beside the standing plant in `theHuntRankFieldsLoadBackEqual` (`harness_json_load_test.cpp:562-564`) |
+| FR-010, FR-011, FR-012 the accepted forms | `everyWrittenPassFormLoads`, `aStoppedEntryKeepsItsMethodAndCount`, beside the standing `aDocumentPredatingThePassFieldsLoads` and the written forms of `thePassDisclosureRoundTrips` (`harness_json_report_test.cpp:367-423`) |
 | FR-013 writer, schema, checker, compare unchanged | the diff review, and the standing schema tests of `harness_json_schema_test.cpp` |
 | FR-014 the docs sentences | the drift gate, and the review of the count |
 | FR-015 the version move | `views_test.cpp:279`, `harness_cli_table_test.cpp:1453` |
-| FR-016, FR-017 the test count and the test facts | this map, and `grep -c` over the `main` call list of the load test (`:2205-2238`), one function and one call per case |
+| FR-016, FR-017 the test count and the test facts | this map, and `grep -c` over the `main` call list of the load test (`:2207-2234`), one function and one call per case |
 | FR-018 coverage | the Coverage plan |
 | FR-019 the gates | the Gate commands |
 | FR-020 the commit template | `python3 tools/prose/prose_gate.py --check all --mode range --base origin/master` |

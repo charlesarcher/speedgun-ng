@@ -64,7 +64,7 @@ specification reads `D-1` to `D-21` without a leading zero and is cited as
 - **Rationale**: The standing shape is the path, a colon, and the words
   (`source/harness/json_load.cpp:57-58`, `:207-208`), and the standing pair check names
   the field it validates at `:2759-2761`. The comparison prints the string as the reader
-  built it (`compare.cpp:1876-1890`), and the loaded indices equal the document indices,
+  built it (`compare.cpp:1876-1891`), and the loaded indices equal the document indices,
   so the path rebuilds byte for byte (`:2640`).
 - **Alternatives considered**: The words name the partner by key word, the style of
   `:2761`: a test that looks for `/benchmarks/0/passCount` fails, and User Story 1
@@ -126,7 +126,7 @@ specification reads `D-1` to `D-21` without a leading zero and is cited as
 - **Rationale**: The scripted run registers one metric column on an object that
   publishes no counter limit, so `settleMethod` answers `MULTIPLEX`
   (`json_fixture.hpp:96-122`, `pass_plan.cpp:131-135`) with a count of 1. A real split
-  run reaches `PASSES` with a count of 1 at `harness_pass_report_test.cpp:833-835`, and
+  run settles `PASSES` with a count of 1 in memory at `harness_pass_report_test.cpp:833-835`, a site that writes no document, and
   the writer's stopped form names a count of 0 beside its settled word. The rich fixture
   names `SKIPPED`, `PASSES`, a count of 2, a spread of 3.5 and a tag of 1, in schema 1.0
   (`harness_json_load_test.cpp:181-218`).
@@ -156,7 +156,7 @@ specification reads `D-1` to `D-21` without a leading zero and is cited as
 - **Decision**: One test in `harness_compare_cli_test.cpp` plants a pair fault into a
   document of schema major 1 that the test writes at run time (spec D-21, FR-008).
 - **Rationale**: The compare path answers status 2 with one quoted line for any load
-  refusal (`compare.cpp:1876-1890`), and `oneFaultLine` measures that shape
+  refusal (`compare.cpp:1876-1891`), and `oneFaultLine` measures that shape
   (`harness_compare_cli_test.cpp:782-800`). The survey read 40 committed documents with
   a benchmarks array, 57 entries, and 11 embedded documents. One carries a refused pair,
   `test/data/gate_schema_20.json:66-68`, and names schema version 2.0, so the version
@@ -206,7 +206,7 @@ specification reads `D-1` to `D-21` without a leading zero and is cited as
   today. The drift gate's docs classes forbid a commit hash, a spec identifier, a
   requirement identifier, a task identifier and a contract label on a user page
   (`tools/docs/example_drift.py:491-503`), and the scan strips fenced blocks and inline
-  code spans first (`:450-463`), so a field name in backticks is safe.
+  code spans first (`:449-463`), so a field name in backticks is safe.
 - **Alternatives considered**: A main-page section: the root page teaches no loader
   rule, and the IV.1 check answers no main-page impact (spec D-7). A docs line that
   names a requirement identifier: the class answers a hit.
@@ -220,7 +220,7 @@ specification reads `D-1` to `D-21` without a leading zero and is cited as
   (`.github/workflows/ci.yml:33-34`), and the tree stands formatted by it. The host
   `/usr/bin/clang-format` answers 23.1.4, names untouched files as badly formatted, and
   the gate exits 1; the gate takes the tool by name through `FORMAT_COMMAND`
-  (`cmake/lint.cmake:6`). The host `lcov` needs `Capture::Tiny` at `~/perl5/lib/perl5`:
+  (`cmake/lint.cmake:9`). The host `lcov` needs `Capture::Tiny` at `~/perl5/lib/perl5`:
   without it the capture, the extract and the gate exit 2, 2, 3.
 - **Alternatives considered**: Change the lint gate so the host tool passes: `spec D-20`
   bars a gate change. Take the coverage figure from the CI artifact alone: FR-018 names

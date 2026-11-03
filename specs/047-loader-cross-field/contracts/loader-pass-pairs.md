@@ -2,7 +2,7 @@
 
 **Feature**: specs/047-loader-cross-field | **File**: `source/harness/json_load.cpp`,
 `readEntry` | **Audit point**: `e63f7a87`
-**Spec**: FR-002 to FR-009, FR-011 to FR-013, D-4, D-5, D-9, D-14 to D-17, D-19
+**Spec**: FR-001 to FR-013, D-4, D-5, D-9, D-14 to D-17, D-19
 
 ## What this contract covers
 
@@ -42,7 +42,8 @@ rule 3  pass tag beside count, per row  # new
 The first fault stops the read (D-9), the standing stop of the fold
 (`:120-133`, measured by `firstFailingPartStopsTheFold` at
 `harness_json_load_test.cpp:706-739`). A document that carries a tag fault and a
-method fault answers the tag refusal.
+method fault answers the method refusal, and one that carries a tag fault and a
+spread fault answers the spread refusal.
 
 ## The four refusal lines
 
@@ -60,7 +61,7 @@ words (`json_load.cpp:57-58`, `:2759-2761`). No new error type joins the reader
 
 The method word of the first line comes from `detail::enumWord` over
 `detail::kMetricMethodWords` (`json_report.hpp:126-131`). The comparison quotes
-the line and answers status 2 on the path it has today (`compare.cpp:1876-1890`,
+the line and answers status 2 on the path it has today (`compare.cpp:1876-1891`,
 FR-008).
 
 ## Check 1: the method beside the count
@@ -126,7 +127,7 @@ path, and the check reads that entry's own count. The tag is a 0-based pass inde
 | The writer | it writes every key of every pair already (`json_report.cpp:849-855`, `:323`), so no rule refuses a written document (D-10, FR-013) |
 | The schema file | it states key sets, order and kinds (`report-v1.json:517-520`, `:654-662`), and the checker language carries no cross-field rule |
 | The schema checker | `checkReport` is a separate reader (`:3055-3097`), and `loadReport` runs no schema check (`:3101-3247`) |
-| The comparison rules | a refused document answers status 2 and one quoted line today (`compare.cpp:1876-1890`), and the grammar gains nothing |
+| The comparison rules | a refused document answers status 2 and one quoted line today (`compare.cpp:1876-1891`), and the grammar gains nothing |
 | The public API, the two `SOVERSION` numbers, the schema version, every option | unchanged (D-2, the Scope of `spec.md`) |
 
 ## Verification
@@ -136,7 +137,7 @@ path, and the check reads that entry's own count. The tag is a 0-based pass inde
 | Each refusal answers its own line | `thePassMethodRefusesItsCount`, `thePassSpreadRefusesItsCount`, `thePassTagRefusesItsCount` |
 | One line names its own path and the partner's path | `thePassPairRefusalNamesItsPartnerPath` (FR-007) |
 | A pair with one key absent loads | `aPassPairWithOneKeyAbsentLoads` (FR-002, FR-004) |
-| The order answers the tag refusal first | `thePassPairChecksRunInReadOrder`, beside `:2752-2763` (FR-009) |
+| The order answers the method refusal ahead of the tag refusal | `thePassPairChecksRunInReadOrder`, beside `:2752-2763` (FR-009) |
 | A stopped entry and a hunt entry keep their pair | `aStoppedEntryKeepsItsMethodAndCount`, `aHuntEntryKeepsItsMethodAndCount` (FR-011) |
 | Every written pass form loads | `everyWrittenPassFormLoads`, `aDocumentPredatingThePassFieldsLoads` (FR-010, FR-012) |
 | A pair fault answers status 2, one quoted line | `aPassFieldDisagreementAnswersOneQuotedLine`, over `oneFaultLine` at `:782-800` (FR-008) |
