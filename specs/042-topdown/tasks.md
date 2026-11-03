@@ -789,14 +789,13 @@ naming a deeper node, one naming no node, and one with no tree.
   refusal statuses SC-05 counts (FR-038, FR-039, SC-05). This case lands with
   T074 in one commit (FR-048).
 
-- [ ] T059 [P] [US3] In `test/source/harness_cli_table_test.cpp`, move the
+- [x] T059 [P] [US3] In `test/source/harness_cli_table_test.cpp`, move the
   project row of `theVersionBindingsReadTheMovedNumbers` at `:1387` to the
   version `0.29.0` T073 lands, with the check-map entry at `:125` and the prose
   line at `:1376` that quote it, and move the project row of the version block
   of `test/source/views_test.cpp:250` with its block comment at `:242` to the
   same number, the two archive rows having moved with their own Phase 2 commits
-  (FR-047, spec D-4). This case lands with T073 in one commit (FR-048).
-
+  (FR-047, spec D-4). This case lands with T073 in one commit (FR-048). The two blocks had drifted, to `:128` and to `:267`, and each moved with its check-map line, its prose line and its block comment.
 - [x] T060 [P] [US3] In `test/source/harness_json_report_test.cpp`, move the
   stamp check of `theDocumentStampsTheMinorThisFeatureRequires` at `:546`, the
   case at `:543`, and its prose line at `:547` from `1.11` to `1.12`, the minor
@@ -910,12 +909,11 @@ naming a deeper node, one naming no node, and one with no tree.
   among the values a report can lack in the fault row at `:54`, the three fault
   lines `specs/042-topdown/contracts/topdown-rule.md:89-94` says ride with the
   prefix (FR-037; lands with T074 in one commit). No gate reads the grammar fence: a planted spelling the parser refuses left the prose gate, codespell and the thirteen docs checks clean, so the line stands on the two compare units and on this contract. The contract also called that name a label while carrying the `<node>` production, and one word moved.
-- [ ] T073 [US3] In `CMakeLists.txt`, move `VERSION 0.28.0` at `:45` to `0.29.0`
+- [x] T073 [US3] In `CMakeLists.txt`, move `VERSION 0.28.0` at `:45` to `0.29.0`
   with the comment at `:40-44` naming the record and the requirement that moves
   it, the counters `SOVERSION` at `:110` and the harness `SOVERSION` at `:375`
   having moved with their own commits in Phase 2 (spec D-4, spec D-17; turns
-  T059 green).
-
+  T059 green). The comment names the record and the requirement that moves the minor. Both archive numbers already stood at 5 and 20 from their Phase 2 commits, so no archive line moved here.
 - [x] T074 [US3] In `source/harness/compare.cpp`, add `"topdown:"` to
   `kLabelPrefixes` at `:55-56`, add `&& prefix != "topdown:"` to
   `statisticsValue` at `:400` so a written aggregate on a node faults, and add

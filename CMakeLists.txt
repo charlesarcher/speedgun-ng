@@ -49,7 +49,14 @@ project(
     # run record of ReportData, so the harness SOVERSION is 20 and the
     # archive SOVERSION stays 5, the number specs/044 moved. The schema check rides the commit that
     # writes the 1.12 minor.
-    VERSION 0.29.0
+    # specs/042-topdown FR-032, FR-047 (D-4, D-17): this feature takes the
+    # next free minor past 0.29.0, 0.30.0. The top-down record joins the
+    # public entry in include/speedgun-ng/benchmark.hpp and the metric
+    # carriers gain their threshold text. Both archive numbers stand where
+    # the moves above put them: the 20 and the 5 cover the layouts of this
+    # unreleased window, so no number moves twice. The schema check rides
+    # the commit that writes the 1.13 minor.
+    VERSION 0.30.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
