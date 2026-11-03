@@ -2131,7 +2131,7 @@ auto theSeriesCpuOutsideTheStatsRefuses() -> void
     const char* where;
   };
 
-  constexpr CpuPlant plants[] = {
+  constexpr CpuPlant kCpuPlants[] = {
       {"\"cpu\":3,\"workCount\":8",
        "\"cpu\":9,\"workCount\":8",
        "/jitter/series: the series item names cpu 9"},
@@ -2139,7 +2139,7 @@ auto theSeriesCpuOutsideTheStatsRefuses() -> void
        "\"cpu\":9,\"workCount\":11",
        "/benchmarks/0/jitter/series: the series item names cpu 9"},
   };
-  for (const auto& plant : plants) {
+  for (const auto& plant : kCpuPlants) {
     std::string text(kSeries);
     const auto at = text.find(plant.find);
     check(at != std::string::npos,
