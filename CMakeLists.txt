@@ -56,7 +56,7 @@ project(
     # the moves above put them: the 20 and the 5 cover the layouts of this
     # unreleased window, so no number moves twice. The schema check rides
     # the commit that writes the 1.13 minor.
-    VERSION 0.30.0
+    VERSION 0.30.1
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX

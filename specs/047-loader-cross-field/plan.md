@@ -158,7 +158,7 @@ lane refuses documents, it writes none.
 | Decision | Landing point |
 | --- | --- |
 | D-1 number, branch | the branch, `specs/047-loader-cross-field` |
-| D-2 patch version 0.30.1 | the version commit, three sites |
+| D-2 patch version 0.30.1 | the version commit, five sites |
 | D-3 three pairs | the three checks in `readEntry` |
 | D-4, D-17 pair rule and presence | the guard of each check |
 | D-5, D-15 refusal text | the four refusal strings |
@@ -263,7 +263,7 @@ One file, one function, one insertion point:
 | `test/source/harness_compare_cli_test.cpp` | one function, and one call in its `main` |
 | `docs/pages/harness.md`, the loader section | three sentences |
 | `specs/024-multipass-collection/spec.md`, FR-038 | the three rules, the pair rule, the waiver |
-| `CMakeLists.txt:59`, `test/source/views_test.cpp:279`, `test/source/harness_cli_table_test.cpp:1453` | 0.30.1 |
+| `CMakeLists.txt:59`, `test/source/views_test.cpp:279`, `test/source/harness_cli_table_test.cpp:1453`, `example/docs/fwq_ftq.expected:2` with its paired docs block | 0.30.1 |
 
 `SG_PROJECT_VERSION` is a `PRIVATE` define of the harness target
 (`CMakeLists.txt:323-327`), so the version commit rebuilds the harness library
