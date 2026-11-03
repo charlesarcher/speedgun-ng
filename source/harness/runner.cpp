@@ -815,11 +815,11 @@ auto stripTopdownColumns(sg::BenchmarkResult& result,
     }
   }
 
-  const std::size_t labels = result.metricLabels.size();
-  const std::size_t gridWidth = kTimeSlots + labels;
+  [[maybe_unused]] const std::size_t labels = result.metricLabels.size();
+  [[maybe_unused]] const std::size_t gridWidth = kTimeSlots + labels;
   SG_REQUIRE(std::all_of(result.rows.begin(),
                          result.rows.end(),
-                         [&result, labels, gridWidth](const sg::ResultRow& row)
+                         [labels, gridWidth](const sg::ResultRow& row)
                          {
                            return (row.metrics.empty()
                                    || row.metrics.size() == labels)
