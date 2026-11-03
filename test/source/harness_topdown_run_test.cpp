@@ -2209,8 +2209,18 @@ auto scenarioTheBareWordPrintsATreeAtStatusZero() -> int
   }
   const sg::counters::TopdownTable vendored =
       sg::counters::topdownTable(sg::counters::cpuIdentity());
-  if (vendored.source.directory.empty()) {
-    skip("the vendored mapping file names no table for this identity");
+  // The library answers whether any tree stands on this host: an identity no
+  // table serves, a table that names no directory, and a directory that holds
+  // no row of any top-down group each answer one `TopdownUnsupported` in place
+  // of a tree, and the child of this case prints no block for any of them. The
+  // skip states the line the library owns (FR-004 to FR-007, FR-040).
+  const sg::counters::TopdownSelection asked {
+      .identity = sg::counters::cpuIdentity(),
+      .level = static_cast<int>(kLevelOne),
+      .table = std::nullopt};
+  const auto answered = sg::counters::topdownTree(asked);
+  if (!answered.has_value()) {
+    skip(answered.error().message().c_str());
   }
 
   const std::string command = "\"" + std::string {selfPath} + "\" "
