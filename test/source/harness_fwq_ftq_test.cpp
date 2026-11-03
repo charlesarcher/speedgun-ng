@@ -317,7 +317,7 @@ auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
 // scripted clock with no read at all (FR-024, R-02).
 auto scriptedTscProvider() -> void
 {
-  static const bool registered = []
+  static const bool kRegistered = []
   {
     auto owned = std::make_unique<sg::counters::FakeProvider>();
     owned->addCounter("machine",
@@ -331,7 +331,7 @@ auto scriptedTscProvider() -> void
     check(ok.has_value(), "the scripted tsc provider registers (FR-024)");
     return true;
   }();
-  check(registered, "the scripted tsc provider stands registered (FR-024)");
+  check(kRegistered, "the scripted tsc provider stands registered (FR-024)");
 }
 
 // One scripted case: install the clock, start the probe, and open the
