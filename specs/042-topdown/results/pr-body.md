@@ -13,12 +13,12 @@ Roadmap item N10. Spec `specs/042-topdown/spec.md`.
 
 ## The lane
 
-- 82 commits over `master`, at tip `eda6f2d6`.
-- 81 files changed, 17,447 added lines, 211 removed lines.
-- Source: 2,829 added lines in 27 files, with `counters_topdown.hpp` new at the
+- 94 commits over `master`, the last of which stands this body.
+- 84 files changed, 17,592 added lines, 224 removed lines.
+- Source: 2,832 added lines in 28 files, with `counters_topdown.hpp` new at the
   public surface and `topdown_select.cpp` beside the metric tables.
-- Tests: 9,315 added lines in 27 files, with seven new executables and one new
-  fixture header.
+- Tests: 9,386 added lines in 28 files, with five new executables and one
+  new fixture header.
 - Two new examples: `example/docs/topdown.cpp` prints the block, and
   `example/memory_walk.cpp` chases a 32 MiB dependent chain so a memory-bound
   figure reaches the block.
@@ -50,22 +50,60 @@ needs five general events and this part schedules four, so one event stands
 unscheduled and the share answers `not available`. On a part with eight general
 counters all four shares publish.
 
+## What the matrix reads
+
+Run 41576309608 reads at `fe2b2d33`; the two commits after it carry no code.
+These jobs pass: `lint`, `prose-lint`, `dbc-gate`,
+`shared-audit`, `downstream-consumer`, `consumer-release`, and all three
+`static-analysis` shards. Five jobs stop on suite entries, and no top-down unit
+stands among them.
+
+- `harness_jitter_window_test`, in every job. The FWQ probe attributes no fold to
+  the entry it watches: the document carries `"jitter": null` with
+  `passCount: 0`, because the scripted clock runs the entry's 100,000 iterations
+  in about four microseconds and the probe's window holds no sample of it.
+  specs/043 owns that pacing.
+- `harness_fwq_ftq_test`, in `sanitize`. UBSan reads a negative scripted delta
+  turned into `unsigned long` at `test/source/harness_fwq_ftq_test.cpp:237`.
+- `harness_jitter_cli_test`, in `tsan`. ThreadSanitizer reads `seriesFigures` at
+  `source/harness/jitter_probe.cpp:708` on the main thread while the probe thread
+  writes the same state.
+- `counters_pmu_provider_test`, in `sanitize`. One check compares a counter
+  description with the kernel's own text.
+
+`coverage` fails on `harness_jitter_window_test` and writes no ratio, so T097
+stands open behind an entry no top-down code reaches.
+
+The fleet that runs these jobs sits on AMD parts, and the snapshot this build
+vendors carries no row of any top-down group for `arch/x86/amdzen3/`. A case that
+needs a host tree asks `topdownTree` and skips with the line `message()` gives;
+the planted-table cases still assert the block, the written record and the
+refusals there.
+
+## What this branch carries for the base
+
+The `lint` job gates every other job, and `origin/master` stands red under it:
+its spell step answers six findings, three on the spelling of a mean-removed
+local in `source/harness/spectrum.cpp` and three on split literals inside
+`test/source/harness_jitter_bytes_test.cpp`, all of them from specs/043. No
+coverage, sanitizer or suite verdict is readable behind a skipped `lint`, so the
+branch carries the commits that clear them, each named for its file. The naming
+gate stops on two constants of the wrong case, `plants` in
+`harness_json_load_test.cpp` and `registered` in `harness_fwq_ftq_test.cpp`, and
+both read their `k` spelling here. The rebase onto `origin/master` set one include
+order wrong in `counters_linux_pmu_seam_test.cpp`, and that commit reads here too.
+
 ## What this host cannot close
 
 - The coverage gate cannot start here: `lcov` dies on a perl XS version mismatch
-  between `~/.local/lib/perl5` and `/usr/bin/perl`, so T097 stands open and the
-  coverage ratio comes from the `coverage` job.
-- Three suite entries fail here and fail the same way on a fresh `origin/master`
-  worktree: `counters_kernel_calls_test` (two checks that ask a real
-  `perf_event_open` to refuse), `counters_pmu_provider_test` (one check that
-  compares a description with the kernel's text), and
-  `harness_jitter_window_test` (`theSeriesRoundTripsThroughLoadReport`). specs/043
-  and specs/044 added all three, and none of them reads top-down code.
+  between `~/.local/lib/perl5` and `/usr/bin/perl`, so the ratio comes from the
+  `coverage` job.
+- `counters_kernel_calls_test` and `counters_pmu_provider_test` fail here the same
+  way on a fresh `origin/master` worktree: their checks ask a real
+  `perf_event_open` to refuse, and compare a description with the kernel's text.
 - `prose_gate_fixtures` bounds its own run at 10 seconds. It passes alone in
   16.74 seconds here and fails when the suite runs the entries in parallel.
-- The `lint` job gates every other job and stands red on `origin/master`: its
-  spell step answers six findings, three on the British spelling of the
-  mean-removed local in `source/harness/spectrum.cpp` and three on split
-  literals inside `test/source/harness_jitter_bytes_test.cpp`, all of them from
-  specs/043. This branch carries the commit that clears them, because no
-  coverage, sanitizer or suite verdict is readable behind a skipped `lint`.
+- Sanitizer timeouts read differently here than in the matrix. The trees this host
+  configures through `g++` carry six and four units past their ceilings, while the
+  two jobs run the same presets through clang, read `base_cli_matrix` at 27.8 s
+  under a 120 s property, and carry no `Timeout` line at all.
