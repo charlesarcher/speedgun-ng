@@ -1495,3 +1495,16 @@ file under `.github/` stay untouched (FR-022, PC-10, spec D-16). The Phase 8
 gate tasks run the CI commands and change no workflow file.
 
 - Stop at any checkpoint and validate one story on its own.
+
+## Rebase note, 2026-11-03
+
+The branch was cut at `master` `d454bcff` and rebased onto `master`
+`94606149`, the tip that carries specs/043-fwq-ftq and
+specs/044-fix-rocky-pmu-stack. specs/043 took version `0.29.0`, the schema minor
+`1.12` and the harness `SOVERSION` 20 in that window, and specs/044 took the
+counters archive `SOVERSION` 5. This feature therefore lands `0.30.0` and moves
+the schema from `1.12` to `1.13`, and both archive numbers stand where those two
+specs put them, because no number moves twice in one unreleased window. Spec
+D-17 names the sites that carry the stamp with their lines in the rebased tree.
+The line numbers elsewhere in this file, in `plan.md`, and in `contracts/` name
+the lines as they stood at the cut, so a converge pass re-derives them.

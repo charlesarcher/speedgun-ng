@@ -171,3 +171,13 @@ the archive moves.
 | A `topdown` key written before `hunt`, and an unlisted inner key, are each found | the planted-finding rows of `harness_json_schema_test.cpp` (`:111`) |
 | Every field of a written record reads back equal, and an absent key reads as nothing | `test/source/harness_topdown_report_test.cpp`, `theRecordRoundTrips` and `aDocumentWithoutTheKeyLoads` (FR-034, FR-035) |
 | A run without the option writes no `topdown` key at all, and the document stamps `1.12` | `aRunWithoutTheOptionWritesNoKey` in the same file, with `harness_json_report_test.cpp:546` (FR-035) |
+
+## Rebase note, 2026-11-03
+
+This contract names lines as they stood at the cut `d454bcff`. The branch stands
+on `master` `94606149` since 2026-11-03, where specs/043-fwq-ftq holds version
+`0.29.0`, schema minor `1.12` and harness `SOVERSION` 20, and
+specs/044-fix-rocky-pmu-stack holds the counters archive `SOVERSION` 5. This
+feature lands `0.30.0` and moves the schema from `1.12` to `1.13`, and both
+archive numbers stand where those specs put them. Spec D-17 carries the moved
+sites with their lines in the rebased tree.

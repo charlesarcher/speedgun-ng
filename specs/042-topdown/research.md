@@ -356,10 +356,11 @@ record and read back by `source/harness/json_load.cpp`;
 `docs/schema/report-v1.json` gains the key in the benchmark entry's
 `x-order` after `"hunt"` (`:406`) and in one entry property beside the entry
 `hunt` (`:827`); the root object holds neither (`:7`, `:10`);
-`kSchemaVersion` moves 1.11 to 1.12
-(`source/harness/json_report.cpp:43`); the harness SOVERSION moves 19 to 20
-(`CMakeLists.txt:375`) and the counters archive SOVERSION moves 4 to 5
-(`:110`), because `MetricView` and `MetricListing` gain a field.
+`kSchemaVersion` moves 1.12 to 1.13
+(`source/harness/json_report.cpp:47`); the harness SOVERSION stands at 20
+(`CMakeLists.txt:406`) and the counters archive SOVERSION at 5 (`:133`), the
+numbers specs/043 and specs/044-fix-rocky-pmu-stack took in this unreleased
+window, because `MetricView` and `MetricListing` gain a field.
 
 **Rationale**: The tests assert the stamp, so all eight sites move
 with it, named by `specs/042-topdown/spec.md:138-147` and checked here: the

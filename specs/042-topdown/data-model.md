@@ -214,7 +214,7 @@ stands (`:2342-2349`). `docs/schema/report-v1.json` gains `"topdown"` in the
 entry `x-order` after `"hunt"` (`:406`) and one property beside the entry
 `hunt` property (`:827`); `required` (`:408-427`) and
 `additionalProperties: false` (`:429`) do not move, so the key stays optional.
-`kSchemaVersion` moves 1.11 to 1.12 (`source/harness/json_report.cpp:43`,
+`kSchemaVersion` moves 1.12 to 1.13 (`source/harness/json_report.cpp:47`,
 D-17). The schema types the version as a string and holds no number
 (`docs/schema/report-v1.json:11-13`).
 

@@ -159,31 +159,30 @@ force. No implementer reopens them.
   it carries is a spell allowlist entry for the model number `BA` of the vendored
   mapping file: no text change removes that finding, and `.codespellrc` already
   carries that class of entry with its reason.
-- **D-17 Version and schema numbers.** The feature takes version 0.29.0:
-  the lane planned for 0.29.0 holds no merge at branch time, checked against
-  `specs/`, the remote branches and the open pull requests. The report gains
-  one key, so the schema moves from 1.11 to 1.12. Eight test sites carry the
-  stamp and all eight move with it: six assert or embed the current minor
-  (`test/source/harness_json_report_test.cpp:546`,
-  `test/source/harness_json_schema_test.cpp:186`,
-  `test/source/harness_json_load_test.cpp:829`,
+- **D-17 Version and schema numbers.** The feature takes version 0.30.0 and
+  moves the report schema from `1.12` to `1.13`. specs/043-fwq-ftq took `0.29.0`
+  and the `1.12` minor for the series record while this branch stood open, so the
+  standing rule of this decision, to take the next free minor of each, is what
+  moved both numbers again at the rebase onto `94606149`. The writer stamps the
+  minor at `source/harness/json_report.cpp:47`. Eleven sites read or embed the
+  stamp and all eleven move with it: the assertions of
+  `test/source/harness_json_report_test.cpp:546`,
   `test/source/harness_hunt_json_test.cpp:1537`,
-  `test/source/harness_noise_report_test.cpp:426`, and the byte fixture at
-  `test/source/harness_noise_report_test.cpp:457`), and two plant the next
-  minor as the example of a later report
-  (`test/source/harness_json_load_test.cpp:107`, `:1202`), so those take
-  `1.13`. Seven further lines name the minor in a message or a comment and move
-  with it, so the tree states one minor. The guide page states the stamp in prose
-  (`docs/pages/harness.md:1399`, which still reads `1.10` today) and moves
-  with it. Two cases read the three
-  `CMakeLists.txt` numbers and both move with every number that moves:
-  `theVersionBindingsReadTheMovedNumbers` checks them at
-  `test/source/harness_cli_table_test.cpp:1387-1392` and quotes them twice in
-  prose, in the case list at `:124-128` and the comment at `:1375-1378`, and the
-  version block of `test/source/views_test.cpp:247-256` checks the same three
-  with its numbers in the comment at `:241-246`. If the other lane lands first,
-  this lane takes the next free minor and the next free schema minor and re-runs
-  every gate.
+  `test/source/harness_jitter_bytes_test.cpp:345`,
+  `test/source/harness_topdown_report_test.cpp:817`,
+  `test/source/harness_json_schema_test.cpp:232`, `:377` and
+  `test/source/harness_noise_report_test.cpp:426`, the expected bytes of that
+  unit at `:457`, and the three plants of
+  `test/source/harness_json_load_test.cpp` at `:830`, `:108` and `:1203`, the
+  last two naming one minor ahead as the example of a later report. Lines that
+  name the minor in a message or a comment move with them, so the tree states one
+  minor. The guide page states the stamp in prose at
+  `docs/pages/harness.md:1400`. Two cases read the three `CMakeLists.txt`
+  numbers: `theVersionBindingsReadTheMovedNumbers` checks them at
+  `test/source/harness_cli_table_test.cpp:1453` and the version block of
+  `test/source/views_test.cpp:279` checks the same three. If the other lane lands
+  first, this lane takes the next free minor and the next free schema minor and
+  re-runs every gate.
 
 - **D-18 The fixed-counter bound.** The gap of PC-7 blocks every live value
   this feature reports, so it is fixed before the acceptance runs, in its own
@@ -233,14 +232,19 @@ Measured on this machine on 2026-11-01 before any file changed.
   note of `data-model.md`. Three further hashes appear in these artifacts, each
   for its own work: the base hash the next row gives, the `6348bb0c` that PC-13
   measured its timings on, and the `ca7e1f84` whose run `quickstart.md` reports.
-- Base: `master` at `d454bcffd40ee66edd06bf5d7df0997b4f9561cf`, dated
+- Base: cut at `master` `d454bcffd40ee66edd06bf5d7df0997b4f9561cf`, dated
   2026-10-31 in `git log`, the owner's message `CI: Add the record check and
-  the pre-push step`.
-- Version: `0.28.0` in `CMakeLists.txt`. Harness library `SOVERSION` 19,
-  archive `SOVERSION` 4, checked in the same file. Report schema `1.11` as the
-  one constant `kSchemaVersion` (`source/harness/json_report.cpp:43`); the
+  the pre-push step`; rebased onto `master` `94606149` on 2026-11-03, the tip
+  that carries specs/043-fwq-ftq and the specs/044 exclusions work.
+- Version: `0.28.0` in `CMakeLists.txt` at the cut, harness library
+  `SOVERSION` 19 and archive `SOVERSION` 4 there. Report schema `1.11` as the one
+  constant `kSchemaVersion` (`source/harness/json_report.cpp:43` at the cut); the
   schema document types the field as a string and holds no number
-  (`docs/schema/report-v1.json:11-13`).
+  (`docs/schema/report-v1.json:11-13`). The tip answers `0.30.0`, harness
+  `SOVERSION` 20 (`CMakeLists.txt:406`) and archive `SOVERSION` 5 (`:133`), the
+  numbers specs/043 took for the harness library and specs/044-fix-rocky-pmu-stack
+  took for the counters archive in the same unreleased window, and stamps the
+  schema at `1.13`.
 - Option values: 256 to 259, 260, 270 to 277, 280 to 282, 290 to 296, 320,
   330 and 340 are taken; 297 to 319 and 321 to 329 stay free, and 350 is
   free (`source/harness/detail/options.hpp`).
