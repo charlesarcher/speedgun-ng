@@ -126,7 +126,7 @@
 //   theScanCarriesNoShortLetter    the option string of the scan holds no
 //                                  letter (FR-005)
 //   theVersionBindingsReadTheMovedNumbers
-//                                  the project block reads 0.30.0, the
+//                                  the project block reads 0.30.1, the
 //                                  harness target answers SOVERSION 20,
 //                                  and the counters archive answers
 //                                  SOVERSION 5 (FR-050)
@@ -1437,7 +1437,7 @@ auto soVersionNumbers(const std::string& cmake) -> std::string
 }
 
 // FR-050: the version bindings read the numbers the version move lands:
-// the project version `0.30.0`, the harness archive `SOVERSION 20` and the
+// the project version `0.30.1`, the harness archive `SOVERSION 20` and the
 // counters archive `SOVERSION 5`. specs/043 FR-005 took the project and the
 // harness pair from the 0.28.0 and 19 that specs/037 landed, and the counters
 // number 5 stands from the layout specs/042-topdown FR-017 adds. Each figure
@@ -1450,8 +1450,8 @@ auto theVersionBindingsReadTheMovedNumbers(const std::filesystem::path& start)
 {
   const std::string cmake = rootCMakeText(start);
   SG_ASSERT(!cmake.empty(), "pre: the root CMakeLists.txt can be read");
-  check(projectVersion(start) == "0.30.0",
-        "the project version reads 0.30.0 (FR-050)");
+  check(projectVersion(start) == "0.30.1",
+        "the project version reads 0.30.1 (FR-050)");
   check(cmake.find("SOVERSION 20") != std::string::npos,
         "the harness SOVERSION line reads SOVERSION 20 (FR-050)");
   check(cmake.find("SOVERSION 5") != std::string::npos,

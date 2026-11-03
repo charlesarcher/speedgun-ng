@@ -433,9 +433,10 @@ reader, and load each hand-built form. Every load answers the values it wrote.
 ### Version and numbering (C-4)
 
 - **FR-015**: The project version shall move to the next free patch at branch
-  time, `0.30.1` at the measured base, and the three sites that pin the
-  version, one build file and two test files, shall move with it. The two `SOVERSION` numbers and the schema
-  version shall stand unchanged. (D-2.)
+  time, `0.30.1` at the measured base, and the five sites that pin the version
+  shall move with it: one build file, two test files, and the current capture
+  pair that carries the banner a run prints. The two `SOVERSION` numbers and
+  the schema version shall stand unchanged. (D-2.)
 
 ### Tests and gates (C-5)
 
@@ -613,12 +614,17 @@ on this host, and each answer below carries its measurement.
   `properties` and `items` (`source/harness/json_load.cpp:2815-2897`), and
   `checkReport` is a separate reader from `loadReport` (`:3055-3097`). No
   cross-field construct exists, and the loader is the only gate. (FR-013.)
-- Q: What does the version move touch? → A: The three pinned sites of FR-015.
-  `SG_PROJECT_VERSION` is a `PRIVATE` define of the harness target
+- Q: What does the version move touch? → A: The five sites of FR-015: the
+  project block, the two readers of the stamp with their comments, and the
+  current capture pair that carries the banner a run prints
+  (`example/docs/fwq_ftq.expected` and the block of `docs/pages/harness.md`
+  paired with it). The precedent of the `0.30.0` move carries the banner with
+  the figure, and the older captures keep the banner of the release that made
+  them. `SG_PROJECT_VERSION` is a `PRIVATE` define of the harness target
   (`CMakeLists.txt:323-327`), so the harness library rebuilds whole and every
-  harness test relinks. The docs sample pair keeps the version of the run that
-  recorded it, and the shape gate folds digits
-  (`tools/docs/report_shape.py:140-150`), so it stands. (FR-015.)
+  harness test relinks. The shape gate folds digits
+  (`tools/docs/report_shape.py:140-150`), so no gate pins the current figure.
+  (FR-015.)
 - Q: Which docs text passes the drift and prose gates? → A: Three sentences after
   `docs/pages/harness.md:1429` that name the three pairs, the pair rule, and the
   three method words. The drift gate's own classes answer no hit for the docs

@@ -139,11 +139,13 @@ both stories green in one commit.
   requirement id, no spec identifier, no commit hash and no principle number, the
   classes the drift gate forbids on a user page (FR-014, D-7).
   Verify: `python3 tools/docs/example_drift.py .` exits 0, and `python3 tools/prose/prose_gate.py --check prose --mode tree --paths docs/pages/harness.md` answers 0 findings.
-- [ ] T007 Move the version from `0.30.0` to `0.30.1` at the three pinned
+- [ ] T007 Move the version from `0.30.0` to `0.30.1` at the five pinned
   sites: `CMakeLists.txt:59`, `test/source/views_test.cpp:279-280` (and the
   comment at `:270`), `test/source/harness_cli_table_test.cpp:1453-1454` (and the
-  comments at `:129` and `:1440`). Leave the two `SOVERSION` numbers, the schema
-  version and the recorded docs samples alone (FR-015, D-2).
+  comments at `:129` and `:1440`), and the current capture pair
+  `example/docs/fwq_ftq.expected:2` with the block of `docs/pages/harness.md`
+  paired with it at `:1970`. Leave the two `SOVERSION` numbers, the schema
+  version and the older captures alone (FR-015, D-2).
   Verify: `cmake --build build` exits 0 (the harness library rebuilds whole, the version define is `PRIVATE`), and `ctest --test-dir build -R '^(views_test|harness_cli_table_test)$' --output-on-failure` exits 0.
 
 **Checkpoint**: both stories are green, the page states the rule, and the version
