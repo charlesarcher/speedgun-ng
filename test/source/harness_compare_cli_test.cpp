@@ -87,6 +87,10 @@ constexpr const char* kSecondRunDocument = "harness_compare_cli_second.json";
 constexpr const char* kFitDocument = "harness_compare_cli_fit.json";
 constexpr const char* kPlainDocument = "harness_compare_cli_plain.json";
 
+// The document of the pass-field pair case, written at run time for the same
+// reason (specs/047-loader-cross-field FR-008, D-21).
+constexpr const char* kPassFieldDocument = "harness_compare_cli_passfield.json";
+
 // One path per document of the two top-down fault cases, for the same reason:
 // the document that carries the tree, the document whose tree leaves the
 // level-1 node out, and the document a run wrote with no option, which carries
@@ -799,6 +803,52 @@ auto oneFaultLine(const ModeRun& run,
         "the fault prints no table and runs no benchmark (SC-004, SC-005)");
 }
 
+// specs/047-loader-cross-field FR-008, D-21: a pair fault of the loader reaches
+// the comparison as the one line the load call answers, quoted beside the path
+// of the document it read. No committed fixture carries a pass-field
+// disagreement of schema major 1, so the document stands written at run time
+// the way the top-down cases write theirs; the fixture of major 2 keeps its own
+// answer, because the version gate stands ahead of the entry read.
+auto aPassFieldDisagreementAnswersOneQuotedLine(const std::string& data) -> void
+{
+  sg::BenchmarkResult entry;
+  entry.name = "bmGate";
+  entry.suite = "bmGate";
+  entry.caseName = "bmGate";
+  entry.outcome = sg::RunOutcome::MEASURED;
+  entry.metricLabels = {"work"};
+  // The pair the loader refuses: AUTO names a count of 0, and the tag beside a
+  // count of 1 stands past the pair, so the method refusal is the first fault.
+  entry.metricMethod = sg::MetricMethod::AUTO;
+  entry.passCount = 1U;
+  auto& row = entry.rows.emplace_back();
+  row.kind = sg::RowKind::REPETITION;
+  row.timePerIterationNs = 1000.0;
+  row.cpuTimePerIterationNs = 1000.0;
+  row.metrics.push_back(sg::MetricValue {
+      .value = 1.0,
+      .runningRatio = 1.0,
+      .scaled = true,
+      .availability = sg::counters::Availability::COUNTABLE,
+      .pass = 0U,
+  });
+
+  sg::ReportData document;
+  document.results.push_back(entry);
+  document.rowRaw.push_back({});
+  document.contextRaw.push_back({});
+  check(sg::detail::writeReport(kPassFieldDocument, document),
+        "the writer wrote the document of the pair case (FR-008)");
+
+  const ModeRun run = runMode({"--compare=" + data + "/gate_ok_base.json,"
+                               + std::string(kPassFieldDocument)});
+  oneFaultLine(run,
+               "the entry whose method disagrees with its pass count",
+               {"/benchmarks/0/metricMethod",
+                "the method 'AUTO' disagrees with the pass count",
+                "/benchmarks/0/passCount"});
+}
+
 // T032, FR-021, FR-051: a rule text whose threshold field carries a bare
 // number is rejected where the option is read, before either document is
 // opened. The line names the rule text and the threshold field of the fault.
@@ -1485,6 +1535,7 @@ auto main(const int argc, char** argv) -> int
   aRuleFilterReachingNothingAnswersTheNoMatchFault(data);
   aMinorSchemaVersionPairAnswersAnOkRow(data);
   aForeignSchemaMajorAnswersTheLoadFault(data);
+  aPassFieldDisagreementAnswersOneQuotedLine(data);
   aMissingDocumentAnswersTheLoadFault(data);
   aRelativeRuleOverAZeroBaselineAnswersTheZeroFault(data);
   aNameThatCarriesRowBytesPrintsEscaped(data);
