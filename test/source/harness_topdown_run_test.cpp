@@ -2223,6 +2223,28 @@ auto scenarioTheBareWordPrintsATreeAtStatusZero() -> int
   check(output.contains(kEntryPointMarker),
         "the run under the bare word reaches its benchmark (SC-05)");
   const std::string header = std::string {kBlockTag} + " level=1 ";
+  if (!output.contains(header)
+      && output.contains(std::string {kBlockTag} + "  refused  "))
+  {
+    // The child prints a refusal line per row its host reaches no leaf of, and
+    // a host that refuses the level rows prints no tree whatever the option
+    // asks: the claim of this case stands where a tree stands (FR-016, FR-031).
+    skip("the host of the child refuses its own level rows, so no tree stands "
+         "here");
+  }
+  if (!output.contains(header)) {
+    // The block the option prints reaches a file the case reads, so a fault
+    // that names the missing header carries the console that lacks it: a
+    // reader of the CI log sees what the child stated without a debugger.
+    const std::string tail =
+        output.size() <= 2000 ? output : output.substr(output.size() - 2000);
+    std::fprintf(stderr,
+                 "child console of %s, status %d, exit %d:\n%s\n--- end\n",
+                 kOutPath,
+                 status,
+                 WIFEXITED(status) ? WEXITSTATUS(status) : -1,
+                 tail.c_str());
+  }
   check(output.contains(header),
         "the bare word prints a tree at the level it shows, which is one, and the "
         "block of a run driven through the entry point reaches the console (FR-018, FR-025)");
