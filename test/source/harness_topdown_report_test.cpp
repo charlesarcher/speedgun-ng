@@ -134,7 +134,6 @@ constexpr const char* kNonFiniteDocument =
 // The four keys of the two levels of the planted tree, in the order the writer
 // emits them: parent before child (FR-032, contracts/topdown-report-key.md).
 constexpr std::size_t kBackendBound = 0;
-constexpr std::size_t kFrontendBound = 1;
 constexpr std::size_t kBadSpeculation = 2;
 constexpr std::size_t kLevelTwoChild = 3;
 constexpr std::size_t kLevelTwoGap = 4;
