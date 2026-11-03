@@ -370,6 +370,19 @@ auto sameStats(const sg::Statistics& first,
   return identity.vendor == kIntelVendor || identity.vendor == kAmdVendor;
 }
 
+// True where the identity of this host maps to the directory the fixture's
+// Intel table stands in. The selection reads the family, the model and the
+// stepping of the host ahead of any row a scenario plants, and a host another
+// directory serves answers its own level-2 rows, whose names and order differ
+// between the directories of one vendor, so a scenario that names the
+// fixture's rows stands where those rows stand (FR-002, FR-011, FR-027).
+[[nodiscard]] auto hostSelectsTheFixtureDirectory() -> bool
+{
+  const sg::counters::TopdownTable table =
+      sg::counters::topdownTable(sg::counters::cpuIdentity());
+  return table.source.directory == kIntelDirectory;
+}
+
 // One scripted leaf at one reading: the fake provider keeps the delta of a
 // counter as a count of readings, so the fixture's reading stands cast to that
 // count where it enters the script.
@@ -2324,6 +2337,12 @@ auto scenarioTheDeeperLevelsCollectEveryNodeAboveThem() -> int
     skip("no vendored vendor on this host");
   }
   registerFixture(kNarrowCoreLimit);
+  // The guard follows the registration on purpose: the selection reads the
+  // table of the host through the counters system, and a provider laid down
+  // after that read finds the catalog settled.
+  if (!hostSelectsTheFixtureDirectory()) {
+    skip("the identity of this host names a directory beside the fixture's");
+  }
   metricBenchmark("bmTopdownLevelTwo");
   metricBenchmark("bmTopdownLevelThree");
   metricBenchmark("bmTopdownClampedLevel");
