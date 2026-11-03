@@ -663,12 +663,32 @@ gate does the same in CI.
   state the five fields, `loadReport` shall read them and refuse a
   document whose `spreadWarning` disagrees with the spread beside it, and
   a round-trip test shall cover one pass, two passes, a spread above the
-  warning limit and `multiplex`, with an error path for each field. A
-  one-pass run keeps the bytes the format wrote before, with the new keys
-  added. A document written before the five fields shall load as it
-  stands: `loadReport` shall read a key that stands missing as the
-  default its member holds, so the comparison of specs/026 (FR-051)
-  reaches a baseline stored before this feature.
+  warning limit and `multiplex`, with an error path for each field. When
+  the `metricMethod` key and the `passCount` key of an entry both stand
+  present, and the entry names the `MEASURED` outcome and carries no
+  `hunt` key, `loadReport` shall refuse an entry whose method is `AUTO`
+  and whose count is not 0, an entry whose method is `MULTIPLEX` and whose
+  count is not 1, and an entry whose method is `PASSES` and whose count is
+  below 1. When the `passCount` key stands present and `passSpread` stands
+  present with a non-null value, `loadReport` shall refuse the entry whose
+  count stands below 2. When the `passCount` key stands present and the
+  `pass` tag of a metric column stands present with a non-null value,
+  `loadReport` shall refuse the entry whose count stands below 2, and the
+  entry whose 0-based tag is not below the count. The tag check runs over
+  every row of that entry, and over no context block. `loadReport` shall
+  run a cross-field check of a pair of these fields only when both keys of
+  that pair stand present. The method check counts a key as present when
+  the key stands in the entry. The spread check and the tag check count a
+  key as present when the key stands and holds a non-null value. A value
+  of the wrong kind keeps the standing kind refusal ahead of every pair
+  check. The method check waives a stopped entry and a hunt entry, because
+  the stop paths publish a count of 0 beside a settled method, and a hunt
+  entry names the forced method beside the published count. A one-pass run
+  keeps the bytes the format wrote before, with the new keys added. A
+  document written before the five fields shall load as it stands:
+  `loadReport` shall read a key that stands missing as the default its
+  member holds, so the comparison of specs/026 (FR-051) reaches a baseline
+  stored before this feature.
 
 ## Clarifications
 
