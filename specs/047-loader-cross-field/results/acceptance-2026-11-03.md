@@ -4,12 +4,12 @@ Run date: 2026-11-03. Host: chilly. Kernel: `Linux 7.3.1-1-cachyos x86_64`.
 Machine: AMD Ryzen 9 7950X3D, 16 cores, 32 threads. Toolchain: gcc 16.2.1
 (20260810), clang-format 18.1.8 pinned by `FORMAT_COMMAND`, cmake 4.4.4, lcov
 2.x from `~/.local/share/sg-tools/lcov2`. Base: `b1dd7670` (`master`). Head:
-the head of this branch, 10 commits over the base.
+the head of this branch, 13 commits over the base at the time of writing.
 
 ## The lane
 
-18 files changed, 2950 insertions, 17 deletions. Source and tests: 5 files, 603
-insertions. The reader change is 48 lines at the end of `readEntry` in
+At `76e76667`: 20 files changed, 3194 insertions, 17 deletions. Source and tests:
+5 files, 603 insertions. The reader change is 48 lines at the end of `readEntry` in
 `source/harness/json_load.cpp`. The tests add nine functions to
 `test/source/harness_json_load_test.cpp` and one to
 `test/source/harness_compare_cli_test.cpp`. Version `0.30.1`, schema `1.13`,
