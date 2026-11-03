@@ -115,9 +115,13 @@ implementer reopens them.
   counter limit, so it settles `MULTIPLEX`
   (`test/source/detail/json_fixture.hpp:96-122`,
   `source/harness/pass_plan.cpp:131-135`). The split form and the stopped form
-  of a split run stand hand-built in the load test, and the split form of a
-  written document stands in the pass report test
-  (`test/source/harness_pass_report_test.cpp:833-835`).
+  of a split run stand hand-built in the load test. The written split form
+  stands in `thePassDisclosureRoundTrips`
+  (`test/source/harness_json_report_test.cpp:367-423`), which writes `AUTO` with
+  0, `PASSES` with 2 and a tag of 1, `PASSES` with 3 and a tag of 2, and
+  `MULTIPLEX` with 1, and reads each back. The pass report test writes no
+  document: `test/source/harness_pass_report_test.cpp:833-835` is an in-memory
+  publish check of a one-pass run.
 - **D-19 The shape of a check keeps its arms covered (clarify round 2).**
   Measured with the coverage flags of the `coverage-linux` preset and
   `gcov -b -c` on this host (`/tmp/notes-047/shape/`): a pair guard of one `&&`
@@ -397,8 +401,8 @@ reader, and load each hand-built form. Every load answers the values it wrote.
 - **FR-010**: Every document the writer writes shall load, for a one-pass run,
   a multiplexed run and a split run, and each round trip shall answer the
   values it wrote. The scripted run of the load test answers the multiplex form,
-  and the split form of a written document stands in the pass report test
-  (D-18).
+  and the written split form stands in `thePassDisclosureRoundTrips`
+  (`test/source/harness_json_report_test.cpp:367-423`) (D-18).
 - **FR-011**: A document whose entry names the stopped outcome shall load, in
   the form the writer makes it: the settled method beside a count of 0, an empty
   spread and empty tags (D-14). The hand-built stopped entry of the rich
@@ -523,8 +527,12 @@ runner and the load test, and each answer below carries its measurement.
   publishes no limit, so it settles `MULTIPLEX`
   (`test/source/detail/json_fixture.hpp:96-122`,
   `source/harness/pass_plan.cpp:131-135`). The split form of a written document
-  stands in the pass report test (`test/source/harness_pass_report_test.cpp:833-835`),
-  and the load test builds the split form by hand. (D-18, FR-010.)
+  stands in `thePassDisclosureRoundTrips`
+  (`test/source/harness_json_report_test.cpp:367-423`), which writes `PASSES`
+  with 2 and with 3 beside a tag, and reads each back. The pass report test
+  writes no document, so its in-memory publish check at
+  `test/source/harness_pass_report_test.cpp:833-835` answers no round trip. The
+  load test builds the split form by hand. (D-18, FR-010.)
 - Q: Is a pass index 0-based? → A: Yes. The merge names the measuring pass from
   0 (`source/harness/detail/pass_plan.hpp:47-49`), and US-1 scenario 5 plants a
   tag of 2 beside a count of 2. (FR-006.)
