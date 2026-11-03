@@ -370,6 +370,18 @@ auto sameStats(const sg::Statistics& first,
   return identity.vendor == kIntelVendor || identity.vendor == kAmdVendor;
 }
 
+// One scripted leaf at one reading: the fake provider keeps the delta of a
+// counter as a count of readings, so the fixture's reading stands cast to that
+// count where it enters the script.
+auto setLeaf(sg::counters::FakeProvider& provider,
+             std::string_view objectPath,
+             std::string_view name,
+             const double reading) -> void
+{
+  provider.setPoints(
+      objectPath, name, {0}, static_cast<std::uint64_t>(reading));
+}
+
 // The scripted leaves of the planted rows, on the two objects
 // `metric_fixture.hpp` names and at the deltas that file states. The four PMU
 // leaves carry the level rows of both levels. `fixture_time` and
@@ -395,17 +407,17 @@ auto scriptTopdownLeaves(sg::counters::FakeProvider& provider) -> void
       kCoreObject, sg::test::kTime, "nanoseconds", "fixture time");
   provider.addCounter(
       kMemoryObject, sg::test::kDataReads, "bytes", "fixture memory reads");
-  provider.setPoints(
-      kCoreObject, sg::test::kCycles, {0}, sg::test::kCyclesDelta);
-  provider.setPoints(
-      kCoreObject, sg::test::kInstructions, {0}, sg::test::kInstructionsDelta);
-  provider.setPoints(
-      kCoreObject, sg::test::kRefCycles, {0}, sg::test::kRefCyclesDelta);
-  provider.setPoints(
-      kCoreObject, sg::test::kL2Requests, {0}, sg::test::kL2Delta);
-  provider.setPoints(kCoreObject, sg::test::kTime, {0}, sg::test::kTimeDelta);
-  provider.setPoints(
-      kMemoryObject, sg::test::kDataReads, {0}, sg::test::kDataReadsDelta);
+  setLeaf(provider, kCoreObject, sg::test::kCycles, sg::test::kCyclesDelta);
+  setLeaf(provider,
+          kCoreObject,
+          sg::test::kInstructions,
+          sg::test::kInstructionsDelta);
+  setLeaf(
+      provider, kCoreObject, sg::test::kRefCycles, sg::test::kRefCyclesDelta);
+  setLeaf(provider, kCoreObject, sg::test::kL2Requests, sg::test::kL2Delta);
+  setLeaf(provider, kCoreObject, sg::test::kTime, sg::test::kTimeDelta);
+  setLeaf(
+      provider, kMemoryObject, sg::test::kDataReads, sg::test::kDataReadsDelta);
 }
 
 // One scripted provider for one scenario: the pass fixture's sources and clock
@@ -441,8 +453,7 @@ auto registerAmdFixture(const std::size_t coreLimit)
   auto provider = std::make_unique<sg::counters::FakeProvider>();
   sg::test::scriptPassFixture(*provider, kWideSourceLimit);
   scriptTopdownLeaves(*provider);
-  provider->setPoints(
-      kCoreObject, sg::test::kRefCycles, {0}, kAmdRefCyclesDelta);
+  setLeaf(*provider, kCoreObject, sg::test::kRefCycles, kAmdRefCyclesDelta);
   provider->setProgrammableCounters(kCoreObject, coreLimit);
   auto* scripted = provider.get();
   const auto settled =
