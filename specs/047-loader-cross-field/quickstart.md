@@ -55,26 +55,28 @@ function plus one call in its file's `main`: the targets and the CTest entries o
 cmake -D FORMAT_COMMAND="$HOME/.local/bin/clang-format" -P cmake/lint.cmake
 cmake -P cmake/spell.cmake
 python3 tools/docs/example_drift.py .
+# the range gate, a local check over the lane's own commit bodies
 python3 tools/prose/prose_gate.py --check all --mode range --base origin/master
+# the pair gate, one gate over two lines: configure once, then the target
 cmake -S . -B build/dev --preset=ci-ubuntu -DPython3_EXECUTABLE=/usr/bin/python3
 cmake --build build/dev --target dbc-gate
 ```
 
 Each command is the gate's own command line (FR-019), and each answers exit 0 on
 the host of the table above. The last column carries the exit read at
-`e63f7a87`.
+`5f910845`.
 
 | # | Gate | Expected exit | Read at the head |
 | --- | --- | --- | --- |
 | 1 | lint, through the pinned formatter | 0 | 0; the host 23.1.4 answers 1 |
 | 2 | spell | 0 | 0, silent |
 | 3 | example drift | 0 | 0, silent |
-| 4 | prose, over the range | 0 | 0, `4 sources, 729 units, 0 findings` |
+| 4 | prose, over the range | 0 | 0, `14 sources, 2022 units, 0 findings` |
 | 5 | the dbc pair gate, through its target | 0 | 0, `doc-gate: 345 interfaces, 0 gaps` and `pair-gate: 345 interfaces, 0 gaps` |
 
 The prose gate answers 0 clean, 1 findings and 2 usage. The range carried one
-`CM.BODY-WRAP` finding at research time, and the rewrap of the spec commit body
-closed it. The gate over this feature directory alone is the last command of the
+`CM.BODY-WRAP` finding at research time and one `XI2.CONTRASTIVE` finding at the
+analyze round, and the two commit bodies closed them. The gate over this feature directory alone is the last command of the
 plan's list:
 
 ```bash
@@ -100,7 +102,7 @@ cmake --build build/dev
 two presets stand apart because the compilers reject the pairing (Principle
 VIII). `cmake --build build/dev` carries the clang-tidy and cppcheck reports.
 The Clang compile, the sanitizer jobs and the coverage union stand in CI
-(`.github/workflows/ci.yml:153`, `:236`), and the lane reads their verdicts into
+(`.github/workflows/ci.yml:313`, `:147`, `:230`), and the lane reads their verdicts into
 the acceptance record.
 
 ## Coverage
@@ -143,7 +145,7 @@ coverage figures beside the G-20 numbers.
 
 | Criterion | How it is read | Where the number is recorded |
 | --- | --- | --- |
-| SC-001, one test per refusal and per accepted form | `grep -c` over the `main` call list of the load test (`:2205-2238`): 27 today plus nine new, one function and one call each | the body, as the count and the `ok` line (FR-016) |
+| SC-001, one test per refusal and per accepted form | `grep -c` over the `main` call list of the load test (`:2207-2234`): 27 today plus nine new, one function and one call each | the body, as the count and the `ok` line (FR-016) |
 | SC-002, lines at 100 percent, a shortfall of 21 rows or fewer | the gate line over the union, plus the host reading | the body, beside the G-20 figures (FR-018) |
 | SC-003, both `ctest` runs pass | the two counts, full and under `taskset -c 0,1` | the body, as the two counts (FR-019) |
 | SC-004, the five gates pass | the five exits of the gate table | the body, as the five verdicts (FR-019) |

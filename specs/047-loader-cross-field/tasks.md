@@ -37,7 +37,7 @@ grep with a match count, or a line count.
 (FR-001, D-8). Nothing in the reader changes in this phase.
 
 - [ ] T001 [P] Amend FR-038 of `specs/024-multipass-collection/spec.md`
-  (`:658-676`): add the three pair checks of "The rules", the pair rule of
+  (`:658-671`): add the three pair checks of "The rules", the pair rule of
   FR-002, the presence reading of D-17, and the rule-1 waiver of D-14 with its
   reason (the stop paths publish a count of 0 beside a settled method, and a
   hunt entry names the forced method beside the published count). Keep the
@@ -67,16 +67,16 @@ head of the lane, and answers nothing at the base. The red count is recorded.
   beside a count of 1, in a row of a later entry for the path),
   `thePassPairRefusalNamesItsPartnerPath` (the four lines of plan.md, "The
   refusal lines", byte for byte), and `thePassPairChecksRunInReadOrder` (a
-  document with a tag fault and a method fault answers the tag refusal, and a
-  document whose `spreadWarning` disagrees answers the standing refusal ahead of
-  the three). Plant on the rich fixture `kRich` (`:181-218`) and on the scripted
+  document with a tag fault and a method fault answers the method refusal, one
+  with a spread fault and a tag fault answers the spread refusal, and one whose
+  `spreadWarning` disagrees answers the standing refusal ahead of the three). Plant on the rich fixture `kRich` (`:181-218`) and on the scripted
   run, and set `outcome` to `MEASURED` where rule 1 must run. No case sleeps,
   reads a clock, names a made-up cpu, or needs a PMU (FR-003, FR-005, FR-006,
   FR-007, FR-009, FR-016, FR-017, D-15, D-16).
   Verify: `cmake --build build --target harness_json_load_test` exits 0, then `./build/test/harness_json_load_test` exits non-zero and prints `N checks failed` with five `FAILED:` lines naming the new cases (red observed; record N), and `ctest --test-dir build -R '^harness_json_load_test$'` reports the entry as Failed.
-- [ ] T003 [P] [US1] Write the pairing case `aPassFieldDisagreementAnswersOneQuotedLine`
+- [ ] T003 [US1] Write the pairing case `aPassFieldDisagreementAnswersOneQuotedLine`
   in `test/source/harness_compare_cli_test.cpp`, beside `oneFaultLine`
-  (`:782-800`), and add its call in `main` (`:1465-1500`). The case writes a
+  (`:782-800`), and add its call in `main` (`:1477-1512`). The case writes a
   document of schema major 1 at run time, in the way the file does today, plants
   `AUTO` beside a `passCount` of 1 in one entry, and asserts status 2, one line
   across the two streams, and the pair's own words in that line. The standing
@@ -139,7 +139,7 @@ both stories green in one commit.
   requirement id, no spec identifier, no commit hash and no principle number, the
   classes the drift gate forbids on a user page (FR-014, D-7).
   Verify: `python3 tools/docs/example_drift.py .` exits 0, and `python3 tools/prose/prose_gate.py --check prose --mode tree --paths docs/pages/harness.md` answers 0 findings.
-- [ ] T007 [P] Move the version from `0.30.0` to `0.30.1` at the three pinned
+- [ ] T007 Move the version from `0.30.0` to `0.30.1` at the three pinned
   sites: `CMakeLists.txt:59`, `test/source/views_test.cpp:279-280` (and the
   comment at `:270`), `test/source/harness_cli_table_test.cpp:1453-1454` (and the
   comments at `:129` and `:1440`). Leave the two `SOVERSION` numbers, the schema
@@ -178,7 +178,7 @@ D-20, and each exit stands recorded.
   configured: `cmake --build build/dev`. Record the clang-tidy and cppcheck
   verdicts (FR-019, SC-004, Principle V, Principle VIII). The Clang compile and
   the sanitizer jobs of the matrix stand in CI
-  (`.github/workflows/ci.yml:153`, `:236`), and their verdicts read into the
+  (`.github/workflows/ci.yml:313`, `:147`, `:230`), and their verdicts read into the
   record of T013.
   Verify: the command exits 0, and no new suppression joins the tree.
 - [ ] T011 Run both sanitizer suites, in the standing order:
@@ -240,7 +240,9 @@ T003 (red, compare)       -> independent of T001, T002
 T004 (accepted forms)     -> after T002 (one file, one main)
 T005 (the reader)         -> after T002, T003, T004 (turns both red waves green)
 T006 (docs)               -> after T005 (a page states a rule the reader enforces)
-T007 (version)            -> independent, lands last of the code waves
+T007 (version)            -> after T006 (one build tree), lands last of the code
+                             waves
+T010 (the checked build)  -> after T009 (it builds the tree T009 configured)
 T008 .. T012 (gates)      -> after T005, T006, T007
 T013, T014 (evidence)     -> after T008 .. T012
 T015 (landing)            -> after T013, T014
@@ -248,12 +250,13 @@ T015 (landing)            -> after T013, T014
 
 ## Parallel blocks
 
-- `T001`, `T002`, `T003` run together: three disjoint files
-  (`specs/024-multipass-collection/spec.md`, `test/source/harness_json_load_test.cpp`,
-  `test/source/harness_compare_cli_test.cpp`).
-- `T006` and `T007` run together after T005: a docs page and three version sites
-  share no file. The version commit rebuilds the harness library whole, so it
-  lands after the reader commit and stands alone.
+- `T001` runs beside `T002`: a spec file and a test file share nothing. `T003`
+  follows `T002`: the two test binaries build in the same `build` tree, so the
+  two share a build directory and stand sequential, and each names its own
+  target.
+- `T006` then `T007` run in order after T005: the version move rebuilds the
+  harness library whole in the tree the drift gate of T006 reads, so the two
+  share a build directory and stand sequential.
 - `T009` then `T010` run in order: T009 configures `build/dev` and runs the pair
   gate there, so T010 builds the tree T009 configured.
 - `T011` and `T012` do not run in parallel: each drives a full suite over its own
@@ -263,6 +266,7 @@ T015 (landing)            -> after T013, T014
 
 The MVP is T001 to T005: the law, the red wave, and the reader. It closes both
 user stories, and the loader refuses every document the three rules name. The
-docs, the version, the gates and the evidence follow as one lane, and no part of
-the MVP is separable from them: FR-020 binds each test to the code of T005, and
+docs sentences of T006 ride the second commit beside the reader, so the page
+states the rule the day the reader lands. The version, the gates and the
+evidence follow, and no part of the MVP is separable from them: FR-020 binds each test to the code of T005, and
 Principle VIII binds the gates to the head.
