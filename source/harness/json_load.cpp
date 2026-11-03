@@ -2789,6 +2789,54 @@ auto readEntry(Element value,
     }
     result.topdown = std::move(*record);
   }
+  // specs/047-loader-cross-field FR-003, FR-005, FR-006: the three pair checks
+  // over the fields specs/024 FR-038 added. Each runs when both keys of its
+  // pair stand, and the first fault stops the read (D-9, D-16). Rule 1 runs for
+  // an entry whose outcome is MEASURED and that carries no hunt key: the stop
+  // paths publish a count of 0 beside a settled method, and a hunt entry names
+  // the forced method beside the published count (D-14).
+  if (declared.has_value() && counted.has_value()
+      && result.outcome == sg::RunOutcome::MEASURED && !result.hunt.has_value()
+      && ((result.metricMethod == sg::MetricMethod::AUTO
+           && result.passCount != 0U)
+          || (result.metricMethod == sg::MetricMethod::MULTIPLEX
+              && result.passCount != 1U)
+          || (result.metricMethod == sg::MetricMethod::PASSES
+              && result.passCount < 1U)))
+  {
+    return std::unexpected(
+        where + "/metricMethod: the method '"
+        + std::string(detail::enumWord(detail::kMetricMethodWords,
+                                       std::to_underlying(result.metricMethod)))
+        + "' disagrees with the pass count at " + where + "/passCount");
+  }
+  if (spread.has_value() && counted.has_value() && result.passCount < 2U) {
+    return std::unexpected(where
+                           + "/passSpread: a pass spread needs a pass count of 2 "
+                             "or more at "
+                           + where + "/passCount");
+  }
+  for (std::size_t row = 0; row < result.rows.size(); ++row) {
+    for (std::size_t column = 0; column < result.rows[row].metrics.size();
+         ++column)
+    {
+      const auto tag = result.rows[row].metrics[column].pass;
+      const std::string path = where + "/rows/" + std::to_string(row)
+          + "/metrics/" + std::to_string(column) + "/pass";
+      if (tag.has_value() && counted.has_value() && result.passCount < 2U) {
+        return std::unexpected(path
+                               + ": a pass tag needs a pass count of 2 or more "
+                                 "at "
+                               + where + "/passCount");
+      }
+      if (tag.has_value() && counted.has_value() && *tag >= result.passCount) {
+        return std::unexpected(path + ": the pass tag " + std::to_string(*tag)
+                               + " stands at or above the pass count "
+                               + std::to_string(result.passCount) + " at "
+                               + where + "/passCount");
+      }
+    }
+  }
   return {};
 }
 

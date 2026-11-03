@@ -2202,6 +2202,494 @@ auto thePerEntrySeriesReadsIntoTheFolds() -> void
         "beside the series (FR-027, E-08)");
 }
 
+// specs/047-loader-cross-field FR-003, FR-005, FR-006, FR-007, FR-009, FR-016,
+// FR-017, D-14, D-15, D-16, D-17: the three pair checks of one entry. Every
+// plant stands on the rich fixture, the hand-built document that carries the
+// pass block, a spread, a warning and one pass tag. Rule 1 reads a measured
+// entry that carries no hunt key, so the method plants settle the outcome
+// first, and the spread and tag plants leave the fixture's own SKIPPED outcome
+// alone, where rule 1 stands waived.
+constexpr const char* const kPassPairPath = "harness_json_load_passpair.json";
+constexpr const char* const kPassFormsPath = "harness_json_load_passforms.json";
+constexpr const char* const kPassSplitPath = "harness_json_load_passsplit.json";
+
+constexpr std::string_view kRichOutcome = "\"outcome\":\"SKIPPED\"";
+constexpr std::string_view kRichPassBlock =
+    "\"metricMethod\":\"PASSES\",\"passCount\":2,";
+constexpr std::string_view kRichCount = "\"passCount\":2";
+constexpr std::string_view kRichSpread = "\"passSpread\":3.5,";
+constexpr std::string_view kRichTag = "\"pass\":1";
+constexpr std::string_view kRichWarning = "\"spreadWarning\":false";
+constexpr std::string_view kRichEntryEnd = "\"spreadWarning\":false}]}";
+constexpr std::string_view kWrittenPassBlock =
+    "\"metricMethod\":\"MULTIPLEX\",\"passCount\":1,";
+
+// The four lines of plan.md, "The refusal lines", byte for byte: the leading
+// path names the pair's non-count field, and the words name the partner by its
+// full path (FR-007, D-15).
+constexpr const char* const kMethodAutoFault =
+    "/benchmarks/0/metricMethod: the method 'AUTO'"
+    " disagrees with the pass count"
+    " at /benchmarks/0/passCount";
+constexpr const char* const kMethodMultiplexFault =
+    "/benchmarks/0/metricMethod: the method 'MULTIPLEX'"
+    " disagrees with the pass count"
+    " at /benchmarks/0/passCount";
+constexpr const char* const kMethodPassesFault =
+    "/benchmarks/0/metricMethod: the method 'PASSES'"
+    " disagrees with the pass count"
+    " at /benchmarks/0/passCount";
+constexpr const char* const kSpreadFault =
+    "/benchmarks/0/passSpread:"
+    " a pass spread needs a pass count"
+    " of 2 or more at /benchmarks/0/passCount";
+constexpr const char* const kTagCountFault =
+    "/benchmarks/0/rows/0/metrics/0/pass:"
+    " a pass tag needs a pass count"
+    " of 2 or more at /benchmarks/0/passCount";
+constexpr const char* const kTagIndexFault =
+    "/benchmarks/0/rows/0/metrics/0/pass:"
+    " the pass tag 2 stands at or above"
+    " the pass count 2 at /benchmarks/0/passCount";
+constexpr const char* const kTagCountFaultOfTheSecondEntry =
+    "/benchmarks/1/rows/0/metrics/0/pass:"
+    " a pass tag needs a pass count"
+    " of 2 or more at /benchmarks/1/passCount";
+constexpr const char* const kWarningFault =
+    "/benchmarks/0/spreadWarning:"
+    " the document's warning disagrees"
+    " with its pass spread";
+
+// One key of a document replaced, the standing plant shape: the text the plant
+// leaves, and a failure naming the fixture when the key has no place to stand.
+auto planted(std::string text,
+             const std::string_view find,
+             const std::string_view replace) -> std::string
+{
+  const std::size_t at = text.find(find);
+  if (at == std::string::npos) {
+    std::printf("  no '%s' in the document\n", std::string(find).c_str());
+    sg::test::fail("the document holds no key the plant replaces (FR-016)");
+    return text;
+  }
+  text.replace(at, find.size(), replace);
+  return text;
+}
+
+// The rich fixture with its outcome settled to MEASURED, the entry shape rule
+// 1 reads beside the two keys of its pair (D-14, D-17).
+auto measuredRich() -> std::string
+{
+  return planted(kRich, kRichOutcome, "\"outcome\":\"MEASURED\"");
+}
+
+// One plant read back: the reader refuses the document it stands written in and
+// answers `line` byte for byte (FR-007, D-15). `what` names the case, so the
+// FAILED line of a plant that loads names the case that planted it.
+auto plantedPairRefuses(const std::string& text,
+                        const char* const line,
+                        const char* const what) -> void
+{
+  sg::test::writeText(kPassPairPath, text);
+  const auto refused = sg::loadReport(kPassPairPath);
+  if (refused.has_value()) {
+    std::printf("  %s loaded\n", what);
+    sg::test::fail(what);
+    return;
+  }
+  const bool exact = refused.error() == line;
+  if (!exact) {
+    std::printf("  refused with: %s\n", refused.error().c_str());
+  }
+  check(exact, what);
+}
+
+// The reader stops at the first fault of a document, so the one line it answers
+// carries `first` and says nothing of `second` (D-9, D-16).
+auto theFirstFaultAnswers(const std::string& text,
+                          const char* const first,
+                          const char* const second,
+                          const char* const what) -> void
+{
+  sg::test::writeText(kPassPairPath, text);
+  const auto refused = sg::loadReport(kPassPairPath);
+  if (refused.has_value()) {
+    std::printf("  %s loaded\n", what);
+    sg::test::fail(what);
+    return;
+  }
+  const bool ordered = refused.error().find(first) != std::string::npos
+      && refused.error().find(second) == std::string::npos;
+  if (!ordered) {
+    std::printf("  refused with: %s\n", refused.error().c_str());
+  }
+  check(ordered, what);
+}
+
+// One plant read back the other way: the reader loads the document, the one
+// reading every accepted form of the three rules must answer (FR-002, FR-010,
+// FR-011). `what` names the case, so a FAILED line names the case.
+auto aDocumentLoads(const std::string& text, const char* const what) -> void
+{
+  sg::test::writeText(kPassFormsPath, text);
+  const auto loaded = sg::loadReport(kPassFormsPath);
+  if (!loaded.has_value()) {
+    std::printf("  %s: %s\n", what, loaded.error().c_str());
+  }
+  check(loaded.has_value(), what);
+}
+
+// FR-003, D-14: rule 1 refuses a method beside a count it cannot name. The four
+// forms stand on the measured rich entry, which carries no hunt key, so the
+// guard of D-14 stands open for every one of them.
+auto thePassMethodRefusesItsCount() -> void
+{
+  struct MethodPlant
+  {
+    const char* passBlock;
+    const char* line;
+    const char* what;
+  };
+
+  constexpr MethodPlant kMethodPlants[] = {
+      {"\"metricMethod\":\"AUTO\",\"passCount\":2,",
+       kMethodAutoFault,
+       "thePassMethodRefusesItsCount: AUTO with 2 refuses (FR-003, D-15)"},
+      {"\"metricMethod\":\"MULTIPLEX\",\"passCount\":3,",
+       kMethodMultiplexFault,
+       "thePassMethodRefusesItsCount: MULTIPLEX with 3 refuses (FR-003, D-15)"},
+      {"\"metricMethod\":\"MULTIPLEX\",\"passCount\":0,",
+       kMethodMultiplexFault,
+       "thePassMethodRefusesItsCount: MULTIPLEX with 0 refuses (FR-003, D-15)"},
+      {"\"metricMethod\":\"PASSES\",\"passCount\":0,",
+       kMethodPassesFault,
+       "thePassMethodRefusesItsCount: PASSES with 0 refuses (FR-003, D-15)"},
+  };
+  const std::string measured = measuredRich();
+  for (const MethodPlant& plant : kMethodPlants) {
+    plantedPairRefuses(planted(measured, kRichPassBlock, plant.passBlock),
+                       plant.line,
+                       plant.what);
+  }
+}
+
+// FR-005: rule 2 refuses a spread beside a count below 2. The rich entry's
+// spread of 3.5 stands beside a count of 1, and the entry names no MEASURED
+// outcome, so the spread refusal is the first fault the reader reaches.
+auto thePassSpreadRefusesItsCount() -> void
+{
+  plantedPairRefuses(planted(kRich, kRichCount, "\"passCount\":1"),
+                     kSpreadFault,
+                     "thePassSpreadRefusesItsCount: a spread of 3.5 beside a "
+                     "count of 1 refuses (FR-005, D-15)");
+}
+
+// FR-006: rule 3 refuses a tag at or above the count, and a tag beside a count
+// below 2. The second plant stands in the row of a later entry, so the path
+// names that entry and the check reads that entry's own count.
+auto thePassTagRefusesItsCount() -> void
+{
+  plantedPairRefuses(planted(kRich, kRichTag, "\"pass\":2"),
+                     kTagIndexFault,
+                     "thePassTagRefusesItsCount: a tag of 2 beside a count of "
+                     "2 refuses (FR-006, D-15)");
+
+  // The rich entry twice over: the second copy carries a count of 1 and no
+  // spread, so the tag check is the first fault of that entry.
+  const std::string_view text(kRich);
+  const std::size_t head = text.find("{\"name\":\"bmRich\"");
+  const std::size_t tail = text.find(kRichEntryEnd);
+  if (head == std::string::npos || tail == std::string::npos) {
+    sg::test::fail("thePassTagRefusesItsCount: the rich fixture carries one "
+                   "entry to repeat (FR-016)");
+    return;
+  }
+  const std::string entry =
+      std::string(text.substr(head, tail - head + kRichWarning.size()));
+  std::string second = planted(entry, kRichCount, "\"passCount\":1");
+  const std::size_t spread = second.find(kRichSpread);
+  if (spread == std::string::npos) {
+    sg::test::fail("thePassTagRefusesItsCount: the repeated entry carries no "
+                   "spread to take away (FR-016)");
+    return;
+  }
+  second.erase(spread, kRichSpread.size());
+  const std::string two = std::string(text.substr(0, tail))
+      + std::string(kRichWarning) + "}," + second + "}]}";
+  plantedPairRefuses(two,
+                     kTagCountFaultOfTheSecondEntry,
+                     "thePassTagRefusesItsCount: a tag of 1 beside a count of "
+                     "1 in a later " "entry names that entry (FR-006, D-15)");
+}
+
+// FR-007, D-15: the four lines of plan.md, "The refusal lines", byte for byte,
+// one per refusal arm.
+auto thePassPairRefusalNamesItsPartnerPath() -> void
+{
+  plantedPairRefuses(planted(measuredRich(),
+                             kRichPassBlock,
+                             "\"metricMethod\":\"AUTO\",\"passCount\":2,"),
+                     kMethodAutoFault,
+                     "thePassPairRefusalNamesItsPartnerPath: the method line "
+                     "names both paths (FR-007, D-15)");
+  plantedPairRefuses(planted(kRich, kRichCount, "\"passCount\":1"),
+                     kSpreadFault,
+                     "thePassPairRefusalNamesItsPartnerPath: the spread line "
+                     "names both paths (FR-007, D-15)");
+  plantedPairRefuses(planted(planted(kRich, kRichCount, "\"passCount\":1"),
+                             kRichSpread,
+                             ""),
+                     kTagCountFault,
+                     "thePassPairRefusalNamesItsPartnerPath: the tag count "
+                     "line names both paths (FR-007, D-15)");
+  plantedPairRefuses(planted(kRich, kRichTag, "\"pass\":2"),
+                     kTagIndexFault,
+                     "thePassPairRefusalNamesItsPartnerPath: the tag index "
+                     "line names both paths (FR-007, D-15)");
+}
+
+// FR-009, D-9, D-16: the first fault stops the read. A method fault beside a
+// tag fault answers the method refusal, a spread fault beside a tag fault
+// answers the spread refusal, and the standing warning refusal keeps its place
+// ahead of the three new checks.
+auto thePassPairChecksRunInReadOrder() -> void
+{
+  constexpr const char* const kTagWords = "pass tag";
+  constexpr const char* const kPairWords = "needs a pass count";
+
+  // One measured entry carrying the method fault and the tag fault at once.
+  std::string methodAndTag = measuredRich();
+  methodAndTag = planted(methodAndTag,
+                         kRichPassBlock,
+                         "\"metricMethod\":\"AUTO\",\"passCount\":2,");
+  methodAndTag = planted(methodAndTag, kRichTag, "\"pass\":2");
+  theFirstFaultAnswers(methodAndTag,
+                       kMethodAutoFault,
+                       kTagWords,
+                       "thePassPairChecksRunInReadOrder: the method refusal "
+                       "stands ahead of the tag refusal (FR-009, D-16)");
+
+  // One entry carrying the spread fault and the tag fault at once.
+  theFirstFaultAnswers(planted(kRich, kRichCount, "\"passCount\":1"),
+                       kSpreadFault,
+                       kTagWords,
+                       "thePassPairChecksRunInReadOrder: the spread refusal "
+                       "stands ahead of the tag refusal (FR-009, D-16)");
+
+  // The standing warning check, with a spread fault and a tag fault beside it.
+  std::string warned = planted(kRich, kRichCount, "\"passCount\":1");
+  warned = planted(warned, kRichWarning, "\"spreadWarning\":true");
+  theFirstFaultAnswers(warned,
+                       kWarningFault,
+                       kPairWords,
+                       "thePassPairChecksRunInReadOrder: the standing warning "
+                       "refusal answers ahead of the three new checks (FR-009)");
+}
+
+// FR-011, D-14: a stopped entry keeps its settled method beside a count of 0,
+// the form the four stop paths publish. Rule 1 stands waived for an entry that
+// names no MEASURED outcome, so all three forms load.
+auto aStoppedEntryKeepsItsMethodAndCount() -> void
+{
+  // The rich fixture's own stopped entry: PASSES beside the count of 2 the
+  // hand-built document names, spread and tag beside it.
+  aDocumentLoads(kRich,
+                 "aStoppedEntryKeepsItsMethodAndCount: the stopped entry of "
+                 "the " "rich fixture loads (FR-011, FR-016)");
+
+  // The form the four stop paths publish: the settled method beside a count of
+  // 0, an empty spread and empty tags (FR-011, D-14).
+  const char* const forms[] = {
+      "\"metricMethod\":\"MULTIPLEX\",\"passCount\":0,",
+      "\"metricMethod\":\"PASSES\",\"passCount\":0,",
+  };
+  for (const char* const form : forms) {
+    std::string text = planted(kRich, kRichPassBlock, form);
+    text = planted(text, kRichSpread, "\"passSpread\":null,");
+    text = planted(text, kRichTag, "\"pass\":null");
+    aDocumentLoads(text,
+                   "aStoppedEntryKeepsItsMethodAndCount: the stopped entry "
+                   "keeps its " "method beside a count of 0 (FR-011, D-14)");
+  }
+}
+
+// FR-011, D-14: a hunt entry names the method the operator forced beside the
+// count the collection published, so rule 1 stands waived for an entry that
+// carries a hunt key. The hunt object stands minimal: its six keys and its two
+// empty arrays.
+auto aHuntEntryKeepsItsMethodAndCount() -> void
+{
+  constexpr std::string_view kHunt
+      = ",\"hunt\":{\"method\":\"MULTIPLEX\",\"pass_count\":3,\"top\":0,"
+        "\"retried_passes\":0,\"entries\":[],\"skipped\":[]}";
+
+  std::string text = measuredRich();
+  text = planted(
+      text, kRichPassBlock, "\"metricMethod\":\"MULTIPLEX\",\"passCount\":3,");
+  const std::size_t at = text.find(kRichWarning);
+  if (at == std::string::npos) {
+    sg::test::fail("aHuntEntryKeepsItsMethodAndCount: the rich fixture carries "
+                   "no warning key the hunt key follows (FR-016)");
+    return;
+  }
+  text.insert(at + kRichWarning.size(), kHunt);
+  sg::test::writeText(kPassFormsPath, text);
+  const auto loaded = sg::loadReport(kPassFormsPath);
+  if (!loaded.has_value()) {
+    std::printf("  %s\n", loaded.error().c_str());
+  }
+  check(loaded.has_value(),
+        "aHuntEntryKeepsItsMethodAndCount: the measured hunt entry loads with "
+        "MULTIPLEX beside a count of 3 (FR-011, D-14)");
+  if (!loaded.has_value() || loaded->results.empty()) {
+    return;
+  }
+  const sg::BenchmarkResult& entry = loaded->results[0];
+  check(entry.metricMethod == sg::MetricMethod::MULTIPLEX
+            && entry.passCount == 3U && entry.hunt.has_value()
+            && entry.hunt->method == sg::MetricMethod::MULTIPLEX
+            && entry.hunt->passCount == 3U,
+        "aHuntEntryKeepsItsMethodAndCount: the entry reads back its method, "
+        "its count and its hunt record (FR-011, FR-016)");
+}
+
+// FR-002, FR-004, D-4, D-17: a pair with one key absent answers no check, so no
+// key of a pair becomes required and a null value counts as absent for rules 2
+// and 3.
+auto aPassPairWithOneKeyAbsentLoads() -> void
+{
+  aDocumentLoads(planted(kRich, kRichPassBlock, "\"passCount\":2,"),
+                 "aPassPairWithOneKeyAbsentLoads: a count of 2 with no method "
+                 "key loads (FR-002, FR-004)");
+  aDocumentLoads(planted(kRich, kRichPassBlock, "\"metricMethod\":\"PASSES\","),
+                 "aPassPairWithOneKeyAbsentLoads: PASSES with no count key "
+                 "loads (FR-002, FR-004)");
+  aDocumentLoads(planted(planted(planted(kRich, kRichCount, "\"passCount\":1"),
+                                 kRichSpread,
+                                 "\"passSpread\":null,"),
+                         kRichTag,
+                         "\"pass\":null"),
+                 "aPassPairWithOneKeyAbsentLoads: a null spread beside a count "
+                 "of 1 loads (FR-002, FR-004, D-17)");
+  aDocumentLoads(planted(planted(planted(kRich, kRichCount, "\"passCount\":1"),
+                                 kRichSpread,
+                                 ""),
+                         kRichTag,
+                         "\"pass\":null"),
+                 "aPassPairWithOneKeyAbsentLoads: a null tag beside a count of "
+                 "1 loads " "(FR-002, FR-004, D-17)");
+}
+
+// FR-010, FR-012, D-18: every pass form the writer makes loads, and each round
+// trip answers the values it wrote. The scripted run answers the multiplex
+// form, the hand-built entry the split form, and the rich fixture the schema
+// 1.0 form at the two later minors of major 1 the reader accepts.
+auto everyWrittenPassFormLoads() -> void
+{
+  // The scripted run: one metric column on an object that publishes no counter
+  // limit, so the plan settles MULTIPLEX beside the one pass it collected.
+  sg::detail::RunOptions options;
+  options.fixedIterations = sg::test::kWindowIterations;
+  const auto run = sg::test::scriptedRun(options);
+  sg::ReportData data;
+  data.results.push_back(run.result);
+  data.rowRaw = run.rowRaw;
+  data.contextRaw = run.contextRaw;
+  check(sg::detail::writeReport(kPassFormsPath, data),
+        "everyWrittenPassFormLoads: the writer wrote the scripted document "
+        "(FR-010)");
+  const auto loaded = sg::loadReport(kPassFormsPath);
+  if (!loaded.has_value()) {
+    std::printf("  %s\n", loaded.error().c_str());
+  }
+  check(loaded.has_value(),
+        "everyWrittenPassFormLoads: the document the scripted run wrote loads "
+        "(FR-010, D-18)");
+  if (!loaded.has_value()) {
+    return;
+  }
+  check(sg::test::sameReport(*loaded, data),
+        "everyWrittenPassFormLoads: the scripted document answers the run that "
+        "wrote it (FR-010, D-18)");
+  check(loaded->results[0].metricMethod == sg::MetricMethod::MULTIPLEX
+            && loaded->results[0].passCount == 1U,
+        "everyWrittenPassFormLoads: the scripted run settles MULTIPLEX beside "
+        "a count of 1 (FR-010, D-18)");
+
+  // The same written bytes with the AUTO form beside a count of 0, the form a
+  // run that collected no pass writes.
+  const std::string scripted = sg::test::readText(kPassFormsPath);
+  aDocumentLoads(planted(scripted,
+                         kWrittenPassBlock,
+                         "\"metricMethod\":\"AUTO\",\"passCount\":0,"),
+                 "everyWrittenPassFormLoads: the written document with AUTO "
+                 "beside a " "count of 0 loads (FR-010, FR-012)");
+
+  // The split form: three passes, each row's metric column tagged with its own
+  // 0-based pass index, the tags the merge writes (specs/024 E-08).
+  sg::BenchmarkResult split;
+  split.name = "bmJsonWindow";
+  split.suite = "bmJsonWindow";
+  split.caseName = "bmJsonWindow";
+  split.outcome = sg::RunOutcome::MEASURED;
+  split.metricMethod = sg::MetricMethod::PASSES;
+  split.passCount = 3U;
+  split.passSpread = 1.5;
+  split.metricLabels = {"work"};
+  for (std::size_t pass = 0; pass < 3U; ++pass) {
+    auto& row = split.rows.emplace_back();
+    row.kind = sg::RowKind::REPETITION;
+    row.timePerIterationNs = 1000.0;
+    row.cpuTimePerIterationNs = 1000.0;
+    row.metrics.push_back(sg::MetricValue {
+        .value = 1.0,
+        .runningRatio = 1.0,
+        .scaled = true,
+        .availability = sg::counters::Availability::COUNTABLE,
+        .pass = pass,
+    });
+  }
+  sg::ReportData splitData;
+  splitData.results.push_back(split);
+  splitData.rowRaw.push_back({});
+  splitData.contextRaw.push_back({});
+  check(sg::detail::writeReport(kPassSplitPath, splitData),
+        "everyWrittenPassFormLoads: the writer wrote the split document "
+        "(FR-010)");
+  const auto splitLoaded = sg::loadReport(kPassSplitPath);
+  if (!splitLoaded.has_value()) {
+    std::printf("  %s\n", splitLoaded.error().c_str());
+  }
+  check(splitLoaded.has_value(),
+        "everyWrittenPassFormLoads: the split document with PASSES beside a "
+        "count of 3 loads (FR-010)");
+  if (!splitLoaded.has_value() || splitLoaded->results.size() != 1U
+      || splitLoaded->results[0].rows.size() != 3U)
+  {
+    return;
+  }
+  check(splitLoaded->results[0].metricMethod == sg::MetricMethod::PASSES
+            && splitLoaded->results[0].passCount == 3U
+            && splitLoaded->results[0].rows[0].metrics[0].pass == 0U
+            && splitLoaded->results[0].rows[1].metrics[0].pass == 1U
+            && splitLoaded->results[0].rows[2].metrics[0].pass == 2U,
+        "everyWrittenPassFormLoads: the split document answers the count and "
+        "the three tags it wrote (FR-010, FR-016)");
+
+  // The schema 1.0 fixture, and the same document at the two later minors of
+  // major 1, which the reader gates by the major alone (FR-012, D-6).
+  aDocumentLoads(kRich,
+                 "everyWrittenPassFormLoads: the schema 1.0 fixture loads "
+                 "(FR-012, D-6)");
+  for (const char* const minor : {"1.12", "1.13"}) {
+    aDocumentLoads(planted(kRich,
+                           "\"schemaVersion\":\"1.0\"",
+                           std::string("\"schemaVersion\":\"") + minor + "\""),
+                   "everyWrittenPassFormLoads: the same document at a later "
+                   "minor of " "major 1 loads (FR-012, D-6)");
+  }
+}
+
 auto main() -> int
 {
   roundTripClosesTheFormat();
@@ -2232,6 +2720,15 @@ auto main() -> int
   thePerEntrySeriesReadsIntoTheFolds();
   theSeriesKeyRefusalsNameTheirArms();
   theSeriesCpuOutsideTheStatsRefuses();
+  thePassMethodRefusesItsCount();
+  thePassSpreadRefusesItsCount();
+  thePassTagRefusesItsCount();
+  thePassPairRefusalNamesItsPartnerPath();
+  thePassPairChecksRunInReadOrder();
+  aStoppedEntryKeepsItsMethodAndCount();
+  aHuntEntryKeepsItsMethodAndCount();
+  aPassPairWithOneKeyAbsentLoads();
+  everyWrittenPassFormLoads();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;

@@ -1428,6 +1428,12 @@ pointer of the field it could not read. The loader checks the fields it reads;
 it does not validate the document against the schema file, which stands as the
 gate's oracle.
 
+The loader also compares the pass fields with each other. A method word, a pass
+count, a pass spread and a pass tag form three pairs. A pair that disagrees in a
+way the writer cannot produce answers one error that names the field and its
+partner. A document the harness wrote always carries pairs that agree, so the
+check refuses a document someone edited by hand.
+
 ### The no-date rule
 
 No key of the document names a date, a time, a host or a process id. The file is
