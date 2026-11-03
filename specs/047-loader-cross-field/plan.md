@@ -71,12 +71,12 @@ page; one spec amendment; three version sites.
 | --- | --- | --- |
 | I, standard-first P0 to P3 | pass | The checks use the reader's own helpers over the standing word tables, and add no dependency. |
 | II, Design By Contract | pass | A document is external input, so a disagreement answers a load error, and no `SG_ENSURE` stands where a refusal is honest (D-19, FR-007). |
-| III, R-DCUT | pass | Each new test names the requirement it proves. The rule-1 waiver comes from a measured writer form and carries two tests. |
+| III, R-DCUT | pass | Each new test names the requirement it proves. The rule-1 waiver comes from a measured writer form and carries two tests. The design view is the text sequence of the Logical view, the shape every plan from `specs/038` to `specs/043` carries. |
 | IV, documentation | pass | Three sentences join the loader section of the page that already states the loader rule (FR-014, D-7). |
 | V, style | pass | The lane runs the pinned clang-format 18.1.8 (D-20) and adds no suppression. clang-tidy and cppcheck run in `ci-ubuntu`. |
 | VI, coverage | pass | The check shape is measured with `gcov -b -c`: 26 records, about 30 with the guards of D-14, none taken zero (D-19). |
 | VII, performance discipline | pass | The checks read keys the reader already read, and touch no measured path. |
-| VIII, hard CI gates | pass | The gate commands, the pinned tools and the measurement point stand in the sections below. No CI file changes. |
+| VIII, hard CI gates | pass | The `ctest` pair, the five gates, both sanitizer builds and the checked build stand in the Gate commands section, with the pinned tools and the measurement point. No CI file changes. |
 | IX, spec-driven | pass | Spec, two clarify rounds, this plan, then tasks. Every design point names its decision. |
 | X, anti-slop | pass | Three checks in one reader, each one `if`: no new type, no new file, no new mechanism. |
 | XI, prose | pass | `cmake/prose-lint.cmake` reports 0 findings over this directory and over the commit range. |
@@ -310,7 +310,7 @@ body.
 | FR-013 writer, schema, checker, compare unchanged | the diff review, and the standing schema tests of `harness_json_schema_test.cpp` |
 | FR-014 the docs sentences | the drift gate, and the review of the count |
 | FR-015 the version move | `views_test.cpp:279`, `harness_cli_table_test.cpp:1453` |
-| FR-016, FR-017 the test count and the test facts | this map, and the case names in the load test's log |
+| FR-016, FR-017 the test count and the test facts | this map, and `grep -c` over the `main` call list of the load test (`:2205-2238`), one function and one call per case |
 | FR-018 coverage | the Coverage plan |
 | FR-019 the gates | the Gate commands |
 | FR-020 the commit template | `python3 tools/prose/prose_gate.py --check all --mode range --base origin/master` |
@@ -324,8 +324,12 @@ target and no CTest entry changes.
 The measured arm counts, taken with the coverage flags of the `coverage-linux`
 preset and `gcov -b -c` on this host: 8 records for a pair guard plus a min/max
 pair per method, 6 for rule 2, 12 for rule 3, none taken zero. The two guards of
-D-14 add four. Every arm has a test in the map above, so the change adds no dark
-arm (D-19).
+D-14 add four, and each guard arm has its own case: an absent method key and an
+absent count key in `aPassPairWithOneKeyAbsentLoads`, a `SKIPPED` outcome in
+`aStoppedEntryKeepsItsMethodAndCount`, a standing `hunt` key in
+`aHuntEntryKeepsItsMethodAndCount`, and the reached-and-measured path in
+`thePassMethodRefusesItsCount`. Every arm has a test in the map above, so the
+change adds no dark arm (D-19).
 
 The measurement point is the coverage job's union of a full suite
 (`tools/dbc/coverage_gate.sh:86-88`), where the branch shortfall reads 0 rows
@@ -340,7 +344,7 @@ SC-002).
 No exclusion construct joins the tree: no `LCOV_EXCL`, no `--omit-lines`, no
 `--ignore-errors` in a project file, no `--remove` (D-12). The host `lcov` needs
 `PERL5LIB` for `Capture::Tiny`, and the coverage commands of the quickstart
-carry it (D-20).
+carry `PERL5LIB="$HOME/perl5/lib/perl5"` (D-20).
 
 ### Gate commands
 
@@ -352,6 +356,7 @@ cmake -D FORMAT_COMMAND="$HOME/.local/bin/clang-format" -P cmake/lint.cmake
 cmake -P cmake/spell.cmake
 python3 tools/docs/example_drift.py .
 python3 tools/prose/prose_gate.py --check all --mode range --base origin/master
+# a local check over this feature's own pages, not one of the five gates
 python3 tools/prose/prose_gate.py --check prose --mode tree --paths specs/047-loader-cross-field
 # clang-tidy, cppcheck and the dbc pair gate, once per feature, in build/dev
 cmake -S . -B build/dev --preset=ci-ubuntu -DPython3_EXECUTABLE=/usr/bin/python3
@@ -359,7 +364,9 @@ cmake --build build/dev
 cmake --build build/dev --target dbc-gate
 cmake --preset=ci-sanitize && cmake --build build/sanitize -j "$(nproc)"
 ctest --test-dir build/sanitize -j 1 --output-on-failure --no-tests=error
-export PERL5LIB="$HOME/perl5/lib/perl5:$HOME/.local/share/sg-tools/perl5/lib/perl5"
+cmake --preset=ci-tsan && cmake --build build/tsan -j "$(nproc)"
+ctest --test-dir build/tsan -j 1 --output-on-failure --no-tests=error
+export PERL5LIB="$HOME/perl5/lib/perl5"
 cmake --preset=ci-coverage
 cmake --build build/coverage -j "$(nproc)"
 ctest --test-dir build/coverage -j 1 --output-on-failure --no-tests=error
@@ -375,7 +382,12 @@ PyYAML for the dbc pair gate, which CI supplies with the `python3-yaml` package
 four arguments, so the lane runs the gate through its CMake target
 (`cmake/dbc-gate.cmake`, `.github/workflows/ci.yml:1284-1290`). The checked
 build lands in `build/dev`, the CI form, so it leaves the `ci-rocky` build of
-the two `ctest` runs in place.
+the two `ctest` runs in place. The tree carries no `dev` preset:
+`CMakeUserPresets.json` is machine-local and absent here, so the checked-in
+release presets drive the loop, as `AGENTS.md` states. The Clang build, the
+sanitizer runs and the coverage union are CI's jobs
+(`.github/workflows/ci.yml:153`, `:236`, and the `coverage` job), and the lane
+reads their verdicts from the run into the acceptance record.
 
 ## Constitution Check: design re-check
 

@@ -46,7 +46,7 @@ implementer reopens them.
   carries its pair, whatever schema version the document names. A schema 1.0
   document carries no pass key, so it loads as it stands.
 - **D-7 Documentation (Q-4).** The loader section of `docs/pages/harness.md`
-  gains two to four lines that state the checks. The main page teaches no
+  gains two to four sentences that state the checks. The main page teaches no
   loader rule, so `README.md` and its `example/` regions stand unchanged
   (IV.1 check: no main-page impact).
 - **D-8 The law lands first (FR-001).** The amendment of spec 024 FR-038 stands
@@ -72,6 +72,13 @@ implementer reopens them.
   and to the hit, so it costs nothing, and an arm no test reaches costs one row
   (`:111-118`). The CI union reads 0 rows short today
   (`specs/043-fwq-ftq/plan.md:122`), so all 21 rows stand free.
+  Principle VI and Principle VIII state 100 percent branch coverage, and the
+  gate script carries an allowance of 21 rows for the branch line alone, the
+  standing measure since `specs/031-host-validation/plan.md:671-672` recorded
+  it. This lane takes the script's measure, states the gap in the pull request
+  body, and adds no dark arm: every branch record of the three checks stands
+  reached by a named test (D-19). That is the written justification the
+  constitution asks for where a gate reads below its stated ideal.
 - **D-13 The overlap with specs/046.** Both lanes touch `json_load.cpp` and
   `harness_json_load_test.cpp`, in different readers of that file. The second
   to merge rebases, keeps both sides after reading them, and runs every gate
@@ -423,8 +430,8 @@ reader, and load each hand-built form. Every load answers the values it wrote.
 ### Version and numbering (C-4)
 
 - **FR-015**: The project version shall move to the next free patch at branch
-  time, `0.30.1` at the measured base, and the two test sites that pin the
-  version shall move with it. The two `SOVERSION` numbers and the schema
+  time, `0.30.1` at the measured base, and the three sites that pin the
+  version, one build file and two test files, shall move with it. The two `SOVERSION` numbers and the schema
   version shall stand unchanged. (D-2.)
 
 ### Tests and gates (C-5)
@@ -432,8 +439,11 @@ reader, and load each hand-built form. Every load answers the values it wrote.
 - **FR-016**: Each refusal of "The rules" shall carry its own test, and each
   accepted form of "The rules" shall carry its own test, including the
   stopped-loop form and the schema 1.0 form. CTest registers one entry for the
-  whole load test (`test/CMakeLists.txt:775-783`), so the case names, which the
-  test log prints, carry the count.
+  whole load test (`test/CMakeLists.txt:775-783`), and the binary prints one
+  summary line, so the count reads from the source: each case is one function
+  plus one call in `main`, and `grep -c` over the call list names the count
+  (`test/source/harness_json_load_test.cpp:2205-2238`). The run's own line,
+  `ok` or `N checks failed`, carries the green and red verdicts.
 - **FR-017**: No test of this feature shall sleep, read a clock, name a
   made-up cpu, or require a real PMU.
 - **FR-018**: The change shall keep line coverage at 100 percent, shall keep
@@ -450,7 +460,10 @@ reader, and load each hand-built form. Every load answers the values it wrote.
   with the pinned clang-format 18.1.8 (`.github/workflows/ci.yml:33-34`),
   `cmake -P cmake/spell.cmake`, `python3 tools/docs/example_drift.py .`,
   `python3 tools/prose/prose_gate.py --check all --mode range --base
-  origin/master`, and the dbc pair gate. (D-20.)
+  origin/master`, and the dbc pair gate through its CMake target. The change
+  shall further leave the suite clean under `ci-sanitize` (ASan and USan) and
+  under `ci-tsan` (the thread sanitizer), and the `ci-ubuntu` build shall answer
+  no new clang-tidy or cppcheck finding (Principle VIII). (D-20.)
 - **FR-020**: Each test shall stand in the same commit as the code it tests,
   and every commit shall follow the commit template of the constitution.
 
@@ -645,8 +658,9 @@ on this host, and each answer below carries its measurement.
 ### Measurable Outcomes
 
 - **SC-001**: One test stands for each refusal and one for each accepted form,
-  the stopped-loop document and the schema 1.0 document included. The case names
-  in the load test's log carry the count (FR-016).
+  the stopped-loop document and the schema 1.0 document included. The count
+  reads from the source, one function and one `main` call per case (FR-016), and
+  the run's summary line carries the green verdict.
 - **SC-002**: Line coverage reads 100 percent, the branch shortfall reads 21
   rows or fewer with the number recorded in the pull request body beside the
   G-20 figures, and no new exclusion construct appears in the change. The
@@ -670,7 +684,12 @@ on this host, and each answer below carries its measurement.
   coverage alone.
 - Commit author and committer: `OmO <omo@speedgun-ng.local>`. Titles run 50
   characters or fewer, body lines 72 or fewer, and the footer's last two lines
-  are `Refs: specs/047-loader-cross-field T-LCF` and `Approved-by: OmO`.
+  are `Refs: specs/047-loader-cross-field T-LCF` and `Approved-by: OmO`. The
+  template of the constitution prints `Approved-by:` above `Fixes #123` and
+  `Refs:`. The repository carries no open issue for this ticket, so the GitHub
+  keyword stands omitted, and the footer keeps the order every commit of
+  `master` uses, for example `b1dd7670` and `9ca64fe7`. The prose gate checks
+  the approval footer alone (`tools/prose/prose_gate.py:1150-1151`).
 - Rebase only. No merge commit. No CI change.
 - The first push is normal. A later push uses
   `git push --force-with-lease` against the last pushed sha, and

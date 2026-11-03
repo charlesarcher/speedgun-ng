@@ -57,7 +57,7 @@ names the pair's non-count field, and the first fault stops the read.
 **Independent test**: the load test binary answers the planted refusals at the
 head of the lane, and answers nothing at the base. The red count is recorded.
 
-- [ ] T002 [US1] Write the five refusal cases in
+- [ ] T002 [P] [US1] Write the five refusal cases in
   `test/source/harness_json_load_test.cpp`, before `main` (the file runs 27
   cases today, `:2205-2238`), and add five calls in `main` between `:2207` and
   `:2234`: `thePassMethodRefusesItsCount` (a measured entry with `AUTO` and 2,
@@ -70,10 +70,11 @@ head of the lane, and answers nothing at the base. The red count is recorded.
   document with a tag fault and a method fault answers the tag refusal, and a
   document whose `spreadWarning` disagrees answers the standing refusal ahead of
   the three). Plant on the rich fixture `kRich` (`:181-218`) and on the scripted
-  run, and set `outcome` to `MEASURED` where rule 1 must run (FR-003, FR-005,
-  FR-006, FR-007, FR-009, D-15, D-16).
-  Verify: `cmake --build build --target harness_json_load_test` exits 0, then `./build/test/harness_json_load_test` exits non-zero and names the five cases (red observed; record the count), and `ctest --test-dir build -R '^harness_json_load_test$'` reports the entry as Failed.
-- [ ] T003 [US1] Write the pairing case `aPassFieldDisagreementAnswersOneQuotedLine`
+  run, and set `outcome` to `MEASURED` where rule 1 must run. No case sleeps,
+  reads a clock, names a made-up cpu, or needs a PMU (FR-003, FR-005, FR-006,
+  FR-007, FR-009, FR-016, FR-017, D-15, D-16).
+  Verify: `cmake --build build --target harness_json_load_test` exits 0, then `./build/test/harness_json_load_test` exits non-zero and prints `N checks failed` with five `FAILED:` lines naming the new cases (red observed; record N), and `ctest --test-dir build -R '^harness_json_load_test$'` reports the entry as Failed.
+- [ ] T003 [P] [US1] Write the pairing case `aPassFieldDisagreementAnswersOneQuotedLine`
   in `test/source/harness_compare_cli_test.cpp`, beside `oneFaultLine`
   (`:782-800`), and add its call in `main` (`:1465-1500`). The case writes a
   document of schema major 1 at run time, in the way the file does today, plants
@@ -107,8 +108,8 @@ today.
   of 1), and `everyWrittenPassFormLoads` (the scripted run's document, `AUTO`
   with 0, `PASSES` with 3 beside tags 0, 1, 2, the schema 1.0 fixture, and the
   same document at schema 1.12 and 1.13; each round trip answers the values it
-  wrote) (FR-002, FR-004, FR-010, FR-011, FR-012, D-14, D-18).
-  Verify: `cmake --build build --target harness_json_load_test` exits 0, and `./build/test/harness_json_load_test` names the four cases as passing while the five cases of T002 stay failing (record both counts).
+  wrote) (FR-002, FR-004, FR-010, FR-011, FR-012, FR-016, FR-017, D-14, D-18).
+  Verify: `cmake --build build --target harness_json_load_test` exits 0, and `./build/test/harness_json_load_test` exits non-zero with the five T002 failures standing and no new `FAILED:` line naming one of the four new cases (record both counts).
 
 **Checkpoint**: US2 stands green at the base, and US1 stays red.
 
@@ -131,7 +132,7 @@ both stories green in one commit.
   `&&`, and no `switch` (D-19). Name the four refusal lines of plan.md exactly
   (D-15). Comment the block with specs/047 FR-003, FR-005, FR-006 and the waiver
   of D-14, in the standing comment style of the pass block at `:2720-2725`.
-  Verify: `cmake --build build` exits 0, `./build/test/harness_json_load_test` exits 0, `./build/test/harness_compare_cli_test test/data` exits 0, `ctest --test-dir build -R 'harness_json_(load|report|schema)_test|harness_compare' --output-on-failure` exits 0, and `ctest --test-dir build --output-on-failure` exits 0 with the one known load-sensitive row named if it fails.
+  Check the diff names no writer, schema, checker, comparison, public header, runner, CLI, `.github/` or specs/045 file (FR-013). Verify: `cmake --build build` exits 0, `./build/test/harness_json_load_test` exits 0, `./build/test/harness_compare_cli_test test/data` exits 0, `ctest --test-dir build -R 'harness_json_(load|report|schema)_test|harness_compare' --output-on-failure` exits 0, and `ctest --test-dir build --output-on-failure` exits 0 with the one known load-sensitive row named if it fails.
 - [ ] T006 [P] Add the three sentences after `docs/pages/harness.md:1429`, in the
   section "### The loader rule": the three pairs, the pair rule that keeps an
   older document loading, and the three method words with their counts. Carry no
@@ -161,30 +162,41 @@ D-20, and each exit stands recorded.
   `harness_jitter_window_test` and the PMU skip of `harness_topdown_run_test`
   stand named in the record.
   Verify: the pinned run exits 0; the full run exits 0 on an idle host, and a failure there names the load and the row.
-- [ ] T009 Run the five gates: `cmake -D FORMAT_COMMAND="$HOME/.local/bin/clang-format" -P cmake/lint.cmake`,
+- [ ] T009 Configure the checked build, then run the five gates:
+  `cmake -S . -B build/dev --preset=ci-ubuntu -DPython3_EXECUTABLE=/usr/bin/python3`
+  (the Python pin carries PyYAML for the pair gate, the package CI installs,
+  `.github/workflows/ci.yml:88`), then
+  `cmake -D FORMAT_COMMAND="$HOME/.local/bin/clang-format" -P cmake/lint.cmake`,
   `cmake -P cmake/spell.cmake`, `python3 tools/docs/example_drift.py .`,
   `python3 tools/prose/prose_gate.py --check all --mode range --base origin/master`,
   and `cmake --build build/dev --target dbc-gate` (the target form of the pair
-  gate, `cmake/dbc-gate.cmake`). Record the five exits (FR-019, SC-004, D-20).
-  Verify: each command exits 0.
-- [ ] T010 Run the checked build once per feature:
-  `cmake -S . -B build/dev --preset=ci-ubuntu -DPython3_EXECUTABLE=/usr/bin/python3`
-  and `cmake --build build/dev`. The Python pin carries PyYAML for the pair gate,
-  the package CI installs (`.github/workflows/ci.yml:88`). Record the clang-tidy
-  and cppcheck verdicts (Principle V, Principle VIII).
-  Verify: both commands exit 0, and no new suppression joins the tree.
-- [ ] T011 Run the sanitizer suite: `cmake --preset=ci-sanitize`,
-  `cmake --build build/sanitize -j "$(nproc)"`, then
-  `ctest --test-dir build/sanitize -j 1 --output-on-failure --no-tests=error`
-  (Principle VIII).
-  Verify: the three commands exit 0.
+  gate, `cmake/dbc-gate.cmake`). The range gate reads every commit message of
+  the range, so it carries the commit-template check of FR-020. Record the five
+  exits (FR-019, FR-020, SC-004, D-20).
+  Verify: each command exits 0, and the range gate answers 0 findings.
+- [ ] T010 Run the checked build once per feature, in the `build/dev` tree T009
+  configured: `cmake --build build/dev`. Record the clang-tidy and cppcheck
+  verdicts (FR-019, SC-004, Principle V, Principle VIII). The Clang compile and
+  the sanitizer jobs of the matrix stand in CI
+  (`.github/workflows/ci.yml:153`, `:236`), and their verdicts read into the
+  record of T013.
+  Verify: the command exits 0, and no new suppression joins the tree.
+- [ ] T011 Run both sanitizer suites, in the standing order:
+  `cmake --preset=ci-sanitize`, `cmake --build build/sanitize -j "$(nproc)"`,
+  `ctest --test-dir build/sanitize -j 1 --output-on-failure --no-tests=error`,
+  then `cmake --preset=ci-tsan`, `cmake --build build/tsan -j "$(nproc)"`,
+  `ctest --test-dir build/tsan -j 1 --output-on-failure --no-tests=error`. The
+  two presets stand apart, because the compilers reject the pairing (Principle
+  VIII).
+  Verify: all six commands exit 0, and no race and no sanitizer report appears
+  (FR-019, SC-004, Principle VIII).
 - [ ] T012 Measure coverage: `cmake --preset=ci-coverage`,
   `cmake --build build/coverage -j "$(nproc)"`,
   `ctest --test-dir build/coverage -j 1 --output-on-failure --no-tests=error`,
   `cmake --build build/coverage --target coverage`, then
   `bash tools/dbc/coverage_gate.sh build/coverage/coverage.info`, with
-  `PERL5LIB="$HOME/perl5/lib/perl5:$HOME/.local/share/sg-tools/perl5/lib/perl5"`
-  in the environment of all four. Record the host reading at the head beside the base reading of 99.5 percent
+  `PERL5LIB="$HOME/perl5/lib/perl5"` in the environment of all five. Record the
+  host reading at the head beside the base reading of 99.5 percent
   lines and 98.8 percent branches, the reading of `source/harness/json_load.cpp`
   alone, and the union figure from the coverage job's artifact. Add no exclusion
   construct (FR-018, SC-002, D-12, D-19, D-20).
@@ -197,17 +209,21 @@ D-20, and each exit stands recorded.
 
 - [ ] T013 Write `specs/047-loader-cross-field/results/acceptance-2026-11-03.md`:
   the host facts (host, kernel, machine, compiler), the two ctest counts, the five
-  gate exits, the tidy and sanitizer verdicts, the three coverage readings, the
-  red counts of T002, T003 and T004, and the SC-001 to SC-005 verdicts
-  (FR-018, SC-002, SC-005).
+  gate exits, the tidy verdict, the ASan/UBSan verdict and the thread-sanitizer
+  verdict, the three coverage readings, the red counts of T002, T003 and T004,
+  the case count read by `grep -c` over the `main` call list, and the SC-001 to
+  SC-005 verdicts (FR-016, FR-018, SC-001, SC-002, SC-005).
   Verify: the file names both ctest counts, the five gate exits and the three coverage figures, and `python3 tools/prose/prose_gate.py --check prose --mode tree --paths specs/047-loader-cross-field` answers 0 findings once the file is tracked.
 - [ ] T014 Write `specs/047-loader-cross-field/results/pr-body.md`: the host, the
   kernel, the compiler version, the head sha, the two ctest counts, the three
-  coverage readings and the union figure, the five gate exits, and the two
-  rebase notes for specs/046 (SC-002, D-13).
+  coverage readings and the union figure, the five gate exits, the three
+  sanitizer and tidy verdicts, the two rebase notes for specs/046, the reading of
+  the branch allowance against Principle VI and VIII (D-12), and the reading of
+  the README loader row behind the IV.1 check (SC-002, D-13).
   Verify: the body names the host, the kernel, the compiler, the head sha, both
   counts and the coverage figures.
-- [ ] T015 Land the lane: `git push -u origin 047-loader-cross-field` first, then
+- [ ] T015 Land the lane, the lane operation of the spec's Constraints block
+  (no requirement id stands behind it): `git push -u origin 047-loader-cross-field` first, then
   `git push --force-with-lease` after any later rewrite; `gh pr create` with the
   body of T014; `git ls-remote origin 047-loader-cross-field` equals
   `git rev-parse HEAD`.
@@ -238,8 +254,8 @@ T015 (landing)            -> after T013, T014
 - `T006` and `T007` run together after T005: a docs page and three version sites
   share no file. The version commit rebuilds the harness library whole, so it
   lands after the reader commit and stands alone.
-- `T009` and `T010` run together: the gates touch no build directory of each
-  other (`build`, `build/dev`).
+- `T009` then `T010` run in order: T009 configures `build/dev` and runs the pair
+  gate there, so T010 builds the tree T009 configured.
 - `T011` and `T012` do not run in parallel: each drives a full suite over its own
   build directory, and the host carries the load of one at a time.
 
