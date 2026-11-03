@@ -1164,14 +1164,14 @@ D-16 names, and the one timing bound PC-13 measures. The block the page quotes p
   `cmake --build build/sanitize -j "$(nproc)"` and
   `ctest --test-dir build/sanitize --output-on-failure --no-tests=error`, the
   `sanitize` job of `.github/workflows/ci.yml:147`, and record that no report
-  reaches the new units (FR-051). Measured: the build in 369.11 s, `96% tests passed, 6 tests failed out of 166`, zero `ERROR: AddressSanitizer` lines and zero `runtime error:` lines. The six reach a timeout: `base_cli_matrix` measures 286.2 s against its 120 s property, and five cli units reach the 300 s bound.
+  reaches the new units (FR-051). Measured: the build in 369.11 s, `96% tests passed, 6 tests failed out of 166`, zero `ERROR: AddressSanitizer` lines and zero `runtime error:` lines. The six reach a timeout in this host's tree: `base_cli_matrix` measures 286.2 s against its 120 s property, and five cli units reach the 300 s bound. The job answers differently. Run 41570697295 reads `base_cli_matrix` at 27.8 s in the `sanitize` job, whose compiler is clang, reads its slowest entry `snippet_compile` at 99.1 s, and carries no `Timeout` line at all. The six stand where the GNU sanitizer build runs the cli units three to four times slower, and reach no gate.
 
 - [x] T096 Run the thread-sanitizer build the matrix runs:
   `cmake --preset=ci-tsan`, which configures `-fsanitize=thread` into
   `build/tsan`, then `cmake --build build/tsan -j "$(nproc)"` and
   `ctest --test-dir build/tsan --output-on-failure --no-tests=error`, the `tsan`
   job of `.github/workflows/ci.yml:230`, and record that the one-provider offer
-  of T014 answers no data race (FR-051, spec D-21). Measured: the build in 223.71 s, two full passes at `97% tests passed, 5 tests failed out of 167`, zero `WARNING: ThreadSanitizer` lines. Four failures reach a timeout and one is the published-floor check of FR-025 and FR-026, which passes alone in 3.25 s and passed in the other two trees.
+  of T014 answers no data race (FR-051, spec D-21). Measured: the build in 223.71 s, two full passes at `97% tests passed, 5 tests failed out of 167`, zero `WARNING: ThreadSanitizer` lines. Four failures reach a timeout and one is the published-floor check of FR-025 and FR-026, which passes alone in 3.25 s and passed in the other two trees. The four timeouts are this host's again: the same run 41570697295 reads the `tsan` job's slowest entries, the four `dbc_matrix` units, at 124.9 s to 159.0 s under their 300 s bound, with no `Timeout` line in the job's log.
 
 - [ ] T097 [P] Run the coverage build to `tools/dbc/coverage_gate.sh`:
   `lines......: 100.0%` at `:45-48`, the branch shortfall inside the standing
