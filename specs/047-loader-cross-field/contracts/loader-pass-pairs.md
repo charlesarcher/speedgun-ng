@@ -59,8 +59,8 @@ words (`json_load.cpp:57-58`, `:2759-2761`). No new error type joins the reader
 ```
 
 The method word of the first line comes from `detail::enumWord` over
-`detail::kMetricMethodWords` (`json_report.hpp:126-130`). The comparison quotes
-the line and answers status 2 on the path it has today (`compare.cpp:1876-1891`,
+`detail::kMetricMethodWords` (`json_report.hpp:126-131`). The comparison quotes
+the line and answers status 2 on the path it has today (`compare.cpp:1876-1890`,
 FR-008).
 
 ## Check 1: the method beside the count
@@ -126,7 +126,7 @@ path, and the check reads that entry's own count. The tag is a 0-based pass inde
 | The writer | it writes every key of every pair already (`json_report.cpp:849-855`, `:323`), so no rule refuses a written document (D-10, FR-013) |
 | The schema file | it states key sets, order and kinds (`report-v1.json:517-520`, `:654-662`), and the checker language carries no cross-field rule |
 | The schema checker | `checkReport` is a separate reader (`:3055-3097`), and `loadReport` runs no schema check (`:3101-3247`) |
-| The comparison rules | a refused document answers status 2 and one quoted line today (`compare.cpp:1876-1891`), and the grammar gains nothing |
+| The comparison rules | a refused document answers status 2 and one quoted line today (`compare.cpp:1876-1890`), and the grammar gains nothing |
 | The public API, the two `SOVERSION` numbers, the schema version, every option | unchanged (D-2, the Scope of `spec.md`) |
 
 ## Verification

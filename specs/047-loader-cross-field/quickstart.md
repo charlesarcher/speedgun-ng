@@ -56,7 +56,7 @@ cmake -D FORMAT_COMMAND="$HOME/.local/bin/clang-format" -P cmake/lint.cmake
 cmake -P cmake/spell.cmake
 python3 tools/docs/example_drift.py .
 python3 tools/prose/prose_gate.py --check all --mode range --base origin/master
-cmake -S . -B build/dev --preset=ci-ubuntu
+cmake -S . -B build/dev --preset=ci-ubuntu -DPython3_EXECUTABLE=/usr/bin/python3
 cmake --build build/dev --target dbc-gate
 ```
 
@@ -70,7 +70,7 @@ the host of the table above. The last column carries the exit read at
 | 2 | spell | 0 | 0, silent |
 | 3 | example drift | 0 | 0, silent |
 | 4 | prose, over the range | 0 | 0, `4 sources, 729 units, 0 findings` |
-| 5 | the dbc pair gate | 0 | not run; it needs doxygen on `PATH` |
+| 5 | the dbc pair gate, through its target | 0 | 0, `doc-gate: 345 interfaces, 0 gaps` and `pair-gate: 345 interfaces, 0 gaps` |
 
 The prose gate answers 0 clean, 1 findings and 2 usage. The range carried one
 `CM.BODY-WRAP` finding at research time, and the rewrap of the spec commit body
@@ -80,6 +80,28 @@ plan's list:
 ```bash
 python3 tools/prose/prose_gate.py --check prose --mode tree --paths specs/047-loader-cross-field
 ```
+
+The pair gate runs through its CMake target: the bare `tools/dbc/dbc_pair_gate.py`
+needs four arguments. The target runs the gate through the interpreter CMake
+resolves, so the configure pins one that carries PyYAML, the package CI installs
+(`.github/workflows/ci.yml:88`).
+
+## Sanitizers and the checked build
+
+```bash
+cmake --preset=ci-sanitize && cmake --build build/sanitize -j "$(nproc)"
+ctest --test-dir build/sanitize -j 1 --output-on-failure --no-tests=error
+cmake --preset=ci-tsan && cmake --build build/tsan -j "$(nproc)"
+ctest --test-dir build/tsan -j 1 --output-on-failure --no-tests=error
+cmake --build build/dev
+```
+
+`ci-sanitize` answers ASan and USan and `ci-tsan` the thread sanitizer, and the
+two presets stand apart because the compilers reject the pairing (Principle
+VIII). `cmake --build build/dev` carries the clang-tidy and cppcheck reports.
+The Clang compile, the sanitizer jobs and the coverage union stand in CI
+(`.github/workflows/ci.yml:153`, `:236`), and the lane reads their verdicts into
+the acceptance record.
 
 ## Coverage
 
@@ -121,11 +143,11 @@ coverage figures beside the G-20 numbers.
 
 | Criterion | How it is read | Where the number is recorded |
 | --- | --- | --- |
-| SC-001, one test per refusal and per accepted form | the case names in the load test's log: 27 plus nine new | the body, from that log (FR-016) |
+| SC-001, one test per refusal and per accepted form | `grep -c` over the `main` call list of the load test (`:2205-2238`): 27 today plus nine new, one function and one call each | the body, as the count and the `ok` line (FR-016) |
 | SC-002, lines at 100 percent, a shortfall of 21 rows or fewer | the gate line over the union, plus the host reading | the body, beside the G-20 figures (FR-018) |
 | SC-003, both `ctest` runs pass | the two counts, full and under `taskset -c 0,1` | the body, as the two counts (FR-019) |
 | SC-004, the five gates pass | the five exits of the gate table | the body, as the five verdicts (FR-019) |
-| SC-005, every written document loads after the change | the round-trip cases of FR-010 to FR-012 | the body, as the case names (FR-010 to FR-012) |
+| SC-005, every written document loads after the change | the round-trip cases of FR-010 to FR-012, named in the source and green in the run | the body, as the case count and the `ok` line (FR-010 to FR-012) |
 
 The reading of `source/harness/json_load.cpp` at the head joins the SC-002
 figures (FR-018). The version move carries no figure of its own: `0.30.1` stands
