@@ -156,9 +156,9 @@ auto dftPeriods(std::span<const double> samples,
     // advances by the bin's own angle once per sample, and no library call
     // stands in the loop (FR-018, R-13).
     for (const double sample : window) {
-      const double centred = sample - mean;
-      real += centred * cosRun;
-      imag -= centred * sinRun;
+      const double centered = sample - mean;
+      real += centered * cosRun;
+      imag -= centered * sinRun;
       const double nextCos = cosRun * stepCos - sinRun * stepSin;
       sinRun = sinRun * stepCos + cosRun * stepSin;
       cosRun = nextCos;

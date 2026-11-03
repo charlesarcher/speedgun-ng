@@ -62,7 +62,10 @@ counters all four shares publish.
   `harness_jitter_window_test` (`theSeriesRoundTripsThroughLoadReport`). specs/043
   and specs/044 added all three, and none of them reads top-down code.
 - `prose_gate_fixtures` bounds its own run at 10 seconds. It passes alone in
-  16.74 seconds here, so it fails only when the suite runs in parallel.
-- `cmake -P cmake/spell.cmake` reports six findings here, and the same six on
-  `origin/master` with the same toolchain. The `lint` job is green on master, so
-  its codespell differs from the one on this host.
+  16.74 seconds here and fails when the suite runs the entries in parallel.
+- The `lint` job gates every other job and stands red on `origin/master`: its
+  spell step answers six findings, three on the British spelling of the
+  mean-removed local in `source/harness/spectrum.cpp` and three on split
+  literals inside `test/source/harness_jitter_bytes_test.cpp`, all of them from
+  specs/043. This branch carries the commit that clears them, because no
+  coverage, sanitizer or suite verdict is readable behind a skipped `lint`.
