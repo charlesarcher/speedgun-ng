@@ -85,6 +85,41 @@ untouched by this lane. The base capture on this host did not carry the record,
 and the base gate exited 1 on two coverage entries. The gate reading for the
 merge is the CI union.
 
+## The matrix
+
+Run `41727692423` reads at the head, and the five stopped jobs ran a second time.
+These jobs pass on both readings: `lint`, `prose-lint`, `dbc-gate`,
+`shared-audit`, `downstream-consumer`, `consumer-release`, and all three
+`static-analysis` shards.
+
+The stopped jobs read on suite entries, and no loader unit and no compare unit
+stands among them: `harness_json_load_test` and `harness_compare_cli_test` pass
+in every job of both readings.
+
+| Job | First reading | Second reading |
+| --- | --- | --- |
+| `test` | `counters_pmu_provider_test`, `harness_jitter_window_test`, `example_run` | `harness_jitter_window_test` |
+| `test-rocky` | `harness_jitter_window_test` | `harness_jitter_window_test` |
+| `sanitize` | `counters_pmu_provider_test`, `harness_jitter_window_test`, `harness_fwq_ftq_test`, `example_run` | `harness_jitter_window_test`, `harness_fwq_ftq_test` |
+| `tsan` | `counters_pmu_provider_test`, `harness_jitter_window_test`, `harness_jitter_cli_test` | the same three, plus `example_run` |
+| `coverage` | `harness_jitter_window_test` | `harness_jitter_window_test` |
+
+The base reads the same set on the same matrix: run `41580787441` at `b1dd7670`
+stops on `harness_jitter_window_test` in all five jobs, on
+`harness_jitter_cli_test` in `tsan`, and on `harness_fwq_ftq_test` in `sanitize`.
+The two entries the head adds over that set are PMU-permission rows on the
+runners: `counters_pmu_provider_test` answers `the winning entry describes
+itself with the kernel's text`, and `example_run` answers `docs_metric_passes`
+with `counter 'cpu/cache-misses' is not countable on this host: the catalog
+reports permission_blocked`. Both move between jobs across the two readings, and
+each passes in a job where the other reading stops it.
+
+The coverage job's capture does not run on this matrix, at the base or at the
+head: the job stops on the standing jitter row, and its upload step answers `No
+files were found with the provided path: build/coverage/coverage.info`. The
+union figure therefore stands unavailable from CI for both trees, and the host
+reading above carries the coverage evidence for the merge.
+
 ## The host conditions
 
 - `harness_jitter_window_test` fails on `theSeriesRoundTripsThroughLoadReport` in
