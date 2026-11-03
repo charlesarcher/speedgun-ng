@@ -60,9 +60,26 @@ stand unchanged at 81 lines, 50 functions and 108 branches: every line and every
 branch the lane adds is covered. The branch shortfall of 108 rows is the standing
 host figure at the base, and the gate's allowance is 21 rows
 (`tools/dbc/coverage_gate.sh:102`); D-12 of the spec carries the written
-justification. The coverage job's union at the head: the CI reading lands in
-`specs/047-loader-cross-field/results/acceptance-2026-11-03.md` when the matrix
-reports.
+justification. The coverage job's capture does not run on this matrix, at the
+base or at the head: the job stops on the standing jitter row, and its upload
+step answers `No files were found with the provided path:
+build/coverage/coverage.info`. The host reading therefore carries the coverage
+evidence for the merge.
+
+## What the matrix reads
+
+Run `41727692423` reads at the head, and the five stopped jobs ran a second time.
+`lint`, `prose-lint`, `dbc-gate`, `shared-audit`, `downstream-consumer`,
+`consumer-release` and all three `static-analysis` shards pass on both readings.
+`test`, `test-rocky`, `sanitize`, `tsan` and `coverage` stop on suite entries, and
+no loader unit and no compare unit stands among them: `harness_json_load_test`
+and `harness_compare_cli_test` pass in every job of both readings. The base's run
+`41580787441` stops on the same jitter rows on the same matrix. The two entries
+the head adds over that set are PMU-permission rows on the runners, the provider
+row that answers with the kernel's own text and the `docs_metric_passes` row that
+answers `permission_blocked` for `cpu/cache-misses`; both move between jobs
+across the two readings.
 
 `specs/047-loader-cross-field/results/acceptance-2026-11-03.md` carries the
-commands, the counts, the gate exits and the host conditions end to end.
+commands, the counts, the gate exits, the per-job readings and the host
+conditions end to end.

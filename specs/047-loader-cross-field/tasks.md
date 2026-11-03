@@ -233,12 +233,14 @@ standing 108 rows of the base, and the gate reading is the CI union.
   the README loader row behind the IV.1 check (SC-002, D-13).
   Verify: the body names the host, the kernel, the compiler, the head sha, both
   counts and the coverage figures.
-- [ ] T015 Land the lane, the lane operation of the spec's Constraints block
+- [x] T015 Land the lane, the lane operation of the spec's Constraints block
   (no requirement id stands behind it): `git push -u origin 047-loader-cross-field` first, then
   `git push --force-with-lease` after any later rewrite; `gh pr create` with the
   body of T014; `git ls-remote origin 047-loader-cross-field` equals
   `git rev-parse HEAD`.
   Verify: the three commands answer the equality and the pull request number.
+  Measured: pull request 74 stands open, and the remote line equals the head at
+  each push.
 
 ---
 
