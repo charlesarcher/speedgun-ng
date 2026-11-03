@@ -178,7 +178,7 @@ lane refuses documents, it writes none.
 
 ### Modules and dependency order
 
-The lane lands five commits, in this order, each atomic and bisectable:
+The lane lands four commits, in this order, each atomic and bisectable:
 
 1. `Docs`: spec 024 FR-038 gains the three rules, the pair rule and the rule-1
    waiver. `Refs: specs/024-multipass-collection T-LCF` (FR-001, D-8).
@@ -353,7 +353,13 @@ cmake -P cmake/spell.cmake
 python3 tools/docs/example_drift.py .
 python3 tools/prose/prose_gate.py --check all --mode range --base origin/master
 python3 tools/prose/prose_gate.py --check prose --mode tree --paths specs/047-loader-cross-field
-cmake --preset=ci-ubuntu && cmake --build build   # clang-tidy and cppcheck once per feature
+# clang-tidy, cppcheck and the dbc pair gate, once per feature, in build/dev
+cmake -S . -B build/dev --preset=ci-ubuntu -DPython3_EXECUTABLE=/usr/bin/python3
+cmake --build build/dev
+cmake --build build/dev --target dbc-gate
+cmake --preset=ci-sanitize && cmake --build build/sanitize -j "$(nproc)"
+ctest --test-dir build/sanitize -j 1 --output-on-failure --no-tests=error
+export PERL5LIB="$HOME/perl5/lib/perl5:$HOME/.local/share/sg-tools/perl5/lib/perl5"
 cmake --preset=ci-coverage
 cmake --build build/coverage -j "$(nproc)"
 ctest --test-dir build/coverage -j 1 --output-on-failure --no-tests=error
@@ -362,9 +368,14 @@ bash tools/dbc/coverage_gate.sh build/coverage/coverage.info
 ```
 
 The pinned tools: clang-format 18.1.8 at `~/.local/bin` (CI installs the same
-version by pip, `.github/workflows/ci.yml:33-34`), and `PERL5LIB` carrying
-`Capture::Tiny` for the host `lcov` (D-20). The dbc pair gate runs through its
-own target, `python3 tools/dbc/dbc_pair_gate.py`.
+version by pip, `.github/workflows/ci.yml:33-34`); `PERL5LIB` carrying
+`Capture::Tiny` for the host `lcov`; and a `Python3_EXECUTABLE` that carries
+PyYAML for the dbc pair gate, which CI supplies with the `python3-yaml` package
+(`.github/workflows/ci.yml:88`). The bare `tools/dbc/dbc_pair_gate.py` needs
+four arguments, so the lane runs the gate through its CMake target
+(`cmake/dbc-gate.cmake`, `.github/workflows/ci.yml:1284-1290`). The checked
+build lands in `build/dev`, the CI form, so it leaves the `ci-rocky` build of
+the two `ctest` runs in place.
 
 ## Constitution Check: design re-check
 
