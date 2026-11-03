@@ -283,3 +283,48 @@ docs sentences of T006 ride the second commit beside the reader, so the page
 states the rule the day the reader lands. The version, the gates and the
 evidence follow, and no part of the MVP is separable from them: FR-020 binds each test to the code of T005, and
 Principle VIII binds the gates to the head.
+
+---
+
+## Phase 7: Convergence
+
+- [ ] T016 Re-run `ctest --test-dir build --output-on-failure` and
+  `taskset -c 0,1 ctest --test-dir build --output-on-failure` on an idle host
+  until the pinned run exits 0, and run
+  `ctest --test-dir build/tsan -j 1 --output-on-failure --no-tests=error` at
+  the base `b1dd7670` so the race at `jitter_probe.cpp:708` carries a base
+  reading; write both readings into
+  `specs/047-loader-cross-field/results/acceptance-2026-11-03.md` and the
+  pull request body per FR-019, SC-003, SC-004, Constitution VIII (partial)
+- [ ] T017 Produce the coverage union figure at the gate's measurement point:
+  complete a coverage suite whose entries all pass, clear the `lcov`
+  inconsistent record at `source/harness/runner.cpp:707` that stops
+  `tools/dbc/coverage_gate.sh` at exit 3, read the union shortfall against the
+  21-row allowance, and record the union figure with the
+  `source/harness/json_load.cpp` line reading in
+  `specs/047-loader-cross-field/results/pr-body.md` beside the G-20 figures per
+  FR-018, SC-002, Constitution VI (partial)
+- [x] T018 Rewrite the four sentences of the loader section of
+  `docs/pages/harness.md:1431-1435` so they state the pair rule that keeps an
+  older document loading and the three method words with their counts, inside
+  two to four sentences at 80 columns and free of the classes the drift gate
+  forbids; re-run `python3 tools/docs/example_drift.py .` and
+  `python3 tools/prose/prose_gate.py --check prose --mode tree --paths
+  docs/pages/harness.md` per FR-014, D-7, T006 (partial)
+  Measured: four sentences at `docs/pages/harness.md:1431-1436` now carry the
+  three pairs, the pair rule, the three method words with their counts and the
+  refusal shape; the drift gate and the docs prose check answer 0.
+- [x] T019 Restate the lane figures in
+  `specs/047-loader-cross-field/results/acceptance-2026-11-03.md` and
+  `specs/047-loader-cross-field/results/pr-body.md` from
+  `git diff --shortstat b1dd7670..HEAD`: the file count, the insertion count,
+  the source-and-test count, and the head sha per FR-016, SC-002, T013, T014
+  (partial)
+  Measured: 13 commits, 20 files, 3194 insertions, 17 deletions, and 5 files with
+  603 insertions for source and tests, at `76e76667`; both records name that head.
+- [x] T020 Keep the untracked `prompt.md` at the repository root out of the lane,
+  so the working tree carries no root file inside the feature's Scope per the
+  Scope section of spec.md (unrequested)
+  Measured: the file stands untracked, in no commit and in no pull request, and it
+  is the owner's ticket text: the owner decides its place, and the lane leaves it
+  where it stands.

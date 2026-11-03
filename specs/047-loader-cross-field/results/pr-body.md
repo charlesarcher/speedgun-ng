@@ -12,8 +12,8 @@ Roadmap item T-LCF. Spec `specs/047-loader-cross-field/spec.md`.
 
 ## The lane
 
-- 10 commits over `master`, base `b1dd7670`, head `2ffba1dd`.
-- 18 files changed, 2950 insertions, 17 deletions.
+- 13 commits over `master`, base `b1dd7670`, head `76e76667`.
+- 20 files changed, 3194 insertions, 17 deletions.
 - Source: 48 lines at the end of `readEntry` in `source/harness/json_load.cpp`.
 - Tests: nine functions in `test/source/harness_json_load_test.cpp`, one in
   `test/source/harness_compare_cli_test.cpp`.

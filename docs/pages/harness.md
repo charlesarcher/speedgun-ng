@@ -1429,10 +1429,11 @@ it does not validate the document against the schema file, which stands as the
 gate's oracle.
 
 The loader also compares the pass fields with each other. A method word, a pass
-count, a pass spread and a pass tag form three pairs. A pair that disagrees in a
-way the writer cannot produce answers one error that names the field and its
-partner. A document the harness wrote always carries pairs that agree, so the
-check refuses a document someone edited by hand.
+count, a pass spread and a pass tag form three pairs, and a check runs only when
+both keys of its pair stand. `AUTO` names a count of 0, `MULTIPLEX` names 1, and
+`PASSES` names 1 or more. A spread or a tag needs a count of 2, and a pair that
+disagrees in a way the writer cannot produce answers one error naming the field
+and its partner.
 
 ### The no-date rule
 
