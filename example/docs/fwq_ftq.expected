@@ -1,5 +1,5 @@
 # sg-example:begin report
-speedgun-ng 0.29.0 build=Release
+speedgun-ng 0.30.0 build=Release
 topology: packages=1 l3-groups=2 cores=16 threads=32
 method: fwq fwq fwq
 workCount: 1 1 1

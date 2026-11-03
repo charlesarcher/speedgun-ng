@@ -266,7 +266,8 @@ auto run() -> int
 
   // The version and the SOVERSION record of the move this lane lands
   // (specs/043-fwq-ftq FR-005, SC-009; specs/039-context-groups FR-005,
-  // FR-032, D-2; specs/037 R-13): the project block reads 0.29.0, the
+  // FR-032, D-2; specs/037 R-13; specs/042-topdown FR-047): the project
+  // block reads 0.30.0, the
   // harness target answers SOVERSION 20, and the archive target keeps
   // SOVERSION 5, the number the exclusions cleanup moved on the public
   // counter header. Four public layouts move, so the harness number
@@ -275,8 +276,8 @@ auto run() -> int
   {
     auto const cmake = rootCMakeText();
     check(!cmake.empty(), "pass: the root CMakeLists.txt can be read");
-    check(projectVersion(cmake) == "0.29.0",
-          "pass: the project version reads 0.29.0");
+    check(projectVersion(cmake) == "0.30.0",
+          "pass: the project version reads 0.30.0");
     check(cmake.find("SOVERSION 20") != std::string::npos,
           "pass: the harness SOVERSION line reads SOVERSION 20");
     check(cmake.find("SOVERSION 5") != std::string::npos,
