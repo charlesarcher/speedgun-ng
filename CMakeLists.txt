@@ -128,7 +128,8 @@ set_target_properties(
     # move with it, so the hand-kept number goes to 5.
     # specs/042-topdown FR-017, FR-047: MetricView and MetricListing gain
     # the threshold text of their row, so the exported layouts of this
-    # archive move again and the hand-kept number goes to 5 (spec D-9,
+    # archive move again. The hand-kept number stands at the 5 the comment
+    # above landed, inside which the moves of this feature sit (spec D-9,
     # D-11, hard rule 12).
     SOVERSION 5
     EXPORT_NAME speedgun-ng
