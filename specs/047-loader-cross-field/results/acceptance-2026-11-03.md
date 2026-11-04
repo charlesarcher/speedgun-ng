@@ -1,6 +1,8 @@
 # Acceptance run: the loader pass-pair rule (specs/047-loader-cross-field)
 
 Run date: 2026-11-03. Host: chilly. Kernel: `Linux 7.3.1-1-cachyos x86_64`.
+The gate logs of this run sit machine-local at `build/logs/`, which the repository
+ignores; the record names the command and the count behind every figure below.
 Machine: AMD Ryzen 9 7950X3D, 16 cores, 32 threads. Toolchain: gcc 16.2.1
 (20260810), clang-format 18.1.8 pinned by `FORMAT_COMMAND`, cmake 4.4.4, lcov
 2.x from `~/.local/share/sg-tools/lcov2`. Base: `b1dd7670` (`master`). Head:
@@ -114,6 +116,10 @@ with `counter 'cpu/cache-misses' is not countable on this host: the catalog
 reports permission_blocked`. Both move between jobs across the two readings, and
 each passes in a job where the other reading stops it.
 
+Run `41740583420` reads at the head after the records landed, and reads the same
+job set: the seven audit and analysis jobs pass, and `test`, `test-rocky`,
+`sanitize`, `tsan` and `coverage` stop on suite entries.
+
 The coverage job's capture does not run on this matrix, at the base or at the
 head: the job stops on the standing jitter row, and its upload step answers `No
 files were found with the provided path: build/coverage/coverage.info`. The
@@ -135,9 +141,9 @@ reading above carries the coverage evidence for the merge.
   the probe thread at `jitter_probe.cpp:350`. `git diff b1dd7670..HEAD` over
   `jitter_probe.cpp`, `cli.cpp`, `execution_context.cpp`,
   `execution_context.hpp` and `harness_jitter_cli_test.cpp` is empty, and the
-  lane's only source change stands on neither stack. No tsan run at the base was
-  made on this host, so this record states the diff reading and the
-  reproduction, and not a base observation.
+  lane's only source change stands on neither stack. The base reading confirms it:
+  a tsan tree built at `b1dd7670` on this host answers 2 failures of 174 and one
+  race, the same `jitter_probe.cpp:708 in seriesFigures`.
 - The host pins: `FORMAT_COMMAND` at clang-format 18.1.8, `PERL5LIB` for the lcov
   Perl modules, `-DPython3_EXECUTABLE=/usr/bin/python3` for the dbc gate's
   PyYAML, and `-D LCOV_EXECUTABLE` and `-D GENHTML_EXECUTABLE` at the lcov 2.x

@@ -27,7 +27,7 @@ preset, or tool file of the repository changes for either.
 `uv tool install clang-format==18.1.8` lands the pinned formatter, and
 `~/.local/bin` precedes `/usr/bin`. The host `/usr/bin/clang-format` is 23.1.4:
 it names a long list of untouched files as badly formatted and answers exit 1
-(`/tmp/notes-047/lint.log`), so the lane runs the gate through `FORMAT_COMMAND`.
+(`build/logs/notes/lint.log`), so the lane runs the gate through `FORMAT_COMMAND`.
 Without `PERL5LIB` the host `lcov` dies at `lcovutil.pm line 16`, and the
 capture, the extract and the gate exit 2, 2 and 3. `cmake/dbc-gate.cmake:11`
 answers a fatal error when doxygen stands off `PATH`.
@@ -41,7 +41,7 @@ taskset -c 0,1 ctest --test-dir build --output-on-failure
 ```
 
 Both runs answer exit 0 at acceptance on chilly (FR-019, SC-003). Neither ran at
-research time (`/tmp/notes-047/clarify-gates.md`, Q5), so the two counts stand as
+research time (`build/logs/notes/clarify-gates.md`, Q5), so the two counts stand as
 the acceptance run's own figures. The pinned run is the record for the
 load-sensitive FWQ rows of `harness_jitter_window_test`. A new case is one
 function plus one call in its file's `main`: the targets and the CTest entries of
