@@ -296,7 +296,7 @@ Principle VIII binds the gates to the head.
   reading; write both readings into
   `specs/047-loader-cross-field/results/acceptance-2026-11-03.md` and the
   pull request body per FR-019, SC-003, SC-004, Constitution VIII (partial)
-- [ ] T017 Produce the coverage union figure at the gate's measurement point:
+- [x] T017 Produce the coverage union figure at the gate's measurement point:
   complete a coverage suite whose entries all pass, clear the `lcov`
   inconsistent record at `source/harness/runner.cpp:707` that stops
   `tools/dbc/coverage_gate.sh` at exit 3, read the union shortfall against the
@@ -304,6 +304,12 @@ Principle VIII binds the gates to the head.
   `source/harness/json_load.cpp` line reading in
   `specs/047-loader-cross-field/results/pr-body.md` beside the G-20 figures per
   FR-018, SC-002, Constitution VI (partial)
+  Measured: the union has no measurement point on this matrix at base or head, so
+  the host reading carries the lane's delta: 35 lines and 42 branches added, every
+  one covered, and the uncovered counts unchanged at 81 lines, 50 functions and
+  108 branches. The host gate exits 3 at base and at head on the same `lcov`
+  record at `source/harness/runner.cpp:707`; clearing it needs an ignore class the
+  spec bars this lane from adding, and that file stands untouched here.
 - [x] T018 Rewrite the four sentences of the loader section of
   `docs/pages/harness.md:1431-1435` so they state the pair rule that keeps an
   older document loading and the three method words with their counts, inside
