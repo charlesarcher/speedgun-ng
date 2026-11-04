@@ -51,7 +51,7 @@ Roadmap item T-LCF. Spec `specs/047-loader-cross-field/spec.md`.
 
 | Reading | Lines | Functions | Branches |
 | --- | --- | --- | --- |
-| Base `b1dd7670`, host | 99.5% (17484 of 17565) | 97.3% (1804 of 1854) | 98.8% (8593 of 8701) |
+| Base `b1dd7670`, host | 99.5% (17485 of 17566) | 97.3% (1804 of 1854) | 98.8% (8593 of 8701) |
 | Head, host | 99.5% (17519 of 17600) | 97.3% (1804 of 1854) | 98.8% (8635 of 8743) |
 | Head, `source/harness/json_load.cpp` | 99.2% (2194 lines) | 100.0% (178 of 178) | all arms reached |
 
@@ -64,7 +64,9 @@ justification. The coverage job's capture does not run on this matrix, at the
 base or at the head: the job stops on the standing jitter row, and its upload
 step answers `No files were found with the provided path:
 build/coverage/coverage.info`. The host reading therefore carries the coverage
-evidence for the merge.
+evidence for the merge. The host gate exits 3 at the base and at the head on the
+same `lcov` record at `source/harness/runner.cpp:707`, a file this lane leaves
+untouched; clearing it needs an ignore class the spec bars here.
 
 ## What the matrix reads
 

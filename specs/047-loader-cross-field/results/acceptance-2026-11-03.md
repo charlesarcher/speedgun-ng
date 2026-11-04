@@ -67,7 +67,7 @@ here as a local reading of the same tree.
 
 | Reading | Lines | Functions | Branches |
 | --- | --- | --- | --- |
-| Base `b1dd7670`, host | 99.5% (17484 of 17565) | 97.3% (1804 of 1854) | 98.8% (8593 of 8701) |
+| Base `b1dd7670`, host | 99.5% (17485 of 17566) | 97.3% (1804 of 1854) | 98.8% (8593 of 8701) |
 | Head, host | 99.5% (17519 of 17600) | 97.3% (1804 of 1854) | 98.8% (8635 of 8743) |
 | Head, `source/harness/json_load.cpp` | 99.2% (2194 lines) | 100.0% (178 of 178) | see below |
 
@@ -82,10 +82,13 @@ The host gate exits 3 at the head: `lcov: ERROR: (inconsistent)
 source/harness/runner.cpp:707: function ... is hit but no contained lines are
 hit`, and the gate reads the tracefile with no ignore class. The capture target
 carries the project's own three classes (`cmake/coverage.cmake`) and writes the
-tracefile; the gate's own read then stops on that record. `runner.cpp` stands
-untouched by this lane. The base capture on this host did not carry the record,
-and the base gate exited 1 on two coverage entries. The gate reading for the
-merge is the CI union.
+tracefile; the gate's own read then stops on that record. A coverage tree built
+at `b1dd7670` answers the same way on this host: the same record at the same
+line, the same exit 3, and the same uncovered counts of 81 lines, 50 functions
+and 108 branches. Clearing that record needs an ignore class the spec bars this
+lane from adding, and `runner.cpp` stands untouched by this lane, so the record
+stands as a host condition and the union figure stays unavailable at base and
+head. The figure this lane can carry is its own delta, and it is zero rows.
 
 ## The matrix
 
