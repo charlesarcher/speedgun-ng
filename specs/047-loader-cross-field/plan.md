@@ -59,9 +59,9 @@ new exclusion construct (D-12, FR-018); no public API change, no `SOVERSION`
 change, no schema change, no new error type, no new option (FR-013, D-10); no
 test sleeps, reads a clock, names a made-up cpu, or needs a PMU (FR-017).
 
-**Scale/Scope**: one function in one source file, about 40 added lines; nine new
-test functions in one test file and one in another; three sentences on one docs
-page; one spec amendment; three version sites.
+**Scale/Scope**: one function in one source file, 48 added lines; nine new test
+functions in one test file and one in another; four sentences on one docs page;
+one spec amendment; five version sites.
 
 ## Constitution Check
 
@@ -74,7 +74,7 @@ page; one spec amendment; three version sites.
 | III, R-DCUT | pass | Each new test names the requirement it proves. The rule-1 waiver comes from a measured writer form and carries two tests. The design view is the text sequence of the Logical view, the shape every plan from `specs/038` to `specs/043` carries. |
 | IV, documentation | pass | Three sentences join the loader section of the page that already states the loader rule (FR-014, D-7). |
 | V, style | pass | The lane runs the pinned clang-format 18.1.8 (D-20) and adds no suppression. clang-tidy and cppcheck run in `ci-ubuntu`. |
-| VI, coverage | pass | The check shape is measured with `gcov -b -c`: 26 records, about 30 with the guards of D-14, none taken zero (D-19). |
+| VI, coverage | pass | The check shape is measured with `gcov -b -c`: 42 records over the change, none taken zero (D-19). |
 | VII, performance discipline | pass | The checks read keys the reader already read, and touch no measured path. |
 | VIII, hard CI gates | pass | The `ctest` pair, the five gates, both sanitizer builds and the checked build stand in the Gate commands section, with the pinned tools and the measurement point. No CI file changes. |
 | IX, spec-driven | pass | Spec, two clarify rounds, this plan, then tasks. Every design point names its decision. |
@@ -117,7 +117,7 @@ source/harness/
 └── json_load.cpp              # readEntry: three checks after the record reads
 
 docs/pages/
-└── harness.md                 # the loader section, three sentences
+└── harness.md                 # the loader section, four sentences
 
 test/source/
 ├── harness_json_load_test.cpp # nine new functions, called from main
@@ -261,7 +261,7 @@ One file, one function, one insertion point:
 | `source/harness/json_load.cpp`, end of `readEntry`, after `:2791` | the three checks, about 40 lines, with the comment that names specs/047 FR-003, FR-005 and FR-006 and the waiver of D-14 |
 | `test/source/harness_json_load_test.cpp`, before `main` | nine functions, and nine calls in `main` between `:2207` and `:2234` |
 | `test/source/harness_compare_cli_test.cpp` | one function, and one call in its `main` |
-| `docs/pages/harness.md`, the loader section | three sentences |
+| `docs/pages/harness.md`, the loader section | four sentences |
 | `specs/024-multipass-collection/spec.md`, FR-038 | the three rules, the pair rule, the waiver |
 | `CMakeLists.txt:59`, `test/source/views_test.cpp:279`, `test/source/harness_cli_table_test.cpp:1453`, `example/docs/fwq_ftq.expected:2` with its paired docs block | 0.30.1 |
 
@@ -321,20 +321,21 @@ target and no CTest entry changes.
 
 ### Coverage plan
 
-The measured arm counts, taken with the coverage flags of the `coverage-linux`
-preset and `gcov -b -c` on this host: 8 records for a pair guard plus a min/max
-pair per method, 6 for rule 2, 12 for rule 3, none taken zero. The two guards of
-D-14 add four, and each guard arm has its own case: an absent method key and an
-absent count key in `aPassPairWithOneKeyAbsentLoads`, a `SKIPPED` outcome in
-`aStoppedEntryKeepsItsMethodAndCount`, a standing `hunt` key in
-`aHuntEntryKeepsItsMethodAndCount`, and the reached-and-measured path in
+The measured shape, taken with the coverage flags of the `coverage-linux` preset
+and `gcov -b -c` on this host: rule 1 reads one comparison per method under a pair
+guard of one `&&`, rule 2 reads one `if`, and rule 3 reads two `if`s per metric
+inside the row walk. The change answers 34 instrumented lines and 42 branch
+records, every one covered, and none taken zero. Each guard arm has its own case:
+an absent method key and an absent count key in `aPassPairWithOneKeyAbsentLoads`,
+a `SKIPPED` outcome in `aStoppedEntryKeepsItsMethodAndCount`, a standing `hunt`
+key in `aHuntEntryKeepsItsMethodAndCount`, and the reached-and-measured path in
 `thePassMethodRefusesItsCount`. Every arm has a test in the map above, so the
 change adds no dark arm (D-19).
 
 The measurement point is the coverage job's union of a full suite
 (`tools/dbc/coverage_gate.sh:86-88`), where the branch shortfall reads 0 rows
 today (`specs/043-fwq-ftq/plan.md:122`) against an allowance of 21. The host
-reading at the base of this lane is 99.5 percent lines (17484 of 17565), 97.3
+reading at the base of this lane is 99.5 percent lines (17485 of 17566), 97.3
 percent functions and 98.8 percent branches (8593 of 8701), because two coverage
 entries fail on this host today. The lane records the host reading at the base
 and at the head, the reading of `json_load.cpp` at the head, and the union
@@ -393,7 +394,7 @@ reads their verdicts from the run into the acceptance record.
 
 Passed. The design adds no public type, no header, no dependency, no option, no
 CI file and no configuration knob. It adds three checks in one reader, ten test
-functions in two existing files, three sentences on one page, one spec
+functions in two existing files, four sentences on one page, one spec
 amendment and one version move. The contracts add no gate, and the data model
 adds no carrier: every field the checks read already stands in
 `BenchmarkResult`, and the change stores nothing.

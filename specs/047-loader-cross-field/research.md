@@ -102,13 +102,13 @@ specification reads `D-1` to `D-21` without a leading zero and is cited as
 
 ## R-7: the shape of a check that keeps every arm covered
 
-- **Decision**: One `if` per refusal, a pair guard as one `&&` of the two key tests, a
-  min/max pair per method, no `switch` over the method words, and no check as
+- **Decision**: One `if` per refusal, a pair guard as one `&&` of the two key tests,
+  one comparison per method, no `switch` over the method words, and no check as
   `SG_ENSURE` (spec D-19).
 - **Rationale**: Measured with the `coverage-linux` flags and `gcov -b -c` on the lane
-  host: the pair guard with a min/max pair answers 8 branch records with none taken
-  zero, rule 2 answers 6, and rule 3 answers 12. The `switch` shape answers 14 with one
-  taken zero, because `asEnum` refuses a word outside the three names
+  host: the change answers 34 instrumented lines and 42 branch records, every one
+  covered, and none taken zero. The `switch` shape answers one arm more, taken zero,
+  because `asEnum` refuses a word outside the three names
   (`json_load.cpp:2728-2732`), so its jump table holds an arm no document reaches. The
   extract step omits the arms of an `SG_*` line (`coverage.cmake:101`), and the enforce
   response calls `std::abort()` (`dbc.hpp:213`).
@@ -174,7 +174,7 @@ specification reads `D-1` to `D-21` without a leading zero and is cited as
 - **Rationale**: The gate counts the union of the CI coverage job
   (`tools/dbc/coverage_gate.sh:86-88`), and a developer host reads higher, because an
   entry there can stop early and leave the arms past its stop dark (`:90-101`). The host
-  reading at the base reads 99.5 percent lines (17484 of 17565) and 98.8 percent
+  reading at the base reads 99.5 percent lines (17485 of 17566) and 98.8 percent
   branches (8593 of 8701), with two coverage entries failing on this host today. The
   union reads 0 rows short against the allowance of 21 (`:102`,
   `specs/043-fwq-ftq/plan.md:122`), and the allowance bounds the shortfall, so an arm a
@@ -183,11 +183,14 @@ specification reads `D-1` to `D-21` without a leading zero and is cited as
   dark arm, and it can fail with none. The line figure alone: FR-018 names lines at 100
   percent and the shortfall at 21 rows.
 
-## R-12: the version move, its three sites, and the rebuild
+## R-12: the version move, its five sites, and the rebuild
 
-- **Decision**: The version moves 0.30.0 to 0.30.1 at three sites: `CMakeLists.txt:59`,
-  `test/source/views_test.cpp:279` and `test/source/harness_cli_table_test.cpp:1453`
-  (spec D-2, FR-015). The two `SOVERSION` numbers and the schema version stand.
+- **Decision**: The version moves 0.30.0 to 0.30.1 at five sites: `CMakeLists.txt:59`,
+  `test/source/views_test.cpp:279-280` with its comment,
+  `test/source/harness_cli_table_test.cpp:1453-1454` with its comments, and the
+  current capture pair `example/docs/fwq_ftq.expected:2` with its paired block of
+  `docs/pages/harness.md` (spec D-2, FR-015). The two `SOVERSION` numbers and the
+  schema version stand.
 - **Rationale**: `SG_PROJECT_VERSION` is a `PRIVATE` compile definition of the harness
   target (`CMakeLists.txt:323-327`), so the flag change touches every translation unit
   of that target: the library rebuilds whole and every harness test relinks

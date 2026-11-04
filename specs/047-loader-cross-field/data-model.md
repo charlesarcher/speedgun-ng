@@ -32,7 +32,7 @@ Table facts carry the command that produced them. Paths stand short here:
 | The method words, the outcome words | `AUTO`, `PASSES`, `MULTIPLEX`; `MEASURED`, `SKIPPED`, `FAILED` | `json_report.hpp:126-131`, `report-v1.json:527-530` |
 | The spread warning limit | 5.0 percent of the median pass time | `json_report.hpp:192` |
 | Load test cases today | 27 functions, called from `main` | walk of `harness_json_load_test.cpp:2207-2234` |
-| Branch records the three checks add | 26, plus 4 for the two guards of D-14, none taken zero | `gcov -b -c` over `build/logs/notes/shape/` |
+| Branch records the three checks add | 34 lines and 42 records, every one covered | the host coverage capture at the head |
 
 The survey of `build/logs/notes/clarify-compat.md` read every committed document
 for a refused pair: 40 files, 57 entries, one refused pair at

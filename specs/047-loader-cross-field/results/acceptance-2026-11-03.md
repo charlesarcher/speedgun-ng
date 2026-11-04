@@ -5,18 +5,26 @@ The gate logs of this run sit machine-local at `build/logs/`, which the reposito
 ignores; the record names the command and the count behind every figure below.
 Machine: AMD Ryzen 9 7950X3D, 16 cores, 32 threads. Toolchain: gcc 16.2.1
 (20260810), clang-format 18.1.8 pinned by `FORMAT_COMMAND`, cmake 4.4.4, lcov
-2.x from `~/.local/share/sg-tools/lcov2`. Base: `b1dd7670` (`master`). Head:
-the head of this branch, 13 commits over the base at the time of writing.
+2.x from `~/.local/share/sg-tools/lcov2`. Base: `b1dd7670` (`master`). The merged
+lane stands at `561095df` in `master`, 14 commits over the base; the record lane at
+the head of this branch stands 18 commits over the base, four record commits over
+the merge.
 
 ## The lane
 
-At `76e76667`: 20 files changed, 3194 insertions, 17 deletions. Source and tests:
-5 files, 603 insertions. The reader change is 48 lines at the end of `readEntry` in
+At `561095df`: 20 files changed, 3240 insertions, 17 deletions; at the head of this
+branch, 3274 insertions. Source and tests: 5 files, 603 insertions. The reader change is 48 lines at the end of `readEntry` in
 `source/harness/json_load.cpp`. The tests add nine functions to
 `test/source/harness_json_load_test.cpp` and one to
 `test/source/harness_compare_cli_test.cpp`. Version `0.30.1`, schema `1.13`,
 harness `SOVERSION 20`, counters archive `SOVERSION 5`: the patch move touches
 five sites, and no archive number and no schema minor moves.
+
+The 18 commits carry two git identities: author `OmO <omo@speedgun-ng.local>` on all
+18, and committer `Charles Archer <charlesarcher@gmail.com>` on 17 with `OmO` on 1.
+The Constraints block of `spec.md` binds the author identity. The committer of the
+17 follows the standing message rewrite that shortened two titles and cleared one
+prose finding, and the merged history carries that rewrite.
 
 The lane merged into `master` at `561095df` through PR #74, rebased. The three
 record commits that followed the merge ride PR #75, and they change no source,
@@ -46,6 +54,16 @@ fails, `harness_jitter_window_test`, on the same check,
 `theSeriesRoundTripsThroughLoadReport`, and the same entry skips,
 `harness_topdown_run_test`, which needs a PMU. The sanitizer trees add nothing
 to that list. The tsan tree adds one entry, named in the host conditions below.
+
+The readings stand against three verify clauses, and each line carries its base
+reading. The full and the pinned `ctest` each answer 176 passed, 1 failed and 1
+skipped of 178 with exit 8, where the clause asks exit 0; the base tree answers the
+same row. The ASan and UBSan suite answers 171 of 173 with one failure, and the
+tsan suite answers 171 of 174 with two failures and one race at
+`jitter_probe.cpp:708 in seriesFigures`; the base tsan tree answers the same two
+failures and the same race. The coverage clause asks `json_load.cpp` at 100 percent
+and the union shortfall at 21 rows: the file reads 99.2 percent of 2194 lines with
+its 81 dark lines standing at the base, and the union has no measurement point.
 
 Three re-runs on a quiet host, the load average 1.27 at the end, read the same:
 the full suite, the pinned suite, and a second pinned run each answer 177 of 178
@@ -81,7 +99,7 @@ here as a local reading of the same tree.
 | Head, host | 99.5% (17519 of 17600) | 97.3% (1804 of 1854) | 98.8% (8635 of 8743) |
 | Head, `source/harness/json_load.cpp` | 99.2% (2194 lines) | 100.0% (178 of 178) | see below |
 
-The lane adds 35 instrumented lines and 42 branches, and the uncovered counts
+The lane adds 34 instrumented lines and 42 branches, and the uncovered counts
 stand unchanged: 81 lines, 50 functions, 108 branches. Every line and every
 branch the lane adds is covered. The branch shortfall of 108 rows is the standing
 host figure at the base, and the gate's allowance is 21 rows
@@ -98,7 +116,9 @@ line, the same exit 3, and the same uncovered counts of 81 lines, 50 functions
 and 108 branches. Clearing that record needs an ignore class the spec bars this
 lane from adding, and `runner.cpp` stands untouched by this lane, so the record
 stands as a host condition and the union figure stays unavailable at base and
-head. The figure this lane can carry is its own delta, and it is zero rows.
+head. The figure this lane can carry is its own delta, and it is zero rows. The two
+standing conditions stand filed: #76 for the `lcov` record at the gate's read, and
+#77 for the jitter row that stops the suite at the base.
 
 ## The matrix
 

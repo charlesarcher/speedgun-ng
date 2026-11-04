@@ -12,8 +12,9 @@ Roadmap item T-LCF. Spec `specs/047-loader-cross-field/spec.md`.
 
 ## The lane
 
-- 13 commits over `master`, base `b1dd7670`, head `76e76667`.
-- 20 files changed, 3194 insertions, 17 deletions.
+- 14 commits over `master`, base `b1dd7670`, merged tip `561095df`; the record lane
+  adds four commits, 18 in all.
+- 20 files changed, 3240 insertions, 17 deletions at the merge, 3274 at this head.
 - Source: 48 lines at the end of `readEntry` in `source/harness/json_load.cpp`.
 - Tests: nine functions in `test/source/harness_json_load_test.cpp`, one in
   `test/source/harness_compare_cli_test.cpp`.
@@ -56,7 +57,7 @@ Roadmap item T-LCF. Spec `specs/047-loader-cross-field/spec.md`.
 | Head, host | 99.5% (17519 of 17600) | 97.3% (1804 of 1854) | 98.8% (8635 of 8743) |
 | Head, `source/harness/json_load.cpp` | 99.2% (2194 lines) | 100.0% (178 of 178) | all arms reached |
 
-The lane adds 35 instrumented lines and 42 branches, and the uncovered counts
+The lane adds 34 instrumented lines and 42 branches, and the uncovered counts
 stand unchanged at 81 lines, 50 functions and 108 branches: every line and every
 branch the lane adds is covered. The branch shortfall of 108 rows is the standing
 host figure at the base, and the gate's allowance is 21 rows
@@ -67,7 +68,9 @@ step answers `No files were found with the provided path:
 build/coverage/coverage.info`. The host reading therefore carries the coverage
 evidence for the merge. The host gate exits 3 at the base and at the head on the
 same `lcov` record at `source/harness/runner.cpp:707`, a file this lane leaves
-untouched; clearing it needs an ignore class the spec bars here.
+untouched; clearing it needs an ignore class the spec bars here. The two standing
+conditions stand filed: #76 for that record, and #77 for the jitter row that stops
+the suite at the base.
 
 ## What the matrix reads
 

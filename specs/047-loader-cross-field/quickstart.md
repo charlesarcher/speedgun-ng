@@ -40,9 +40,11 @@ ctest --test-dir build --output-on-failure
 taskset -c 0,1 ctest --test-dir build --output-on-failure
 ```
 
-Both runs answer exit 0 at acceptance on chilly (FR-019, SC-003). Neither ran at
-research time (`build/logs/notes/clarify-gates.md`, Q5), so the two counts stand as
-the acceptance run's own figures. The pinned run is the record for the
+Both runs answer 176 passed, 1 failed and 1 skipped of 178 on chilly, and ctest
+exits 8: the failing entry is `harness_jitter_window_test` on its standing check,
+and the base tree answers the same row (FR-019, SC-003). Neither ran at research
+time (`build/logs/notes/clarify-gates.md`, Q5), so the two counts stand as the
+acceptance run's own figures. The pinned run is the record for the
 load-sensitive FWQ rows of `harness_jitter_window_test`. A new case is one
 function plus one call in its file's `main`: the targets and the CTest entries of
 `harness_json_load_test` and `harness_compare_cli_test` already stand at
@@ -129,8 +131,8 @@ of 17565), 97.3 percent functions and 98.8 percent branches (8593 of 8701),
 because two coverage entries fail on this host today:
 `harness_jitter_window_test` and `harness_topdown_run_test`.
 
-The change adds 26 branch records, plus 4 for the two guards of D-14, and every
-arm has a test, so it adds no dark arm (D-19). No exclusion construct joins the
+The change adds 34 instrumented lines and 42 branch records, every one covered,
+and every arm has a test, so it adds no dark arm (D-19). No exclusion construct joins the
 tree: no `LCOV_EXCL`, no `--omit-lines`, no `--ignore-errors`, no `--remove`
 (D-12, FR-018).
 
