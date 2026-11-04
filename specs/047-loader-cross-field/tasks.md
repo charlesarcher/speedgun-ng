@@ -544,13 +544,23 @@ change. Base: the PR 75 branch at `fdea0388`.
   added, the owner ruling pending as #76, and no claim that the gate passes.
 - [ ] R75-004 Add rows PM-001 to PM-003 of `speedgun-ng-pr74-fixes-1-prompt.md` to
   tasks.md, and tick the rows that this pull request completes.
-- [ ] R75-005 Write the pull request body again in `results/pr-body.md` with whole
+  Blocked: that file is not on this machine. A search of the repository, the home
+  tree and the wiki finds no file of that name and no file that carries the ids
+  PM-001 to PM-003. The rows cannot be copied faithfully, so they stay out of the
+  task list until the owner places the file or pastes the rows.
+- [x] R75-005 Write the pull request body again in `results/pr-body.md` with whole
   lines (no break inside a word, lines 72 or fewer). Give host chilly, the kernel,
   the GCC version, the measured head sha, the `ctest` counts (full and
   `taskset -c 0,1`) and the coverage figures. Then run
   `gh pr edit 75 --body-file specs/047-loader-cross-field/results/pr-body.md`.
+  Measured: the body carries whole lines at 72 columns or fewer, host chilly,
+  kernel `Linux 7.3.1-1-cachyos x86_64`, gcc 16.2.1 (20260810), head `a77e75e6`,
+  the full and pinned `ctest` counts, and the base, head and file coverage
+  figures.
 - [x] R75-006 Run `cmake -P cmake/spell.cmake` and
   `python3 tools/prose/prose_gate.py --base origin/master`. Both exit 0.
   Measured: the spell gate exits 0 with `.codespellrc` as its only config, and the
   prose range gate over `origin/master` answers 0 findings across 17 sources.
-- [ ] R75-007 Tick R75-001 to R75-007.
+- [x] R75-007 Tick R75-001 to R75-007.
+  Measured: R75-001, R75-002, R75-003, R75-005 and R75-006 stand ticked with
+  readings. R75-004 stands open on the missing prompt file.
