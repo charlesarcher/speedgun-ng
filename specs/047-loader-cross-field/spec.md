@@ -83,14 +83,18 @@ implementer reopens them.
   reached by a named test (D-19). That is the written justification the
   constitution asks for where a gate reads below its stated ideal.
 
-  The lane records its coverage reading as a P2 exception (Principle I). The union
+  The lane records its coverage reading as a fact, and the ruling stands with the
+  owner (issue #76). The union
   has no measurement point at the base or at the head: the coverage job's capture
   step writes no file on this matrix at either sha. The host gate exits 3 at both
   shas on the standing `lcov` inconsistent record at `source/harness/runner.cpp:707`,
   a file this lane leaves untouched, and clearing it needs an ignore class this lane
   bars itself from adding. The evidence the lane carries is its own delta: 34
   instrumented lines and 42 branch records, every one covered, and the uncovered
-  counts unchanged at 81 lines, 50 functions and 108 branches.
+  counts unchanged at 81 lines, 50 functions and 108 branches. The host branch
+  shortfall reads 108 rows at the base and at the head, above the allowance of 21.
+  The rule is 100 percent lines and a branch shortfall of 21 rows or fewer, and this
+  lane does not claim the gate passes.
   `source/harness/json_load.cpp` reads 99.2 percent of 2194 lines, and its 81 dark
   lines stand at the base. Two issues carry the two standing conditions, and the
   acceptance record names their numbers.
@@ -473,8 +477,9 @@ reader, and load each hand-built form. Every load answers the values it wrote.
   because an entry there stops early and leaves the arms past its stop dark
   (`:90-101`), so the lane reports the host reading at the base and at the head
   beside the union figure. Where the union has no measurement point, the lane
-  reports its own delta as a P2 exception (Principle I): the added lines and branch
-  records, each covered, and the uncovered counts beside the base. (D-12.)
+  reports the host reading at the base and at the head, its own delta with each
+  added line and branch record covered, and the shortfall against the allowance, and
+  claims no pass of the gate. (D-12.)
 - **FR-019**: The change shall pass `ctest --test-dir build --output-on-failure`
   in full and the same command under `taskset -c 0,1` on the lane host, and
   shall pass the five gates at their own command lines: `cmake -P cmake/lint.cmake`
