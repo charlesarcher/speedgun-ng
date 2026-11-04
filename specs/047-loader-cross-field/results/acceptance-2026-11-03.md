@@ -153,6 +153,15 @@ Run `41740583420` reads at the head after the records landed, and reads the same
 job set: the seven audit and analysis jobs pass, and `test`, `test-rocky`,
 `sanitize`, `tsan` and `coverage` stop on suite entries.
 
+Run `41772312542` reads at the record head `bc6399a6`, and reads the same set: the
+nine lint, audit and analysis jobs pass, `docs` stands skipped, and the five suite
+jobs stop on standing entries. `harness_jitter_window_test` fails in all five;
+`loop_shape` joins in `test`; `harness_fwq_ftq_test` joins in `sanitize`; `tsan`
+answers `harness_jitter_cli_test` and the race at `jitter_probe.cpp:708`, the same
+race the host tree answers; and the coverage job's upload step answers `No files
+were found with the provided path: build/coverage/coverage.info`. No loader unit
+and no compare unit stands among them.
+
 The coverage job's capture does not run on this matrix, at the base or at the
 head: the job stops on the standing jitter row, and its upload step answers `No
 files were found with the provided path: build/coverage/coverage.info`. The
