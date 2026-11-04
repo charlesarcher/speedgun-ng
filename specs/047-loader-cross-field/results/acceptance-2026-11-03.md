@@ -172,6 +172,30 @@ files were found with the provided path: build/coverage/coverage.info`. The
 union figure therefore stands unavailable from CI for both trees, and the host
 reading above carries the coverage evidence for the merge.
 
+## The master reading
+
+PM-002 ran at `561095df` (`origin/master`, the merged tree) on chilly, kernel
+`Linux 7.3.1-1-cachyos x86_64`, gcc 16.2.1 (20260810), with the load average 1.42
+at the end.
+
+- `ctest --test-dir build --output-on-failure`: 178 tests, 176 passed, 1 failed,
+  1 skipped, exit 8. The failure is `harness_jitter_window_test` on
+  `theSeriesRoundTripsThroughLoadReport`, and the skip is
+  `harness_topdown_run_test`.
+- `taskset -c 0,1 ctest --test-dir build --output-on-failure`: the same counts,
+  the same row, the same skip, exit 8.
+- `ci-coverage`: the suite answers 173 tests, 171 passed, 1 failed and 1 skipped.
+  The capture reads lines 99.5 percent (17518 of 17599), functions 97.3 percent
+  (1804 of 1854) and branches 98.8 percent (8635 of 8743). The branch shortfall
+  reads 108 rows, above the allowance of 21. The capture stops on the `lcov`
+  record at `source/harness/runner.cpp:707` and exits 2, and the gate exits 3.
+
+No count moves a claim of the lane. The suite counts, the failing row, the skip,
+the percentages, the shortfall and the gate exit match the base and head readings.
+The instrumented line total reads 17599 here and 17600 at the lane head reading,
+and the hit count follows by one: the percentage, the shortfall and the branch
+figures stand.
+
 ## The host conditions
 
 - `harness_jitter_window_test` fails on `theSeriesRoundTripsThroughLoadReport` in
