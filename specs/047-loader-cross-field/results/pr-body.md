@@ -36,8 +36,9 @@ Roadmap item T-LCF. Spec `specs/047-loader-cross-field/spec.md`.
   absent, and the compare command answered two failures. Both binaries print `ok`
   with the reader present: 36 cases in the load test, 38 in the compare test.
 - Full suite at the head: 178 tests, 176 passed, 1 failed, 1 skipped. The same
-  suite pinned to two cores: the same 178, the same one entry, the same skip. The
-  failing entry and the skip stand at the base.
+  suite pinned to two cores: the same 178, the same one entry, the same skip. Three
+  runs on a quiet host (full, pinned, pinned again) read the same, and ctest exits
+  8. The failing entry and the skip stand at the base.
 - ASan and UBSan: 173 tests, 171 passed, 1 failed, 1 skipped. ThreadSanitizer:
   174 tests, 171 passed, 2 failed, 1 skipped. The extra entry is a jitter row,
   and the one race tsan reports sits in the FWQ probe, in files this lane leaves

@@ -43,6 +43,12 @@ fails, `harness_jitter_window_test`, on the same check,
 `harness_topdown_run_test`, which needs a PMU. The sanitizer trees add nothing
 to that list. The tsan tree adds one entry, named in the host conditions below.
 
+Three re-runs on a quiet host, the load average 1.27 at the end, read the same:
+the full suite, the pinned suite, and a second pinned run each answer 177 of 178
+with the one failure at `harness_jitter_window_test` on
+`theSeriesRoundTripsThroughLoadReport`, and ctest exits 8. The pinned run does not
+reach exit 0 on this host, and the base tree answers the same row.
+
 ## The gates
 
 | Gate | Command | Exit |
