@@ -84,7 +84,10 @@ and `harness_compare_cli_test` pass in every job of both readings. The base's ru
 the head adds over that set are PMU-permission rows on the runners, the provider
 row that answers with the kernel's own text and the `docs_metric_passes` row that
 answers `permission_blocked` for `cpu/cache-misses`; both move between jobs
-across the two readings.
+across the two readings. Run `41772312542` reads at the record head and answers the
+same set: the nine lint, audit and analysis jobs pass, `docs` stands skipped, and
+the five suite jobs stop on standing entries, with the same race in `tsan` and the
+same missing coverage artifact.
 
 `specs/047-loader-cross-field/results/acceptance-2026-11-03.md` carries the
 commands, the counts, the gate exits, the per-job readings and the host
