@@ -134,7 +134,7 @@ implementer reopens them.
   publish check of a one-pass run.
 - **D-19 The shape of a check keeps its arms covered (clarify round 2).**
   Measured with the coverage flags of the `coverage-linux` preset and
-  `gcov -b -c` on this host (`/tmp/notes-047/shape/`): a pair guard of one `&&`
+  `gcov -b -c` on this host (`build/logs/notes/shape/`): a pair guard of one `&&`
   plus a min/max pair per method answers 8 branch records with none taken zero;
   rule 2 answers 6; rule 3, 12. A `switch` over the three method words answers a
   fourth jump-table arm that no document can reach, because the standing kind
