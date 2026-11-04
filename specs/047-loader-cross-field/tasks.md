@@ -360,8 +360,9 @@ Principle VIII binds the gates to the head.
 
 ## Phase 8: Convergence, second pass
 
-- [x] T021 Write the coverage decision as a P2 exception (Constitution I) into
-  `specs/047-loader-cross-field/spec.md` D-12 and FR-018: the union figure has no
+- [x] T021 Write the coverage reading into
+  `specs/047-loader-cross-field/spec.md` D-12 and FR-018 as a fact, with the owner
+  ruling pending: the union figure has no
   measurement point at the base or at the head, the host gate exits 3 on the
   `lcov` inconsistent record at `source/harness/runner.cpp:707`, the lane's
   evidence is its own delta of 34 instrumented lines and 42 branch records with
@@ -372,12 +373,15 @@ Principle VIII binds the gates to the head.
   file the `runner.cpp:707` record and the `harness_jitter_window_test` row as two
   issues whose numbers the record names. per FR-018, SC-002, Constitution VI,
   Constitution VIII (partial)
-  Verify: `grep -c 'P2' specs/047-loader-cross-field/spec.md` answers at least 1,
+  Verify: `grep -c 'P2 exception' specs/047-loader-cross-field/spec.md` answers 0,
   `gh issue list --search 'runner.cpp:707'` answers one row, and
   `python3 tools/prose/prose_gate.py --check prose --mode tree --paths
   specs/047-loader-cross-field` answers 0 findings.
-  Measured: D-12 and FR-018 carry the P2 reading, and the two standing
-  conditions stand filed as #76 and #77, named in the record and the pull request body.
+  Measured: D-12 and FR-018 carry the reading as a fact: the host shortfall of 108
+  rows at the base and at the head, above the allowance of 21, the lane's delta with
+  every added line and branch record covered, and no claim that the gate passes. The
+  owner ruling stands pending as #76, and the jitter row stands as #77, both named in
+  the record and the pull request body.
 - [x] T022 Mark T008, T011 and T012 `(partial)` in
   `specs/047-loader-cross-field/tasks.md`, and add one line per gate to
   `specs/047-loader-cross-field/results/acceptance-2026-11-03.md` that states the
@@ -479,10 +483,9 @@ Principle VIII binds the gates to the head.
   stopped entry and the hunt entry; the drift check and the docs prose check answer 0.
 - [x] T031 Record in `specs/047-loader-cross-field/results/acceptance-2026-11-03.md`
   the two git identities the lane's commits carry, author
-  `OmO <omo@speedgun-ng.local>` on all 18 and committer
-  `Charles Archer <charlesarcher@gmail.com>` on 17, and state which identity the
-  Constraints block of `spec.md:695-697` binds. per FR-020, Pull Request Quality
-  (partial)
+  `OmO <omo@speedgun-ng.local>` on all 18 and the committer identity of the merge
+  (not OmO) on 17, and state which identity the Constraints block of
+  `spec.md:695-697` binds. per FR-020, Pull Request Quality (partial)
   Verify: `git log --format='%an <%ae>' b1dd7670..HEAD | sort -u` prints one line,
   and `git log --format='%cn <%ce>' b1dd7670..HEAD | sort -u` prints the two
   identities the record names.
@@ -507,3 +510,35 @@ Principle VIII binds the gates to the head.
   prints 48.
   Measured: the plan and the T006 line read 48 lines and four sentences, and
   the numstat prints 48.
+
+---
+
+## PR 75 fixes 1
+
+Owner review of PR #75, round 1. Records only: no source, test, CMake, CI or gate
+change. Base: the PR 75 branch at `fdea0388`.
+
+- [ ] R75-001 Remove the person name and the email from all files of the feature.
+  Write "the committer identity of the merge (not OmO)". Check:
+  `git grep -niE '[Cc]harles|[Aa]rcher|@[g]mail' -- specs/047-loader-cross-field`
+  prints nothing. The same pattern over the whole tree prints 195 lines in
+  pre-existing files of other features: machine path strings that carry the account
+  name, GitHub owner URLs in their records, and the prose-gate fixtures. None is a
+  person name in prose, and none stands in this pull request's files.
+- [ ] R75-002 Correct the counts: the merged lane reads 14 commits
+  (`db91c935` .. `561095df`); this pull request reads N commits over `561095df`,
+  where N is `git rev-list --count origin/master..HEAD` at the final head.
+- [ ] R75-003 Remove "P2 exception" from D-12, FR-018 and T021. Write the fact
+  only: the host shortfall reads 108 branches at the base and at the head, above
+  the allowance of 21; the lane adds no uncovered line or branch; the owner ruling
+  is pending (issue #76). Do not write that the gate passes.
+- [ ] R75-004 Add rows PM-001 to PM-003 of `speedgun-ng-pr74-fixes-1-prompt.md` to
+  tasks.md, and tick the rows that this pull request completes.
+- [ ] R75-005 Write the pull request body again in `results/pr-body.md` with whole
+  lines (no break inside a word, lines 72 or fewer). Give host chilly, the kernel,
+  the GCC version, the measured head sha, the `ctest` counts (full and
+  `taskset -c 0,1`) and the coverage figures. Then run
+  `gh pr edit 75 --body-file specs/047-loader-cross-field/results/pr-body.md`.
+- [ ] R75-006 Run `cmake -P cmake/spell.cmake` and
+  `python3 tools/prose/prose_gate.py --base origin/master`. Both exit 0.
+- [ ] R75-007 Tick R75-001 to R75-007.

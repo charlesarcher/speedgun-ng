@@ -21,7 +21,7 @@ harness `SOVERSION 20`, counters archive `SOVERSION 5`: the patch move touches
 five sites, and no archive number and no schema minor moves.
 
 The 18 commits carry two git identities: author `OmO <omo@speedgun-ng.local>` on all
-18, and committer `Charles Archer <charlesarcher@gmail.com>` on 17 with `OmO` on 1.
+18, and the committer identity of the merge (not OmO) on 17 with `OmO` on 1.
 The Constraints block of `spec.md` binds the author identity. The committer of the
 17 follows the standing message rewrite that shortened two titles and cleared one
 prose finding, and the merged history carries that rewrite.
