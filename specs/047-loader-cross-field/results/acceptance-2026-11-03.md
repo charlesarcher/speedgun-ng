@@ -18,6 +18,10 @@ At `76e76667`: 20 files changed, 3194 insertions, 17 deletions. Source and tests
 harness `SOVERSION 20`, counters archive `SOVERSION 5`: the patch move touches
 five sites, and no archive number and no schema minor moves.
 
+The lane merged into `master` at `561095df` through PR #74, rebased. The three
+record commits that followed the merge ride PR #75, and they change no source,
+test, build file or documentation page.
+
 ## The red wave, then green
 
 With the reader absent, `./build/test/harness_json_load_test` printed `13 checks
