@@ -288,7 +288,7 @@ Principle VIII binds the gates to the head.
 
 ## Phase 7: Convergence
 
-- [ ] T016 Re-run `ctest --test-dir build --output-on-failure` and
+- [x] T016 Re-run `ctest --test-dir build --output-on-failure` and
   `taskset -c 0,1 ctest --test-dir build --output-on-failure` on an idle host
   until the pinned run exits 0, and run
   `ctest --test-dir build/tsan -j 1 --output-on-failure --no-tests=error` at
@@ -296,6 +296,12 @@ Principle VIII binds the gates to the head.
   reading; write both readings into
   `specs/047-loader-cross-field/results/acceptance-2026-11-03.md` and the
   pull request body per FR-019, SC-003, SC-004, Constitution VIII (partial)
+  Measured: three runs on a quiet host (the full suite, the pinned suite, and a
+  second pinned run) each answer 177 of 178 with the one failure at
+  `harness_jitter_window_test` on `theSeriesRoundTripsThroughLoadReport`, and
+  ctest exits 8; the base tree answers the same row, so the pinned run does not
+  reach exit 0 on this host. The tsan tree at `b1dd7670` answers 2 failures of 174
+  and the same race at `jitter_probe.cpp:708 in seriesFigures`.
 - [x] T017 Produce the coverage union figure at the gate's measurement point:
   complete a coverage suite whose entries all pass, clear the `lcov`
   inconsistent record at `source/harness/runner.cpp:707` that stops
