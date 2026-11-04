@@ -577,13 +577,17 @@ PM-001 to PM-003, copied as the owner wrote them in round 2:
   `b1dd7670`, `db91c935` .. `561095df`, and `:12-14` names the sha measured on
   chilly and states that it is not the merged tree; `results/pr-body.md:7-12`
   carries the same reading.
-- [ ] PM-002 On chilly at `origin/master`, run `ctest` in full and under
+- [x] PM-002 On chilly at `origin/master`, run `ctest` in full and under
   `taskset -c 0,1` on an idle host, and the `ci-coverage` figures (lines,
   branches, branch shortfall). Write the host, kernel, GCC version, master
   sha and the counts in `acceptance-2026-11-03.md`. If a count changes the
   claims of the lane, report it and stop.
-  Running: a master tree at `561095df` builds on chilly for the full and pinned
-  `ctest` readings and the `ci-coverage` figures. The record gains the host, the
-  kernel, the gcc version, the master sha and the counts when they land.
-- [ ] PM-003 Tick PM-001 to PM-003 in `tasks.md`.
-  Open: PM-002 stands open, so the tick set waits.
+  Measured: at `561095df` on chilly, kernel `Linux 7.3.1-1-cachyos x86_64`, gcc
+  16.2.1 (20260810), load average 1.42 at the end: the full `ctest` answers 178
+  tests, 176 passed, 1 failed and 1 skipped, exit 8; the pinned run answers the
+  same; the `ci-coverage` capture reads lines 99.5 percent (17518 of 17599),
+  branches 98.8 percent (8635 of 8743) and a shortfall of 108 rows, and the gate
+  exits 3. The record carries the reading under "The master reading". No count
+  moves a claim of the lane.
+- [x] PM-003 Tick PM-001 to PM-003 in `tasks.md`.
+  Measured: PM-001 and PM-002 stand ticked with evidence, and this row ticks them.

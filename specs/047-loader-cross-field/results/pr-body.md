@@ -30,6 +30,10 @@ pinned by `FORMAT_COMMAND`. cmake 4.4.4. lcov 2.x at
   `theSeriesRoundTripsThroughLoadReport`, and the base tree at
   `b1dd7670` answers the same row. The skip is
   `harness_topdown_run_test`, which needs a PMU.
+- At `561095df` on `master`, the full and the pinned run answer 178 tests, 176
+  passed, 1 failed and 1 skipped, exit 8, and the coverage capture reads lines
+  99.5% (17518 of 17599), branches 98.8% (8635 of 8743) and a shortfall of 108
+  rows, with the gate at exit 3.
 - ASan and UBSan: 171 of 173. ThreadSanitizer: 171 of 174 with one race
   at `jitter_probe.cpp:708 in seriesFigures`. A tsan tree built at
   `b1dd7670` answers the same two failures and the same race.
