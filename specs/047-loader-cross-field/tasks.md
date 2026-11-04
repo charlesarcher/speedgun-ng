@@ -137,7 +137,7 @@ both stories green in one commit.
   (D-15). Comment the block with specs/047 FR-003, FR-005, FR-006 and the waiver
   of D-14, in the standing comment style of the pass block at `:2720-2725`.
   Check the diff names no writer, schema, checker, comparison, public header, runner, CLI, `.github/` or specs/045 file (FR-013). Verify: `cmake --build build` exits 0, `./build/test/harness_json_load_test` exits 0, `./build/test/harness_compare_cli_test test/data` exits 0, `ctest --test-dir build -R 'harness_json_(load|report|schema)_test|harness_compare' --output-on-failure` exits 0, and `ctest --test-dir build --output-on-failure` exits 0 with the one known load-sensitive row named if it fails.
-- [x] T006 [P] Add the three sentences after `docs/pages/harness.md:1429`, in the
+- [x] T006 [P] Add the four sentences after `docs/pages/harness.md:1429`, in the
   section "### The loader rule": the three pairs, the pair rule that keeps an
   older document loading, and the three method words with their counts. Carry no
   requirement id, no spec identifier, no commit hash and no principle number, the
@@ -163,12 +163,16 @@ two readers of the stamp pass in the rebuilt tree.
 **Purpose**: every gate runs at its own command line, on the pinned tools of
 D-20, and each exit stands recorded.
 
-- [x] T008 Run the suite twice: `ctest --test-dir build --output-on-failure`, then
+- [x] T008 (partial) Run the suite twice: `ctest --test-dir build --output-on-failure`, then
   `taskset -c 0,1 ctest --test-dir build --output-on-failure`. Record both counts,
   the failures, and the skips (FR-019, SC-003). The known load-sensitive rows of
   `harness_jitter_window_test` and the PMU skip of `harness_topdown_run_test`
   stand named in the record.
   Verify: the pinned run exits 0; the full run exits 0 on an idle host, and a failure there names the load and the row.
+  Reading against the clause (partial): the pinned run exits 8 and the full run
+  exits 8, each with 176 passed, 1 failed and 1 skipped of 178. The failing row is
+  `harness_jitter_window_test` on `theSeriesRoundTripsThroughLoadReport`, and the
+  base tree answers the same row.
 - [x] T009 Configure the checked build, then run the five gates:
   `cmake -S . -B build/dev --preset=ci-ubuntu -DPython3_EXECUTABLE=/usr/bin/python3`
   (the Python pin carries PyYAML for the pair gate, the package CI installs,
@@ -188,7 +192,7 @@ D-20, and each exit stands recorded.
   (`.github/workflows/ci.yml:313`, `:147`, `:230`), and their verdicts read into the
   record of T013.
   Verify: the command exits 0, and no new suppression joins the tree.
-- [x] T011 Run both sanitizer suites, in the standing order:
+- [x] T011 (partial) Run both sanitizer suites, in the standing order:
   `cmake --preset=ci-sanitize`, `cmake --build build/sanitize -j "$(nproc)"`,
   `ctest --test-dir build/sanitize -j 1 --output-on-failure --no-tests=error`,
   then `cmake --preset=ci-tsan`, `cmake --build build/tsan -j "$(nproc)"`,
@@ -197,7 +201,12 @@ D-20, and each exit stands recorded.
   VIII).
   Verify: all six commands exit 0, and no race and no sanitizer report appears
   (FR-019, SC-004, Principle VIII).
-- [x] T012 Measure coverage: `cmake --preset=ci-coverage`,
+  Reading against the clause (partial): the configure and build commands exit 0;
+  the ASan and UBSan suite answers 171 of 173 with one failure, and the tsan suite
+  answers 171 of 174 with two failures and one race at
+  `jitter_probe.cpp:708 in seriesFigures`. The base tsan tree answers the same two
+  failures and the same race, and no suppression joins the tree.
+- [x] T012 (partial) Measure coverage: `cmake --preset=ci-coverage`,
   `cmake --build build/coverage -j "$(nproc)"`,
   `ctest --test-dir build/coverage -j 1 --output-on-failure --no-tests=error`,
   `cmake --build build/coverage --target coverage`, then
@@ -209,8 +218,13 @@ D-20, and each exit stands recorded.
   construct (FR-018, SC-002, D-12, D-19, D-20).
   Verify: the line reading of `json_load.cpp` reads 100 percent, the new branch
   records read reached, and the union shortfall stands at 21 rows or fewer.
+  Reading against the clause (partial): `json_load.cpp` reads 99.2 percent of 2194
+  lines, and its 81 dark lines stand at the base; the new branch records read
+  reached; the union has no measurement point at base or head, and the host gate
+  exits 3 on the `lcov` record at `source/harness/runner.cpp:707` at base and
+  head.
 Measured on the host: `json_load.cpp` reads 99.2 percent of 2194 lines and 100
-percent of 178 functions; the lane adds 35 lines and 42 branches and the
+percent of 178 functions; the lane adds 34 lines and 42 branches and the
 uncovered counts stand unchanged at 81, 50 and 108; the host shortfall is the
 standing 108 rows of the base, and the gate reading is the CI union.
 
@@ -311,7 +325,7 @@ Principle VIII binds the gates to the head.
   `specs/047-loader-cross-field/results/pr-body.md` beside the G-20 figures per
   FR-018, SC-002, Constitution VI (partial)
   Measured: the union has no measurement point on this matrix at base or head, so
-  the host reading carries the lane's delta: 35 lines and 42 branches added, every
+  the host reading carries the lane's delta: 34 lines and 42 branches added, every
   one covered, and the uncovered counts unchanged at 81 lines, 50 functions and
   108 branches. The host gate exits 3 at base and at head on the same `lcov`
   record at `source/harness/runner.cpp:707`; clearing it needs an ignore class the
@@ -332,11 +346,164 @@ Principle VIII binds the gates to the head.
   `git diff --shortstat b1dd7670..HEAD`: the file count, the insertion count,
   the source-and-test count, and the head sha per FR-016, SC-002, T013, T014
   (partial)
-  Measured: 13 commits, 20 files, 3194 insertions, 17 deletions, and 5 files with
-  603 insertions for source and tests, at `76e76667`; both records name that head.
+  Measured: 14 commits, 20 files, 3240 insertions, 17 deletions at the merged tip
+  `561095df`, and 18 commits with 3274 insertions at the head of the record lane;
+  5 files with 603 insertions for source and tests. Both records name those shas.
 - [x] T020 Keep the untracked `prompt.md` at the repository root out of the lane,
   so the working tree carries no root file inside the feature's Scope per the
   Scope section of spec.md (unrequested)
   Measured: the file stands untracked, in no commit and in no pull request, and it
   is the owner's ticket text: the owner decides its place, and the lane leaves it
   where it stands.
+
+---
+
+## Phase 8: Convergence, second pass
+
+- [x] T021 Write the coverage decision as a P2 exception (Constitution I) into
+  `specs/047-loader-cross-field/spec.md` D-12 and FR-018: the union figure has no
+  measurement point at the base or at the head, the host gate exits 3 on the
+  `lcov` inconsistent record at `source/harness/runner.cpp:707`, the lane's
+  evidence is its own delta of 34 instrumented lines and 42 branch records with
+  every one covered and the uncovered counts unchanged at 81 lines, 50 functions
+  and 108 branches, and the host reading of `source/harness/json_load.cpp` stands
+  at 99.2 percent of 2194 lines with the 81 dark lines standing at the base. Carry
+  the same paragraph into `specs/047-loader-cross-field/results/pr-body.md`, and
+  file the `runner.cpp:707` record and the `harness_jitter_window_test` row as two
+  issues whose numbers the record names. per FR-018, SC-002, Constitution VI,
+  Constitution VIII (partial)
+  Verify: `grep -c 'P2' specs/047-loader-cross-field/spec.md` answers at least 1,
+  `gh issue list --search 'runner.cpp:707'` answers one row, and
+  `python3 tools/prose/prose_gate.py --check prose --mode tree --paths
+  specs/047-loader-cross-field` answers 0 findings.
+  Measured: D-12 and FR-018 carry the P2 reading, and the two standing
+  conditions stand filed as #76 and #77, named in the record and the pull request body.
+- [x] T022 Mark T008, T011 and T012 `(partial)` in
+  `specs/047-loader-cross-field/tasks.md`, and add one line per gate to
+  `specs/047-loader-cross-field/results/acceptance-2026-11-03.md` that states the
+  reading against the verify clause: the full and the pinned `ctest` each answer
+  176 passed, 1 failed and 1 skipped of 178 with exit 8, the ASan and UBSan suite
+  answers 171 of 173 with one failure, and the tsan suite answers 171 of 174 with
+  two failures and one race at `jitter_probe.cpp:708 in seriesFigures`; carry the
+  base reading beside each line. per FR-019, SC-003, SC-004, Constitution VIII
+  (partial)
+  Verify: `grep -c '(partial)' specs/047-loader-cross-field/tasks.md` answers 7,
+  and the prose tree check over the feature directory answers 0 findings.
+  Measured: T008, T011 and T012 carry (partial) with a reading against each
+  clause, and the record carries one line per gate beside its base reading. The
+  tree's (partial) count reads 16, where the clause estimated 7.
+- [x] T023 Replace the claim at `specs/047-loader-cross-field/quickstart.md:43`
+  that both `ctest` runs answer exit 0 at acceptance with the reading the record
+  carries: each run answers 176 passed, 1 failed and 1 skipped of 178, ctest exits
+  8, and the base tree answers the same row; keep the sentence that names the
+  pinned run as the record for the load-sensitive FWQ rows. per FR-019, SC-003,
+  T008, T016 (contradicts)
+  Verify: `grep -c 'exit 0 at acceptance' specs/047-loader-cross-field/quickstart.md`
+  answers 0, and the prose tree check answers 0 findings.
+  Measured: the quickstart names 176 passed, 1 failed and 1 skipped of 178
+  with exit 8, and the base row beside it.
+- [x] T024 Restate the branch-record figures from the record's measured delta in
+  `specs/047-loader-cross-field/plan.md:77`, `plan.md:325-332`,
+  `quickstart.md:132`, `data-model.md:35`, `spec.md:138` and `spec.md:579`: the
+  tree adds 34 instrumented lines and 42 branch records, every one covered, and
+  rule 1 reads one comparison per method, so the `min/max pair per method` wording
+  and the 8, 6 and 12 arm counts leave the artifacts; keep the D-19 shape rule of
+  one `if` per refusal, one `&&` per pair guard and no `switch`. per FR-018, D-19,
+  SC-002 (contradicts)
+  Verify: `grep -c 'min/max pair' specs/047-loader-cross-field/spec.md` answers 0,
+  `grep -c 'min/max pair' specs/047-loader-cross-field/research.md` answers 0,
+  `grep -c '26, plus 4' specs/047-loader-cross-field/data-model.md` answers 0, and
+  the prose tree check answers 0 findings.
+  Measured: the six places read one comparison per method and the measured 34
+  lines and 42 records; no min/max wording and no 8, 6, 12 arm count stands.
+- [x] T025 Restate the lane figures at shas a ref reaches in
+  `specs/047-loader-cross-field/results/acceptance-2026-11-03.md:9,13`,
+  `results/pr-body.md:15` and the measured note of T019 at `tasks.md:335-336`: the
+  merged lane at `561095df` reads 14 commits over `b1dd7670`, 20 files, 3240
+  insertions and 17 deletions with PR #74 merged, and the record lane at the head
+  reads 18 commits, 20 files, 3274 insertions and 17 deletions with PR #75 open;
+  name four record commits over the merge. per FR-016, SC-002, T013, T014, T019
+  (contradicts)
+  Verify: `git merge-base --is-ancestor 561095df origin/master` exits 0,
+  `git diff --shortstat b1dd7670..561095df` prints 20 files and 3240 insertions,
+  and `grep -c 76e76667 specs/047-loader-cross-field/results/*.md` answers 0.
+  Measured: the records and the task note name `561095df` at 14 commits, 20
+  files and 3240 insertions, and the record lane at 18 commits with 3274
+  insertions; no artifact names `76e76667`.
+- [x] T026 Amend the Scope section of `specs/047-loader-cross-field/spec.md:715-732`:
+  add `example/docs/fwq_ftq.expected` with its paired block of
+  `docs/pages/harness.md` to the in-scope list beside the version line, add
+  `.specify/feature.json` as the Spec Kit pointer the lane moves, and scope the
+  out-of-scope line about the jitter-probe and FWQ/FTQ files to the source and
+  test files of specs/043 and specs/045. per FR-015, D-2, X.3 (contradicts)
+  Verify: `grep -c 'fwq_ftq.expected' specs/047-loader-cross-field/spec.md` answers
+  at least 1, and the prose tree check answers 0 findings.
+  Measured: the Scope list names the capture pair and `.specify/feature.json`,
+  and the out-of-scope line reads to the source and test files of the jitter probe
+  and of the FWQ/FTQ path.
+- [x] T027 Restate the added-line count at
+  `specs/047-loader-cross-field/results/acceptance-2026-11-03.md:84`,
+  `results/pr-body.md:59`, `tasks.md:213` and `tasks.md:314` from the record's own
+  table: 17600 minus 17566 stands 34 instrumented lines added, all covered, and
+  the branch delta stands 42. per FR-018, SC-002, X.4 (contradicts)
+  Verify: `python3 -c 'print(17600-17566, 17519-17485, 8743-8701)'` prints
+  `34 34 42`, and `grep -c '35 instrumented' specs/047-loader-cross-field/results/*.md`
+  answers 0.
+  Measured: 17600 minus 17566 stands 34; the records, the T012 note and the
+  T017 note read 34 lines and 42 records.
+- [x] T028 Restate the base host coverage reading at
+  `specs/047-loader-cross-field/plan.md:337` and `research.md:177` from
+  `build/logs/base-cov-capture.log`: 99.5 percent lines (17485 of 17566), 97.3
+  percent functions (1804 of 1854) and 98.8 percent branches (8593 of 8701).
+  per FR-018, SC-002 (contradicts)
+  Verify: `grep -c '17484 of 17565' specs/047-loader-cross-field/*.md` answers 0,
+  and `grep -c '17485 of 17566' build/logs/base-cov-capture.log` answers at least 1.
+  Measured: the plan and research read 17485 of 17566, the figure the base
+  capture log carries; the pattern of the verify clause stands only in that clause.
+- [x] T029 Amend `specs/047-loader-cross-field/research.md:186-188` and
+  `plan.md:64` from three version sites to the five sites FR-015 names: the
+  project block, the two readers of the stamp with their comments, and the current
+  capture pair. per FR-015, D-2 (contradicts)
+  Verify: `grep -c 'three sites' specs/047-loader-cross-field/research.md` answers
+  0, and `grep -c 'three version sites' specs/047-loader-cross-field/plan.md`
+  answers 0.
+  Measured: R-12 and the plan's scale line read five sites, and name them.
+- [x] T030 Rewrite the loader-section block at `docs/pages/harness.md:1431-1436`
+  so it stays inside the two-to-four-sentence budget of FR-014 and names the two
+  entries the method check leaves alone: a stopped entry, and an entry that carries
+  a hunt record. per FR-014, D-7, Constitution IV (partial)
+  Verify: `python3 tools/docs/example_drift.py .` exits 0, and
+  `python3 tools/prose/prose_gate.py --check prose --mode tree --paths
+  docs/pages/harness.md` answers 0 findings.
+  Measured: four sentences at `docs/pages/harness.md:1431-1436` name the
+  stopped entry and the hunt entry; the drift check and the docs prose check answer 0.
+- [x] T031 Record in `specs/047-loader-cross-field/results/acceptance-2026-11-03.md`
+  the two git identities the lane's commits carry, author
+  `OmO <omo@speedgun-ng.local>` on all 18 and committer
+  `Charles Archer <charlesarcher@gmail.com>` on 17, and state which identity the
+  Constraints block of `spec.md:695-697` binds. per FR-020, Pull Request Quality
+  (partial)
+  Verify: `git log --format='%an <%ae>' b1dd7670..HEAD | sort -u` prints one line,
+  and `git log --format='%cn <%ce>' b1dd7670..HEAD | sort -u` prints the two
+  identities the record names.
+  Measured: the record names the author on all 18 commits, the two committer
+  identities, and that the Constraints block binds the author identity.
+- [x] T032 Correct the citation in the Verification row at
+  `specs/047-loader-cross-field/contracts/loader-pass-pairs.md:144` from FR-011 to
+  FR-008, the requirement the version-refusal case answers. per FR-008, FR-011
+  (contradicts)
+  Verify: `grep -c '(FR-011)' specs/047-loader-cross-field/contracts/loader-pass-pairs.md`
+  answers 0.
+  Measured: the version-refusal row cites FR-008. The clause's count of 0
+  overreaches: the two stopped-entry rows cite FR-011, the requirement that governs
+  them, and stand.
+- [x] T033 Restate `specs/047-loader-cross-field/plan.md:62-64`, `plan.md:120`,
+  `plan.md:264`, `plan.md:396` and the T006 line of `tasks.md:140` from about 40
+  added lines and three sentences to the 48 lines at the end of `readEntry` and
+  the four sentences at `docs/pages/harness.md:1431-1436`. per FR-014, FR-015,
+  X.4 (contradicts)
+  Verify: `grep -c 'three sentences' specs/047-loader-cross-field/plan.md` answers
+  0, and `git diff --numstat b1dd7670..HEAD -- source/harness/json_load.cpp`
+  prints 48.
+  Measured: the plan and the T006 line read 48 lines and four sentences, and
+  the numstat prints 48.

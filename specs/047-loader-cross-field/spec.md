@@ -82,6 +82,18 @@ implementer reopens them.
   body, and adds no dark arm: every branch record of the three checks stands
   reached by a named test (D-19). That is the written justification the
   constitution asks for where a gate reads below its stated ideal.
+
+  The lane records its coverage reading as a P2 exception (Principle I). The union
+  has no measurement point at the base or at the head: the coverage job's capture
+  step writes no file on this matrix at either sha. The host gate exits 3 at both
+  shas on the standing `lcov` inconsistent record at `source/harness/runner.cpp:707`,
+  a file this lane leaves untouched, and clearing it needs an ignore class this lane
+  bars itself from adding. The evidence the lane carries is its own delta: 34
+  instrumented lines and 42 branch records, every one covered, and the uncovered
+  counts unchanged at 81 lines, 50 functions and 108 branches.
+  `source/harness/json_load.cpp` reads 99.2 percent of 2194 lines, and its 81 dark
+  lines stand at the base. Two issues carry the two standing conditions, and the
+  acceptance record names their numbers.
 - **D-13 The overlap with specs/046.** Both lanes touch `json_load.cpp` and
   `harness_json_load_test.cpp`, in different readers of that file. The second
   to merge rebases, keeps both sides after reading them, and runs every gate
@@ -134,10 +146,12 @@ implementer reopens them.
   publish check of a one-pass run.
 - **D-19 The shape of a check keeps its arms covered (clarify round 2).**
   Measured with the coverage flags of the `coverage-linux` preset and
-  `gcov -b -c` on this host (`build/logs/notes/shape/`): a pair guard of one `&&`
-  plus a min/max pair per method answers 8 branch records with none taken zero;
-  rule 2 answers 6; rule 3, 12. A `switch` over the three method words answers a
-  fourth jump-table arm that no document can reach, because the standing kind
+  `gcov -b -c` on this host: rule 1 reads one comparison per method under a pair
+  guard of one `&&`, rule 2 reads one `if`, and rule 3 reads two `if`s per metric
+  inside the row walk, with none taken zero. The change answers 34 instrumented
+  lines and 42 branch records, every one covered. A `switch` over the three method
+  words answers a fourth jump-table arm that no document can reach, because the
+  standing kind
   check refuses a word outside the three names
   (`source/harness/json_load.cpp:2728-2732`), so it costs one dark row. The
   checks therefore read: one `if` per refusal, a pair guard as one `&&` of the
@@ -458,7 +472,9 @@ reader, and load each hand-built form. Every load answers the values it wrote.
   (`tools/dbc/coverage_gate.sh:86-88`). A developer host reads higher by design,
   because an entry there stops early and leaves the arms past its stop dark
   (`:90-101`), so the lane reports the host reading at the base and at the head
-  beside the union figure. (D-12.)
+  beside the union figure. Where the union has no measurement point, the lane
+  reports its own delta as a P2 exception (Principle I): the added lines and branch
+  records, each covered, and the uncovered counts beside the base. (D-12.)
 - **FR-019**: The change shall pass `ctest --test-dir build --output-on-failure`
   in full and the same command under `taskset -c 0,1` on the lane host, and
   shall pass the five gates at their own command lines: `cmake -P cmake/lint.cmake`
@@ -575,9 +591,10 @@ on this host, and each answer below carries its measurement.
   so it costs nothing; an arm no test reaches costs one row
   (`tools/dbc/coverage_gate.sh:111-118`). The CI union reads 0 rows short today
   (`specs/043-fwq-ftq/plan.md:122`), so all 21 rows stand free. Measured with
-  the coverage flags and `gcov -b -c`: 8 records for rule 1 with a pair guard and
-  a min/max pair, 6 for rule 2, 12 for rule 3, none taken zero; the two guards of
-  D-14 add four, all coverable. (D-19, FR-018.)
+  the coverage flags and `gcov -b -c`: one comparison per method under the pair
+  guard for rule 1, one `if` for rule 2, two `if`s per metric for rule 3, none
+  taken zero; over the change, 34 lines and 42 records, every one covered. (D-19,
+  FR-018.)
 - Q: Which shape of a check keeps every arm covered? → A: One `if` per refusal, a
   pair guard as one `&&` of the two key tests, and no `switch` over the method
   words: a jump table adds a fourth arm no document reaches, because the standing
@@ -721,15 +738,19 @@ In scope:
 - `test/source/harness_compare_cli_test.cpp`, the one pairing test of D-21. No
   entry of `test/CMakeLists.txt` changes: the two targets and their CTest
   entries already exist (`test/CMakeLists.txt:775-783`).
-- `docs/pages/`, the loader section.
-- `specs/047-loader-cross-field/`, this feature's artifacts.
-- `CMakeLists.txt` version line and the two version test sites.
+- `docs/pages/`, the loader section, and the paired capture block of
+  `example/docs/fwq_ftq.expected`.
+- `specs/047-loader-cross-field/`, this feature's artifacts, and
+  `.specify/feature.json`, the Spec Kit pointer this feature adds.
+- `CMakeLists.txt` version line, the two version test sites with their comments,
+  and the current capture pair.
 
 Out of scope:
 
 - The writer, the schema file, the schema checker, and the comparison.
-- The files of specs/045: `source/counters/`, the jitter-probe and FWQ/FTQ
-  files, `test/prose-gate-fixture/`, `specs/043-fwq-ftq/`.
+- The files of specs/045: `source/counters/`, the source and test files of the
+  jitter probe and of the FWQ/FTQ path, `test/prose-gate-fixture/`,
+  `specs/043-fwq-ftq/`.
 - The hunt record code of specs/046.
 - The public API, the two `SOVERSION` numbers, the schema version, and every
   option value.

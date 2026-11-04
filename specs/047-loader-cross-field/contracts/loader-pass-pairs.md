@@ -141,7 +141,7 @@ path, and the check reads that entry's own count. The tag is a 0-based pass inde
 | A stopped entry and a hunt entry keep their pair | `aStoppedEntryKeepsItsMethodAndCount`, `aHuntEntryKeepsItsMethodAndCount` (FR-011) |
 | Every written pass form loads | `everyWrittenPassFormLoads`, `aDocumentPredatingThePassFieldsLoads` (FR-010, FR-012) |
 | A pair fault answers status 2, one quoted line | `aPassFieldDisagreementAnswersOneQuotedLine`, over `oneFaultLine` at `:782-800` (FR-008) |
-| The version refusal keeps its answer | `aForeignSchemaMajorAnswersTheLoadFault` at `:875-884` (FR-011) |
+| The version refusal keeps its answer | `aForeignSchemaMajorAnswersTheLoadFault` at `:875-884` (FR-008) |
 
 The first row proves FR-003, FR-005 and FR-006. Every case stands in
 `test/source/harness_json_load_test.cpp` except the compare pairing, which
