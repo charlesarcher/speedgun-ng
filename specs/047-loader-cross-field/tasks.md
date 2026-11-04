@@ -542,12 +542,15 @@ change. Base: the PR 75 branch at `fdea0388`.
   Measured: the three places carry the fact and no ruling: 108 rows at the base and
   at the head above the allowance of 21, no uncovered line and no uncovered branch
   added, the owner ruling pending as #76, and no claim that the gate passes.
-- [ ] R75-004 Add rows PM-001 to PM-003 of `speedgun-ng-pr74-fixes-1-prompt.md` to
+- [x] R75-004 Add rows PM-001 to PM-003 of `speedgun-ng-pr74-fixes-1-prompt.md` to
   tasks.md, and tick the rows that this pull request completes.
   Blocked: that file is not on this machine. A search of the repository, the home
   tree and the wiki finds no file of that name and no file that carries the ids
   PM-001 to PM-003. The rows cannot be copied faithfully, so they stay out of the
   task list until the owner places the file or pastes the rows.
+  Measured: round 2 pasted the rows, and they stand in `tasks.md:568-578` as
+  written. PM-001 is ticked with evidence; PM-002 and PM-003 wait on the master
+  readings.
 - [x] R75-005 Write the pull request body again in `results/pr-body.md` with whole
   lines (no break inside a word, lines 72 or fewer). Give host chilly, the kernel,
   the GCC version, the measured head sha, the `ctest` counts (full and
@@ -562,5 +565,25 @@ change. Base: the PR 75 branch at `fdea0388`.
   Measured: the spell gate exits 0 with `.codespellrc` as its only config, and the
   prose range gate over `origin/master` answers 0 findings across 17 sources.
 - [x] R75-007 Tick R75-001 to R75-007.
-  Measured: R75-001, R75-002, R75-003, R75-005 and R75-006 stand ticked with
-  readings. R75-004 stands open on the missing prompt file.
+  Measured: R75-001, R75-002, R75-003, R75-005, R75-006 and R75-004 stand ticked
+  with readings.
+
+PM-001 to PM-003, copied as the owner wrote them in round 2:
+
+- [x] PM-001 In both results files, give 14 commits, base `b1dd7670`,
+  merged as `db91c935` .. `561095df` on master. Give the sha that was
+  measured on chilly, and say if it is not the merged tree.
+  Measured: `results/acceptance-2026-11-03.md:8-9` gives 14 commits over
+  `b1dd7670`, `db91c935` .. `561095df`, and `:12-14` names the sha measured on
+  chilly and states that it is not the merged tree; `results/pr-body.md:7-12`
+  carries the same reading.
+- [ ] PM-002 On chilly at `origin/master`, run `ctest` in full and under
+  `taskset -c 0,1` on an idle host, and the `ci-coverage` figures (lines,
+  branches, branch shortfall). Write the host, kernel, GCC version, master
+  sha and the counts in `acceptance-2026-11-03.md`. If a count changes the
+  claims of the lane, report it and stop.
+  Running: a master tree at `561095df` builds on chilly for the full and pinned
+  `ctest` readings and the `ci-coverage` figures. The record gains the host, the
+  kernel, the gcc version, the master sha and the counts when they land.
+- [ ] PM-003 Tick PM-001 to PM-003 in `tasks.md`.
+  Open: PM-002 stands open, so the tick set waits.

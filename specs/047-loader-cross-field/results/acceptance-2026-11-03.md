@@ -9,6 +9,11 @@ Machine: AMD Ryzen 9 7950X3D, 16 cores, 32 threads. Toolchain: gcc 16.2.1
 lane stands at `561095df` in `master`, 14 commits over the base (`db91c935` ..
 `561095df`). PR #75 carries 9 record commits over `561095df`.
 
+The sha measured on chilly for the suite, sanitizer and coverage readings is a lane
+head, and it is not the merged tree: `2ffba1dd` and `76e76667` before the merge, and
+`bc6399a6` after it. The merged tree is `561095df`, and the master reading of PM-002
+runs there.
+
 ## The lane
 
 At `561095df`: 20 files changed, 3240 insertions, 17 deletions. Source and tests:

@@ -5,7 +5,11 @@ of PR #74. The loader code, its tests, the guide rule, the version move
 and the 024 law amendment stand as merged.
 
 Head: `a77e75e6`, the head the readings below ran at. This pull request
-carries 9 record commits over `561095df`.
+carries 9 record commits over `561095df`. The merged lane reads 14
+commits over `b1dd7670`, `db91c935` through `561095df` on `master`. The
+sha measured on chilly for the suite, sanitizer and coverage readings is
+a lane head, and it is not the merged tree: `2ffba1dd`, `76e76667` and
+`bc6399a6`. The merged tree is `561095df`.
 
 ## The host
 
