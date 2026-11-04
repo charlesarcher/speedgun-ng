@@ -6,14 +6,13 @@ ignores; the record names the command and the count behind every figure below.
 Machine: AMD Ryzen 9 7950X3D, 16 cores, 32 threads. Toolchain: gcc 16.2.1
 (20260810), clang-format 18.1.8 pinned by `FORMAT_COMMAND`, cmake 4.4.4, lcov
 2.x from `~/.local/share/sg-tools/lcov2`. Base: `b1dd7670` (`master`). The merged
-lane stands at `561095df` in `master`, 14 commits over the base; the record lane at
-the head of this branch stands 18 commits over the base, four record commits over
-the merge.
+lane stands at `561095df` in `master`, 14 commits over the base (`db91c935` ..
+`561095df`). PR #75 carries 9 record commits over `561095df`.
 
 ## The lane
 
-At `561095df`: 20 files changed, 3240 insertions, 17 deletions; at the head of this
-branch, 3274 insertions. Source and tests: 5 files, 603 insertions. The reader change is 48 lines at the end of `readEntry` in
+At `561095df`: 20 files changed, 3240 insertions, 17 deletions. Source and tests:
+5 files, 603 insertions. The reader change is 48 lines at the end of `readEntry` in
 `source/harness/json_load.cpp`. The tests add nine functions to
 `test/source/harness_json_load_test.cpp` and one to
 `test/source/harness_compare_cli_test.cpp`. Version `0.30.1`, schema `1.13`,

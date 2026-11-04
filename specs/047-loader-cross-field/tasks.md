@@ -346,9 +346,10 @@ Principle VIII binds the gates to the head.
   `git diff --shortstat b1dd7670..HEAD`: the file count, the insertion count,
   the source-and-test count, and the head sha per FR-016, SC-002, T013, T014
   (partial)
-  Measured: 14 commits, 20 files, 3240 insertions, 17 deletions at the merged tip
-  `561095df`, and 18 commits with 3274 insertions at the head of the record lane;
-  5 files with 603 insertions for source and tests. Both records name those shas.
+  Measured: 14 commits (`db91c935` .. `561095df`), 20 files, 3240 insertions, 17
+  deletions at the merged tip, and 5 files with 603 insertions for source and tests.
+  PR #75 carries 9 record commits over `561095df`, the count that
+  `git rev-list --count origin/master..HEAD` answers at the final head.
 - [x] T020 Keep the untracked `prompt.md` at the repository root out of the lane,
   so the working tree carries no root file inside the feature's Scope per the
   Scope section of spec.md (unrequested)
@@ -518,20 +519,29 @@ Principle VIII binds the gates to the head.
 Owner review of PR #75, round 1. Records only: no source, test, CMake, CI or gate
 change. Base: the PR 75 branch at `fdea0388`.
 
-- [ ] R75-001 Remove the person name and the email from all files of the feature.
+- [x] R75-001 Remove the person name and the email from all files of the feature.
   Write "the committer identity of the merge (not OmO)". Check:
   `git grep -niE '[Cc]harles|[Aa]rcher|@[g]mail' -- specs/047-loader-cross-field`
   prints nothing. The same pattern over the whole tree prints 195 lines in
   pre-existing files of other features: machine path strings that carry the account
   name, GitHub owner URLs in their records, and the prose-gate fixtures. None is a
   person name in prose, and none stands in this pull request's files.
-- [ ] R75-002 Correct the counts: the merged lane reads 14 commits
+  Measured: the record and the task row read the committer identity of the merge
+  (not OmO); the check over the feature tree prints nothing; the whole-tree pattern
+  prints 195 lines in pre-existing files of other features.
+- [x] R75-002 Correct the counts: the merged lane reads 14 commits
   (`db91c935` .. `561095df`); this pull request reads N commits over `561095df`,
   where N is `git rev-list --count origin/master..HEAD` at the final head.
-- [ ] R75-003 Remove "P2 exception" from D-12, FR-018 and T021. Write the fact
+  Measured: 14 commits (`db91c935` .. `561095df`), 20 files, 3240 insertions and 17
+  deletions at the merged tip; PR #75 reads 9 commits over `561095df` at the final
+  head.
+- [x] R75-003 Remove "P2 exception" from D-12, FR-018 and T021. Write the fact
   only: the host shortfall reads 108 branches at the base and at the head, above
   the allowance of 21; the lane adds no uncovered line or branch; the owner ruling
   is pending (issue #76). Do not write that the gate passes.
+  Measured: the three places carry the fact and no ruling: 108 rows at the base and
+  at the head above the allowance of 21, no uncovered line and no uncovered branch
+  added, the owner ruling pending as #76, and no claim that the gate passes.
 - [ ] R75-004 Add rows PM-001 to PM-003 of `speedgun-ng-pr74-fixes-1-prompt.md` to
   tasks.md, and tick the rows that this pull request completes.
 - [ ] R75-005 Write the pull request body again in `results/pr-body.md` with whole
@@ -539,6 +549,8 @@ change. Base: the PR 75 branch at `fdea0388`.
   the GCC version, the measured head sha, the `ctest` counts (full and
   `taskset -c 0,1`) and the coverage figures. Then run
   `gh pr edit 75 --body-file specs/047-loader-cross-field/results/pr-body.md`.
-- [ ] R75-006 Run `cmake -P cmake/spell.cmake` and
+- [x] R75-006 Run `cmake -P cmake/spell.cmake` and
   `python3 tools/prose/prose_gate.py --base origin/master`. Both exit 0.
+  Measured: the spell gate exits 0 with `.codespellrc` as its only config, and the
+  prose range gate over `origin/master` answers 0 findings across 17 sources.
 - [ ] R75-007 Tick R75-001 to R75-007.
