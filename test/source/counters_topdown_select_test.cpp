@@ -111,6 +111,8 @@ using sg::counters::detail::pmuIdentCurrent;
 using sg::counters::detail::pmuLoadTable;
 using sg::counters::detail::pmuSelectDirectory;
 using sg::counters::detail::PmuTableEntry;
+using sg::counters::detail::topdownPublishedHolds;
+using sg::counters::detail::topdownShapeHolds;
 using sg::test::fixtureHost;
 using sg::test::kAmdLevelOneNames;
 using sg::test::kHybridDirectory;
@@ -1787,6 +1789,133 @@ auto noLevelRowRefusesBeforeTheScopeRule() -> void
       "the line states the reason of the rule that answered (FR-007, FR-040)");
 }
 
+// One node of a tree the case builds by hand. The shape readback reads `name`,
+// `parent` and `level`, and the published readback reads `vendorName`
+// (FR-008, FR-011, FR-013, FR-016, FR-020).
+[[nodiscard]] auto handNode(const std::string_view name,
+                            const std::string_view vendorName,
+                            const std::string_view parent,
+                            const int level) -> TopdownNode
+{
+  TopdownNode node;
+  node.name = std::string {name};
+  node.vendorName = std::string {vendorName};
+  node.parent = std::string {parent};
+  node.level = level;
+  return node;
+}
+
+// One tree the case builds by hand: the depth the answer states and the nodes
+// it names, in the order the readback reads them (FR-008, FR-013, FR-020).
+[[nodiscard]] auto handTree(
+    const int depth, const std::vector<TopdownNode>& nodes) -> TopdownTree
+{
+  TopdownTree tree;
+  tree.depth = depth;
+  tree.nodes = nodes;
+  return tree;
+}
+
+// One row of a table the case builds by hand: the name and the flag the
+// published readback reads (FR-011, FR-016).
+[[nodiscard]] auto handRow(const std::string_view name,
+                           const bool published) -> TopdownRow
+{
+  TopdownRow row;
+  row.name = std::string {name};
+  row.published = published;
+  return row;
+}
+
+// FR-008, FR-013, FR-020: the shape readback of the postcondition of
+// `topdownTree`. The pass that builds the vector gives each clause by
+// construction, so a tree the case builds by hand is what holds each false
+// return (FR-051).
+auto theShapeReadbackRefusesEachBrokenShape() -> void
+{
+  const TopdownTree sound = handTree(
+      2,
+      {handNode("topdown.retiring", "tma_retiring", "", 1),
+       handNode(
+           "topdown.intel.core_bound", "core_bound", "topdown.retiring", 2)});
+  check(topdownShapeHolds(sound),
+        "a node that names the element standing one level ahead of it holds "
+        "the shape the postcondition states (FR-008, FR-013, FR-020)");
+
+  check(!topdownShapeHolds(
+            handTree(2, {handNode("topdown.retiring", "tma_retiring", "", 0)})),
+        "a node below level one breaks the depth the answer states (FR-008, "
+        "FR-020)");
+  check(!topdownShapeHolds(
+            handTree(2, {handNode("topdown.intel.deep", "deep", "", 3)})),
+        "a node deeper than the depth the answer states breaks the shape "
+        "(FR-008, FR-020)");
+
+  check(!topdownShapeHolds(handTree(1,
+                                    {handNode("topdown.retiring",
+                                              "tma_retiring",
+                                              "topdown.frontend_bound",
+                                              1)})),
+        "a level-1 node that names a parent breaks the shape (FR-013)");
+  check(
+      !topdownShapeHolds(handTree(
+          2, {handNode("topdown.intel.core_bound", "core_bound", "", 2)})),
+      "a node below level one that names no parent breaks the shape (FR-013)");
+
+  // The parent search runs over every element ahead of the node and answers no
+  // name, so the arm that leaves the search by its bound stands read (FR-013).
+  check(!topdownShapeHolds(
+            handTree(2,
+                     {handNode("topdown.retiring", "tma_retiring", "", 1),
+                      handNode("topdown.intel.core_bound",
+                               "core_bound",
+                               "topdown.frontend_bound",
+                               2)})),
+        "a node whose parent names no element ahead of it breaks the shape "
+        "(FR-013)");
+  check(!topdownShapeHolds(handTree(
+            3,
+            {handNode("topdown.retiring", "tma_retiring", "", 1),
+             handNode("topdown.intel.deep", "deep", "topdown.retiring", 3)})),
+        "a node whose parent stands two levels above it breaks the shape "
+        "(FR-013)");
+}
+
+// FR-011, FR-016: the published readback of the postcondition of `topdownTree`.
+// The pass adds a node for a row only once that row's flag stands, and the
+// metric layer refuses the second row of a duplicated name, so each false
+// return stands out of a table the case composes by hand (FR-051).
+auto thePublishedReadbackRefusesEachUnstatedNode() -> void
+{
+  TopdownTable stated;
+  stated.rows.push_back(handRow("tma_retiring", true));
+  const TopdownTree one =
+      handTree(1, {handNode("topdown.retiring", "tma_retiring", "", 1)});
+  check(topdownPublishedHolds(one, stated),
+        "a node that names a row the table published holds the postcondition "
+        "(FR-011, FR-016)");
+  check(!topdownPublishedHolds(
+            handTree(1, {handNode("topdown.core_bound", "core_bound", "", 1)}),
+            stated),
+        "a node that names no row of the table breaks the postcondition "
+        "(FR-011)");
+
+  TopdownTable refused;
+  refused.rows.push_back(handRow("tma_retiring", false));
+  check(!topdownPublishedHolds(one, refused),
+        "a node that names a row the table refuses breaks the postcondition "
+        "(FR-016)");
+
+  // The first row of a duplicated name is the row the directory answers, so the
+  // flag of that first row decides the read (FR-011).
+  TopdownTable doubled;
+  doubled.rows.push_back(handRow("tma_retiring", false));
+  doubled.rows.push_back(handRow("tma_retiring", true));
+  check(!topdownPublishedHolds(one, doubled),
+        "a node whose name the table holds twice answers the first of those "
+        "rows (FR-011, FR-016)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -1833,6 +1962,8 @@ auto main() -> int
   aHybridDirectoryRefusesByItsRows();
   aOneScopeDirectorySelectsNormally();
   noLevelRowRefusesBeforeTheScopeRule();
+  theShapeReadbackRefusesEachBrokenShape();
+  thePublishedReadbackRefusesEachUnstatedNode();
   std::printf("counters_topdown_select_test PASS: the selection answers the "
               "table of the identity it is handed, and the tree of the rows it "
               "is given\n");
