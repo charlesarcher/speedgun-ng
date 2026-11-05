@@ -18,7 +18,7 @@ six standing values, writes the mask, the per-cpu mode, the detector
 width and window, the threshold, the engine word and `tracing_on`, folds
 three figures from each tracer cpu's buffer text, and writes the saved
 values back in reverse order on each path the process controls. Both surfaces disclose `not available` and continue
-with status 0. The schema moves to `1.15` with ten new keys, the loader
+with status 0. The schema moves to `1.15` with eleven new keys, the loader
 reads the six figures back, the comparison gains six rule names, and the
 harness `SOVERSION` rises from `21` to `22` with the version move to
 `0.32.0`.
@@ -123,7 +123,7 @@ specs/048-hwlat-probe/
 ├── quickstart.md               # the two runs, the two gates, the fake-file recipe
 ├── contracts/
 │   ├── cli-options.md          # the method word, the engine word, the error tables
-│   ├── report-json.md          # the ten new keys, their kinds and their order
+│   ├── report-json.md          # the eleven new keys, their kinds and their order
 │   ├── console-report.md       # the new console lines and the limits line
 │   └── rule-names.md           # the six new comparison names
 ├── checklists/requirements.md
@@ -146,12 +146,12 @@ source/harness/
 ├── detail/noise_tracer.hpp              # M4: the saved-value set, the detector figures
 ├── noise_tracer.cpp                     # M4: the engine word, the setup order, the restore
 ├── detail/json_report.hpp               # M5: the two word tables
-├── json_report.cpp                      # M5: the schema version, the ten keys
+├── json_report.cpp                      # M5: the schema version, the eleven keys
 ├── json_load.cpp                        # M6: the six figures, the settings, the mark kind
 ├── report.cpp                           # M7: the console figures and the limits line
 ├── compare.cpp                          # M8: the six names, two refusal lines
 └── cli.cpp                              # M3, M4 wiring: one owner at a time, the integrator's file
-docs/schema/report-v1.json               # M5: the ten keys, two enums, three x-order moves
+docs/schema/report-v1.json               # M5: the eleven keys, two enums, six x-order moves
 docs/pages/harness.md                    # M9: the method section, the engine subsection
 README.md                                # M9: the two rows, within the cap
 example/docs/hwlat_probe.cpp             # M9 (new): the example
@@ -165,7 +165,7 @@ test/source/
 ├── harness_jitter_cli_test.cpp          # M3: the method word, the refusals
 ├── harness_jitter_probe_alloc_test.cpp  # M3: the no-allocation proof, extended
 ├── harness_noise_test.cpp               # M4: the setup order, the restore paths
-├── harness_json_report_test.cpp         # M5: the ten keys
+├── harness_json_report_test.cpp         # M5: the eleven keys
 ├── harness_json_schema_test.cpp         # M5: the schema checker
 ├── harness_jitter_bytes_test.cpp        # M5: byte identity for a run that names neither word
 ├── harness_json_load_test.cpp           # M6: the round trip and the older document
@@ -411,10 +411,11 @@ missing, unreadable or malformed (spec FR-011, FR-023).
 - On `PrecheckTracerCpuRecord`: `maxGapNs`, `gapCount` and `nmiCount` as
   `std::optional<std::uint64_t>`.
 
-Ten document keys: `smiDelta`, `nmiDelta` and `smiGapCount` in
+Eleven document keys: `smiDelta`, `nmiDelta` and `smiGapCount` in
 `jitter.stats[]` and in `precheck.cpus[].stats`; `smi` in `gaps[]`;
 `windowUs`, `widthUs` and `thresholdUs` in `precheck.tracer`; `maxGapNs`,
-`gapCount` and `nmiCount` in `precheck.tracer.cpus[]`.
+`gapCount` and `nmiCount` in `precheck.tracer.cpus[]`; and `limits` in
+`jitter`.
 
 ### Version and SOVERSION
 
