@@ -198,9 +198,9 @@ auto plantedDisagreementsAreNamedByPointer() -> void
 
 // The schema's per-entry hunt entry node (specs/040; FR-032, B-9): the
 // node stands closed, so its `x-order` names the three rank keys after
-// `rank`, and the document the writer produces pairs the schema at the
-// minor the writer stamps, `1.13` since specs/042-topdown added the
-// `topdown` object of the entry record.
+// `rank` and the area key after `delta`, and the document the writer
+// produces pairs the schema at the minor the writer stamps, `1.14`, the
+// minor since specs/046-hunter-topdown added the `topdownArea` key.
 auto entryHuntKeysPairAtStampedMinor(const std::string& documentText) -> void
 {
   const std::string schemaText = sg::test::readText(SG_SCHEMA_PATH);
@@ -221,26 +221,29 @@ auto entryHuntKeysPairAtStampedMinor(const std::string& documentText) -> void
   const auto correlationAt = order.find("\"correlation\"");
   const auto slopeAt = order.find("\"slope\"");
   const auto deltaAt = order.find("\"delta\"");
+  const auto areaAt = order.find("\"topdownArea\"");
   check(rankAt != std::string::npos
             && correlationAt != std::string::npos
             && slopeAt != std::string::npos && deltaAt != std::string::npos
+            && areaAt != std::string::npos
             && rankAt < correlationAt && correlationAt < slopeAt
-            && slopeAt < deltaAt,
-        "the entry node names the three rank keys after `rank` in its "
-        "`x-order` (FR-032, B-9)");
+            && slopeAt < deltaAt && deltaAt < areaAt,
+        "the entry node names the three rank keys after `rank`, and the area "
+        "key after `delta`, in its `x-order` (FR-032, B-9)");
 
-  check(documentText.find("\"schemaVersion\":\"1.13\"") != std::string::npos,
-        "the document the writer produces stands at the stamped minor 1.13 "
+  check(documentText.find("\"schemaVersion\":\"1.14\"") != std::string::npos,
+        "the document the writer produces stands at the stamped minor 1.14 "
         "(FR-032, specs/039 FR-032, specs/037 FR-005, specs/043 FR-006, "
-        "specs/042-topdown FR-036)");
+        "specs/042-topdown FR-036, specs/046-hunter-topdown FR-020)");
 }
 
 // specs/043 T025, US4, FR-006, R-16: the schema node of the series record.
 // The item stands closed, its `x-order` names the 21 keys in the written
 // order, the method word stands in a list of three, and the period item
 // stands closed with its two keys. The document the writer produces pairs
-// the schema at the minor the writer stamps, `1.13` since specs/042-topdown
-// added the `topdown` object of the entry record.
+// the schema at the minor the writer stamps, `1.14`, the minor since
+// specs/046-hunter-topdown added the `topdownArea` key of the per-event
+// node.
 constexpr std::string_view kSeriesKeys[] = {
     "cpu",
     "workCount",
@@ -374,9 +377,9 @@ auto theSeriesKeysPairAtTheStampedMinor() -> void
   check(paired,
         "theSeriesKeysPairAtTheStampedMinor: the item names the 21 keys in "
         "the written order (FR-006, FR-011)");
-  check(documentText.find("\"schemaVersion\":\"1.13\"") != std::string::npos,
+  check(documentText.find("\"schemaVersion\":\"1.14\"") != std::string::npos,
         "theSeriesKeysPairAtTheStampedMinor: the document the writer produces "
-        "stands at the stamped minor 1.13 (FR-006, R-16)");
+        "stands at the stamped minor 1.14 (FR-006, R-16)");
 }
 
 // FR-006: the item stands closed, so a key the schema lists nowhere refuses

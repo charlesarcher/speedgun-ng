@@ -6,7 +6,9 @@
 // One cpu identity selects one architecture table directory, and the rows of
 // that directory's top-down groups form the tree a run collects. This header
 // publishes the identity, the source record of the selected table, the tree,
-// and the five refusals a selection answers in place of a tree.
+// the grouping listing of the selected directory, and the five refusals a
+// selection answers in place of a tree (specs/046-hunter-topdown FR-004,
+// FR-008, D-16).
 //
 // The selection is pure over what it is handed: it reads no counter, opens no
 // event, reads no clock and calls no cpu reader of its own, so its answer
@@ -204,6 +206,48 @@ struct SPEEDGUN_NG_EXPORT TopdownTable
 ///       sorted file order the embedder emits (FR-001, FR-016).
 [[nodiscard]] SPEEDGUN_NG_EXPORT auto topdownTable(const CpuIdentity& identity)
     -> TopdownTable;
+
+/**
+ * @brief specs/046-hunter-topdown FR-004, FR-008, D-16: the vendor grouping of
+ * one row of the selected directory: the bare name beside the file stem that
+ * row stands in.
+ *
+ * `group` is the vendor word: `cache`, `memory`, `pipeline`, `frontend` and the
+ * rest of the stems of the selected directory, each spelled as the vendor
+ * spells it. The vocabulary belongs to the directory, so Skylake-X answers
+ * `cache` where Zen 5 answers `l2-cache` (specs/046 D-3, AP-7).
+ *
+ * The struct is data: it has no call to guard.
+ *
+ * \pre none
+ * \post none
+ * \invariant none
+ */
+struct SPEEDGUN_NG_EXPORT TopdownEventGroup
+{
+  std::string event;  ///< The bare name one row carries, with no device prefix.
+  std::string group;  ///< The file stem of that row, verbatim.
+};
+
+/// @brief specs/046-hunter-topdown FR-004, FR-008, D-16: the grouping listing
+/// of one identity: the pairs the directory that identity selects holds.
+///
+/// The call reads the embedded table of the selected directory, and that table
+/// is build-time data the loader holds once per directory. No vendored path
+/// opens at run time and no host probe is made (D-16).
+///
+/// \pre none
+/// \post The answer holds one pair per name of the selected directory, in the
+///       order that directory loads, and the first row that carries a repeated
+///       name owns its pair (D-16). `group` names `PmuTableEntry::fileName`
+///       with its suffix dropped, and the call renames nothing (FR-004). An
+///       identity that selects no directory answers an empty listing (D-16).
+///       The call reads no counter, opens no event, reads no clock, opens no
+///       path, and reads no `MIDR` field beyond the directory the identity
+///       selects (D-13).
+/// \invariant none
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto topdownEventGroups(
+    const CpuIdentity& identity) -> std::vector<TopdownEventGroup>;
 
 /**
  * @brief One node of a top-down tree: a row the host publishes

@@ -324,6 +324,10 @@ struct Hunted
   collected[kGappedColumn].skipped = sg::hunt::SkippedKind::GAP;
 
   auto entry = sg::hunt::rankEvents(collected, options, plan.method);
+  // specs/046-hunter-topdown FR-019: the first row carries the area one hunt
+  // settled and the row beside it carries none, so the written bytes show the
+  // key and its absence side by side.
+  entry.entries.front().topdownArea = "backend_bound > memory_bound";
   // The retry lane of D-18: two passes of the plan ran a second time solo.
   entry.retriedPasses = 2;
   // The refusal of one event carries the address and the kind, the two
@@ -945,7 +949,8 @@ auto huntKeysInOrder() -> void
               "rank",
               "correlation",
               "slope",
-              "delta"},
+              "delta",
+              "topdownArea"},
              "/benchmarks/0/hunt/entries/0");
   checkOrder(text,
              elementOpen(text, entryNode, "skipped"),
@@ -1264,6 +1269,14 @@ const auto kPlants = std::vector<Plant> {
            .body = "\"wide\"",
            .pointer = "/benchmarks/0/hunt/entries/0/delta",
            .message = "expected a number, found string"},
+    // The area of specs/046 is a text, so a number is a kind of its own and
+    // keeps the refusal of that kind (FR-021, D-11).
+    Plant {.what = "a number where the area of a rank row stands",
+           .node = "entries",
+           .key = "topdownArea",
+           .body = "7",
+           .pointer = "/benchmarks/0/hunt/entries/0/topdownArea",
+           .message = "expected a string, found number"},
     Plant {.what = "a budget amount with trailing text",
            .node = "run",
            .key = "budget",
@@ -1413,6 +1426,43 @@ auto readerRefusals() -> void
   }
 }
 
+// The area key of specs/046 (FR-019, D-11, US2 AC-1): the row one hunt stamped
+// writes `"topdownArea":"<path>"` after its `delta` and closes on it, and the
+// row that names no area writes no such key and keeps the bytes it closed on
+// before.
+auto areaKeyStandsAfterDelta() -> void
+{
+  constexpr std::string_view kKey = "\"topdownArea\":";
+  constexpr std::string_view kPath =
+      "\"topdownArea\":\"backend_bound > memory_bound\"";
+  const auto text = huntDocumentText(singleStageHunt());
+  const auto first = elementOpen(text, nodeOpen(text, false), "entries");
+  const auto delta = keyStart(text, first, "delta");
+  const auto area = text.find(kPath, first);
+  checked(area != std::string_view::npos,
+          "the stamped row writes the area path the record holds");
+  checked(delta != std::string_view::npos && delta < area,
+          "the area key stands after the delta of the stamped row");
+  const auto closed = area + kPath.size();
+  checked(closed < text.size() && text[closed] == '}',
+          "the area key stands last, so the stamped row closes on it");
+  checked(occurrences(text, kKey) == 1,
+          "the document carries one area key, for the one row that holds one");
+
+  const auto second = text.find('{', valueEnd(text, first));
+  checked(second != std::string_view::npos,
+          "the array holds the row that stands beside the stamped one");
+  const auto secondEnd = valueEnd(text, second);
+  checked(text.substr(second, secondEnd - second).find(kKey)
+              == std::string_view::npos,
+          "the row that names no area writes no area key");
+  const auto other =
+      keyStart(text, second, "delta") + std::string_view("\"delta\":").size();
+  const auto otherEnd = valueEnd(text, other);
+  checked(otherEnd < text.size() && text[otherEnd] == '}',
+          "the row that names no area keeps the bytes it closed on before");
+}
+
 // A document with no hunt keys loads with both members empty, and a document
 // written before the hunt keys loads unchanged: the reading of a run that
 // carried no hunt and of a file the old writer left (FR-051, I-8).
@@ -1534,10 +1584,11 @@ auto twoStageDocument() -> void
 auto schemaConformance() -> void
 {
   const auto text = huntDocumentText(singleStageHunt());
-  check(text.starts_with("{\"schemaVersion\":\"1.13\""),
-        "the hunt document stamps the minor 1.13 the writer carries "
-        "(FR-032, specs/039 FR-032, specs/037 FR-005, specs/043 FR-006, "
-        "specs/042-topdown FR-036)");
+  check(text.starts_with("{\"schemaVersion\":\"1.14\""),
+        "the hunt document stamps the minor 1.14 the writer carries, the "
+        "minor whose per-event node names `topdownArea` (FR-020, FR-023, "
+        "specs/039 FR-032, specs/037 FR-005, specs/043 FR-006, "
+        "specs/042-topdown FR-036, specs/046-hunter-topdown FR-020)");
   const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, text);
   if (!clean.has_value()) {
     failed("the hunt document disagrees with the schema: " + clean.error());
@@ -2057,6 +2108,8 @@ struct Scenario
 {
   static const std::vector<Scenario> kList {
       Scenario {.name = "keys", .body = &huntKeysInOrder},
+      Scenario {.name = "area-key-stands-after-delta",
+                .body = &areaKeyStandsAfterDelta},
       Scenario {.name = "round-trip", .body = &huntRoundTrip},
       Scenario {.name = "refusals", .body = &readerRefusals},
       Scenario {.name = "no-keys", .body = &huntLessDocument},

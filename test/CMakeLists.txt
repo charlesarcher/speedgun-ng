@@ -564,6 +564,25 @@ add_test(NAME counters_topdown_select_test
 set_tests_properties(counters_topdown_select_test PROPERTIES
                      SKIP_RETURN_CODE 2)
 
+# The vendor grouping listing of the selected directory (specs/046-hunter-topdown
+# T010, T012; FR-004, FR-030, D-16): the pairs the accessor of the counters
+# surface answers for one identity, read beside the seam those pairs come from.
+# Every case hands in its own identity, so no scenario needs a host other than
+# the one it runs on, and the unit writes no fixture tree and plants no
+# directory, so it needs no `SG_TOPDOWN_TABLE_DIR` define. A build that carries
+# no vendored architecture directory answers no listing at all, so the unit
+# reports its reason and exits 2, the skip code the `test/tier_labels.sh` row of
+# T013 reserves.
+add_executable(counters_topdown_groups_test
+               source/counters_topdown_groups_test.cpp)
+target_link_libraries(counters_topdown_groups_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_topdown_groups_test PRIVATE cxx_std_23)
+add_test(NAME counters_topdown_groups_test
+         COMMAND counters_topdown_groups_test)
+set_tests_properties(counters_topdown_groups_test PROPERTIES
+                     SKIP_RETURN_CODE 2)
+
 # Metric formulas of the vendored event table (T013..T019, T027..T034;
 # FR-003..FR-021). The grammar test drives the parse seam as a pure
 # function; the lookup test resolves the fixture table against the fixture
@@ -2103,6 +2122,23 @@ if(TARGET docs_hunt_rank)
   set_tests_properties(report_shape_hunt_rank_sample PROPERTIES TIMEOUT 120)
 endif()
 
+if(TARGET docs_hunt_topdown)
+  # The guide page carries the recorded run of the area example, so the selector
+  # names the golden that owns this invocation's block. The fold checks the
+  # recorded run against a real run of the example, which is what fails the
+  # suite when the `area=` cell moves while the page still quotes it (T044,
+  # FR-025, FR-027).
+  add_test(
+      NAME report_shape_hunt_topdown_sample
+      COMMAND
+        python3 ${CMAKE_SOURCE_DIR}/tools/docs/report_shape.py
+        --binary $<TARGET_FILE:docs_hunt_topdown>
+        --readme ${CMAKE_SOURCE_DIR}/docs/pages/harness.md
+        --example hunt_topdown
+  )
+  set_tests_properties(report_shape_hunt_topdown_sample PROPERTIES TIMEOUT 120)
+endif()
+
 # Each docs example is a complete program whose regions the page quotes, so the
 # gate runs every one of them and requires a row for each registered benchmark,
 # with no FAILED row and with every skip declared in the source (T035; FR-034,
@@ -2272,6 +2308,19 @@ target_compile_definitions(
 )
 add_test(NAME harness_topdown_report_test COMMAND harness_topdown_report_test)
 
+# The area of one ranked event: the mapper pair, its seam and its stamp
+# (specs/046-hunter-topdown T004, T005; FR-001 to FR-010, FR-029, FR-030,
+# FR-033; D-1, D-7, D-16, D-17). Every case plants its tree, its grouping
+# listing and its identity in process, so no scenario reads a counter, a clock,
+# a vendored directory of the host or the kernel event interface. The entry
+# takes the quick label and the 300 s ceiling from the loops below, because it
+# stands in no `SPEEDGUN_SLOW_TESTS` row and names no timeout of its own.
+add_executable(harness_hunt_topdown_test source/harness_hunt_topdown_test.cpp)
+target_link_libraries(harness_hunt_topdown_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_hunt_topdown_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_hunt_topdown_test PRIVATE cxx_std_23)
+add_test(NAME harness_hunt_topdown_test COMMAND harness_hunt_topdown_test)
+
 # ---- Tier labels and budgets ----
 
 # The entries a fast local run may leave out (030 P-05, FR-025): one row per
@@ -2362,6 +2411,10 @@ endforeach()
 # budget exception report_shape_hunt_rank_sample keeps the 120 s
 #   master sets for the shape fold of the hunt rank example: slowest
 #   2.21 s, the `tsan` lane.
+# budget exception report_shape_hunt_topdown_sample keeps the 120 s
+#   master sets for the shape fold of the hunt top-down example: slowest
+#   3.20 s, the `ci-rocky` lane of this host, read on 2026-11-03. No CI
+#   run has a reading for the entry yet.
 # budget exception example_run keeps the 300 s master sets for the
 #   entry that runs every docs example through `example_run.sh`, equal
 #   to the budget this loop gives: slowest 7.78 s, the `coverage` lane.

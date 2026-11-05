@@ -342,29 +342,30 @@ auto printPassDisclosure(const BenchmarkResult& result) -> void
 constexpr std::string_view kSmtContentionName {"topdown.smt_contention"};
 
 // specs/042-topdown FR-025, FR-026, FR-027, FR-028, FR-015: the block of one
-// top-down run, printed under the tables of the benchmark it belongs to. The
-// header names the level the run shows, the passes its one plan produced and
-// the directory the rows came from; the source record follows with its
-// reference and one line per file that contributed a row, which is the whole of
-// what the loader states and never the digests of the embedded record (FR-015).
-// Each node line carries two spaces per level below one, the neutral name, the
-// vendor name of the row it came from, and the percent or `not available` for a
-// gap (FR-026, FR-027, FR-030). Behind the nodes, one line per refused row of
-// the record carries the word `refused`, the name of the row, the UPPER SNAKE
-// kind the metric layer answered with and that reason unchanged, indented at
-// the level the header states (FR-016, FR-031). A record that states no support
-// prints no block: the one line for an unsupported host belongs to the command
-// line (FR-040, T080), and a run that never asked for a tree prints nothing
-// here, the bytes it printed before the option stood.
-auto printTopdownBlock(const BenchmarkResult& result) -> void
+// record, under the pass count of the collection that measured it. Specs
+// 046-hunter-topdown FR-016 and FR-033 give that body to the companion of a
+// hunter run too. The header names the level the run shows, the passes its plan
+// produced and the directory the rows came from; the source record follows with
+// its reference and one line per file that contributed a row, which is the
+// whole of what the loader states and never the digests of the embedded record
+// (FR-015). Each node line carries two spaces per level below one, the neutral
+// name, the vendor name of the row it came from, and the percent or `not
+// available` for a gap (FR-026, FR-027, FR-030). Behind the nodes, one line per
+// refused row of the record carries the word `refused`, the name of the row,
+// the UPPER SNAKE kind the metric layer answered with and that reason
+// unchanged, indented at the level the header states (FR-016, FR-031). A record
+// that states no support prints no block: the one line for an unsupported host
+// belongs to the command line (FR-040, T080), and a run that never asked for a
+// tree prints nothing here, the bytes it printed before the option stood.
+auto printTopdownBlock(const sg::TopdownRecord& record,
+                       const std::size_t passCount) -> void
 {
-  if (!result.topdown.has_value() || !result.topdown->supported) {
+  if (!record.supported) {
     return;
   }
-  const sg::TopdownRecord& record = *result.topdown;
   std::printf("topdown: level=%d passes=%zu table=%s\n",
               static_cast<int>(record.level),
-              result.passCount,
+              passCount,
               record.directory.c_str());
   if (record.askedLevel > record.level) {
     // specs/042-topdown FR-020: the level the block states is the deepest level
@@ -439,6 +440,20 @@ auto printTopdownBlock(const BenchmarkResult& result) -> void
                 "percent without %s\n",
                 std::string {kSmtContentionName}.c_str());
   }
+}
+
+// specs/046-hunter-topdown FR-016, FR-033, D-9: the block of the record a
+// result carries, under the tables of the benchmark it belongs to. The wrapper
+// forwards the record beside the passes of that same run, so every rule above
+// stands in one body for the record of a `--topdown` run and the record of a
+// companion alike. A result that carries no record reaches the body never, and
+// prints the bytes it printed before the option stood.
+auto printTopdownBlock(const BenchmarkResult& result) -> void
+{
+  if (!result.topdown.has_value()) {
+    return;
+  }
+  printTopdownBlock(*result.topdown, result.passCount);
 }
 
 }  // namespace
@@ -577,7 +592,9 @@ auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
 
 auto printResult(const BenchmarkResult& result,
                  const std::optional<sg::hunt::RunHunt>& run,
-                 const std::optional<sg::GraphRunRecord>& graph) -> void
+                 const std::optional<sg::GraphRunRecord>& graph,
+                 const std::optional<sg::detail::TopdownCompanion>& companion)
+    -> void
 {
   if (result.outcome == RunOutcome::FAILED) {
     std::printf(
@@ -762,7 +779,14 @@ auto printResult(const BenchmarkResult& result,
   // specs/042-topdown FR-025: the block stands under the tables of its own
   // benchmark, ahead of every line that followed them before the option stood,
   // so a threaded run reaches it on the same path as a single-context run.
-  printTopdownBlock(result);
+  // specs/046-hunter-topdown FR-016, FR-033, D-9: a result that carries the
+  // record of a companion prints that block behind the hunt lines below, so the
+  // standing block stands suppressed for it and one block prints either way. A
+  // carrier with no hunt names the rule, and no run reaches here with both the
+  // carrier and a level of its own (FR-035).
+  if (!companion.has_value()) {
+    printTopdownBlock(result);
+  }
   // FR-024, R-08: the per-benchmark attribution line under the rows,
   // naming the worst probe cpu for this benchmark's windows: the fold
   // whose max stands largest, ties keeping the ascending cpu order the
@@ -813,6 +837,16 @@ auto printResult(const BenchmarkResult& result,
     printHuntRanking(*result.hunt,
                      run->options.norm.value_or(sg::hunt::HuntNorm::INSTR));
     printHuntSkips(*result.hunt, *run);
+  }
+  // specs/046-hunter-topdown FR-016, FR-033, FR-036, D-9: the block of the
+  // companion of a hunter run prints after the hunt lines of the same result,
+  // in the order the console reads: plan, rows, hunt, tree. The pair the
+  // carrier holds prints together, so the header names the passes of the
+  // companion's own collection and not those of the entry run (FR-033). A
+  // carrier that states no support prints nothing, which is the run before the
+  // companion stood.
+  if (companion.has_value()) {
+    printTopdownBlock(companion->record, companion->passCount);
   }
 
   // FR-025: a non-empty `contexts` vector names exactly a threaded
@@ -1199,6 +1233,23 @@ auto printSensitivityCells(const sg::hunt::RankedEvent& entry) -> void
   }
 }
 
+/// specs/046 FR-013, FR-014, D-13: the one `area=` cell of a ranked row or of
+/// an unranked row, printed after the three cells of specs/040 and before the
+/// flag or the mark that closes the row.
+///
+/// \pre none
+/// \post The call prints one ` area=` cell holding the area of the record, or
+///       prints nothing at all where that member stands empty. The cell
+///       carries one leading space and no field width. The call measures
+///       nothing, reads no clock and opens no file.
+/// \invariant none
+auto printTopdownAreaCell(const sg::hunt::RankedEvent& entry) -> void
+{
+  if (!entry.topdownArea.empty()) {
+    std::printf(" area=%s", entry.topdownArea.c_str());
+  }
+}
+
 // specs/029 D-7, D-8, PD-14: the word that names why an event stands out of
 // the top N. One sample carries no deviation, so an event that repeated and
 // stayed under `--hunt-noise` left the table on the size of the table alone.
@@ -1347,6 +1398,9 @@ auto printHuntRanking(const sg::hunt::EntryHunt& hunt,
       // specs/040 FR-012: the sensitivity cells stand after the CV cell
       // and before the flag, the column order the document pins (E-07).
       printSensitivityCells(entry);
+      // specs/046 FR-013, D-13: the area cell stands after the delta cell and
+      // before the flag, the column order the document pins (E-07).
+      printTopdownAreaCell(entry);
       if (entry.multiplexed) {
         std::printf(" multiplexed");
       }
@@ -1361,6 +1415,9 @@ auto printHuntRanking(const sg::hunt::EntryHunt& hunt,
     // specs/040 FR-012: the beyond-top row carries the same cells the
     // ranked row carries, and the mark closes the line (FR-012).
     printSensitivityCells(entry);
+    // specs/046 FR-013: the beyond-top row carries the area cell the ranked row
+    // carries, and the mark closes the line.
+    printTopdownAreaCell(entry);
     std::printf(" mark=%s\n", excludedMarkOf(entry));
   }
 }

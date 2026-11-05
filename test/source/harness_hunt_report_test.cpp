@@ -625,9 +625,9 @@ auto scenarioPlanLineMultiplex() -> void
   const auto block = huntBlock(run);
   const std::string expectedRows {
       "hunt: rank 1 cpu/hunt001 instr=50.000 cv=0.00 correlation=n/a "
-          "slope=n/a delta=n/a multiplexed\n"
+          "slope=n/a delta=n/a area=unmapped multiplexed\n"
       "hunt: rank 2 cpu/hunt000 instr=25.000 cv=0.00 correlation=n/a "
-          "slope=n/a delta=n/a multiplexed\n"};
+          "slope=n/a delta=n/a area=unmapped multiplexed\n"};
   check(block.find(expectedRows) != std::string::npos,
         "every row of the multiplexed hunt carries the word, in the rank order "
         "of the rate column (D-19, PD-07)");
@@ -655,11 +655,14 @@ auto scenarioPlanLineNoLimitHost() -> void
             == "hunt: plan events=3 passes=1 method=MULTIPLEX estimate="
                    "<host-calibrated>ns budget=none\n"
                    "hunt: rank 1 cpu/hunt002 instr=75.000 cv=0.00 "
-                   "correlation=n/a slope=n/a delta=n/a multiplexed\n"
+                   "correlation=n/a slope=n/a delta=n/a area=unmapped "
+                   "multiplexed\n"
                    "hunt: rank 2 cpu/hunt001 instr=50.000 cv=0.00 "
-                   "correlation=n/a slope=n/a delta=n/a multiplexed\n"
+                   "correlation=n/a slope=n/a delta=n/a area=unmapped "
+                   "multiplexed\n"
                    "hunt: rank 3 cpu/hunt000 instr=25.000 cv=0.00 "
-                   "correlation=n/a slope=n/a delta=n/a multiplexed\n"
+                   "correlation=n/a slope=n/a delta=n/a area=unmapped "
+                   "multiplexed\n"
                    "hunt: plan summary events=3/3 passes=1 budget=none\n",
         "the plan line of a hunt whose host publishes no limit carries the "
         "settled method word with no option stating it, every row carries the "
@@ -969,6 +972,22 @@ auto scenarioPlanLineMuxPassesNoGroups() -> void
 // the refused event, and the summary whose denominator counts the planned
 // columns plus that refusal (FR-041, D-12). PD-15 is the order of the same
 // bytes: the plan line above the first row and everything that ranks below it.
+//
+// specs/046 FR-016, FR-017, FR-033: the same run is a hunter run, so the block
+// of the companion opens after that hunt block closes. The block holds the
+// table path, the digests and the node names of this host, so its bytes stand
+// compared nowhere (FR-027); its place and its count stand compared here. A
+// host the selection refuses prints one refusal line and no block, which is
+// the other arm of the same claim.
+// The ask the companion makes: the gatherer of the pair, held to level 1, which
+// is the whole difference D-17 states between the two asks of one run.
+[[nodiscard]] auto companionAsk() -> sg::counters::TopdownSelection
+{
+  auto ask = sg::detail::topdownAreaSelection(sg::detail::RunOptions {});
+  ask.level = 1;
+  return ask;
+}
+
 auto scenarioHuntBlockOrder() -> void
 {
   const auto run = captureRun(withCase(
@@ -977,11 +996,12 @@ auto scenarioHuntBlockOrder() -> void
             == "hunt: plan events=3 passes=1 method=PASSES estimate="
                    "<host-calibrated>ns budget=none\n"
                    "hunt: rank 1 cpu/hunt002 instr=75.000 cv=0.00 "
-                   "correlation=n/a slope=n/a delta=n/a\n"
+                   "correlation=n/a slope=n/a delta=n/a area=unmapped\n"
                    "hunt: rank 2 cpu/hunt001 instr=50.000 cv=0.00 "
-                   "correlation=n/a slope=n/a delta=n/a\n"
+                   "correlation=n/a slope=n/a delta=n/a area=unmapped\n"
                    "hunt: rank - cpu/hunt000 instr=25.000 cv=0.00 "
-                   "correlation=n/a slope=n/a delta=n/a mark=beyond-top\n"
+                   "correlation=n/a slope=n/a delta=n/a "
+                   "area=unmapped mark=beyond-top\n"
                    "hunt: skipped cpu/hunt007 permission-blocked\n"
                    "hunt: plan summary events=3/4 passes=1 budget=none\n",
         "the hunt lines of one run print the shapes of E-07 in the order PD-15 "
@@ -997,6 +1017,31 @@ auto scenarioHuntBlockOrder() -> void
             < lineIndex(run, "hunt: plan summary events="),
         "the summary closes the hunt lines, below the list it summarizes "
         "(PD-15)");
+
+  // The one block of the companion, read beside the block it follows. The
+  // library states which arm this host answers, so both arms carry a claim and
+  // neither reads a host fact the scenario has to assume (FR-016, FR-017).
+  const auto answered = sg::counters::topdownTree(companionAsk());
+  const auto refusal = answered.has_value()
+      ? std::string {}
+      : std::string {answered.error().message()};
+  const auto header = std::string {"topdown: level="};
+  if (answered.has_value()) {
+    check(countOf(run, header) == 1,
+          "one hunter run prints one level-1 block, so the standing call "
+          "stands suppressed on that route (FR-016, D-9)");
+    check(lineIndex(run, header)
+              > lineIndex(run, "hunt: plan summary events="),
+          "the block opens after the hunt block of its benchmark closes, "
+          "which is after the summary line (FR-016, D-9)");
+  } else {
+    check(countOf(run, header) == 0,
+          "a host the selection refuses prints no block, because no tree "
+          "stands to answer one (FR-017)");
+    check(countOf(run, refusal) == 1,
+          "the refusal of the companion prints the one line the run prints "
+          "for its host, once for the process (FR-017)");
+  }
   std::printf("hunt-block-order: ok\n");
 }
 
@@ -1021,13 +1066,16 @@ auto scenarioStageOneOnlyRow() -> void
             == "hunt: plan events=4 passes=1 method=PASSES estimate="
                    "<host-calibrated>ns budget=8p stage1=4 stage2=3\n"
                    "hunt: rank 1 cpu/hunt002 instr=75.000 cv=0.00 "
-                   "correlation=n/a slope=n/a delta=n/a\n"
+                   "correlation=n/a slope=n/a delta=n/a area=unmapped\n"
                    "hunt: rank - cpu/hunt000 instr=25.000 cv=0.00 "
-                   "correlation=n/a slope=n/a delta=n/a mark=beyond-top\n"
+                   "correlation=n/a slope=n/a delta=n/a "
+                   "area=unmapped mark=beyond-top\n"
                    "hunt: rank - cpu/hunt001 instr=50.000 cv=0.00 "
-                   "correlation=n/a slope=n/a delta=n/a mark=beyond-top\n"
+                   "correlation=n/a slope=n/a delta=n/a "
+                   "area=unmapped mark=beyond-top\n"
                    "hunt: rank - cpu/hunt003 instr=100.000 cv=0.00 "
-                   "correlation=n/a slope=n/a delta=n/a mark=unrepeated\n"
+                   "correlation=n/a slope=n/a delta=n/a "
+                   "area=unmapped mark=unrepeated\n"
                    "hunt: plan summary events=4/4 passes=1 budget=8p\n",
         "one row set stands for the two stages: the column only stage 1 "
         "measured prints once, in the tail, marked unrepeated, with the figure "
@@ -1124,6 +1172,190 @@ auto scenarioRankRowMarks() -> void
   std::printf("rank-row-marks: ok\n");
 }
 
+// FR-013, D-13: one ` area=` cell stands after the ` delta=` cell of specs/040
+// and before the flag or the mark that closes the row. The area of a path
+// answer holds spaces, so the cell prints that text whole and the two arms of
+// the row tail print the one cell.
+auto scenarioAreaCellAfterDeltaAndBeforeTheFlag() -> void
+{
+  constexpr std::string_view kArea {
+      "topdown.backend_bound > topdown.intel.tma_l1_bound"};
+  auto table = sg::hunt::EntryHunt {};
+  table.entries = {
+      sg::hunt::RankedEvent {
+          .address = address(1),
+          .rate = 50.0,
+          .cv = 0.0,
+          .samples = 3,
+          .noisy = false,
+          .repeated = true,
+          .multiplexed = true,
+          .rank = 1,
+          .sensitivityCorrelation = std::nullopt,
+          .sensitivitySlope = std::nullopt,
+          .delta = std::nullopt,
+          .topdownArea = std::string {kArea},
+      },
+      sg::hunt::RankedEvent {
+          .address = address(2),
+          .rate = 30.0,
+          .cv = 24.8,
+          .samples = 3,
+          .noisy = true,
+          .repeated = true,
+          .multiplexed = false,
+          .rank = std::nullopt,
+          .sensitivityCorrelation = std::nullopt,
+          .sensitivitySlope = std::nullopt,
+          .delta = std::nullopt,
+          .topdownArea = std::string {kArea},
+      },
+  };
+  const std::string expectedRows {
+      "hunt: rank 1 cpu/hunt001 instr=50.000 cv=0.00 correlation=n/a "
+      "slope=n/a delta=n/a area=topdown.backend_bound > "
+      "topdown.intel.tma_l1_bound multiplexed\n"
+      "hunt: rank - cpu/hunt002 instr=30.000 cv=24.80 correlation=n/a "
+      "slope=n/a delta=n/a area=topdown.backend_bound > "
+      "topdown.intel.tma_l1_bound mark=noisy\n"};
+  check(capturePrint(
+            [&table]
+            { sg::detail::printHuntRanking(table, sg::hunt::HuntNorm::INSTR); })
+            == expectedRows,
+        "the area cell stands between the delta cell and the flag, and the "
+        "mark " "row prints the same cell before its mark (FR-013, D-13)");
+  std::printf("area-cell-after-delta-and-before-the-flag: ok\n");
+}
+
+// FR-014: a record whose area stands empty prints no cell and no separator, so
+// its line keeps every byte `example/docs/hunt_rank.expected:6-10` pins. Those
+// five rows carry the figures of that block, and the check compares the block
+// whole, because a stray space there moves a byte a document already quotes.
+auto scenarioNoAreaCellForAnEmptyMember() -> void
+{
+  auto table = sg::hunt::EntryHunt {};
+  table.entries = {
+      sg::hunt::RankedEvent {
+          .address = "cpu/hunt_branches",
+          .rate = 2000.0,
+          .cv = 0.0,
+          .samples = 3,
+          .noisy = false,
+          .repeated = true,
+          .multiplexed = false,
+          .rank = 1,
+          .sensitivityCorrelation = std::nullopt,
+          .sensitivitySlope = std::nullopt,
+          .delta = std::nullopt,
+      },
+      sg::hunt::RankedEvent {
+          .address = "cpu/hunt_loads",
+          .rate = 1000.0,
+          .cv = 0.0,
+          .samples = 3,
+          .noisy = false,
+          .repeated = true,
+          .multiplexed = false,
+          .rank = 2,
+          .sensitivityCorrelation = std::nullopt,
+          .sensitivitySlope = std::nullopt,
+          .delta = std::nullopt,
+      },
+      sg::hunt::RankedEvent {
+          .address = "cpu/hunt_rtls",
+          .rate = 0.0,
+          .cv = 0.0,
+          .samples = 1,
+          .noisy = false,
+          .repeated = false,
+          .multiplexed = false,
+          .rank = std::nullopt,
+          .sensitivityCorrelation = std::nullopt,
+          .sensitivitySlope = std::nullopt,
+          .delta = std::nullopt,
+      },
+      sg::hunt::RankedEvent {
+          .address = "cpu/hunt_stalls",
+          .rate = 3000.0,
+          .cv = 33.33,
+          .samples = 3,
+          .noisy = true,
+          .repeated = true,
+          .multiplexed = false,
+          .rank = std::nullopt,
+          .sensitivityCorrelation = std::nullopt,
+          .sensitivitySlope = std::nullopt,
+          .delta = std::nullopt,
+      },
+      sg::hunt::RankedEvent {
+          .address = "cpu/hunt_stores",
+          .rate = 0.0,
+          .cv = 0.0,
+          .samples = 3,
+          .noisy = false,
+          .repeated = true,
+          .multiplexed = false,
+          .rank = std::nullopt,
+          .sensitivityCorrelation = std::nullopt,
+          .sensitivitySlope = std::nullopt,
+          .delta = std::nullopt,
+      },
+  };
+  const std::string expectedRows {
+      "hunt: rank 1 cpu/hunt_branches instr=2000.000 cv=0.00 "
+      "correlation=n/a slope=n/a delta=n/a\n"
+      "hunt: rank 2 cpu/hunt_loads instr=1000.000 cv=0.00 "
+      "correlation=n/a slope=n/a delta=n/a\n"
+      "hunt: rank - cpu/hunt_rtls instr=0.000 cv=0.00 "
+      "correlation=n/a slope=n/a delta=n/a mark=unrepeated\n"
+      "hunt: rank - cpu/hunt_stalls instr=3000.000 cv=33.33 "
+      "correlation=n/a slope=n/a delta=n/a mark=noisy\n"
+      "hunt: rank - cpu/hunt_stores instr=0.000 cv=0.00 "
+      "correlation=n/a slope=n/a delta=n/a mark=beyond-top\n"};
+  check(capturePrint([&table] {
+          sg::detail::printHuntRanking(table, sg::hunt::HuntNorm::INSTR);
+        })
+            == expectedRows,
+        "an empty area prints no cell and no separator, so the row keeps the "
+        "bytes the recorded block pins (FR-014)");
+  std::printf("no-area-cell-for-an-empty-member: ok\n");
+}
+
+// FR-005, FR-009: a hunt run stamps every ranked row it prints. The scripted
+// catalog of `detail/hunt_fixture.hpp` names no vendor event, so no node of a
+// tree and no row of a grouping names these addresses, and the cell reads
+// `unmapped` on every host. The recorded example holds no such proof: its rows
+// come from `rankEvents`, which stamps nothing.
+auto scenarioEveryRankedRowOfAHuntRunCarriesAnAreaCell() -> void
+{
+  const auto run = captureRun(withCase(
+      {"--hunt=" + selection({0, 1, 2, kRefusedEvent}), "--hunt-top=2"}));
+  auto rows = std::vector<std::string> {};
+  auto lines = std::istringstream {huntBlock(run)};
+  for (std::string line; std::getline(lines, line);) {
+    if (line.starts_with("hunt: rank ")) {
+      rows.push_back(line);
+    }
+  }
+  check(rows.size() == 3,
+        "the run printed the two ranked rows and the marked row of the tail, "
+        "so " "the claim below reads a full table (E-07)");
+  for (const std::string& row : rows) {
+    const auto area = row.find(" area=unmapped");
+    check(area != std::string::npos,
+          "every ranked row of a hunt run carries one area cell, the marked row "
+          "included, and the scripted catalog answers `unmapped` for it "
+          "(FR-005, FR-009)");
+    check(row.find(" delta=") < area,
+          "the area cell stands after the delta cell of specs/040 (FR-013)");
+    const auto mark = row.find(" mark=");
+    check(mark == std::string::npos || area < mark,
+          "the area cell stands before the mark that closes the row (FR-013, "
+          "D-13)");
+  }
+  std::printf("every-ranked-row-of-a-hunt-run-carries-an-area-cell: ok\n");
+}
+
 // ---------------------------------------------------------------------------
 // The skipped list and the summary line (E-06, E-07, D-10, FR-041)
 // ---------------------------------------------------------------------------
@@ -1177,7 +1409,7 @@ auto scenarioNormalizedIterLine() -> void
             == "hunt: plan events=1 passes=1 method=PASSES estimate="
                    "<host-calibrated>ns budget=none normalized=iter\n"
                    "hunt: rank 1 cpu/hunt000 iter=100.000 cv=0.00 "
-                   "correlation=n/a slope=n/a delta=n/a\n"
+                   "correlation=n/a slope=n/a delta=n/a area=unmapped\n"
                    "hunt: plan summary events=1/1 passes=1 budget=none\n",
         "the norm the run measured under is the norm both the plan line and "
         "the rate column name (D-13, E-07)");
@@ -1258,6 +1490,199 @@ auto scenarioPlanLineAbsentRun() -> void
   std::printf("plan-line-absent-run: ok\n");
 }
 
+// ---------------------------------------------------------------------------
+// The block of the companion (specs/046-hunter-topdown T074, T075; FR-015,
+// FR-016, FR-033, FR-035, FR-036; D-9)
+// ---------------------------------------------------------------------------
+
+// The whole line that first holds `needle`, its end of line removed, and the
+// empty text where no line holds it. A block whose figures a hand-built record
+// states stands compared whole, so a scenario names the line it weighs.
+[[nodiscard]] auto lineHolding(const std::string& text,
+                               const std::string& needle) -> std::string
+{
+  const std::size_t hit = text.find(needle);
+  if (hit == std::string::npos) {
+    return {};
+  }
+  const std::size_t start = text.rfind('\n', hit) + 1;
+  const std::size_t end = text.find('\n', hit);
+  return text.substr(start, end - start);
+}
+
+// Every line of a capture that opens no top-down block: the row, its
+// disclosures and the hunt lines, which are the bytes of the entry record.
+[[nodiscard]] auto withoutTopdownLines(const std::string& text) -> std::string
+{
+  std::string kept;
+  std::istringstream stream(text);
+  std::string line;
+  while (std::getline(stream, line)) {
+    if (line.rfind("topdown: ", 0) == 0) {
+      continue;
+    }
+    kept += line;
+    kept += '\n';
+  }
+  return kept;
+}
+
+// One level of one table, in the shape `stripTopdownColumns` publishes: one
+// node, one figure, and the directory the row came from. A scenario hands two
+// such records to one print, so the directory the block names is the record
+// that reached the console (FR-016).
+[[nodiscard]] auto levelRecord(const std::uint64_t level,
+                               const std::string& directory)
+    -> sg::TopdownRecord
+{
+  auto node = sg::TopdownNode {};
+  node.name = "topdown.backend_bound";
+  node.vendorName = "tma_backend_bound";
+  node.level = 1;
+  node.value = 25.0;
+  node.availability = sg::counters::Availability::COUNTABLE;
+  node.threshold = "tma_backend_bound > 0.2";
+  auto record = sg::TopdownRecord {};
+  record.supported = true;
+  record.directory = directory;
+  record.askedLevel = level;
+  record.level = level;
+  record.nodes = {std::move(node)};
+  return record;
+}
+
+// The record of one hunted benchmark beside the run-level record of the hunt
+// that answered it: the pair that opens the hunt block (E-07, PD-10).
+struct HuntedPair
+{
+  sg::BenchmarkResult result;
+  sg::hunt::RunHunt run;
+};
+
+[[nodiscard]] auto huntedPair() -> HuntedPair
+{
+  auto record = sg::hunt::RankedEvent {
+      .address = address(0),
+      .rate = 50.0,
+      .cv = 0.0,
+      .samples = 3,
+      .noisy = false,
+      .repeated = true,
+      .multiplexed = false,
+      .rank = 1,
+      .sensitivityCorrelation = std::nullopt,
+      .sensitivitySlope = std::nullopt,
+      .delta = std::nullopt,
+  };
+  auto result = sg::BenchmarkResult {};
+  result.name = kCaseName;
+  result.rows = {sg::ResultRow {}};
+  result.hunt = sg::hunt::EntryHunt {
+      .method = sg::MetricMethod::PASSES,
+      .passCount = 14,
+      .top = 20,
+      .entries = {std::move(record)},
+      .skipped = {},
+      .retriedPasses = 0,
+  };
+  return HuntedPair {result, contractRecord(std::nullopt, {address(0)}, 1)};
+}
+
+// One hunter run prints one block. The carrier of the companion prints it, and
+// the standing call of the entry record stands suppressed beside it, which is
+// the split D-9 states and FR-016 words (FR-016, FR-033, D-9).
+auto scenarioAHunterRunPrintsOneTopdownBlock() -> void
+{
+  const auto pair = huntedPair();
+  auto result = pair.result;
+  result.topdown = levelRecord(2, "arch/x86/entrydir");
+  const auto carrier = sg::detail::TopdownCompanion {
+      .record = levelRecord(1, "arch/x86/companiondir"),
+      .passCount = 3,
+  };
+  const auto printed = capturePrint(
+      [&]
+      { sg::detail::printResult(result, pair.run, std::nullopt, carrier); });
+
+  check(countOf(printed, "topdown: level=") == 1,
+        "the hunter run prints one block, because the standing call of the "
+        "entry record stands suppressed where the carrier prints (FR-016, D-9)");
+  check(lineHolding(printed, "topdown: level=")
+            == "topdown: level=1 passes=3 table=arch/x86/companiondir",
+        "the block that prints carries the companion record, under the pass "
+        "count of the collection that measured it (FR-016, FR-033)");
+  check(lineIndex(printed, "topdown: level=")
+            > lineIndex(printed, "hunt: plan summary events="),
+        "the block opens after the hunt block of that benchmark closes "
+        "(FR-016, D-9)");
+  // A collection that reached no strip leaves a record that states no support,
+  // and the block of such a carrier prints no line: the hunt block closes and
+  // the run reads the bytes it read before the companion stood (FR-017).
+  const auto silent = sg::detail::TopdownCompanion {
+      .record = sg::TopdownRecord {},
+      .passCount = 0,
+  };
+  const auto silentPrint = capturePrint(
+      [&] -> void
+      { sg::detail::printResult(result, pair.run, std::nullopt, silent); });
+  check(countOf(silentPrint, "topdown:") == 0,
+        "the carrier of a record that states no support prints no line at all, "
+        "the hunt rows included (FR-017, FR-016)");
+  check(
+      lineHolding(silentPrint, "hunt: plan summary events=")
+          == lineHolding(printed, "hunt: plan summary events="),
+      "the silent carrier moves no byte of the hunt block it follows (FR-015)");
+  std::printf("a-hunter-run-prints-one-topdown-block: ok\n");
+}
+
+// The entry record of a hunter run states its own figures and no further
+// disclosure, because the companion answers a record of its own (FR-015,
+// FR-035, FR-033). The last check reads one record twice: the print without the
+// carrier is the bytes of the base, and the print with it is the bytes of the
+// head.
+auto scenarioEntryRunFiguresStandEqual() -> void
+{
+  const auto pair = huntedPair();
+  auto result = pair.result;
+  auto row = result.rows.front();
+  row.metrics = {sg::MetricValue {.value = 12.5, .pass = 7}};
+  result.rows = {row};
+  result.metricLabels = {address(0)};
+  result.metricMethod = sg::MetricMethod::PASSES;
+  result.passCount = 12;
+  result.passSpread = 1.5;
+  const auto carrier = sg::detail::TopdownCompanion {
+      .record = levelRecord(1, "arch/x86/companiondir"),
+      .passCount = 4,
+  };
+  const auto withCarrier = capturePrint(
+      [&]
+      { sg::detail::printResult(result, pair.run, std::nullopt, carrier); });
+
+  check(lineHolding(withCarrier, "  passes  method=")
+            == "bmHuntReport                 passes  method=passes  count=12"
+               "  spread=1.5%",
+        "the one disclosure line reads the pass figures of the entry record "
+        "(FR-015, FR-035)");
+  check(countOf(withCarrier, "  passes  method=") == 1,
+        "the collection of the companion answers no disclosure line of its own "
+        "(FR-035)");
+  check(countOf(withCarrier, " pass=7") == 1,
+        "the pass cell of the row of the entry record stands (FR-015)");
+  check(lineHolding(withCarrier, "topdown: level=")
+            == "topdown: level=1 passes=4 table=arch/x86/companiondir",
+        "the header of the block states the passes of the collection that ran, "
+        "and no figure of the entry record (FR-033)");
+
+  const auto withoutCarrier =
+      capturePrint([&] { sg::detail::printResult(result, pair.run); });
+  check(withoutTopdownLines(withCarrier) == withoutTopdownLines(withoutCarrier),
+        "every byte the entry record owns stands equal between the print that "
+        "carries the companion and the print that carries none, which is the "
+        "base and the head of one record (FR-015)");
+  std::printf("entry-run-figures-stand-equal-between-base-and-head: ok\n");
+}
+
 // The scenarios of this file: what CTest runs with no argument, and what
 // `argv[1]` selects from. One entry per shape of data-model E-07.
 [[nodiscard]] auto scenarios() -> const std::vector<Scenario>&
@@ -1283,10 +1708,20 @@ auto scenarioPlanLineAbsentRun() -> void
       Scenario {"hunt-block-order", &scenarioHuntBlockOrder},
       Scenario {"stage-one-only-row", &scenarioStageOneOnlyRow},
       Scenario {"rank-row-marks", &scenarioRankRowMarks},
+      Scenario {"area-cell-after-delta-and-before-the-flag",
+                &scenarioAreaCellAfterDeltaAndBeforeTheFlag},
+      Scenario {"no-area-cell-for-an-empty-member",
+                &scenarioNoAreaCellForAnEmptyMember},
+      Scenario {"every-ranked-row-of-a-hunt-run-carries-an-area-cell",
+                &scenarioEveryRankedRowOfAHuntRunCarriesAnAreaCell},
       Scenario {"skipped-list-line", &scenarioSkippedListLine},
       Scenario {"normalized-iter-line", &scenarioNormalizedIterLine},
       Scenario {"hunt-none-silence", &scenarioHuntNoneSilence},
       Scenario {"plan-line-absent-run", &scenarioPlanLineAbsentRun},
+      Scenario {"a-hunter-run-prints-one-topdown-block",
+                &scenarioAHunterRunPrintsOneTopdownBlock},
+      Scenario {"entry-run-figures-stand-equal-between-base-and-head",
+                &scenarioEntryRunFiguresStandEqual},
   };
   return kList;
 }

@@ -86,6 +86,7 @@ add_docs_example(fwq_ftq)
 
 add_docs_example(hunt_rank)
 add_docs_example(hunt_ranks)
+add_docs_example(hunt_topdown)
 add_docs_example(report_views)
 add_docs_example(topdown)
 

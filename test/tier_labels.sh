@@ -75,8 +75,9 @@ tmp, reg_test, reg_example = sys.argv[1:4]
 # T011's and the exceptions block is T044's, so a missing one reads as an
 # empty list here, which is what the audit says about a tree without it.
 # The two top-down rows reserve the skip code for the units T006 and T010
-# register. A name no registration lists yet answers nothing to the check
-# below, so the row costs nothing until its unit exists.
+# register. The groups row reserves it for the grouping unit specs/046-hunter-
+# topdown T012 registers. A name no registration lists yet answers nothing to
+# the check below, so the row costs nothing until its unit exists.
 MASTER_SKIP = {
     "counters_pmu_test": "2",
     "counters_metric_formula_test": "2",
@@ -88,6 +89,7 @@ MASTER_SKIP = {
     "counters_objects_limit_test": "2",
     "counters_topdown_select_test": "2",
     "counters_topdown_source_test": "2",
+    "counters_topdown_groups_test": "2",
     "harness_topdown_run_test": "2",
 }
 

@@ -1412,10 +1412,9 @@ auto projectVersion(const std::filesystem::path& start) -> std::string
 
 // The `SOVERSION` numbers of the build file, space separated and in the
 // order the file states them: one per property line whose first word is
-// `SOVERSION`. A comment is read by nothing here, because the harness chain
-// says four times that an earlier lane left the counters archive at its
-// number, and a search for that number alone reads one of those sentences
-// and calls it a binding (FR-050).
+// `SOVERSION`. A comment is read by nothing here, because the two chains
+// above repeat the numbers earlier lanes left, and a search for one of those
+// numbers alone reads a sentence and calls it a binding (FR-050).
 auto soVersionNumbers(const std::string& cmake) -> std::string
 {
   std::string numbers;
@@ -1436,12 +1435,48 @@ auto soVersionNumbers(const std::string& cmake) -> std::string
   return numbers;
 }
 
+// The `SOVERSION` number one target's own property line states: the first
+// `SOVERSION` line of the block that names that target beside `PROPERTIES`,
+// and an empty text where the file holds no such block. The read starts at
+// the block and stops at its closing parenthesis, so the chains of reasons
+// above the number answer nothing here (specs/046-hunter-topdown FR-028).
+auto soVersionOf(const std::string& cmake,
+                 std::string_view target) -> std::string
+{
+  constexpr std::string_view kProperties {" PROPERTIES"};
+  constexpr std::string_view kSoVersion {"SOVERSION "};
+  std::istringstream lines(cmake);
+  std::string line;
+  bool inside = false;
+  while (std::getline(lines, line)) {
+    const std::size_t word = line.find_first_not_of(" \t");
+    if (word == std::string::npos) {
+      continue;
+    }
+    if (!inside) {
+      inside = line.compare(word, target.size(), target) == 0
+          && line.compare(word + target.size(), kProperties.size(), kProperties)
+              == 0;
+      continue;
+    }
+    if (line[word] == ')') {
+      break;
+    }
+    if (line.compare(word, kSoVersion.size(), kSoVersion) == 0) {
+      const std::size_t start = word + kSoVersion.size();
+      return line.substr(start, line.find_first_of(" \t", start) - start);
+    }
+  }
+  return {};
+}
+
 // FR-050: the version bindings read the numbers the version move lands:
-// the project version `0.30.1`, the harness archive `SOVERSION 20` and the
-// counters archive `SOVERSION 5`. specs/043 FR-005 took the project and the
-// harness pair from the 0.28.0 and 19 that specs/037 landed, and the counters
-// number 5 stands from the layout specs/042-topdown FR-017 adds. Each figure
-// above reads the property line that states it.
+// the project version `0.31.0`, the harness archive `SOVERSION 21` and the
+// counters archive `SOVERSION 6`. specs/043 FR-005 took the project and the
+// harness pair from the 0.28.0 and 19 that specs/037 landed. specs/046 moves
+// the pair again: the counters surface gains a record and its accessor, and
+// the hunt record gains its area text. Each figure below reads the property
+// line of the target it names.
 ///
 /// \pre the root `CMakeLists.txt` can be read
 /// \post the three rows answer the numbers FR-050 moves
@@ -1450,15 +1485,15 @@ auto theVersionBindingsReadTheMovedNumbers(const std::filesystem::path& start)
 {
   const std::string cmake = rootCMakeText(start);
   SG_ASSERT(!cmake.empty(), "pre: the root CMakeLists.txt can be read");
-  check(projectVersion(start) == "0.30.1",
-        "the project version reads 0.30.1 (FR-050)");
-  check(cmake.find("SOVERSION 20") != std::string::npos,
-        "the harness SOVERSION line reads SOVERSION 20 (FR-050)");
-  check(cmake.find("SOVERSION 5") != std::string::npos,
-        "the archive SOVERSION line reads SOVERSION 5 (FR-050)");
-  check(soVersionNumbers(cmake) == "5 20",
-        "the two archive SOVERSION lines read 5 for the counters archive and "
-        "20 for the harness archive, in file order (FR-050)");
+  check(projectVersion(start) == "0.31.0",
+        "the project version reads 0.31.0 (FR-050)");
+  check(soVersionOf(cmake, "speedgun-ng_harness") == "21",
+        "the harness property line reads SOVERSION 21 (FR-050)");
+  check(soVersionOf(cmake, "speedgun-ng_speedgun-ng") == "6",
+        "the counters archive property line reads SOVERSION 6 (FR-050)");
+  check(soVersionNumbers(cmake) == "6 21",
+        "the two archive SOVERSION lines read 6 for the counters archive and "
+        "21 for the harness archive, in file order (FR-050)");
 }
 
 // FR-015, FR-018, SC-008: one line per table row, in table order, each

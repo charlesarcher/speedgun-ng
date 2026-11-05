@@ -38,13 +38,15 @@ using Builder = simdjson::builder::string_builder;
 // inside the per-entry `hunt` object, at 1.10 since specs/039 added the
 // optional `group` key of the context record, at 1.11 since specs/037
 // added the top-level `graph` record, at 1.12 since specs/043 added the
-// `method` key and the `series` array of the `jitter` object, and at 1.13
+// `method` key and the `series` array of the `jitter` object, at 1.13
 // since specs/042-topdown added the `topdown` object of the entry record,
-// the move specs/023/contracts/ schema-file.md states for a key added inside
-// major 1 (specs/027 FR-026, specs/028 FR-086, specs/033 FR-022,
-// specs/040 FR-032, PC-6, specs/039 FR-030, FR-032, specs/037 FR-005,
-// specs/043 FR-006, specs/042-topdown FR-036).
-constexpr std::string_view kSchemaVersion = "1.13";
+// and at 1.14 since specs/046-hunter-topdown added the `topdownArea` key
+// of the per-event node, the move specs/023/contracts/ schema-file.md states
+// for a key added inside major 1 (specs/027 FR-026, specs/028 FR-086,
+// specs/033 FR-022, specs/040 FR-032, PC-6, specs/039 FR-030, FR-032,
+// specs/037 FR-005, specs/043 FR-006, specs/042-topdown FR-036,
+// specs/046-hunter-topdown FR-020).
+constexpr std::string_view kSchemaVersion = "1.14";
 
 // The `source` word of one disclosed use, spelled as the enum of
 // `docs/schema/report-v1.json` states it (specs/028 E-04, FR-040). The
@@ -567,9 +569,11 @@ void writeRow(Builder& builder,
 }
 
 // specs/029 FR-050, contracts/hunt-json.md: the per-entry hunt object, the key
-// `writeEntry` appends. Every key of the closed node stands in the document of
-// every hunt entry; a rank or a stage the run left unset stands `null`, the
-// shape `passSpread` already takes, so no key of the node is ever absent.
+// `writeEntry` appends. Every key of the closed node but one stands in the
+// document of every hunt entry; a rank or a stage the run left unset stands
+// `null`, the shape `passSpread` already takes. `topdownArea` keeps the other
+// rule: it stands only where the member holds a value, and a record no hunt
+// stamped writes no such key (specs/046-hunter-topdown FR-019).
 void writeEntryHunt(Builder& builder, const hunt::EntryHunt& record)
 {
   JsonObjectWriter object(builder);
@@ -602,6 +606,12 @@ void writeEntryHunt(Builder& builder, const hunt::EntryHunt& record)
       putOrNull(builder, entry, "correlation", ranked.sensitivityCorrelation);
       putOrNull(builder, entry, "slope", ranked.sensitivitySlope);
       putOrNull(builder, entry, "delta", ranked.delta);
+      // specs/046-hunter-topdown FR-019, D-11: the area the run settled
+      // stands last in the node, after the three rank figures. A record no
+      // hunt stamped writes no key, the rule the console cell keeps.
+      if (!ranked.topdownArea.empty()) {
+        put(builder, entry, "topdownArea", ranked.topdownArea);
+      }
     }
   }
   object.key("skipped");

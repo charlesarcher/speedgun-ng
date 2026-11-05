@@ -25,6 +25,7 @@
 #include "detail/cli_options.hpp"
 #include "detail/compare.hpp"
 #include "detail/hunt_ranks.hpp"
+#include "detail/hunt_topdown.hpp"
 #include "detail/internal.hpp"
 #include "detail/jitter_probe.hpp"
 #include "detail/json_report.hpp"
@@ -36,6 +37,7 @@
 #include "speedgun-ng/counters_metrics.hpp"
 #include "speedgun-ng/counters_pmu.hpp"
 #include "speedgun-ng/counters_system.hpp"
+#include "speedgun-ng/counters_topdown.hpp"
 #include "speedgun-ng/dbc.hpp"
 
 namespace sg
@@ -300,15 +302,22 @@ auto metricNameFailure(std::span<const MetricName> names) -> int
 // and no exit status moves on this path.
 auto printTopdownRefusal(const RunOptions& options) -> void
 {
-  if (!options.topdownLevel.has_value()) {
+  if (!options.topdownLevel.has_value() && !options.topdownCompanion) {
+    // A run that asks no tree reaches no selection at all: neither the option
+    // word nor the companion of a hunt stands here (FR-017, FR-035).
     return;
   }
-  counters::TopdownSelection selection;
-  selection.identity = options.topdownIdentity.has_value()
-      ? *options.topdownIdentity
-      : counters::cpuIdentity();
-  selection.level = static_cast<int>(*options.topdownLevel);
-  selection.table = options.topdownTable;
+  // specs/046-hunter-topdown FR-033, FR-017, D-17: the selection comes from the
+  // gatherer of the pair, so this line reads the one identity and the one table
+  // the run reads. The level `--topdown` names replaces the level of the
+  // gatherer where it stands, and the ask of the companion keeps the level-1
+  // level of D-9. No refusal kind of the selection depends on the level, so the
+  // line a companion refusal answers is the line the same identity answers at
+  // any level (FR-017).
+  auto selection = topdownAreaSelection(options);
+  if (options.topdownLevel.has_value()) {
+    selection.level = static_cast<int>(*options.topdownLevel);
+  }
   const auto answered = counters::topdownTree(selection);
   if (!answered.has_value()) {
     std::printf("%s\n", topdownRefusalLine(answered.error()).c_str());
@@ -1540,6 +1549,10 @@ auto speedgunMain(int argc, char** argv) -> int
     // shuffled run prints the block the immediate print of an ordered run
     // prints beside the same row.
     std::optional<GraphRunRecord> graph;
+    // specs/046 FR-016, FR-033, D-9 (T085): the instance this row measured
+    // rides the row, so the companion of its hunt can collect after the walk,
+    // over the instance of this row alone.
+    sg::Instance* instance;
   };
 
   std::vector<std::optional<HeldRow>> held(selected.size());
@@ -1553,6 +1566,17 @@ auto speedgunMain(int argc, char** argv) -> int
   // block the console prints behind the join edge is the block the
   // immediate print of an unprobed run prints (D-08, FR-035).
   std::vector<std::optional<hunt::RunHunt>> entryHuntRecords;
+  // specs/046 FR-016, FR-033, FR-036, D-9 (T085): the companion of each entry,
+  // beside the hunt records above and aligned with them. The deferred print
+  // reads it for the block of its own benchmark, and no writer of the document
+  // reads it at all (FR-036).
+  std::vector<std::optional<detail::TopdownCompanion>> entryTopdownRecords;
+  // specs/046 FR-016, FR-033, FR-036, D-9 (T084): the slot and the instance of
+  // every hunted row, in the order the results push. The companion of each row
+  // stands collected below, after the walk, so no entry measures under a pass
+  // that ran another entry's benchmark; the answer of each ride names the slot
+  // the deferred print reads.
+  std::vector<std::pair<std::size_t, sg::Instance*>> companionSlots;
   // specs/037 FR-022, FR-023, R-11 (T023): the graph entry of each entry,
   // beside the hunt records above and aligned with them: the deferred print
   // reads it for the block of its own run, and the document writer reads the
@@ -1585,6 +1609,13 @@ auto speedgunMain(int argc, char** argv) -> int
   // source, stated once for the process ahead of the walk, so it reaches the
   // reader before the first measurement does. A host that answers a tree prints
   // nothing here, and no status moves on the path of a refusal (FR-041).
+  // specs/046-hunter-topdown FR-035, FR-017, D-9: the bit of the companion
+  // stands for a hunter run that names no level. The guard below then reads the
+  // ask of the companion, and the coverage line that follows keeps its gate on
+  // `topdownLevel` alone. No option word settles this bit, and a run with no
+  // hunt never carries it.
+  options.topdownCompanion =
+      options.hunt.has_value() && !options.topdownLevel.has_value();
   printTopdownRefusal(options);
   if (options.topdownLevel.has_value()) {
     if (const auto coverage = counters::coreWideCoverage();
@@ -1672,7 +1703,9 @@ auto speedgunMain(int argc, char** argv) -> int
         resultProbes.push_back(nullptr);
         entryHuntRecords.emplace_back();
         // specs/037 (T023): a fit summarizes runs, it gates no attempt of its
-        // own, so it carries no graph entry and prints no block.
+        // own, so it carries no graph entry and prints no block. specs/046
+        // (T085): the same rule leaves the fit without a companion block.
+        entryTopdownRecords.emplace_back();
         entryGraphRecords.emplace_back();
         // FR-002: a fit stands as its own entry of the document, beside
         // the entries of the runs it summarizes.
@@ -1822,8 +1855,12 @@ auto speedgunMain(int argc, char** argv) -> int
                                 runner.takeRunWindows(),
                                 coveringStates,
                                 runRecord,
-                                graphEntry};
+                                graphEntry,
+                                entry};
     } else {
+      if (options.topdownCompanion) {
+        companionSlots.emplace_back(report.results.size(), entry);
+      }
       report.results.push_back(result);
       entryWindows.push_back(runner.takeRunWindows());
       resultProbes.push_back(coveringStates);
@@ -1834,6 +1871,10 @@ auto speedgunMain(int argc, char** argv) -> int
       }
       entryHuntRecords.push_back(std::move(runRecord));
       entryGraphRecords.push_back(graphEntry);
+      // specs/046 FR-016, D-9: the slot stands empty here and fills below,
+      // after the walk; a hunter run defers its console, so no print reads it
+      // before.
+      entryTopdownRecords.emplace_back();
     }
     // FR-015: the family's probe stops after the family's last
     // instance in the walk, outside the timed windows (FR-006). A
@@ -1901,11 +1942,15 @@ auto speedgunMain(int argc, char** argv) -> int
       if (!consoleDeferred) {
         detail::printResult(row->result, row->hunt, row->graph);
       }
+      if (options.topdownCompanion) {
+        companionSlots.emplace_back(report.results.size(), row->instance);
+      }
       report.results.push_back(row->result);
       entryWindows.push_back(std::move(row->windows));
       resultProbes.push_back(row->states);
       entryHuntRecords.push_back(row->hunt);
       entryGraphRecords.push_back(row->graph);
+      entryTopdownRecords.emplace_back();
       report.rowRaw.push_back(row->raw);
       report.contextRaw.push_back(row->contextRaw);
       if (endsFamily(index)) {
@@ -1920,6 +1965,7 @@ auto speedgunMain(int argc, char** argv) -> int
           // held rows' pointers stand ahead of it (FR-022, E-06).
           resultProbes.push_back(nullptr);
           entryHuntRecords.emplace_back();
+          entryTopdownRecords.emplace_back();
           entryGraphRecords.emplace_back();
           report.rowRaw.emplace_back();
           report.contextRaw.emplace_back();
@@ -1939,6 +1985,7 @@ auto speedgunMain(int argc, char** argv) -> int
     entryWindows.emplace_back();
     resultProbes.push_back(nullptr);
     entryHuntRecords.emplace_back();
+    entryTopdownRecords.emplace_back();
     entryGraphRecords.emplace_back();
     report.rowRaw.emplace_back();
     report.contextRaw.emplace_back();
@@ -1987,8 +2034,34 @@ auto speedgunMain(int argc, char** argv) -> int
     if (key == hunt::HuntRank::SENSITIVITY || key == hunt::HuntRank::DELTA) {
       detail::stampRank(hunted, key);
     }
+    // specs/046 FR-009, D-8: the area of every record of `entries` settles
+    // here, ahead of the move back, so the deferred console, the writer and the
+    // two emit paths all read stamped records. The ask reads the identity and
+    // the table the run plants and the level the pair constant states, and the
+    // level `--topdown` names moves nothing (FR-033, FR-034). A selection that
+    // refuses hands no tree, so every record answers `unmapped`; the refusal
+    // line stays where the `--topdown` lane prints it (FR-005).
+    const auto areaAsk = detail::topdownAreaSelection(options);
+    const auto areaTree = counters::topdownTree(areaAsk);
+    auto areas = std::optional<counters::TopdownTree> {};
+    if (areaTree.has_value()) {
+      areas = *areaTree;
+    }
+    detail::stampTopdownAreas(
+        hunted, areas, counters::topdownEventGroups(areaAsk.identity));
     for (std::size_t index = 0; index < hunted.size(); ++index) {
       report.results[huntedSlots[index]] = std::move(hunted[index]);
+    }
+    // specs/046 FR-016, FR-033, FR-036, D-9 (T084): the companion of each
+    // hunted row collects here, after the walk. Each pass runs the instance of
+    // its own row over one short level-1 collection, and the answer rides the
+    // slot of that row to the print below. No entry measures under a pass that
+    // ran another entry's benchmark, so the figures of the entries stand the
+    // figures of the run before the companion (FR-015). The collector answers
+    // nothing where the ask answers no tree (FR-017).
+    for (const auto& slot : companionSlots) {
+      entryTopdownRecords[slot.first] =
+          detail::topdownCompanionRecord(options, *slot.second);
     }
     // FR-004, B-10: the matching-rules disclosure prints one time, above the
     // tables the stamped figures stand in.
@@ -2042,7 +2115,8 @@ auto speedgunMain(int argc, char** argv) -> int
     for (std::size_t index = 0; index < report.results.size(); ++index) {
       detail::printResult(report.results.at(index),
                           entryHuntRecords.at(index),
-                          entryGraphRecords.at(index));
+                          entryGraphRecords.at(index),
+                          entryTopdownRecords.at(index));
     }
   }
 
