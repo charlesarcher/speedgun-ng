@@ -954,7 +954,8 @@
                     "rank",
                     "correlation",
                     "slope",
-                    "delta"
+                    "delta",
+                    "topdownArea"
                   ],
                   "required": [
                     "address",
@@ -974,7 +975,8 @@
                     "rank": { "type": ["integer", "null"] },
                     "correlation": { "type": ["number", "null"] },
                     "slope": { "type": ["number", "null"] },
-                    "delta": { "type": ["number", "null"] }
+                    "delta": { "type": ["number", "null"] },
+                    "topdownArea": { "type": "string" }
                   }
                 }
               },

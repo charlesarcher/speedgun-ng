@@ -1317,6 +1317,34 @@ auto surfaceCompareRules() -> void
   check(rules.empty(), "a record with no ranked entry answers no rule line");
 }
 
+// The emitted bytes of specs/046 (T068; FR-010, FR-011, D-12, SC-008): an area
+// on every row changes no emitted line. `toCounterSet` and `toCompareRules`
+// answer the same lists before and after the areas ride the records, which is
+// the reading the emit functions of `hunt_plan.cpp` and `hunt_cli.cpp` give,
+// the two files that hold all four emit functions.
+auto emitBytesStandUnderAreas() -> void
+{
+  auto record = sg::hunt::EntryHunt {};
+  record.entries = {rankRow(14, std::size_t {3}),
+                    rankRow(2, std::size_t {1}),
+                    rankRow(11, std::size_t {4}),
+                    rankRow(9, std::size_t {2})};
+
+  const auto setBefore = record.toCounterSet(record.entries.size());
+  const auto rulesBefore = record.toCompareRules(kWideTop, 10.0);
+  for (auto& entry : record.entries) {
+    entry.topdownArea = "backend_bound > memory_bound";
+  }
+
+  const auto setAfter = record.toCounterSet(record.entries.size());
+  const auto rulesAfter = record.toCompareRules(kWideTop, 10.0);
+  check(setAfter == setBefore,
+        "the emitted set stands byte for byte under an area on every row");
+  check(rulesAfter == rulesBefore,
+        "the emitted rule lines stand byte for byte under an area on every "
+        "row");
+}
+
 // ---------------------------------------------------------------------------
 // The rules rows of specs/040-hunter-sensitivity (T026, red; FR-021, FR-024;
 // D-7; contracts/hunt-ranks-api.md B-1)
@@ -2549,6 +2577,7 @@ struct Scenario
       Scenario {"counter-set-repeat", counterSetRepeat},
       Scenario {"surface-default-fields", surfaceDefaultFields},
       Scenario {"surface-compare-rules", surfaceCompareRules},
+      Scenario {"emit-bytes-stand-under-areas", emitBytesStandUnderAreas},
       Scenario {"rules-line-grammar", rulesLineGrammar},
       Scenario {"rules-cap-and-order", rulesCapAndOrder},
       Scenario {"rules-unranked-no-line", rulesUnrankedNoLine},

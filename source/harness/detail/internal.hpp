@@ -750,6 +750,15 @@ struct RunOptions
   // option stood.
   std::optional<std::uint64_t> topdownLevel;
 
+  // specs/046-hunter-topdown FR-035, D-9: the bit that names the level-1 ask of
+  // the companion of a hunter run. A clear bit is a run that asks no companion,
+  // which is every run until its own entry point sets the bit for a hunt. The
+  // bit tells the ask of the companion from the ask of `--topdown`, so the two
+  // lines FR-035 names stay behind the option the user named. No option word
+  // settles this bit, no header under `include/speedgun-ng/` carries it, and no
+  // rule of the runner reads it.
+  bool topdownCompanion = false;
+
   // specs/042-topdown FR-018, PC-9: the rows the selection reads, spelled the
   // way `TopdownSelection::table` spells the table a test hands in. An absent
   // optional is a production run, where the selection reads the table of the
@@ -1322,6 +1331,95 @@ auto printTopologyListing(const MachineLayout&) -> void;
  */
 auto printContext(bool placementInEffect) -> void;
 
+/// The level the companion of a hunter run hands `TopdownSelection::level`: the
+/// level-1 ask of D-9. It stands apart from `kTopdownAreaLevel` of the area
+/// ask, so the deep tree answers no block and the level-1 tree answers no area.
+/// The two asks of one run differ in this figure alone (FR-033, FR-034, D-17).
+/// The range 1 to 6 that `topdownTree` enforces covers it.
+inline constexpr std::uint64_t kTopdownCompanionLevel {1};
+
+/**
+ * @brief specs/046-hunter-topdown FR-016, FR-033, FR-036, D-9: the answer of
+ * the companion of one hunter run, as the console reads it.
+ *
+ * `record` is the level-1 record of the one collection the companion ran, and
+ * `passCount` is the number of passes of that collection. The header of the
+ * block prints the pair together, so the pair rides the carrier. The figure of
+ * the entry record names another collection, and no other figure names the
+ * companion's own (FR-033).
+ *
+ * The carrier is internal. It reaches the console alone, it writes no document,
+ * and no record under `include/speedgun-ng/` carries it (FR-036, D-11).
+ *
+ * The struct is data: it holds no call to guard. The shape no member may break
+ * is the pair above: one record beside the pass count of its own collection. A
+ * record that states no support prints no block, which is how a collection that
+ * reached no strip still reaches no line.
+ *
+ * \pre none
+ * \post none
+ * \invariant none
+ */
+struct TopdownCompanion
+{
+  sg::TopdownRecord record;
+  std::size_t passCount = 0;
+};
+
+/**
+ * @brief specs/046-hunter-topdown FR-033, FR-035, D-9: the option set of the
+ * companion of one hunter run.
+ *
+ * The answer is a fresh set that carries nothing of the run beyond the ask and
+ * the two figures D-9 names. `topdownIdentity` and `topdownTable` read the
+ * selection `topdownAreaSelection` resolves for the pair, so the identity and
+ * the table read stand identical to the area ask of the same run.
+ * `topdownLevel` names `kTopdownCompanionLevel`, the one field the two asks
+ * differ in. `repetitions` and `fixedIterations` name one, so the collection
+ * costs one short pass and no calibration run. `dryRun` reads `options`, so a
+ * dry run leaves the companion a dry run too. `topdownCompanion` stands set. No
+ * hunt, no counter address, no group and no metric method rides the answer, and
+ * the shape is the one `source/harness/hunt.cpp:420-427` states for the run of
+ * a stage.
+ *
+ * \pre none
+ * \post `topdownLevel` names `kTopdownCompanionLevel`, `repetitions` and
+ *       `fixedIterations` name one, `dryRun` reads `options`, and the identity
+ *       and the table of the answer read the selection of the pair (FR-033,
+ *       FR-035)
+ * \invariant the answer reads `options` alone: no clock, no counter and no
+ *            kernel interface enters it (FR-030)
+ */
+[[nodiscard]] auto topdownCompanionOptions(const RunOptions& options)
+    -> RunOptions;
+
+/**
+ * @brief specs/046-hunter-topdown FR-016, FR-017, FR-033, FR-036, D-9: the
+ * level-1 collection of the companion of one hunter run.
+ *
+ * Three answers, in that order. A run whose `topdownCompanion` bit stands clear
+ * answers nothing and reaches no pass. A run whose ask answers no tree answers
+ * nothing and reaches no pass either: the one line of the refusal stands on the
+ * command line, and no block prints (FR-017). Every other run collects once,
+ * through one `Runner` over `topdownCompanionOptions`, and answers the record
+ * of that collection beside the pass count of the same collection.
+ *
+ * The pass reaches the runner with no hunt plan on the instance, so neither the
+ * retried list nor the refused list of the handoff gains an entry of the
+ * companion (FR-036). The answer never reaches `BenchmarkResult::topdown` of
+ * the entry record, so the document of the run keeps its former bytes (FR-036,
+ * D-11).
+ *
+ * \pre none
+ * \post the answer stands empty where `topdownCompanion` stands clear or where
+ *       the ask answers no tree; every other answer carries the record of the
+ * one collection and the pass count of that same collection (FR-033, FR-036)
+ * \invariant the answer reads `options` and `instance` alone
+ */
+[[nodiscard]] auto topdownCompanionRecord(const RunOptions& options,
+                                          Instance& instance)
+    -> std::optional<TopdownCompanion>;
+
 /**
  * @brief Format one benchmark result in fixed columns (FR-035, FR-036).
  *
@@ -1338,11 +1436,20 @@ auto printContext(bool placementInEffect) -> void;
  * slot order FR-023 fixes. An empty entry prints no block, so a run with
  * no `--graph` prints the bytes it printed before the record existed
  * (FR-006, SC-001).
+ *
+ * specs/046-hunter-topdown FR-016, FR-033, FR-036, D-9: `companion` carries the
+ * level-1 record of the collection a hunter run ran beside its hunt, beside the
+ * passes of that collection. Its block prints after the hunt block of the same
+ * result. The standing call of `result.topdown` then stands suppressed for that
+ * result, so one block prints either way. The carrier reaches the console alone
+ * and writes no document. A run that carries none prints the bytes it printed
+ * before the companion stood (FR-015, FR-035).
  */
-auto printResult(const BenchmarkResult& result,
-                 const std::optional<hunt::RunHunt>& run = std::nullopt,
-                 const std::optional<GraphRunRecord>& graph = std::nullopt)
-    -> void;
+auto printResult(
+    const BenchmarkResult& result,
+    const std::optional<hunt::RunHunt>& run = std::nullopt,
+    const std::optional<GraphRunRecord>& graph = std::nullopt,
+    const std::optional<TopdownCompanion>& companion = std::nullopt) -> void;
 
 /// @brief Print the console probe block, one column per probe cpu in the
 /// E-03 order, and the run-level disclosure lines in the end-of-report
@@ -1521,8 +1628,36 @@ auto stripTopdownColumns(sg::BenchmarkResult& result,
  * sentence, so the line comes from that selection, which reads no path, no
  * event and no counter. No option reaches no selection, a tree prints nothing,
  * and no status moves.
+ *
+ * specs/046-hunter-topdown FR-017, FR-035, D-9: the guard reads the companion
+ * bit beside the level, so a hunter run that asks the level-1 tree of a host
+ * with no table prints this one line too. The line prints once per process
+ * either way, because this call stands once ahead of the walk and holds no
+ * state.
  */
 auto printTopdownRefusal(const RunOptions& options) -> void;
+
+/**
+ * @brief specs/046-hunter-topdown FR-001, FR-033, FR-034, D-17: the area ask of
+ * one option set: the selection a run hands `topdownTree` for the deepest tree
+ * it holds.
+ *
+ * The answer carries the three fields of that one ask. `identity` reads
+ * `topdownIdentity` where a run plants one, and the identity of the cpu this
+ * process runs on where none stands. `table` reads `topdownTable`. `level`
+ * reads `kTopdownAreaLevel`. No field of the ask reads `topdownLevel`, so the
+ * level a `--topdown` row names cannot move the area ask (FR-034). This
+ * gatherer resolves the identity once, so the area ask and the level-1 ask of
+ * D-9 hold one identity and one table read between them (D-17).
+ *
+ * \pre none
+ * \post `level` reads `kTopdownAreaLevel`, `identity` reads the planted
+ * identity or the cpu's own answer, and `table` reads the planted table
+ * (FR-001, FR-033) \invariant the answer reads `options` alone: no clock, no
+ * counter and no kernel interface enters it (FR-030)
+ */
+[[nodiscard]] auto topdownAreaSelection(const RunOptions& options)
+    -> sg::counters::TopdownSelection;
 
 /**
  * @brief Walk the counter addresses every source named and print the first

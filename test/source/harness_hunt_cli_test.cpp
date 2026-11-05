@@ -74,6 +74,13 @@ constexpr const char* kScriptNoInstr = "noinstr";
 // met at its first seat.
 constexpr const char* kScriptRankSpread = "rankspread";
 constexpr const char* kScriptSeatRefuse = "seatrefuse";
+// `refused` is the full host beside one event the host refuses outright, the
+// shape that puts one row on the skipped list. The companion scenarios name it,
+// because FR-036 states which skipped rows a hunter run prints.
+constexpr const char* kScriptRefused = "refused";
+// The index of the event the `refused` host refuses, the same index the report
+// lane scripts for its skipped list.
+constexpr std::size_t kRefusedEvent = 7;
 // `narrowgiraffe` is the `narrow` host beside the out-of-tree device of the
 // giraffe provider of specs/007: a path two levels deep, so its address carries
 // two slashes and the device the limit list keys by is not the text before the
@@ -257,6 +264,13 @@ auto registerHost(const std::string& script) -> void
         .setPoints("machine", "thread_cpu", {0}, 0, 7)
         .setPoints("cpu", "hunt000", {0}, 0, 7)
         .setPoints("cpu", "hunt001", {0}, 0, 7);
+  } else if (script == kScriptRefused) {
+    sg::test::huntHost(*provider, kFullLimit)
+        .addCounter(sg::test::kHuntCpu,
+                    sg::test::huntEvent(kRefusedEvent),
+                    "none",
+                    "a refused event",
+                    sg::counters::Availability::PERMISSION_BLOCKED);
   } else if (script == kScriptSeatRefuse) {
     sg::test::huntHost(*provider, kFullLimit)
         .setGroupLeafLimit(sg::test::kHuntCpu, 0);
@@ -1848,9 +1862,9 @@ auto scenarioRankTableCarriesTheNewColumns() -> void
   const auto rows = huntLines(run, "hunt: rank ");
   const std::vector<std::string> wanted {
       "hunt: rank 1 cpu/hunt001 instr=50.000 cv=0.00 correlation=n/a "
-          "slope=n/a delta=n/a",
+          "slope=n/a delta=n/a area=unmapped",
       "hunt: rank 2 cpu/hunt000 instr=25.000 cv=0.00 correlation=n/a "
-          "slope=n/a delta=n/a"};
+          "slope=n/a delta=n/a area=unmapped"};
   check(rows == wanted,
         "the table carries the correlation, the slope and the delta cells "
         "beside the standing rate and CV cells, and an unmeasured figure "
@@ -1873,13 +1887,13 @@ auto scenarioRankTableCarriesTheNewColumns() -> void
   const auto cappedRows = huntLines(capped, "hunt: rank ");
   const std::vector<std::string> cappedWanted {
       "hunt: rank 1 cpu/hunt003 instr=100.000 cv=0.00 correlation=n/a "
-          "slope=n/a delta=n/a",
+          "slope=n/a delta=n/a area=unmapped",
       "hunt: rank 2 cpu/hunt002 instr=75.000 cv=0.00 correlation=n/a "
-          "slope=n/a delta=n/a",
+          "slope=n/a delta=n/a area=unmapped",
       "hunt: rank - cpu/hunt000 instr=25.000 cv=0.00 correlation=n/a "
-          "slope=n/a delta=n/a mark=beyond-top",
+          "slope=n/a delta=n/a area=unmapped mark=beyond-top",
       "hunt: rank - cpu/hunt001 instr=50.000 cv=0.00 correlation=n/a "
-          "slope=n/a delta=n/a mark=beyond-top"};
+          "slope=n/a delta=n/a area=unmapped mark=beyond-top"};
   check(cappedRows == cappedWanted,
         "the cap leaves the top two rows ranked and the tail marked "
         "beyond-top, every row carrying the new cells beside the standing "
@@ -3026,6 +3040,248 @@ auto scenarioEmitSetRoundTrip() -> void
   std::printf("emit-set-round-trip: ok\n");
 }
 
+// ---------------------------------------------------------------------------
+// The level-1 block of a hunter run (specs/046-hunter-topdown T076 to T080;
+// FR-015 to FR-017, FR-033 to FR-036; D-9, D-11, D-17)
+// ---------------------------------------------------------------------------
+
+// The tree one level of the pair asks of this host. `level` names which of the
+// two asks of one run the call reads: the area ask holds the deepest level, and
+// the companion asks level 1 (FR-033, D-17). Every scenario below reads its own
+// answer first, so no check assumes a table the machine it runs on does not
+// hold (FR-016, FR-017).
+[[nodiscard]] auto treeAt(const int level)
+    -> std::expected<sg::counters::TopdownTree,
+                     sg::counters::TopdownUnsupported>
+{
+  auto ask = sg::detail::topdownAreaSelection(sg::detail::RunOptions {});
+  ask.level = level;
+  return sg::counters::topdownTree(ask);
+}
+
+// A hunter run gains neither of the two lines FR-035 keeps behind `--topdown`:
+// no core-wide coverage line, and no pass disclosure of the companion's own
+// collection. The block stands in the same capture, so the two silences are a
+// rule about a run that prints, and not an empty run.
+auto scenarioHunterPrintsNoCoverageLineAndNoSecondDisclosure() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+  const auto run =
+      captureRun(withFilter({"--hunt=" + address(0) + "," + address(1)}));
+  check(countOf(run, "topdown: core-wide coverage=") == 0,
+        "a hunter run prints no core-wide coverage line, the line `--topdown` "
+        "alone owns (FR-035)");
+  check(countOf(run, "  passes  method=") == 0,
+        "a hunter run prints no pass disclosure of the companion\'s collection, "
+        "because the entry record collects no further pass (FR-035, FR-015)");
+  if (treeAt(1).has_value()) {
+    check(countOf(run, "topdown: level=") == 1,
+          "the run that prints neither line above prints one level-1 block, so "
+          "the two silences name a rule and not an empty run (FR-016, FR-035)");
+    check(
+        lineHolding(run, "topdown: level=")
+            .starts_with("topdown: level=1 passes="),
+        "the block names the level the companion asks for, and the passes of "
+        "its own collection (FR-033, FR-034)");
+  } else {
+    check(countOf(run, "topdown: level=") == 0,
+          "a hunter run on a host that answers no tree prints no block, the "
+          "bytes of the run with no option at all (FR-017)");
+  }
+  // The held walk of `--interleave` reads the same answer: the row carries the
+  // instance its own companion pass ran over, and the deferred print reads the
+  // slot that answer holds (T085, FR-016).
+  const auto held =
+      captureRun(withFilter({"--hunt=" + address(0), "--interleave"}));
+  check(countOf(held, "topdown: core-wide coverage=") == 0,
+        "the held walk of a hunter run prints no core-wide coverage line "
+        "either (FR-035)");
+  if (treeAt(1).has_value()) {
+    check(countOf(held, "topdown: level=") == 1,
+          "a hunter run that holds its rows prints one block too, because the "
+          "instance rides the held row (FR-016)");
+  } else {
+    check(countOf(held, "topdown: level=") == 0,
+          "a hunter run that holds its rows prints no block where the host "
+          "answers no tree (FR-017)");
+  }
+  std::printf(
+      "a-hunter-run-prints-no-coverage-line-and-no-second-disclosure: ok\n");
+}
+
+// The level `--topdown` names is the level of the one block of a hunter run,
+// and the implicit level 1 of D-9 applies only where no `--topdown` stands. Two
+// runs of one benchmark state the two halves (FR-033, FR-034, D-17).
+auto scenarioTopdownLevelNamesTheBlockOfAHunterRun() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+  const std::string hunt = "--hunt=" + address(0) + "," + address(1);
+  const auto named = captureRun(withFilter({hunt, "--topdown=2"}));
+  const auto deep = treeAt(2);
+  const auto flat = treeAt(1);
+
+  check(countOf(named, "topdown: core-wide coverage=") <= 1,
+        "one run prints the coverage line at most once, the one-per-process "
+        "rule of the single call (FR-035)");
+  check(countOf(named, "topdown: level=") == 1,
+        "one run of one benchmark answers one block, so the named level admits "
+        "no second block of the companion (FR-016, FR-034)");
+  if (deep.has_value()) {
+    const auto header = "topdown: level=" + std::to_string(deep->depth);
+    check(lineHolding(named, "topdown: level=").starts_with(header + " passes="),
+          "the header states the level the option named, clamped to the depth "
+          "the table holds (FR-034, FR-016)");
+  } else {
+    check(countOf(named, "topdown: level=") == 0,
+          "a host that answers no tree for the named level prints no block "
+          "(FR-017)");
+  }
+
+  // The same run without the option: the implicit level 1 of D-9 stands where
+  // no
+  // `--topdown` names a level, and it stands once (FR-033, FR-034).
+  const auto implicitRun = captureRun(withFilter({hunt}));
+  if (flat.has_value()) {
+    check(countOf(implicitRun, "topdown: level=") == 1,
+          "the same hunt with no `--topdown` prints one block, the implicit "
+          "level-1 companion of D-9 (FR-016, FR-034)");
+    check(lineHolding(implicitRun, "topdown: level=")
+              .starts_with("topdown: level=1 passes="),
+          "the block of a run that names no level states level 1 (FR-033, "
+          "FR-034)");
+  } else {
+    check(countOf(implicitRun, "topdown: level=") == 0,
+          "the same hunt with no `--topdown` prints no block on a host that "
+          "answers no tree (FR-017)");
+  }
+  std::printf("a-topdown-level-names-the-block-of-a-hunter-run: ok\n");
+}
+
+// The companion pass reaches the runner with the handoff clear, so a hunter run
+// answers only the skipped rows of its own plan. The host scripts one refused
+// event, so the plan names one row and the run prints exactly that row (FR-036,
+// FR-015; `source/harness/hunt.cpp:1077-1088`).
+auto scenarioCompanionPassAddsNoSkippedRow() -> void
+{
+  registerHost(kScriptRefused);
+  registerCase();
+  const auto run =
+      captureRun(withFilter({"--hunt=" + address(0) + "," + address(1) + ","
+                             + address(kRefusedEvent)}));
+  const auto rows = huntLines(run, "hunt: skipped ");
+  check(rows.size() == 1,
+        "the hunter run prints one skipped row, the row its own plan answered "
+        "(FR-036)");
+  if (rows.size() == 1) {
+    check(rows.front() == "hunt: skipped " + address(kRefusedEvent)
+                              + " permission-blocked",
+          "the one skipped row names the refused event of the plan and no node "
+          "of the companion\'s collection (FR-036)");
+  }
+  check(countOf(run, "hunt: plan summary events=") == 1,
+        "the summary line of the plan closes the hunt block once, the bytes "
+        "the " "mask of contracts/console-cell.md holds (FR-015)");
+  if (treeAt(1).has_value()) {
+    check(countOf(run, "topdown: level=") == 1,
+          "the run that prints one skipped row prints one block, so the row "
+          "count above is a rule about a run that collected (FR-016, FR-036)");
+  }
+  std::printf("the-companion-pass-adds-no-skipped-row: ok\n");
+}
+
+// The companion\'s answer reaches the console alone: the document of the same
+// run carries no top-down object, because the writer reads
+// `BenchmarkResult::topdown` and the companion leaves that field unset (FR-036,
+// D-11).
+auto scenarioHunterDocumentCarriesNoTopdownObject() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+  std::remove(documentPath().c_str());
+  const auto run =
+      captureRun(withFilter({"--hunt=" + address(0) + "," + address(1),
+                             "--json=" + std::string(documentPath())}));
+  const std::string document = readAll(documentPath());
+  check(!document.empty(), "the hunter run wrote its document");
+  check(document.find("\"topdown\"") == std::string::npos,
+        "the document of a hunter run carries no topdown key, the key the "
+        "writer " "writes only from `BenchmarkResult::topdown` (FR-036, D-11)");
+  check(document.find("\"hunt\":{") != std::string::npos,
+        "the same document carries the hunt objects of the run, so the absence "
+        "above is the channel and not an empty report (FR-036, FR-050)");
+  if (treeAt(1).has_value()) {
+    check(countOf(run, "topdown: level=") == 1,
+          "the console of that run carries one level-1 block, the one channel "
+          "the companion answer reaches (FR-016, FR-036)");
+  }
+  std::printf("a-hunter-document-carries-no-topdown-object: ok\n");
+}
+
+// The refusal of the companion prints one line for the process and moves no
+// status (FR-017, D-9). No option plants an identity on a command line, so the
+// guard reads at the record seam, where a unit hands the identity
+// `RunOptions::topdownIdentity` states, and the status reads on a run. Each arm
+// states what it weighs (FR-041).
+auto scenarioRefusedHostPrintsOneRefusalLineAndKeepsTheStatus() -> void
+{
+  registerHost(kScriptFull);
+  registerCase();
+
+  // The identity no vendored table serves: no vendor text at all, which is the
+  // first refusal kind the selection answers.
+  const auto planted = sg::counters::CpuIdentity {};
+  auto ask = sg::counters::TopdownSelection {};
+  ask.identity = planted;
+  ask.level = 1;
+  const auto answered = sg::counters::topdownTree(ask);
+  check(
+      !answered.has_value(),
+      "the planted identity answers no tree, the host the row names (FR-017)");
+  if (answered.has_value()) {
+    return;
+  }
+  const auto expected = sg::detail::topdownRefusalLine(answered.error());
+
+  auto companion = sg::detail::RunOptions {};
+  companion.topdownCompanion = true;
+  companion.topdownIdentity = planted;
+  const auto printed = capturePrint(
+      [&companion] { sg::detail::printTopdownRefusal(companion); });
+  check(printed == expected + "\n",
+        "the widened guard prints the one line the counters library owns, once "
+        "for the bit alone, with no level named (FR-017, FR-041)");
+
+  // The bit alone reaches the guard. The same option set with the bit clear
+  // asks no tree, so it prints the bytes it printed before the companion stood:
+  // none (FR-035, FR-017).
+  auto silent = companion;
+  silent.topdownCompanion = false;
+  check(capturePrint([&silent] { sg::detail::printTopdownRefusal(silent); })
+            .empty(),
+        "a run that asks neither `--topdown` nor the companion prints no "
+        "refusal line (FR-035, FR-017)");
+
+  // The status: a hunter run stands where the same run with no option stands,
+  // whether this host answers the level-1 ask or refuses it (FR-017, AC-2).
+  const std::string hunt = "--hunt=" + address(0) + "," + address(1);
+  const auto hunted = captureRun(withFilter({hunt}));
+  captureRun(withFilter({}));
+  if (treeAt(1).has_value()) {
+    check(countOf(hunted, expected) == 0,
+          "a host that answers the ask prints no refusal line at all (FR-017, "
+          "FR-041)");
+  } else {
+    check(countOf(hunted, sg::detail::topdownRefusalLine(treeAt(1).error()))
+              == 1,
+          "a host that refuses the ask prints that one line one time for the "
+          "process, and the run keeps the status of the run above (FR-017)");
+  }
+  std::printf(
+      "a-refused-host-prints-one-refusal-line-and-keeps-the-status: ok\n");
+}
+
 [[nodiscard]] auto scenarios() -> const std::vector<Scenario>&
 {
   static const std::vector<Scenario> kList {
@@ -3110,6 +3366,16 @@ auto scenarioEmitSetRoundTrip() -> void
       Scenario {"hunt-with-probe", &scenarioHuntWithProbe},
       Scenario {"hunt-with-threads-and-interleave",
                 &scenarioHuntWithThreadsAndInterleave},
+      Scenario {"a-hunter-run-prints-no-coverage-line-and-no-second-disclosure",
+                &scenarioHunterPrintsNoCoverageLineAndNoSecondDisclosure},
+      Scenario {"a-topdown-level-names-the-block-of-a-hunter-run",
+                &scenarioTopdownLevelNamesTheBlockOfAHunterRun},
+      Scenario {"the-companion-pass-adds-no-skipped-row",
+                &scenarioCompanionPassAddsNoSkippedRow},
+      Scenario {"a-hunter-document-carries-no-topdown-object",
+                &scenarioHunterDocumentCarriesNoTopdownObject},
+      Scenario {"a-refused-host-prints-one-refusal-line-and-keeps-the-status",
+                &scenarioRefusedHostPrintsOneRefusalLineAndKeepsTheStatus},
   };
   return kList;
 }

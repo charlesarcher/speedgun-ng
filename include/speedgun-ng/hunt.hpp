@@ -469,6 +469,17 @@ struct RankedEvent
   std::optional<double> sensitivityCorrelation;
   std::optional<double> sensitivitySlope;
   std::optional<double> delta;
+  // specs/046-hunter-topdown FR-014, FR-019, D-8: the top-down area of this
+  // event: the path of the deepest node that names it, else the stem of the
+  // vendor file that holds its row, else `unmapped` (D-3, D-4, D-10). An empty
+  // text names a record no hunt stamped, which is a document older than minor
+  // 1.14 or a record a caller built by hand. The console cell and the document
+  // key read this member, and no rank, budget or emitted byte reads it.
+  // The compiler gate needs the brace: a record built by hand and naming no
+  // area must keep its bytes (FR-010, FR-019). The lint check reads that brace
+  // as redundant, so the site excuses it.
+  // NOLINTNEXTLINE(readability-redundant-member-init)
+  std::string topdownArea {};
 };
 
 /**

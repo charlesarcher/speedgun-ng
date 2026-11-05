@@ -947,6 +947,7 @@ The run writes its document at `--json=path`, loads it back with `loadReport`, a
 | `GraphEdgeRecord` | type | One dependency pair of node names | [execution graphs](#execution-graphs) |
 | `GraphHeldRecord` | type | One held node and the failed node that gates it | [execution graphs](#execution-graphs) |
 | `ReportData::graph` | field | The record a loaded document carried, empty for none | [execution graphs](#execution-graphs) |
+| `RankedEvent::topdownArea` | field | The pipeline area one hunt run settled for the ranked row | [hunter mode](#hunter-mode) |
 
 | Option | What it does |
 | --- | --- |

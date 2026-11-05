@@ -108,9 +108,20 @@ auto versionRuleGatesTheReader() -> void
     return mutated;
   };
 
-  sg::test::writeText("harness_json_load_minor.json", withVersion("\"1.13\""));
+  sg::test::writeText("harness_json_load_minor.json", withVersion("\"1.15\""));
   check(sg::loadReport("harness_json_load_minor.json").has_value(),
         "a later minor of the same major loads (FR-010)");
+
+  // The minor the writer stamps, `kSchemaVersion` of
+  // `source/harness/json_report.cpp`, is the current one for the reader: it
+  // loads and answers that text through `schemaVersion` (specs/046 FR-020,
+  // FR-023, SC-003).
+  sg::test::writeText("harness_json_load_nowminor.json",
+                      withVersion("\"1.14\""));
+  const auto current = sg::loadReport("harness_json_load_nowminor.json");
+  check(current.has_value() && current->schemaVersion == "1.14",
+        "a document at the minor this build stamps loads and answers it "
+        "(specs/046-hunter-topdown FR-020, SC-003)");
 
   sg::test::writeText("harness_json_load_major.json", withVersion("\"2.0\""));
   const auto refused = sg::loadReport("harness_json_load_major.json");
@@ -334,6 +345,9 @@ auto theHuntRankFieldsLoadBackEqual() -> void
   measured.sensitivityCorrelation = 0.75;
   measured.sensitivitySlope = 2.5;
   measured.delta = -12.5;
+  // The area one hunt run settled for this row, a path of two node names, the
+  // spelling `topdownPathOf` answers (specs/046-hunter-topdown FR-019).
+  measured.topdownArea = "backend_bound > memory_bound";
   hunt.entries.push_back(measured);
 
   // The figures the run did not measure: the writer spells them `null`
@@ -383,11 +397,197 @@ auto theHuntRankFieldsLoadBackEqual() -> void
   check(first.delta.has_value() && sg::test::sameValue(*first.delta, -12.5),
         "the delta reads back the figure the run measured (FR-031, B-9)");
 
+  check(first.topdownArea == "backend_bound > memory_bound",
+        "the area reads back the path the run settled "
+        "(specs/046-hunter-topdown FR-021)");
+
   const sg::hunt::RankedEvent& second = loaded->results[0].hunt->entries[1];
   check(!second.sensitivityCorrelation.has_value()
             && !second.sensitivitySlope.has_value()
             && !second.delta.has_value(),
         "a figure the run did not measure reads back `null` (FR-031, B-9)");
+  check(second.topdownArea.empty(),
+        "a record no hunt stamped reads back with no area "
+        "(specs/046-hunter-topdown FR-019, FR-021)");
+}
+
+// The machine `contracts/document-key.md` names for SC-002 (T054): the
+// standing writer writes a hunt document whose records carry areas, the
+// standing reader hands every one of them back, and a second writing of the
+// loaded values answers the same bytes. No other unit of this file meets the
+// writer and the reader with areas on more than one record (FR-018, FR-021,
+// SC-002).
+auto theAreaKeyReadsBackEqual() -> void
+{
+  constexpr const char* const kAreas = "harness_json_load_areas.json";
+  constexpr const char* const kRetold = "harness_json_load_areas_again.json";
+  const auto row = [](const char* const address,
+                      const std::size_t rank,
+                      const std::string_view area) -> sg::hunt::RankedEvent
+  {
+    auto entry = sg::hunt::RankedEvent {};
+    entry.address = address;
+    entry.rate = 1000.0 - static_cast<double>(rank);
+    entry.cv = 0.5;
+    entry.rank = rank;
+    entry.topdownArea = std::string(area);
+    return entry;
+  };
+
+  sg::detail::RunOptions options;
+  options.fixedIterations = sg::test::kWindowIterations;
+  auto run = sg::test::scriptedRun(options);
+  sg::hunt::EntryHunt hunt;
+  hunt.method = sg::MetricMethod::AUTO;
+  hunt.passCount = 1;
+  hunt.top = 8;
+  hunt.retriedPasses = 0;
+  hunt.entries = {
+      row("event.gamma", 1, "backend_bound > memory_bound"),
+      row("event.delta", 2, "pipeline"),
+      row("event.epsilon", 3, ""),
+  };
+
+  run.result.hunt = hunt;
+  sg::ReportData data;
+  data.results.push_back(run.result);
+  data.rowRaw = run.rowRaw;
+  data.contextRaw = run.contextRaw;
+  check(sg::detail::writeReport(kAreas, data),
+        "the writer wrote the document whose records carry areas (FR-019)");
+
+  const auto loaded = sg::loadReport(kAreas);
+  if (!loaded.has_value() || loaded->results.empty()
+      || !loaded->results[0].hunt.has_value())
+  {
+    std::printf("  %s\n", loaded.has_value() ? "" : loaded.error().c_str());
+    sg::test::fail("the reader refused the document that carries the areas");
+    return;
+  }
+  const auto& entries = loaded->results[0].hunt->entries;
+  check(entries.size() == 3, "the reader answers all three records (SC-002)");
+  if (entries.size() != 3) {
+    return;
+  }
+  check(entries[0].topdownArea == "backend_bound > memory_bound",
+        "the path of the first record reads back (FR-021, SC-002)");
+  check(entries[1].topdownArea == "pipeline",
+        "the stem of the second record reads back (FR-021, SC-002)");
+  check(entries[2].topdownArea.empty(),
+        "the record that names no area reads back with none (FR-021)");
+
+  check(sg::detail::writeReport(kRetold, *loaded),
+        "the writer wrote the loaded values again (FR-011)");
+  check(sg::test::readText(kRetold) == sg::test::readText(kAreas),
+        "the second writing is byte for byte the first (FR-018, SC-002)");
+}
+
+// The document a build one minor behind wrote: the version rule reads the
+// major alone, and a writer of minor 1.13 knew no area key, so such a
+// document carries none. The reader answers the older version and leaves every
+// area unset (T055, FR-021, FR-024, SC-002).
+auto theOlderMinorDocumentLoadsNoAreas() -> void
+{
+  auto text = sg::test::readText("harness_json_load_ranks.json");
+  constexpr std::string_view kKey = "\"topdownArea\":\"";
+  const auto key = text.find(kKey);
+  check(key != std::string::npos,
+        "the ranks document carries the area key to strike out (FR-019)");
+  if (key == std::string::npos) {
+    return;
+  }
+  const auto past = text.find('"', key + kKey.size()) + 1;
+  const auto comma = text.rfind(',', key);
+  text.erase(comma, past - comma);
+  const auto stamp = text.find("\"schemaVersion\":") + 16;
+  text.replace(stamp, text.find('"', stamp + 1) + 1 - stamp, "\"1.13\"");
+  sg::test::writeText("harness_json_load_pre114.json", text);
+
+  const auto loaded = sg::loadReport("harness_json_load_pre114.json");
+  if (!loaded.has_value() || loaded->results.empty()
+      || !loaded->results[0].hunt.has_value())
+  {
+    std::printf("  %s\n", loaded.has_value() ? "" : loaded.error().c_str());
+    sg::test::fail("a document stamped one minor behind stopped loading");
+    return;
+  }
+  const auto& entries = loaded->results[0].hunt->entries;
+  check(loaded->schemaVersion == "1.13",
+        "the field answers the older minor the document carries (FR-024)");
+  check(entries.size() == 2 && entries[0].topdownArea.empty()
+            && entries[1].topdownArea.empty(),
+        "a document one minor behind loads with every area unset (FR-024)");
+}
+
+// The document with no area key and no other change loads, and every area of
+// it reads back unset: the reading of a key a later minor added (T056,
+// FR-021, FR-024).
+auto aDocumentWithoutTheAreaKeyLoads() -> void
+{
+  constexpr std::string_view kKey = "\"topdownArea\":\"";
+  auto text = sg::test::readText("harness_json_load_ranks.json");
+  const auto key = text.find(kKey);
+  check(key != std::string::npos,
+        "the ranks document carries the area key to strike out (FR-019)");
+  if (key == std::string::npos) {
+    return;
+  }
+  // The key stands last in its node, so the comma that sets it off goes with
+  // it and the node keeps the bytes it closed on before.
+  const auto past = text.find('"', key + kKey.size()) + 1;
+  const auto comma = text.rfind(',', key);
+  text.erase(comma, past - comma);
+  sg::test::writeText("harness_json_load_noarea.json", text);
+
+  const auto loaded = sg::loadReport("harness_json_load_noarea.json");
+  if (!loaded.has_value() || loaded->results.empty()
+      || !loaded->results[0].hunt.has_value())
+  {
+    std::printf("  %s\n", loaded.has_value() ? "" : loaded.error().c_str());
+    sg::test::fail("a document with no area key stopped loading (FR-021)");
+    return;
+  }
+  const auto& entries = loaded->results[0].hunt->entries;
+  check(entries.size() == 2 && entries[0].topdownArea.empty()
+            && entries[1].topdownArea.empty(),
+        "a document with no area key loads with both areas unset (FR-021)");
+}
+
+// One plant per kind the area key cannot carry, each refused at its own
+// pointer (T056, FR-021).
+auto anAreaOfAnotherKindRefuses() -> void
+{
+  constexpr std::string_view kKey = "\"topdownArea\":";
+  constexpr std::string_view kPointer =
+      "/benchmarks/0/hunt/entries/0/topdownArea";
+  const auto base = sg::test::readText("harness_json_load_ranks.json");
+  const auto key = base.find(kKey);
+  check(key != std::string::npos,
+        "the ranks document carries the area key to plant on (FR-019)");
+  if (key == std::string::npos) {
+    return;
+  }
+  // The two quotes that hold the text of the key, and the text between them,
+  // stand in the planted bytes in place of a value of another kind.
+  const auto value = key + kKey.size();
+  const auto past = base.find('"', value + 1) + 1;
+  const std::string kBodies[] = {"null", "7", "true", "[]"};
+  for (const auto& body : kBodies) {
+    const auto planted = base.substr(0, value) + body + base.substr(past);
+    sg::test::writeText("harness_json_load_areakind.json", planted);
+    const auto refused = sg::loadReport("harness_json_load_areakind.json");
+    if (refused.has_value()) {
+      sg::test::fail("the reader accepted an area of another kind (FR-021)");
+      continue;
+    }
+    const bool named = refused.error().find(kPointer) != std::string::npos
+        && refused.error().find("expected a string") != std::string::npos;
+    check(named, "the refusal of an area of another kind names its pointer and "
+                 "the kind it wanted (FR-021)");
+    if (!named) {
+      std::printf("  '%s'\n", refused.error().c_str());
+    }
+  }
 }
 
 // FR-024, SC-007: one planted disagreement per shape of the reader, each
@@ -830,7 +1030,7 @@ auto theRootListAndTheWarningKeyAnswerTheirOwnRules(const std::string& text)
 }
 
 constexpr Mutation kMutations[] = {
-    {"\"schemaVersion\":\"1.13\"", "\"schemaVersion\":1", "/schemaVersion"},
+    {"\"schemaVersion\":\"1.14\"", "\"schemaVersion\":1", "/schemaVersion"},
     {"\"name\":\"bmJsonWindow\"", "\"name\":[]", "/benchmarks/0/name"},
     // The two kinds the naming word has no other caller for: a document
     // that holds null, and one that holds a flag, at a name.
@@ -1200,10 +1400,10 @@ auto theHeaderFieldsAndTheStoredWarningsLoad(const std::string& text) -> void
   // number in the field.
   std::string other = text;
   const auto stamp = other.find("\"schemaVersion\":") + 16;
-  other.replace(stamp, other.find('"', stamp + 1) + 1 - stamp, "\"1.13\"");
+  other.replace(stamp, other.find('"', stamp + 1) + 1 - stamp, "\"1.15\"");
   sg::test::writeText("harness_json_load_headertext.json", other);
   const auto minor = sg::loadReport("harness_json_load_headertext.json");
-  check(minor.has_value() && minor->schemaVersion == "1.13",
+  check(minor.has_value() && minor->schemaVersion == "1.15",
         "the field answers the version of a later minor (FR-070, FR-010)");
 
   // A document that omits the speedgun object entirely stays readable and
@@ -2902,6 +3102,10 @@ auto main() -> int
   versionRuleGatesTheReader();
   everyFieldOfTheDocumentLoads();
   theHuntRankFieldsLoadBackEqual();
+  theAreaKeyReadsBackEqual();
+  theOlderMinorDocumentLoadsNoAreas();
+  aDocumentWithoutTheAreaKeyLoads();
+  anAreaOfAnotherKindRefuses();
   const std::string written = pinOverheadFloor(sg::test::readText(kWritten));
   theHeaderFieldsAndTheStoredWarningsLoad(written);
   eachExtensionErrorCodeRefuses(written);

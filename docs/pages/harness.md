@@ -1397,10 +1397,11 @@ that measured the value. `docs/schema/report-v1.json` states the whole shape.
 `schemaVersion` names the shape of the document. A document whose major stands
 at 1 loads, whatever its minor says; a later major is refused, and the refusal
 names the version the document carries. The writer moves the minor for a key
-it adds inside major 1. A run writes `1.13`, the shape that carries the
-`method` key and the `series` array of the `jitter` object and the `topdown`
-object of the entry record; a `1.0` document, which carries neither the hunt
-keys nor the pass fields, loads through the same rule.
+it adds inside major 1. A run writes `1.14`, the shape that carries the
+`method` key and the `series` array of the `jitter` object, the `topdown`
+object of the entry record and the `topdownArea` key of each ranked event; a
+`1.0` document, which carries neither the hunt keys nor the pass fields,
+loads through the same rule.
 
 ### The null rule
 
@@ -1693,9 +1694,10 @@ counter limit.
 `--topdown` asks one run for the top-down tree of the running cpu. The option
 names a level from 1 to 6, and the bare word asks level 1. One block prints
 under the rows of every benchmark the run measured, so a run of three
-benchmarks prints three blocks. A run that names no `--topdown` prints no
-block, writes no `topdown` key in its document, and holds the bytes it held
-before the option stood.
+benchmarks prints three blocks. A run that names no `--topdown` and selects no
+hunt prints no block, writes no `topdown` key in its document, and holds the
+bytes it held before the option stood. A hunter run prints a block of its own,
+and the hunt section of this page states it.
 
 The tree has one source: the table of the running cpu. The vendor, the family,
 the model and the stepping of that cpu select one directory of the vendored
@@ -2447,6 +2449,105 @@ joins the skipped list, and the run still ends with status 0. Beside
 `--dry-run` every pass runs one iteration, so each column reaches the table
 with one sample, a `cv` of `0.00` and `mark=unrepeated`.
 
+### The area cell of a ranked row
+
+Every ranked row carries one `area=` cell. It stands after the `delta=` cell of
+the sensitivity figures, and before the `multiplexed` flag or the `mark=` word
+that closes the row. A record that holds no area prints no cell and no
+separator, so a row a caller built by hand keeps the bytes it had before the
+area existed.
+
+The cell answers one of three kinds of text, in this order:
+
+1. The path of the top-down nodes that reach the event. The deepest node of the
+   run's top-down tree that names the event settles the answer, and the cell
+   joins the node names from the level-1 root down, with ` > ` between them:
+   `area=topdown.backend_bound > topdown.intel.tma_l1_bound`. A node at level 1
+   answers its own name alone. Of two nodes at one depth that both name the
+   event, the node that stands first in table order names the area.
+2. The file of the vendored event table that holds the event's row, without its
+   suffix: `area=pipeline`. This is the answer when no node of the tree names
+   the event.
+3. The word `unmapped`: `area=unmapped`. This is the answer when no node
+   names the event and no row of the table holds it. A host that refuses the top-down selection
+   answers `unmapped` for every row of the run, and the run prints its refusal
+   line only where `--topdown` asks for one.
+
+The run settles the area of every row once, after it ranks the events and
+before it prints the tables or writes the document, so every row of one run
+carries an area, the marked rows included. The settlement reads the identity and
+the event table the run stands on. It opens no event, reads no counter and reads
+no clock, and the level `--topdown` names moves no answer.
+
+On an AMD part the path answers the AMD spelling of the same level. One such
+path reads
+`area=topdown.backend_bound > topdown.amd.backend_bound_by_memory`, where the
+same node answers `backend_bound_memory` on a Zen 4 part and
+`backend_bound_by_memory` on a Zen 5 part. Every name of the cell comes from the
+table of the vendor directory the run reads, which `## Top-down analysis`
+teaches. An AMD part answers no Intel name, and the run renames no name it reads.
+
+`example/docs/hunt_topdown.cpp` writes its own records and hands them to
+`printHuntRanking`, so the recorded run below reads the same on every host. The
+three rows answer the three kinds above, one each: the path, the file stem and
+the word `unmapped`.
+
+`rankEvents` decides the order, the marks and the size of the table. The loop
+below settles the area of each record before that table prints.
+
+<!-- sg-example: example/docs/hunt_topdown.cpp#hunt-topdown -->
+```cpp
+// The ranked table of a hunt whose records carry an area. `rankEvents` decides
+// the order, the marks and the size of the table, and the loop below hands each
+// record the area its address settled (FR-009, FR-013, FR-014).
+auto rankHuntWithAreas(const std::vector<sg::hunt::EventSamples>& collected,
+                       const std::map<std::string, std::string>& areas,
+                       const sg::hunt::HuntOptions& options)
+    -> sg::hunt::EntryHunt
+{
+  // No plan collected these scripted rows, so the record states no method.
+  auto hunt = sg::hunt::rankEvents(collected, options, std::nullopt);
+  for (auto& entry : hunt.entries) {
+    if (const auto named = areas.find(entry.address); named != areas.end()) {
+      entry.topdownArea = named->second;
+    }
+  }
+  return hunt;
+}
+```
+
+<!-- sg-sample-output: example/docs/hunt_topdown.expected#report -->
+```text
+speedgun-ng 0.31.0 build=Release
+bmHuntTopdown/16         iterations= 131148497  real time/iter (ns)=    5.343  cpu time/iter (ns)=    5.337  overhead floor (ns)=  680.000  endpoint samples=2
+hunt: rank 1 cpu/hunt_loads instr=2000.000 cv=0.00 correlation=n/a slope=n/a delta=n/a area=topdown.backend_bound > topdown.intel.tma_l1_bound
+hunt: rank 2 cpu/hunt_branches instr=1000.000 cv=0.00 correlation=n/a slope=n/a delta=n/a area=pipeline
+hunt: rank - cpu/hunt_stores instr=0.000 cv=0.00 correlation=n/a slope=n/a delta=n/a area=unmapped mark=beyond-top
+```
+
+### The top-down block of a hunter run
+
+A hunter run prints one top-down block per benchmark, after the hunt block of
+that benchmark. The block holds the shape `## Top-down analysis` states, and the
+companion asks level 1. No option names that level. `--topdown` names a level of
+its own, and a run that names one prints the block of that level instead. One
+block prints per benchmark either way.
+
+The companion runs a pass of its own: one repetition of one fixed iteration, over
+the identity and the event table the run already reads. Its header states the
+passes of that pass, and not the passes of the hunt or of the entry run. The block
+answers from its own ask. The deep tree the mapper reads answers no block, and the
+level-1 tree answers no area.
+
+The pass buys no row. A hunter run prints no pass disclosure for it and no
+core-wide coverage line. It adds no `hunt: skipped` row, and its document gains no
+`topdown` key. The block is console text only.
+
+A host whose ask answers no tree prints no block. The run prints its one refusal
+line instead, and keeps the status the hunt answered. That line names the ask that
+refused, and `--topdown` asks for the same line, so one run prints it at most
+once.
+
 ### The norm and the rank
 
 `--hunt-norm=instr` divides an event count by the instructions of the same
@@ -2542,6 +2643,13 @@ states: the stage an event stood in belongs to the plan, which `stages` already
 prints. A run with no hunt writes no `hunt` key in any
 entry.
 
+An item of `entries` carries `topdownArea` only where the run settled an area
+for that event. The text names the deepest node that named the event, or the
+stem of the vendor file that holds its row. An empty member writes no key, and
+the writer never spells that key `null`. The reader refuses a `null`, and any
+other kind of value, at the pointer of that item. A document at minor 1.13 or
+older carries no such key and loads with the member unset.
+
 The document closes with one run-level `hunt` object after the `benchmarks`
 array, holding `selection`, `norm`, `rank`, `top`, `noisePercent`, `repeats`,
 `seed`, `budget`, `passes`, `method`, `events`, `stages`, `estimate_ns`,
@@ -2599,7 +2707,7 @@ the set a later run reads back through `--counter=@<file>`.
 | `hunt::HuntSampleState` | type | The repeats one sample budget derived for a stage, with the overrun and unpriced states it leaves | [hunter mode](#hunter-mode) |
 | `hunt::HuntSample` | type | One measured repetition of one column of one pass, with its anchors | [hunter mode](#hunter-mode) |
 | `hunt::EventSamples` | type | The collected rows of one event address, the input of the rank table | [hunter mode](#hunter-mode) |
-| `hunt::RankedEvent` | type | One row of the ranked table, with the marks the console prints | [hunter mode](#hunter-mode) |
+| `hunt::RankedEvent` | type | One row of the ranked table, with the marks and the area the console prints | [hunter mode](#hunter-mode) |
 | `hunt::HuntStageRange` | type | The range of planned addresses one stage measured, with its repeats | [hunter mode](#hunter-mode) |
 | `hunt::runHunt` | free function | Plans, measures and ranks one hunt of one benchmark | [hunter mode](#hunter-mode) |
 | `hunt::planHunt` | free function | Answers the passes and stages of a hunt over events it is given | [hunter mode](#hunter-mode) |

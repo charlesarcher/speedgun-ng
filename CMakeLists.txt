@@ -52,11 +52,16 @@ project(
     # specs/042-topdown FR-032, FR-047 (D-4, D-17): this feature takes the
     # next free minor past 0.29.0, 0.30.0. The top-down record joins the
     # public entry in include/speedgun-ng/benchmark.hpp and the metric
-    # carriers gain their threshold text. Both archive numbers stand where
-    # the moves above put them: the 20 and the 5 cover the layouts of this
-    # unreleased window, so no number moves twice. The schema check rides
+    # carriers gain their threshold text. Both archive numbers stood where
+    # the moves above put them: the 20 and the 5 covered the layouts of that
+    # unreleased window, so no number moved twice. The schema check rides
     # the commit that writes the 1.13 minor.
-    VERSION 0.30.1
+    # specs/046-hunter-topdown FR-004, FR-008, FR-014, FR-019, FR-028
+    # (D-8, D-16): this feature takes the next free minor past 0.30.1,
+    # 0.31.0. The counters surface gains a record and its accessor, and the
+    # hunt record gains its area text, so both hand-kept numbers move with
+    # the layouts.
+    VERSION 0.31.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -128,10 +133,14 @@ set_target_properties(
     # move with it, so the hand-kept number goes to 5.
     # specs/042-topdown FR-017, FR-047: MetricView and MetricListing gain
     # the threshold text of their row, so the exported layouts of this
-    # archive move again. The hand-kept number stands at the 5 the comment
-    # above landed, inside which the moves of this feature sit (spec D-9,
+    # archive move again. The hand-kept number stood at the 5 the comment
+    # above landed, inside which the moves of that feature sat (spec D-9,
     # D-11, hard rule 12).
-    SOVERSION 5
+    # specs/046-hunter-topdown FR-004, FR-008 (D-16): TopdownEventGroup
+    # joins the exported surface and topdownEventGroups answers its listing,
+    # so the exported layouts of this archive move again and the hand-kept
+    # number goes to 6 (hard rule 12).
+    SOVERSION 6
     EXPORT_NAME speedgun-ng
     OUTPUT_NAME speedgun-ng
 )
@@ -404,7 +413,10 @@ set_target_properties(
     # hand-kept number rises to 20 past the 19 specs/037 landed. The
     # counters library surface moves nothing, so that archive keeps its
     # SOVERSION 5, the number PR #70 (T-LCOV) landed.
-    SOVERSION 20
+    # specs/046-hunter-topdown FR-014, FR-019 (D-8): RankedEvent gains its
+    # topdownArea member, so the exported layouts move again and the
+    # hand-kept number rises to 21 past the 20 specs/043 landed.
+    SOVERSION 21
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )

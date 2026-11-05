@@ -1937,7 +1937,9 @@ auto readRankedEvent(Element value, const std::string& where)
   // run did not measure. A document an older build wrote carries none of
   // them, so an absent key leaves its member empty, the reading of a run
   // that stamped no figure, and a key that stands present keeps its own
-  // kind and its own refusal (FR-031).
+  // kind and its own refusal (FR-031). The area key of specs/046 joins the
+  // node after these three figures and keeps the same rule, save that a
+  // `null` is no string and stands refused.
   const auto readFigure =
       [&](std::string_view key,
           std::optional<double>* into) -> std::expected<void, std::string>
@@ -1959,6 +1961,17 @@ auto readRankedEvent(Element value, const std::string& where)
                  readFigure("delta", &event.delta));
   if (!settledFigures.has_value()) {
     return std::unexpected(settledFigures.error());
+  }
+  // The area of the event, which the writer stamps from minor 1.14: the key
+  // stands only where a hunt settled an area, so an absent key leaves the
+  // member empty and a value of another kind keeps its own refusal
+  // (specs/046-hunter-topdown FR-021, D-11).
+  if (const auto area = optionalField(value, "topdownArea"); area.has_value()) {
+    auto text = asString(*area, where + "/topdownArea");
+    if (!text.has_value()) {
+      return std::unexpected(text.error());
+    }
+    event.topdownArea = *text;
   }
   return event;
 }

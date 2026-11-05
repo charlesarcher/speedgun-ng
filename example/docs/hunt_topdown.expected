@@ -1,0 +1,7 @@
+# sg-example:begin report
+speedgun-ng 0.31.0 build=Release
+bmHuntTopdown/16         iterations= 131148497  real time/iter (ns)=    5.343  cpu time/iter (ns)=    5.337  overhead floor (ns)=  680.000  endpoint samples=2
+hunt: rank 1 cpu/hunt_loads instr=2000.000 cv=0.00 correlation=n/a slope=n/a delta=n/a area=topdown.backend_bound > topdown.intel.tma_l1_bound
+hunt: rank 2 cpu/hunt_branches instr=1000.000 cv=0.00 correlation=n/a slope=n/a delta=n/a area=pipeline
+hunt: rank - cpu/hunt_stores instr=0.000 cv=0.00 correlation=n/a slope=n/a delta=n/a area=unmapped mark=beyond-top
+# sg-example:end report

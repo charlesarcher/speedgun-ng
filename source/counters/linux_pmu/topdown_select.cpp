@@ -48,10 +48,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <filesystem>
 #include <limits>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -196,6 +198,58 @@ auto topdownTable(const CpuIdentity& identity) -> TopdownTable
             "an identity the mapping file matched no row for names no "
             "directory and answers no row (FR-001)");
   return table;
+}
+
+auto topdownEventGroups(const CpuIdentity& identity)
+    -> std::vector<TopdownEventGroup>
+{
+  std::vector<TopdownEventGroup> pairs;
+#ifdef __linux__
+  // The mapping file matches the vendor, the family, the model and the
+  // stepping, and no row of it reads a core type or an `MIDR`, so the four
+  // fields build the whole key. The directory is all of the identity this call
+  // reads (spec D-13, D-16).
+  const detail::PmuIdent ident {
+      .vendor = identity.vendor,
+      .family = identity.family,
+      .model = identity.model,
+      .stepping = identity.stepping,
+  };
+  const std::string directory = detail::pmuSelectDirectory(ident);
+  if (!directory.empty()) {
+    // The rows reach the call as the data the loader holds once per directory,
+    // so the listing opens no path, opens no event, samples no counter and
+    // reads no clock (D-16). Every row reaches one pair, event row and metric
+    // row alike, and its group is the stem of the file that row stands in: the
+    // vendor's own word for the group, with nothing renamed (FR-004).
+    const std::vector<detail::PmuTableEntry>& rows =
+        detail::pmuLoadTable(directory);
+    std::unordered_set<std::string> held;
+    for (const detail::PmuTableEntry& row : rows) {
+      // The first row that carries a name owns the pair of that name, so one
+      // insert-if-absent line is the whole of the rule and a caller reads no
+      // dedup rule of its own (D-16).
+      if (held.insert(row.name).second) {
+        pairs.push_back(TopdownEventGroup {
+            .event = row.name,
+            .group = std::filesystem::path {row.fileName}.stem().string(),
+        });
+      }
+    }
+  }
+#endif
+  // The check reads the listing the call built and nothing else: it names the
+  // pair rule of a repeated name, and it names no fact about the rows of one
+  // vendor's file (D-16, ruling R3).
+  std::unordered_set<std::string> distinct;
+  for (const TopdownEventGroup& pair : pairs) {
+    distinct.insert(pair.event);
+  }
+  SG_ENSURE(distinct.size() == pairs.size(),
+            "the answer holds one pair per name of the selected directory, so a "
+            "name two rows carry reaches one pair, owned by the row that came "
+            "first (FR-004, D-16)");
+  return pairs;
 }
 
 namespace

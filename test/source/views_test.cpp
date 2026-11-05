@@ -136,6 +136,41 @@ auto soVersionNumbers(std::string const& cmake) -> std::string
   return numbers;
 }
 
+// The `SOVERSION` number one target's own property line states: the first
+// `SOVERSION` line of the block that names that target beside `PROPERTIES`,
+// and an empty text where the file holds no such block. The read starts at
+// the block and stops at its closing parenthesis, so the chains of reasons
+// above the number answer nothing here (specs/046-hunter-topdown FR-028).
+auto soVersionOf(std::string const& cmake,
+                 std::string_view target) -> std::string
+{
+  constexpr std::string_view kProperties {" PROPERTIES"};
+  constexpr std::string_view kSoVersion {"SOVERSION "};
+  std::istringstream lines(cmake);
+  auto line = std::string {};
+  auto inside = false;
+  while (std::getline(lines, line)) {
+    auto const word = line.find_first_not_of(" \t");
+    if (word == std::string::npos) {
+      continue;
+    }
+    if (!inside) {
+      inside = line.compare(word, target.size(), target) == 0
+          && line.compare(word + target.size(), kProperties.size(), kProperties)
+              == 0;
+      continue;
+    }
+    if (line[word] == ')') {
+      break;
+    }
+    if (line.compare(word, kSoVersion.size(), kSoVersion) == 0) {
+      auto const start = word + kSoVersion.size();
+      return line.substr(start, line.find_first_of(" \t", start) - start);
+    }
+  }
+  return {};
+}
+
 // The number of times one text stands inside another: the histogram
 // block counts the elements of a figure this way.
 auto occurrences(std::string const& text,
@@ -266,25 +301,25 @@ auto run() -> int
 
   // The version and the SOVERSION record of the move this lane lands
   // (specs/043-fwq-ftq FR-005, SC-009; specs/039-context-groups FR-005,
-  // FR-032, D-2; specs/037 R-13; specs/042-topdown FR-047): the project
-  // block reads 0.30.1, the
-  // harness target answers SOVERSION 20, and the archive target keeps
-  // SOVERSION 5, the number the exclusions cleanup moved on the public
-  // counter header. Four public layouts move, so the harness number
-  // rises. No public counters header moves in this lane, so the archive
-  // number stays.
+  // FR-032, D-2; specs/037 R-13; specs/042-topdown FR-047;
+  // specs/046-hunter-topdown FR-004, FR-008, FR-028, D-8, D-16): the project
+  // block reads 0.31.0, the harness target answers SOVERSION 21, and the
+  // archive target answers SOVERSION 6. The counters surface gains a record
+  // and its accessor, and the hunt record gains its area text, so both
+  // numbers move with the layouts they state. Each read below names the
+  // target whose property line it reads.
   {
     auto const cmake = rootCMakeText();
     check(!cmake.empty(), "pass: the root CMakeLists.txt can be read");
-    check(projectVersion(cmake) == "0.30.1",
-          "pass: the project version reads 0.30.1");
-    check(cmake.find("SOVERSION 20") != std::string::npos,
-          "pass: the harness SOVERSION line reads SOVERSION 20");
-    check(cmake.find("SOVERSION 5") != std::string::npos,
-          "pass: the archive SOVERSION line reads SOVERSION 5");
-    check(soVersionNumbers(cmake) == "5 20",
-          "pass: the two archive SOVERSION lines read 5 for the counters "
-          "archive and 20 for the harness archive, in file order");
+    check(projectVersion(cmake) == "0.31.0",
+          "pass: the project version reads 0.31.0");
+    check(soVersionOf(cmake, "speedgun-ng_harness") == "21",
+          "pass: the harness property line reads SOVERSION 21");
+    check(soVersionOf(cmake, "speedgun-ng_speedgun-ng") == "6",
+          "pass: the counters archive property line reads SOVERSION 6");
+    check(soVersionNumbers(cmake) == "6 21",
+          "pass: the two archive SOVERSION lines read 6 for the counters "
+          "archive and 21 for the harness archive, in file order");
   }
 
   // ---- The resolver block (specs/038 T004; FR-004 to FR-006, B-1,
