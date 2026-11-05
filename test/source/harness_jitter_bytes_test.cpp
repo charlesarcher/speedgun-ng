@@ -39,6 +39,10 @@ namespace
 constexpr const char* const kDocument = "harness_jitter_bytes_document.json";
 constexpr const char* const kBlockFile = "harness_jitter_bytes_block.txt";
 constexpr std::string_view kDigits = "0123456789";
+// The cpu index a synthetic record carries. The scenarios build the
+// state and the fold in process, so no thread stands pinned to it, and
+// the host-free rule of FR-013 reads no fixed cpu number in this file.
+constexpr std::uint32_t kSyntheticProbeCpu = 0;
 constexpr std::string_view kMasked = "\"?\"";
 
 // The version figures of the build that wrote the file, held out of the
@@ -127,7 +131,7 @@ auto tscData() -> sg::ReportData
   data.rowRaw = run.rowRaw;
   data.contextRaw = run.contextRaw;
   sg::JitterEntryFold fold;
-  fold.cpu = 0;
+  fold.cpu = kSyntheticProbeCpu;
   fold.stats = tscRecord().stats.at(0).stats;
   data.results.back().jitterFolds.push_back(fold);
   return data;
@@ -315,7 +319,7 @@ auto theStandingConsoleLinesMatchTheRecordedBytes() -> void
   // The probe state whose block the standing printer prints: one cpu,
   // three kept gaps, one dropped, the two figures of the run.
   sg::detail::ProbeCpuState state;
-  state.cpu = 0;
+  state.cpu = kSyntheticProbeCpu;
   state.method = sg::JitterMethod::TSC;
   state.buffer = {sg::detail::GapRecord {100, 210},
                   sg::detail::GapRecord {300, 220},

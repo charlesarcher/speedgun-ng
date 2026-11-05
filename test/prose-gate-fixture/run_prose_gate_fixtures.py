@@ -4,10 +4,15 @@
 Orchestrates tools/prose/prose_gate.py against the committed prose fixtures
 and the commit cases in this directory and checks the expected verdicts
 (specs/002-prose-commit-lint: loader asserts T012, prose verdict asserts
-T018, full commit-case asserts T023, parity and timing asserts T026).
+T018, full commit-case asserts T023, parity asserts T026; and the work
+counts of specs/045-merge-fixes FR-009).
 
-This script does not implement the gate. While the gate script is absent it
-exits 2 with the diagnostic:
+This script does not implement the gate. It imports tools/prose/prose_gate.py
+once and calls the module entry point in process for every case; the
+whole-tree work case keeps its own subprocess run. Every assert reads counts,
+the gate invocations a phase performs and the units a run examines, so no
+assert reads the host clock (specs/045-merge-fixes FR-009). While the gate
+script is absent it exits 2 with the diagnostic:
 
     gate script not present (TDD red)
 
@@ -23,13 +28,15 @@ CLI::
 from __future__ import annotations
 
 import argparse
+import contextlib
 import copy
+import importlib.util
+import io
 import os
 import re
 import shutil
 import subprocess
 import sys
-import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -80,8 +87,16 @@ WILDCARD_RULE_ID = "XI2.CONTRASTIVE"
 FILLER_RULE_ID = "XI5.FILLER"
 ZERO_SUMMARY = "prose-lint: 0 sources, 0 units examined, 0 findings, 0 skipped"
 
-# SC-003 developer-machine bound, measured 0.062 s whole tree by plan R-04.
-TIMING_BOUND_SECONDS = 10.0
+# Host-independent work measure (045 FR-009, owner rulings R3 and R4). The
+# entry tallies every gate invocation and the counters each run reports, and
+# the work asserts below hold each phase to the work it drives. A wall clock
+# measures the host: the same whole-tree scan measured 0.062 s under plan
+# R-04 and 9.8 s on corsairone.
+SUMMARY_RE = re.compile(
+    r"prose-lint: (\d+) sources, (\d+) units examined, (\d+) findings, "
+    r"(\d+) skipped"
+)
+GATE_RUNS: list[dict[str, Any]] = []
 
 
 def die(message: str, code: int = EXIT_USAGE) -> None:
@@ -490,19 +505,120 @@ def build_case_commit(
     return base, git_head(repo)
 
 
+GATE_MODULE: Any = None
+
+
+def gate_module() -> Any:
+    """Import tools/prose/prose_gate.py once per runner process (045 FR-009)."""
+    global GATE_MODULE
+    if GATE_MODULE is None:
+        spec = importlib.util.spec_from_file_location("prose_gate", GATE)
+        if spec is None or spec.loader is None:
+            die(f"cannot import the gate module: {GATE}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        GATE_MODULE = module
+    return GATE_MODULE
+
+
+def record_gate_run(
+    phase: str,
+    extra_args: list[str],
+    cwd: Path,
+    rules: Path,
+    proc: subprocess.CompletedProcess[str],
+) -> None:
+    """Tally one gate invocation: its phase, its discovery mode and the
+    counters its summary line reports.
+
+    A run that dies before printing the summary line carries -1 counters,
+    which is what the loader mutants do on purpose. The tally is the
+    host-independent measure of 045 FR-009: it says what the fixtures drove.
+    """
+    summary = SUMMARY_RE.search(proc.stdout)
+    mode = "range"
+    if "--mode" in extra_args:
+        mode = extra_args[extra_args.index("--mode") + 1]
+    GATE_RUNS.append(
+        {
+            "phase": phase,
+            "mode": mode,
+            "cwd": str(cwd),
+            "rules": str(rules),
+            "exit": proc.returncode,
+            "sources": int(summary.group(1)) if summary else -1,
+            "units": int(summary.group(2)) if summary else -1,
+            "findings": int(summary.group(3)) if summary else -1,
+            "skipped": int(summary.group(4)) if summary else -1,
+        }
+    )
+
+
+def run_gate_subprocess(
+    extra_args: list[str],
+    cwd: Path,
+    rules: Path,
+    *,
+    phase: str,
+) -> subprocess.CompletedProcess[str]:
+    """Run the gate as a child process: the whole-tree work case only."""
+    argv = [sys.executable, str(GATE), "--rules", str(rules), *extra_args]
+    try:
+        proc = subprocess.run(
+            argv, cwd=cwd, capture_output=True, text=True, check=False
+        )
+    except OSError as exc:
+        die(f"failed to invoke {GATE}: {exc}")
+    record_gate_run(phase, extra_args, cwd, rules, proc)
+    return proc
+
+
 def run_gate(
     extra_args: list[str],
     cwd: Path,
     rules: Path,
     env: dict[str, str] | None = None,
+    *,
+    phase: str,
 ) -> subprocess.CompletedProcess[str]:
-    argv = [sys.executable, str(GATE), "--rules", str(rules), *extra_args]
+    """Call the gate entry point in process, one case per call (045 FR-009).
+
+    The entry point loads and validates the rule data on every call, which
+    is what the loader mutants of spec 043 T012 observe. The working
+    directory and the environment stand per case the way a child process
+    holds them, then both are restored.
+    """
+    argv = ["--rules", str(rules), *extra_args]
+    saved_cwd = os.getcwd()
     try:
-        return subprocess.run(
-            argv, cwd=cwd, env=env, capture_output=True, text=True, check=False
-        )
+        os.chdir(cwd)
     except OSError as exc:
-        die(f"failed to invoke {GATE}: {exc}")
+        die(f"failed to enter {cwd} for {GATE}: {exc}")
+    saved_env = dict(os.environ)
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    try:
+        if env is not None:
+            os.environ.clear()
+            os.environ.update(env)
+        try:
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                code = gate_module().main(argv)
+        except SystemExit as exc:
+            code = int(exc.code or 0)
+    finally:
+        os.chdir(saved_cwd)
+        os.environ.clear()
+        os.environ.update(saved_env)
+    completed = subprocess.CompletedProcess(
+        args=[sys.executable, str(GATE), *argv],
+        returncode=code,
+        stdout=stdout.getvalue(),
+        stderr=stderr.getvalue(),
+    )
+    record_gate_run(phase, extra_args, cwd, rules, completed)
+    return completed
 
 
 def echo(proc: subprocess.CompletedProcess[str]) -> None:
@@ -603,7 +719,9 @@ def run_loader_cases(rules: Path, out_dir: Path) -> tuple[int, list[dict[str, An
             yaml.safe_dump(mutant, sort_keys=False, allow_unicode=True),
             encoding="utf-8",
         )
-        proc = run_gate(["--check", "prose"], out_dir, mutant_path)
+        proc = run_gate(
+            ["--check", "prose"], out_dir, mutant_path, phase="loader-mutant"
+        )
         expected = "exit:2"
         observed = f"exit:{proc.returncode}"
         result = "PASS" if proc.returncode == 2 and needle in proc.stderr else "FAIL"
@@ -622,7 +740,9 @@ def run_loader_cases(rules: Path, out_dir: Path) -> tuple[int, list[dict[str, An
     empty_repo.mkdir(parents=True)
     run_git(empty_repo, "init")
     run_git(empty_repo, "commit", "--allow-empty", "-m", "loader empty base")
-    proc = run_gate(["--check", "prose", "--mode", "tree"], empty_repo, rules)
+    proc = run_gate(
+        ["--check", "prose", "--mode", "tree"], empty_repo, rules, phase="loader-empty"
+    )
     code = proc.returncode
     expected = "exit:0"
     observed = f"exit:{code}"
@@ -644,7 +764,8 @@ def run_prose_check(
     out_dir: Path,
 ) -> tuple[int, list[dict[str, Any]]]:
     """T018 prose asserts: per-family reports, silence, marker, authorship,
-    plus the T026 parity and whole-tree timing asserts.
+    plus the T026 parity assert. The whole-tree scan of the real repository
+    joins the tally that run_work_cases reads.
 
     Scenario surfaces are throwaway staged repositories under --out; the
     fixture corpus itself is never mutated. The corpus's designed oracle:
@@ -655,7 +776,9 @@ def run_prose_check(
     """
     stage_repo = out_dir / "work" / "prose-stage"
     stage_prose_repo(prose, stage_repo)
-    proc = run_gate(["--check", "prose", "--mode", "tree"], stage_repo, rules)
+    proc = run_gate(
+        ["--check", "prose", "--mode", "tree"], stage_repo, rules, phase="prose-stage"
+    )
     echo(proc)
 
     findings = parse_findings(proc.stderr)
@@ -744,19 +867,16 @@ def run_prose_check(
         rules, out_dir, prose["silent.md"]
     )
     parity_failures, parity_rows = run_parity_case(rules, stage_repo)
-    timing_failures, timing_rows = run_timing_case()
     failures += (
         marker_failures
         + marker_author_failures
         + clean_failures
         + parity_failures
-        + timing_failures
     )
     rows.extend(marker_rows)
     rows.extend(marker_author_rows)
     rows.extend(clean_rows)
     rows.extend(parity_rows)
-    rows.extend(timing_rows)
     return failures, rows
 
 
@@ -793,7 +913,9 @@ def run_marker_cases(
     run_git(stage_repo, "init")
     run_git(stage_repo, "add", "-A")
     run_git(stage_repo, "commit", "-m", "Docs: stage marker fixture")
-    proc = run_gate(["--check", "prose", "--mode", "tree"], stage_repo, rules)
+    proc = run_gate(
+        ["--check", "prose", "--mode", "tree"], stage_repo, rules, phase="marker"
+    )
     echo(proc)
     findings = parse_findings(proc.stderr)
     failures = 0
@@ -869,7 +991,10 @@ def run_authorship_case(
     run_git(stage_repo, "commit", "-m", "Docs: authorship insert")
     base = run_git(stage_repo, "rev-parse", "HEAD~1").stdout.strip()
     proc = run_gate(
-        ["--check", "prose", "--base", base, "--head", "HEAD"], stage_repo, rules
+        ["--check", "prose", "--base", base, "--head", "HEAD"],
+        stage_repo,
+        rules,
+        phase="authorship",
     )
     echo(proc)
     findings = parse_findings(proc.stderr)
@@ -906,7 +1031,9 @@ def run_clean_tree_case(
     run_git(stage_repo, "init")
     run_git(stage_repo, "add", "-A")
     run_git(stage_repo, "commit", "-m", "Docs: clean tree base")
-    proc = run_gate(["--check", "prose", "--mode", "tree"], stage_repo, rules)
+    proc = run_gate(
+        ["--check", "prose", "--mode", "tree"], stage_repo, rules, phase="clean-tree"
+    )
     echo(proc)
     summary = re.search(
         r"prose-lint: (\d+) sources, (\d+) units examined, (\d+) findings",
@@ -954,10 +1081,18 @@ def run_parity_case(
     plain_env = {k: v for k, v in os.environ.items() if k != "GITHUB_ACTIONS"}
     actions_env = {**os.environ, "GITHUB_ACTIONS": "true"}
     plain = run_gate(
-        ["--check", "prose", "--mode", "tree"], stage_repo, rules, env=plain_env
+        ["--check", "prose", "--mode", "tree"],
+        stage_repo,
+        rules,
+        env=plain_env,
+        phase="parity",
     )
     actions = run_gate(
-        ["--check", "prose", "--mode", "tree"], stage_repo, rules, env=actions_env
+        ["--check", "prose", "--mode", "tree"],
+        stage_repo,
+        rules,
+        env=actions_env,
+        phase="parity",
     )
     plain_findings = parse_findings(plain.stderr)
     actions_findings = parse_findings(actions.stderr)
@@ -1002,70 +1137,7 @@ def run_parity_case(
     return failures, rows
 
 
-TIMING_SUMMARY_RE = re.compile(r"prose-lint: .*")
-
-
-def run_timing_case() -> tuple[int, list[dict[str, Any]]]:
-    """T026 timing assert (SC-003, plan R-04 measured 0.062 s whole tree).
-
-    The whole-tree prose scan of the real repository (REPO_ROOT, not the
-    throwaway fixture repo) against the repo rules file must finish under
-    the 10 s bound. It is a developer-machine bound, so the case is
-    evaluated only when GITHUB_ACTIONS is unset in this harness process;
-    under CI it prints a SKIP verdict instead of holding a developer bound
-    against runner load.
-
-    Adapted from the task sketch's `--paths .`: the gate's in_narrowed()
-    matches repo-relative paths against `p` or `p/` prefixes, and no such
-    path equals `.` or starts with `./`, so that invocation reports 0
-    sources and times an empty scan, the vacuous pass the repository
-    treats as a defect. The case uses plain tree-mode discovery, the
-    canonical SC-003 surface (68 sources on this checkout). The real tree
-    carries grandfathered banned tokens, so whole-file mode legitimately
-    exits 1 with findings; the assert measures wall clock and accepts
-    exit 0 or 1, never 2, because exit 2 means nothing was checked and no
-    bound was proven.
-    """
-    name = "timing.whole-tree"
-    expected = f"exit:0|1 wall<{TIMING_BOUND_SECONDS}s"
-    if "GITHUB_ACTIONS" in os.environ:
-        observed = "skipped: developer-machine bound under GITHUB_ACTIONS"
-        print_verdict(name, "timing", expected, observed, "SKIP")
-        return 0, [
-            {
-                "interface": name,
-                "check": "timing",
-                "expected": expected,
-                "observed": observed,
-                "result": "SKIP",
-            }
-        ]
-    started = time.monotonic()
-    proc = run_gate(["--check", "prose", "--mode", "tree"], REPO_ROOT, DEFAULT_RULES)
-    elapsed = time.monotonic() - started
-    ok = proc.returncode in (0, 1) and elapsed < TIMING_BOUND_SECONDS
-    summary = TIMING_SUMMARY_RE.search(proc.stdout)
-    observed = f"exit:{proc.returncode} wall:{elapsed:.3f}s"
-    if summary is not None:
-        observed += f" {summary.group(0)}"
-    result = "PASS" if ok else "FAIL"
-    print_verdict(name, "timing", expected, observed, result)
-    row = {
-        "interface": name,
-        "check": "timing",
-        "expected": expected,
-        "observed": observed,
-        "result": result,
-        "exit_code": proc.returncode,
-        "elapsed_seconds": round(elapsed, 3),
-    }
-    return (0 if ok else 1), [row]
-
-
 SUMMARY_SOURCES_RE = re.compile(r"prose-lint: (\d+) sources,")
-SUMMARY_RE = re.compile(
-    r"prose-lint: (\d+) sources, (\d+) units examined, (\d+) findings, (\d+) skipped"
-)
 
 
 COMMIT_FINDING_RE = re.compile(
@@ -1163,6 +1235,7 @@ def run_commit_cases(
             ["--check", "commit", "--base", base, "--head", head],
             stage_repo,
             rules,
+            phase="commit",
         )
         prose_proc = None
         if isinstance(case["expect"].get("prose"), dict):
@@ -1170,6 +1243,7 @@ def run_commit_cases(
                 ["--check", "prose", "--base", base, "--head", head],
                 stage_repo,
                 rules,
+                phase="commit",
             )
         expected, observed, result = evaluate_commit_case(case, proc, prose_proc)
         print_verdict(case["name"], "commit", expected, observed, result)
@@ -1245,6 +1319,7 @@ def run_mixed_range_case(
         ["--check", "commit", "--base", base, "--head", head],
         stage_repo,
         rules,
+        phase="mixed-range",
     )
     got = {(short, rule) for short, rule, _ in commit_findings(proc.stderr)}
     want = {
@@ -1277,6 +1352,146 @@ def run_mixed_range_case(
         "head": head,
     }
     return (0 if ok else 1), [row]
+
+
+def tree_counts(repo: Path, rules: Path) -> tuple[int, int, int]:
+    """(sources, units, skipped) that the gate's own discovery and
+    extraction name over a whole tree.
+
+    classify_source, read_source and build_units come from the gate, and the
+    exclusions come from the rule data file that run reads, so the count and
+    the run share one definition of the work.
+    """
+    mod = gate_module()
+    data = yaml.safe_load(rules.read_text(encoding="utf-8"))
+    exclusions = tuple(data["exclusions"])
+    listing = run_git(repo, "ls-files").stdout
+    sources = 0
+    units = 0
+    skipped = 0
+    for path in sorted(p for p in listing.split("\n") if p):
+        lang = mod.classify_source(path)
+        if lang is None or path.startswith(exclusions):
+            continue
+        lines, _ = mod.read_source(repo, path)
+        if lines is None:
+            skipped += 1
+            continue
+        sources += 1
+        built = mod.build_units(lang, lines)
+        stream = built if built is not None else list(enumerate(lines, 1))
+        units += sum(1 for _, text in stream if text.strip())
+    return sources, units, skipped
+
+
+def invocation_design(
+    cases: list[dict[str, Any]], checks: list[str]
+) -> dict[str, int]:
+    """Gate invocations each fixture phase performs, by design (045 FR-009).
+
+    The case list drives the commit count: one commit run per case, plus one
+    prose run for every case carrying expect.prose. The loader phase runs on
+    every invocation, whatever --check selects.
+    """
+    design = {"loader-mutant": len(LOADER_MUTANT_CASES), "loader-empty": 1}
+    if "prose" in checks:
+        design.update(
+            {
+                "prose-stage": 1,
+                "marker": 1,
+                "authorship": 1,
+                "clean-tree": 1,
+                "parity": 2,
+                "whole-tree": 1,
+            }
+        )
+    if "commit" in checks:
+        prose_reruns = sum(
+            1 for case in cases if isinstance(case["expect"].get("prose"), dict)
+        )
+        design.update({"commit": len(cases) + prose_reruns, "mixed-range": 1})
+    return design
+
+
+def run_work_cases(
+    cases: list[dict[str, Any]],
+    checks: list[str],
+) -> tuple[int, list[dict[str, Any]]]:
+    """Host-independent work asserts (045 FR-009, owner rulings R3 and R4).
+
+    A wall clock measures the host. Plan R-04 calibrated 0.062 s for the
+    whole-tree scan and corsairone measured 9.8 s for the same scan, so the
+    bound that stood here failed on a slower machine while the gate did all
+    of its work. These asserts measure the fixtures: the gate invocations
+    each phase performs, and for every tree-mode run the source, unit and
+    skip counts its own tree names.
+
+    The whole-tree scan of the real repository (REPO_ROOT, the canonical
+    SC-003 surface) keeps the subprocess form and joins the tally here. It
+    accepts exit 0 or 1 and never 2, because exit 2 means nothing was
+    checked. The scan carries no --paths narrowing: the gate's in_narrowed()
+    matches repo-relative paths against `p` or `p/` prefixes, so `--paths .`
+    reports 0 sources and scans nothing, the vacuous pass the repository
+    treats as a defect.
+    """
+    failures = 0
+    rows: list[dict[str, Any]] = []
+    if "prose" in checks:
+        run_gate_subprocess(
+            ["--check", "prose", "--mode", "tree"],
+            REPO_ROOT,
+            DEFAULT_RULES,
+            phase="whole-tree",
+        )
+
+    def verdict(name: str, expected_text: str, observed_text: str, ok: bool) -> None:
+        nonlocal failures
+        result = "PASS" if ok else "FAIL"
+        print_verdict(name, "work", expected_text, observed_text, result)
+        rows.append(
+            {
+                "interface": name,
+                "check": "work",
+                "expected": expected_text,
+                "observed": observed_text,
+                "result": result,
+            }
+        )
+        if not ok:
+            failures += 1
+
+    def counts_text(counts: dict[str, int]) -> str:
+        return " ".join(f"{phase}:{n}" for phase, n in sorted(counts.items()))
+
+    design = invocation_design(cases, checks)
+    performed: dict[str, int] = {}
+    for run in GATE_RUNS:
+        performed[run["phase"]] = performed.get(run["phase"], 0) + 1
+    verdict(
+        "work.gate-invocations",
+        f"{sum(design.values())} invocations {counts_text(design)}",
+        f"{sum(performed.values())} invocations {counts_text(performed)}",
+        performed == design,
+    )
+
+    scanned: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+    for run in GATE_RUNS:
+        if run["mode"] == "tree":
+            scanned.setdefault((run["phase"], run["cwd"], run["rules"]), []).append(run)
+    for (phase, cwd, rules_path), runs in scanned.items():
+        want = tree_counts(Path(cwd), Path(rules_path))
+        got = {(run["sources"], run["units"], run["skipped"]) for run in runs}
+        exits = {run["exit"] for run in runs}
+        verdict(
+            f"work.{phase}.counts",
+            f"{len(runs)} runs exit:0|1 sources:{want[0]} units:{want[1]} "
+            f"skipped:{want[2]}",
+            f"{len(runs)} runs exits:{sorted(exits)} counters:{sorted(got)}",
+            len(got) == 1
+            and got == {want}
+            and all(run["exit"] in (0, 1) for run in runs),
+        )
+    return failures, rows
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1327,11 +1542,16 @@ def main(argv: list[str] | None = None) -> int:
         commit_failures, commit_rows = run_commit_cases(cases, rules, out_dir)
         failures += commit_failures
         rows.extend(commit_rows)
+    # The work asserts read the tally of every phase above.
+    work_failures, work_rows = run_work_cases(cases, checks)
+    failures += work_failures
+    rows.extend(work_rows)
 
     write_matrix(
         out_dir,
         {
             "status": "ok" if failures == 0 else "assert_failed",
+            "gate_runs": GATE_RUNS,
             "interfaces": rows,
         },
     )

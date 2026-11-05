@@ -1,0 +1,584 @@
+---
+
+description: "Task list for 045-merge-fixes"
+---
+
+# Tasks: Fix the counters and FWQ/FTQ gates
+
+**Input**: Design documents from `/specs/045-merge-fixes/`
+
+**Prerequisites**: plan.md (required), spec.md (required for user
+stories), research.md with its two annexes, data-model.md,
+quickstart.md. No contracts directory exists: the spec records no
+interface change (decision D-8).
+
+**Format**: `[ID] [P?] [USx] description`. `[P]` marks a task that touches different files from its
+siblings and runs in parallel once the dependencies its text and the
+Dependencies section name land. Every description names the exact file paths,
+the symbols, the scenario, the assertion and the gate that verifies it. A
+covering test stands observed failing before its code lands where a test can
+fail first (constitution III and VI). Each commit carries one topic and its
+topic's tests, and passes the gates alone: its own build passes and its topic
+ctest entries pass; the hard coverage gate binds at the PR head (FR-011,
+SC-002), and each commit records its line and branch counts in the PR body.
+Commit footers follow the spec's commit rules: part A commits `Refs: G-19 G-21 T-LCOV-3`, part B
+commits `Refs: specs/043-fwq-ftq N13c-F`, spec-file commits `Refs: specs/045-merge-fixes`, then `Approved-by: OmO`, as the last two lines with no
+blank line between them. No mixed commit arises: files under
+`specs/045-merge-fixes/` land only in spec-file commits. Task ids T011 to T026
+carry Part A; T101 to T118 carry Part B; references to `T0` numbers above T026
+and to `T1` numbers above T118 name the spec 043 task rows, which stay outside
+this list; a `T` reference that could name a task of this list always carries
+the "spec 043" qualifier when it means a 043 row. Main-page impact check (IV.1):
+no page change, per the spec's Constitution Checklist.
+
+## Phase 0: Setup
+
+**Purpose**: the lane stands up on a known base, and the spec
+artifacts land first.
+
+- [ ] T001 [P] [US1] Create the branch `045-merge-fixes` from `origin/master` at
+`b1dd7670` after the number check the spec binds: `specs/` on master, the remote
+branches (`git ls-remote --heads origin`) and the pull request list carry no 045 entry. Record the base sha
+and the date in `specs/045-merge-fixes/spec.md` and in the first commit body.
+- [ ] T002 [US1] Land the spec artifacts as the first spec-file
+  commit: `specs/045-merge-fixes/` with `spec.md`, `plan.md`,
+  `research.md`, `research-part-a.md`, `research-part-b.md`,
+  `data-model.md`, `quickstart.md`, `checklists/requirements.md` and
+  this `tasks.md`. Footer: `Refs: specs/045-merge-fixes`, then
+  `Approved-by: OmO`. Gate: `cmake -P cmake/prose-lint.cmake` reads
+  the added prose clean.
+- [ ] T003 [US1] Capture the baseline at `b1dd7670` for the PR body:
+  `git grep -c LCOV_EXCL -- source include` by file (94 total), the
+  `ci-rocky` ctest result, the coverage preset's line percent, branch
+  shortfall and dark lines by file (group_io.cpp 2, provider.cpp 6,
+  44 dark lines and 52 short branch positions of the PR #72 code per
+  FR-011), and the tsan job's race report. Record the figures under
+  `specs/045-merge-fixes/results/baseline.md` in a spec-file commit.
+
+## Phase 1: Part A (counters, user stories US-1 and US-2, priority P1)
+
+**Purpose**: host-free counters tests and the marker repairs, in
+commits A1 to A3.
+
+## Part A tasks
+
+### Commit A1: the seam field and the host-free tests
+
+Covers FR-001, FR-002 and the FR-001/FR-002 test scenarios of
+research-part-a, with the FR-013 rework of the seam-driven tests.
+
+- [ ] T011 [P] [US2] In `test/source/counters_kernel_calls_test.cpp`, add the new-field round-trip scenario: install a
+scripted `CpuidWords` pair through the seam, assert `kernelCalls().cpuidWords()`
+answers the installed pair; clear the install, assert the field answers the same
+value the CPUID probe (`readCpuidWords`, `source/counters/linux_pmu/table_parse.cpp:56-75`) answers directly, and assert no value derived
+from CPUID (the watchdog pattern, FR-013). Gate: `ctest --test-dir build -R counters_kernel_calls_test --output-on-failure`; the scenario reads red
+first, because the field does not exist yet.
+- [ ] T012 [US2] In `source/counters/linux_pmu/kernel_calls.hpp`, add the ninth seam field to the `KernelCalls` options
+struct at lines 55-79: a function reference named `cpuidWords` that returns
+`CpuidWords` (`source/counters/linux_pmu/pmu_ident.hpp:18-27`), the pattern the other eight members follow, documented with
+the struct's contract pairs and the non-null postcondition enforced per the DBC
+facility (II). In `source/counters/linux_pmu/kernel_calls.cpp`, add the matching real function to the real set at lines
+127-136 with a Linux arm that calls `readCpuidWords` and an off-Linux stub,
+following the file pattern at lines 28-115; wire it into the install and clear
+machinery. Makes the T011 scenario green. Gate: `ctest --test-dir build -R counters_kernel_calls_test --output-on-failure`.
+- [ ] T013 [US2] In `source/counters/linux_pmu/table_parse.cpp`, rewrite `pmuIdentCurrent` (lines 113-126): drop the
+function-local `static const PmuIdent` cache, call `kernelCalls().cpuidWords()`
+on each call, and hand the words to `pmuIdentFromWords` (`table_parse.cpp:77-111`), which stays a
+pure function of the words. The counter-limit register probe (`source/counters/linux_pmu/counter_limits.cpp:133-205`) stays real;
+the commit body states that reason and the watchdog-pattern rule. Gate: `ctest --test-dir build -R counters_kernel_calls_test --output-on-failure`,
+plus `ctest --test-dir build -R counters_pmu_test --output-on-failure` for the
+integration entry.
+- [ ] T014 [US2] In `test/source/counters_pmu_provider_test.cpp`, script two CPU identities through the new field. First
+identity: a vendor and family a pinned mapfile row matches, installed before
+`kernelAliasWinsScenario` (lines 393-442), so the assertions at lines 408-420
+(`!vendored.empty()`, the merge on a vendored core row) hold on every host. Second identity:
+`NoSuchVendorXXXXX`-style words no pinned row matches, so the empty-selection arm at
+`source/counters/linux_pmu/provider.cpp:160-162` executes on every host. Gate:
+`ctest --test-dir build -R counters_pmu_provider_test --output-on-failure`; the host-dependent part reads red on any host whose CPU matches no vendored
+row, which is the red the scenario records first.
+- [ ] T015 [US2] In `test/source/counters_linux_pmu_seam_test.cpp`, install scripted words through the new field at
+`mapfileScenario` (lines 2206-2286) and at the `selectedTable` helper (lines
+3673-3677), so the host-dependent early returns at lines 2215-2220 and 3751-3755
+lose their host dependence. Gate:
+`ctest --test-dir build -R counters_linux_pmu_seam_test --output-on-failure`
+under `taskset -c 0,1` (FR-013).
+- [ ] T016 [P] [US2] In `test/source/counters_pmu_provider_test.cpp`, add the errno matrix over the `pmuProbe` switch at
+`source/counters/linux_pmu/provider.cpp:726-733`, driven through the existing `gErrno` fixture (lines 110-111): script `EINVAL`,
+`EOPNOTSUPP` and `ENOENT`, each scenario asserting the `NOT_ENCODABLE` state; script
+`EACCES` asserting the `PERMISSION_BLOCKED` state beside it. No real open takes
+part (FR-002, FR-013). Gate: `ctest --test-dir build -R counters_pmu_provider_test --output-on-failure`.
+- [ ] T017 [P] [US2] In `test/source/counters_linux_pmu_seam_test.cpp`, finish the FR-013 rework of the host-fact sites:
+script `fastBranchScenario`'s availability probe (lines 3196-3199) and `devicePageVerdictScenario`'s granted opens (lines
+4225-4227) through `installKernelCalls`, the pattern `scriptedKernelScenario` (lines 4300-4435)
+follows; hold `contextOpenRefusalScenario` (line 2160) to the FR-002 rule and
+script the refusal where the asserted result is host-shaped; rework the procfs
+descriptor and mapping counters at lines 208-238 to fixture state; in
+`multiplexWindowScenario` (lines 821-835), keep the recipe assertions at lines
+867-883 and drop the real `__rdtsc` call at `fast_read.cpp:399` by driving a
+page whose enabled and running counts agree. Gate: `ctest --test-dir build -R counters_linux_pmu_seam_test --output-on-failure`, then the whole suite
+under `taskset -c 0,1`.
+- [ ] T018 [US1] Verify commit A1 passes the gates alone: `cmake --preset=ci-rocky`, `cmake --build build`, `ctest --test-dir build --output-on-failure`, the
+same suite under `taskset -c 0,1`, and `cmake -P cmake/lint.cmake` plus `cmake -P cmake/spell.cmake`. Assert the
+standing option-error behavior of FR-014: run one entry whose bad value exits 2
+with one quoted line, and record the exit. Record the ctest result and the
+commit line and branch counts in the commit body for the PR body.
+
+### Commit A2: the marker repairs and their coverage scenarios
+
+Covers FR-003 and FR-004. Every removal here is driven by a scripted
+answer or a host-record ground; the tree gains no new marker
+(FR-015).
+
+- [ ] T019 [P] [US4] In `include/speedgun-ng/counters_provider.hpp`, remove the `LCOV_EXCL_LINE` at line 111 on the
+defaulted copy constructor of `ObjectSink` (added by commit `65dea585`, a gcc 16 host
+record). Keep the default-constructor marker at line 106 and its comment block
+at lines 100-105. The commit body states the gcc 16 record and the removal
+reason. Gate: the coverage run at the commit head confirms line 111 carries a
+count on the acceptance host;
+`ctest --test-dir build -R counters_pmu_provider_test --output-on-failure`
+passes.
+- [ ] T020 [US4] In `source/counters/linux_pmu/group_io.cpp`, replace `LCOV_EXCL_LINE` with `LCOV_EXCL_BR_LINE` on
+the two `switch (slot.source)` lines at line 306 and line 432 (commit `387ca19f`
+widened both). The no-case arcs stay branch-excluded; both lines join the
+line-coverage denominator. FR-003 fallback: when a line sits dark on an
+acceptance host, cover it through a scripted seam answer or keep the
+`LCOV_EXCL_LINE` in the kept list with its ledger reason. Gate:
+`ctest --test-dir build -R counters_pmu_window_test --output-on-failure` (the
+scenarios at `test/source/counters_pmu_window_test.cpp:291-293` and `:536-540`
+hand each switch every enumerator), then the coverage run at the commit head
+confirms both lines carry counts.
+- [ ] T021 [US4] In `source/counters/linux_pmu/group_io.cpp`, remove the T140 block at lines 395-404: the `LCOV_EXCL_BR_START`, the BR
+lines at 400 and 403, and the `LCOV_EXCL_BR_STOP`. The scripted answer is
+`fastWindowReadScenario` (`test/source/counters_pmu_window_test.cpp:508-559`): a member page with `cap_user_rdpmc` clear (lines
+530-533) reaches the refused `gapped = true` line 402, and the scenario asserts
+the gap beside the zero count (lines 548-553). The not-taken OK side adds one
+short branch position to the whole-tree count; the implement phase reports the
+number (FR-004). Gate: `ctest --test-dir build -R counters_pmu_window_test --output-on-failure`, then the coverage run at the commit head shows line
+402 counted.
+- [ ] T022 [US4] In `source/counters/linux_pmu/provider.cpp`, remove the empty-selection markers at lines 157-163:
+the `LCOV_EXCL_BR_START`, the BR line at 160, the LINE markers at 161 and 162, and the `LCOV_EXCL_BR_STOP`.
+Depends on T014: the scripted no-row identity drives the arm at lines 160-162 on
+every host, and `counters_linux_pmu_seam_test.cpp:2282-2285` already asserts the
+selection behavior for it. Gate: the coverage run at the commit head shows the
+arm counted;
+`ctest --test-dir build -R counters_pmu_provider_test --output-on-failure` and
+`ctest --test-dir build -R counters_linux_pmu_seam_test --output-on-failure`
+pass.
+- [ ] T023 [US4] Verify the FR-004 coverage state at the commit A2
+  head: build the coverage preset with the gate and confirm
+  `group_io.cpp` and `provider.cpp` carry zero dark lines outside kept
+  markers, with the branch shortfall recorded. Record the ledger
+  verification entry for the group short read
+  (`gapped = true` at `group_io.cpp:288`, driven by
+  `groupWindowGappedScenario` at
+  `test/source/counters_pmu_window_test.cpp:277-329`, which asserts the
+  gap disclosure at lines 303-304 and 322-323; no edit). Record the
+  T020 fallback decision, whichever way it went. Gate: the coverage
+  preset with the gate; the counts go into the commit A2 body.
+
+### Commit A3: the ledger and record updates (spec-file commits)
+
+Covers FR-005. This commit produces the marker count, the kept list
+and the recorded Part A counts. Its artifacts sit under
+`specs/045-merge-fixes/`, so it lands as spec-file commits with
+footer `Refs: specs/045-merge-fixes`, outside the Part A footer
+rule.
+
+- [ ] T024 [US4] At the commit A3 head, run
+`git grep -c LCOV_EXCL -- source include` and verify the count reads 84: 94 at
+base, minus the 10 removed marker lines (one at `counters_provider.hpp:111`, four in `group_io.cpp:395-404`, five in `provider.cpp:157-163`);
+the two T020 swaps change no count. Verify the six G-21 markers stay: four in
+`include/speedgun-ng/dbc.hpp` (the pairs at lines 106-216 and 238-394), two in
+`source/simulation/marker.cpp` (lines 40-43). Gate: the grep command; the
+reading satisfies SC-003.
+- [ ] T025 [US4] Write the kept-marker ledger with one reason per
+  kept marker into `specs/045-merge-fixes/results/marker-ledger.md`:
+  the count by file; the counters kept list (`group_io.cpp` lines 306
+  and 432 as BR markers: the no-case arc of a switch over a closed
+  enumeration; `group_io.cpp` lines 376-390 and 409-428: the
+  page-rewrite arms no fixture answer forces; `provider.cpp` lines
+  483-517: the past-the-enum arm of a closed switch; `table_parse.cpp`
+  lines 712-714: the by-value return epilogue; `table_parse.cpp` lines
+  807-817: the registry arm the generator guarantees;   `fast_read.cpp`
+  lines 335-356 and 408-410: the instruction arm and the pair-stability
+  arm; the two surviving `counters_provider.hpp` markers at lines 100
+  to 106: the defaulted default constructor emits no code (the T066
+  record, older than PR #71); `dbc.hpp` and `marker.cpp` per G-21),
+  one reason each; any
+  marker no ruling covers carries "waits for ruling" (D-7); markers
+  outside Part A scope keep their recorded T066 reasons. Draft the
+  PR-body counts from it. The file lands in a spec-file commit with
+  footer `Refs: specs/045-merge-fixes`.
+- [ ] T026 [US1] Run the Part A acceptance preparation at the Part A head on the
+development host: full `ctest` and `ctest` under `taskset -c 0,1`; the sanitize and tsan
+presets over the counters tests; the coverage preset with the gate; the five
+tools of SC-005 (`cmake -P cmake/lint.cmake`, `cmake -P cmake/spell.cmake`, `tools/docs/example_drift.py`, `tools/prose/prose_gate.py --base origin/master`, `tools/dbc/dbc_pair_gate.py`); the release build with the analyzers,
+`cmake --preset=ci-ubuntu` then `cmake --build build`, expecting zero clang-tidy and cppcheck
+findings and the name check green (VIII, and the per-feature release build of
+IX); and the time-source gate `test/time_source_gate.sh`. Record the host name, kernel, GCC version,
+head sha, line percent, branch shortfall against 21, dark lines by file and the
+marker count by file in `specs/045-merge-fixes/results/` and in the commit
+bodies. The results files land in a spec-file commit with footer `Refs: specs/045-merge-fixes`.
+
+## Phase 2: Part B (jitter probe, user stories US-3, US-4, US-5)
+
+**Purpose**: the jitter probe repairs and the record fixes, in commits
+B1 to B6.
+
+## Part B tasks
+
+### Commit B1: the paced clock and the signed sine delta (FR-006, FR-007)
+
+- [ ] T101 [US3] Add the covering assertion first in
+  `test/source/harness_jitter_window_test.cpp`: in the FWQ window
+  scenario whose document the gate checks (the `integerValueAfter`
+  assertions over `document` and `gateName`, lines 1410 to 1522),
+  assert the entry's window holds the samples of the watched entry
+  (`sampleCount` above 0) and the document carries a real jitter record
+  with `passCount` above 0, the shape PR #73 run 41576309608 broke.
+  Run the entry against the standing one-tick clock and record the red.
+  Verify: `cmake --build build --target harness_jitter_window_test`
+  exits 0 and `ctest --test-dir build -R harness_jitter_window_test`
+  reports the entry failing on the new assertions.
+- [ ] T102 [US3] Pace the scripted clock in the same file,
+  `test/source/harness_jitter_window_test.cpp`: add the named constant
+  `kPacedStepNs` (1000, the `kTargetUnitTimeNs` value of
+  `include/speedgun-ng/benchmark.hpp:2443`) beside `kSeriesJump` at
+  line 117; replace the tail-delta argument 1 with `kPacedStepNs` in
+  the six `setPoints("machine", "tsc", ...)` calls at lines 93, 1452,
+  1492, 1532, 1781 and 1800; the jump hand-offs set `kSeriesJump` as
+  before (lines 336, 1905, 1915, 1924, 2783) and the restore hand-offs
+  set `kPacedStepNs` where they set 1; rewrite the scenario comment at
+  lines 2118 to 2120 that names the 2 ms unit time to the paced
+  cadence, in constitution XI prose. The probe changes nothing: the
+  alongside loop drops no sample a real run would keep, and the commit
+  body records no probe change. Verify: the T101 assertions turn green
+  and `ctest --test-dir build -R harness_jitter_window_test` reports
+  every entry passing.
+- [ ] T103 [US3] Reshape the roundtrip scenario
+  `theSeriesRoundTripsThroughLoadReport` in the same file
+  (`test/source/harness_jitter_window_test.cpp`, line 2300 area): drop
+  the `DipSeriesReader` install and run the scenario on the paced
+  standing clock; keep the assertions reading the document shape and
+  the fold presence, so no expected magnitude moves. Verify:
+  `ctest --test-dir build -R harness_jitter_window_test` reports every
+  entry passing.
+- [ ] T104 [P] [US3] Make the sine-arm delta signed and clamped in
+  `test/source/harness_fwq_ftq_test.cpp`, `scriptedDelta` lines 232 to
+  238: first run the FWQ sine arm under the sanitize preset and record
+  the UBSan report of the conversion to `unsigned long` at line 237
+  (red observed); then compute the delta as
+  `windowStep + std::llround(sineAmplitude * sin(phase))` in
+  `std::int64_t` and clamp a negative result at 0; keep the FWQ
+  assertions at lines 961 to 970 and the FTQ assertions at lines 1374
+  to 1390 relational, so no expected magnitude moves. Verify:
+  `cmake --preset=ci-sanitize`, `cmake --build build/sanitize`, then
+  `ctest --test-dir build/sanitize -R harness_fwq_ftq_test` reports the
+  entry passing with no UBSan finding, and the same holds for the tsan
+  build under `ctest --test-dir build/tsan`.
+
+### Commit B2: the latch-time snapshot and the race fix (FR-008)
+
+- [ ] T105 [US3] Add the covering scenario first in
+  `test/source/harness_jitter_cli_test.cpp`: a `mode=both` scenario
+  that asserts the pre-check record's series figures fold from a
+  per-cpu latch-time snapshot, one object per cpu: the record's
+  `series` figures (`sampleCount`, the percentiles, `droppedSamples`)
+  equal the figures of the prefix the latch stored and stand stable
+  while the alongside loop runs on. The red stands as a compile
+  failure while the snapshot type and its fold lack in
+  `source/harness/detail/jitter_probe.hpp`. Verify:
+  `cmake --build build --target harness_jitter_cli_test` exits nonzero
+  on the missing snapshot symbols (red observed).
+- [ ] T106 [US3] Add the per-cpu snapshot type `JitterLatchSnapshot`
+  and its fold to
+  `source/harness/detail/jitter_probe.hpp`: one object per probe cpu
+  carrying the series prefix copied at the latch line, the kept-at-
+  latch count, the dropped-sample count, the five calibration figures
+  (`workCount`, `unitTimeNs`, `targetNs`, `quantumNs`,
+  `calibrationSpanNs`) and the method; the fold answers the same
+  `JitterSeriesStats` the state folds answer; document the type and
+  the fold with the `\pre` and `\post` pairs the DBC gate requires,
+  enforced per the facility (II).
+  Verify: `cmake --build build --target harness_jitter_cli_test`
+  compiles.
+- [ ] T107 [US3] Build and publish the snapshot in
+  `source/harness/jitter_probe.cpp`: the probe thread builds one
+  snapshot per cpu at the latch line, after `seriesKeptAtLatch` stands
+  stored at line 589, and release-stores one publish flag; the
+  alongside loops gain no lock and no atomic, and the probe thread
+  keeps writing the series into the `ProbeCpuState` its item owns.
+  Verify: `cmake --build build` exits 0 and
+  `ctest --test-dir build -R harness_jitter_cli_test` reports the T105
+  scenario passing.
+- [ ] T108 [US3] Point the mid-run folds at the snapshot in
+  `source/harness/cli.cpp`: the method noise gate (lines 1302 to 1325,
+  `precheckNoisyCpus` and its `seriesStatsOf` fold at line 1313) and
+  the mode=both record site (lines 1379 to 1385,
+  `seriesStatsOf(state, state.seriesKeptAtLatch)`) acquire-load the
+  publish flag and read the snapshot only; the run-level and
+  per-benchmark folds at lines 2020 to 2025 and in
+  `source/harness/report.cpp` (lines 873 and 978) stay join-ruled
+  behind `stopAndJoin`; for the `tsc` gap-fold site at line 1368
+  (`gapStatsOf(state)`), take one of the two shapes research.md FR-008
+  names, the snapshot carrying the kept gap prefix and the dropped-gap
+  count, or the `tsc` record reading the gap fold behind the join, and
+  record the choice in the commit body. Verify:
+  `ctest --test-dir build -R harness_jitter_cli_test` and
+  `ctest --test-dir build -R harness_jitter_window_test` report every
+  entry passing, then `cmake --preset=ci-tsan`,
+  `cmake --build build/tsan`, and
+  `ctest --test-dir build/tsan -R harness_jitter` report no race.
+
+### Commit B3: the prose fixture runner in one process (FR-009)
+
+- [ ] T109 [US1] Reshape the gate invocation in
+  `test/prose-gate-fixture/run_prose_gate_fixtures.py`, and correct
+  the stale comment the `prose_gate_fixtures` entry carries in
+  `test/CMakeLists.txt` (comments only, the file the Part B scope
+  binds): `run_gate`
+  (line 493) loads `tools/prose/prose_gate.py` once through
+  `importlib` and calls the module entry point in process for every
+  case except the timing case `run_timing_case` (lines 1008 to 1062),
+  which keeps its subprocess run over the repository root, its
+  10-second check, its exit 0-or-1 acceptance and its
+  `GITHUB_ACTIONS` skip; capture the entry's output with
+  `contextlib.redirect_stdout` and `redirect_stderr`, read the exit
+  code from the return value, switch the working directory per case
+  with `os.chdir` and restore it after each case; the rule data loads
+  per call, because the loader mutants of spec 043 T012 prove the
+  load-time validation fires. Verify:
+  `ctest --test-dir build -R prose_gate_fixtures` reports the entry
+  passing.
+- [ ] T110 [US1] Time the runner itself in the same file:
+  `main` (line 1282) reads `time.monotonic()` at entry and checks the
+  elapsed wall time before every exit; above `TIMING_BOUND_SECONDS`
+  (10.0, unchanged at line 84) the runner prints one line that names
+  the bound and the measured time and exits nonzero; the internal
+  gate-run assert of the timing case stays untouched. F1-004 replaced this
+  bound: the runner keeps the `GATE_RUNS` tally and the two work-count
+  asserts, and no clock stands in the runner. Verify:
+  `ctest --test-dir build -R prose_gate_fixtures` reports the entry
+  passing, and a parallel run
+  `ctest --test-dir build -j 8 -R prose_gate_fixtures` finishes inside
+  the 10-second bound.
+
+### Commit B4: the record fixes (FR-010, FR-012)
+
+The ticks this commit lands record the gate results the B1 to B3
+commits prove (FR-010, and the footer rule the spec states).
+
+- [ ] T111 [US5] Tick the spec 043 Phase 10 rows in
+  `specs/043-fwq-ftq/tasks.md`: run every Phase 10 gate the lane can
+  execute at the Part B head and tick T048, T049, T051, T052, T053,
+  T054, T055 and T056 when their verify commands pass; leave T050 open
+  with a note line under the row that names the 045 branch allowance of
+  21 against the shortfall of 0 its verify text demands; leave T057
+  open with a note line naming the owning 043 lane acceptance record;
+  leave T061 open with a note line naming the owning 043 lane push; no
+  Verify line changes. Verify: `git diff -- specs/043-fwq-ftq/tasks.md`
+  shows tick marks and note lines alone, and each ticked row's verify
+  commands pass at the head.
+- [ ] T112 [P] [US5] Fix the two `CMakeLists.txt` comment sites: the
+  version-block comment at lines 45 to 51 and the harness-target
+  comment at lines 399 to 407 name PR #70 (T-LCOV) as the change that
+  moved the archive SOVERSION to 5; the change touches comments alone
+  and no number line moves (`SOVERSION 20` and the archive 5 stand).
+  Verify: `git diff -- CMakeLists.txt` shows comment lines alone,
+  `cmake -P cmake/spell.cmake` exits 0, and
+  `tools/prose/prose_gate.py --base origin/master` exits 0.
+
+### Commit B5: the coverage mapping (FR-011)
+
+- [ ] T113 [US4] Run the coverage build at the Part B head and map the PR #72
+dark lines and short branch positions: `cmake --preset=ci-coverage`, `cmake --build build/coverage`, then the coverage ctest entry;
+list the dark lines and the short branch positions by file and map each one to
+the scripted arm research-part-b.md FR-011 names; build the shortfall budget
+beside the mapping: the base figure, plus the short positions the marker
+removals add (the not-taken OK side of T021 and the unmarked arms of T022),
+minus the positions the new scenarios close, reconciled to 21 or less before the
+gate runs; a line no real test can reach stops the work and reports to the
+owner, like the public-layout rule. Verify: the mapping names one arm per dark
+line, and the list stands recorded for the PR body.
+- [ ] T114 [P] [US4] Add the scenarios the mapping demands to
+  `test/source/harness_fwq_ftq_test.cpp`: the `ScriptedReader` and the
+  `ScriptPlan` table (lines 146 to 380) drive the calibration search,
+  the unit loops, the drop counting and the latch prefix with exact
+  read counts, one arm per mapped dark line of
+  `source/harness/jitter_probe.cpp`. Verify:
+  `ctest --test-dir build -R harness_fwq_ftq_test` reports every entry
+  passing.
+- [ ] T115 [P] [US4] Add the window-fold scenarios the mapping demands
+  to `test/source/harness_jitter_window_test.cpp`: the scenario readers
+  (`CountingReader`, `DipSeriesReader`, `GapSeriesReader`,
+  `FlatSeriesReader`, lines 142 to 179 and 869 to 991) and the
+  state-level fold scenarios with the planted series (`fillFwqSeries`,
+  `fillFtqSeries`, lines 950 to 976) cover each mapped dark line of
+  the window-fold surfaces. Verify:
+  `ctest --test-dir build -R harness_jitter_window_test` reports every
+  entry passing.
+- [ ] T116 [P] [US4] Add the option-range, refusal-row and spectrum scenarios
+the mapping demands to `test/source/harness_jitter_cli_test.cpp`, `test/source/harness_spectrum_test.cpp` and
+`test/source/harness_jitter_bytes_test.cpp` for the mapped dark lines those
+files cover. Verify:
+`ctest --test-dir build -R "jitter_cli|spectrum|jitter_bytes"` reports every
+entry passing.
+- [ ] T117 [US4] Run the coverage gate at the Part B head and record the
+figures: lines at 100 percent, the branch shortfall figure of 21 or less against
+the budget T113 built, and the dark-line count by file; the numbers go into the
+PR body. Verify: the coverage entry of `build/coverage` passes with the gate,
+and the recorded shortfall reads 21 or less.
+
+### Commit B6: the spec 045 records
+
+- [ ] T118 [US5] Write the acceptance records under
+  `specs/045-merge-fixes/results/`: per host, the full `ctest` result,
+  the `ctest` result under `taskset -c 0,1`, the coverage gate figures
+  (line percent, branch percent, shortfall against 21, dark lines by
+  file), the marker count by file, the sanitize and tsan outcomes, and
+  the five tools of SC-005; corsairone runs first at the PR head, the
+  thrawn-side runs stand in when the lcov repair fails or the host
+  stays unreachable, and the record states the corsairone gap in those
+  cases. Verify: the files exist under `specs/045-merge-fixes/results/`,
+  the commit touches `specs/045-merge-fixes/` alone, and its footer
+  block reads `Refs: specs/045-merge-fixes` and `Approved-by: OmO`.
+
+
+## Phase 3: Final (cross-cutting)
+
+**Purpose**: the acceptance runs, the push and the pull request
+record.
+
+- [ ] T201 [US1] Run the corsairone acceptance at the PR head, per the
+  spec's acceptance section: the lcov repair on the host alone, full
+  `ctest`, `ctest` under `taskset -c 0,1`, the coverage gate figures,
+  the marker count by file, the sanitize and tsan presets, and the
+  five tools of SC-005. Record the host name, kernel, GCC version and
+  head sha in `specs/045-merge-fixes/results/`. When the repair fails
+  or the host stays unreachable, record the thrawn-side counts with
+  the corsairone gap statement.
+- [ ] T202 [US1] Run the thrawn acceptance at the same PR head with
+  the same five items, and complete the results records.
+- [ ] T203 [US1] Push and open the record: `git push -u origin 045-merge-fixes`; later pushes use `git push --force-with-lease=045-merge-fixes:<sha>`, and
+`git ls-remote origin 045-merge-fixes` must equal `git rev-parse HEAD`. Assemble the PR body: the
+commit list with Refs footers, the marker ledger, the coverage figures with the
+branch shortfall number, the per-host acceptance counts, the open owner
+questions O-1 and O-2. PR title: "Fix the counters and FWQ/FTQ gates". Last two
+lines of the body: `Refs: specs/045-merge-fixes G-19 G-21 T-LCOV-3 specs/043-fwq-ftq N13c-F`, then `Approved-by: OmO`. The pull request opens when the owner's `gh`
+credentials stand; the branch and its pushes carry the work. Verify SC-008
+beside the assembly:
+`git diff --stat <base>..HEAD -- .github tools/dbc tools/ci cmake` reads empty,
+and the version, schema and SOVERSION lines diff empty.
+
+## Dependencies and completion order
+
+```text
+Phase 0 (T001-T003, the spec-file commit)
+  └─> Commit A1 (T011-T018) ─> Commit A2 (T019-T023) ─> Commit A3 (T024-T026)
+        └─> Commit B1 (T101-T104) ─> Commit B2 (T105-T108) ─> Commit B3 (T109-T110)
+              └─> Commit B4 (T111-T112) ─> Commit B5 (T113-T117) ─> Commit B6 (T118)
+                    └─> Phase 3 (T201, T202, T203)
+```
+
+- Part A stands before Part B: the tsan and coverage gates of B2 and
+  B5 read the whole tree, and the marker ledger of A3 feeds the PR
+  body B6 assembles.
+- Inside commit A1: T011 (test first) before T012 and T013; T014 and
+  T016 stand after T012, because both drive the new field; T015 and
+  T017 run beside them on other files.
+- Inside commit A2: T019 runs in parallel with everything; T022
+  depends on T014 (the scripted no-row identity); T020 and T021 stand
+  independent; T023 verifies the commit head.
+- Inside part B: B2 depends on B1 (the paced clock keeps the window
+  scenarios the snapshot scenarios reuse); B5 depends on B2 and B3,
+  because the coverage mapping reads their heads; B6 depends on every
+  prior commit.
+- T201 runs before T202 (corsairone first), and T203 runs last.
+
+## Parallel execution examples
+
+- Commit A1: T011, T015, T016, T017 run in parallel once T012 lands;
+  T016 touches only `counters_pmu_provider_test.cpp` and T017 only
+  `counters_linux_pmu_seam_test.cpp`.
+- Commit A2: T019 (`counters_provider.hpp`) and T020/T021
+  (`group_io.cpp` groups) and T022 (`provider.cpp`, after T014) run in
+  parallel; T023 closes the commit.
+- Commit B1: the window scenarios (T101, then T102 and T103, one
+  file, red first) and the sine-arm scenario (T104, a different file)
+  run in parallel.
+- Commit B3: the runner reshape and its covering fixture scenario
+  touch `run_prose_gate_fixtures.py` and its fixture tree and run as
+  one unit; T109 and T110 pair test-first.
+- Commit B5: T114, T115 and T116 touch different test files and run in
+  parallel; T113 runs first, T117 closes.
+
+## Implementation strategy
+
+- MVP scope: commits A1 and B1 turn the two red, host-dependent
+  failures the CI jobs report into green, scripted evidence
+  (US-1, US-2, US-3). Each later commit adds an independently
+  verifiable slice.
+- Test-first where a test can fail first: the seam-field round trip,
+  the scripted identities, the paced window, the signed sine arm and
+  the snapshot fold all name their red observation; the marker
+  removals verify through the coverage run that replaces the excluded
+  line with a count.
+- The gates of Principle VIII run at every commit head; the hard
+  coverage gate binds at the PR head, and every commit records its
+  line and branch counts for the PR body (FR-011, SC-002).
+
+## Task count
+
+- Setup: 3 tasks (T001-T003). Part A: 16 tasks (T011-T026) over
+  commits A1-A3. Part B: 18 tasks (T101-T118) over commits B1-B6.
+  Final: 3 tasks (T201-T203). Fixes round 1: 10 tasks (F1-001-F1-010).
+  Total: 50 tasks.
+
+## Phase 4: Fixes round 1 (owner rulings G-22, 2026-11-04)
+
+- [x] F1-001 Rebase the branch on `origin/master` at `561095df` (PR #74, version
+      0.30.1). Keep version 0.30.1. Change no version, schema or SOVERSION.
+- [x] F1-002 [R1] Make every window of the jitter window fixture run on the
+      scripted clock, so the gap-free entry is always gap-free. No host gate.
+      Test and fix in one commit. Run the test 100 times on thrawn and 100 times
+      under `taskset -c 0,1`; all pass.
+- [x] F1-003 [R2] Remove the unreachable arm at `topdown_select.cpp:567`, or fold
+      it into the `SG_ENSURE` at `:595`. Name the reason in the commit body.
+      Update the matching FR in `spec.md`. No new marker.
+- [x] F1-004 [R3 R4] Give the prose timing case a bound that does not depend on
+      the host, or move it out of the unit tests. Remove `RUNNER_BOUND_SECONDS`
+      and the 30 s entry bound. Raise no bound. Update FR-009 in `spec.md`.
+- [x] F1-005 Make line coverage 100% (the one line at 17617 of 17618) with a real
+      test, or through F1-003. Give the branch shortfall number; it must be 21 or
+      fewer.
+- [x] F1-006 Replace each `/home/<user>/` path in the records with `$HOME/` or a
+      path relative to the build tree. The check reads this lane only:
+      `git grep -nE 'arche[r]c|char[l]es|@gmai[l]' -- specs/045-merge-fixes`
+      prints nothing; the bracket classes stop that line from matching itself.
+      The 194 matches outside this lane move to ticket T-NAMES (owner ruling,
+      2026-11-04): 030-ci-speedup 55, 039-context-groups 32, 029-hunter-core
+      26, the prose-gate fixture data under `test/` 24, 043-fwq-ftq 16,
+      024-multipass-collection 9, 037-execution-graphs 8,
+      014-identifier-naming-camelcase 8, 007-counters-and-timers 8,
+      040-hunter-sensitivity 2, 031-host-validation 2, and 1 each in
+      036-osnoise-timerlat-tracers, 035-numa-placement,
+      034-host-noise-precheck and 032-fix-merged-features. Six further matches
+      sit in the CI workflow, `CMakeLists.txt` and `CODEOWNERS`.
+- [x] F1-007 Run every gate: `cmake -P cmake/lint.cmake`, `cmake -P
+      cmake/spell.cmake`, `python3 tools/docs/example_drift.py .`,
+      `python3 tools/prose/prose_gate.py --base origin/master`, the DBC gates,
+      full `ctest`, `taskset -c 0,1 ctest`, ASan and UBSan, TSan, `ci-coverage`.
+      Give the marker count from `git grep -c LCOV_EXCL -- source include`; it
+      must be 84 or fewer.
+- [x] F1-008 Write `results/pr-body.md` again: every commit, the head sha, the
+      host, the kernel, the GCC version, the counts and the coverage figures
+      (G-20). 72 columns or fewer per line, no break inside a word.
+- [x] F1-009 Open one pull request to `master` with that body. CI on a GitHub
+      runner is not acceptance.
+- [ ] F1-010 On corsairone at the new head, run the acceptance again: full
+      `ctest`, `taskset -c 0,1 ctest`, the sanitizers, `ci-coverage`. Record the
+      host, the kernel and the head sha in `results/` and in the PR body.
+
+Rulings: R1 the fixture premise stands fixed; no host gate. R2 the unreachable
+arm goes. R3 and R4 the prose bound goes host-independent and the raised entry
+bound goes away.

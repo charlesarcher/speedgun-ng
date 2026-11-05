@@ -303,7 +303,7 @@ struct PmuWindow final : WindowReader
       const auto& group = groups[slot.group];
       // The switch's no-case arc is a block the compiler emits for a
       // value the enumeration cannot hold; no input reaches it.
-      switch (slot.source) {  // LCOV_EXCL_LINE
+      switch (slot.source) {  // LCOV_EXCL_BR_LINE
         case SlotSource::MEMBER:
           sink.put(group.values[slot.index]);
           break;
@@ -392,16 +392,10 @@ struct PmuFastWindow final : WindowReader
       // page refuses, and a retry that also fails, publish no count, so
       // the point is zero and the action is marked beside it
       // (FR-002, FR-003).
-      // LCOV_EXCL_BR_START : coverage exclusion (T140): the ok verdict. It
-      // needs the processor to serve the instruction over a mapped counter,
-      // which no fixture page stands in for: a page that indexes nothing or
-      // grants no read takes the arms above, and the granted hosts take the
-      // ok arm in `counters_pmu_test`'s real fast windows.
-      if (verdict != FastReadVerdict::OK) {  // LCOV_EXCL_BR_LINE
+      if (verdict != FastReadVerdict::OK) {
         one.value = 0;
         gapped = true;
-      }  // LCOV_EXCL_BR_LINE
-      // LCOV_EXCL_BR_STOP
+      }
     }
     // The enabled/running pair rides the leader's user page, the same
     // pair the group read takes from the leader, so the multiplex
@@ -429,7 +423,7 @@ struct PmuFastWindow final : WindowReader
     for (const auto& slot : slots) {
       // The switch's no-case arc is a block the compiler emits for a
       // value the enumeration cannot hold; no input reaches it.
-      switch (slot.source) {  // LCOV_EXCL_LINE
+      switch (slot.source) {  // LCOV_EXCL_BR_LINE
         case SlotSource::MEMBER:
           sink.put(members[slot.index].value);
           break;

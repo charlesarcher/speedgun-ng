@@ -48,7 +48,9 @@
 
 #  include "../detail/pmu.hpp"
 #  include "embedded_tables.hpp"
+#  include "kernel_calls.hpp"
 #  include "pmu_ident.hpp"
+#  include "speedgun-ng/dbc.hpp"
 
 namespace sg::counters::detail
 {
@@ -112,17 +114,14 @@ auto pmuIdentFromWords(const CpuidWords& words) -> PmuIdent
 
 auto pmuIdentCurrent() -> PmuIdent
 {
-  // Cached once per process (FR-038): the ident never changes.
-  static const PmuIdent kIdent = []
-  {
-#  if defined(__x86_64__) || defined(__i386__)
-    const CpuidWords words = readCpuidWords();
-    return pmuIdentFromWords(words);
-#  else
-    return PmuIdent {};
-#  endif
-  }();
-  return kIdent;
+  // The ident decodes the words the seam answers on each call: a cache
+  // would ignore a test's install and read the host (FR-001). The
+  // counter-limit register probe stays real beside it, and no test
+  // asserts a value derived from it (the watchdog pattern, FR-013).
+  const auto& calls = kernelCalls();
+  SG_ENSURE(calls.cpuidWords != nullptr,
+            "the seam answers the CPUID words the ident decodes");
+  return pmuIdentFromWords(calls.cpuidWords());
 }
 
 namespace

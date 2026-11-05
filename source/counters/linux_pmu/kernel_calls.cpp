@@ -9,6 +9,8 @@
 
 #include <sys/types.h>
 
+#include "pmu_ident.hpp"
+
 #if defined(__linux__)
 #  include <linux/perf_event.h>
 #  include <sys/ioctl.h>
@@ -124,6 +126,18 @@ auto realParanoidPath() -> std::filesystem::path
   return std::filesystem::path("/proc/sys/kernel/perf_event_paranoid");
 }
 
+auto realCpuidWords() -> CpuidWords
+{
+#if defined(__linux__)
+  return readCpuidWords();
+#else
+  // Off Linux the probe stands in table_parse, which compiles to
+  // nothing (FR-042), so the stub answers the no-answer words the
+  // decode reads as an absent identity.
+  return CpuidWords {};
+#endif
+}
+
 const KernelCalls kRealCalls {
     .openEvent = realOpenEvent,
     .mapPage = realMapPage,
@@ -133,6 +147,7 @@ const KernelCalls kRealCalls {
     .closeFd = realCloseFd,
     .devicesRoot = realDevicesRoot,
     .paranoidPath = realParanoidPath,
+    .cpuidWords = realCpuidWords,
 };
 
 const KernelCalls* installed = nullptr;

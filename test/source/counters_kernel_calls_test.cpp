@@ -27,6 +27,7 @@
 #include <unistd.h>
 
 #include "../source/counters/linux_pmu/kernel_calls.hpp"
+#include "../source/counters/linux_pmu/pmu_ident.hpp"
 #include "speedgun-ng/dbc.hpp"  // SG_CONTRACTS_SEMANTIC
 
 namespace
@@ -106,6 +107,8 @@ auto scriptedCalls() -> sg::counters::detail::KernelCalls
   { return "/fixture/devices"; };
   calls.paranoidPath = []() -> std::filesystem::path
   { return "/fixture/paranoid"; };
+  calls.cpuidWords = []() -> sg::counters::detail::CpuidWords
+  { return {.leaf0Eax = 0x15U, .leaf1Answered = true, .leaf1Eax = 0x10U}; };
   return calls;
 }
 
@@ -130,13 +133,19 @@ auto main() -> int
             == std::filesystem::path("/proc/sys/kernel/perf_event_paranoid"),
         "the real set answers the paranoid control file");
 
-  // A malformed attribute is refused on every host: the size field
-  // carries zero, and the kernel answers EINVAL without granting
-  // anything, so the errno convention holds where no grant is needed.
+  // An attribute naming no registered pmu is refused on every host: a
+  // host that gates the call answers EACCES from its permission check,
+  // and a host that opens the call answers ENOENT from the pmu lookup.
+  // Either way the refusal carries an errno and grants nothing, so the
+  // convention holds where no grant is needed. A zero size field does
+  // not stand here: a host with `perf_event_paranoid` at -1 accepts it
+  // and grants a descriptor.
   perf_event_attr attr {};
+  attr.size = PERF_ATTR_SIZE_VER0;
+  attr.type = 0x7fffffffU;
   errno = 0;
   check(kernelCalls().openEvent(&attr, 0, 0, -1, 0UL) < 0,
-        "the real open refuses a malformed attribute");
+        "the real open refuses an attribute naming no pmu");
   check(errno != 0, "the real open sets an errno on its refusal");
 
   // The real read, map, and close run over a scratch file the test
@@ -182,6 +191,39 @@ auto main() -> int
   check(kernelCalls().devicesRoot()
             == std::filesystem::path("/sys/bus/event_source/devices"),
         "the clear hands the real set back");
+
+  // The CPUID words' round trip: the scripted pair stands while the
+  // install holds, and the clear hands the value the CPUID probe
+  // answers back (FR-001). The clear-side check compares two routes to
+  // one value and asserts no CPUID-derived fact, so it holds on every
+  // host (FR-013).
+  KernelCalls scriptedCpuid = scriptedCalls();
+  scriptedCpuid.cpuidWords = []() -> sg::counters::detail::CpuidWords
+  {
+    return {.leaf0Eax = 0x15U,
+            .leaf0Ebx = 0x756E6547U,
+            .leaf0Edx = 0x49656E69U,
+            .leaf0Ecx = 0x6C65746EU,
+            .leaf1Answered = true,
+            .leaf1Eax = 0x306C0U};
+  };
+  installKernelCalls(&scriptedCpuid);
+  const auto installed = kernelCalls().cpuidWords();
+  check(installed.leaf0Eax == 0x15U && installed.leaf0Ebx == 0x756E6547U
+            && installed.leaf0Edx == 0x49656E69U
+            && installed.leaf0Ecx == 0x6C65746EU && installed.leaf1Answered
+            && installed.leaf1Eax == 0x306C0U,
+        "the scripted pair stands while the install holds");
+  installKernelCalls(nullptr);
+  const auto probed = sg::counters::detail::readCpuidWords();
+  const auto cleared = kernelCalls().cpuidWords();
+  check(cleared.leaf0Eax == probed.leaf0Eax
+            && cleared.leaf0Ebx == probed.leaf0Ebx
+            && cleared.leaf0Edx == probed.leaf0Edx
+            && cleared.leaf0Ecx == probed.leaf0Ecx
+            && cleared.leaf1Answered == probed.leaf1Answered
+            && cleared.leaf1Eax == probed.leaf1Eax,
+        "the clear hands the value the CPUID probe answers back");
 
   if (failures != 0) {
     return 1;

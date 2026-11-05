@@ -2530,6 +2530,119 @@ auto scenarioBothMethodPrecheckSeries() -> int
   return 0;
 }
 
+// specs/045-merge-fixes T105, FR-008, D-5: the scripted clock behind the
+// latch snapshot. Each probe thread's stamps step 1,000 ns per read, and
+// every 16th read steps 9,000 ns more. A pre-check window keeps a prefix
+// of its own, and the alongside loop behind the latch keeps the samples
+// the prefix leaves out. One dip cycle carries a noise fraction of 36
+// percent, the figure the fold answers over a whole number of cycles.
+class LatchDipReader final : public sg::counters::WindowReader
+{
+public:
+  auto readPoints(sg::counters::PointSink& sink) noexcept -> void override
+  {
+    thread_local std::uint64_t calls = 0;
+    thread_local std::uint64_t stamp = 0;
+    ++calls;
+    stamp += kStepNs;
+    if (calls % kDipEvery == 0) {
+      stamp += kDipExtraNs;
+    }
+    sink.put(stamp);
+  }
+
+  static inline constexpr std::uint64_t kStepNs = 1000;
+  static inline constexpr std::uint64_t kDipEvery = 16;
+  static inline constexpr std::uint64_t kDipExtraNs = 9000;
+};
+
+// The figures one series fold answers, read field by field: the count,
+// the six percentile points, the runtime, and the five calibration
+// figures. The mean and the noise fraction stand doubles, and the two
+// folds read the same values, so the exact figures stand compared here.
+auto seriesFoldMatches(const sg::JitterSeriesStats& left,
+                       const sg::JitterSeriesStats& right) -> bool
+{
+  return left.sampleCount == right.sampleCount
+      && left.minValue == right.minValue
+      && left.medianValue == right.medianValue
+      && left.p90Value == right.p90Value && left.p99Value == right.p99Value
+      && left.p999Value == right.p999Value
+      && left.p9999Value == right.p9999Value && left.maxValue == right.maxValue
+      && left.seriesRuntimeNs == right.seriesRuntimeNs
+      && left.workCount == right.workCount
+      && left.unitTimeNs == right.unitTimeNs && left.targetNs == right.targetNs
+      && left.quantumNs == right.quantumNs
+      && left.calibrationSpanNs == right.calibrationSpanNs;
+}
+
+// specs/045-merge-fixes T105, US3, FR-008, D-5: the pre-check record of
+// a `mode=both` run folds its series from the latch-time snapshot, one
+// object per probe cpu. The snapshot's figures answer the prefix the
+// latch stored: the count, the percentile points, the runtime and the
+// calibration figures stand where the prefix fold answers them, and they
+// stand stable while the alongside loop runs on. The entry point's
+// record site folds this object for every measured cpu, and the scenario
+// drives the probe of a `mode=both` run directly, two cpus armed.
+auto scenarioBothRecordFoldsTheLatchSnapshot() -> int
+{
+  const auto cpus = pickCpus(2);
+  sg::JitterProbeOptions options;
+  options.cpus = {cpus.at(0), cpus.at(1)};
+  options.mode = sg::JitterProbeMode::BOTH;
+  options.method = sg::JitterMethod::FWQ;
+  options.gapCount = 768;
+  options.precheckMs = 1;
+  sg::detail::installTestReader(std::make_unique<LatchDipReader>());
+  sg::detail::JitterProbe probe(options);
+  probe.start();
+  const auto& states = probe.states();
+  check(states.size() == 2, "the both-mode probe measured two cpus (FR-008)");
+  std::vector<sg::JitterSeriesStats> folded;
+  for (const auto& state : states) {
+    const auto& latch = sg::detail::latchSnapshotOf(state);
+    check(latch.method == sg::JitterMethod::FWQ,
+          "the snapshot carries the method the run selected (FR-008)");
+    check(!latch.series.empty() && latch.seriesKept == latch.series.size(),
+          "the snapshot carries the prefix the latch stored (FR-008, D-5)");
+    folded.push_back(sg::detail::seriesStatsOf(latch));
+    check(folded.back().sampleCount == latch.seriesKept,
+          "the snapshot fold counts the prefix the latch stored (FR-008)");
+  }
+  probe.stopAndJoin();
+  for (std::size_t index = 0; index < states.size(); ++index) {
+    const auto& state = states.at(index);
+    const auto& latch = sg::detail::latchSnapshotOf(state);
+    const auto again = sg::detail::seriesStatsOf(latch);
+    check(seriesFoldMatches(again, folded.at(index)),
+          "the snapshot's figures stand stable while the alongside loop runs "
+          "on (FR-008, D-5)");
+    const auto prefix =
+        sg::detail::seriesStatsOf(state, state.seriesKeptAtLatch);
+    check(seriesFoldMatches(folded.at(index), prefix),
+          "the snapshot fold answers the figures of the prefix the latch "
+          "stored (FR-008)");
+    check(latch.seriesKept == state.seriesKeptAtLatch,
+          "the snapshot carries the kept count the latch stored (FR-008)");
+    check(
+        latch.series.size() == state.seriesKeptAtLatch
+            && std::equal(
+                latch.series.begin(), latch.series.end(), state.series.begin()),
+        "the snapshot carries the samples the latch stored (FR-008, D-5)");
+    const auto full = sg::detail::seriesStatsOf(state);
+    check(full.sampleCount > folded.at(index).sampleCount,
+          "the alongside loop kept samples the record leaves out (FR-008)");
+    // The scripted window keeps 640 unit times into a 768-entry buffer,
+    // so the pre-check window dropped no sample and the alongside loop
+    // behind the latch dropped the ones the joined count names.
+    check(latch.droppedSamples == 0 && full.droppedSamples > 0,
+          "the snapshot holds the drop count as the latch stored it "
+          "(FR-008, FR-022)");
+  }
+  sg::detail::installTestReader(nullptr);
+  return 0;
+}
+
 // FR-019, R-01: the batch probe beside a threaded instance the handle
 // leaves unpinned. The walk's narrowing precheck skips every threaded
 // instance that carries no placement, the way it skips one that carries
@@ -2828,6 +2941,8 @@ auto main(int argc, char** argv) -> int
   check(scenarioInterleaveProbe() == 0, "interleaveProbe");
   check(scenarioUnavailableProbe() == 0, "unavailableProbe");
   check(scenarioBothMethodPrecheckSeries() == 0, "bothMethodPrecheckSeries");
+  check(scenarioBothRecordFoldsTheLatchSnapshot() == 0,
+        "bothRecordFoldsTheLatchSnapshot");
   check(scenarioThreadedUnpinnedProbed() == 0, "threadedUnpinnedProbed");
   check(scenarioUnavailableBlocked() == 0, "unavailableBlocked");
   check(scenarioUnavailableThreaded() == 0, "unavailableThreaded");

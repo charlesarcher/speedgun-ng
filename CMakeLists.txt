@@ -47,8 +47,8 @@ project(
     # new fields of JitterProbeOptions, the series record of
     # JitterEntryFold, the series record of PrecheckCpuRecord, and the
     # run record of ReportData, so the harness SOVERSION is 20 and the
-    # archive SOVERSION stays 5, the number specs/044 moved. The schema check rides the commit that
-    # writes the 1.12 minor.
+    # archive SOVERSION stays 5, the number PR #70 (T-LCOV) moved. The
+    # schema check rides the commit that writes the 1.12 minor.
     # specs/042-topdown FR-032, FR-047 (D-4, D-17): this feature takes the
     # next free minor past 0.29.0, 0.30.0. The top-down record joins the
     # public entry in include/speedgun-ng/benchmark.hpp and the metric
@@ -403,7 +403,7 @@ set_target_properties(
     # run record, so the four exported layouts move again and the
     # hand-kept number rises to 20 past the 19 specs/037 landed. The
     # counters library surface moves nothing, so that archive keeps its
-    # SOVERSION 5, the number specs/044 landed.
+    # SOVERSION 5, the number PR #70 (T-LCOV) landed.
     SOVERSION 20
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness

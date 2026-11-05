@@ -145,22 +145,17 @@ auto aliasWordsOf(const detail::PmuDevice& device, const std::string_view name)
 // architecture directory for the running CPU, and those rows describe
 // core events (FR-038). Kernel aliases of the same name win.
 //
-// One arm of this function stays excluded: a CPU no row of the pinned
-// mapfile matches, which `CPUID` alone decides. Every other line here is
-// reached, because the provider test calls this function over a fixture
-// device whose alias carries a vendored row's name, on every host
-// (FR-046, T105).
+// The empty-selection arm, a CPU no row of the pinned mapfile matches,
+// executes on every host: the provider test scripts the identity the
+// CPUID probe answers, so the arm carries its count with no marker
+// (specs/045 FR-001, spec 043 T105).
 auto mergeVendored(detail::PmuDevice& device) -> void
 {
   const std::string directory =
       detail::pmuSelectDirectory(detail::pmuIdentCurrent());
-  // LCOV_EXCL_BR_START : coverage exclusion (T066): the empty-selection arm.
-  // It needs a CPU no row of the pinned mapfile matches, and the CPU comes
-  // from `CPUID` at run time.
-  if (directory.empty()) {  // LCOV_EXCL_BR_LINE
-    return;  // LCOV_EXCL_LINE
-  }  // LCOV_EXCL_LINE
-  // LCOV_EXCL_BR_STOP
+  if (directory.empty()) {
+    return;
+  }
   const auto& table = detail::pmuLoadTable(directory);
   for (const auto& row : table) {
     // A metric row is the metric table's data: it names no event, so it
