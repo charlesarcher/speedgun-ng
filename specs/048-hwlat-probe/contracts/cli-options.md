@@ -56,7 +56,7 @@ FR-002, FR-018).
 | --- | --- | --- |
 | The default holds at 200 ns | `kDefaultThresholdNs` at `include/speedgun-ng/benchmark.hpp:2426` stands 200, and `method=hwlat` changes none of it | spec D-11, A-4 |
 | The rise holds at ten times | `kRiseFactor` at `source/harness/jitter_probe.cpp:57` stands 10, and the effective threshold at `:538` to `:541` takes the larger of 200 ns and the rise | spec D-11 |
-| The key overrides both | an explicit `threshold=` value stands as given, the standing rule at `source/harness/jitter_probe.cpp:1636` to `:1642` | specs/027 FR-007 |
+| The key overrides both | an explicit `threshold=` value stands as given, the standing rule at `source/harness/jitter_probe.cpp:1635` to `:1642` | specs/027 FR-007 |
 
 A reader who wants a low threshold types `threshold=` with the new
 method: `--jitter-probe=idle,method=hwlat,threshold=50`.
@@ -69,7 +69,7 @@ method: `--jitter-probe=idle,method=hwlat,threshold=50`.
 | `--os-noise=hwlat` | the detector runs across the pre-check window on the candidate set |
 | `--os-noise=hwlat,cpus=2,9` | the detector runs on cpus 2 and 9 |
 | `--jitter-probe=idle,method=hwlat --os-noise=hwlat` | both surfaces run, each recording on its own keys (spec D-6) |
-| A `--jitter-probe` value from the command line | parses once in `speedgunMain` at `source/harness/cli.cpp:849` to `:854`, before the expansion and before any run |
+| A `--jitter-probe` value from the command line | parses in the scan at `source/harness/options.cpp:1873`, and `speedgunMain` reads the accepted text again at `source/harness/cli.cpp:849` to `:854`, before the expansion and before any run |
 | A `--jitter-probe` or `--os-noise` value from an option file line | parses where it settles, at `source/harness/options.cpp:1873` and `:1896`, and the refusal names the path and the line |
 | `--os-noise` with no argument | the standing `getopt_long` missing-argument path, exit status 2 |
 | An unknown flag | the standing unknown-option line and exit status 2 |
@@ -97,8 +97,13 @@ Every other row of the two standing error surfaces stands unchanged.
 ## The refusal texts, assembled
 
 Each line below stands the way the builder assembles it, with the
-values one run inserts. The command line prints a `--jitter-probe`
-message through the one `fprintf` at `source/harness/cli.cpp:852`.
+values one run inserts. A word of the command line reaches its parser in
+the scan, at `source/harness/options.cpp:1873` for the method word and
+`:1896` for the engine word, and the print at `source/harness/cli.cpp:761`
+answers the refusal at status 2 with the origin empty, so the line
+begins at the option name. `speedgunMain` reads the accepted
+`--jitter-probe` text again at `source/harness/cli.cpp:849` to `:854`,
+ahead of the expansion.
 
 | Builder | The line as printed |
 | --- | --- |
@@ -116,10 +121,10 @@ branch that reads the word, so a test that adds a word to one list adds
 it to the other (spec FR-005).
 
 An option file line carries the origin in front of the same line, the
-shape `source/harness/options.cpp:1539` to `:1541` builds and
-`:2055` prefixes: `'<path>':<line>: --jitter-probe: <message>`. The
-path stands quoted by `quotedText`, and the line number stands after
-the colon.
+shape the `refuse` builder at `source/harness/options.cpp:1540` to
+`:1541` builds on the origin `:2055` to `:2056` states:
+`'<path>':<line>: --jitter-probe: <message>`. The path stands quoted by
+`quotedText`, and the line number stands after the colon.
 
 ## The root and tracefs cases, which refuse nothing
 
@@ -176,7 +181,7 @@ with one line and status 2. The option table of
 | The saved set | one value per file the run saved: `current_tracer`, `tracing_cpumask`, `hwlat_detector/mode`, `hwlat_detector/width`, `hwlat_detector/window`, `tracing_thresh` | spec D-8, FR-021 |
 | `tracing_on` stands outside the set | the restore writes `0`, the standing shape of `source/harness/noise_tracer.cpp:379`, so a run that stopped a tracer that stood on leaves tracing off | spec D-8, SC-007 |
 | The restore order | the restore writes `tracing_on` at `0`, then each saved value in the reverse of the write order, so the engine word goes back before the threshold | spec FR-021, P-8 |
-| The standing engines keep their setup order | `source/harness/noise_tracer.cpp:332` to `:344` writes `current_tracer`, then the mask, then `tracing_on`, and the reverse rule of FR-021 flips that pair at the restore, where the standing restore writes `current_tracer` first at `:380` | spec Out of scope, D-15 |
+| The standing engines keep their own order | `source/harness/noise_tracer.cpp:332` to `:344` writes `current_tracer`, then the mask, then `tracing_on`, and the standing restore writes `current_tracer` first at `:380`; FR-021 states the reverse order of the `hwlat` writes only, and the spec's out-of-scope list names no new figure and no restore-order change for `osnoise` and `timerlat`, while the shared fix D-15 states reaches their defect path as a consequence the lane records beside the `036` contract line | spec FR-021, D-15, Out of scope |
 
 ## Consumers
 

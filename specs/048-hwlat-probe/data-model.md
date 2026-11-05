@@ -235,11 +235,14 @@ what the record cannot hold (spec FR-012).
   rule. The invariant `static_assert(sizeof(GapRecord) == 16)` stands at
   `source/harness/detail/jitter_probe.hpp:47`, and the feature adds no
   third field to the record (spec FR-012, spec Constraints).
-- The ring: one `std::vector<uint64_t>` per probe cpu, one 8-byte
-  unsigned change per kept gap, the shape of the standing series ring at
-  `source/harness/detail/jitter_probe.hpp:145` with its element type at
-  `source/harness/detail/jitter_probe.hpp:52`. The change stands a count
-  of SMIs, so the element answers a span and holds no stamp.
+- The ring: one `std::vector<std::uint64_t>` per probe cpu, one unsigned
+  change per kept gap, the storage shape of the standing series ring at
+  `source/harness/detail/jitter_probe.hpp:145`. The 8-byte element record
+  that shape documents stands at
+  `source/harness/detail/jitter_probe.hpp:52-58` with its own size
+  `static_assert`, and plan P-3 names the new ring by it. The change
+  stands a count of SMIs, so the element answers a span and holds no
+  stamp.
 - The span rule, the rule spec D-7 and spec FR-013 set: an element holds
   this gap's read minus the read before it. A gap stands known only
   after it ended, so no read precedes it, and the read before it stands
@@ -384,7 +387,7 @@ writer, and the record the writer reads for the tracer.
 | `cpu` | `uint32_t` | cpu index | the probe cpu of the item |
 | `stats` | `JitterStats` | mixed | the fold of E-02 |
 | `gaps` | `vector<GapRecord>` | records | the kept records |
-| `smiChanges` | `vector<uint64_t>` | count | new; the ring prefix |
+| `smiChanges` | `vector<uint64_t>` | count | new; the span prefix |
 | `series` | `optional<JitterSeriesStats>` | mixed | specs/043 E-23 |
 
 `JitterReportRecord` stands at
@@ -492,13 +495,14 @@ one, and the rule for an unavailable figure. The root objects stand
   `precheck.tracer.cpus[]`; and `kSchemaVersion` at
   `source/harness/json_report.cpp:49`, which moves `1.14` to `1.15`
   (spec D-5, spec FR-029). The standing checker reads every written
-  document against these rows (`source/harness/detail/json_report.hpp:361-376`).
+  document against these rows at
+  `source/harness/detail/json_report.hpp:361-376`.
 - The eleventh key: `jitter.limits` carries the run's statement that the
   user-space probe runs with the cpu's interrupts enabled (spec FR-031,
   plan P-13). The key table of `specs/048-hwlat-probe/spec.md:840-853`
   lists ten keys and names no such key, and the plan counts ten keys at
-  `specs/048-hwlat-probe/plan.md:21`, `:75`, `:126`, `:149`, `:154` and
-  `:168`. This file records eleven keys, because FR-031 asks the
+  `specs/048-hwlat-probe/plan.md:21`, `:75`, `:126`, `:149`, `:154`,
+  `:168` and `:413`. This file records eleven keys, because FR-031 asks the
   document for the statement and P-13 names the key. The schema row, the
   contract and the count follow this file.
 - Owner: `docs/schema/report-v1.json`,
@@ -520,9 +524,8 @@ the run writes, and the vector the session carries across the window
   `NoiseTracerSession` at `source/harness/detail/noise_tracer.hpp:45-51`,
   which carries two saved texts today, `previousTracer` and
   `previousCpuMask`. The vector holds six pairs in write order, one per
-  file of the saved set, and `tracing_on` stands outside it (spec D-8).
-  The pair type stands beside the standing members of the same struct,
-  and the spec `036` session shape grows to carry the set (spec D-8).
+  file of the saved set, and `tracing_on` stands outside it. The spec
+  `036` session shape grows to carry the set (spec D-8).
 - The paths, as the lane resolves them: each name below goes through
   `procRootPath` at `source/detail/proc_root.hpp:35-41`, the seam
   `installTestProcRoot` at `source/detail/proc_root.hpp:52-56` moves for
@@ -615,8 +618,9 @@ the run writes, and the vector the session carries across the window
 The six names the N5 comparison gains (spec FR-028, plan P-11). The
 three probe names join the standing grammar
 `jitter:[run:]<cpu|any>:<field>`, and the three detector names stand
-behind the new head word `hwlat:<cpu|any>:<field>`. Each name reads one
-record of the loaded report.
+behind the new head word `hwlat`, in the shape
+`hwlat:<cpu|any>:<field>`. Each name reads one record of the loaded
+report.
 
 | Name | Record the value reads | Unit |
 | --- | --- | --- |
@@ -647,17 +651,16 @@ record of the loaded report.
   moves from `thirty-two` to `thirty-five` at
   `source/harness/compare.cpp:429`, and the contract lines move with it
   at `specs/027-jitter-probe/contracts/rule-names.md:20` and `:29-31`
-  (spec FR-028). The three detector names stand in a new 3-row table with
-  their own refusal line, so a standing jitter refusal keeps its words
-  (plan P-11, plan R-7).
+  (spec FR-028). The three detector names stand in the new `kHwlatFields`
+  table of 3 rows with their own refusal line, so a standing jitter
+  refusal keeps its words (plan P-11, plan R-7).
 - Validation: a name with no figure answers the standing shape, one fault
   line naming the rule and what the report lacks, at exit status 2
   (`source/harness/compare.cpp:1563-1576`, the note at
   `source/harness/compare.cpp:1539-1545`). No name gains a status (spec
   FR-028). The standing table reader answers a `double` at
   `source/harness/compare.cpp:244`, so a reader for a nullable figure has
-  to answer a missing figure as well as a number, and M8 carries that
-  change.
+  to answer a missing figure and a number, and M8 carries that change.
 - Owner: `source/harness/compare.cpp`,
   `specs/048-hwlat-probe/contracts/rule-names.md`.
 
