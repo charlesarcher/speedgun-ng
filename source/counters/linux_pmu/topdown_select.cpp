@@ -328,6 +328,19 @@ constexpr std::size_t kNoRow {std::numeric_limits<std::size_t>::max()};
   return kNoRow;
 }
 
+// The index of the first row of each name of the table: the first row of a
+// duplicated name is the row the directory answers, which is the rule the
+// metric layer's own index follows (FR-011).
+[[nodiscard]] auto firstRowOfName(const TopdownTable& table)
+    -> std::unordered_map<std::string, std::size_t>
+{
+  std::unordered_map<std::string, std::size_t> rowsByName;
+  for (std::size_t index = 0; index != table.rows.size(); ++index) {
+    rowsByName.insert({table.rows[index].name, index});
+  }
+  return rowsByName;
+}
+
 // The name a level-1 row states once its vendor's own prefix stands aside.
 // Intel spells a level-1 row `tma_<shared name>` and AMD spells the shared name
 // bare, so the prefix is the one text a neutral name drops (FR-011, spec D-2).
@@ -422,6 +435,53 @@ constexpr std::string_view kAtomScope {"cpu_atom"};
 
 }  // namespace
 
+namespace detail
+{
+
+auto topdownShapeHolds(const TopdownTree& built) -> bool
+{
+  for (std::size_t here = 0; here != built.nodes.size(); ++here) {
+    const TopdownNode& node = built.nodes[here];
+    if (node.level < 1 || node.level > built.depth) {
+      return false;
+    }
+    if (node.parent.empty() == (node.level != 1)) {
+      return false;
+    }
+    if (node.parent.empty()) {
+      continue;
+    }
+    const TopdownNode* upstream = nullptr;
+    for (std::size_t earlier = 0; earlier != here; ++earlier) {
+      if (built.nodes[earlier].name == node.parent) {
+        upstream = &built.nodes[earlier];
+        break;
+      }
+    }
+    if (upstream == nullptr || upstream->level + 1 != node.level) {
+      return false;
+    }
+  }
+  return true;
+}
+
+auto topdownPublishedHolds(const TopdownTree& built,
+                           const TopdownTable& table) -> bool
+{
+  const std::unordered_map<std::string, std::size_t> rowsByName =
+      firstRowOfName(table);
+  return std::ranges::all_of(built.nodes,
+                             [&table, &rowsByName](const TopdownNode& node)
+                             {
+                               const auto stated =
+                                   rowsByName.find(node.vendorName);
+                               return stated != rowsByName.end()
+                                   && table.rows[stated->second].published;
+                             });
+}
+
+}  // namespace detail
+
 auto TopdownUnsupported::message() const -> std::string
 {
   // The reason of the kind, spelled once here. The two refusals that read no
@@ -495,13 +555,10 @@ auto topdownTree(const TopdownSelection& options)
                                        {}));
   }
 
-  // The level each row's group text states, the deepest level the table holds,
-  // and the first row of each name: the first row of a duplicated name is the
-  // row the directory answers, which is the rule the metric layer's own index
-  // follows (FR-011, FR-013, FR-014).
+  // The level each row's group text states, and the deepest level the table
+  // holds (FR-013, FR-014).
   std::vector<int> levels;
   levels.reserve(table.rows.size());
-  std::unordered_map<std::string, std::size_t> rowsByName;
   int deepest = 0;
   for (std::size_t index = 0; index != table.rows.size(); ++index) {
     int level = 0;
@@ -511,8 +568,11 @@ auto topdownTree(const TopdownSelection& options)
     }
     levels.push_back(level);
     deepest = level > deepest ? level : deepest;
-    rowsByName.insert({table.rows[index].name, index});
   }
+  // The first row of each name, the index the parent search of the pass reads
+  // (FR-011).
+  const std::unordered_map<std::string, std::size_t> rowsByName =
+      firstRowOfName(table);
   const int depth = options.level < deepest ? options.level : deepest;
 
   // Two refusals read the rows of the selected directory, and they stand ahead
@@ -607,50 +667,12 @@ auto topdownTree(const TopdownSelection& options)
     tree.refused.push_back(std::move(entry));
   }
 
-  // The shape the contract states, read back over the answer: a node stands at
-  // a level the answer reaches, and names a parent that stands earlier in the
-  // vector one level above it (FR-008, FR-013, FR-020).
-  [[maybe_unused]] const bool shapeHolds = [](const TopdownTree& built) -> bool
-  {
-    for (std::size_t here = 0; here != built.nodes.size(); ++here) {
-      const TopdownNode& node = built.nodes[here];
-      if (node.level < 1 || node.level > built.depth) {
-        return false;
-      }
-      if (node.parent.empty() == (node.level != 1)) {
-        return false;
-      }
-      if (node.parent.empty()) {
-        continue;
-      }
-      const TopdownNode* upstream = nullptr;
-      for (std::size_t earlier = 0; earlier != here; ++earlier) {
-        if (built.nodes[earlier].name == node.parent) {
-          upstream = &built.nodes[earlier];
-          break;
-        }
-      }
-      if (upstream == nullptr || upstream->level + 1 != node.level) {
-        return false;
-      }
-    }
-    return true;
-  }(tree);
-
-  // Whether every node names a row the table published. The pass adds a node
-  // for a row only once that row's `published` flag stands, and the metric
-  // layer refuses the second row of a duplicated name, so the index of a
-  // published name reaches a published row (FR-011, FR-016). Only a table a
-  // test composes by hand carries a duplicated name into this pass, and the
-  // readback over the whole vector is what names that shape.
-  [[maybe_unused]] const bool publishedHolds = std::ranges::all_of(
-      tree.nodes,
-      [&table, &rowsByName](const TopdownNode& node)
-      {
-        const auto stated = rowsByName.find(node.vendorName);
-        return stated != rowsByName.end()
-            && table.rows[stated->second].published;
-      });
+  // The two readbacks of the postcondition below, over the answer the pass
+  // built. Each states one clause of it, and the contract of each stands in
+  // `topdown_select.hpp` (FR-008, FR-011, FR-013, FR-016, FR-020).
+  [[maybe_unused]] const bool shapeHolds = detail::topdownShapeHolds(tree);
+  [[maybe_unused]] const bool publishedHolds =
+      detail::topdownPublishedHolds(tree, table);
 
   SG_ENSURE(tree.depth == options.level || tree.depth == deepest,
             "the depth is the asked level clamped to the deepest level the "
