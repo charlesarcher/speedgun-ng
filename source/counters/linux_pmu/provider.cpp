@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "../detail/limit_fill.hpp"
 #include "../detail/pmu.hpp"
 #include "counter_limits.hpp"
 #include "kernel_calls.hpp"
@@ -839,17 +840,23 @@ void PmuProvider::enumerate(ObjectSink& sink) const
                                 entry.probedKinds);
       }
     }
+    // One pass decides the figure and the finder: the decode first, the search
+    // only for a device the registers are silent about, and the record beside
+    // the figure (FR-030 to FR-034, FR-040a, FR-043, D-6, D-8).
+    const auto fill = detail::fillDeviceLimit(
+        device,
+        vendor,
+        watchdog,
+        hasFixedCycles,
+        detail::limitForDevice(device.path, vendor, hybrid, registers));
+
     sink.addObject(ObjectSeed {
         .kind = "pmu",
         .path = device.path,
         .alias = {},
         .description = device.description,
         .entries = std::move(entries),
-        .programmableCounters = detail::usableCounters(
-            detail::limitForDevice(device.path, vendor, hybrid, registers),
-            vendor,
-            watchdog,
-            hasFixedCycles),
+        .programmableCounters = fill.count,
     });
   }
 }

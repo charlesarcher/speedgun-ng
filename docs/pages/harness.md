@@ -1347,6 +1347,32 @@ The print carries the table's group and unit text beside the folded value.
 `--metric` puts the same metric in a report column, one column per name, in
 the order the names are given.
 
+A device publishes the count of events one window can hold at once, and a run
+that needed the device records the figure and the finder that answered it in its
+document. A figure the probe search fitted earns one console line ahead of the
+rows, one line for each needed device the search answered. A run gathers its limits
+at the start of a pass, so a run that gathers again prints the line again:
+
+```text
+counter limit: device 'cpu' count 6 source probe
+```
+
+A figure a register of the host stated earns no line, and no line of the report
+elsewhere moves its bytes.
+
+One recorded run of the example, on the host this lane was measured on. The
+iteration count, both time columns and the floor belong to the host, and the
+`limit=` figure belongs to the part: a machine whose registers answer nothing
+about a device prints `limit=none source=none`, and a device the search could
+not price prints `probe=no limit`.
+
+<!-- sg-sample-output: example/docs/counter_probe.expected#report -->
+```text
+speedgun-ng 0.32.0 build=Release
+bmProbeTick              iterations=3915069546  real time/iter (ns)=    0.178  cpu time/iter (ns)=    0.178  overhead floor (ns)=  100.000  endpoint samples=2
+counter limit: cpu limit=6 source=decode probe=6
+```
+
 ## JSON reports
 
 `--json=path` writes one JSON document for the run beside the console report.
@@ -1392,16 +1418,30 @@ and counter columns, its statistics, its percentile cells, its fit and its raw
 chunk columns. Each metric column of a row carries `pass`, the index of the pass
 that measured the value. `docs/schema/report-v1.json` states the whole shape.
 
+A run whose columns read a device adds one run-level key: the `counterLimits`
+array, after `graph` and before `benchmarks`.
+
+| Key | Kind | Meaning |
+| --- | --- | --- |
+| `device` | string | the catalog path of the device the run needed |
+| `limit` | integer or `null` | the count of events one window can hold at once, `null` where the device publishes no limit |
+| `source` | string | `decode` where a register of the host stated the count, `probe` where the probe search fitted it, `none` where no limit stands |
+
+One entry stands per needed device, in the order the run first needed it. A run
+that needed no device writes no `counterLimits` key, and a document older than
+minor 1.15 carries no such key, which the reader answers as no entry rather than
+a guessed one.
+
 ### The version rule
 
 `schemaVersion` names the shape of the document. A document whose major stands
 at 1 loads, whatever its minor says; a later major is refused, and the refusal
 names the version the document carries. The writer moves the minor for a key
-it adds inside major 1. A run writes `1.14`, the shape that carries the
+it adds inside major 1. A run writes `1.15`, the shape that carries the
 `method` key and the `series` array of the `jitter` object, the `topdown`
-object of the entry record and the `topdownArea` key of each ranked event; a
-`1.0` document, which carries neither the hunt keys nor the pass fields,
-loads through the same rule.
+object of the entry record, the `topdownArea` key of each ranked event and the
+run-level `counterLimits` array; a `1.0` document, which carries neither the
+hunt keys nor the pass fields, loads through the same rule.
 
 ### The null rule
 
@@ -1578,6 +1618,27 @@ Two published facts drive the split: `Object::programmableCounters` states
 how many programmable counters one context can hold open on one event
 source, and a loaded metric states how many events its column needs. The
 planner reads both before the first timed window and opens no counter.
+
+That figure reaches the library from one of two finders, and
+`objectLimitSource` names which one answered a path. The decode reads the
+processor's identity and the register that states its counter count, and it answers
+most hosts. Where a register says nothing about a device, the library searches that
+device: it opens k copies of one event of the device as one group, enables the group,
+reads the leader once, and takes the largest k that ran for its whole enabled window.
+A group that shared the processor answered a running time below its enabled time in
+every measurement of the host this page's figures come from, so an accepted open
+decides nothing on its own and that pair is the only evidence one size takes.
+
+The search asks sizes from 1 to 32 and stops at the first size that does not run, so
+one device costs at most 528 opens, once per process. Answering 6 on that host cost
+28 opens, 7 reads and 28 closes, and the wall time of one search follows the
+scheduler, so the lane states a band beside those counts. No single figure
+describes it. A
+searched figure takes no counter off for the NMI watchdog: the kernel's answer
+already holds the counter that watchdog keeps, and a second deduction would price one
+counter twice. A device the decode answers pays no open at all. A run records the
+finder beside the figure in its `counterLimits` array, and a probed figure prints its
+line ahead of the rows of the pass that answered it.
 
 `--metric-method=auto`, `--metric-method=passes` and
 `--metric-method=multiplex` choose the method, and `metricMethod` on the

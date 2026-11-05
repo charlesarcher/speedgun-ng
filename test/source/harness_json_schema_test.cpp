@@ -10,8 +10,10 @@
 // ============================================================================
 
 #include <cstring>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "detail/json_fixture.hpp"
 
@@ -199,8 +201,9 @@ auto plantedDisagreementsAreNamedByPointer() -> void
 // The schema's per-entry hunt entry node (specs/040; FR-032, B-9): the
 // node stands closed, so its `x-order` names the three rank keys after
 // `rank` and the area key after `delta`, and the document the writer
-// produces pairs the schema at the minor the writer stamps, `1.14`, the
-// minor since specs/046-hunter-topdown added the `topdownArea` key.
+// produces pairs the schema at the minor the writer stamps, `1.15`, the
+// minor since specs/041-counter-probe added the run-level `counterLimits`
+// array.
 auto entryHuntKeysPairAtStampedMinor(const std::string& documentText) -> void
 {
   const std::string schemaText = sg::test::readText(SG_SCHEMA_PATH);
@@ -231,19 +234,19 @@ auto entryHuntKeysPairAtStampedMinor(const std::string& documentText) -> void
         "the entry node names the three rank keys after `rank`, and the area "
         "key after `delta`, in its `x-order` (FR-032, B-9)");
 
-  check(documentText.find("\"schemaVersion\":\"1.14\"") != std::string::npos,
-        "the document the writer produces stands at the stamped minor 1.14 "
+  check(documentText.find("\"schemaVersion\":\"1.15\"") != std::string::npos,
+        "the document the writer produces stands at the stamped minor 1.15 "
         "(FR-032, specs/039 FR-032, specs/037 FR-005, specs/043 FR-006, "
-        "specs/042-topdown FR-036, specs/046-hunter-topdown FR-020)");
+        "specs/042-topdown FR-036, specs/046-hunter-topdown FR-020, "
+        "specs/041-counter-probe FR-051)");
 }
 
 // specs/043 T025, US4, FR-006, R-16: the schema node of the series record.
 // The item stands closed, its `x-order` names the 21 keys in the written
 // order, the method word stands in a list of three, and the period item
 // stands closed with its two keys. The document the writer produces pairs
-// the schema at the minor the writer stamps, `1.14`, the minor since
-// specs/046-hunter-topdown added the `topdownArea` key of the per-event
-// node.
+// the schema at the minor the writer stamps, `1.15`, the minor since
+// specs/041-counter-probe added the run-level `counterLimits` array.
 constexpr std::string_view kSeriesKeys[] = {
     "cpu",
     "workCount",
@@ -377,9 +380,10 @@ auto theSeriesKeysPairAtTheStampedMinor() -> void
   check(paired,
         "theSeriesKeysPairAtTheStampedMinor: the item names the 21 keys in "
         "the written order (FR-006, FR-011)");
-  check(documentText.find("\"schemaVersion\":\"1.14\"") != std::string::npos,
+  check(documentText.find("\"schemaVersion\":\"1.15\"") != std::string::npos,
         "theSeriesKeysPairAtTheStampedMinor: the document the writer produces "
-        "stands at the stamped minor 1.14 (FR-006, R-16)");
+        "stands at the stamped minor 1.15 (FR-006, R-16, specs/041-counter-"
+        "probe FR-051)");
 }
 
 // FR-006: the item stands closed, so a key the schema lists nowhere refuses
@@ -592,6 +596,97 @@ auto theOpenShapesOfTheSchemaLanguagePass(const std::string& text) -> void
         "an array with no element satisfies its item schema (FR-008)");
 }
 
+// specs/041-counter-probe FR-051: the run-level record of where each needed
+// device's counter limit came from pairs at the stamped minor. One device
+// carries the figure the search answered, one carries no figure at all, and the
+// closed item of the schema takes its three keys in the stated order and
+// nothing else. The record stands outside the top-level required list, so the
+// document of a run that needed no device passes without it.
+constexpr std::string_view kLimitEntry {
+    R"JSON({"device":"cpu","limit":6,"source":"probe"})JSON"};
+
+// One entry of the record, planted in place of the entry the writer wrote,
+// checked against the shipped schema and required to name the pointer of the
+// key at fault.
+auto limitPlantStandsRefused(const std::string& text,
+                             const std::string& entry,
+                             const std::string& pointer,
+                             const char* const what) -> void
+{
+  std::string mutated = text;
+  const auto at = mutated.find(kLimitEntry);
+  if (at == std::string::npos) {
+    sg::test::fail("the written document holds no limit entry to plant");
+    return;
+  }
+  mutated.replace(at, kLimitEntry.size(), entry);
+  const auto answer = sg::detail::checkReport(SG_SCHEMA_PATH, mutated);
+  const bool named =
+      !answer.has_value() && answer.error().find(pointer) != std::string::npos;
+  check(named, what);
+  if (!named) {
+    std::printf(
+        "  %s: %s\n",
+        pointer.c_str(),
+        answer.has_value() ? "the checker took it" : answer.error().c_str());
+  }
+}
+
+auto theLimitRecordPairsAtTheStampedMinor() -> void
+{
+  const std::vector<sg::detail::CounterLimitEntry> entries {
+      sg::detail::CounterLimitEntry {
+          .device = "cpu",
+          .limit = std::optional<std::size_t> {6},
+          .source = sg::counters::LimitSource::PROBE},
+      sg::detail::CounterLimitEntry {
+          .device = "uncore_imc_77",
+          .limit = {},
+          .source = sg::counters::LimitSource::NONE}};
+  sg::ReportData data;
+  check(sg::detail::writeReport("harness_json_schema_limits.json",
+                                data,
+                                {},
+                                std::nullopt,
+                                std::nullopt,
+                                std::nullopt,
+                                entries),
+        "the writer wrote the document that carries the record (FR-051)");
+  const std::string text =
+      sg::test::readText("harness_json_schema_limits.json");
+  const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, text);
+  if (!clean.has_value()) {
+    std::printf("  the limit record: %s\n", clean.error().c_str());
+  }
+  check(clean.has_value(),
+        "theLimitRecordPairsAtTheStampedMinor: the document that carries the "
+        "record passes the schema (FR-051)");
+
+  limitPlantStandsRefused(
+      text,
+      R"JSON({"extra":true,"device":"cpu","limit":6,"source":"probe"})JSON",
+      "/counterLimits/0/extra",
+      "theLimitRecordPairsAtTheStampedMinor: the closed limit item refuses a "
+      "key the schema lists nowhere (FR-051, FR-010)");
+  limitPlantStandsRefused(
+      text,
+      R"JSON({"source":"probe","limit":6,"device":"cpu"})JSON",
+      "/counterLimits/0",
+      "theLimitRecordPairsAtTheStampedMinor: a limit key out of the stated "
+      "order stands refused (FR-051, FR-010)");
+  limitPlantStandsRefused(
+      text,
+      R"JSON({"device":"cpu","limit":6,"source":"guess"})JSON",
+      "/counterLimits/0/source",
+      "theLimitRecordPairsAtTheStampedMinor: a source word outside the three "
+      "stands refused (FR-051, FR-010)");
+  limitPlantStandsRefused(text,
+                          R"JSON({"device":"cpu","limit":"six","source":"probe"})JSON",
+                          "/counterLimits/0/limit",
+                          "theLimitRecordPairsAtTheStampedMinor: a limit of "
+                          "another kind stands " "refused (FR-051, FR-010)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -608,6 +703,7 @@ auto main() -> int
   aMethodWordOutsideTheThreeStandsRefused();
   anEmptyPeriodsArrayPasses();
   aPeriodItemOfTheWrongKindStandsRefused();
+  theLimitRecordPairsAtTheStampedMinor();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;

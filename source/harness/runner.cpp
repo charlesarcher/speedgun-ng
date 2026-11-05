@@ -18,6 +18,7 @@
 #include "detail/graph.hpp"
 #include "detail/hunt_plan.hpp"
 #include "detail/internal.hpp"
+#include "detail/json_report.hpp"
 #include "detail/options.hpp"
 #include "detail/pass_plan.hpp"
 #include "detail/percentiles.hpp"
@@ -1590,7 +1591,29 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
                   "tree, so the object its address names is one it "
                   "publishes");
         sources.emplace_back(objectPath);
-        sourceLimits.push_back(object->programmableCounters());
+        const auto limit = object->programmableCounters();
+        sourceLimits.push_back(limit);
+        // specs/041-counter-probe FR-050, FR-051: the figure reaches the plan
+        // and the finder reaches the disclosure and the record, each read from
+        // the path the leaf names. A figure the search answered is the fact no
+        // register of this host stated, so the run says so once, here, the one
+        // place every later stop passes through. The dereference of the figure
+        // stands on the postcondition of `objectLimitSource`: the accessor
+        // answers `NONE` exactly where `programmableCounters()` answers no
+        // value (include/speedgun-ng/counters_system.hpp:222-224), so a
+        // `PROBE` answer states a figure beside it. No other run line moves:
+        // the plan prints nothing, and the hunt refusal keeps the bytes
+        // specs/029-hunter-core/contracts/hunt-cli.md pins.
+        const auto source = sg::counters::objectLimitSource(objectPath);
+        if (source == sg::counters::LimitSource::PROBE) {
+          std::printf("counter limit: device '%s' count %zu source probe\n",
+                      std::string(objectPath).c_str(),
+                      *limit);
+        }
+        detail::noteCounterLimit(
+            detail::CounterLimitEntry {.device = std::string(objectPath),
+                                       .limit = limit,
+                                       .source = source});
         located = sources.end() - 1;
       }
       const auto source = static_cast<std::size_t>(located - sources.begin());

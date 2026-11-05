@@ -2246,7 +2246,8 @@ auto speedgunMain(int argc, char** argv) -> int
                              disclosure,
                              jitterRecord,
                              precheckRecord,
-                             graphRecord))
+                             graphRecord,
+                             detail::counterLimitEntries()))
     {
       reportFailed = true;
       status = 2;

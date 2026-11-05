@@ -813,10 +813,10 @@ auto aRunWithoutTheOptionWritesNoKey() -> void
             || tail.substr(value).starts_with("true}]}"),
         "the entry closes on spreadWarning, so no key stands after it (FR-035,"
         " SC-06)");
-  check(text.starts_with("{\"schemaVersion\":\"1.14\""),
-        "the option-less document stamps the minor 1.14, the one difference"
+  check(text.starts_with("{\"schemaVersion\":\"1.15\""),
+        "the option-less document stamps the minor 1.15, the one difference"
         " this feature makes to its bytes (FR-035, FR-036,"
-        " specs/046-hunter-topdown FR-023)");
+        " specs/046-hunter-topdown FR-023, specs/041-counter-probe FR-051)");
   const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, text);
   if (!clean.has_value()) {
     failed("the document of a run that names no option disagrees with the"

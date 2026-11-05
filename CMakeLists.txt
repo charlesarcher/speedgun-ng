@@ -61,7 +61,13 @@ project(
     # 0.31.0. The counters surface gains a record and its accessor, and the
     # hunt record gains its area text, so both hand-kept numbers move with
     # the layouts.
-    VERSION 0.31.0
+    # specs/041-counter-probe FR-040a, FR-053 (D-3, D-3a): this feature takes
+    # the next free minor past 0.31.0, 0.32.0. The counters archive gains one
+    # exported accessor over one new closed enumeration, so its hand-kept
+    # number moves; the harness archive answers no new exported type, because
+    # the source of a limit reaches the report as JSON text, so the harness
+    # SOVERSION stays 21 (FR-051, FR-053).
+    VERSION 0.32.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -140,7 +146,13 @@ set_target_properties(
     # joins the exported surface and topdownEventGroups answers its listing,
     # so the exported layouts of this archive move again and the hand-kept
     # number goes to 6 (hard rule 12).
-    SOVERSION 6
+    # specs/041-counter-probe FR-040a, FR-043, FR-053 (D-3, D-3a):
+    # include/speedgun-ng/counters_system.hpp gains LimitSource and the
+    # accessor objectLimitSource, the one exported entry this lane adds. No
+    # existing layout moves and no existing symbol changes, and the rule the
+    # comment above carries asks the number to move with a public header
+    # change, so the hand-kept number goes to 7 (hard rule 12).
+    SOVERSION 7
     EXPORT_NAME speedgun-ng
     OUTPUT_NAME speedgun-ng
 )

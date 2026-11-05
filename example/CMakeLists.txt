@@ -89,6 +89,7 @@ add_docs_example(hunt_ranks)
 add_docs_example(hunt_topdown)
 add_docs_example(report_views)
 add_docs_example(topdown)
+add_docs_example(counter_probe)
 
 # The time budget (030 P-07, FR-031), the rule the test directory applies
 # with its own trailing block: an entry this directory registers with no

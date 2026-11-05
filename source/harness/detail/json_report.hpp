@@ -16,6 +16,7 @@
 #include "options.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
+#include "speedgun-ng/counters_system.hpp"
 #include "speedgun-ng/execution_context.hpp"
 
 /**
@@ -130,6 +131,20 @@ inline constexpr std::array<std::string_view, 3> kMetricMethodWords {
 };
 static_assert(kMetricMethodWords.size()
               == std::to_underlying(sg::MetricMethod::MULTIPLEX) + 1);
+
+// The finder words of the run-level `counterLimits` record
+// (specs/041-counter-probe FR-051). The document spells the source with the
+// lower-case word FR-051 names, which is why this table stands apart from the
+// enumerator spellings above; the first word answers the `NONE` enumerator and
+// stands beside a `null` limit, the pair a device that published no figure
+// carries.
+inline constexpr std::array<std::string_view, 3> kLimitSourceWords {
+    "none",
+    "decode",
+    "probe",
+};
+static_assert(kLimitSourceWords.size()
+              == std::to_underlying(sg::counters::LimitSource::PROBE) + 1);
 
 // The word one value of a closed enumeration writes. A value outside the
 // enumeration writes the one word the document carries for it, the guard
@@ -280,6 +295,73 @@ struct JitterReportRecord
 };
 
 /**
+ * @brief specs/041-counter-probe FR-051: one entry of the run-level
+ * `counterLimits` record: one device the run needed, the limit it published,
+ * and the finder that answered that limit.
+ *
+ * The entry stands for a device a metric leaf of the run resolved against. A
+ * device that published no figure carries no `limit` and the `NONE` source,
+ * the pair `objectLimitSource` and `Object::programmableCounters()` agree on
+ * (FR-040a). The record stands inside the harness: no field of it joins
+ * `include/speedgun-ng/benchmark.hpp`, so no exported layout moves and the
+ * harness `SOVERSION` stays (FR-052, D-3).
+ */
+struct CounterLimitEntry
+{
+  std::string device;  ///< the object path a leaf resolved against
+  std::optional<std::size_t> limit {};  ///< the figure that path published
+  sg::counters::LimitSource source {
+      sg::counters::LimitSource::NONE};  ///< the finder that answered the
+                                         ///< figure
+};
+
+/**
+ * @brief Seat one needed device of this process's runs beside its finder
+ * (specs/041-counter-probe FR-051).
+ *
+ * The runner's limit gathering is the caller, and it calls once per device per
+ * run. A path this process already seated keeps the entry it has: one process
+ * publishes one figure and one finder per path, so a second seating of that
+ * path states the fact the first seating stated.
+ *
+ * @pre `entry.device` names the object a metric leaf of the run resolved
+ *      against, and `entry.source` is the finder `objectLimitSource` answers
+ *      for that path (FR-040a)
+ * @post `counterLimitEntries()` answers one entry for `entry.device`; a second
+ *       seating of that path changes no entry (FR-051)
+ */
+auto noteCounterLimit(CounterLimitEntry entry) -> void;
+
+/**
+ * @brief The devices this process's runs needed, in the order the first run
+ * needed them (specs/041-counter-probe FR-051).
+ *
+ * @return the seated entries, empty for runs that resolved no metric leaf
+ *         against any device; the writer of the run-level record reads it once
+ */
+[[nodiscard]] auto counterLimitEntries()
+    -> const std::vector<CounterLimitEntry>&;
+
+/**
+ * @brief specs/041-counter-probe FR-052: the `counterLimits` entries one
+ * written document carries, read back inside the harness.
+ *
+ * The read answers no entry for a document older than minor 1.15, which carries
+ * no key, and it guesses no finder for a device the document leaves out. The
+ * answer stands in this header and in `source/harness/json_load.cpp`: no
+ * exported layout grows a member for it (FR-052, D-3).
+ *
+ * @pre `path` is not empty
+ * @post a document with the record answers one entry per device it names, in
+ *       the order the document lists them; a document without the key answers
+ *       no entry (FR-052)
+ * @post an entry the reader cannot read answers an error naming the JSON
+ *       pointer of the key at fault
+ */
+[[nodiscard]] auto loadCounterLimits(const std::string& path)
+    -> std::expected<std::vector<CounterLimitEntry>, std::string>;
+
+/**
  * @brief Write the report document of a finished batch to `path`
  * (specs/023 FR-001, D-02).
  *
@@ -349,6 +431,12 @@ struct JitterReportRecord
  *       FR-032, FR-034); an entry whose record stands empty writes no such
  *       key, so a run that named no `--topdown` writes the same bytes apart
  *       from the `schemaVersion` value (specs/042-topdown FR-035, FR-036)
+ * @post a non-empty `counterLimits` writes the run-level `counterLimits`
+ *       array after `graph` and before `benchmarks`, one object per device
+ *       with `device`, `limit` and `source` in that order (specs/041-counter-
+ *       probe FR-051); an empty one writes no key, so a run that needed no
+ *       device writes the bytes this writer wrote before the record existed
+ *       apart from the `schemaVersion` value (FR-051)
  */
 [[nodiscard]] auto writeReport(
     const std::string& path,
@@ -356,7 +444,8 @@ struct JitterReportRecord
     const RunDisclosure& disclosure = {},
     const std::optional<JitterReportRecord>& jitter = std::nullopt,
     const std::optional<PrecheckRecord>& precheck = std::nullopt,
-    const std::optional<GraphRecord>& graph = std::nullopt) -> bool;
+    const std::optional<GraphRecord>& graph = std::nullopt,
+    const std::vector<CounterLimitEntry>& counterLimits = {}) -> bool;
 
 /**
  * @brief Check one written document against the schema file at

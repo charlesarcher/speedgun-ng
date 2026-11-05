@@ -1,0 +1,62 @@
+# F-3 again, on the acceptance host, the day the lane was written
+
+F-3 rests on one claim: a single read of the leader's enabled and running pair
+settles whether a group size fits, with no sleep, no spin and no clock read
+between the enable and that read. This artifact is that measurement re-run on
+the acceptance host with the tool this lane ships at `tools/probe_window.c`, so
+the claim names a program and a table rather than a memory.
+
+Two shapes are read. Table F enables the group, spins a fixed number of
+iterations, disables, then reads. Table G reads once while the group is still
+enabled, which is the shape the shipped probe takes. Column `fit` counts the
+trials whose pair read `time_running == time_enabled` with `time_enabled` past
+zero; `no_fit` counts the trials that read short. Every cell is 50 trials.
+
+    cc -O2 -o probe_window tools/probe_window.c && ./probe_window
+
+Host: Linux 7.3.1-1-cachyos x86_64, gcc (GCC) 16.2.1 20260810,
+perf_event_paranoid=2,
+nmi_watchdog=0,
+device `cpu` type 4.
+Date: 2026-11-05.
+
+## F: enable, spin N iterations, disable, read (50 trials per cell)
+spin_iters	k	fit	no_fit	error	zero_window
+0	1	50	0	0	0
+0	4	50	0	0	0
+0	5	50	0	0	0
+0	6	50	0	0	0
+0	7	0	50	0	0
+0	8	0	50	0	0
+0	12	0	50	0	0
+100	1	50	0	0	0
+100	4	50	0	0	0
+100	5	50	0	0	0
+100	6	50	0	0	0
+100	7	0	50	0	0
+100	8	0	50	0	0
+100	12	0	50	0	0
+1000	1	50	0	0	0
+1000	4	50	0	0	0
+1000	5	50	0	0	0
+1000	6	50	0	0	0
+1000	7	0	50	0	0
+1000	8	0	50	0	0
+1000	12	0	50	0	0
+10000	1	50	0	0	0
+10000	4	50	0	0	0
+10000	5	50	0	0	0
+10000	6	50	0	0	0
+10000	7	0	50	0	0
+10000	8	0	50	0	0
+10000	12	0	50	0	0
+
+## G: one read while still enabled, right after the enable ioctl
+k	read_while_enabled_running_eq_enabled_gt0	running_lt_enabled
+1	50	0
+4	50	0
+5	50	0
+6	50	0
+7	0	50
+8	0	50
+12	0	50
