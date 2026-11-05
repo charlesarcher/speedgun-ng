@@ -34,6 +34,8 @@
 #include <cstddef>
 #include <filesystem>
 
+#include "pmu_ident.hpp"
+
 namespace sg::counters::detail
 {
 
@@ -51,7 +53,9 @@ namespace sg::counters::detail
 /// \pre none
 /// \post Every field holds a callable; a null function reference
 ///       cannot reach a call site, because the real set and every
-///       scripted set the tests install fill all eight fields.
+///       scripted set the tests install fill all nine fields. The one
+///       call site the CPUID words feed checks the reference it reads,
+///       so an install that misses the field fails the contract there.
 struct KernelCalls
 {
   long (*openEvent)(void* attr,
@@ -76,6 +80,8 @@ struct KernelCalls
   std::filesystem::path (*devicesRoot)();  ///< The directory the
                                            ///< enumeration walks.
   std::filesystem::path (*paranoidPath)();  ///< The paranoid control file.
+  CpuidWords (*cpuidWords)();  ///< The CPUID words the ident decode
+                               ///< consumes, answered on each call.
 };
 
 /// The call set the code runs through: the set a test installed, or the

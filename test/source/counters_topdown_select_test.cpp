@@ -632,6 +632,31 @@ auto levelOneCarriesTheSharedNames() -> void
   check(
       nodeNamed(zen, kNeutralSmtContention) != nullptr,
       "an AMD table answers the fifth name `topdown.smt_contention` (FR-011)");
+
+  // The fifth row planted in an Intel table: it stands at level 1 with the
+  // group text an Intel level-1 row spells. The Intel answer still holds four
+  // nodes, because the level-1 pass drops that row ahead of any node, and the
+  // same rows answer an AMD selection with the fifth node (FR-011, spec D-3).
+  std::vector<MetricRow> withContention = topdownIntelRows();
+  withContention.push_back(
+      sg::test::fixtureMetric("tma_smt_contention",
+                              "fixture_cycles / fixture_ref_cycles",
+                              "100%",
+                              {},
+                              sg::test::intelGroup(1, "TmaL1")));
+  const TopdownTable fifthRowTable =
+      plantedTable(kIntelDirectory, withContention);
+  const TopdownTree intelWithFifth =
+      asked(fifthRowTable, 1, intelIdentity(6, 85, 4));
+  check(intelWithFifth.nodes.size() == kIntelLevelOneNames.size(),
+        "an Intel table that carries the fifth row answers four nodes "
+        "(FR-011, spec D-3)");
+  check(nodeNamed(intelWithFifth, kNeutralSmtContention) == nullptr,
+        "the level-1 pass of an Intel answer drops the fifth row before it "
+        "builds a node (FR-011)");
+  const TopdownTree amdWithFifth = asked(fifthRowTable, 1, amdIdentity(25, 17));
+  check(nodeNamed(amdWithFifth, kNeutralSmtContention) != nullptr,
+        "the same row reaches the fifth node of an AMD answer (FR-011)");
 }
 
 // FR-013 and FR-014: both parent spellings resolve, a row whose parent stems to

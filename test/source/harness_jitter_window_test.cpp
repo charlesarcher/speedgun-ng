@@ -40,6 +40,7 @@
 
 #include "detail/internal.hpp"
 #include "detail/jitter_probe.hpp"
+#include "speedgun-ng/barrier.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_fake.hpp"
 #include "speedgun-ng/counters_system.hpp"
@@ -60,20 +61,159 @@ auto check(const bool cond, const char* what) -> void
   }
 }
 
-// A trivial benchmark: the probe spans the batch, so the run needs one
-// registered function and the shortest minimum time the option scanner
-// admits.
-auto bmQuiet(sg::State& state) -> void
+// The seam readers' ledger: one read count per thread a seam reader stands
+// on. The probe's own reads land here, and the runner's window edges never
+// reach it, so a wait can end on the reads every probe cpu made (FR-012).
+auto seamLedger() -> std::map<std::thread::id, std::uint64_t>&
 {
-  for (auto _ : state) {
+  static std::map<std::thread::id, std::uint64_t> counts;
+  return counts;
+}
+
+auto seamLedgerLock() -> std::mutex&
+{
+  static std::mutex lock;
+  return lock;
+}
+
+auto noteSeamRead() -> void
+{
+  const std::scoped_lock guard {seamLedgerLock()};
+  ++seamLedger()[std::this_thread::get_id()];
+}
+
+auto seamLedgerSnapshot() -> std::map<std::thread::id, std::uint64_t>
+{
+  const std::scoped_lock guard {seamLedgerLock()};
+  return seamLedger();
+}
+
+// The watched entry's arm: the read count each probe cpu owes inside the
+// watched body's own timed window, and the cpu count the scenario armed. A
+// scenario that reads an entry's own series arms both before its run and
+// clears them after it. Every other scenario runs the body with no wait
+// (FR-012, FR-020, R-11).
+struct WatchedWindow
+{
+  std::uint64_t reads = 0;
+  std::size_t cpus = 0;
+};
+
+auto watchedWindow() -> WatchedWindow&
+{
+  static WatchedWindow window;
+  return window;
+}
+
+auto armWatchedWindow(const std::uint64_t reads, const std::size_t cpus) -> void
+{
+  watchedWindow() = WatchedWindow {.reads = reads, .cpus = cpus};
+}
+
+auto clearWatchedWindow() -> void
+{
+  watchedWindow() = WatchedWindow {};
+}
+
+// The reads each probe cpu owes inside the armed window. The scripted
+// clock hands every reader a cursor of its own and keeps the furthest one
+// in the leaf, so a window's open edge stands above the probe's cursor by
+// the reads the runner made while the probe stood off the cpu. A sample
+// carries a stamp recovered from the probe's own cursor, and it lands
+// inside the window once that cursor passes the open edge. The runner
+// reads the leaf a few dozen times per attempt, so an armed count of a
+// thousand probe reads passes the open edge on every host (FR-012, FR-020,
+// R-11).
+inline constexpr std::uint64_t kWatchedWindowReads = 1024;
+
+// The wait the watched body ends on: every armed probe cpu stands the
+// armed count of its own reads past the count the ledger held when the
+// body reached the wait.
+auto waitForProbeReads(const std::size_t cpus,
+                       const std::uint64_t reads) -> void
+{
+  const auto start = seamLedgerSnapshot();
+  std::uint64_t spins = 0;
+  while (true) {
+    const auto now = seamLedgerSnapshot();
+    std::size_t reached = 0;
+    for (const auto& held : now) {
+      const auto found = start.find(held.first);
+      const auto base = found == start.end() ? 0 : found->second;
+      if (held.second >= base + reads) {
+        ++reached;
+      }
+    }
+    if (reached >= cpus) {
+      return;
+    }
+    // The wait yields, the way the gate body's waits do, so the pinned
+    // probe thread progresses under concurrent load. The bound turns a
+    // probe that never reads into a reported failure; the wait cannot
+    // hang (FR-012).
+    std::this_thread::yield();
+    if (++spins > 1000000000ULL) {
+      fail("the probe's reads never landed inside the watched window "
+           "(FR-020, R-11)");
+    }
   }
 }
+
+// A trivial benchmark: the probe spans the batch, so the run needs one
+// registered function and the shortest minimum time the option scanner
+// admits. The armed body ends on the probe's own reads, which stand inside
+// this entry's timed window and carry samples of their own into the
+// entry's fold (FR-006, FR-020, R-11).
+auto bmQuiet(sg::State& state) -> void
+{
+  std::uint64_t work = 0;
+  for (auto _ : state) {
+    work += 1;
+    sg::doNotOptimize(work);
+  }
+  sg::doNotOptimize(work);
+  const auto& window = watchedWindow();
+  if (window.reads > 0) {
+    waitForProbeReads(window.cpus, window.reads);
+  }
+}
+
+// The step the scripted clock paces the shared tsc series at: the probe's
+// unit target `kTargetUnitTimeNs`
+// (`include/speedgun-ng/benchmark.hpp:2444`). The calibration settles at
+// one read per unit at this step, so the probe reads many times inside a
+// timed window and each entry's windows keep samples of their own
+// (FR-006, R-11).
+inline constexpr std::uint64_t kPacedStepNs = 1000;
+
+// The iteration count of an entry whose own windows must hold probe
+// samples. The wait described beside `bmQuiet` places the probe's reads
+// inside the window, so the count stands at the length the batch's other
+// figures read (FR-006, FR-020, R-11).
+inline constexpr std::uint64_t kWatchedEntryIterations = 100000;
+// The repetitions the scenarios that read an entry's own series run. Each
+// repetition stamps a window of its own, and the armed wait ends inside
+// every window the walk reaches, so each window carries samples of its own
+// (FR-006, FR-020, R-11).
+inline constexpr std::uint64_t kWatchedEntryRepetitions = 16;
+// The work count the scenarios that read an entry's own series name to the
+// probe. The unit body of 4,096 passes reads in 1.5 microseconds on the
+// acceptance host, and the 1,048,576-entry series buffer spans 1.6 s of
+// the batch, so the buffer holds the batch's samples with room to spare
+// (FR-006, FR-014, R-11).
+inline constexpr std::uint64_t kWatchedEntryWork = 4096;
+
+// The jump the gate body scripts into the shared tsc series' tail: one
+// read stands a kept gap above the risen threshold, and every read
+// after it jumps again until the run ends, because the window close
+// must read the same tail the kept records ride (R-02, FR-001).
+inline constexpr std::uint64_t kSeriesJump = 1000000;
 
 // The scripted provider: the leaves the runner resolves its plans
 // through, plus the machine/tsc leaf the probe opens, declared in the
 // ReadMode the probe's catalog check reads (R-02). The tsc series steps
-// by one tick, so no read stands a gap above the risen threshold and
-// every field of the fold lands at the empty kept set's zeros.
+// at `kPacedStepNs`, below the risen threshold, so no read stands a gap
+// and every field of the fold lands at the empty kept set's zeros.
 auto scriptedProvider() -> sg::counters::FakeProvider&
 {
   static auto* provider = []
@@ -90,7 +230,7 @@ auto scriptedProvider() -> sg::counters::FakeProvider&
                    "raw tick counter",
                    sg::counters::Availability::COUNTABLE,
                    sg::counters::ReadMode::FAST_TSC);
-    ref.setPoints("machine", "tsc", {0}, 1);
+    ref.setPoints("machine", "tsc", {0}, kPacedStepNs);
     // The multi-pass family's event source: two scripted leaves on one
     // object whose scripted limit holds one counter, so the planner
     // opens one pass per column (E-01, FR-004). Every scripted fact
@@ -109,12 +249,6 @@ auto scriptedProvider() -> sg::counters::FakeProvider&
   }();
   return *provider;
 }
-
-// The jump the gate body scripts into the shared tsc series' tail: one
-// read stands a kept gap above the risen threshold, and every read
-// after it jumps again until the run ends, because the window close
-// must read the same tail the kept records ride (R-02, FR-001).
-inline constexpr std::uint64_t kSeriesJump = 1000000;
 
 // The jump the gate body scripts, mutable so the comparison scenarios of
 // US4 script two different kept-gap magnitudes; every other scenario
@@ -163,6 +297,9 @@ public:
     }
     m_count.fetch_add(1, std::memory_order_relaxed);
     delegate->readPoints(sink);
+    // The ledger stands after the scripted read, so a wait that ends here
+    // ends behind a stamp the leaf already carries.
+    noteSeamRead();
   }
 
   [[nodiscard]] auto count() const noexcept -> std::uint64_t
@@ -243,16 +380,14 @@ auto clearGateReader() -> void
 }
 
 // The gate benchmark: the body scripts the jump into the shared series
-// inside its own timed window and leaves the jumped tail in place, so
-// the window close reads the tail the kept records ride and stands
-// above every kept stamp by construction (specs/027 R-02, FR-039). A
-// one-tick restore before the close resets the shared cursor the close
-// edge reads. When no probe read lands between the restore and the
-// close read, the close forks from the reset cursor and stands below
-// every kept stamp. The scenarios that follow reset the series before
-// their first run. The two waits end on the counting reader's count of
-// the probe's own reads, so no read the runner or any other window
-// made can end a wait the probe's rides must end (FR-012).
+// inside its own timed window, then restores the paced tail after its
+// last measured iteration. The window close reads the shared cursor the
+// jumped reads pushed up, so the close stamp stands above every kept
+// stamp of this window by construction, and the series stands paced for
+// every entry the walk reaches next (specs/027 R-02, FR-039). The two
+// waits end on the counting reader's count of the probe's own reads, so
+// no read the runner or any other window made can end a wait the
+// probe's rides must end (FR-012).
 auto bmGate(sg::State& state) -> void
 {
   auto& provider = scriptedProvider();
@@ -284,11 +419,14 @@ auto bmGate(sg::State& state) -> void
       fail("the scripted jump never reached the probe's reads (FR-039)");
     }
   }
-  // The tail stays jumped past the window close: the close edge reads
-  // the same tail, so the close stamp stands above every kept stamp
-  // this window holds (FR-039, R-04).
   for (auto _ : state) {
   }
+  // The restore stands after the last measured iteration and ahead of
+  // the window close. The close edge reads the shared cursor the jumped
+  // reads pushed up, so the close stamp stands above every kept stamp
+  // of this window, and no later entry's windows open on a jumped tail
+  // (FR-039, R-04).
+  provider.setPoints("machine", "tsc", {}, kPacedStepNs);
 }
 
 // The body-call count of the multi-pass gate, mutable so the T047
@@ -303,9 +441,9 @@ auto passGateCalls() -> std::uint64_t&
 
 // The multi-pass gate: the body of the family whose two metric columns
 // force the passes method (specs/027 FR-022, E-01). Each call is one
-// pass's one measured attempt. The call first restores the one-tick
-// tail and waits for one of the probe's own reads per armed cpu, so the
-// reads between the passes stand one tick apart and keep no gap
+// pass's one measured attempt. The call first restores the paced tail
+// and waits for one of the probe's own reads per armed cpu, so the reads
+// between the passes stand the paced step apart and keep no gap
 // (FR-022, R-04), and the close edge forks from a cursor those
 // hand-offs carry back above every kept stamp: a close forked from the
 // reset cursor would read below the open stamp and wrap the window's
@@ -315,22 +453,22 @@ auto passGateCalls() -> std::uint64_t&
 // window carries the pass's magnitude alone (FR-022, R-04).
 //
 // Both waits end on the counting reader's count of the probe's own
-// reads (FR-012), and the counting reader stands over one window the
-// two cpus share, so the inter-cpu cursor drift a shared hand-off
-// chain carried cannot arise and no margin sizes against it. The rides
+// reads (FR-012), and the counting reader gives every probe cpu a
+// window of its own, so each cpu's gap stands at the scripted tail and
+// no margin sizes against the read counts of the other cpus. The rides
 // at the pass's tail keep their gaps, so the scenarios that run this
 // body size the gap buffer beside the run (FR-010).
 auto bmPassGate(sg::State& state) -> void
 {
   auto& provider = scriptedProvider();
   const auto pass = ++passGateCalls();
-  provider.setPoints("machine", "tsc", {}, 1);
+  provider.setPoints("machine", "tsc", {}, kPacedStepNs);
   const auto rebased = gateProbeReads();
   std::uint64_t spins = 0;
   while (gateProbeReads() < rebased + gateArmedCpus()) {
     std::this_thread::yield();
     if (++spins > 1000000000ULL) {
-      fail("the probe's reads never resumed the one-tick tail (FR-039)");
+      fail("the probe's reads never resumed the paced tail (FR-039)");
     }
   }
   provider.setPoints("machine", "tsc", {}, pass * kSeriesJump);
@@ -344,6 +482,11 @@ auto bmPassGate(sg::State& state) -> void
   }
   for (auto _ : state) {
   }
+  // The paced restore stands where the single-pass gate's does, so the
+  // close edge reads the cursor the pass's jumped reads pushed up and
+  // the tail stands paced for the entries the walk reaches next
+  // (FR-022, R-04).
+  provider.setPoints("machine", "tsc", {}, kPacedStepNs);
 }
 
 // The cpu indexes the scenarios pin probe threads to, taken from the
@@ -876,6 +1019,7 @@ public:
   auto readPoints(sg::counters::PointSink& sink) noexcept -> void override
   {
     sink.put(0);
+    noteSeamRead();
   }
 };
 
@@ -899,11 +1043,39 @@ public:
       stamp += kDipExtraNs;
     }
     sink.put(stamp);
+    noteSeamRead();
   }
 
   static inline constexpr std::uint64_t kStepNs = 1000;
   static inline constexpr std::uint64_t kDipEvery = 16;
   static inline constexpr std::uint64_t kDipExtraNs = 9000;
+};
+
+// The square-wave clock the named-period scenario reads. Each thread's
+// stamps step 1,000 ns for eight reads and 2,000 ns for the eight that
+// follow, so a FWQ window keeps unit times that hold the median at 1,000
+// and close 24 bins of that step per cycle: eight bins of the low reads
+// and 16 of the high reads. The wave stands at two levels, so the
+// strongest bin of the transform stands at the cycle itself (FR-017,
+// FR-018). The per-thread state keeps the probe cpus' series apart, the
+// way the seam's other readers do (R-02).
+class WaveSeriesReader final : public sg::counters::WindowReader
+{
+public:
+  auto readPoints(sg::counters::PointSink& sink) noexcept -> void override
+  {
+    thread_local std::uint64_t calls = 0;
+    thread_local std::uint64_t stamp = 0;
+    ++calls;
+    stamp += calls % kCycle < kHalfCycle ? kLowNs : kHighNs;
+    sink.put(stamp);
+    noteSeamRead();
+  }
+
+  static inline constexpr std::uint64_t kCycle = 16;
+  static inline constexpr std::uint64_t kHalfCycle = 8;
+  static inline constexpr std::uint64_t kLowNs = 1000;
+  static inline constexpr std::uint64_t kHighNs = 2000;
 };
 
 // The per-thread stamp state of the seam reader below: each probe
@@ -992,7 +1164,6 @@ auto seriesWindow(std::uint64_t start,
 
 }  // namespace
 
-SG_BENCHMARK(bmQuiet);
 SG_BENCHMARK(bmGate);
 
 auto main() -> int
@@ -1013,6 +1184,15 @@ auto main() -> int
       sg::counters::Expression<sg::counters::Dim<0, 1>>(*firstLeaf), "first");
   passHandle.addMetric(
       sg::counters::Expression<sg::counters::Dim<0, 1>>(*secondLeaf), "second");
+  // The walk order is the registration order, so the quiet entry stands
+  // behind both gates and the walk stamps its windows after every gate
+  // window closed. A kept gap's stamp never stands above the shared
+  // cursor its own read left behind, so every gap the gates scripted
+  // stands below the quiet entry's window start, and the paced tail the
+  // gate bodies restore keeps the quiet entry's own windows gap-free on
+  // every host (FR-027, E-08).
+  [[maybe_unused]] auto quietHandle =
+      sg::registerBenchmark(&bmQuiet, "bmQuiet");
   const auto cpus = pickCpus(2);
   const std::string cpuList =
       std::to_string(cpus.at(0)) + "," + std::to_string(cpus.at(1));
@@ -1106,9 +1286,10 @@ auto main() -> int
                   != std::string::npos,
               "each stats line carries one value per probe cpu (FR-023)");
       }
-      check(lines.at(blockLine + 14).find("200") != std::string::npos,
-            "the threshold field carries the risen default (FR-007, R-08)");
-      check(lines.at(blockLine + 15).find(" 1 ") != std::string::npos,
+      check(lines.at(blockLine + 14).find("10000") != std::string::npos,
+            "the threshold field carries the risen figure of the paced pass "
+            "(FR-007, R-08)");
+      check(lines.at(blockLine + 15).find(" 1000 ") != std::string::npos,
             "the loop-period field carries the pass's minimum (E-05, R-05)");
 
       // FR-036, D-8, D-12: the disclosure lines stand in the
@@ -1117,7 +1298,7 @@ auto main() -> int
       check(
           probed.find("jitter: probe on cpus " + cpuList) != std::string::npos,
           "the disclosure names the probe and the cpus (FR-036, E-09)");
-      check(probed.find("jitter: loop period 1 ns, threshold 200 ns")
+      check(probed.find("jitter: loop period 1000 ns, threshold 10000 ns")
                 != std::string::npos,
             "the disclosure carries the measured points (FR-007, E-09)");
       check(probed.find("jitter: split and percentiles use the kept gaps only")
@@ -1174,7 +1355,9 @@ auto main() -> int
     // the quiet entry and the two gate entries, so the loaded record
     // holds one fold per probe cpu at the run level and at the entries
     // whose windows kept gaps, and the quiet entry loads none (FR-027,
-    // E-08). The mode and the disclosure stand in the document alone,
+    // E-08). The walk reaches the quiet entry last, on the paced tail
+    // the gate bodies restore, so its windows hold no kept gap on any
+    // host. The mode and the disclosure stand in the document alone,
     // the shape the reader reads them with, so the scenario holds
     // their text against the run's own facts (E-07).
     {
@@ -1182,11 +1365,11 @@ auto main() -> int
       // their gaps, so the run's gap buffer carries them beside the
       // gate's own (FR-010).
       auto& provider = scriptedProvider();
-      provider.setPoints("machine", "tsc", {}, 1);
+      provider.setPoints("machine", "tsc", {}, kPacedStepNs);
       const std::string path = "harness_jitter_window_roundtrip.json";
       installGateReader(2);
       captureRun({"--repetitions=1",
-                  "--iterations=2",
+                  "--iterations=" + std::to_string(kWatchedEntryIterations),
                   "--json=" + path,
                   "--jitter-probe=" + cpuList + ",gaps=8388608"});
       clearGateReader();
@@ -1383,7 +1566,7 @@ auto main() -> int
   // per-entry key stands null and no attribution line prints.
   {
     auto& provider = scriptedProvider();
-    provider.setPoints("machine", "tsc", {}, 1);
+    provider.setPoints("machine", "tsc", {}, kPacedStepNs);
     const std::string path = "harness_jitter_window_split.json";
     installGateReader(1);
     const auto console =
@@ -1449,7 +1632,7 @@ auto main() -> int
   // against the count below.
   {
     auto& provider = scriptedProvider();
-    provider.setPoints("machine", "tsc", {}, 1);
+    provider.setPoints("machine", "tsc", {}, kPacedStepNs);
     const std::string path = "harness_jitter_window_passes.json";
     installGateReader(1);
     captureRun({"--filter=bmGate",
@@ -1489,7 +1672,7 @@ auto main() -> int
   // own (FR-010).
   {
     auto& provider = scriptedProvider();
-    provider.setPoints("machine", "tsc", {}, 1);
+    provider.setPoints("machine", "tsc", {}, kPacedStepNs);
     passGateCalls() = 0;
     const std::string path = "harness_jitter_window_passsplit.json";
     installGateReader(1);
@@ -1529,7 +1712,7 @@ auto main() -> int
   // rule.
   {
     auto& provider = scriptedProvider();
-    provider.setPoints("machine", "tsc", {}, 1);
+    provider.setPoints("machine", "tsc", {}, kPacedStepNs);
     const std::string path = "harness_jitter_window_kept.json";
     installGateReader(1);
     const auto console = captureRun(
@@ -1778,14 +1961,19 @@ auto main() -> int
   // sample and its entry stands null.
   {
     auto& provider = scriptedProvider();
-    provider.setPoints("machine", "tsc", {}, 1);
+    provider.setPoints("machine", "tsc", {}, kPacedStepNs);
     const std::string path = "harness_jitter_window_series.json";
-    captureRun(
-        {"--filter=bmQuiet",
-         "--repetitions=1",
-         "--iterations=2",
-         "--json=" + path,
-         "--jitter-probe=" + std::to_string(cpus.at(0)) + ",method=fwq"});
+    installGateReader(1);
+    armWatchedWindow(kWatchedWindowReads, 1);
+    captureRun({"--filter=bmQuiet",
+                "--repetitions=" + std::to_string(kWatchedEntryRepetitions),
+                "--iterations=" + std::to_string(kWatchedEntryIterations),
+                "--json=" + path,
+                "--jitter-probe=" + std::to_string(cpus.at(0))
+                    + ",method=fwq,work=" + std::to_string(kWatchedEntryWork)
+                    + ",gaps=1048576"});
+    clearGateReader();
+    clearWatchedWindow();
     const auto document = readDocument(path);
     std::remove(path.c_str());
     const auto quietName = document.find("\"bmQuiet\"");
@@ -1794,10 +1982,23 @@ auto main() -> int
     check(document.find("\"jitter\":{\"stats\"", quietName) != std::string::npos,
           "thePerEntrySeriesFoldsTheWindows: the FWQ entry carries the fold "
           "its series placed (FR-020, R-11)");
+    // FR-006, R-11: the entry's jitter record carries both arrays, and the
+    // series item carries the samples the probe read inside this entry's
+    // windows.
+    const auto entryJitter = document.find("\"jitter\":{", quietName);
+    check(document.find("\"stats\":[{", entryJitter) != std::string::npos
+              && document.find("\"series\":[{", entryJitter)
+                     != std::string::npos,
+          "thePerEntrySeriesFoldsTheWindows: the entry carries a real jitter "
+          "record with its stats and its series (FR-020, E-08)");
+    const auto entryItem = seriesItemAt(document, entryJitter);
+    check(integerValueAfter(document, entryItem, "sampleCount") > 0,
+          "thePerEntrySeriesFoldsTheWindows: the entry's window holds the "
+          "watched entry's samples (FR-006, FR-020, R-11)");
   }
   {
     auto& provider = scriptedProvider();
-    provider.setPoints("machine", "tsc", {}, 1);
+    provider.setPoints("machine", "tsc", {}, kPacedStepNs);
     const std::string path = "harness_jitter_window_series_precheck.json";
     captureRun({"--filter=bmQuiet",
                 "--repetitions=1",
@@ -1901,7 +2102,7 @@ auto main() -> int
     const std::string probe = "--jitter-probe=" + cpu;
 
     auto& provider = scriptedProvider();
-    provider.setPoints("machine", "tsc", {}, 1);
+    provider.setPoints("machine", "tsc", {}, kPacedStepNs);
     seriesJump() = kSeriesJump;
     const std::string basePath = "harness_jitter_rule_base.json";
     installGateReader(1);
@@ -1911,7 +2112,7 @@ auto main() -> int
                 "--json=" + basePath,
                 probe});
     clearGateReader();
-    provider.setPoints("machine", "tsc", {}, 1);
+    provider.setPoints("machine", "tsc", {}, kPacedStepNs);
     seriesJump() = 2 * kSeriesJump;
     const std::string bigPath = "harness_jitter_rule_big.json";
     installGateReader(1);
@@ -2110,20 +2311,25 @@ auto main() -> int
   // riding the cpu's item alone; `loadReport` reads every key back; and a
   // run with no method key writes neither new key, the bytes of the
   // standing record standing whole (FR-031, SC-004). The scripted clock
-  // steps one tick per read, so a FWQ window keeps a series of equal unit
-  // times, and the `gaps` value sizes the series buffer, so the transform
-  // reads a bounded span (FR-014, FR-018).
+  // steps `kPacedStepNs` per read, so a FWQ window keeps a series of equal
+  // unit times, and the `gaps` value sizes the series buffer, so the
+  // transform reads a bounded span (FR-006, FR-014, FR-018).
   {
     const std::string probeCpu = std::to_string(cpus.at(0));
-    // The series buffer sizes the kept span: the standing scripted clock
-    // steps a unit time of 2 ms, so a 16,384-entry buffer spans the whole
-    // batch and each entry's windows keep samples of their own (FR-014).
-    const std::string fwqValue =
-        "--jitter-probe=" + probeCpu + ",method=fwq,gaps=16384";
+    // The series buffer sizes the kept span. The scripted clock paces a
+    // unit time of 1,000 ns, so the kept prefix has to reach past the
+    // batch's setup and the watched entry's runs. A 1,048,576-entry
+    // buffer spans a second of the batch on the paced step, so the batch
+    // keeps its samples whole (FR-006, FR-014).
+    const std::string fwqValue = "--jitter-probe=" + probeCpu
+        + ",method=fwq,work=" + std::to_string(kWatchedEntryWork)
+        + ",gaps=1048576";
     const std::string ftqValue =
-        "--jitter-probe=" + probeCpu + ",method=ftq,gaps=16384";
+        "--jitter-probe=" + probeCpu + ",method=ftq,gaps=1048576";
     const std::vector<std::string> quick {
-        "--filter=bmQuiet", "--repetitions=1", "--iterations=2"};
+        "--filter=bmQuiet",
+        "--repetitions=" + std::to_string(kWatchedEntryRepetitions),
+        "--iterations=" + std::to_string(kWatchedEntryIterations)};
 
     // FR-006, FR-019: the JSON spells the method with the upper-case word
     // the enumerator names, after `loopPeriodNs` and before `series`.
@@ -2174,7 +2380,11 @@ auto main() -> int
       auto arguments = quick;
       arguments.push_back("--json=" + path);
       arguments.push_back(fwqValue);
+      installGateReader(1);
+      armWatchedWindow(kWatchedWindowReads, 1);
       captureRun(arguments);
+      clearGateReader();
+      clearWatchedWindow();
       const auto document = readDocument(path);
       std::remove(path.c_str());
       const auto root = document.find("\"jitter\":{");
@@ -2230,7 +2440,11 @@ auto main() -> int
       auto arguments = quick;
       arguments.push_back("--json=" + path);
       arguments.push_back(fwqValue);
+      installGateReader(1);
+      armWatchedWindow(kWatchedWindowReads, 1);
       captureRun(arguments);
+      clearGateReader();
+      clearWatchedWindow();
       const auto document = readDocument(path);
       std::remove(path.c_str());
       const auto root = document.find("\"jitter\":{");
@@ -2253,8 +2467,10 @@ auto main() -> int
       arguments.push_back("--json=" + path);
       arguments.push_back(fwqValue);
       sg::detail::installTestReader(std::make_unique<FlatSeriesReader>());
+      armWatchedWindow(kWatchedWindowReads, 1);
       captureRun(arguments);
       sg::detail::installTestReader(nullptr);
+      clearWatchedWindow();
       const auto document = readDocument(path);
       std::remove(path.c_str());
       const auto root = document.find("\"jitter\":{");
@@ -2295,28 +2511,106 @@ auto main() -> int
             "list empty (FR-018, R-12)");
     }
 
+    // FR-018, FR-020, E-24: the period list of a run whose series carries
+    // a period. The square-wave clock steps 1,000 ns for eight reads and
+    // 2,000 ns for the eight that follow, so the resample closes 24 bins of
+    // the 1,000 ns median step per cycle. The transform names that cycle,
+    // the written item carries the list with its items in the written
+    // order, and `loadReport` reads the figures back.
+    {
+      const std::string path = "harness_jitter_window_named_periods_fwq.json";
+      auto arguments = quick;
+      arguments.push_back("--json=" + path);
+      arguments.push_back("--jitter-probe=" + probeCpu
+                          + ",method=fwq,gaps=1024");
+      sg::detail::installTestReader(std::make_unique<WaveSeriesReader>());
+      captureRun(arguments);
+      sg::detail::installTestReader(nullptr);
+      const auto document = readDocument(path);
+      const auto root = document.find("\"jitter\":{");
+      const auto itemAt = seriesItemAt(document, root);
+      const auto listAt = document.find("\"periods\":[{", itemAt);
+      check(listAt != std::string::npos,
+            "theNamedPeriodListCarriesItsFigures: the square-wave clock writes "
+            "a period item into the cpu's item (FR-018, E-24)");
+      const auto periodAt = listAt + std::strlen("\"periods\":[");
+      const auto periodEnd = objectEndAt(document, periodAt);
+      check(periodEnd != std::string::npos, "the period item closes (FR-018)");
+      const std::vector<std::string> kPeriodKeys {"periodNs", "powerRatio"};
+      check(jsonKeysAt(document, periodAt) == kPeriodKeys,
+            "theNamedPeriodListCarriesItsFigures: the period item carries its "
+            "two keys in the written order (FR-018, E-24)");
+      // The planted cycle spans 24 steps of the 1,000 ns median unit time.
+      // The kept span starts at no fixed phase of the wave, so the named
+      // bin carries the cycle within one step of it.
+      constexpr std::uint64_t kCycleNs = 24000;
+      constexpr std::uint64_t kCycleSlackNs = 2400;
+      const auto periodNs =
+          integerValueIn(document, periodAt, periodEnd, "periodNs");
+      check(periodNs + kCycleSlackNs >= kCycleNs
+                && periodNs <= kCycleNs + kCycleSlackNs,
+            "theNamedPeriodListCarriesItsFigures: the named period stands the "
+            "24-step cycle the wave plants (FR-017, FR-018)");
+      check(std::fabs(doubleValueAfter(document, periodAt, "powerRatio") - 1.0)
+                <= 1e-9,
+            "theNamedPeriodListCarriesItsFigures: the first item's power ratio "
+            "stands 1 (FR-018)");
+      const auto loaded = sg::loadReport(path);
+      std::remove(path.c_str());
+      check(loaded.has_value(),
+            "theNamedPeriodListCarriesItsFigures: the document of the named "
+            "period list loads (FR-020)");
+      if (!loaded.has_value() || !loaded->runJitterStats.has_value()
+          || loaded->runJitterStats->empty()
+          || !loaded->runJitterStats->at(0).series.has_value())
+      {
+        fail("the run-level fold of the waved run leaves its series unread "
+             "(FR-020)");
+      }
+      const auto& series = *loaded->runJitterStats->at(0).series;
+      check(!series.periods.empty(),
+            "theNamedPeriodListCarriesItsFigures: the read leaves the period "
+            "list with its items (FR-020, E-24)");
+      check(!series.periods.empty()
+                && series.periods.front().periodNs == periodNs
+                && std::fabs(series.periods.front().powerRatio - 1.0) <= 1e-9,
+            "theNamedPeriodListCarriesItsFigures: the read answers the written "
+            "figures of the first item (FR-020, R-17)");
+      checkSeriesRoundTrip(series,
+                           document,
+                           itemAt,
+                           "theNamedPeriodListCarriesItsFigures: the cpu's "
+                           "item reads back every key (FR-020, R-17)");
+    }
+
     // FR-020, R-17: `loadReport` reads every key back, the run record
     // carrying the method word and each fold carrying its series.
     {
       const std::string path = "harness_jitter_window_series_roundtrip.json";
       auto arguments = quick;
-      // The entry's fold reads the samples the probe kept inside that
-      // entry's own windows, so the entry stands long enough to hold them
-      // when the probe thread shares the machine (R-11).
-      arguments.erase(
-          std::find(arguments.begin(), arguments.end(), "--iterations=2"),
-          arguments.end());
-      arguments.push_back("--iterations=100000");
       arguments.push_back("--json=" + path);
       arguments.push_back(fwqValue);
-      // The dipping clock paces the FWQ loop on scripted stamps, so the
-      // probe keeps samples inside each entry's windows under any load;
-      // the standing clock paces on wall time and starves the entry's
-      // windows when the machine runs the suite in parallel (R-11).
-      sg::detail::installTestReader(std::make_unique<DipSeriesReader>());
+      // FR-006, R-11: the armed wait ends inside the entry's own window,
+      // so the probe's reads stand kept there.
+      auto& provider = scriptedProvider();
+      provider.setPoints("machine", "tsc", {}, kPacedStepNs);
+      installGateReader(1);
+      armWatchedWindow(kWatchedWindowReads, 1);
       captureRun(arguments);
-      sg::detail::installTestReader(nullptr);
+      clearGateReader();
+      clearWatchedWindow();
       const auto document = readDocument(path);
+      // FR-006, R-11: the entry's window holds the samples the probe read
+      // during the batch, and the entry's jitter record carries the series
+      // that holds them.
+      const auto entryName = document.find("\"bmQuiet\"");
+      check(document.find("\"series\":[{", entryName) != std::string::npos,
+            "theSeriesRoundTripsThroughLoadReport: the entry's jitter record "
+            "carries its series array (FR-006, FR-020, R-11)");
+      const auto entrySeriesItem = seriesItemAt(document, entryName);
+      check(integerValueAfter(document, entrySeriesItem, "sampleCount") > 0,
+            "theSeriesRoundTripsThroughLoadReport: the entry's window holds "
+            "the watched entry's samples (FR-006, FR-020, R-11)");
       const auto loaded = sg::loadReport(path);
       std::remove(path.c_str());
       check(loaded.has_value(),
@@ -2400,6 +2694,13 @@ auto main() -> int
     const std::string probeCpu = std::to_string(cpus.at(0));
     const std::vector<std::string> quick {
         "--filter=bmQuiet", "--repetitions=1", "--iterations=2"};
+    // The FTQ block counts the quanta the alongside loop closed. The
+    // armed wait ends behind a thousand of the probe's own reads inside
+    // the entry's window, and the loop closes its quanta there (FR-016).
+    const std::vector<std::string> watched {
+        "--filter=bmQuiet",
+        "--repetitions=1",
+        "--iterations=" + std::to_string(kWatchedEntryIterations)};
 
     // FR-013, FR-019, FR-022, R-14: the FWQ block. The dipping clock
     // keeps unit times of 1,000 ns with a dip every 16th unit, so the
@@ -2410,8 +2711,10 @@ auto main() -> int
       arguments.push_back("--jitter-probe=" + cpuList
                           + ",method=fwq,gaps=1024");
       sg::detail::installTestReader(std::make_unique<DipSeriesReader>());
+      armWatchedWindow(kWatchedWindowReads, 2);
       const auto report = captureRun(arguments);
       sg::detail::installTestReader(nullptr);
+      clearWatchedWindow();
       const auto lines = splitLines(report);
       std::size_t previous = 0;
       for (const auto field : kSeriesLines) {
@@ -2496,12 +2799,14 @@ auto main() -> int
     // figures, the counts of FR-007 among them, and the resample step the
     // count series needs none of at 0.
     {
-      auto arguments = quick;
+      auto arguments = watched;
       arguments.push_back("--jitter-probe=" + probeCpu
                           + ",method=ftq,gaps=1024");
       sg::detail::installTestReader(std::make_unique<DipSeriesReader>());
+      armWatchedWindow(kWatchedWindowReads, 1);
       const auto report = captureRun(arguments);
       sg::detail::installTestReader(nullptr);
+      clearWatchedWindow();
       const auto lines = splitLines(report);
       std::size_t occurrences = 0;
       const auto methodAt = fieldLineIndex(lines, "method", occurrences);
@@ -2565,15 +2870,16 @@ auto main() -> int
       }
     }
 
-    // specs/043 T066, US1, US2, FR-004, FR-020, E-27, R-04: the pre-check
-    // series of a `mode=both` run. The alongside loop runs on while the
-    // pre-check record builds, and the standing precondition bars a read
-    // of the live buffer: the fold reads the prefix the latch
-    // snapshotted, the count that stands stable once the phase ends
-    // there. The dipping clock keeps unit times of 1,000 ns with a dip
-    // every 16th unit, so the prefix names a kept count of its own and a
-    // noise fraction of 36 percent, and the alongside phase behind the
-    // latch keeps samples the prefix leaves out.
+    // specs/043 T066, US1, US2, FR-004, FR-020, E-27, R-04, and
+    // specs/045-merge-fixes FR-008, D-5: the pre-check series of a
+    // `mode=both` run. The alongside loop runs on while the pre-check
+    // record builds, and the fold reads the latch-time snapshot the
+    // probe thread publishes at the latch line: the prefix, its kept
+    // count and its drop count stand copied there. The dipping clock
+    // keeps unit times of 1,000 ns with a dip every 16th unit, so the
+    // prefix names a kept count of its own and a noise fraction of 36
+    // percent, and the alongside phase behind the latch keeps samples
+    // the prefix leaves out.
     if (twoCpuScenarios) {
       sg::JitterProbeOptions options;
       options.cpus = {cpus.at(0)};
@@ -2588,12 +2894,12 @@ auto main() -> int
       check(!states.empty(),
             "theBothModePrecheckFoldsTheLatchedPrefix: the probe measured a "
             "cpu (FR-004)");
-      const auto latched = states.front().seriesKeptAtLatch;
-      const auto prefix = sg::detail::seriesStatsOf(states.front(), latched);
+      const auto& latch = sg::detail::latchSnapshotOf(states.front());
+      const auto prefix = sg::detail::seriesStatsOf(latch);
       probe.stopAndJoin();
       const auto full = sg::detail::seriesStatsOf(states.front());
       sg::detail::installTestReader(nullptr);
-      check(latched > 0 && prefix.sampleCount == latched,
+      check(latch.seriesKept > 0 && prefix.sampleCount == latch.seriesKept,
             "theBothModePrecheckFoldsTheLatchedPrefix: the prefix counts the "
             "samples the latch snapshotted (FR-020, E-27)");
       check(prefix.sampleCount < full.sampleCount,
@@ -2664,19 +2970,25 @@ auto main() -> int
           "fields (FR-021, FR-038)");
 
     // FR-021, FR-031: the run-scoped name reads the run record's series,
-    // and the bare name reads the entry's own.
-    // The series buffer spans the batch, so the entry's windows keep
-    // samples of their own and the bare name has a series to read.
-    const std::string fwqValue =
-        "--jitter-probe=" + cpu + ",method=fwq,gaps=16384";
+    // and the bare name reads the entry's own. The armed wait places the
+    // probe's reads inside the entry's own windows, so the bare name has a
+    // series to read (FR-006, FR-020, R-11).
+    const std::string fwqValue = "--jitter-probe=" + cpu + ",method=fwq,work="
+        + std::to_string(kWatchedEntryWork) + ",gaps=1048576";
     const std::vector<std::string> quick {
-        "--filter=bmQuiet", "--repetitions=1", "--iterations=2"};
+        "--filter=bmQuiet",
+        "--repetitions=" + std::to_string(kWatchedEntryRepetitions),
+        "--iterations=" + std::to_string(kWatchedEntryIterations)};
     const std::string basePath = "harness_jitter_rule_series_base.json";
     {
       auto arguments = quick;
       arguments.push_back("--json=" + basePath);
       arguments.push_back(fwqValue);
+      installGateReader(1);
+      armWatchedWindow(kWatchedWindowReads, 1);
       captureRun(arguments);
+      clearGateReader();
+      clearWatchedWindow();
     }
     const auto baseDocument = readDocument(basePath);
     check(baseDocument.find("\"series\":[") != std::string::npos,
@@ -2714,7 +3026,11 @@ auto main() -> int
       arguments.push_back("--json=" + pairPath);
       arguments.push_back("--jitter-probe=" + cpuList
                           + ",method=fwq,gaps=16384");
+      installGateReader(2);
+      armWatchedWindow(kWatchedWindowReads, 2);
       captureRun(arguments);
+      clearGateReader();
+      clearWatchedWindow();
       const auto pairDocument = readDocument(pairPath);
       const auto root = pairDocument.find("\"jitter\":{");
       const auto firstCount = pairDocument.find("\"sampleCount\":", root);
@@ -2758,7 +3074,11 @@ auto main() -> int
       auto arguments = quick;
       arguments.push_back("--json=" + allPath);
       arguments.push_back(fwqValue);
+      installGateReader(1);
+      armWatchedWindow(kWatchedWindowReads, 1);
       captureRun(arguments);
+      clearGateReader();
+      clearWatchedWindow();
       std::vector<std::string> fieldArguments {"--compare=" + allPath + ","
                                                + allPath};
       for (const auto field : kSeriesFields) {
@@ -2779,7 +3099,7 @@ auto main() -> int
     {
       const std::string tscPath = "harness_jitter_rule_series_tsc.json";
       auto& provider = scriptedProvider();
-      provider.setPoints("machine", "tsc", {}, 1);
+      provider.setPoints("machine", "tsc", {}, kPacedStepNs);
       seriesJump() = kSeriesJump;
       installGateReader(1);
       captureRun({"--filter=bmGate",
@@ -2788,7 +3108,7 @@ auto main() -> int
                   "--json=" + tscPath,
                   "--jitter-probe=" + cpu + ",method=tsc"});
       clearGateReader();
-      provider.setPoints("machine", "tsc", {}, 1);
+      provider.setPoints("machine", "tsc", {}, kPacedStepNs);
       const auto tscDocument = readDocument(tscPath);
       check(tscDocument.find("\"series\":[") == std::string::npos,
             "the tsc run writes no series array (FR-006, SC-004)");

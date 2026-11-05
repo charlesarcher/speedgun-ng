@@ -1310,7 +1310,11 @@ auto speedgunMain(int argc, char** argv) -> int
               std::ranges::find_if(jitterProbe->states(),
                                    [&](const detail::ProbeCpuState& probeState)
                                    { return probeState.cpu == noisy.front(); });
-          const auto fold = detail::seriesStatsOf(*found);
+          // specs/045-merge-fixes FR-008, D-5: the gate folds each
+          // cpu's latch-time snapshot, the figures the pre-check window
+          // kept, while the alongside loop runs on.
+          const auto fold =
+              detail::seriesStatsOf(detail::latchSnapshotOf(*found));
           std::fprintf(
               stderr,
               "--jitter-probe: cpu %u is noisy: noisePercent %.2f %s %llu\n",
@@ -1365,24 +1369,25 @@ auto speedgunMain(int argc, char** argv) -> int
           entry.cpu = state.cpu;
           entry.planned = std::find(planned.begin(), planned.end(), state.cpu)
               != planned.end();
-          entry.stats = detail::gapStatsOf(state);
+          // specs/045-merge-fixes FR-008, D-5: the record folds each
+          // cpu's latch-time snapshot, the one object the probe thread
+          // published at the latch line. The precheck mode joins the
+          // probe inside the start, and there the snapshot carries the
+          // whole kept set, the alongside loop never having run. In
+          // `both` the loop runs on while the record builds, and the
+          // snapshot carries the prefix the latch line ended, so the
+          // record reads one source in either mode and reads no live
+          // buffer. The `tsc` gap figures ride the same shape: the
+          // snapshot carries the kept gap prefix and the dropped-gap
+          // count, so the record names the pre-check window's own
+          // gaps.
+          entry.stats = detail::gapStatsOf(detail::latchSnapshotOf(state));
           // specs/043 FR-004, FR-020, E-23: the series of the same
-          // pre-check window rides beside the gaps. The fold reads the
-          // buffer behind the join edge, the state standing quiescent
-          // only in the precheck mode, where the start stops and joins
-          // the probe before it returns. In `both` the alongside loop
-          // runs on, so the record folds the prefix the latch
-          // snapshotted: the samples below that count stand written and
-          // never written again, and no read of the live buffer stands
-          // needed (T066, E-27, R-04). A TSC run keeps no series to
-          // carry (FR-006).
+          // pre-check window rides beside the gaps. A TSC run keeps no
+          // series to carry (FR-006).
           if (state.method != JitterMethod::TSC) {
-            if (options.jitterProbe->mode == JitterProbeMode::PRECHECK) {
-              entry.series = detail::seriesStatsOf(state);
-            } else if (options.jitterProbe->mode == JitterProbeMode::BOTH) {
-              entry.series =
-                  detail::seriesStatsOf(state, state.seriesKeptAtLatch);
-            }
+            entry.series =
+                detail::seriesStatsOf(detail::latchSnapshotOf(state));
           }
           entry.attribution = detail::precheckAttributionDelta(
               beforeSnapshot.at(state.cpu), afterSnapshot.at(state.cpu));

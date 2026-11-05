@@ -1,0 +1,90 @@
+# Quickstart: 045-merge-fixes validation
+
+Spec: [spec.md](./spec.md). Plan: [plan.md](./plan.md). Every command
+runs from the repository root on Linux. The gates prove the spec's
+success criteria; the design details sit in
+[data-model.md](./data-model.md) and the research annexes.
+
+## Prerequisites
+
+- Linux x86-64, GCC or Clang with CMake and Ninja.
+- lcov with a working perl XS (the corsairone repair is host-local;
+  see the spec's acceptance section).
+- A clean tree at the fix head; the two commits carry one topic each.
+
+## Build and test the suite
+
+```sh
+cmake --preset=ci-rocky
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+Expected: every entry passes (SC-001). Then pin the suite to two
+cpus:
+
+```sh
+ctest --test-dir build --output-on-failure -j2   --tests-regex '.*' --parallel 2   # under taskset -c 0,1
+taskset -c 0,1 ctest --test-dir build --output-on-failure
+```
+
+Expected: the same green result on thrawn and on corsairone; a
+failure that stays carries its host-artifact reason in the record.
+
+## Sanitizers and threads
+
+```sh
+cmake --preset=ci-sanitize && cmake --build build/sanitize
+ctest --test-dir build/sanitize --output-on-failure
+cmake --preset=ci-tsan && cmake --build build/tsan
+ctest --test-dir build/tsan --output-on-failure
+```
+
+Expected: no ASan/UBSan finding; no TSan race in the jitter tests
+(FR-007, FR-008, SC-004).
+
+## Static analysis and the standing tools
+
+```sh
+cmake --preset=ci-ubuntu && cmake --build build.ci-ubuntu
+cmake -P cmake/lint.cmake
+cmake -P cmake/spell.cmake
+tools/docs/example_drift.py
+tools/prose/prose_gate.py --base origin/master
+tools/dbc/dbc_pair_gate.py
+```
+
+Expected: zero new clang-tidy and cppcheck findings; all five tools
+pass (SC-005).
+
+## Coverage
+
+```sh
+cmake --preset=ci-coverage
+cmake --build build/coverage
+ctest --test-dir build/coverage --output-on-failure -R coverage
+```
+
+Expected: 100 percent lines; branch shortfall 21 or less, the number
+recorded in the PR body; no unexplained dark line; the marker count
+by file reads 84 at the Part A head (SC-002, SC-003, FR-005).
+
+## The fixed behaviors, one check each
+
+| Requirement | Check | Expected |
+| --- | --- | --- |
+| FR-001 | Run `counters_pmu_provider_test` on a host whose CPU matches no vendored table | Passes; the test scripts the identity |
+| FR-002 | Run `counters_kernel_calls_test` with `perf_event_paranoid = -1` | Passes; the refusal rides the seam |
+| FR-003 | `git grep -c LCOV_EXCL -- source include` | The count fell; no net-new exclusion line |
+| FR-006 | Run `harness_jitter_window_test` | Every FWQ window holds its samples; the document carries a real jitter record |
+| FR-007 | Run `harness_fwq_ftq_test` under `ci-sanitize` | No negative-delta finding |
+| FR-008 | Run `harness_jitter_cli_test` under `ci-tsan` | No race at the mode=both folds |
+| FR-009 | `ctest -j` with `prose_gate_fixtures` | The entry finishes inside 10 seconds |
+| FR-010 | Read `specs/043-fwq-ftq/tasks.md` Phase 10 | T048-T049, T051-T056 ticked; T050, T057, T061 open with reasons |
+| FR-012 | Read the `CMakeLists.txt` SOVERSION comments | PR #70 named; no number changed |
+
+## Record the acceptance
+
+Write the per-host counts into `specs/045-merge-fixes/results/` and
+mirror them in the PR body, in the order the spec's acceptance
+section states: corsairone first, then thrawn.

@@ -15,6 +15,7 @@
 // ============================================================================
 
 #include <algorithm>
+#include <cerrno>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -34,6 +35,7 @@
 #include <unistd.h>
 
 #include "../source/counters/linux_pmu/kernel_calls.hpp"
+#include "../source/counters/linux_pmu/pmu_ident.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_provider.hpp"
 
@@ -57,6 +59,7 @@ using sg::counters::ObjectSink;
 using sg::counters::PmuProvider;
 using sg::counters::ReadMode;
 using sg::counters::Target;
+using sg::counters::detail::CpuidWords;
 using sg::counters::detail::installKernelCalls;
 using sg::counters::detail::KernelCalls;
 
@@ -71,6 +74,8 @@ public:
     Availability avail = Availability::COUNTABLE;
     ReadMode mode = ReadMode::SYSCALL;
     bool hasRatioPair = false;
+
+    auto operator==(const Entry&) const -> bool = default;
   };
 
   void addObject(const ObjectSeed& seed) override
@@ -109,6 +114,11 @@ int gNextFd = 100;
 // the state the real refusal carries.
 int gRefuseAt = -1;
 int gErrno = EACCES;
+// The CPUID words the scripted identity answers: the words a pinned
+// mapfile row matches stand in for the host's own identity, so the
+// vendored merge reads the fixture's identity on every host (FR-001,
+// FR-013).
+CpuidWords gCpuidWords {};
 // True when the scripted kernel refuses every cpu-targeted open while
 // it grants the per-task ones, the matrix the paranoid level of 2
 // produces (FR-021, FR-034).
@@ -116,6 +126,50 @@ bool gRefuseCpuTarget = false;
 std::map<int, void*> gPages;
 std::vector<int> gOpenedFds;
 std::vector<int> gClosedFds;
+// The config word of every attribute the scripted kernel saw, in call
+// order: a scenario that composes an event reads here to learn the words
+// the probe carried (FR-004).
+std::vector<std::uint64_t> gOpenConfigs;
+
+/// The words a pinned mapfile row matches: leaf 0 spells the vendor and
+/// leaf 1 names family 26, model 8, the amdzen5 row the vendored table
+/// pins (FR-001).
+auto vendorRowWords() -> CpuidWords
+{
+  return {.leaf0Eax = 0x15U,
+          .leaf0Ebx = 0x68747541U,  // "Auth"
+          .leaf0Edx = 0x69746E65U,  // "enti"
+          .leaf0Ecx = 0x444D4163U,  // "cAMD"
+          .leaf1Answered = true,
+          .leaf1Eax = 0x1000A80U};  // family 26, model 8
+}
+
+/// The words no pinned row matches: the vendor string the leaf 0 words
+/// spell carries no mapfile row, so the selection finds no directory on
+/// any host (FR-001).
+auto noRowWords() -> CpuidWords
+{
+  return {.leaf0Eax = 0x15U,
+          .leaf0Ebx = 0x75536F4EU,  // "Nosu"
+          .leaf0Edx = 0x6E655663U,  // "cVen"
+          .leaf0Ecx = 0x58726F64U,  // "dorX"
+          .leaf1Answered = true,
+          .leaf1Eax = 0x30650U};  // family 6, model 5
+}
+
+/// The words a pinned Intel row matches: leaf 0 spells GenuineIntel and
+/// leaf 1 names family 6, model 106 (`0x6A`), the identity the row
+/// `GenuineIntel-6-6[AC]` answers with `arch/x86/icelakex/`. That table
+/// carries the fixed-counter rows the composition step reads (FR-004).
+auto fixedCounterRowWords() -> CpuidWords
+{
+  return {.leaf0Eax = 0x1FU,
+          .leaf0Ebx = 0x756E6547U,  // "Genu"
+          .leaf0Edx = 0x49656E69U,  // "ineI"
+          .leaf0Ecx = 0x6C65746EU,  // "ntel"
+          .leaf1Answered = true,
+          .leaf1Eax = 0x606A0U};  // family 6, model 0x6A
+}
 
 /// The scripted set the provider runs through: the two path functions
 /// answer the fixture trees, the open grants fresh descriptors or
@@ -125,8 +179,9 @@ std::vector<int> gClosedFds;
 auto scriptedCalls() -> KernelCalls
 {
   KernelCalls calls {};
-  calls.openEvent = [](void*, int, int cpu, int, unsigned long) -> long
+  calls.openEvent = [](void* attr, int, int cpu, int, unsigned long) -> long
   {
+    gOpenConfigs.push_back(static_cast<const perf_event_attr*>(attr)->config);
     if (gRefuseCpuTarget && cpu >= 0) {
       errno = EACCES;
       return -1;
@@ -156,6 +211,7 @@ auto scriptedCalls() -> KernelCalls
   };
   calls.devicesRoot = []() -> std::filesystem::path { return gDevicesRoot; };
   calls.paranoidPath = []() -> std::filesystem::path { return gParanoidPath; };
+  calls.cpuidWords = []() -> CpuidWords { return gCpuidWords; };
   return calls;
 }
 
@@ -170,6 +226,10 @@ auto resetFixture() -> void
   gPages.clear();
   gOpenedFds.clear();
   gClosedFds.clear();
+  gOpenConfigs.clear();
+  // The default identity matches no pinned row, so a scenario that
+  // names no identity reads the no-row arm on every host (FR-001).
+  gCpuidWords = noRowWords();
   installKernelCalls(nullptr);
 }
 
@@ -398,6 +458,10 @@ auto kernelAliasWinsScenario() -> void
   writeCoreDevice(root);
   gDevicesRoot = root;
   writeParanoid("2\n");
+  // The identity a pinned row matches stands in for the host's own: the
+  // vendored table merges its core row on every host, so the assertions
+  // below hold wherever the test runs (FR-001, FR-013).
+  gCpuidWords = vendorRowWords();
   installKernelCalls(&calls);
 
   // The first enumeration learns one vendored row's name: a cpu entry
@@ -441,6 +505,128 @@ auto kernelAliasWinsScenario() -> void
   resetFixture();
 }
 
+/// An identity no pinned row matches merges no vendored row: every
+/// entry the catalog carries describes itself with the kernel's own
+/// text, and the empty selection merges nothing (FR-001, FR-038).
+auto noRowIdentityScenario() -> void
+{
+  auto calls = scriptedCalls();
+  resetFixture();
+  const auto root = freshRoot();
+  writeCoreDevice(root);
+  gDevicesRoot = root;
+  writeParanoid("2\n");
+  installKernelCalls(&calls);
+  const auto sink = enumerate();
+  for (const auto& entry : sink.entries.front()) {
+    if (entry.name == "enabled" || entry.name == "running") {
+      continue;
+    }
+    check(
+        entry.description.find("kernel event") == 0,
+        "an identity no row matches merges no vendored row (FR-001, " "FR-"
+                                                                      "038)");
+  }
+  resetFixture();
+}
+
+/// The fixed-counter rows of a pinned Intel table reach the merge: the
+/// event comes from the alias the device publishes for the counter, and
+/// a row naming a counter the device publishes no alias for is refused
+/// whole, with the number it names in its sentence (FR-004, FR-037).
+auto fixedCounterRowScenario() -> void
+{
+  auto calls = scriptedCalls();
+  resetFixture();
+  const auto root = freshRoot();
+  // The fixture publishes an alias for two of the counters the table's
+  // rows ask for: fixed counter 0 and fixed counter 1. Fixed counter 2
+  // has no alias here, and fixed counter 3 names no alias at all.
+  writeDevice(
+      root,
+      "cpu",
+      "4",
+      {{"config", "config:0-47"}},
+      {{"instructions", "config=0x3c"}, {"cpu-cycles", "config=0x300000003c"}});
+  gDevicesRoot = root;
+  writeParanoid("2\n");
+  gCpuidWords = fixedCounterRowWords();
+  installKernelCalls(&calls);
+  const auto sink = enumerate();
+
+  for (const auto* name : {"INST_RETIRED.ANY",
+                           "INST_RETIRED.PREC_DIST",
+                           "CPU_CLK_UNHALTED.THREAD"})
+  {
+    const auto* entry = findEntry(sink, "cpu", name);
+    check(entry != nullptr && entry->avail == Availability::COUNTABLE,
+          "a fixed row with the alias of its counter composes and counts "
+          "(FR-037)");
+    check(entry != nullptr
+              && entry->description.find("refused") == std::string::npos,
+          "the composed row carries no refusal sentence (FR-037)");
+  }
+  // The alias words reach the probe. The alias entry and the merged row
+  // each take one probe per target kind, so the alias config appears
+  // more often than the alias entry alone answers for.
+  check(std::ranges::count(gOpenConfigs, 0x300000003cULL) >= 4,
+        "the merged row is probed with the config the alias publishes "
+        "(FR-037)");
+
+  struct Refusal
+  {
+    std::string name;
+    std::string needle;
+  };
+
+  for (const auto& one :
+       {Refusal {"CPU_CLK_UNHALTED.REF_TSC", "no alias for fixed counter 2"},
+        Refusal {"TOPDOWN.SLOTS", "no alias for fixed counter 3"}})
+  {
+    const auto* entry = findEntry(sink, "cpu", one.name);
+    check(entry != nullptr && entry->avail == Availability::NOT_ENCODABLE,
+          "a fixed row with no alias of its counter is refused (FR-037)");
+    check(entry != nullptr
+              && entry->description.find(one.needle) != std::string::npos,
+          "the refusal names the fixed counter the row asks for (FR-039)");
+  }
+  resetFixture();
+}
+
+/// The errno matrix over the probe's refusal switch: the three encoding
+/// errnos settle the not-encodable state, the permission errno settles
+/// the blocked state, and the scripted kernel refuses with each errno
+/// in turn, so no real open takes part (FR-002, FR-013).
+auto errnoMatrixScenario() -> void
+{
+  auto calls = scriptedCalls();
+  resetFixture();
+  const auto root = freshRoot();
+  writeCoreDevice(root);
+  gDevicesRoot = root;
+  writeParanoid("2\n");
+  const std::pair<int, Availability> cases[] {
+      {EINVAL, Availability::NOT_ENCODABLE},
+      {EOPNOTSUPP, Availability::NOT_ENCODABLE},
+      {ENOENT, Availability::NOT_ENCODABLE},
+      {EACCES, Availability::PERMISSION_BLOCKED}};
+  for (const auto& [refusal, expected] : cases) {
+    gRefuseAt = 0;
+    gErrno = refusal;
+    installKernelCalls(&calls);
+    const auto sink = enumerate();
+    for (const auto& entry : sink.entries.front()) {
+      if (entry.name == "enabled" || entry.name == "running") {
+        continue;
+      }
+      check(entry.avail == expected,
+            "the probe settles the state the refused open's errno names "
+            "(FR-021)");
+    }
+    resetFixture();
+  }
+}
+
 /// An alias whose file the kernel publishes empty describes itself
 /// with the no-configuration sentence (FR-037).
 auto aliasWithoutTextScenario() -> void
@@ -464,11 +650,46 @@ auto aliasWithoutTextScenario() -> void
   resetFixture();
 }
 
+/// The defaulted copy constructor of the receiver: a copied sink carries
+/// the state of the sink it came from, accepts its own objects, and
+/// leaves that sink whole (FR-004).
+auto sinkCopyScenario() -> void
+{
+  auto calls = scriptedCalls();
+  resetFixture();
+  const auto root = freshRoot();
+  writeCoreDevice(root);
+  gDevicesRoot = root;
+  writeParanoid("2\n");
+  installKernelCalls(&calls);
+
+  RecordingSink kept;
+  PmuProvider provider;
+  provider.enumerate(kept);
+  const auto seeded = kept.paths.size();
+  const auto seededEntries = kept.entries;
+  check(seeded > 0, "the fixture tree seeds the receiver before the copy");
+  RecordingSink copy {kept};
+  check(copy.paths == kept.paths && copy.entries == kept.entries,
+        "the copy carries the state of the receiver it came from");
+  provider.enumerate(copy);
+  check(copy.paths.size() == 2 * seeded,
+        "the copy accepts its own objects beside the ones it carried");
+  check(kept.paths.size() == seeded && kept.entries == seededEntries,
+        "the receiver the copy came from keeps the state it had");
+  resetFixture();
+}
+
 auto main() -> int
 {
   paranoidReadScenario();
   deviceDiscoveryScenario();
   kernelAliasWinsScenario();
+  noRowIdentityScenario();
+  fixedCounterRowScenario();
+  errnoMatrixScenario();
+  aliasWithoutTextScenario();
+  sinkCopyScenario();
   if (failures != 0) {
     return 1;
   }

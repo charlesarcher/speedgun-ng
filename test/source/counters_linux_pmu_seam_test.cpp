@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cerrno>
 #include <charconv>
 #include <cstdint>
 #include <cstdio>
@@ -83,8 +84,11 @@ using sg::counters::PointSink;
 using sg::counters::ReadMode;
 using sg::counters::Target;
 using sg::counters::detail::aliasDescription;
+using sg::counters::detail::CpuidWords;
 using sg::counters::detail::FastReadVerdict;
 using sg::counters::detail::FormatRange;
+using sg::counters::detail::installKernelCalls;
+using sg::counters::detail::KernelCalls;
 using sg::counters::detail::kRnpmcCounterWidth;
 using sg::counters::detail::loadDevice;
 using sg::counters::detail::mergeVendored;
@@ -105,6 +109,28 @@ using sg::counters::detail::probeDevice;
 using sg::counters::detail::tableDescription;
 using sg::counters::detail::toEcma;
 using sg::counters::detail::toHex;
+
+// Stands one scripted set over the scenario's body and clears the
+// install when the scenario returns, whichever exit it takes. The set
+// lives in the guard, so the pointer the install holds stays valid
+// while the guard stands.
+class InstalledCalls
+{
+public:
+  explicit InstalledCalls(KernelCalls calls)
+      : m_calls {std::move(calls)}
+  {
+    installKernelCalls(&m_calls);
+  }
+
+  ~InstalledCalls() { installKernelCalls(nullptr); }
+
+  InstalledCalls(const InstalledCalls&) = delete;
+  auto operator=(const InstalledCalls&) -> void = delete;
+
+private:
+  KernelCalls m_calls {};
+};
 
 // A synthetic perf page's published fields, as the protocol reads them
 // (FR-040, R-011, T066). The page itself is a kernel mapping, so the
@@ -200,47 +226,49 @@ auto ownEventPage(const EventPageFields& fields) -> OwnedEventPage
   return OwnedEventPage {.page = page, .length = length};
 }
 
-// The descriptor count the lifecycle test compares before and after its
-// loop (FR-013). The listing holds one descriptor of its own while it is
-// read, and it holds one in both measurements, so the difference is what
-// the test compares. A listing the kernel refuses fails the check; it is
-// never counted as zero.
-auto openDescriptorCount() -> std::size_t
-{
-  std::error_code failure;
-  std::size_t count = 0;
-  for (const auto& entry :
-       std::filesystem::directory_iterator("/proc/self/fd", failure))
-  {
-    static_cast<void>(entry);
-    ++count;
-  }
-  if (failure) {
-    fail("the process's own descriptor listing is readable");
-  }
-  return count;
-}
+// The releases the scripted lifecycle kernel records: the fixture's own
+// count of the descriptors and mappings the release path handed back.
+// The lifecycle scenarios compare this record where they compared the
+// process's own procfs listings (FR-013).
+std::size_t gReleasedFds = 0;
+std::size_t gReleasedMaps = 0;
 
-// The mapping count the same test compares: one line per mapping in
-// `/proc/self/maps`, which is a file the kernel formats rather than a
-// directory it lists.
-auto mappingCount() -> std::size_t
+// The scripted set the lifecycle scenarios run under: the close and the
+// unmap record the release and perform it, the way the real set
+// releases the fixture's own descriptor and mapping, and the rest
+// answer refusal without touching the host.
+auto lifecycleCalls() -> KernelCalls
 {
-  std::ifstream maps("/proc/self/maps");
-  if (!maps) {
-    fail("the process's own mapping listing is readable");
-  }
-  std::size_t count = 0;
-  for (std::string line; std::getline(maps, line);) {
-    ++count;
-  }
-  return count;
+  KernelCalls calls {};
+  calls.openEvent = [](void*, int, int, int, unsigned long) -> long
+  {
+    errno = EACCES;
+    return -1;
+  };
+  calls.mapPage = [](void*, std::size_t, int, int, int, long long) -> void*
+  { return MAP_FAILED; };
+  calls.unmapPage = [](void* addr, std::size_t length) -> int
+  {
+    ++gReleasedMaps;
+    return ::munmap(addr, length);
+  };
+  calls.readGroup = [](int, void*, std::size_t) -> long { return -1; };
+  calls.ioctlEvent = [](int, unsigned long, unsigned long) -> int { return 0; };
+  calls.closeFd = [](int fd) -> int
+  {
+    ++gReleasedFds;
+    return ::close(fd);
+  };
+  calls.devicesRoot = []() -> std::filesystem::path { return {}; };
+  calls.paranoidPath = []() -> std::filesystem::path { return {}; };
+  calls.cpuidWords = []() -> CpuidWords { return {}; };
+  return calls;
 }
 
 // The two fixtures the later scenarios share: a page carrying the fields
-// the protocol reads, and the two procfs counts a lifecycle test compares
-// around its loop. Both are exercised here, so neither reaches a build
-// as an unused helper (FR-034).
+// the protocol reads, and the release record the lifecycle scenarios
+// compare around their loops. Both are exercised here, so neither
+// reaches a build as an unused helper (FR-034).
 auto fixtureScenario() -> void
 {
   const auto page = makeEventPage(EventPageFields {.sequence = 7,
@@ -259,8 +287,26 @@ auto fixtureScenario() -> void
             && page.time_running == 450,
         "the synthetic page carries the width and the enabled/running pair");
 
-  check(openDescriptorCount() > 0 && mappingCount() > 0,
-        "the process's own descriptor and mapping counts are readable");
+  // The release recorder's round trip: one descriptor and one mapping
+  // the fixture owns, released through the scripted set, leave one
+  // release on each count (FR-013).
+  const InstalledCalls installed {lifecycleCalls()};
+  gReleasedFds = 0;
+  gReleasedMaps = 0;
+  const int fd = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
+  check(fd >= 0, "the fixture opens its own descriptor");
+  const auto length = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+  void* mapping =
+      ::mmap(nullptr, length, PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+  check(mapping != MAP_FAILED, "the fixture opens its own mapping");
+  {
+    sg::counters::detail::FastContext context;
+    context.fd = fd;
+    context.map = mapping;
+    context.mapLength = length;
+  }
+  check(gReleasedFds == 1 && gReleasedMaps == 1,
+        "one release round trip leaves one release on each count (FR-013)");
 }
 
 // The kernel's own time recipe, applied to two synthetic pages. The header
@@ -809,30 +855,11 @@ auto multiplexWindowScenario() -> void
         "own two values, with no computed delta (FR-007)");
   page->time_running = 250'000;
 
-  // The library's own read, on a page that states the time fields with an
-  // enabled count that differs from its running count. The recipe needs a
-  // cycle counter here, and the library samples that with the instruction,
-  // so the value itself belongs to the host. What the host cannot change is
-  // whether a delta was added: with the recipe the disclosed enabled count
-  // exceeds the page's own, because the page's own multiplier and offset
-  // both count. Copying the raw pair leaves it equal, so this assertion
-  // fails on a reader that does not run the recipe and passes on one that
-  // does (FR-007, FR-008, FR-009).
-  std::uint64_t recipeEnabled = 0;
-  std::uint64_t recipeRunning = 0;
-  check(sg::counters::detail::fastContextTimePair(
-            context, recipeEnabled, recipeRunning),
-        "a stable page stating the time fields discloses its pair");
-  check(recipeEnabled > page->time_enabled,
-        "the disclosed enabled count carries a computed delta, so it "
-        "exceeds the page's own count (FR-007, FR-009)");
-  check(recipeRunning > page->time_running,
-        "the disclosed running count carries the same delta where the page "
-        "index is non-zero (FR-007)");
-  check(recipeEnabled - page->time_enabled
-            == recipeRunning - page->time_running,
-        "both counts gained the same delta, which is what the recipe adds "
-        "to each in turn (FR-009)");
+  // The read over a differing pair ran the recipe through the real
+  // context, and the recipe samples the cycle counter with the
+  // instruction there, a host fact the seam-driven tests give up
+  // (FR-013). The recipe's own assertions stand below over the pure
+  // seam, over fields a fixture controls.
 
   // A page publishing no time capability keeps the raw pair. The recipe is
   // gated on the capability bit the kernel publishes, so a page with no
@@ -1045,25 +1072,28 @@ auto lifecycleCycle() -> void
 auto fastContextLifetimeScenario() -> void
 {
   constexpr int kCycles = 10000;
+  const InstalledCalls installed {lifecycleCalls()};
 
   // The warm-up runs the same loop the measured pass runs, so the runtime
-  // finishes claiming whatever it claims on its first pass.
+  // finishes claiming whatever it claims on its first pass. The record
+  // starts at the measured pass, so the checks below read that pass's own
+  // releases.
   for (int index = 0; index < kCycles; ++index) {
     lifecycleCycle();
   }
-  const auto descriptorsBefore = openDescriptorCount();
-  const auto mappingsBefore = mappingCount();
+  gReleasedFds = 0;
+  gReleasedMaps = 0;
 
   for (int index = 0; index < kCycles; ++index) {
     lifecycleCycle();
   }
 
-  check(openDescriptorCount() == descriptorsBefore,
-        "10,000 open and destroy cycles return the descriptor count to its "
-        "starting value (FR-013, FR-014)");
-  check(mappingCount() == mappingsBefore,
-        "10,000 open and destroy cycles return the mapping count to its "
-        "starting value (FR-013, FR-014)");
+  check(gReleasedFds == static_cast<std::size_t>(kCycles),
+        "10,000 open and destroy cycles release every descriptor the loop "
+        "acquired (FR-013, FR-014)");
+  check(gReleasedMaps == static_cast<std::size_t>(kCycles),
+        "10,000 open and destroy cycles release every mapping the loop "
+        "acquired (FR-013, FR-014)");
 }
 
 // A partial open, where a later member fails: the members the window
@@ -1072,15 +1102,13 @@ auto fastContextLifetimeScenario() -> void
 // (FR-014).
 auto fastContextPartialOpenScenario() -> void
 {
-  const auto descriptorsBefore = openDescriptorCount();
-  const auto mappingsBefore = mappingCount();
+  const InstalledCalls installed {lifecycleCalls()};
+  gReleasedFds = 0;
+  gReleasedMaps = 0;
   {
-    // The members sit in a fixed-size array. A growing container
-    // heap-allocates, and the count below reads this process's own mapping
-    // list. A sanitizer keeps the pages of a freed heap block mapped while
-    // it holds that block in quarantine, so the container's own allocation
-    // would count as a retained mapping and the check would measure the
-    // allocator, missing this lifecycle (FR-014).
+    // The members sit in a fixed-size array, so the release record below
+    // measures the contexts' own releases and no allocation beside them
+    // (FR-014).
     std::array<sg::counters::detail::FastContext, 64> acquired {};
     for (std::size_t index = 0; index < acquired.size(); ++index) {
       const int fd = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
@@ -1099,9 +1127,9 @@ auto fastContextPartialOpenScenario() -> void
     // A later member fails here, so the window is never published and the
     // array releases what it holds.
   }
-  check(openDescriptorCount() == descriptorsBefore,
+  check(gReleasedFds == 64U,
         "a partial open releases every descriptor it acquired (FR-014)");
-  check(mappingCount() == mappingsBefore,
+  check(gReleasedMaps == 64U,
         "a partial open releases every mapping it acquired (FR-014)");
 }
 
@@ -1110,14 +1138,14 @@ auto fastContextPartialOpenScenario() -> void
 // mapping, and closing it is a no-op (FR-015).
 auto destroyBeforeOpenScenario() -> void
 {
-  const auto descriptorsBefore = openDescriptorCount();
-  const auto mappingsBefore = mappingCount();
+  const InstalledCalls installed {lifecycleCalls()};
+  gReleasedFds = 0;
+  gReleasedMaps = 0;
   {
     sg::counters::detail::FastContext unopened;
     sg::counters::detail::fastContextClose(unopened);
   }
-  check(openDescriptorCount() == descriptorsBefore
-            && mappingCount() == mappingsBefore,
+  check(gReleasedFds == 0U && gReleasedMaps == 0U,
         "a context destroyed before it was opened releases nothing and "
         "fails no check (FR-015)");
 }
@@ -1127,8 +1155,9 @@ auto destroyBeforeOpenScenario() -> void
 // releases nothing the process can observe (FR-003, FR-006).
 auto moveFromDestructionScenario() -> void
 {
-  const auto descriptorsBefore = openDescriptorCount();
-  const auto mappingsBefore = mappingCount();
+  const InstalledCalls installed {lifecycleCalls()};
+  gReleasedFds = 0;
+  gReleasedMaps = 0;
   {
     const int fd = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
     check(fd >= 0, "the move test opens its own descriptor");
@@ -1158,20 +1187,17 @@ auto moveFromDestructionScenario() -> void
                   && movedFrom.mapLength == 0,
               "a move construction from a moved-from source owns nothing");
       }
-      check(openDescriptorCount() == descriptorsBefore + 1,
-            "the moved-from destruction releases no descriptor the process "
-            "can observe (FR-003)");
-      check(mappingCount() == mappingsBefore + 1,
-            "the moved-from destruction releases no mapping the process can "
-            "observe (FR-003)");
+      check(gReleasedFds == 0U && gReleasedMaps == 0U,
+            "the moved-from destruction releases no descriptor the fixture "
+            "records (FR-003)");
     }
     // The target leaves scope here and releases the pair it took, so the
     // counts stand at the baseline: one acquire, one release.
   }
-  check(openDescriptorCount() == descriptorsBefore,
+  check(gReleasedFds == 1U,
         "the target's destruction releases its descriptor exactly once "
         "(FR-002, FR-003)");
-  check(mappingCount() == mappingsBefore,
+  check(gReleasedMaps == 1U,
         "the target's destruction releases its mapping exactly once "
         "(FR-002, FR-003)");
 }
@@ -1182,8 +1208,9 @@ auto moveFromDestructionScenario() -> void
 // exit (FR-002, FR-006).
 auto moveAssignmentReleaseScenario() -> void
 {
-  const auto descriptorsBefore = openDescriptorCount();
-  const auto mappingsBefore = mappingCount();
+  const InstalledCalls installed {lifecycleCalls()};
+  gReleasedFds = 0;
+  gReleasedMaps = 0;
   const auto acquire = []() -> sg::counters::detail::FastContext
   {
     const int fd = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
@@ -1203,20 +1230,20 @@ auto moveAssignmentReleaseScenario() -> void
     auto target = acquire();
     auto source = acquire();
     target = std::move(source);
-    check(openDescriptorCount() == descriptorsBefore + 1,
+    check(gReleasedFds == 1U,
           "the move assignment released the target's own descriptor, so "
-          "the process holds one descriptor more than the baseline (FR-002)");
-    check(mappingCount() == mappingsBefore + 1,
+          "the fixture records one release (FR-002)");
+    check(gReleasedMaps == 1U,
           "the move assignment released the target's own mapping, so the "
-          "process holds one mapping more than the baseline (FR-002)");
+          "fixture records one release (FR-002)");
     check(source.fd == -1 && source.map == nullptr && source.mapLength == 0,
           "a move assignment leaves the source owning nothing (FR-002)");
   }
-  check(openDescriptorCount() == descriptorsBefore,
+  check(gReleasedFds == 2U,
         "the array's destruction releases every descriptor exactly once "
         "(FR-002)");
   check(
-      mappingCount() == mappingsBefore,
+      gReleasedMaps == 2U,
       "the array's destruction releases every mapping exactly once " "(FR-"
                                                                      "002)");
 }
@@ -1890,6 +1917,21 @@ auto fixedCounterScenario() -> void
                                   reason)
             && words.size() == 1 && words[0].second == 0x4003c,
         "a row field whose bits the alias leaves clear joins the config");
+  // `ldlat` reaches `config1`, a register the alias of `cpu-cycles` carries
+  // nothing for. The merge loop passes the alias word, finds no word of the
+  // row's own, and appends the pair, so the words hold the alias config and
+  // the row's register side by side (FR-037).
+  check(pmuComposeFixedCounterRow(1,
+                                  {{0, 0x3c}},
+                                  {{"umask", 2}, {"ldlat", 0xff}},
+                                  device.formats,
+                                  words,
+                                  reason)
+            && words.size() == 2 && words[0].first == 0
+            && words[0].second == 0x3c && words[1].first == 1
+            && words[1].second == 0xff,
+        "a row field on a register the alias states nothing for adds that "
+        "register to the words");
 
   words.clear();
   words.push_back({0, 0xdeadbeef});
@@ -2183,21 +2225,70 @@ auto contextOpenRefusalScenario() -> void
   sg::counters::detail::fastContextClose(unowned);
   check(unowned.fd == -1 && unowned.map == nullptr && unowned.mapLength == 0,
         "closing a context that owns nothing is a no-op (FR-040)");
-  std::string fastRefusal;
+  // The granted arm is the host-shaped one: a real grant answers only
+  // where the paranoid level admits the event, so the scripted kernel
+  // stands it in (FR-002, FR-013). The refusal above names a result
+  // every host gives, so it stays real, the way the malformed-attribute
+  // refusal stays.
+  KernelCalls grantedCalls {};
+  grantedCalls.openEvent = [](void*, int, int, int, unsigned long) -> long
+  { return 61; };
+  grantedCalls.mapPage =
+      [](void*, std::size_t, int, int, int, long long) -> void*
+  {
+    static char page;
+    return &page;
+  };
+  grantedCalls.unmapPage = [](void*, std::size_t) -> int { return 0; };
+  grantedCalls.readGroup = [](int, void*, std::size_t) -> long { return -1; };
+  grantedCalls.ioctlEvent = [](int, unsigned long, unsigned long) -> int
+  { return 0; };
+  grantedCalls.closeFd = [](int) -> int { return 0; };
+  grantedCalls.devicesRoot = []() -> std::filesystem::path { return {}; };
+  grantedCalls.paranoidPath = []() -> std::filesystem::path { return {}; };
+  grantedCalls.cpuidWords = []() -> CpuidWords { return {}; };
+  const InstalledCalls installed {std::move(grantedCalls)};
   auto granted = sg::counters::detail::fastContextOpen(
-      PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, where, &fastRefusal);
-  if (!granted) {
-    std::printf("seam: no mapped-page context on this host (%s), so a close "
-                "of a granted context goes unmeasured\n",
-                fastRefusal.c_str());
-  } else {
-    check(granted->fd >= 0 && granted->map != nullptr,
-          "a granted context owns a descriptor and a mapping (FR-040)");
-    sg::counters::detail::fastContextClose(*granted);
-    check(
-        granted->fd == -1 && granted->map == nullptr && granted->mapLength == 0,
+      PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, where, nullptr);
+  check(granted != nullptr, "the scripted grant opens a context");
+  check(granted->fd >= 0 && granted->map != nullptr,
+        "a granted context owns a descriptor and a mapping (FR-040)");
+  sg::counters::detail::fastContextClose(*granted);
+  check(granted->fd == -1 && granted->map == nullptr && granted->mapLength == 0,
         "a close releases the descriptor and the mapping (FR-040)");
-  }
+}
+
+// The scripted set the identity-driven scenarios run under: the CPUID
+// words a pinned mapfile row matches stand in for the host's own
+// identity, and the kernel calls answer refusal without touching the
+// host, the way the scripted sets the other scenarios install (FR-001,
+// FR-013).
+auto pinnedIdentityCalls() -> KernelCalls
+{
+  KernelCalls calls {};
+  calls.openEvent = [](void*, int, int, int, unsigned long) -> long
+  {
+    errno = EACCES;
+    return -1;
+  };
+  calls.mapPage = [](void*, std::size_t, int, int, int, long long) -> void*
+  { return MAP_FAILED; };
+  calls.unmapPage = [](void*, std::size_t) -> int { return 0; };
+  calls.readGroup = [](int, void*, std::size_t) -> long { return -1; };
+  calls.ioctlEvent = [](int, unsigned long, unsigned long) -> int { return 0; };
+  calls.closeFd = [](int) -> int { return 0; };
+  calls.devicesRoot = []() -> std::filesystem::path { return {}; };
+  calls.paranoidPath = []() -> std::filesystem::path { return {}; };
+  calls.cpuidWords = []() -> CpuidWords
+  {
+    return {.leaf0Eax = 0x15U,
+            .leaf0Ebx = 0x68747541U,  // "Auth"
+            .leaf0Edx = 0x69746E65U,  // "enti"
+            .leaf0Ecx = 0x444D4163U,  // "cAMD"
+            .leaf1Answered = true,
+            .leaf1Eax = 0x1000A80U};  // family 26, model 8
+  };
+  return calls;
 }
 
 // The mapping file selects the architecture directory for a CPU
@@ -2205,6 +2296,11 @@ auto contextOpenRefusalScenario() -> void
 // no match selects nothing (FR-038).
 auto mapfileScenario() -> void
 {
+  // The scripted identity stands while the selection reads: the words a
+  // pinned mapfile row matches name their directory on every host, so
+  // the early return below stays a documented arm no run takes (FR-001,
+  // FR-013).
+  const InstalledCalls installed {pinnedIdentityCalls()};
   const auto identified = sg::counters::detail::pmuIdentCurrent();
   std::printf("seam ident: vendor='%s' family=%d model=%d\n",
               identified.vendor.c_str(),
@@ -2221,9 +2317,9 @@ auto mapfileScenario() -> void
   check(directory.starts_with("arch/x86/") && directory.ends_with("/"),
         "a matched row names an architecture directory under the table root");
 
-  // The identification and its selected directory are cached once per
-  // process, so the second selection of the same identification reads the
-  // cache and names the directory the first selection named (FR-038).
+  // The directory selection is cached per identification, so the second
+  // selection of the same identification names the directory the first
+  // selection named (FR-038).
   check(pmuSelectDirectory(identified) == directory,
         "selecting the same identification twice yields the same directory");
 
@@ -3181,76 +3277,110 @@ auto groupOpenScenario() -> void
 }
 
 // The fast-read branch of the open, entered with a catalog the fixture
-// marks fast-capable. Its contexts need a user counter page this host
-// does not grant, so the assertions are the ones the catalog alone
-// decides: an entry whose disclosed mode is syscall never takes the
-// mapped-page branch (FR-023, C-PRO-4), and a plan spanning two event
-// sources takes the group path (FR-040).
+// marks fast-capable. The scripted kernel stands the contexts' page in,
+// so the assertions are the ones the catalog alone decides: an entry
+// whose disclosed mode is syscall never takes the mapped-page branch
+// (FR-023, C-PRO-4), and a plan spanning two event sources takes the
+// group path (FR-040).
 auto fastBranchScenario() -> void
 {
   PmuState state = syntheticState();
   const Target where {};
-  // The fast window opens exactly when the availability probe grants the
-  // config the member carries, the same verdict `group_open_scenario`
-  // holds the group path to (FR-023, FR-040).
-  const bool granted =
-      sg::counters::detail::pmuProbe(
-          state.devices[0].type, {{0, PERF_COUNT_HW_INSTRUCTIONS}}, Target {})
-      == Availability::COUNTABLE;
-  const auto fast = sg::counters::detail::pmuOpenFastWindow(
-      state, leafSetOf({"cpu/fast"}), where);
-  std::printf("seam: the synthetic fast-capable open returned %s\n",
-              fast != nullptr ? "a fast window" : "no window");
-  check((fast != nullptr) == granted,
-        "the fast branch returns a window exactly when the probe grants the "
-        "member's config (FR-040)");
-  PmuState twin = state;
-  twin.devices.push_back(twin.devices[0]);
-  twin.devices.back().path = "cpu-uncore";
-  check(sg::counters::detail::pmuOpenFastWindow(
-            twin, leafSetOf({"cpu/fast", "cpu-uncore/fast"}), where)
-            == nullptr,
-        "a leaf set spanning two event sources opens no fast window");
-  // The mapped-page read addresses the first config word only, so an entry
-  // whose encoding also sets a later word names a different event once that
-  // word is dropped. The window refuses it. Counting the wrong event is
-  // the one outcome it will not produce, and the caller's group path
-  // encodes the whole entry (FR-037, FR-040).
-  check(sg::counters::detail::pmuOpenFastWindow(
-            state, leafSetOf({"cpu/word1"}), where)
-            == nullptr,
-        "an entry encoded across more than the first config word opens no "
-        "fast window");
-  check(sg::counters::detail::pmuOpenFastWindow(
-            state, leafSetOf({"cpu/word2"}), where)
-            == nullptr,
-        "the refusal holds for a third config word as well");
+  // The kernel is scripted: a granting install stands one descriptor and
+  // one page in for every open, a refusing install refuses every open
+  // with the errno the probe's convention names. The probe and the
+  // window opens read the same scripted answers, so both arms of the
+  // fast branch carry their own counts on every host (FR-002, FR-013).
+  for (const bool grant : {true, false}) {
+    static bool granting = false;
+    granting = grant;
+    KernelCalls calls {};
+    calls.openEvent = [](void*, int, int, int, unsigned long) -> long
+    {
+      if (granting) {
+        static int nextFd = 61;
+        return nextFd++;
+      }
+      errno = EACCES;
+      return -1;
+    };
+    calls.mapPage = [](void*, std::size_t, int, int, int, long long) -> void*
+    {
+      static char page;
+      return &page;
+    };
+    calls.unmapPage = [](void*, std::size_t) -> int { return 0; };
+    calls.readGroup = [](int, void*, std::size_t) -> long { return -1; };
+    calls.ioctlEvent = [](int, unsigned long, unsigned long) -> int
+    { return 0; };
+    calls.closeFd = [](int) -> int { return 0; };
+    calls.devicesRoot = []() -> std::filesystem::path { return {}; };
+    calls.paranoidPath = []() -> std::filesystem::path { return {}; };
+    calls.cpuidWords = []() -> CpuidWords { return {}; };
+    const InstalledCalls installed {std::move(calls)};
 
-  // The general open takes the mapped-page branch only for a fast-capable
-  // catalog whose every member discloses it; one syscall-mode member
-  // sends the whole leaf set to the group path (FR-023, FR-040). Both
-  // verdicts are the availability probe's, the same way `group_open_
-  // scenario` holds the group path to it.
-  const auto overFast = sg::counters::detail::pmuOpenWindow(
-      state, leafSetOf({"cpu/fast"}), where);
-  const auto overSyscall = sg::counters::detail::pmuOpenWindow(
-      state, leafSetOf({"cpu/work"}), where);
-  check((overFast != nullptr) == granted
-            && (overSyscall != nullptr) == granted,
-        "a fast-capable catalog opens over a fast member and over a "
-        "syscall-mode member exactly when the probe grants the config");
-  const auto despiteHost = sg::counters::detail::pmuOpenWindow(
-      state, leafSetOf({"cpu/fast"}), where);
-  check((despiteHost != nullptr) == granted,
-        "a catalog that discloses the fast read keeps that read when the "
-        "host-wide instructions flag is clear (FR-017)");
-  // The time pair is no group member, so it neither takes nor refuses the
-  // mapped-page branch.
-  check(sg::counters::detail::pmuOpenWindow(
-            state, leafSetOf({"cpu/enabled", "cpu/running"}), where)
-            == nullptr,
-        "a fast-capable leaf set carrying only the enabled/running pair "
-        "opens no window");
+    // The fast window opens exactly when the availability probe grants
+    // the config the member carries, the same verdict `group_open_
+    // scenario` holds the group path to (FR-023, FR-040).
+    const bool granted =
+        sg::counters::detail::pmuProbe(
+            state.devices[0].type, {{0, PERF_COUNT_HW_INSTRUCTIONS}}, Target {})
+        == Availability::COUNTABLE;
+    const auto fast = sg::counters::detail::pmuOpenFastWindow(
+        state, leafSetOf({"cpu/fast"}), where);
+    std::printf("seam: the synthetic fast-capable open returned %s\n",
+                fast != nullptr ? "a fast window" : "no window");
+    check((fast != nullptr) == granted,
+          "the fast branch returns a window exactly when the probe grants "
+          "the member's config (FR-040)");
+    PmuState twin = state;
+    twin.devices.push_back(twin.devices[0]);
+    twin.devices.back().path = "cpu-uncore";
+    check(sg::counters::detail::pmuOpenFastWindow(
+              twin, leafSetOf({"cpu/fast", "cpu-uncore/fast"}), where)
+              == nullptr,
+          "a leaf set spanning two event sources opens no fast window");
+    // The mapped-page read addresses the first config word only, so an
+    // entry whose encoding also sets a later word names a different event
+    // once that word is dropped. The window refuses it. Counting the wrong
+    // event is the one outcome it will not produce, and the caller's group
+    // path encodes the whole entry (FR-037, FR-040).
+    check(sg::counters::detail::pmuOpenFastWindow(
+              state, leafSetOf({"cpu/word1"}), where)
+              == nullptr,
+          "an entry encoded across more than the first config word opens no "
+          "fast window");
+    check(sg::counters::detail::pmuOpenFastWindow(
+              state, leafSetOf({"cpu/word2"}), where)
+              == nullptr,
+          "the refusal holds for a third config word as well");
+
+    // The general open takes the mapped-page branch only for a
+    // fast-capable catalog whose every member discloses it; one
+    // syscall-mode member sends the whole leaf set to the group path
+    // (FR-023, FR-040). Both verdicts are the availability probe's, the
+    // same way `group_open_scenario` holds the group path to it.
+    const auto overFast = sg::counters::detail::pmuOpenWindow(
+        state, leafSetOf({"cpu/fast"}), where);
+    const auto overSyscall = sg::counters::detail::pmuOpenWindow(
+        state, leafSetOf({"cpu/work"}), where);
+    check((overFast != nullptr) == granted
+              && (overSyscall != nullptr) == granted,
+          "a fast-capable catalog opens over a fast member and over a "
+          "syscall-mode member exactly when the probe grants the config");
+    const auto despiteHost = sg::counters::detail::pmuOpenWindow(
+        state, leafSetOf({"cpu/fast"}), where);
+    check((despiteHost != nullptr) == granted,
+          "a catalog that discloses the fast read keeps that read when the "
+          "host-wide instructions flag is clear (FR-017)");
+    // The time pair is no group member, so it neither takes nor refuses
+    // the mapped-page branch.
+    check(sg::counters::detail::pmuOpenWindow(
+              state, leafSetOf({"cpu/enabled", "cpu/running"}), where)
+              == nullptr,
+          "a fast-capable leaf set carrying only the enabled/running pair "
+          "opens no window");
+  }
 }
 
 // The verdicts' own journey: `probeDevice` runs the per-kind probes, the
@@ -3684,6 +3814,11 @@ auto selectedTable() -> const std::vector<PmuTableEntry>&
 // class lands on the device, and no core-scoped row does (FR-019, SC-006).
 auto uncoreDeviceFixtureScenario() -> void
 {
+  // The scripted identity stands over the whole scenario: the placement
+  // reads the ident inside mergeVendored and again in selectedTable, and
+  // the pinned row's table is the one every host merges (FR-001,
+  // FR-013).
+  const InstalledCalls installed {pinnedIdentityCalls()};
   const std::filesystem::path dir =
       std::filesystem::path(SG_SEAM_TABLE_DIR) / "uncore_imc";
   std::error_code code;
@@ -3747,6 +3882,11 @@ auto uncoreDeviceFixtureScenario() -> void
 // device of these classes (FR-019, SC-006, T037, T081).
 auto vendoredRowPlacementScenario() -> void
 {
+  // The scripted identity stands over the whole scenario: the placement
+  // reads the ident inside mergeVendored and again in selectedTable, and
+  // the pinned row's table is the one every host merges (FR-001,
+  // FR-013).
+  const InstalledCalls installed {pinnedIdentityCalls()};
   const auto& table = selectedTable();
   if (table.empty()) {
     std::printf("seam: no mapping-file row matches this CPU, so no vendored "
@@ -4144,6 +4284,12 @@ auto clockDisclosureScenario() -> void
         "countability value (FR-007)");
 }
 
+// The fixture state the captureless wrappers read: the fixture page and
+// its descriptor. The scenarios that script a granted open stand their
+// page in through these holders (FR-002, FR-013).
+void* fixturePage = nullptr;
+int fixtureFd = -1;
+
 // The fast verdict is the `cap_user_rdpmc` bit of the device's own page.
 // A type the kernel refuses, and a device with no config word, publish
 // no fast verdict. A granted open matches the page the open mapped
@@ -4180,6 +4326,35 @@ auto devicePageVerdictScenario() -> void
   check(!devicePageFastVerdict(noConfig),
         "an entry with no config word publishes no fast verdict (FR-017)");
 
+  // The fixture page and the scripted kernel: the open grants a fixed
+  // descriptor and the fixture page for every type a kernel publishes,
+  // and refuses the sentinel type no kernel publishes, so the verdict's
+  // open carries no host fact (FR-002, FR-013).
+  const auto owned = ownEventPage(EventPageFields {});
+  fixturePage = owned.page;
+  fixtureFd = 61;
+  KernelCalls scripted {};
+  scripted.openEvent = [](void* attr, int, int, int, unsigned long) -> long
+  {
+    const auto* asked = static_cast<const perf_event_attr*>(attr);
+    if (asked->type == static_cast<std::uint32_t>(-1)) {
+      errno = EINVAL;
+      return -1;
+    }
+    return fixtureFd;
+  };
+  scripted.mapPage = [](void*, std::size_t, int, int, int, long long) -> void*
+  { return fixturePage; };
+  scripted.unmapPage = [](void*, std::size_t) -> int { return 0; };
+  scripted.readGroup = [](int, void*, std::size_t) -> long { return -1; };
+  scripted.ioctlEvent = [](int, unsigned long, unsigned long) -> int
+  { return 0; };
+  scripted.closeFd = [](int) -> int { return 0; };
+  scripted.devicesRoot = []() -> std::filesystem::path { return {}; };
+  scripted.paranoidPath = []() -> std::filesystem::path { return {}; };
+  scripted.cpuidWords = []() -> CpuidWords { return {}; };
+  const InstalledCalls installed {std::move(scripted)};
+
   PmuDevice refused;
   refused.type = -1;
   refused.entries.push_back(PmuEntry {
@@ -4193,7 +4368,8 @@ auto devicePageVerdictScenario() -> void
 
   const auto matchesPage = [](const int type,
                               const std::uint64_t config,
-                              const bool deviceScoped) -> void
+                              const bool deviceScoped,
+                              const bool grantedBit) -> void
   {
     PmuDevice device;
     device.type = type;
@@ -4209,22 +4385,23 @@ auto devicePageVerdictScenario() -> void
             .cpu = 0,
         }
                       : sg::counters::Target {};
+    auto* page = static_cast<perf_event_mmap_page*>(fixturePage);
+    page->cap_user_rdpmc = grantedBit ? 1U : 0U;
     auto context = fastContextOpen(type, config, where, nullptr);
-    if (!context) {
-      check(!devicePageFastVerdict(device),
-            "a refused device open publishes no fast verdict (FR-017)");
-      return;
-    }
-    const auto* page = static_cast<const perf_event_mmap_page*>(context->map);
-    const bool granted = page->cap_user_rdpmc != 0;
+    check(context != nullptr, "the scripted grant opens the verdict's context");
     fastContextClose(*context);
-    check(devicePageFastVerdict(device) == granted,
+    check(devicePageFastVerdict(device) == grantedBit,
           "the device verdict is the cap_user_rdpmc bit of its own page "
           "(FR-017)");
   };
-  matchesPage(PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, false);
-  matchesPage(PERF_TYPE_SOFTWARE, PERF_COUNT_SW_TASK_CLOCK, false);
-  matchesPage(PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, true);
+  for (const bool grantedBit : {true, false}) {
+    matchesPage(
+        PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, false, grantedBit);
+    matchesPage(
+        PERF_TYPE_SOFTWARE, PERF_COUNT_SW_TASK_CLOCK, false, grantedBit);
+    matchesPage(
+        PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, true, grantedBit);
+  }
 }
 
 // The ident decode is a pure function of the CPUID words, so every arm
@@ -4292,11 +4469,6 @@ auto pmuIdentDecodeScenario() -> void
 // test points the seam, so the granted open, the mapping refusal, the
 // withheld-instruction arm of the read, and the pair read all carry
 // their own counts over the fixture page (G-19, G-21; Phase A).
-// The fixture state the captureless wrappers read: the fixture page and
-// its descriptor.
-void* fixturePage = nullptr;
-int fixtureFd = -1;
-
 auto scriptedKernelScenario() -> void
 {
   using sg::counters::Target;
@@ -4355,6 +4527,17 @@ auto scriptedKernelScenario() -> void
   scripted.closeFd = [](int) -> int { return 0; };
   scripted.devicesRoot = []() -> std::filesystem::path { return {}; };
   scripted.paranoidPath = []() -> std::filesystem::path { return {}; };
+  // An identity no row matches: the scenario drives no ident read, and
+  // the set stays complete the way the struct's contract asks (FR-001).
+  scripted.cpuidWords = []() -> CpuidWords
+  {
+    return {.leaf0Eax = 0x15U,
+            .leaf0Ebx = 0x75536F4EU,
+            .leaf0Edx = 0x6E655663U,
+            .leaf0Ecx = 0x58726F64U,
+            .leaf1Answered = true,
+            .leaf1Eax = 0x30650U};
+  };
   installKernelCalls(&scripted);
 
   const Target where {TargetKind::THREAD, -1};

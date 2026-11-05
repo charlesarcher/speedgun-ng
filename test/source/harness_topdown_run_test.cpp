@@ -43,6 +43,7 @@
 #include <fstream>
 #include <limits>
 #include <memory>
+#include <numeric>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -283,6 +284,18 @@ constexpr std::array<double, 5> kAmdLevelOneFigures {{
 // clamps to, and the level the run reports (FR-020).
 constexpr std::uint64_t kDeepestPlantedLevel = 4;
 
+// The ask that clamps: one level deeper than the shallow fixture holds.
+constexpr std::uint64_t kAskDeeperThanTheTable = 6;
+
+// The contexts of the threaded run whose per-context views the strip reaches
+// (FR-023, specs/023 E-01).
+constexpr int kThreadedContextCount = 2;
+
+// The actions the gap script of the gap case covers. The windows of one
+// scripted run take about 1.3k sampling actions between them, so a script this
+// wide reaches every action of every window the run opens.
+constexpr std::size_t kGapScriptActions = 4096;
+
 // One level-4 node of that fixture, by the neutral name the selection gives it.
 constexpr std::string_view kLevelFourNeutralName {
     "topdown.intel.tma_clears_resteers"};
@@ -499,6 +512,29 @@ auto registerFrozenLeafFixture() -> sg::counters::FakeProvider&
   return *scripted;
 }
 
+// One scripted provider with one leaf of the planted rows gapped: the leaf
+// publishes a zero beside a disclosure of `Availability::GAP` at every
+// sampling action, so the fold of every column that reads it answers a gap
+// while the leaf stays countable (specs/042-topdown FR-030, specs/024 FR-016).
+// The script stands before the registration with every other scripted fact.
+auto registerGapLeafFixture() -> sg::counters::FakeProvider&
+{
+  auto provider = std::make_unique<sg::counters::FakeProvider>();
+  sg::test::scriptPassFixture(*provider, kWideSourceLimit);
+  scriptTopdownLeaves(*provider);
+  std::vector<std::size_t> everyAction(kGapScriptActions);
+  std::iota(everyAction.begin(), everyAction.end(), 1);
+  provider->setGapActions(
+      kCoreObject, sg::test::kL2Requests, std::move(everyAction));
+  provider->setProgrammableCounters(kCoreObject, kNarrowCoreLimit);
+  auto* scripted = provider.get();
+  const auto settled =
+      sg::counters::System::local().registerProvider(std::move(provider));
+  check(settled.has_value(), "the gap fixture registers on the local system");
+  fake = scripted;
+  return *scripted;
+}
+
 // The two words a double reaches for when the arithmetic answered no number.
 // They are the defect this case names: a line of the block and a field of the
 // record are both places a figure reaches a reader, and neither may spell them
@@ -604,6 +640,20 @@ auto holdsName(const std::vector<sg::TopdownNode>& nodes,
 auto bareBenchmark(const char* name) -> void
 {
   static_cast<void>(sg::registerBenchmark(&plainBody, name));
+}
+
+// Register one instance of the plain body over `contexts` contexts, with the
+// two scripted pairs attached: the run shape that answers one percentile block
+// and one chunk ledger per context, the two views the strip of the node
+// columns is read against (FR-023, FR-024, specs/023 E-01).
+auto threadedMetricBenchmark(const char* name, const int contexts) -> void
+{
+  auto handle = sg::registerBenchmark(&plainBody, name);
+  for (const std::size_t index : {std::size_t {0}, std::size_t {1}}) {
+    const sg::test::PassColumn column = sg::test::passColumns()[index];
+    handle.addMetric(sumLeaves(column.object, column.events), column.label);
+  }
+  static_cast<void>(handle.threads(contexts));
 }
 
 // Register one instance that declares one metric column whose label is the
@@ -3125,13 +3175,180 @@ auto scenarioAFigureThatIsNoNumberReachesNeitherSurface() -> int
   return 0;
 }
 
+// A run that asks deeper than the planted table holds reports the level it
+// answered and states the deepest level the table holds, once, because the
+// level the command line asked for reaches no node of this run (FR-020). The
+// clamp rides the planted table, so the case stands on every host that
+// vendors a table.
+auto scenarioAClampedAskStatesTheDeepestLevel() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("this host states no vendor this build vendors a table for");
+  }
+  registerFixture(kNarrowCoreLimit);
+  bareBenchmark("bmTopdownClampLine");
+  sg::detail::expandRegistry();
+
+  const RunAccount clamped = runMeasured(
+      *needInstance("bmTopdownClampLine"),
+      askedTable(
+          plantedTable(kIntelDirectory, sg::test::topdownIntelShallowRows()),
+          kAskDeeperThanTheTable,
+          kRunRepetitions));
+  check(clamped.result.topdown.has_value(),
+        "the ask deeper than the table holds is answered");
+  if (!clamped.result.topdown.has_value()) {
+    return 1;
+  }
+  check(clamped.result.topdown->askedLevel == kAskDeeperThanTheTable,
+        "the record carries the level the run asked for (FR-020)");
+  check(clamped.result.topdown->level == kDeepestPlantedLevel,
+        "the record carries the deepest level the table holds (FR-020)");
+  check(deepestLevelOf(*clamped.result.topdown) == kDeepestPlantedLevel,
+        "no node of the run stands deeper than the level it reports");
+
+  const std::vector<std::string> lines =
+      blockLinesOf(printedLines(clamped.result));
+  check(lineOf(lines, std::string(kBlockTag) + " level=")
+            .find("level=" + std::to_string(kDeepestPlantedLevel) + " ")
+        != std::string::npos,
+        "the header states the level the run answered, the level asked for "
+        "absent (FR-020, FR-026)");
+  check(lineOf(lines, kClampLineTag)
+            == std::string {kClampLineTag}
+                + std::to_string(kDeepestPlantedLevel),
+        "the block states the deepest level the table holds in one line "
+        "(FR-020)");
+  std::puts("a-clamped-ask-states-the-deepest-level: ok");
+  return 0;
+}
+
+// A leaf that measures nothing at its sampling actions leaves the column that
+// reads it folded as a gap, and the node that column prices stands as a gap in
+// the record: no figure, and the availability the merge published (FR-030).
+// The two level-1 rows that read the gapped leaf answer it; the two that do
+// not keep the figures the scripted leaves owe them.
+auto scenarioANodeWhoseColumnFoldedAGap() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("this host states no vendor this build vendors a table for");
+  }
+  registerGapLeafFixture();
+  metricBenchmark("bmTopdownGapNode");
+  sg::detail::expandRegistry();
+
+  const RunAccount gapped = runMeasured(
+      *needInstance("bmTopdownGapNode"),
+      askedOptions(sg::test::topdownIntelRows(), kLevelOne, kRunRepetitions));
+  check(gapped.result.topdown.has_value(), "the level-1 ask is answered");
+  if (!gapped.result.topdown.has_value()) {
+    return 1;
+  }
+  const sg::TopdownRecord& record = *gapped.result.topdown;
+  check(record.nodes.size() == kLevelOneNodeColumns,
+        "the run collects one node per row of the level it shows (FR-018)");
+  check(gapped.result.metricLabels.size() == kMetricColumnCount,
+        "the gap costs the run no metric column of its own (FR-023)");
+  for (std::size_t index = 0; index < record.nodes.size(); ++index) {
+    const sg::TopdownNode& node = record.nodes[index];
+    check(node.vendorName == kLevelOneVendorNames[index],
+          "the node keeps the row name the table spells");
+    if (index == 1 || index == 2) {
+      // `tma_bad_speculation` reads the gapped leaf, and the backend row
+      // inlines that row, so both columns fold a gap.
+      check(node.availability == sg::counters::Availability::GAP,
+            "a node whose column folded a gap carries the gap the merge "
+            "published (FR-030)");
+      check(!node.value.has_value(),
+            "a node the run cannot answer carries no figure (FR-030)");
+    } else {
+      check(node.availability == sg::counters::Availability::COUNTABLE
+                && node.value.has_value()
+                && closeTo(*node.value, kLevelOnePercents[index]),
+            "a node whose leaf the script left countable keeps the figure the "
+            "fixture scripts (FR-030, SC-03)");
+    }
+  }
+
+  const std::vector<std::string> lines =
+      blockLinesOf(printedLines(gapped.result));
+  check(nodeLineOf(lines, kLevelOne, kLevelOneNeutralNames[1])
+            .find("not available")
+        != std::string::npos,
+        "the block prints the words that stand where the gap's figure "
+        "stands (FR-030)");
+  check(nodeLineOf(lines, kLevelOne, kLevelOneNeutralNames[0])
+                .find("not available")
+            == std::string::npos,
+        "the block prints a figure for the node the gap left alone (FR-030)");
+  std::puts("a-node-whose-column-folded-a-gap: ok");
+  return 0;
+}
+
+// A threaded run answers one percentile block per context beside its merged
+// row, and one chunk ledger per context of every row. The strip of the node
+// columns reaches both views: each block and each ledger keeps the width the
+// same run answers without the option, the slot of every node column gone
+// (FR-023, FR-024, specs/023 E-01).
+auto scenarioAThreadedRunStripsItsContextViews() -> int
+{
+  if (!hostSelectsATable()) {
+    skip("this host states no vendor this build vendors a table for");
+  }
+  registerFixture(kNarrowCoreLimit);
+  threadedMetricBenchmark("bmTopdownThreadPlain", kThreadedContextCount);
+  threadedMetricBenchmark("bmTopdownThreadAsked", kThreadedContextCount);
+  sg::detail::expandRegistry();
+
+  // A count above one names the contexts the instance runs on, so the two
+  // threaded instances carry that segment of their names (FR-016, FR-022).
+  const std::string plainName = std::string("bmTopdownThreadPlain/threads:")
+      + std::to_string(kThreadedContextCount);
+  const std::string askedName = std::string("bmTopdownThreadAsked/threads:")
+      + std::to_string(kThreadedContextCount);
+
+  const std::vector<MetricRow> rows = sg::test::topdownIntelRows();
+  const LedgerAccount plain = runMeasuredLedger(
+      *needInstance(plainName), percentilesOn(optionsFor(kRunRepetitions)));
+  const LedgerAccount asked = runMeasuredLedger(
+      *needInstance(askedName),
+      percentilesOn(askedOptions(rows, kLevelOne, kRunRepetitions)));
+
+  check(asked.run.result.contextPercentiles.size()
+            == plain.run.result.contextPercentiles.size()
+            && !asked.run.result.contextPercentiles.empty(),
+        "the threaded run answers one percentile block per context, with the "
+        "option standing and without it (FR-023)");
+  const std::size_t expectedGrid = kTimeColumns + kMetricColumnCount;
+  for (const auto& block : asked.run.result.contextPercentiles) {
+    check(block.size() == expectedGrid,
+          "one context block holds the two time slots beside the metric "
+          "columns " "the run reports, the node slots gone (FR-024)");
+  }
+  check(asked.contextRaw.size() == plain.contextRaw.size()
+            && !asked.contextRaw.empty(),
+        "the strip leaves the per-context ledgers of the rows where the run "
+        "left " "them (FR-023)");
+  for (std::size_t row = 0; row < asked.contextRaw.size(); ++row) {
+    check(asked.contextRaw[row].size() == plain.contextRaw[row].size(),
+          "one row keeps one ledger per context (specs/023 E-01)");
+    for (const sg::RowRaw& ledger : asked.contextRaw[row]) {
+      check(ledger.columns.size() == expectedGrid,
+            "one context ledger holds the two time slots beside the metric "
+            "columns of the run, the node slots gone (FR-023)");
+    }
+  }
+  std::puts("a-threaded-run-strips-its-context-views: ok");
+  return 0;
+}
+
 struct Scenario
 {
   const char* name;
   int (*run)();
 };
 
-constexpr std::array<Scenario, 24> kScenarios {{
+constexpr std::array<Scenario, 27> kScenarios {{
     Scenario {"nodes-share-one-plan-with-the-metric-columns",
               &scenarioNodesShareOnePlanWithTheMetricColumns},
     Scenario {"the-metric-columns-keep-their-bytes",
@@ -3180,6 +3397,12 @@ constexpr std::array<Scenario, 24> kScenarios {{
               &scenarioRefusedRowsPrintAtTheLevelShown},
     Scenario {"a-figure-that-is-no-number-reaches-neither-surface",
               &scenarioAFigureThatIsNoNumberReachesNeitherSurface},
+    Scenario {"a-clamped-ask-states-the-deepest-level",
+              &scenarioAClampedAskStatesTheDeepestLevel},
+    Scenario {"a-node-whose-column-folded-a-gap",
+              &scenarioANodeWhoseColumnFoldedAGap},
+    Scenario {"a-threaded-run-strips-its-context-views",
+              &scenarioAThreadedRunStripsItsContextViews},
 }};
 
 }  // namespace
@@ -3214,6 +3437,11 @@ auto main(int argc, char** argv) -> int
     return 2;
   }
 
+  // One scenario's guard stands for that scenario alone. A host the selection
+  // vendors no table for answers its reason and leaves, and a host that
+  // answers some of the scenarios runs the rest of the list before it reports
+  // the skips it took.
+  std::size_t skipped = 0;
   for (const Scenario& scenario : kScenarios) {
     const std::string command = "\"" + self + "\" " + scenario.name;
     const int status = std::system(command.c_str());
@@ -3221,10 +3449,18 @@ auto main(int argc, char** argv) -> int
       std::fprintf(stderr,
                    "harness_topdown_run_test: the scenario '%s' skipped\n",
                    scenario.name);
-      return kSkipStatus;
+      ++skipped;
+      continue;
     }
     check(WIFEXITED(status) && WEXITSTATUS(status) == 0,
           "the scenario of the in-main list passes");
+  }
+  if (skipped > 0) {
+    std::fprintf(stderr,
+                 "harness_topdown_run_test: %zu of %zu scenarios skipped\n",
+                 skipped,
+                 kScenarios.size());
+    return kSkipStatus;
   }
 
   std::puts("harness_topdown_run_test: ok");
