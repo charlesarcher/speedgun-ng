@@ -533,7 +533,8 @@ Phase 0 (T001-T003, the spec-file commit)
   commits A1-A3. Part B: 18 tasks (T101-T118) over commits B1-B6.
   Final: 3 tasks (T201-T203). Fixes round 1: 10 tasks (F1-001-F1-010).
   Post-merge fixes: 4 tasks (PM45-001, PM45-002, PM45-003, PM-END). The spec
-  046 lane carries PM46-001 on the same branch. Total: 54 tasks.
+  046 lane carries PM46-001 on the same branch. Close-rows round: 4 tasks
+  (PM45-004 to PM45-007). Total: 58 tasks.
 
 ## Phase 4: Fixes round 1 (owner rulings G-22, 2026-11-04)
 
@@ -614,3 +615,39 @@ change. No CI or gate change.
       request to `master` whose body gives the host, the kernel, the GCC
       version, the head sha, the counts, the coverage figures and the branch
       shortfall number (G-20). Body lines: 72 columns or fewer.
+
+## Phase 12: Close the rows the record lists (owner ruling, 2026-11-05)
+
+**Base**: `2cfdd47a`, the merged head of pull request #83: version `0.31.0`,
+schema `1.14`, harness SOVERSION 21, archive SOVERSION 6. The branch is
+`fix/coverage-rows-to-allowance`, cut from `origin/master`. The owner ruling of
+2026-11-05 sets the rule for this phase: no allowance moves, and the rows stand
+closed by real work. No `LCOV_EXCL` marker, no `--omit-lines`, no
+`--ignore-errors` and no `--remove` joins the route, and the marker count from
+`git grep -c LCOV_EXCL -- source include` stays 84 or fewer.
+
+- [ ] PM45-004 [US1] Make the two readbacks of the top-down selection testable.
+      Move the shape readback and the published readback of
+      `source/counters/linux_pmu/topdown_select.cpp` into internal functions with
+      their own contract, and call those functions from the selection. Drive each
+      clause of each readback from `counters_topdown_select_test.cpp` with a
+      hand-built tree. The eight short arms at lines 617, 620, 627, 633 and 652
+      stand read.
+- [ ] PM45-005 [US1] Close the five arms of this host through the seams the
+      repository already carries. `installTestProcRoot` feeds a sibling list of
+      one cpu, and a sibling list of none, to the coverage line of
+      `source/harness/cli.cpp:1621` to `:1628`. The `cpuidWords` seam of
+      `source/counters/linux_pmu/kernel_calls.hpp` hands an identity of no
+      vendored table to the area ask of `source/harness/cli.cpp:2044` to `:2051`.
+      `detail::resolvedNodePlan()` and `detail::memoryBinder()` stand a cpu
+      outside the plan, and a refused bind, in front of
+      `source/harness/execution_context.cpp:464` to `:477`.
+- [ ] PM45-006 [US1] Close the five rows the record of PM45-002 names reachable:
+      two probed families whose last instances interleave, a second probed family
+      beside the `machine/tsc` availability refusal, and one document whose first
+      field of one record read answers an error.
+- [ ] PM45-007 [US1] Measure at the head of this branch with `ci-coverage`. The
+      gate must read a shortfall of 21 rows or fewer with the allowance of D-14
+      unchanged. Record the reading, the rows this phase closed and the reason for
+      every row that still stands in
+      `specs/045-merge-fixes/results/close-rows.md`.
