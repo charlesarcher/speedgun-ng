@@ -283,7 +283,11 @@ auto checkRefusal(const std::vector<std::string>& arguments,
 
 auto aBadLevelAnswersOneLine() -> void
 {
-  const std::vector<std::string> texts {"0", "7", "x", ""};
+  // The two range arms, a text of no digits, an empty text, a text with a
+  // minus ahead of its digits, digits with a letter behind them, and a text
+  // of digits alone that stands past what a count of the level type holds.
+  const std::vector<std::string> texts {
+      "0", "7", "x", "", "-1", "2x", "99999999999999999999999"};
   for (const std::string& text : texts) {
     const std::string what = "the value '" + text
         + "' answers one line at status 2 with no benchmark reached "

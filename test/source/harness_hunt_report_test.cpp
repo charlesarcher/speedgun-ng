@@ -1635,6 +1635,32 @@ auto scenarioAHunterRunPrintsOneTopdownBlock() -> void
   std::printf("a-hunter-run-prints-one-topdown-block: ok\n");
 }
 
+// The print of the block reads the same predicate the assembly of the node
+// read. A record that reached the console by another route, a hand-built one
+// here, prints no figure it could not have assembled: the node below carries a
+// figure beside a state that is no countable one, and its line answers the
+// words of a node the run cannot answer (PC-17, FR-030).
+auto scenarioANodeOfNoCountableStatePrintsNoFigure() -> void
+{
+  const auto pair = huntedPair();
+  auto result = pair.result;
+  auto record = levelRecord(1, "arch/x86/entrydir");
+  record.nodes.front().availability = sg::counters::Availability::GAP;
+  const auto carrier = sg::detail::TopdownCompanion {
+      .record = std::move(record),
+      .passCount = 3,
+  };
+  const auto printed = capturePrint(
+      [&]
+      { sg::detail::printResult(result, pair.run, std::nullopt, carrier); });
+  check(lineHolding(printed, "topdown:  topdown.backend_bound")
+            == "topdown:  topdown.backend_bound  tma_backend_bound  not "
+               "available  tma_backend_bound > 0.2",
+        "a node that carries a figure beside a state that is not countable "
+        "prints its two names, its threshold and no figure (FR-030, PC-17)");
+  std::printf("a-node-of-no-countable-state-prints-no-figure: ok\n");
+}
+
 // The entry record of a hunter run states its own figures and no further
 // disclosure, because the companion answers a record of its own (FR-015,
 // FR-035, FR-033). The last check reads one record twice: the print without the
@@ -1720,6 +1746,8 @@ auto scenarioEntryRunFiguresStandEqual() -> void
       Scenario {"plan-line-absent-run", &scenarioPlanLineAbsentRun},
       Scenario {"a-hunter-run-prints-one-topdown-block",
                 &scenarioAHunterRunPrintsOneTopdownBlock},
+      Scenario {"a-node-of-no-countable-state-prints-no-figure",
+                &scenarioANodeOfNoCountableStatePrintsNoFigure},
       Scenario {"entry-run-figures-stand-equal-between-base-and-head",
                 &scenarioEntryRunFiguresStandEqual},
   };

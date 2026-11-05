@@ -1669,6 +1669,46 @@ auto childFamilyOverlap() -> int
   return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
 }
 
+// FR-018, D-3, R-10: the same overlap under `precheck`. The pre-check phase
+// holds no alongside window to guard, so the overlap check stands skipped for
+// a family probe of that mode and the run reaches its rows.
+auto childFamilyOverlapPrecheck() -> int
+{
+  scriptedProvider();
+  auto handle = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmFamOverlapPrecheck");
+  handle.threads(2).placement("core");
+  sg::JitterProbeOptions probeOptions;
+  cpu_set_t mask {};
+  CPU_ZERO(&mask);
+  if (sched_getaffinity(0, sizeof(mask), &mask) != 0) {
+    fail("the child cannot read its own affinity mask");
+  }
+  for (std::size_t cpu = 0; cpu < static_cast<std::size_t>(CPU_SETSIZE); ++cpu)
+  {
+    if (CPU_ISSET(cpu, &mask) != 0) {
+      probeOptions.cpus.push_back(static_cast<std::uint32_t>(cpu));
+    }
+  }
+  probeOptions.thresholdNs = 65000;
+  probeOptions.gapCount = 2000000;
+  probeOptions.mode = sg::JitterProbeMode::PRECHECK;
+  probeOptions.precheckMs = 1;
+  handle.jitterProbe(probeOptions);
+  std::vector<std::string> arguments {"--repetitions=1", "--iterations=2"};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
 // FR-015, FR-019: the family probe whose cpus fill the affinity mask.
 // The instance asks for two threads and stands unpinned, so the walk
 // narrows the mask to what the probe leaves. Nothing stands left, so
@@ -1699,6 +1739,54 @@ auto childFamilyNarrowedEmpty() -> int
   probeOptions.thresholdNs = 65000;
   probeOptions.gapCount = 2000000;
   handle.jitterProbe(probeOptions);
+  std::vector<std::string> arguments {"--repetitions=1", "--iterations=2"};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
+// FR-015, FR-019, R-01: the same empty narrowing beside a second family that
+// carries a probe of its own. The walk stops at the first family, so the
+// second family's probe stands never started, and the stops of the walk reach
+// the live session alone (R-01).
+auto childFamilyNarrowedEmptyTwo() -> int
+{
+  scriptedProvider();
+  auto probeCpus = std::vector<std::uint32_t> {};
+  cpu_set_t mask {};
+  CPU_ZERO(&mask);
+  if (sched_getaffinity(0, sizeof(mask), &mask) != 0) {
+    fail("the child cannot read its own affinity mask");
+  }
+  for (std::size_t cpu = 0; cpu < static_cast<std::size_t>(CPU_SETSIZE); ++cpu)
+  {
+    if (CPU_ISSET(cpu, &mask) != 0) {
+      probeCpus.push_back(static_cast<std::uint32_t>(cpu));
+    }
+  }
+  auto probeOptions = sg::JitterProbeOptions {};
+  probeOptions.cpus = probeCpus;
+  probeOptions.thresholdNs = 65000;
+  probeOptions.gapCount = 2000000;
+  auto first = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmFamNarrowA");
+  first.threads(2).jitterProbe(probeOptions);
+  auto second = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmFamNarrowB");
+  second.threads(2).jitterProbe(probeOptions);
   std::vector<std::string> arguments {"--repetitions=1", "--iterations=2"};
   std::vector<char*> argv;
   argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
@@ -2117,6 +2205,21 @@ auto scenarioFamilyOverlapRun() -> int
   return 0;
 }
 
+// FR-018, D-3, R-10: the overlap under `precheck` stands allowed for a family
+// probe as it stands allowed for the batch probe: the pre-check phase holds no
+// alongside window over the plans, so the run reaches its rows.
+auto scenarioFamilyOverlapPrecheckRun() -> int
+{
+  const Captured run = runExecChild(
+      "--jitter-cli-child=family-overlap-precheck", "family-overlap-precheck");
+  check(run.status == 0,
+        "the pre-check family probe allows the overlap and the run ends at "
+        "status 0 (FR-018, R-10)");
+  check(run.err.find("overlaps the planned cpus") == std::string::npos,
+        "the pre-check mode answers no overlap line (D-3, R-10)");
+  return 0;
+}
+
 // FR-015: the family's own probe stands once for two argument lists:
 // both instances fold beside it, and the family's cpus narrow the
 // walk's mask for each of them.
@@ -2164,6 +2267,23 @@ auto scenarioFamilyNarrowedEmpty() -> int
   check(run.err.find("the probe cpus leave no cpu for 'bmFamNarrow/threads:2'")
             != std::string::npos,
         "the refusal names the benchmark left without a cpu (FR-019)");
+  return 0;
+}
+
+// FR-015, FR-019, R-01: the same refusal over two probed families. The second
+// family's probe stands never started when the walk leaves the first, so the
+// stops reach the live session and pass the standing one by.
+auto scenarioFamilyNarrowedEmptyTwo() -> int
+{
+  const Captured run =
+      runExecChild("--jitter-cli-child=family-narrowed-empty-two",
+                   "family-narrowed-empty-two");
+  check(run.status == 2,
+        "the empty narrowing stops the run of two probed families with status "
+        "2 (FR-019)");
+  check(run.err.find("the probe cpus leave no cpu for 'bmFamNarrowA/threads:2'")
+            != std::string::npos,
+        "the refusal names the family the walk reached first (FR-019)");
   return 0;
 }
 
@@ -2493,13 +2613,13 @@ auto scenarioMethodWordRefused() -> int
   return 0;
 }
 
-// FR-003, SC-005: the quantum rows. A count of 0, a value that reads no
-// number, a value above the range, and a fractional value each name the
-// value on one line at status 2.
+// FR-003, SC-005: the quantum rows. A count of 0, a count below the range,
+// a value that reads no number, a value above the range, and a fractional
+// value each name the value on one line at status 2.
 auto scenarioQuantumRefused() -> int
 {
   const std::string cpu = std::to_string(pickCpus(1).at(0));
-  for (const auto* value : {"0", "x", "100001", "10.5"}) {
+  for (const auto* value : {"0", "9", "x", "100001", "10.5"}) {
     auto arguments = quickArguments();
     arguments.push_back("--jitter-probe=" + cpu + ",quantum=" + value);
     const auto note = captureError(arguments, 2);
@@ -2824,6 +2944,11 @@ auto main(int argc, char** argv) -> int
     if (mode == "--jitter-cli-child=family-idle" && redirect("family-idle")) {
       return childFamilyIdle();
     }
+    if (mode == "--jitter-cli-child=family-overlap-precheck"
+        && redirect("family-overlap-precheck"))
+    {
+      return childFamilyOverlapPrecheck();
+    }
     if (mode == "--jitter-cli-child=family-overlap"
         && redirect("family-overlap"))
     {
@@ -2848,6 +2973,11 @@ auto main(int argc, char** argv) -> int
         && redirect("family-handover"))
     {
       return childFamilyHandover();
+    }
+    if (mode == "--jitter-cli-child=family-narrowed-empty-two"
+        && redirect("family-narrowed-empty-two"))
+    {
+      return childFamilyNarrowedEmptyTwo();
     }
     if (mode == "--jitter-cli-child=family-narrowed-empty"
         && redirect("family-narrowed-empty"))
@@ -2950,6 +3080,7 @@ auto main(int argc, char** argv) -> int
   check(scenarioFamilyProbe() == 0, "familyProbe");
   check(scenarioFamilyIdleRun() == 0, "familyIdleRun");
   check(scenarioFamilyOverlapRun() == 0, "familyOverlapRun");
+  check(scenarioFamilyOverlapPrecheckRun() == 0, "familyOverlapPrecheckRun");
   check(scenarioFamilyTwoInstances() == 0, "familyTwoInstances");
   check(scenarioFamilyInterrupted() == 0, "familyInterrupted");
   check(scenarioFileVersusCommandLine() == 0, "fileVersusCommandLine");
@@ -2958,6 +3089,7 @@ auto main(int argc, char** argv) -> int
   check(scenarioFamilyUnavailableStrict() == 0, "familyUnavailableStrict");
   check(scenarioFamilyUnavailable() == 0, "familyUnavailable");
   check(scenarioFamilyNarrowedEmpty() == 0, "familyNarrowedEmpty");
+  check(scenarioFamilyNarrowedEmptyTwo() == 0, "familyNarrowedEmptyTwo");
   check(scenarioFamilyPrecheckIdle() == 0, "familyPrecheckIdle");
   check(scenarioFamilyPlantedProbe() == 0, "familyPlantedProbe");
   check(scenarioFamilyVersusCommandLine() == 0, "familyVersusCommandLine");

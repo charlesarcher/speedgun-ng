@@ -1858,6 +1858,7 @@ auto fixedCounterScenario() -> void
             && fixedCounterDesignation("Fixed counter 12") == 12,
         "a fixed-counter designation reads the number the table spells");
   check(fixedCounterDesignation("Fixed counter") < 0
+            && fixedCounterDesignation("Fixed counter x") < 0
             && fixedCounterDesignation("Fixed counter 1x") < 0
             && fixedCounterDesignation("fixed counter 1") < 0
             && fixedCounterDesignation("0,1,2,3") < 0
@@ -1966,18 +1967,25 @@ auto fixedCounterScenario() -> void
   {"EventName":"fx_range","Counter":"0,1,2,3","EventCode":"0x9c",
    "UMask":"0x1","BriefDescription":"a row naming a programmable range"},
   {"EventName":"fx_none","EventCode":"0xc0",
-   "BriefDescription":"a row naming no counter"}
+   "BriefDescription":"a row naming no counter"},
+  {"EventName":"fx_number","Counter":1,"EventCode":"0x3c",
+   "BriefDescription":"a row whose counter key holds a number"}
 ])");
   std::vector<PmuTableEntry> table;
   sg::counters::detail::pmuParseTableFile(path, table);
-  check(table.size() == 4, "the fixture table parses its four rows");
+  check(table.size() == 5, "the fixture table parses its five rows");
   const auto* thread = findRow(table, "fx_thread");
   const auto* threadAny = findRow(table, "fx_thread_any");
   const auto* range = findRow(table, "fx_range");
   const auto* noCounter = findRow(table, "fx_none");
+  const auto* number = findRow(table, "fx_number");
   check(thread != nullptr && threadAny != nullptr && range != nullptr
-            && noCounter != nullptr,
+            && noCounter != nullptr && number != nullptr,
         "the fixture table parses every row it spells");
+  check(number != nullptr && number->fixedCounter < 0
+            && !holds(number->fields, "Counter"),
+        "a counter key that holds no text states no fixed counter and joins "
+        "no encoding field (FR-037)");
   check(thread != nullptr && thread->fixedCounter == 1 && threadAny != nullptr
             && threadAny->fixedCounter == 1,
         "a row naming a fixed counter keeps the number it names");

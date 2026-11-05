@@ -816,7 +816,7 @@ None. The presets, the globs and the fixture helpers stand at the base, and
   worktree needs `submodule update --init --recursive` with
   `protocol.file.allow=always` before its configure. `/tmp` is a 16 GiB tmpfs. The
   instrumented base
-  tree therefore lives at `/home/archerc/sgng-046-cov/coverage`, because its link
+  tree therefore lives at `$HOME/sgng-046-cov/coverage`, because its link
   failed in `/tmp` for want of space. That first capture stands void as
   `cov-base.void-buildfailed.txt`.
 
@@ -963,7 +963,7 @@ None. The presets, the globs and the fixture helpers stand at the base, and
   `/tmp/046-logs/cov-head.txt` and `/tmp/046-logs/cov-head.json` so the base
   readings stand, all other bytes as written:
   ```sh
-  /home/archerc/.prime/agent/kernel-venv/bin/gcovr -r . build/coverage -j"$(nproc)" \
+  $HOME/.prime/agent/kernel-venv/bin/gcovr -r . build/coverage -j"$(nproc)" \
   --filter 'include/speedgun-ng/' --filter 'source/' --filter 'tools/hostcheck/' \
   --exclude-throw-branches --exclude-unreachable-branches \
   --gcov-ignore-parse-errors suspicious_hits.warn_once_per_file \
@@ -1106,3 +1106,22 @@ so they land beside the story they show and stay outside this cut.
 4. Run the polish phase, then write the acceptance report at
    `specs/046-hunter-topdown/results/pr-body.md` with every number this file
    states as measured.
+
+## Phase 8: Post-merge fixes (owner ruling, 2026-11-05)
+
+**Base**: `858c55d9`, the merged head of pull requests #78 and #79: version
+`0.31.0`, schema `1.14`, harness SOVERSION 21, archive SOVERSION 6. The
+branch is `fix/post-merge-78-79`, cut from `origin/master`, and it carries the
+spec 045 post-merge rows beside this one. No version, schema or SOVERSION
+change. No CI or gate change.
+
+- [ ] PM46-001 Replace each `/home/<user>/` path in this file with `$HOME/` or
+      with a path relative to the build tree. The check reads the three lanes
+      that hold post-merge records:
+
+      ```sh
+      git grep -nE '/home/[a-z]' -- specs/045-merge-fixes \
+        specs/046-hunter-topdown specs/047-loader-cross-field
+      ```
+
+      The command prints nothing.
