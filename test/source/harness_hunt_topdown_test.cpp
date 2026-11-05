@@ -775,6 +775,15 @@ auto scenarioNoNodeAndNoRowAnswersUnmapped() -> void
             std::string {kUnmappedText},
             "no node of the tree and no row of the listing names the address, "
             "so the answer reads unmapped (FR-001, FR-004, D-3)");
+  // A row the table spells with no device prefix stands whole before the
+  // grouping: the bare name is the part the listing reads, so the same word
+  // answers with nothing cut (D-16, FR-037).
+  checkText(sg::detail::topdownArea("no_such_event_at_all",
+                                    backendTree(),
+                                    plantedGroups()),
+            std::string {kUnmappedText},
+            "an address of no device prefix answers unmapped, because the "
+            "grouping reads the whole of it (FR-004, D-16)");
 }
 
 // FR-006: the same three inputs answer one text on every call, for each of the

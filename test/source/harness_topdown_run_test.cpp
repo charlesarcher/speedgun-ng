@@ -3342,13 +3342,74 @@ auto scenarioAThreadedRunStripsItsContextViews() -> int
   return 0;
 }
 
+// The strip reads one column of the run beside every node of the tree. A row
+// that holds no statistics slot for that column answers no figure, a row whose
+// slot holds no sample answers no figure, and a row that holds no metric value
+// for that column answers the gap the record states (FR-027, FR-030). The
+// three shapes stand in one hand-built result, because a scripted run gives
+// every column of every row the same width.
+auto scenarioARowOfNoSlotForItsColumnAnswersNoFigure() -> int
+{
+  sg::BenchmarkResult result;
+  result.name = "bmTopdownShortRows";
+  result.metricLabels = {"cycles", "instructions"};
+  sg::ResultRow aggregate;
+  aggregate.kind = sg::RowKind::AGGREGATE;
+  aggregate.metricStats = {sg::Statistics {}};
+  sg::ResultRow repetition;
+  repetition.kind = sg::RowKind::REPETITION;
+  auto measured = sg::MetricValue {};
+  measured.value = 42.0;
+  repetition.metrics = {measured};
+  result.rows = {aggregate, repetition};
+
+  auto nodeOf = [](std::string_view name,
+                   std::string_view vendorName) -> sg::counters::TopdownNode
+  {
+    auto node = sg::counters::TopdownNode {};
+    node.name = std::string {name};
+    node.vendorName = std::string {vendorName};
+    node.level = 1;
+    return node;
+  };
+  sg::counters::TopdownTree tree;
+  tree.source.directory = std::string {kIntelDirectory};
+  tree.depth = 1;
+  tree.nodes = {
+      nodeOf(sg::test::kNeutralFrontendBound, "tma_frontend_bound"),
+      nodeOf(sg::test::kNeutralBadSpeculation, "tma_bad_speculation")};
+  std::vector<sg::RowRaw> rowRaw;
+  std::vector<std::vector<sg::RowRaw>> contextRaw;
+  sg::detail::stripTopdownColumns(result, tree, {0, 1}, 1, rowRaw, contextRaw);
+
+  check(result.topdown.has_value(), "the strip publishes a record (FR-032)");
+  const sg::TopdownRecord& record = *result.topdown;
+  check(record.nodes.size() == 2,
+        "one record node per node of the tree (FR-026)");
+  check(record.nodes[0].value == 42.0
+            && record.nodes[0].availability
+                   == sg::counters::Availability::COUNTABLE,
+        "a node reads the value of the row that holds one for its column, "
+        "beside an aggregate row that sampled none (FR-027)");
+  check(!record.nodes[1].value.has_value()
+            && record.nodes[1].availability
+                   == sg::counters::Availability::GAP,
+        "a node whose column stands in no row of the run answers no figure and "
+        "the gap state (FR-030)");
+  check(result.metricLabels.empty() && result.rows[0].metricStats.empty()
+            && result.rows[1].metrics.empty(),
+        "the strip leaves every metric view of the run aligned (FR-023)");
+  std::puts("a-row-of-no-slot-for-its-column-answers-no-figure: ok");
+  return 0;
+}
+
 struct Scenario
 {
   const char* name;
   int (*run)();
 };
 
-constexpr std::array<Scenario, 27> kScenarios {{
+constexpr std::array<Scenario, 28> kScenarios {{
     Scenario {"nodes-share-one-plan-with-the-metric-columns",
               &scenarioNodesShareOnePlanWithTheMetricColumns},
     Scenario {"the-metric-columns-keep-their-bytes",
@@ -3401,6 +3462,8 @@ constexpr std::array<Scenario, 27> kScenarios {{
               &scenarioAClampedAskStatesTheDeepestLevel},
     Scenario {"a-node-whose-column-folded-a-gap",
               &scenarioANodeWhoseColumnFoldedAGap},
+    Scenario {"a-row-of-no-slot-for-its-column-answers-no-figure",
+              &scenarioARowOfNoSlotForItsColumnAnswersNoFigure},
     Scenario {"a-threaded-run-strips-its-context-views",
               &scenarioAThreadedRunStripsItsContextViews},
 }};

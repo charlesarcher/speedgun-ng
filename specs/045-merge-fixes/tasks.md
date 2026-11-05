@@ -532,7 +532,8 @@ Phase 0 (T001-T003, the spec-file commit)
 - Setup: 3 tasks (T001-T003). Part A: 16 tasks (T011-T026) over
   commits A1-A3. Part B: 18 tasks (T101-T118) over commits B1-B6.
   Final: 3 tasks (T201-T203). Fixes round 1: 10 tasks (F1-001-F1-010).
-  Total: 50 tasks.
+  Post-merge fixes: 4 tasks (PM45-001, PM45-002, PM45-003, PM-END). The spec
+  046 lane carries PM46-001 on the same branch. Total: 54 tasks.
 
 ## Phase 4: Fixes round 1 (owner rulings G-22, 2026-11-04)
 
@@ -582,3 +583,34 @@ Phase 0 (T001-T003, the spec-file commit)
 Rulings: R1 the fixture premise stands fixed; no host gate. R2 the unreachable
 arm goes. R3 and R4 the prose bound goes host-independent and the raised entry
 bound goes away.
+
+## Phase 5: Post-merge fixes (owner ruling, 2026-11-05)
+
+**Base**: `858c55d9`, the merged head of pull requests #78 and #79: version
+`0.31.0`, schema `1.14`, harness SOVERSION 21, archive SOVERSION 6. The
+branch is `fix/post-merge-78-79`, cut from `origin/master`, and it carries
+the spec 046 row PM46-001 beside these rows. No version, schema or SOVERSION
+change. No CI or gate change.
+
+- [ ] PM45-001 [US1] On thrawn at `858c55d9`, run `ci-coverage` and list each
+      short branch row by file and line. Add real tests until the shortfall
+      reads 21 rows or fewer. Each test lands in its own commit with the code
+      it reaches, if any. No code shaped for coverage. No new `LCOV_EXCL`, no
+      new `--omit-lines`, no new `--ignore-errors` and no new `--remove`. The
+      marker count from `git grep -c LCOV_EXCL -- source include` stays 84 or
+      fewer.
+- [ ] PM45-002 [US1] When a short row stands beyond the reach of any real
+      test, do not hide it. List it with its reason in
+      `specs/045-merge-fixes/results/post-merge.md` and stop for an owner
+      ruling.
+- [ ] PM45-003 [US1] On thrawn at the pull-request head, run the full `ctest`,
+      `taskset -c 0,1 ctest`, the address and undefined-behavior sanitizer
+      preset, the thread sanitizer preset and `ci-coverage`. Record the host,
+      the kernel, the GCC version, the head sha and the counts in
+      `specs/045-merge-fixes/results/post-merge.md`.
+- [ ] PM-END [US1] Squash the lane into one commit with author OmO, a title of
+      50 characters or fewer, and the `Refs:` then `Approved-by: OmO` footer
+      (owner ruling 2026-11-04), then measure on that head. Open one pull
+      request to `master` whose body gives the host, the kernel, the GCC
+      version, the head sha, the counts, the coverage figures and the branch
+      shortfall number (G-20). Body lines: 72 columns or fewer.

@@ -569,6 +569,28 @@ auto theFillOfOneNameFillsTheRecordOrLeavesIt() -> void
           "(FR-033)");
   }
 
+  // The registry names each directory with no trailing separator, and a host
+  // hands in one with it. The cut ahead of the lookup leaves one record for
+  // both spellings, so the name without the separator answers the same
+  // reference and the same files (FR-036).
+  TopdownSource bare;
+  bare.directory = "arch/x86/amdzen3";
+  fillSourceRecord(bare);
+  check(bare.directory == "arch/x86/amdzen3",
+        "the fill leaves the spelling it was given (FR-036)");
+  check(bare.reference == named.reference,
+        "a directory named with no trailing separator answers the reference "
+        "of the same registry record (FR-015, spec D-12)");
+  check(bare.files.size() == named.files.size(),
+        "both spellings of one directory answer one file count (FR-033)");
+  for (std::size_t here = 0; here != bare.files.size(); ++here) {
+    check(bare.files[here].name == named.files[here].name
+              && bare.files[here].manifestHash
+                     == named.files[here].manifestHash,
+          "the cut separator leaves the record of the directory unchanged "
+          "(FR-033)");
+  }
+
   // A name the registry holds no bytes for answers the source as it stands: no
   // reference, no file, and the name it arrived with. The mapping file names
   // only directories of the vendored tree, so this name reaches no selection,
@@ -775,6 +797,75 @@ auto theLevelTokenOfEachGroupSpellingStatesTheLevel() -> void
   check(treeText(asked(grouped, 2, zen)) == treeText(groupless),
         "a row whose group carries tokens and no level token among them "
         "reaches no node and states no refusal (FR-014)");
+}
+
+// FR-014, FR-013 and FR-016: the three group texts that name no place in the
+// tree. A level token whose digit stands outside the range that spelling states
+// names no level, a `_group` token whose stem names the row itself names no
+// parent, and a `_group` token whose stem names a row the metric layer refused
+// names a parent that holds no node. Each row stands out of the tree, and no
+// part of the pass invents a level or a parent for it. The refused row of the
+// last case still stands in the document, and its parent line reads one level
+// above it because the parent row states no level of its own.
+auto aGroupTextOfNoLevelOrOfNoParentStandsOutOfTheTree() -> void
+{
+  const CpuIdentity intel = intelIdentity(6, 85, 4);
+  const TopdownTable plain = plantedTable(kIntelDirectory, topdownIntelRows());
+
+  // `TopdownL0` carries the Intel spelling with a digit below the range and
+  // `TopdownL7` carries it above it. Neither states a level, so the row of that
+  // group reaches no node and states no refusal (FR-014, spec D-2).
+  TopdownTable outside = plain;
+  plantGroup(outside,
+             "tma_fetch_latency",
+             "TmaL2;TopdownL0;TopdownL7;tma_frontend_bound_group");
+  const TopdownTree beyond = asked(outside, 6, intel);
+  check(nodeOfRow(beyond, "tma_fetch_latency") == nullptr,
+        "a row whose level tokens carry digits outside the range the spelling "
+        "states reaches no node (FR-014)");
+  check(refusalNamed(beyond, "tma_fetch_latency") == nullptr,
+        "the same row states no refusal, because it holds no level the answer "
+        "reaches (FR-016)");
+
+  // A `_group` token whose stem names the row itself: the search for a parent
+  // holds no other row, so the row stands out of the tree (FR-013).
+  TopdownTable itself = plain;
+  plantGroup(itself, "tma_fetch_latency", "TopdownL2;tma_fetch_latency_group");
+  const TopdownTree alone = asked(itself, 6, intel);
+  check(nodeOfRow(alone, "tma_fetch_latency") == nullptr,
+        "a `_group` token whose stem names its own row states no parent, and "
+        "the row reaches no node (FR-013)");
+
+  // A `_group` token whose stem names a row the metric layer refused: the
+  // parent row stands in the table and holds no node, so the child stands out
+  // of the tree beside it (FR-013, FR-016).
+  TopdownTable refusedParent = plain;
+  plantGroup(
+      refusedParent, "tma_fetch_latency", "TopdownL2;tma_bad_arity_group");
+  const TopdownTree parentless = asked(refusedParent, 6, intel);
+  check(nodeOfRow(parentless, "tma_fetch_latency") == nullptr,
+        "a row whose parent row the metric layer refused reaches no node "
+        "(FR-013)");
+  check(nodeOfRow(parentless, "tma_bad_arity") == nullptr
+            && refusalNamed(parentless, "tma_bad_arity") != nullptr,
+        "the refused row the parent token names keeps its place in the "
+        "document (FR-016)");
+
+  // The parent line of a refused row reads the level its parent row states, and
+  // one level above the refused row where that parent row states no level at
+  // all (FR-016, FR-031). The first plant leaves the parent row of no level;
+  // the second moves the refused row under it.
+  TopdownTable noLevel = plain;
+  plantGroup(
+      noLevel, "tma_memory_bandwidth", "TmaDispatch;dispatch_slots_group");
+  plantGroup(noLevel, "tma_bad_arity", "TopdownL2;tma_memory_bandwidth_group");
+  const TopdownTree folded = asked(noLevel, 6, intel);
+  const TopdownRefusal* arity = refusalNamed(folded, "tma_bad_arity");
+  check(arity != nullptr && arity->parent == "topdown.memory_bandwidth",
+        "a refused row whose parent row states no level names that parent one "
+        "level above itself (FR-016, FR-031)");
+  check(arity != nullptr && arity->level == 2,
+        "the refused row keeps the level its own token states (FR-016)");
 }
 
 // FR-013 and SC-02: every node below level 1 names the parent its own `_group`
@@ -1727,6 +1818,7 @@ auto main() -> int
   levelOneCarriesTheSharedNames();
   parentsComeFromTheGroupText();
   theLevelTokenOfEachGroupSpellingStatesTheLevel();
+  aGroupTextOfNoLevelOrOfNoParentStandsOutOfTheTree();
   everyDeeperNodeNamesTheParentItsOwnGroupTokenStates();
   levelDeeperThanTheTableClamps();
   anAskDeeperThanTheTableHoldsAnswersTheLevelItHolds();
