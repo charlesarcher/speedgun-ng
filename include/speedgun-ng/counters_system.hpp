@@ -1,6 +1,7 @@
 #ifndef SG_COUNTERS_SYSTEM_HPP
 #define SG_COUNTERS_SYSTEM_HPP
 
+#include <cstdint>
 #include <expected>
 #include <initializer_list>
 #include <memory>
@@ -186,6 +187,47 @@ private:
 
   void* m_node = nullptr;  // the tree node
 };
+
+/**
+ * @brief Where the limit one object published came from (FR-040a, FR-043,
+ * D-3).
+ *
+ * The published limit is one figure, and this label names the finder that
+ * answered it. The set is closed: a figure came from the decode, from the
+ * probe, or it stands absent.
+ */
+enum class LimitSource : std::uint8_t
+{
+  NONE,  ///< The path publishes no limit (FR-040a).
+  DECODE,  ///< The CPUID or event-table decode answered the figure
+           ///< (specs/041-counter-probe FR-030).
+  PROBE,  ///< The group probe answered the figure (FR-018, FR-043).
+};
+
+/**
+ * @brief The source of the limit `programmableCounters()` answers for
+ * `objectPath` (FR-040a, FR-043, FR-053, D-3, D-3a).
+ *
+ * A provider records the source beside the limit it publishes, and this
+ * accessor answers the pair, so a run can say which finder answered the
+ * count it planned with (FR-050, FR-051). `objectPath` is the catalog
+ * address: the same text `Object::programmableCounters()` reads. A path
+ * no provider recorded answers `NONE`, and so does a path whose published
+ * limit stands absent.
+ *
+ * The accessor states no claim about the catalog of the process. It reads
+ * one record beside the tree, resolves no path, and opens nothing.
+ *
+ * \pre none
+ * \post the answer is `NONE` exactly where
+ *       `Object::programmableCounters()` answers no value for that path
+ *       (FR-040a)
+ * \post a recorded path answers the source that filled its limit, and the
+ *       answer stands for the life of the process once the catalog is
+ *       open (FR-043, FR-009)
+ */
+[[nodiscard]] SPEEDGUN_NG_EXPORT auto objectLimitSource(
+    std::string_view objectPath) noexcept -> LimitSource;
 
 /**
  * @brief The root handle to the local machine's counting world

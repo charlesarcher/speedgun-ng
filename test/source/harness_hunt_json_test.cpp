@@ -1584,11 +1584,12 @@ auto twoStageDocument() -> void
 auto schemaConformance() -> void
 {
   const auto text = huntDocumentText(singleStageHunt());
-  check(text.starts_with("{\"schemaVersion\":\"1.14\""),
-        "the hunt document stamps the minor 1.14 the writer carries, the "
-        "minor whose per-event node names `topdownArea` (FR-020, FR-023, "
+  check(text.starts_with("{\"schemaVersion\":\"1.15\""),
+        "the hunt document stamps the minor 1.15 the writer carries, the "
+        "minor whose run-level record names a limit's finder (FR-020, FR-023, "
         "specs/039 FR-032, specs/037 FR-005, specs/043 FR-006, "
-        "specs/042-topdown FR-036, specs/046-hunter-topdown FR-020)");
+        "specs/042-topdown FR-036, specs/046-hunter-topdown FR-020, "
+        "specs/041-counter-probe FR-051)");
   const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, text);
   if (!clean.has_value()) {
     failed("the hunt document disagrees with the schema: " + clean.error());

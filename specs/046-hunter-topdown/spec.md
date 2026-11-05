@@ -1042,8 +1042,17 @@ Two reviewers read the spec against the code and against the gates. Rulings:
   The acceptance report states AP-10, so a reader knows a live byte comparison was
   refused as a control that cannot hold.
 - **SC-009**: On an AMD host with a gap in its lane, the same run names AMD nodes
-  and no Intel node. Absence of that host is a recorded pending row, with no
-  hardware claim for it.
+  and no Intel node. Measured on AMD Zen 5 on 2026-11-05 at `858c55d9`
+  (`ryzen 9 9950x3d`, family 26, model 68): the run selected
+  `arch/x86/amdzen5/`, named 11 AMD nodes, named 334 listing groups, named 8
+  `unmapped` ranks, and named no Intel node — the string `intel` appears 0 times
+  in the logs. See `results/acceptance-amd-zen5.md`. The one reading that host
+  did not answer is the command as `results/acceptance-hunt.md` writes it: that
+  shape aborts in the pass planner and the fold on that host, so the run needed
+  `--metric-method multiplex` to reach its rows. That abort is a defect of
+  specs/024's ratio pair, not of this feature, and it stands as its own open row
+  in the same record. AMD Zen 4 stays a pending row, with no hardware claim for
+  it.
 - **SC-010**: The parts with no host (Intel parts measured through
   `PERF_METRICS`, Intel hybrid, Arm, AMD Zen 4 and Zen 5 while no lane has a gap)
   stand as synthetic-test rows, and the report of the feature names them as

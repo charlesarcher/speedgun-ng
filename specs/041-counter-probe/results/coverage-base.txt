@@ -1,0 +1,72 @@
+# Coverage at the base (T004)
+
+**Base**: `858c55d9` | **Host**: `gary` | **Date**: 2026-11-05
+**Tree**: `build/coverage` from `cmake --preset=ci-coverage`, its `.gcda` files deleted
+before the suite so one run owns the trace.
+
+## The reading
+
+| Measure | Base answer |
+|---|---|
+| Lines | 100.0% (17812 of 17812) |
+| Branches | 99.4% (9298 of 9351) |
+| Branch shortfall | 53 rows |
+| Recorded allowance | 21 rows (`tools/dbc/coverage_gate.sh:102`, ruling G-8) |
+| `LCOV_EXCL` markers | 84 |
+| Suite | 181 entries, 180 passed, 1 skipped (`harness_topdown_run_test`), 665.57 s |
+| `Not Run` entries | 0 |
+
+## The two host facts this reading carries
+
+1. **The `coverage` target stops before its gate on this host.** `lcov` 2.3.1-1 from
+   `~/.local/bin` refuses the trace: `source/harness/hunt_topdown.cpp:155` and
+   `source/harness/runner.cpp:707` and `:820` each name a lambda function that reads
+   hit with no contained line hit, and the first of those is a hard error to that
+   version. The target exits 2 and `tools/dbc/coverage_gate.sh` never runs. The three
+   rows stand on master's own code at this commit, so no change of this lane opened
+   them. The read route therefore adds the flag that version asks for,
+   `--ignore-errors inconsistent,corrupt`, to the gate's own command
+   (`lcov --branch-coverage --summary build/coverage/coverage.info`). The flag stays
+   out of `cmake/coverage.cmake` and out of `tools/dbc/coverage_gate.sh`: the gate the
+   fleet runs keeps its shape, and the host gap is recorded here.
+2. **A developer host reads a higher branch shortfall than the CI union.** The gate
+   comment at `tools/dbc/coverage_gate.sh:86-101` states this and names the entries
+   whose early stops leave rows dark on a lane host. This host reads
+   53 dark branch rows at the base against the allowance of 21,
+   which the union of the CI job does not reach. The gate's own sentence settles what
+   to do with such a reading: a host run that reports them reports the host.
+
+This lane therefore owns two readings, and both are in `results/acceptance.md`:
+
+- **Lines**: 100.0% held, with 0 dark line at the base and 0 dark line at the head.
+  Any dark line this lane opens is a defect in the lane.
+- **Branches**: the per-file table below at the base and at the head, on one host and
+  one command. The lane's rule is that no file it owns gains a dark branch row, and
+  the project total moves by no more than the rows its own files add. The 21-row
+  allowance is the CI union's figure, and the CI row of Principle VIII is where it is
+  judged.
+
+## The dark branch rows by file at the base
+
+| File | Rows at zero |
+|---|---|
+| `source/counters/linux_pmu/topdown_select.cpp` | 17 |
+| `source/harness/cli.cpp` | 13 |
+| `source/harness/runner.cpp` | 7 |
+| `source/harness/options.cpp` | 3 |
+| `source/harness/execution_context.cpp` | 2 |
+| `source/harness/host_record_check.cpp` | 2 |
+| `source/harness/jitter_probe.cpp` | 2 |
+| `source/harness/report.cpp` | 2 |
+| `source/counters/linux_pmu/encode.cpp` | 1 |
+| `source/counters/linux_pmu/table_parse.cpp` | 1 |
+| `source/harness/hunt_ranks.cpp` | 1 |
+| `source/harness/hunt_topdown.cpp` | 1 |
+| `source/harness/statistics.cpp` | 1 |
+| **Total** | **53** |
+
+M1 to M8 touch `source/counters/linux_pmu/provider.cpp`, `counter_limits.cpp`,
+`source/harness/runner.cpp`, `json_report.cpp`, `source/counters/limit_source.cpp` and
+`source/counters/linux_pmu/group_probe.cpp`. Three of those already carry rows at the
+base: `runner.cpp` (7), `json_report.cpp` (0, absent above), `provider.cpp` (0, absent
+above). T056 compares the same table at the head.

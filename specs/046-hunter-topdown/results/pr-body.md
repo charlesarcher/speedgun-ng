@@ -28,16 +28,19 @@ Roadmap item N14c. Spec `specs/046-hunter-topdown/spec.md`.
 
 ## The base this branch sits on
 
-`master` moved 25 commits during the lane and took specs/047 in, which carries the
-project to `0.30.1`. This branch stands on `7fe88383`. The version rows here read
-`0.31.0`, harness `SOVERSION 21` and counters `SOVERSION 6`, because specs/047 took the
-patch and left the minor free. The lane measured against `b1dd7670` as its comparison
-base, and each reading below names that base where it matters.
+`master` moved 26 commits during the lane. It took specs/047 in, which carries the
+project to `0.30.1`, and it took the meta pass that clears the gate rows PRs 71 to 73
+left red. This branch stands on `3639c4a5`. The version rows here read `0.31.0`, harness
+`SOVERSION 21` and counters `SOVERSION 6`, because specs/047 took the patch and left the
+minor free. Two rebase resolutions adopted the corrected wording of the two ABI notes
+that pass rewrote. The lane measured against `b1dd7670` as its comparison base, and each
+reading below names that base where it matters.
 
 Format, spell, drift, the prose gate in both forms, and both contract gates ran again on
 the new base and read clean. The units that read the version rows and the shared loader
 pass there. The coverage, sanitizer, aggregate-gate, analyzer and documentation rows
-were measured before the move, at the head of the pre-squash lane.
+were measured before those moves, at the head of the lane before the rebase. The gate
+list below carries the reading taken at the landed content `858c55d9`.
 
 ## The host
 
@@ -73,12 +76,17 @@ base hunter run paid.
 - `python3 tools/docs/example_drift.py --sections --names --options --forbidden .`
   answers exit 0.
 - The prose gate reads 0 findings in all three forms: the range over `b1dd7670`, the
-  message of each commit, and the whole tree at 994 sources (AP-2b).
+  message of each commit, and the whole tree at 1,011 sources (AP-2b).
 - `ctest -N` lists 181 entries at the head and 173 at the base. AP-1's 178 matches
   neither count.
 - The full head suite answers 178 of 181 in 2,126 s. Its failures are the AP-1 trio
   `counters_kernel_calls_test`, `counters_pmu_provider_test` and
   `harness_jitter_window_test`, and no other name (SC-005).
+- The release tree at the landed content `858c55d9` answers the full suite at 181 of 181
+  in 2,127.91 s. `counters_kernel_calls_test`, `counters_pmu_provider_test` and
+  `harness_jitter_window_test` pass at 0.03 s, 0.08 s and 8.11 s, so the AP-1 red row
+  stands cleared at this base. Rows above that name the trio record the host before the
+  meta pass.
 - The two-cpu lane `taskset -c 0,1 ctest --preset prepush-quick -j 2` fails 4 of 174 at
   the head: the trio and `prose_gate_fixtures`. Its `timing.whole-tree` unit read
   `wall:10.671s` against a 10.0 s bound and passes when run alone. The base lane under

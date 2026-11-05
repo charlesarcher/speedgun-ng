@@ -33,6 +33,18 @@ namespace
 /// CPUID leaf 0AH, the architectural performance-monitoring discovery leaf.
 constexpr std::uint32_t kProgrammableLeaf = 0x0AU;
 
+/// The event the group probe of specs/041-counter-probe searches with, named
+/// as the x86 core PMUs list it under `events/`. The kernel maps that alias to
+/// its generic branch-instructions event, `PERF_COUNT_HW_BRANCH_INSTRUCTIONS`,
+/// whose id is 4 (`/usr/include/linux/perf_event.h:71`). The search sends the
+/// words the device itself publishes for this name, on the device's own type,
+/// so one rule serves every x86 core PMU (FR-033, D-9).
+constexpr std::string_view kProbeEventName {"branch-instructions"};
+
+/// The Arm core-device prefix, the same text `source/harness/hunt.cpp:44`
+/// spells `kCorePrefix` (FR-031).
+constexpr std::string_view kProbeCorePrefix {"armv8_"};
+
 /// CPUID leaf 0x23, the unified performance-monitoring leaf: a host that
 /// answers it is a hybrid-capable layout whose core figure would need one
 /// value per core type (research D-01's hybrid rule).
@@ -340,6 +352,32 @@ auto usableCounters(const std::optional<std::size_t> hardware,
     return hardware;
   }
   return publishMinusOne(*hardware);
+}
+
+auto isProbeCoreDevice(const std::string_view deviceName) noexcept -> bool
+{
+  return deviceName == "cpu" || deviceName == "cpu_core"
+      || deviceName == "cpu_atom" || deviceName.starts_with(kProbeCorePrefix);
+}
+
+auto probeEventNameForDevice(const std::string_view deviceName,
+                             const CounterLimitVendor vendor) noexcept
+    -> std::optional<std::string_view>
+{
+  if (deviceName.starts_with(kProbeCorePrefix)) {
+    // The empty Arm row of FR-033, stated as a decision of its own so the
+    // device answers no event on an Arm host as it does anywhere else (D-5).
+    return std::nullopt;
+  }
+  switch (vendor) {
+    case CounterLimitVendor::INTEL:
+    case CounterLimitVendor::ZHAOXIN:
+    case CounterLimitVendor::AMD:
+      return kProbeEventName;
+    case CounterLimitVendor::OTHER:
+      break;
+  }
+  return std::nullopt;
 }
 
 }  // namespace sg::counters::detail

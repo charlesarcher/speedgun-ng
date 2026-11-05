@@ -1,0 +1,62 @@
+# Requirement-1 measurement: what one group of k copies gets
+
+host Gary
+kernel.ostype Linux
+kernel.osrelease 7.3.1-1-cachyos
+kernel.perf_event_paranoid -1
+kernel.nmi_watchdog 0
+event config 4, type PERF_TYPE_HARDWARE, exclude_kernel 1, disabled 1, pinned 0
+cpuid leaf 0x80000022 eax 0x00000007 ebx 0x00084106 ecx 0x00000003 edx 0x00000000 (raw words; counter_limits.cpp decodes them)
+cpuid leaf 0x0A eax 0x00000000 ebx 0x00000000 ecx 0x00000000 edx 0x00000000 (raw words)
+
+## Table 1: one group of k copies, k = 1 to 32
+
+| k | open | errno | time_enabled_ns | time_running_ns | runs fully |
+|---|------|-------|-----------------|-----------------|------------|
+| 1 | ok | - | 4830 | 4830 | yes |
+| 2 | ok | - | 2060 | 2060 | yes |
+| 3 | ok | - | 2970 | 2970 | yes |
+| 4 | ok | - | 4370 | 4370 | yes |
+| 5 | ok | - | 6179 | 6179 | yes |
+| 6 | ok | - | 8390 | 8390 | yes |
+| 7 | ok | - | 10290 | 8280 | no |
+| 8 | ok | - | 10070 | 8370 | no |
+| 9 | ok | - | 10120 | 8320 | no |
+| 10 | ok | - | 10170 | 8270 | no |
+| 11 | ok | - | 10350 | 8370 | no |
+| 12 | ok | - | 10469 | 8339 | no |
+| 13 | ok | - | 10800 | 8580 | no |
+| 14 | ok | - | 10740 | 8400 | no |
+| 15 | ok | - | 10930 | 8420 | no |
+| 16 | ok | - | 11580 | 8680 | no |
+| 17 | ok | - | 11099 | 8399 | no |
+| 18 | ok | - | 11340 | 8460 | no |
+| 19 | ok | - | 11390 | 8440 | no |
+| 20 | ok | - | 11540 | 8490 | no |
+| 21 | ok | - | 11679 | 8509 | no |
+| 22 | ok | - | 11840 | 8540 | no |
+| 23 | ok | - | 11990 | 8580 | no |
+| 24 | ok | - | 12120 | 8570 | no |
+| 25 | ok | - | 12380 | 8710 | no |
+| 26 | ok | - | 13120 | 8790 | no |
+| 27 | ok | - | 12660 | 8770 | no |
+| 28 | ok | - | 12689 | 8659 | no |
+| 29 | ok | - | 12830 | 8670 | no |
+| 30 | ok | - | 12960 | 8700 | no |
+| 31 | ok | - | 13109 | 8729 | no |
+| 32 | ok | - | 13570 | 9070 | no |
+
+Largest size that runs fully: 6
+
+## Table 2: where does a group open refuse?
+
+No refusal up to k = 96. Every group open answered 0.
+
+## Table 3: the linear probe, and what it costs
+
+Probe answer (largest size that runs fully): 6
+Sizes opened: 7, opens paid: 28, enables 28, reads 7, closes 28
+Probe wall time: 0.073 ms (CLOCK_MONOTONIC; a script reads the clock, no unit does)
+
+Totals: opens ok 5212, opens refused 0, enables 556, disables 556, reads 39, closes 5212
+Descriptors left open at exit: 0 (closes minus opens; must be 0)

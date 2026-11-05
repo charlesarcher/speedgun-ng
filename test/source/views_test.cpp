@@ -302,23 +302,23 @@ auto run() -> int
   // The version and the SOVERSION record of the move this lane lands
   // (specs/043-fwq-ftq FR-005, SC-009; specs/039-context-groups FR-005,
   // FR-032, D-2; specs/037 R-13; specs/042-topdown FR-047;
-  // specs/046-hunter-topdown FR-004, FR-008, FR-028, D-8, D-16): the project
-  // block reads 0.31.0, the harness target answers SOVERSION 21, and the
-  // archive target answers SOVERSION 6. The counters surface gains a record
-  // and its accessor, and the hunt record gains its area text, so both
-  // numbers move with the layouts they state. Each read below names the
-  // target whose property line it reads.
+  // specs/046-hunter-topdown FR-004, FR-008, FR-028, D-8, D-16;
+  // specs/041-counter-probe FR-053, D-3a): the project block reads 0.32.0, the
+  // harness target answers SOVERSION 21, and the archive target answers
+  // SOVERSION 7. The counters surface gains one exported accessor over one new
+  // closed enumeration, and no harness layout moves, so the harness number
+  // stands. Each read below names the target whose property line it reads.
   {
     auto const cmake = rootCMakeText();
     check(!cmake.empty(), "pass: the root CMakeLists.txt can be read");
-    check(projectVersion(cmake) == "0.31.0",
-          "pass: the project version reads 0.31.0");
+    check(projectVersion(cmake) == "0.32.0",
+          "pass: the project version reads 0.32.0");
     check(soVersionOf(cmake, "speedgun-ng_harness") == "21",
           "pass: the harness property line reads SOVERSION 21");
-    check(soVersionOf(cmake, "speedgun-ng_speedgun-ng") == "6",
-          "pass: the counters archive property line reads SOVERSION 6");
-    check(soVersionNumbers(cmake) == "6 21",
-          "pass: the two archive SOVERSION lines read 6 for the counters "
+    check(soVersionOf(cmake, "speedgun-ng_speedgun-ng") == "7",
+          "pass: the counters archive property line reads SOVERSION 7");
+    check(soVersionNumbers(cmake) == "7 21",
+          "pass: the two archive SOVERSION lines read 7 for the counters "
           "archive and 21 for the harness archive, in file order");
   }
 
