@@ -189,7 +189,7 @@ of specs/043 FR-019. The engine words stand lower case in both.
 
 ## Consumers
 
-- `test/source/harness_json_report_test.cpp`: the ten keys, their kinds
+- `test/source/harness_json_report_test.cpp`: the eleven keys, their kinds
   and their order, and the no-key rule for every other method and engine
   (spec FR-025 to FR-027).
 - `test/source/harness_json_schema_test.cpp`: the six moved `x-order`

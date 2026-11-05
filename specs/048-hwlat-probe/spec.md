@@ -770,9 +770,10 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   state once that the probe runs with the cpu's interrupts enabled, so a
   gap can come from an interrupt handler.
 - **FR-031**: The document SHALL carry the same statement as the run's
-  limit text beside the attribution figures, and the guide page SHALL
-  state the difference between the two surfaces: privilege, threshold
-  unit and interrupt state.
+  limit text under the `limits` key of the `jitter` object, beside the
+  attribution figures, and the guide page SHALL state the difference
+  between the two surfaces: privilege, threshold unit and interrupt
+  state.
 
 ### The seams and the tests (FR-032 to FR-035)
 
@@ -862,8 +863,9 @@ guards it:
 | `maxGapNs` | `precheck.tracer.cpus[]` | `--os-noise=hwlat` | `loadReport` | `harness_hwlat_tracer_test.cpp` |
 | `gapCount` | `precheck.tracer.cpus[]` | `--os-noise=hwlat` | `loadReport` | `harness_hwlat_tracer_test.cpp` |
 | `nmiCount` | `precheck.tracer.cpus[]` | `--os-noise=hwlat` | `loadReport` | `harness_hwlat_tracer_test.cpp` |
+| `limits` | `jitter` | `hwlat` method | `loadReport` | `harness_hwlat_probe_test.cpp` |
 
-Two enum word sets gain one value each: the method words of the document
+Eleven keys stand new. Two enum word sets gain one value each: the method words of the document
 (`TSC`, `FWQ`, `FTQ`, `HWLAT`) and the engine words (`osnoise`,
 `timerlat`, `hwlat`). No key changes its kind, and no key moves.
 
