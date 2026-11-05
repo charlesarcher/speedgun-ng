@@ -236,10 +236,14 @@ shapes the prompt leaves open.
   spec `036` stand for the new engine unchanged.
 - The option-table contract of
   `specs/015-benchmark-harness-core/contracts/cli.md` stands unchanged:
-  no row joins it. The two contracts this lane amends are
-  `specs/027-jitter-probe/contracts/cli-options.md` (the `method=` row)
-  and `specs/036-osnoise-timerlat-tracers/contracts/cli-options.md` (the
-  engine word), each in the commit that lands the code.
+  no row joins it. The lane amends nine standing contract files across
+  four features, each row named by the contract file of this feature that
+  owns it, and each amendment landing in the commit that carries the code
+  it describes (FR-039). The set: spec `027` gains the `method=` row, the
+  report rows and the grown field table; spec `026` gains the rule
+  production for the new head word; spec `034` gains the probe figure
+  rows for the report and the console; spec `036` gains the engine word,
+  the tracer report rows and the tracer console lines.
 - The report contract of spec `034`
   (`specs/034-host-noise-precheck/contracts/report-json.md`) and of spec
   `036` (`specs/036-osnoise-timerlat-tracers/contracts/report-json.md`)
@@ -439,8 +443,9 @@ write mid-run, and a signal that ends the run.
 
 1. **Given** a fake tracefs tree whose files hold known values, **When**
    the run carries `--os-noise=hwlat`, **Then** the tree holds the
-   engine word in `current_tracer` during the window, and holds each of
-   the five written files at its original value after the run.
+   engine word in `current_tracer` during the window, holds each of the six
+   saved files at its value from before the run, and holds `tracing_on`
+   at `0`.
 2. **Given** the same tree, **When** the detector's per-cpu buffer text
    states a longest gap, a gap count and an NMI count, **Then** the
    console and the record carry those three figures for each tracer
@@ -745,7 +750,8 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   field table, which grows from 32 rows to 35, and SHALL read the carrier
   the standing jitter names read. The three detector figures SHALL stand
   behind a new rule head word, `hwlat`, in the shape
-  `hwlat:<cpu|any>:<figure>`, and SHALL read the tracer record of the
+  `hwlat:<cpu|any>:<figure>` with the standing direction and threshold
+  suffix, and SHALL read the tracer record of the
   loaded report, the first pre-check figure the comparison reads. A
   document that carries no figure for one of the six names SHALL answer
   the standing shape for a name with no value, and SHALL gain no new
@@ -804,9 +810,14 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   guide page, because the main page keeps three lines of headroom.
 - **FR-038**: The prose gate, the spell gate, the lint gate, the DBC pair
   gate and the drift gate SHALL pass on the lane's diff.
-- **FR-039**: The two contracts this lane amends SHALL carry the new word
-  in the commit that lands the code: the `method=` row of spec `027` and
-  the engine word of spec `036`.
+- **FR-039**: The nine standing contract files this lane amends SHALL
+  carry the new words in the commit that lands the code each row
+  describes: `cli-options.md`, `report-json.md` and `rule-names.md` of
+  spec `027`; `rule-parse.md` of spec `026`; `report-json.md` and
+  `console-report.md` of spec `034`; and `cli-options.md`,
+  `report-json.md` and `console-report.md` of spec `036`. Each contract
+  file of this feature names the standing line and file it amends
+  (FR-029).
 
 ## Key Entities *(include if feature involves data)*
 

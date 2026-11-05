@@ -11,13 +11,13 @@ gains the kernel's hardware-latency detector as a third engine.
 `--jitter-probe` takes `method=hwlat` beside `tsc`, `fwq` and `ftq`: the
 standing gap loop keeps its shape, and the run reads `MSR_SMI_COUNT`
 through `/dev/cpu/<cpu>/msr` at each gap and at the two window edges, so
-each gap carries the count change of its own window and each probe cpu
-carries the two window deltas beside its gap figures. `--os-noise` takes
-`hwlat` beside `osnoise` and `timerlat`: the run saves the standing value
-of every tracefs file it writes, writes the engine word, the mask, the
-threshold, the detector width and window, reads the detector's three
-figures per cpu, and writes every saved value back on each path the
-process controls. Both surfaces disclose `not available` and continue
+each gap carries the count change of the span that ends at it and each
+probe cpu carries the two window deltas beside its gap figures.
+`--os-noise` takes `hwlat` beside `osnoise` and `timerlat`: the run saves
+six standing values, writes the mask, the per-cpu mode, the detector
+width and window, the threshold, the engine word and `tracing_on`, folds
+three figures from each tracer cpu's buffer text, and writes the saved
+values back in reverse order on each path the process controls. Both surfaces disclose `not available` and continue
 with status 0. The schema moves to `1.15` with ten new keys, the loader
 reads the six figures back, the comparison gains six rule names, and the
 harness `SOVERSION` rises from `21` to `22` with the version move to
@@ -256,9 +256,10 @@ choice the code must make once.
   `kJitterFields`, which moves from 32 rows to 35 and carries the count
   word `thirty-five` in its refusal line and in the rule-name contract.
   The three detector figures join a new `kHwlatFields` table of 3 rows
-  behind a new head word: `hwlat:<cpu|any>:<field>`. The standing jitter
-  grammar keeps its shape, and the detector names keep their own
-  refusal line.
+  behind a new head word: `hwlat:<cpu|any>:<field>` with the standing
+  direction and threshold suffix. The standing jitter grammar keeps its
+  shape, and the detector names keep their own refusal line
+  (`source/harness/compare.cpp:519-532`).
 - **P-12**: the availability disclosure rides the standing
   `jitter.disclosure` text, so no new key carries it, and the console
   prints one line per source per run.
@@ -285,7 +286,7 @@ choice the code must make once.
 | M6 | Reader | `json_load.cpp`, `harness_json_load_test.cpp` | M2, M5 key names | FR-004, FR-026, FR-029 | standing executable |
 | M7 | Console | `report.cpp`, `harness_jitter_window_test.cpp`, `harness_noise_report_test.cpp` | M2 | FR-016, FR-027, FR-030, FR-031 | two standing executables |
 | M8 | Comparison | `compare.cpp`, two compare test files | M2, M6 | FR-028 | two standing executables |
-| M9 | Contracts, docs, example | contracts, guide page, `README.md`, example pair, `example/CMakeLists.txt` | M3, M5, M7 | FR-006, FR-036 to FR-039 | the gates |
+| M9 | Contracts, docs, example | contracts, guide page, `README.md`, example pair, `example/CMakeLists.txt`, the nine standing contract rows of specs `026`, `027`, `034` and `036` | M3, M5, M7 | FR-006, FR-036 to FR-039 | the gates |
 | M10 | Integration | `cli.cpp`, `test/CMakeLists.txt`, version and `SOVERSION` | M3, M4 | FR-003 wiring, version checks | the full suite |
 
 Waves, with the rule that two modules never own one file:
