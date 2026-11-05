@@ -1,0 +1,343 @@
+# R1 shipped-shape re-measurement (specs/041-counter-probe)
+
+STATUS: complete. Both shapes answer 6. Shipped-shape cost: 0.080 ms.
+
+Host: Gary, Linux 7.3.1-1-cachyos x86_64, AMD Ryzen 9 9950X3D 16-Core Processor
+(16 cores / 32 cpus, `0-31` online). gcc (GCC) 16.2.1 20260810.
+kernel.perf_event_paranoid 2, kernel.nmi_watchdog 0 at the time of writing.
+
+## Step 1: sources read
+
+/usr/include/linux/perf_event.h:
+  enum perf_type_id  { PERF_TYPE_HARDWARE = 0, PERF_TYPE_SOFTWARE = 1,
+      PERF_TYPE_TRACEPOINT = 2, PERF_TYPE_HW_CACHE = 3, PERF_TYPE_RAW = 4,
+      PERF_TYPE_BREAKPOINT = 5, PERF_TYPE_MAX }
+  enum perf_hw_id    { ... PERF_COUNT_HW_CACHE_MISSES = 3,
+      PERF_COUNT_HW_BRANCH_INSTRUCTIONS = 4, PERF_COUNT_HW_BRANCH_MISSES = 5, ... }
+  So the lane's measured shape is `attr.type = 0` (PERF_TYPE_HARDWARE) with
+  `attr.config = 4` (PERF_COUNT_HW_BRANCH_INSTRUCTIONS): the generic request,
+  which the kernel translates to the part's own encoding inside perf_event_open.
+
+specs/041-counter-probe/tools/group_probe.c (184 lines): the tool that recorded
+  those figures. perf_open() sets `attr.type = PERF_TYPE_HARDWARE` and
+  `attr.config = config` (argv[1], default 4), exclude_kernel 1, exclude_hv 1,
+  disabled 1, pinned 0, read_format TIME_ENABLED|TIME_RUNNING; the open binds
+  pid 0, cpu -1, group_fd = the first descriptor. Table 1 sweeps k = 1..max_k,
+  Table 2 sweeps to 96 for a refusal, Table 3 is the linear search and its cost.
+
+The shipped search: source/counters/linux_pmu/group_probe.cpp
+  fillProbeAttr(): `attr.type = options.pmuType`, `attr.config =
+  options.eventConfig`, exclude_kernel 1, exclude_hv 1, disabled 1, pinned 0,
+  read_format TIME_ENABLED|TIME_RUNNING; pid 0, cpu -1, group leader = first
+  descriptor. Same attribute shape as the tool except that type and config are
+  the device's own pair. Two more differences, recorded because they are real:
+  the shipped open passes PERF_FLAG_FD_CLOEXEC where the tool passes 0, and the
+  shipped enable/disable is one ioctl on the leader with PERF_IOC_FLAG_GROUP
+  where the tool ioctls every descriptor of the group.
+  `options.pmuType` is the device's own type number: provider.cpp:324-334
+  slurps `<device>/type` into `device.type`, and provider.cpp:671 puts it in
+  `attr.type`. `options.eventConfig` is composed by pmuComposeConfig() in
+  source/counters/linux_pmu/encode.cpp from `<device>/events/<name>` against
+  `<device>/format/*`.
+
+Prior artifacts this replaces: requirement-1-zen5-paranoid2.txt answers 6 at
+  0.070 ms, requirement-1-zen5-paranoid-minus1.txt answers 6 at 0.073 ms. Both
+  ran the measured shape. spec.md F-5, D-6, SC-009 and the budget note publish
+  0.078 ms, which no artifact in results/ holds.
+
+## Step 2: the device PMU pair, and the config word composed by hand
+
+/sys/bus/event_source/devices/cpu/type                  -> 4
+/sys/bus/event_source/devices/cpu/events/*              -> 8 events:
+    branch-instructions: event=0xc2
+    cpu-cycles:          event=0x76
+    instructions:        event=0xc0
+    ref-cycles:          event=0x120,umask=0x01
+    (branch_miss and bus-cycles are not published on this part)
+/sys/bus/event_source/devices/cpu/format/*
+    cmask:  config:24-31
+    edge:   config:18
+    event:  config:0-7,32-35
+    inv:    config:23
+    umask:  config:8-15
+
+The searched event is branch-instructions, whose words name one field:
+`event = 0xc2`. Composition, per pmuComposeConfig() (a field published as
+several bit ranges splits its value across them in file order, and the parts
+of different fields are OR-ed into the same config word):
+
+    field "event", value 0xc2
+      range 1  config:0-7    width 8, capacity 0xff
+               chunk = (0xc2 >>  0) & 0xff = 0xc2 -> 0xc2 <<  0 = 0x00000000000000C2
+      range 2  config:32-35  width 4, capacity 0x0f
+               chunk = (0xc2 >>  8) & 0x0f = 0x00 -> 0x00 << 32 = 0x0000000000000000
+      residual (0xc2 >> 12) = 0, so the value fits its ranges.
+
+    config word 0 = 0x00000000000000C2 | 0x0000000000000000 = 0x00000000000000C2 = 194
+
+    shipped pair:  attr.type = 4,  attr.config = 0xc2 (194)
+
+Worked two-field case, to show the OR of parts (not the searched event; it is
+the shape ref-cycles takes on the same device, `event=0x120,umask=0x01`):
+
+    field "event", value 0x120
+      config:0-7   chunk = 0x120 & 0xff = 0x20 -> 0x20 <<  0 = 0x0000000000000020
+      config:32-35 chunk = (0x120 >> 8) & 0xf = 0x01 -> 0x01 << 32 = 0x0000000100000000
+    field "umask", value 0x01
+      config:8-15  chunk = 0x01 & 0xff = 0x01 -> 0x01 <<  8 = 0x0000000000000100
+    config word 0 = 0x20 | 0x0000000100000000 | 0x100 = 0x0000000100000120
+
+Note on the number 4: this kernel happens to assign the dynamic perf type 4 to
+the `cpu` device, and 4 is also the constant PERF_TYPE_RAW. The shipped shape
+reads 4 from the device's own `type` file, not from perf_type_id; the two 4s are
+a coincidence on this host, not the same fact. The type numbers of the other
+devices on this host (breakpoint 5, ibs_fetch 10, ibs_op 11, kprobe 8, msr 13,
+amd_iommu_0 12, software 1, tracepoint 2) confirm they are per-device numbers.
+
+
+## Step 3: the argv-driven probe, built
+
+`tools/group_probe.c` copied to /tmp/041-notes/group_probe_ship.c and extended by hand:
+`perf_open()` and `probe_size()` take the type beside the config, `main()` reads
+`<type> <config> [maxK]` from argv (usage line + exit 2 when argv is short), and the
+header line prints the type it was given instead of the words PERF_TYPE_HARDWARE. The
+enable and the disable of every descriptor are untouched, as are the attribute's other
+fields, the group shape, the three tables, and the tallies.
+
+    cc -O2 -Wall -Wextra -Wpedantic -o group_probe_ship group_probe_ship.c     -> no warning
+
+Two shipped-code differences this tool does not carry, recorded because they are real and
+because they are the only reason to read the numbers below as a proxy:
+
+  * the shipped open passes `PERF_FLAG_FD_CLOEXEC` (group_probe.cpp:107) where the tool
+    passes 0 — a descriptor-flag difference, no scheduling effect;
+  * the shipped enable and disable are one ioctl on the leader with
+    `PERF_IOC_FLAG_GROUP` (group_probe.cpp:120-127) where the tool ioctls every descriptor
+    of the group — both start and stop the same group, the shipped way issues two ioctls
+    per size and the tool `k`.
+Neither was varied here, and both shapes below ran through the same tool, so the two runs
+are directly comparable to each other.
+
+## Step 4: the two runs
+
+Run A — the shipped shape, the pair composed in step 2: `./group_probe_ship 4 0xc2 32`
+Run B — the measured shape, the pair the lane recorded: `./group_probe_ship 0 4 32`
+
+Neither run changed the affinity of the calling thread, which is the shipped behaviour
+(FR-013); the tool's header comment mentions `taskset`, and no `taskset` stood in front of
+either run.
+
+Host lines, identical at both runs:
+
+    uname -srm                     Linux 7.3.1-1-cachyos x86_64
+    gcc --version                  gcc (GCC) 16.2.1 20260810
+    kernel.perf_event_paranoid     2
+    kernel.nmi_watchdog            0
+
+### Run A — shipped shape (type 4, config 194 = 0xc2)
+
+# Requirement-1 measurement: what one group of k copies gets
+
+host Gary
+kernel.ostype Linux
+kernel.osrelease 7.3.1-1-cachyos
+kernel.perf_event_paranoid 2
+kernel.nmi_watchdog 0
+event config 194, type 4, exclude_kernel 1, disabled 1, pinned 0
+cpuid leaf 0x80000022 eax 0x00000007 ebx 0x00084106 ecx 0x00000003 edx 0x00000000 (raw words; counter_limits.cpp decodes them)
+cpuid leaf 0x0A eax 0x00000000 ebx 0x00000000 ecx 0x00000000 edx 0x00000000 (raw words)
+
+## Table 1: one group of k copies, k = 1 to 32
+
+| k | open | errno | time_enabled_ns | time_running_ns | runs fully |
+|---|------|-------|-----------------|-----------------|------------|
+| 1 | ok | - | 5840 | 5840 | yes |
+| 2 | ok | - | 3700 | 3700 | yes |
+| 3 | ok | - | 5730 | 5730 | yes |
+| 4 | ok | - | 8370 | 8370 | yes |
+| 5 | ok | - | 12049 | 12049 | yes |
+| 6 | ok | - | 16340 | 16340 | yes |
+| 7 | ok | - | 20100 | 16250 | no |
+| 8 | ok | - | 19870 | 16360 | no |
+| 9 | ok | - | 19869 | 16210 | no |
+| 10 | ok | - | 19980 | 16180 | no |
+| 11 | ok | - | 20180 | 16180 | no |
+| 12 | ok | - | 21140 | 16630 | no |
+| 13 | ok | - | 20700 | 16250 | no |
+| 14 | ok | - | 21240 | 16420 | no |
+| 15 | ok | - | 21230 | 16330 | no |
+| 16 | ok | - | 21530 | 16370 | no |
+| 17 | ok | - | 21830 | 16410 | no |
+| 18 | ok | - | 22070 | 16430 | no |
+| 19 | ok | - | 22370 | 16520 | no |
+| 20 | ok | - | 22689 | 16559 | no |
+| 21 | ok | - | 23090 | 16760 | no |
+| 22 | ok | - | 23249 | 16650 | no |
+| 23 | ok | - | 23580 | 16720 | no |
+| 24 | ok | - | 23749 | 16679 | no |
+| 25 | ok | - | 12300 | 8650 | no |
+| 26 | ok | - | 12370 | 8590 | no |
+| 27 | ok | - | 12590 | 8670 | no |
+| 28 | ok | - | 13450 | 9410 | no |
+| 29 | ok | - | 12760 | 8600 | no |
+| 30 | ok | - | 17050 | 11860 | no |
+| 31 | ok | - | 13729 | 9150 | no |
+| 32 | ok | - | 13600 | 9130 | no |
+
+Largest size that runs fully: 6
+
+## Table 2: where does a group open refuse?
+
+No refusal up to k = 96. Every group open answered 0.
+
+## Table 3: the linear probe, and what it costs
+
+Probe answer (largest size that runs fully): 6
+Sizes opened: 7, opens paid: 28, enables 28, reads 7, closes 28
+Probe wall time: 0.080 ms (CLOCK_MONOTONIC; a script reads the clock, no unit does)
+
+Totals: opens ok 5212, opens refused 0, enables 556, disables 556, reads 39, closes 5212
+Descriptors left open at exit: 0 (closes minus opens; must be 0)
+
+### Run B — measured shape (type 0, config 4)
+
+# Requirement-1 measurement: what one group of k copies gets
+
+host Gary
+kernel.ostype Linux
+kernel.osrelease 7.3.1-1-cachyos
+kernel.perf_event_paranoid 2
+kernel.nmi_watchdog 0
+event config 4, type 0, exclude_kernel 1, disabled 1, pinned 0
+cpuid leaf 0x80000022 eax 0x00000007 ebx 0x00084106 ecx 0x00000003 edx 0x00000000 (raw words; counter_limits.cpp decodes them)
+cpuid leaf 0x0A eax 0x00000000 ebx 0x00000000 ecx 0x00000000 edx 0x00000000 (raw words)
+
+## Table 1: one group of k copies, k = 1 to 32
+
+| k | open | errno | time_enabled_ns | time_running_ns | runs fully |
+|---|------|-------|-----------------|-----------------|------------|
+| 1 | ok | - | 3430 | 3430 | yes |
+| 2 | ok | - | 1940 | 1940 | yes |
+| 3 | ok | - | 2940 | 2940 | yes |
+| 4 | ok | - | 4320 | 4320 | yes |
+| 5 | ok | - | 6330 | 6330 | yes |
+| 6 | ok | - | 8320 | 8320 | yes |
+| 7 | ok | - | 10330 | 8290 | no |
+| 8 | ok | - | 10260 | 8460 | no |
+| 9 | ok | - | 10150 | 8360 | no |
+| 10 | ok | - | 10100 | 8220 | no |
+| 11 | ok | - | 10180 | 8200 | no |
+| 12 | ok | - | 10350 | 8260 | no |
+| 13 | ok | - | 10470 | 8250 | no |
+| 14 | ok | - | 10750 | 8400 | no |
+| 15 | ok | - | 10920 | 8410 | no |
+| 16 | ok | - | 10890 | 8320 | no |
+| 17 | ok | - | 11360 | 8590 | no |
+| 18 | ok | - | 11210 | 8400 | no |
+| 19 | ok | - | 11370 | 8440 | no |
+| 20 | ok | - | 11460 | 8410 | no |
+| 21 | ok | - | 11629 | 8469 | no |
+| 22 | ok | - | 11830 | 8540 | no |
+| 23 | ok | - | 11930 | 8500 | no |
+| 24 | ok | - | 12090 | 8550 | no |
+| 25 | ok | - | 12640 | 8930 | no |
+| 26 | ok | - | 12330 | 8560 | no |
+| 27 | ok | - | 12450 | 8570 | no |
+| 28 | ok | - | 12550 | 8550 | no |
+| 29 | ok | - | 12720 | 8580 | no |
+| 30 | ok | - | 13340 | 8790 | no |
+| 31 | ok | - | 12990 | 8630 | no |
+| 32 | ok | - | 13440 | 8890 | no |
+
+Largest size that runs fully: 6
+
+## Table 2: where does a group open refuse?
+
+No refusal up to k = 96. Every group open answered 0.
+
+## Table 3: the linear probe, and what it costs
+
+Probe answer (largest size that runs fully): 6
+Sizes opened: 7, opens paid: 28, enables 28, reads 7, closes 28
+Probe wall time: 0.077 ms (CLOCK_MONOTONIC; a script reads the clock, no unit does)
+
+Totals: opens ok 5212, opens refused 0, enables 556, disables 556, reads 39, closes 5212
+Descriptors left open at exit: 0 (closes minus opens; must be 0)
+
+### The two records side by side
+
+| fact | Run A shipped (type 4, config 0xc2) | Run B measured (type 0, config 4) |
+|------|-----------------------------------|-----------------------------------|
+| largest k whose group ran whole (Table 1 sweep) | 6 | 6 |
+| largest k from the linear search (Table 3) | 6 | 6 |
+| first group-open refusal (Table 2, to k = 96) | none | none |
+| sizes opened / opens paid | 7 / 28 | 7 / 28 |
+| enables | 28 | 28 |
+| reads | 7 | 7 |
+| closes | 28 | 28 |
+| opens ok / refused, whole run | 5212 / 0 | 5212 / 0 |
+| enables / disables, whole run | 556 / 556 | 556 / 556 |
+| reads, whole run | 39 | 39 |
+| descriptors left open at exit | 0 | 0 |
+| probe wall time | 0.080 ms | 0.077 ms |
+
+### Repeat series, because the cost is the disputed figure
+
+7 further runs of each shape, the shapes interleaved, same host and same paranoid level.
+The answer column is the search's answer; the wall times are the tool's own line.
+
+| repeat | shipped answer | shipped ms | measured answer | measured ms |
+|--------|----------------|------------|-----------------|-------------|
+| 1 | 6 | 0.071 | 6 | 0.071 |
+| 2 | 6 | 0.095 | 6 | 0.067 |
+| 3 | 6 | 0.085 | 6 | 0.080 |
+| 4 | 6 | 0.094 | 6 | 0.079 |
+| 5 | 6 | 0.072 | 6 | 0.090 |
+| 6 | 6 | 0.068 | 6 | 0.075 |
+| 7 | 6 | 0.093 | 6 | 0.071 |
+
+    shipped  : answer 6 in 7 of 7,  min 0.068  median 0.085  max 0.095 ms
+    measured : answer 6 in 7 of 7,  min 0.067  median 0.075  max 0.090 ms
+
+The two bands overlap through almost their whole length, so the cost difference between
+the shapes is inside the run-to-run noise of one shape. The k answer is not noise: 6 in
+every one of the 16 runs.
+
+### `pinned` and `exclusive`
+
+`/sys/bus/event_source/devices/cpu/format/` publishes five names — cmask (config:24-31),
+edge (config:18), event (config:0-7,32-35), inv (config:23), umask (config:8-15) — and no
+`pinned` and no `exclusive`, anywhere under the device directory. So neither can enter the
+answer through the config word: there is no bit range for the composition to place them
+in. They are `perf_event_attr` bitfields instead — `pinned : 1, /* must always be on PMU */`
+and `exclusive : 1, /* only group on PMU */` in /usr/include/linux/perf_event.h — and the
+shipped attribute leaves both clear: `fillProbeAttr()` zeroes the struct and names
+`pinned = 0` on purpose (FR-013), never touching `exclusive`.
+
+They do not matter to the answer the shipped probe gives. What they would change is the
+shape of the evidence: a group the kernel cannot seat on dedicated counters answers a
+refusal or an error state instead of a run shorter than its enabled window, which is the
+reason FR-013 leaves `pinned` clear — the measurement depends on seeing the short run, and
+both runs above show it (at k = 7 the open answers 0 and `time_running` sits below
+`time_enabled`). Whether a pinned shape would answer a different k was not measured here.
+
+## Step 5: verdict
+
+The two shapes agree. The device's own pair (type 4, config 0xc2, what ships) and the
+generic pair (type 0, config 4, what the lane measured) both answer 6 as the largest size
+whose group ran its whole enabled window, both refuse no group open up to k = 96, both pay
+28 opens, 28 enables, 7 reads and 28 closes for that answer, and both leave 0 descriptors
+at exit. The figure SC-003 and F-4 carry — 6, equal to the decode of this part — stands.
+
+The cost line is the one thing this run changes, and it changes it only in provenance:
+0.080 ms measured in the shipped shape, 0.077 ms in the measured shape, 0.067 to 0.095 ms
+across the whole series. The published 0.078 ms (F-5, D-6, SC-009, the budget note) matches
+neither prior artifact — results/ holds 0.070 ms at paranoid 2 and 0.073 ms at paranoid -1,
+both from the measured shape — and matches no number this file records either. Since the
+two shapes agree on k, the choice of figure is not a disagreement about the host; it is a
+provenance rule. The acceptance record must carry the shipped-shape reading, because the
+shaped pair is what a customer's process runs: 28 opens, 28 enables, 7 reads, 28 closes and
+0.080 ms at paranoid 2 on this host, with the 0.067 to 0.095 ms spread stated beside it.
+Under ruling G-20 that reading is owned by the host that recorded it, and a restatement of
+the single published figure in spec.md is the owner's or the writing task's call, not this
+file's.

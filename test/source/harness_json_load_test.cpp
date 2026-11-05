@@ -37,6 +37,11 @@ constexpr const char* const kAgain = "harness_json_load_again.json";
 // The document of the top-down arms: the plants write over `kAgain`, so the
 // record's own bytes stand under a path of their own (FR-034).
 constexpr const char* const kTopdownDoc = "harness_json_load_topdown.json";
+// The two documents of the run-level limit record (specs/041-counter-probe
+// FR-051, FR-052): the one the writer stamps with the record, and the one a
+// build older than the record's minor wrote.
+constexpr const char* const kLimitDoc = "harness_json_load_limits.json";
+constexpr const char* const kLimitOldDoc = "harness_json_load_limits_old.json";
 
 auto roundTripClosesTheFormat() -> void
 {
@@ -108,7 +113,7 @@ auto versionRuleGatesTheReader() -> void
     return mutated;
   };
 
-  sg::test::writeText("harness_json_load_minor.json", withVersion("\"1.15\""));
+  sg::test::writeText("harness_json_load_minor.json", withVersion("\"1.16\""));
   check(sg::loadReport("harness_json_load_minor.json").has_value(),
         "a later minor of the same major loads (FR-010)");
 
@@ -117,11 +122,12 @@ auto versionRuleGatesTheReader() -> void
   // loads and answers that text through `schemaVersion` (specs/046 FR-020,
   // FR-023, SC-003).
   sg::test::writeText("harness_json_load_nowminor.json",
-                      withVersion("\"1.14\""));
+                      withVersion("\"1.15\""));
   const auto current = sg::loadReport("harness_json_load_nowminor.json");
-  check(current.has_value() && current->schemaVersion == "1.14",
+  check(current.has_value() && current->schemaVersion == "1.15",
         "a document at the minor this build stamps loads and answers it "
-        "(specs/046-hunter-topdown FR-020, SC-003)");
+        "(specs/046-hunter-topdown FR-020, specs/041-counter-probe FR-051, "
+        "SC-003)");
 
   sg::test::writeText("harness_json_load_major.json", withVersion("\"2.0\""));
   const auto refused = sg::loadReport("harness_json_load_major.json");
@@ -1030,7 +1036,7 @@ auto theRootListAndTheWarningKeyAnswerTheirOwnRules(const std::string& text)
 }
 
 constexpr Mutation kMutations[] = {
-    {"\"schemaVersion\":\"1.14\"", "\"schemaVersion\":1", "/schemaVersion"},
+    {"\"schemaVersion\":\"1.15\"", "\"schemaVersion\":1", "/schemaVersion"},
     {"\"name\":\"bmJsonWindow\"", "\"name\":[]", "/benchmarks/0/name"},
     // The two kinds the naming word has no other caller for: a document
     // that holds null, and one that holds a flag, at a name.
@@ -3096,6 +3102,189 @@ auto everyWrittenPassFormLoads() -> void
   }
 }
 
+// specs/041-counter-probe FR-052: the reader of the run-level limit record.
+// A document that carries the record answers one entry per device; a document
+// older than the minor that added the key answers no entry, which is the
+// reading of a run that named no finder for no device; and an entry whose key
+// the writer cannot produce names the pointer it stands at.
+auto theLimitRecordReadsItsOwnMinor() -> void
+{
+  const std::vector<sg::detail::CounterLimitEntry> entries {
+      sg::detail::CounterLimitEntry {
+          .device = "cpu",
+          .limit = std::optional<std::size_t> {6},
+          .source = sg::counters::LimitSource::PROBE}};
+  sg::ReportData data;
+  check(sg::detail::writeReport(kLimitDoc,
+                                data,
+                                {},
+                                std::nullopt,
+                                std::nullopt,
+                                std::nullopt,
+                                entries),
+        "the writer wrote the document that carries the record (FR-051)");
+  const std::string written = sg::test::readText(kLimitDoc);
+  const auto read = sg::detail::loadCounterLimits(kLimitDoc);
+  check(read.has_value() && read->size() == 1 && read->front().device == "cpu"
+            && read->front().limit == std::optional<std::size_t> {6}
+            && read->front().source == sg::counters::LimitSource::PROBE,
+        "the reader answers the entry the writer wrote (FR-052)");
+  if (!read.has_value()) {
+    std::printf("  the limit read: %s\n", read.error().c_str());
+  }
+
+  // The document a build before this feature wrote: the record taken away, and
+  // the minor moved back to the one that stood then.
+  const auto keyAt = written.find("\"counterLimits\":[");
+  const auto endAt = written.find(']', keyAt);
+  if (keyAt == std::string::npos || endAt == std::string::npos) {
+    sg::test::fail("the written document carries no record to take away");
+    return;
+  }
+  std::string older = written;
+  older.erase(keyAt, static_cast<std::size_t>(endAt) - keyAt + 2);
+  const std::string legacyText = planted(
+      older, "\"schemaVersion\":\"1.15\"", "\"schemaVersion\":\"1.14\"");
+  aDocumentLoads(legacyText,
+                 "theLimitRecordReadsItsOwnMinor: a document older than the "
+                 "record's minor loads (FR-052)");
+  sg::test::writeText(kLimitOldDoc, legacyText);
+  const auto legacy = sg::detail::loadCounterLimits(kLimitOldDoc);
+  check(legacy.has_value() && legacy->empty(),
+        "a document older than the record's minor answers no entry (FR-052)");
+  if (!legacy.has_value()) {
+    std::printf("  the older document: %s\n", legacy.error().c_str());
+  }
+
+  struct Plant
+  {
+    const char* find;
+    const char* replace;
+    const char* pointer;
+  };
+
+  const Plant plants[] {
+      Plant {"\"source\":\"probe\"",
+             "\"source\":\"guess\"",
+             "/counterLimits/0/source"},
+      Plant {"\"limit\":6", "\"limit\":\"six\"", "/counterLimits/0/limit"},
+      Plant {"\"device\":\"cpu\"", "\"device\":6", "/counterLimits/0/device"},
+  };
+  for (const auto& plant : plants) {
+    sg::test::writeText(kLimitDoc, planted(written, plant.find, plant.replace));
+    const auto refused = sg::detail::loadCounterLimits(kLimitDoc);
+    const bool named = !refused.has_value()
+        && refused.error().find(plant.pointer) != std::string::npos;
+    check(named,
+          "a planted limit entry names the pointer of the key at fault " "(FR-052)");
+    if (!named) {
+      std::printf("  the planted '%s': %s\n",
+                  plant.find,
+                  refused.has_value() ? "the reader accepted it"
+                                      : refused.error().c_str());
+    }
+  }
+}
+
+// The record as the writer stamps it, and the four refusals the reader of it
+// answers: one key of an entry taken away names the entry the key stands
+// missing from, and a record that stands in no array names the record
+// (specs/041-counter-probe FR-052).
+constexpr const char* const kLimitRecord =
+    R"JSON("counterLimits":[{"device":"cpu","limit":6,"source":"probe"}])JSON";
+constexpr const char* const kDeviceMissing =
+    "/counterLimits/0: the key 'device' stands missing";
+constexpr const char* const kLimitMissing =
+    "/counterLimits/0: the key 'limit' stands missing";
+constexpr const char* const kSourceMissing =
+    "/counterLimits/0: the key 'source' stands missing";
+constexpr const char* const kRecordIsNoArray =
+    "/counterLimits: expected an array, found object";
+
+// specs/041-counter-probe FR-052: the reader refuses a limit record it cannot
+// settle, and the refusal names where the fault stands. A file that stands
+// absent and a file whose bytes are no JSON name the path the reader was
+// handed, because no pointer stands for either.
+auto theLimitRecordNamesItsMissingParts() -> void
+{
+  const std::vector<sg::detail::CounterLimitEntry> entries {
+      sg::detail::CounterLimitEntry {
+          .device = "cpu",
+          .limit = std::optional<std::size_t> {6},
+          .source = sg::counters::LimitSource::PROBE}};
+  sg::ReportData data;
+  check(sg::detail::writeReport(kLimitDoc,
+                                data,
+                                {},
+                                std::nullopt,
+                                std::nullopt,
+                                std::nullopt,
+                                entries),
+        "the writer wrote the record the missing parts stand taken from");
+  const std::string written = sg::test::readText(kLimitDoc);
+
+  struct Plant
+  {
+    const char* find;
+    const char* replace;
+    const char* fault;
+  };
+
+  const Plant plants[] {
+      Plant {"\"device\":\"cpu\",", "", kDeviceMissing},
+      Plant {"\"limit\":6,", "", kLimitMissing},
+      Plant {",\"source\":\"probe\"", "", kSourceMissing},
+      Plant {kLimitRecord, "\"counterLimits\":{}", kRecordIsNoArray},
+  };
+  for (const auto& plant : plants) {
+    sg::test::writeText(kLimitDoc, planted(written, plant.find, plant.replace));
+    const auto refused = sg::detail::loadCounterLimits(kLimitDoc);
+    const bool named = !refused.has_value()
+        && refused.error().find(plant.fault) != std::string::npos;
+    check(named,
+          "a limit record missing one part names the part it stands missing "
+          "(FR-052)");
+    if (!named) {
+      std::printf("  without '%s': %s\n",
+                  plant.find,
+                  refused.has_value() ? "the reader accepted it"
+                                      : refused.error().c_str());
+    }
+  }
+
+  // The two arms of the path itself: a file that stands absent is refused
+  // before any parse runs, and a file whose bytes are no JSON is refused by
+  // the parser. Each answers the path it was handed (FR-052).
+  const auto absent =
+      sg::detail::loadCounterLimits("harness_json_load_limits_absent.json");
+  const bool absentNamed = !absent.has_value()
+      && absent.error().find("harness_json_load_limits_absent.json")
+          != std::string::npos
+      && absent.error().find("cannot be opened") != std::string::npos;
+  check(absentNamed,
+        "a limit record file that stands absent names the file it opened "
+        "(FR-052)");
+  if (!absentNamed) {
+    std::printf(
+        "  the absent file: %s\n",
+        absent.has_value() ? "the reader accepted it" : absent.error().c_str());
+  }
+
+  sg::test::writeText(kLimitDoc, "{\"counterLimits\":[");
+  const auto unreadable = sg::detail::loadCounterLimits(kLimitDoc);
+  const bool parseNamed = !unreadable.has_value()
+      && unreadable.error().find(kLimitDoc) != std::string::npos
+      && unreadable.error().find("holds no JSON") != std::string::npos;
+  check(parseNamed,
+        "a limit record file that holds no JSON names the file it read "
+        "(FR-052)");
+  if (!parseNamed) {
+    std::printf("  the unparseable file: %s\n",
+                unreadable.has_value() ? "the reader accepted it"
+                                       : unreadable.error().c_str());
+  }
+}
+
 auto main() -> int
 {
   roundTripClosesTheFormat();
@@ -3140,6 +3329,8 @@ auto main() -> int
   aHuntEntryKeepsItsMethodAndCount();
   aPassPairWithOneKeyAbsentLoads();
   everyWrittenPassFormLoads();
+  theLimitRecordReadsItsOwnMinor();
+  theLimitRecordNamesItsMissingParts();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;

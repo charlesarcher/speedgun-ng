@@ -41,12 +41,13 @@ using Builder = simdjson::builder::string_builder;
 // `method` key and the `series` array of the `jitter` object, at 1.13
 // since specs/042-topdown added the `topdown` object of the entry record,
 // and at 1.14 since specs/046-hunter-topdown added the `topdownArea` key
-// of the per-event node, the move specs/023/contracts/ schema-file.md states
-// for a key added inside major 1 (specs/027 FR-026, specs/028 FR-086,
+// of the per-event node, and at 1.15 since specs/041-counter-probe added the
+// run-level `counterLimits` array, the move specs/023/contracts/ schema-file.md
+// states for a key added inside major 1 (specs/027 FR-026, specs/028 FR-086,
 // specs/033 FR-022, specs/040 FR-032, PC-6, specs/039 FR-030, FR-032,
 // specs/037 FR-005, specs/043 FR-006, specs/042-topdown FR-036,
-// specs/046-hunter-topdown FR-020).
-constexpr std::string_view kSchemaVersion = "1.14";
+// specs/046-hunter-topdown FR-020, specs/041-counter-probe FR-051).
+constexpr std::string_view kSchemaVersion = "1.15";
 
 // The `source` word of one disclosed use, spelled as the enum of
 // `docs/schema/report-v1.json` states it (specs/028 E-04, FR-040). The
@@ -1128,12 +1129,61 @@ auto writeGraphRun(Builder& builder, const GraphRunRecord& entry) -> void
   }
 }
 
+// The devices the runs of this process needed, in the order the first run
+// needed them (specs/041-counter-probe FR-051). The runner's limit gathering is
+// the table's only writer and the entry point's report call its only reader,
+// the one-writer shape `limitSourceTable()` of the counters archive keeps. No
+// lock stands here: the runner seats a device on the thread that runs the
+// batch, before that batch's first window opens.
+auto counterLimitTable() -> std::vector<CounterLimitEntry>&
+{
+  static std::vector<CounterLimitEntry> table;
+  return table;
+}
+
+auto noteCounterLimit(CounterLimitEntry entry) -> void
+{
+  auto& table = counterLimitTable();
+  const auto seated =
+      std::ranges::find(table, entry.device, &CounterLimitEntry::device);
+  if (seated != table.end()) {
+    // One process publishes one figure and one finder per path (FR-040a), so a
+    // second seating of a path states what its first seating stated. The fuse
+    // names the fact the record of the device depends on.
+    SG_ENSURE(seated->limit == entry.limit && seated->source == entry.source,
+              "one path publishes one figure and one finder for one process");
+    return;
+  }
+  table.push_back(std::move(entry));
+}
+
+auto counterLimitEntries() -> const std::vector<CounterLimitEntry>&
+{
+  return counterLimitTable();
+}
+
+// One entry of the run-level `counterLimits` array: the device, the figure it
+// published or `null`, and the word of the finder that answered it (FR-051).
+// A device that published no figure stands beside `none`, the pair the counters
+// reader answers for such a path (FR-040a).
+void writeCounterLimit(Builder& builder, const CounterLimitEntry& entry)
+{
+  JsonObjectWriter object(builder);
+  put(builder, object, "device", entry.device);
+  putOrNull(builder, object, "limit", entry.limit);
+  put(builder,
+      object,
+      "source",
+      enumWord(kLimitSourceWords, std::to_underlying(entry.source)));
+}
+
 auto writeReport(const std::string& path,
                  const ReportData& data,
                  const RunDisclosure& disclosure,
                  const std::optional<JitterReportRecord>& jitter,
                  const std::optional<PrecheckRecord>& precheck,
-                 const std::optional<GraphRecord>& graph) -> bool
+                 const std::optional<GraphRecord>& graph,
+                 const std::vector<CounterLimitEntry>& counterLimits) -> bool
 {
   SG_REQUIRE(!path.empty(),
              "writeReport takes the path the option scanner settled "
@@ -1364,6 +1414,19 @@ auto writeReport(const std::string& path,
           runs.item();
           writeGraphRun(builder, entry);
         }
+      }
+    }
+    // specs/041-counter-probe FR-051: the record of where each needed device's
+    // counter limit came from stands after `graph` and before `benchmarks`,
+    // beside the other run-level records. A run that needed no device writes no
+    // key, so its document keeps the bytes it wrote before the record existed
+    // apart from the `schemaVersion` value.
+    if (!counterLimits.empty()) {
+      root.key("counterLimits");
+      JsonArrayWriter limits(builder);
+      for (const auto& entry : counterLimits) {
+        limits.item();
+        writeCounterLimit(builder, entry);
       }
     }
     root.key("benchmarks");

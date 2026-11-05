@@ -1,0 +1,321 @@
+# Coverage at the head (T056)
+
+**Branch**: `041-counter-probe` | **Head**: `ed0535af` | **Host**: `gary` | **Date**: 2026-11-05
+**Tree**: `build/coverage` from `cmake --preset=ci-coverage`, its `.gcda` files deleted
+before the suite so one run owns the trace.
+**Logs**: `/tmp/041-notes/t056-build.log`, `/tmp/041-notes/t056-coverage.log`,
+frozen trace `/tmp/041-notes/coverage-head.info` (a copy of `build/coverage/coverage.info`,
+taken before any entry was re-run).
+
+## The commands and their exits
+
+```console
+$ cmake --preset=ci-coverage                                   0
+$ cmake --build build/coverage -j8                             0
+$ find build/coverage -name '*.gcda' -delete                   0
+$ ctest --test-dir build/coverage -j 1 --output-on-failure --no-tests=error   8
+$ cmake --build build/coverage -t coverage                     2
+```
+
+The suite carries no `Not Run` entry, so the row carries a verdict.
+
+| Suite item | Head answer | Base answer |
+|---|---|---|
+| Entries | 180 | 181 (see the note below) |
+| Passed | 178 | 180 |
+| Failed | 1 (`88 - harness_precheck_test`) | 0 |
+| Skipped | 1 (`178 - harness_topdown_run_test`) | 1 (same entry) |
+| Not run | 0 | 0 |
+| Wall | 643.77 s | 665.57 s |
+
+`88 - harness_precheck_test` failed at 0.46 s with two lines:
+
+```console
+the refusal's standard error stands <>
+HARNESS PRECHECK TEST FAIL: the strict refusal stands one line (FR-014)
+```
+
+It passes on its own in the same tree, three times out of three, at about 34 s each:
+`ctest --test-dir build/coverage -R '^harness_precheck_test$' --output-on-failure` answers
+`100% tests passed out of 1`. A 0.46 s exit against a 34 s run is an early stop, and the
+gate's own comment names what an early stop does to a trace: it leaves rows dark past the
+stop. Its consequences for the figures are in the attribution section below.
+
+**The entry count and the base row.** `ci-coverage` never sets `SPEEDGUN_DBC_MATRIX` — the
+preset is byte-identical at `858c55d9` and at the head — so the five `dbc_matrix_*` entries
+stand unregistered in this tree, exactly as `test/CMakeLists.txt:155-158` intends ("coverage
+and sanitize leave them unregistered"). This tree therefore registers 180 where the head's
+`build` tree registers 185, while `results/coverage-base.txt` states 181 for its suite row.
+The difference carries no coverage consequence: each matrix entry configures and builds a
+tree of its own through `tools/dbc/semantics_matrix.sh`, so no counter of its own ever lands
+in `build/coverage`. The two traces remain comparable; the 181 in the base row is the count
+of a matrix-carrying tree and is worth correcting in that file.
+
+## The reading
+
+`cmake --build build/coverage -t coverage` exits 2 on this host, for the host reason
+`results/coverage-base.txt` and `docs/pages/building.md` already carry: lcov 2.3.1-1 from
+`~/.local/bin` refuses a lambda function it reads as hit with no contained line hit, and
+`genhtml` never runs. The refusal is the same three rows as at the base, two of them shifted
+by one line because the lane's own edit to `runner.cpp` moved them:
+
+```console
+lcov: ERROR: (inconsistent) "/home/archerc/code/speedgun-ng/source/harness/hunt_topdown.cpp":155: function '_ZZN2sg6detail18topdownDeepestNodeE…EKUlRKNS1_11TopdownNodeEE_clESB_' is hit but no contained lines are hit.
+lcov: WARNING: (inconsistent) "/home/archerc/code/speedgun-ng/source/harness/runner.cpp":708: function '…stripTopdownColumns…KUl…E_clEm' is hit but no contained lines are hit: function marked 'not hit'.
+lcov: WARNING: (inconsistent) "/home/archerc/code/speedgun-ng/source/harness/runner.cpp":821: function '…stripTopdownColumns…KUlRKSC_E_clESK_' is hit but no contained lines are hit: function marked 'not hit'.
+```
+
+Base named `hunt_topdown.cpp:155`, `runner.cpp:707` and `:820`. No script was edited and no
+marker was added; the trace was read out of tree with the flag that version asks for, the
+same route the base reading took:
+
+```console
+$ lcov --branch-coverage --summary build/coverage/coverage.info --ignore-errors inconsistent,corrupt
+Summary coverage rate:
+  source files: 86
+  lines.......: 99.9% (18011 of 18019 lines)
+  functions...: 98.3% (1868 of 1900 functions)
+  branches....: 99.3% (9385 of 9448 branches)
+```
+
+| Measure | Head | Base | Move |
+|---|---|---|---|
+| Lines | 99.9% (18011 of 18019) | 100.0% (17812 of 17812) | 8 dark line, −0.1 point |
+| Branches | 99.3% (9385 of 9448) | 99.4% (9298 of 9351) | 63 dark rows against 53, +10 |
+| Branch shortfall | 63 rows | 53 rows | +10 rows |
+| Recorded allowance | 21 rows (`tools/dbc/coverage_gate.sh:102`, ruling G-8) | same | head is 42 rows over |
+| Functions | 98.3% (1868 of 1900) | not recorded | 32 functions read not hit |
+| `LCOV_EXCL` markers | 84 | 84 | unchanged |
+
+The lane's own gate, run as written and with no flag added:
+
+```console
+$ bash tools/dbc/coverage_gate.sh build/coverage/coverage.info
+lcov: ERROR: (inconsistent) "…/source/harness/hunt_topdown.cpp":155: function '…' is hit but no contained lines are hit.
+coverage-gate: lcov failed to read build/coverage/coverage.info (exit 1)
+$ echo $?
+3
+```
+
+Exit 3 is the gate's tool-failure exit, the same reading the base row carries for this host:
+the gate never reaches a ratio. Read with the host flag, the line arm would fail the gate
+for a different reason — 99.9% is not 100% — and the branch arm would report 63 rows against
+the allowance of 21.
+
+`grep -c LCOV_EXCL -r source include` sums to **84**, at the figure FR-074 fixes, and no file
+this lane added carries one:
+
+```console
+$ grep -c LCOV_EXCL -r source include | awk -F: '{s+=$NF} END {print s}'
+84
+$ grep -c LCOV_EXCL -r source include | grep -v ':0$'
+source/counters/detail/core.hpp:2
+source/counters/linux_pmu/encode.cpp:1
+source/counters/linux_pmu/fast_read.cpp:7
+source/counters/linux_pmu/group_io.cpp:11
+source/counters/linux_pmu/table_parse.cpp:4
+source/counters/linux_pmu/provider.cpp:4
+source/counters/clock_provider.cpp:17
+source/counters/fold.cpp:5
+source/counters/plan.cpp:13
+source/counters/system.cpp:12
+source/simulation/marker.cpp:2
+include/speedgun-ng/dbc.hpp:4
+include/speedgun-ng/counters_provider.hpp:2
+```
+
+## Which figures are this host's reading
+
+Every figure above is `gary`'s reading: one host, one host-built tree, one suite run, the
+lcov of `~/.local/bin` (version 2.3.1-1) and the `--ignore-errors inconsistent,corrupt` flag
+that version demands. The shortfall of 63 is a host figure against a CI-union allowance of
+21, and the base host figure was 53 against the same allowance — the gate's own sentence
+governs both: a host run that reports them reports the host. The CI row of Principle VIII is
+where the 21-row allowance is judged.
+
+## The dark lines: 8, all in one file, all on lines the lane added
+
+`git diff -U0 858c55d9..HEAD -- source/harness/json_load.cpp` marks 82 added lines; every
+dark line of the head trace is among them. They are the refusal arms of the `counterLimits`
+reader the lane added:
+
+| Line | Code | Function |
+|---|---|---|
+| 3121 | `return std::unexpected(device.error());` | `readCounterLimitEntry` |
+| 3129 | `return std::unexpected(figure.error());` | `readCounterLimitEntry` |
+| 3141 | `return std::unexpected(word.error());` | `readCounterLimitEntry` |
+| 3163 | `return std::unexpected(text.error());` | `loadCounterLimits` |
+| 3169 | `return std::unexpected("the file '" + detail::quotedText(path)` | `loadCounterLimits` |
+| 3170 | `+ "' holds no JSON the parser reads: "` | `loadCounterLimits` |
+| 3171 | `+ simdjson::error_message(code));` | `loadCounterLimits` |
+| 3183 | `return std::unexpected(items.error());` | `loadCounterLimits` |
+
+`field()`, `asString()`, `asUnsigned()` and `asEnum()` each hand back an error the reader
+forwards, and no planted document in `test/source/` reaches any of those four forwards inside
+the `counterLimits` record. The same six positions carry the six dark branch rows of the
+file: 3120 branch 0, 3128 branch 0, 3140 branch 0, 3162 branch 0, 3168 branch 1 and 3182
+branch 0 — each the untaken arm of the `if (!x.has_value())` above its dark return.
+
+## The dark branch rows by file, head against base
+
+| File | Rows at base | Rows at head | Move |
+|---|---|---|---|
+| `source/counters/linux_pmu/topdown_select.cpp` | 17 | 17 | 0 |
+| `source/harness/cli.cpp` | 13 | 15 | **+2** |
+| `source/harness/runner.cpp` | 7 | 7 | 0 |
+| `source/harness/json_load.cpp` | 0 | 6 | **+6** |
+| `source/harness/options.cpp` | 3 | 3 | 0 |
+| `source/harness/execution_context.cpp` | 2 | 2 | 0 |
+| `source/harness/host_record_check.cpp` | 2 | 2 | 0 |
+| `source/harness/jitter_probe.cpp` | 2 | 2 | 0 |
+| `source/harness/report.cpp` | 2 | 2 | 0 |
+| `source/counters/linux_pmu/encode.cpp` | 1 | 1 | 0 |
+| `source/counters/linux_pmu/group_probe.cpp` | 0 | 1 | **+1** |
+| `source/counters/linux_pmu/limit_fill.cpp` | 0 | 1 | **+1** |
+| `source/counters/linux_pmu/table_parse.cpp` | 1 | 1 | 0 |
+| `source/harness/hunt_ranks.cpp` | 1 | 1 | 0 |
+| `source/harness/hunt_topdown.cpp` | 1 | 1 | 0 |
+| `source/harness/statistics.cpp` | 1 | 1 | 0 |
+| **Total** | **53** | **63** | **+10** |
+
+Four files move. Files the lane touched that move by nothing: `runner.cpp` (7 at base, 7 at
+head, and none of the seven stands on a line the lane added), `provider.cpp`,
+`counter_limits.cpp`, `limit_source.cpp` and `json_report.cpp` (0 at base, 0 at head).
+
+## The rows on the lane's own lines, named
+
+Intersecting the head trace with the line ranges `git diff -U0 858c55d9..HEAD` adds gives
+eight dark branch rows on the lane's own lines, and the 8 dark lines above:
+
+| File | Row | Code | Why it stands dark |
+|---|---|---|---|
+| `source/harness/json_load.cpp` | 3120 b0, 3128 b0, 3140 b0, 3162 b0, 3168 b1, 3182 b0 | the six `if (!x.has_value())` guards of `readCounterLimitEntry` and `loadCounterLimits` | no planted `counterLimits` document asks the reader for a missing `device`, a missing `limit`, a missing `source`, an unreadable file, an unparseable file, or a `counterLimits` that is not an array |
+| `source/counters/linux_pmu/group_probe.cpp` | 124 b1 | `verdict.fits = words[1] > 0 && words[2] == words[1];` | the scripted leader read never answers a zero first word: `test/source/counters_group_probe_test.cpp:129` fills `words[1]` with `enabled`, and the fill script at `test/source/counters_limit_fill_test.cpp:112` fills it with `1000U`, so the `words[1] > 0` refusal arm never runs |
+| `source/counters/linux_pmu/limit_fill.cpp` | 66 b2 | `if (entry == device.entries.end() || entry->words.empty())` | no fixture plants a located entry with an empty word list: `grep -n 'words = {}' test/source/*.cpp` answers nothing, so the second condition never reaches its true arm |
+
+## Attribution: the two `cli.cpp` rows belong to the failed entry
+
+The reading above comes from one suite run, and in it `88 - harness_precheck_test`
+stopped at 0.46 s.
+To tell the lane's rows from that stop's rows, the project's own `coverage` target was run
+again after the entry had been re-run three times to completion, with the same
+`COVERAGE_TRACE_COMMAND` and `COVERAGE_EXTRACT_COMMAND` of `cmake/coverage.cmake`:
+
+| Capture | Lines | Branches | Dark branch rows |
+|---|---|---|---|
+| The recorded row (one suite, precheck stopped early) | 99.9% (18011 of 18019) | 99.3% (9385 of 9448) | 63 |
+| After re-running the failed entry to completion | 99.9% (18009 of 18017) | 99.4% (9387 of 9448) | 61 |
+
+Two rows changed, both in `cli.cpp`, and both are the jitter/precheck report path the stopped
+entry would have walked: `cli.cpp:2190 branch 0` (`|| options.jitterProbe->method ==
+JitterMethod::TSC`) and `cli.cpp:2192 branch 1` (`std::printf("jitter: noise=%u stands
+unused: %s\n", …)`). With the entry whole, `cli.cpp` reads **13** rows — its base figure —
+and the total reads **61**, which is the base 53 plus the 8 rows the lane's own code owns.
+The 8 dark lines stayed 8 in that second capture, so they are not an early-stop artifact.
+
+The totals themselves drift a little between captures on this host (18019 against 18017
+lines, 1900 against 1884 functions), because the extract step's `exception,branch,brace`
+filters read the data that happens to be in the tree. Both ratios in this file are read from
+one capture, the recorded row's.
+
+`build/coverage/coverage.info` was then restored from `/tmp/041-notes/coverage-head.info`,
+so the trace that stands in the tree is the recorded row's trace, byte for byte.
+
+## Where the lane stands
+
+The duty this row carries: 100 percent lines on every file the lane adds, and no new dark
+branch in the files the lane adds.
+
+- **Lines**: `source/harness/json_load.cpp` carries 8 dark lines, all on lines the lane added.
+  The gate arm on lines fails at the head on this host even with the host flag in place:
+  99.9 percent is not 100 percent. This is a defect to close, not a host reading — it stayed
+  dark across two captures, and it sits in code the lane added in this branch.
+- **Branches in the files the lane adds**: `source/counters/linux_pmu/group_probe.cpp:124`
+  and `source/counters/linux_pmu/limit_fill.cpp:66` each carry one dark row on a line the
+  lane added. Two rows, named above with the scenario each one lacks.
+- **Branches in the files the lane modifies**: `json_load.cpp` +6 on added lines;
+  `cli.cpp` +2 rows that belong to the failed entry's early stop and read 13 with the entry
+  whole; `runner.cpp` unmoved at 7.
+- **Markers**: 84 against the 84 of FR-074, and no lane file holds one. Nothing was added.
+- **Project total**: 63 rows on this host against the CI-union allowance of 21, the base host
+  figure being 53. The 42-row distance is the host's, and the CI row of Principle VIII is
+  where the allowance is judged.
+
+The three scenario gaps are closed by planted documents and scripted answers in units the
+lane already owns: a `counterLimits` record whose entries refuse in each of the six ways, a
+leader read whose first word is zero, and a device entry with an empty word list.
+
+
+## Final row: the same tree after the three scenario gaps closed
+
+Head `99f3d650`, same host and the same lcov 2.3.1, one instrumented suite run on a host
+carrying nothing else. The capture and the filter are the project's own two commands, read
+out of `build/coverage/CMakeCache.txt` as `COVERAGE_TRACE_COMMAND` and
+`COVERAGE_EXTRACT_COMMAND` rather than retyped, and both exit 0. Frozen trace:
+`/tmp/041-notes/coverage-final.info`; logs: `/tmp/041-notes/p8-cov-suite.log`,
+`p8-capture.log`, `p8-extract.log`, `p8-summary.log`, `p8-list.txt`, `p8-gate.log`.
+
+| Reading | Value |
+|---|---|
+| Suite | exit 0, 100 percent of 180 passed, 0 failed, 0 `Not Run` |
+| Lines | 100.0 percent, 18020 of 18020, 0 dark |
+| Branches | 99.4 percent, 9395 of 9448, 53 dark |
+| Functions | 98.3 percent, 1868 of 1900 |
+| Markers | 84, the FR-074 figure, none in a lane file |
+| `coverage_gate.sh` | exit 3, issue #76's own stop |
+
+The 53 dark branches are the base host figure of `coverage-base.txt`, so the lane adds
+none and closes its own: the 8 lines of `source/harness/json_load.cpp` and the two branch
+rows at `group_probe.cpp:124` and `limit_fill.cpp:66` are lit by `test: Plant the refusals
+the reader never saw`. The shortfall of 53 against the CI-union allowance of 21 is this
+host's distance and stands unchanged from the base; the CI row of Principle VIII is where
+the allowance is judged.
+
+The gate's exit 3 is the stop issue #76 records: the capture writes lcov's lambda record
+for three `not hit` functions, and the gate's own read of the tracefile carries no ignore
+class. This branch moves the line that issue names in `runner.cpp` from 707 to 708 and
+adds one more at 821, and it changes no behaviour there. Every figure above is read with
+the ignore classes that issue's read route names, and no flag, marker, or script in the
+repository was changed to obtain them.
+
+Two readings on the way here carry no verdict and are named so a reader does not mistake
+them for this one. The first was taken while a second suite shared the host: three slow
+units hit their timeouts, and a reading whose suite failed carries nothing. The second was
+taken while a test file was edited mid-flight, so the capture refused `unknown branch at
+line '3341' ... there are only 3337 lines`, never wrote a trace, and left the file of the
+earlier run in place: the figures of this file's first section are that stale file.
+
+## The row retaken on the tree this branch carries
+
+**Tree**: `build/coverage`, its `.gcda` files deleted before the suite, so one run owns the
+trace. **Host**: `gary`, 2026-11-05. **Logs**: `/tmp/041-notes/final-cov-build.log`,
+`/tmp/041-notes/final-cov-suite.log`, `/tmp/041-notes/final-cov-capture.log`,
+`/tmp/041-notes/final-cov-summary.log`, frozen trace `/tmp/041-notes/coverage-final-row.info`.
+
+```text
+ctest --test-dir build/coverage -j 1 --output-on-failure --no-tests=error
+100% tests passed out of 180
+lcov -c -q --branch-coverage --no-external ... -o build/coverage/coverage.raw.info
+lcov --branch-coverage --filter exception,branch,brace --omit-lines ... -o build/coverage/coverage.info
+lcov --branch-coverage --summary build/coverage/coverage.info
+  source files: 86
+  lines.......: 100.0% (18019 of 18019 lines)
+  functions...: 98.3% (1868 of 1900 functions)
+  branches....: 99.4% (9395 of 9448 branches)
+bash tools/dbc/coverage_gate.sh build/coverage/coverage.info
+exit 3
+```
+
+Lines fall by one against the earlier row, from 18020 to 18019, and the count is still
+complete: nothing is dark. The figure moves because an executable line left the tree, so
+the row above keeps its own head and this row names this content. Branches hold at 9395 of
+9448, the 53 dark that this host reads at the base as well, so the lane adds no dark branch
+and no dark line. Functions hold at 1868 of 1900, the 32 the earlier section accounts for.
+The gate's exit 3 is the stop issue #76 records, and it is not a coverage figure.
+
+One reading of the extract step is worth its line here. The first attempt over this
+tracefile answered `lcov: ERROR: (empty) no valid records found in tracefile` and wrote no
+output, while the raw tracefile held 414 `SF:` records and 91710 `DA:` records with counts.
+Repeating the same extract command over the same raw file answered 0 and wrote the file the
+summary above read. The step is retried, not rewritten, and the project's own `coverage`
+target is the route the CI job takes.

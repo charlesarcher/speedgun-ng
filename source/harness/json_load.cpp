@@ -3108,10 +3108,92 @@ auto firstDuplicateKey(const simdjson::dom::element& root)
   return std::nullopt;
 }
 
+// One entry of the run-level `counterLimits` record of specs/041-counter-probe
+// (FR-051, FR-052): the device, the figure it published, and the word of the
+// finder that answered it. A `null` limit reads as no figure, the file form of
+// the console's `not available`, and a source word outside the three names the
+// record itself refuses: the reader guesses no finder (FR-052).
+auto readCounterLimitEntry(Element value, const std::string& where)
+    -> std::expected<detail::CounterLimitEntry, std::string>
+{
+  auto device = field(value, where, "device");
+  if (!device.has_value()) {
+    return std::unexpected(device.error());
+  }
+  auto name = asString(*device, where + "/device");
+  if (!name.has_value()) {
+    return std::unexpected(name.error());
+  }
+  auto figure = field(value, where, "limit");
+  if (!figure.has_value()) {
+    return std::unexpected(figure.error());
+  }
+  std::optional<std::size_t> count;
+  if (!figure->is_null()) {
+    auto published = asUnsigned(*figure, where + "/limit");
+    if (!published.has_value()) {
+      return std::unexpected(published.error());
+    }
+    count = static_cast<std::size_t>(*published);
+  }
+  auto word = field(value, where, "source");
+  if (!word.has_value()) {
+    return std::unexpected(word.error());
+  }
+  auto source = asEnum<sg::counters::LimitSource>(
+      detail::kLimitSourceWords, *word, where + "/source");
+  if (!source.has_value()) {
+    return std::unexpected(source.error());
+  }
+  return detail::CounterLimitEntry {
+      .device = std::move(*name), .limit = count, .source = *source};
+}
+
 }  // namespace
 
 namespace detail
 {
+
+auto loadCounterLimits(const std::string& path)
+    -> std::expected<std::vector<CounterLimitEntry>, std::string>
+{
+  SG_REQUIRE(!path.empty(), "loadCounterLimits reaches an empty path");
+  auto text = detail::readTextFile(path);
+  if (!text.has_value()) {
+    return std::unexpected(text.error());
+  }
+  simdjson::dom::parser parser;
+  auto parsed = parser.parse(simdjson::padded_string(std::string_view(*text)));
+  simdjson::dom::element root;
+  if (auto code = parsed.get(root); code != simdjson::SUCCESS) {
+    return std::unexpected("the file '" + detail::quotedText(path)
+                           + "' holds no JSON the parser reads: "
+                           + simdjson::error_message(code));
+  }
+  std::vector<CounterLimitEntry> entries;
+  // The key arrived at minor 1.15, so a document older than it carries none.
+  // The answer for such a document is no entry, which is the reading of a run
+  // that named no finder for no device (FR-052, SC-006).
+  const auto record = optionalField(root, "counterLimits");
+  if (!record.has_value()) {
+    return entries;
+  }
+  auto items = asArray(*record, "/counterLimits");
+  if (!items.has_value()) {
+    return std::unexpected(items.error());
+  }
+  std::size_t index = 0;
+  for (const auto item : *items) {
+    auto entry =
+        readCounterLimitEntry(item, "/counterLimits/" + std::to_string(index));
+    if (!entry.has_value()) {
+      return std::unexpected(entry.error());
+    }
+    entries.push_back(std::move(*entry));
+    ++index;
+  }
+  return entries;
+}
 
 auto checkReport(std::string_view schemaPath,
                  std::string_view document) -> std::expected<void, std::string>

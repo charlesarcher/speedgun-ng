@@ -543,11 +543,12 @@ auto aValueOutsideTheTableWritesTheGuardWord() -> void
 auto theDocumentStampsTheMinorThisFeatureRequires() -> void
 {
   const std::string text = sg::test::readText("harness_json_report.json");
-  check(text.starts_with("{\"schemaVersion\":\"1.14\""),
-        "the written document stamps schema minor 1.14, the minor "
-        "specs/046-hunter-topdown takes past the 1.13 of specs/042-topdown "
-        "(FR-086, FR-043, specs/039 FR-032, specs/037 FR-005, specs/043"
-        " FR-006, specs/042-topdown FR-036, specs/046-hunter-topdown FR-020)");
+  check(text.starts_with("{\"schemaVersion\":\"1.15\""),
+        "the written document stamps schema minor 1.15, the minor "
+        "specs/041-counter-probe takes past the 1.14 of "
+        "specs/046-hunter-topdown (FR-086, FR-043, specs/039 FR-032, specs/037 "
+        "FR-005, specs/043 FR-006, specs/042-topdown FR-036, "
+        "specs/046-hunter-topdown FR-020, specs/041-counter-probe FR-051)");
 }
 
 // FR-041, FR-043: the run that names no option file and no environment
@@ -830,6 +831,82 @@ auto theFoldWithNoSeriesStandsSkipped() -> void
   std::remove(kPath);
 }
 
+// specs/041-counter-probe FR-051, FR-052: the run-level record of where each
+// needed device's counter limit came from. One device carries a figure the
+// search answered, one carries no figure at all, and the reader of the written
+// document answers both back. A device the run already seated keeps one entry,
+// because one process publishes one figure and one finder per path, and a run
+// that needed no device writes no key.
+auto theCounterLimitRecordRoundTrips() -> void
+{
+  const auto searched = sg::detail::CounterLimitEntry {
+      .device = "cpu",
+      .limit = std::optional<std::size_t> {6},
+      .source = sg::counters::LimitSource::PROBE};
+  const auto silent =
+      sg::detail::CounterLimitEntry {.device = "uncore_imc_77",
+                                     .limit = {},
+                                     .source = sg::counters::LimitSource::NONE};
+  // A scripted run of this binary already seated its own device, so the
+  // seating is weighed against the table the run left behind.
+  const auto before = sg::detail::counterLimitEntries().size();
+  sg::detail::noteCounterLimit(searched);
+  sg::detail::noteCounterLimit(searched);
+  sg::detail::noteCounterLimit(silent);
+  const auto& table = sg::detail::counterLimitEntries();
+  check(table.size() == before + 2 && table[before].device == "cpu"
+            && table.back().device == "uncore_imc_77",
+        "the seating names each needed device once (FR-051)");
+
+  const std::vector<sg::detail::CounterLimitEntry> record {searched, silent};
+  sg::ReportData data;
+  check(sg::detail::writeReport("harness_json_limits.json",
+                                data,
+                                {},
+                                std::nullopt,
+                                std::nullopt,
+                                std::nullopt,
+                                record),
+        "the writer wrote the document of two needed devices (FR-051)");
+  const std::string text = sg::test::readText("harness_json_limits.json");
+  check(text.find("\"counterLimits\":[{\"device\":\"cpu\",\"limit\":6,"
+                  "\"source\":\"probe\"},{\"device\":\"uncore_imc_77\","
+                  "\"limit\":null,\"source\":\"none\"}]")
+            != std::string::npos,
+        "the record writes the device, the figure and the finder word of each "
+        "needed device (FR-051)");
+  const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, text);
+  if (!clean.has_value()) {
+    std::printf("  the limit record: %s\n", clean.error().c_str());
+  }
+  check(clean.has_value(),
+        "the document that carries the record passes the schema (FR-051)");
+
+  const auto read = sg::detail::loadCounterLimits("harness_json_limits.json");
+  check(read.has_value() && read->size() == 2 && read->front().device == "cpu"
+            && read->front().limit == std::optional<std::size_t> {6}
+            && read->front().source == sg::counters::LimitSource::PROBE
+            && read->back().device == "uncore_imc_77"
+            && !read->back().limit.has_value()
+            && read->back().source == sg::counters::LimitSource::NONE,
+        "the reader answers the entries the writer wrote (FR-052)");
+  if (!read.has_value()) {
+    std::printf("  the limit read: %s\n", read.error().c_str());
+  }
+  std::remove("harness_json_limits.json");
+
+  check(sg::detail::writeReport("harness_json_nolimits.json", data),
+        "the writer wrote the document of an empty record");
+  check(
+      sg::test::readText("harness_json_nolimits.json").find("\"counterLimits\"")
+          == std::string::npos,
+      "an empty record writes no key (FR-051)");
+  const auto none = sg::detail::loadCounterLimits("harness_json_nolimits.json");
+  check(none.has_value() && none->empty(),
+        "a document without the record answers no entry (FR-052)");
+  std::remove("harness_json_nolimits.json");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -850,6 +927,7 @@ auto main() -> int
   aRefusedOpenQuotesTheReportPath();
   aRowWithoutARawEntryWritesNoColumns();
   theFoldWithNoSeriesStandsSkipped();
+  theCounterLimitRecordRoundTrips();
   theGuardWordStandsPastTheTable();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);

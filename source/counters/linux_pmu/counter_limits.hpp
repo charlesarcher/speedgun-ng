@@ -192,6 +192,41 @@ struct CounterLimitRegisters
                                   bool hasFixedCycles) noexcept
     -> std::optional<std::size_t>;
 
+/// The devices the group probe of specs/041-counter-probe may search (FR-031,
+/// FR-032, D-1). The three core devices of `limitForDevice` answer, and so does
+/// an Arm core device named by the `armv8_` prefix that
+/// `source/harness/hunt.cpp:44` spells `kCorePrefix`. An uncore device such as
+/// `amd_l3` or `amd_df` holds no core's general counters: a search of one would
+/// price a device no benchmark column schedules.
+///
+/// \pre none
+/// \post True for `cpu`, `cpu_core`, `cpu_atom` and a name that starts with
+///       `armv8_`; false for every other name, the empty name included.
+[[nodiscard]] auto isProbeCoreDevice(std::string_view deviceName) noexcept
+    -> bool;
+
+/// The event one group search carries, named as the device lists it (FR-033,
+/// D-9). The x86 core devices answer `branch-instructions`, the generic alias
+/// the kernel publishes under
+/// `/sys/bus/event_source/devices/<dev>/events/`, which is the branch
+/// instructions of the measured thread: the event
+/// `specs/041-counter-probe/tools/group_probe.c` searched with to measure F-1
+/// to F-5. The answer is a name and never a number, because the encoding of
+/// one event belongs to the device: the provider reads the words of that
+/// entry from the device's own listing, and the search opens them on that
+/// device's own type. An `armv8_` device answers no name at this audit point:
+/// D-5 names no Arm host, this tree holds no Arm event table, and the
+/// acceptance host lists no `armv8_*` device, so the row stands empty until a
+/// host can list its events. A device that answers no name, or that lists no
+/// entry under it, pays no open, which is FR-034's answer.
+///
+/// \pre none
+/// \post `branch-instructions` for INTEL, ZHAOXIN and AMD; no value for an
+///       `armv8_` name and no value for `OTHER`.
+[[nodiscard]] auto probeEventNameForDevice(std::string_view deviceName,
+                                           CounterLimitVendor vendor) noexcept
+    -> std::optional<std::string_view>;
+
 }  // namespace sg::counters::detail
 
 #endif  // SG_COUNTERS_LINUX_PMU_COUNTER_LIMITS_HPP

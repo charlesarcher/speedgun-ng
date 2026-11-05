@@ -873,6 +873,7 @@ The run writes its document at `--json=path`, loads it back with `loadReport`, a
 | `metricByName` | free function | Resolves one metric of the host's table by name | [hardware-counter-metrics](#hardware-counter-metrics) |
 | `metricMethod` | BenchmarkHandle | Chooses how a run collects its metric columns | [multi-pass-collection](#multi-pass-collection) |
 | `Object::programmableCounters` | Object | Answers how many programmable counters one context can hold open | [multi-pass-collection](#multi-pass-collection) |
+| `objectLimitSource` | free function | Answers which finder published that limit: the decode, the group search, or neither | [multi-pass-collection](#multi-pass-collection) |
 | `State::range` | State | Reads one argument position of the instance | [argument-families-and-ranges](#argument-families-and-ranges) |
 | `State::setIterationTime` | State | Reports one iteration's time in nanoseconds | [timing-modes](#timing-modes) |
 | `State::pauseTiming` | State | Opens the pause that excludes the work below it | [pause-and-resume](#pause-and-resume) |

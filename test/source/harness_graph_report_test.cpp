@@ -1063,6 +1063,7 @@ auto schemaCarriesGraphKeysAndOrder() -> void
                                    "jitter",
                                    "precheck",
                                    "graph",
+                                   "counterLimits",
                                    "benchmarks",
                                    "hunt"});
   check(schema.find(topOrder) != std::string::npos,

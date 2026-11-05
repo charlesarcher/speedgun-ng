@@ -510,6 +510,43 @@ target_compile_features(counters_pmu_window_test PRIVATE cxx_std_23)
 add_test(NAME counters_pmu_window_test
          COMMAND counters_pmu_window_test)
 
+# The group probe of specs/041-counter-probe, over the scripted kernel the seam
+# installs: the grant at 6, the refusal at any size, the short read, and the cap-
+# wide fit all answer on a host whose `perf_event_open` is refused (FR-011,
+# FR-071, FR-073; T010).
+add_executable(counters_group_probe_test
+               source/counters_group_probe_test.cpp)
+target_link_libraries(counters_group_probe_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_group_probe_test PRIVATE cxx_std_23)
+add_test(NAME counters_group_probe_test
+         COMMAND counters_group_probe_test)
+
+# The source of one published limit, read beside the figure (specs/041-counter-probe
+# T030; FR-040a, FR-043, FR-053, D-3a). The unit reaches the recorder through the
+# relative include of a private header, and every case scripts the record, so no case
+# needs a kernel counter, a probe, or a privilege.
+add_executable(counters_limit_source_test
+               source/counters_limit_source_test.cpp)
+target_link_libraries(counters_limit_source_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_limit_source_test PRIVATE cxx_std_23)
+add_test(NAME counters_limit_source_test
+         COMMAND counters_limit_source_test)
+
+# The pass that seats a device's published limit, and the finder it names
+# (specs/041-counter-probe T041; FR-022, FR-030 to FR-034, FR-040a, FR-042 to
+# FR-044, D-6, D-8). The pass takes the decode's figure as an argument and the
+# search runs over the scripted kernel, so every row of its table reaches a case
+# on any host and no case needs a counter, a privilege, or a device.
+add_executable(counters_limit_fill_test
+               source/counters_limit_fill_test.cpp)
+target_link_libraries(counters_limit_fill_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_limit_fill_test PRIVATE cxx_std_23)
+add_test(NAME counters_limit_fill_test
+         COMMAND counters_limit_fill_test)
+
 # The provider through the public surface, over a scripted sysfs tree
 # and a scripted kernel, so the enumeration arms the coverage gate
 # measures carry their own counts on every host (G-19, G-21; Phase D).
@@ -802,6 +839,21 @@ target_compile_definitions(
     PRIVATE SG_SCHEMA_PATH="${CMAKE_SOURCE_DIR}/docs/schema/report-v1.json"
 )
 add_test(NAME harness_json_load_test COMMAND harness_json_load_test)
+
+# The disclosure of where a published counter limit came from, and the run-level
+# record of the same answer (specs/041-counter-probe T043 to T045; FR-050,
+# FR-051, FR-052, D-3, D-3a; contracts/disclosure.md). Each scenario runs the
+# entry point in a re-exec of this binary behind a scripted kernel and a
+# scripted devices root, because one process publishes one limit and one finder
+# per device path. The two counters seams reach the unit the way
+# counters_pmu_provider_test.cpp reaches them, and the writer's internal header
+# the way harness_json_report_test reaches the harness source directory.
+add_executable(harness_limit_disclosure_test
+               source/harness_limit_disclosure_test.cpp)
+target_link_libraries(harness_limit_disclosure_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_limit_disclosure_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_limit_disclosure_test PRIVATE cxx_std_23)
+add_test(NAME harness_limit_disclosure_test COMMAND harness_limit_disclosure_test)
 
 # The rule grammar and the compare mode of the regression gate (specs/026
 # T007; FR-071, SC-007, D-20, PC-10). The fixture documents reach each

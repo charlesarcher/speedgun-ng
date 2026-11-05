@@ -1107,6 +1107,7 @@ so they land beside the story they show and stay outside this cut.
    `specs/046-hunter-topdown/results/pr-body.md` with every number this file
    states as measured.
 
+
 ## Phase 8: Post-merge fixes (owner ruling, 2026-11-05)
 
 **Base**: `858c55d9`, the merged head of pull requests #78 and #79: version
@@ -1125,3 +1126,71 @@ change. No CI or gate change.
       ```
 
       The command prints nothing.
+
+## Phase 9: Master acceptance (AMD)
+
+- Records only. ZA-001 to ZA-005 measure SC-009 on the AMD Zen 5 host and write
+  what it answered. No source, test, CMake, CI or gate file rides this phase, and
+  no new spec number joins. The base is `858c55d9`, dated 2026-11-05: version
+  `0.31.0`, schema `1.14`, harness `SOVERSION` 21, archive `SOVERSION` 6, 84
+  `LCOV_EXCL` markers, `README.md` 1001 lines.
+
+- [X] ZA-001 Build master in Release and run the hunt commands of
+  `results/acceptance-hunt.md` three times each, with no option change:
+  `cmake --preset=ci-rocky`, `cmake --build build`,
+  `./build/example/memory_walk --hunt --hunt-budget 120s` and
+  `build/example/first_benchmark --hunt --hunt-budget 120s`. Record the ranked
+  rows, the top-down area of each ranked event, the level-1 block, and the count
+  of unmapped events (SC-007, SC-009).
+  The build answered exit 0 and 181 registered entries. All six hunt runs answered
+  exit 134 with `the ratio pair is written together or left together (FR-004)` at
+  `source/counters/fold.cpp:166`, and printed no plan line, no ranked row, no area
+  cell, no block and no count. The same two benchmarks ran again with
+  `--metric-method multiplex`: six runs, exit 0, 730 lines each, `hunt: plan
+  events=353 passes=89 method=MULTIPLEX`, and the same three row counts in every
+  run. `results/acceptance-amd-zen5.md` carries both readings.
+
+- [X] ZA-002 Check SC-009: each area names a node of the selected AMD (Zen 5)
+  table and no Intel node. Where an event carries no area, give its name and the
+  reason the tool prints. If SC-009 fails, record the failure and stop; fix no
+  code here.
+  The run's own line names the selected table `arch/x86/amdzen5/`
+  (`reference=linux-7.2.4`) on the family 26, model 68 part. Of 353 ranked rows,
+  11 name a node of that table (`topdown.bad_speculation >
+  topdown.amd.bad_speculation_from_mispredicts` 5, `topdown.backend_bound >
+  topdown.amd.backend_bound_by_memory` 3, `topdown.frontend_bound` 1,
+  `topdown.retiring > topdown.amd.retiring_from_fastpath` 1,
+  `topdown.smt_contention` 1), 334 name a group of the listing, and 8 answer
+  `unmapped`. No cell names an Intel node, and the string `intel` appears 0 times
+  in the six logs. SC-009 therefore stands measured for the run that completes,
+  and the abort of the command as `results/acceptance-hunt.md` writes it stands as
+  its own open row: the record shows the abort at `paranoid` 2 and at `-1`, the
+  1129 opens `strace` listed, and the `linkRatioSlots` arm pair that leaves half a
+  ratio pair. AMD Zen 4 stays a pending row.
+
+- [X] ZA-003 Run the full suite and the two-cpu suite, and name every failing
+  entry: `ctest --test-dir build --output-on-failure` and
+  `taskset -c 0,1 ctest --test-dir build --output-on-failure`.
+  Both rows answered 181 entries, 180 passed, 0 failed, 1 reported skipped,
+  308.12 s and 257.39 s. The skipped entry is `harness_topdown_run_test`, which
+  exits with the registration's skip code after one of its 27 scenarios skips on
+  its own host-identity guard; its other 26 scenarios passed. No entry failed on
+  either row.
+
+- [X] ZA-004 Write `results/acceptance-amd-zen5.md` with the host, the CPU family
+  and model, the kernel, the compiler, the master sha,
+  `kernel.perf_event_paranoid`, the commands and every figure above; use
+  `$HOME/` or build-relative paths, and name no person. Mark SC-009 of `spec.md`
+  measured on AMD Zen 5 with a link here, and keep Zen 4 pending. Keep SC-010
+  (Arm, Intel hybrid, `PERF_METRICS` parts) pending.
+  Done: the record stands at `results/acceptance-amd-zen5.md` (184 lines), and
+  `spec.md` names SC-009 measured on AMD Zen 5 with the link and the option the
+  host needed. Zen 4, Arm, Intel hybrid and `PERF_METRICS` rows stand pending.
+
+- [X] ZA-005 Tick ZA-001 to ZA-005, clear the gates over the head, and squash the
+  lane into one commit before the pull request (ruling G-23).
+  Cleared over the head: `cmake -P cmake/lint.cmake`,
+  `cmake -P cmake/spell.cmake`, `tools/docs/example_drift.py`,
+  `tools/prose/prose_gate.py --base origin/master`, and
+  `tools/dbc/dbc_pair_gate.py`. The pull request body gives the host, the kernel,
+  the counts and the head sha (ruling G-20), and the lane merges nothing.

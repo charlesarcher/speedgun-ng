@@ -40,6 +40,8 @@ namespace
 
 using sg::counters::detail::CounterLimitRegisters;
 using sg::counters::detail::CounterLimitVendor;
+using sg::counters::detail::isProbeCoreDevice;
+using sg::counters::detail::probeEventNameForDevice;
 
 auto fail(const char* what) -> void
 {
@@ -687,6 +689,111 @@ auto deviceTableScenario() -> void
   }
 }
 
+// The devices the group probe of specs/041-counter-probe may search. The rows
+// hold the three core names, the Arm prefix, and the names that stand outside
+// the search (FR-031, FR-032, D-1).
+struct ProbeDeviceRow
+{
+  std::string_view name;
+  bool expected;
+  const char* why;
+};
+
+auto probeDeviceTableScenario() -> void
+{
+  static constexpr ProbeDeviceRow kRows[] = {
+      {"cpu", true, "cpu is searchable by the probe (FR-031)"},
+      {"cpu_core", true, "a hybrid core name is searchable (FR-031)"},
+      {"cpu_atom", true, "the other hybrid name is searchable (FR-031)"},
+      {"armv8_pmuv3_0", true, "the armv8_ prefix names an Arm core (FR-031)"},
+      {"amd_l3_0", false, "an L3 uncore device is out of scope (FR-032)"},
+      {"amd_df_0", false, "a data-fabric device is out of scope (FR-032)"},
+      {"uncore_imc_0", false, "an Intel uncore is out of scope (FR-032)"},
+      {"instructions", false, "a pseudo device is out of scope (FR-032)"},
+      {"", false, "the empty name searches nothing (FR-031)"},
+      {"armv8", false, "the prefix needs the underscore (FR-031)"},
+  };
+
+  for (const auto& row : kRows) {
+    const auto answer = isProbeCoreDevice(row.name);
+    if (answer != row.expected) {
+      std::fprintf(stderr,
+                   "  %.*s: answered %d, expected %d\n",
+                   int(row.name.size()),
+                   row.name.data(),
+                   int(answer),
+                   int(row.expected));
+    }
+    check(answer == row.expected, row.why);
+  }
+}
+
+// The event one search carries: the x86 rows answer the branch-instructions
+// word, and the Arm row stands empty at this audit point (FR-033, FR-034,
+// D-5, D-9).
+struct ProbeEventRow
+{
+  std::string_view name;
+  CounterLimitVendor vendor;
+  std::optional<std::string_view> expected;
+  const char* why;
+};
+
+auto probeEventTableScenario() -> void
+{
+  static constexpr std::optional<std::string_view> kBranch {
+      "branch-instructions"};
+  static constexpr std::optional<std::string_view> kNoEvent = std::nullopt;
+  static constexpr ProbeEventRow kRows[] = {
+      {"cpu",
+       CounterLimitVendor::INTEL,
+       kBranch,
+       "an Intel core searches the branch event (FR-033)"},
+      {"cpu",
+       CounterLimitVendor::ZHAOXIN,
+       kBranch,
+       "a Zhaoxin core searches it too (FR-033)"},
+      {"cpu",
+       CounterLimitVendor::AMD,
+       kBranch,
+       "an AMD core searches F-1's event (FR-033)"},
+      {"armv8_pmuv3_0",
+       CounterLimitVendor::OTHER,
+       kNoEvent,
+       "the Arm row stands empty today (FR-033, D-5)"},
+      {"armv8_pmuv3_0",
+       CounterLimitVendor::AMD,
+       kNoEvent,
+       "the name settles the row first (FR-033)"},
+      {"instructions",
+       CounterLimitVendor::OTHER,
+       kNoEvent,
+       "no vendor answers no event (FR-034)"},
+  };
+
+  const auto textOf =
+      [](const std::optional<std::string_view> value) -> std::string_view
+  { return value.value_or(std::string_view {"none"}); };
+
+  for (const auto& row : kRows) {
+    const auto answer = probeEventNameForDevice(row.name, row.vendor);
+    if (answer != row.expected) {
+      const auto got = textOf(answer);
+      const auto want = textOf(row.expected);
+      std::fprintf(stderr,
+                   "  %.*s vendor %d: answered %.*s, expected %.*s\n",
+                   int(row.name.size()),
+                   row.name.data(),
+                   int(row.vendor),
+                   int(got.size()),
+                   got.data(),
+                   int(want.size()),
+                   want.data());
+    }
+    check(answer == row.expected, row.why);
+  }
+}
+
 }  // namespace
 
 auto main() -> int
@@ -699,6 +806,8 @@ auto main() -> int
   hybridTableScenario();
   usableTableScenario();
   deviceTableScenario();
+  probeDeviceTableScenario();
+  probeEventTableScenario();
   std::printf(
       "counters_counter_limits_test PASS: every decision table row matches\n");
   return EXIT_SUCCESS;

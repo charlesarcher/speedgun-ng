@@ -1471,12 +1471,13 @@ auto soVersionOf(const std::string& cmake,
 }
 
 // FR-050: the version bindings read the numbers the version move lands:
-// the project version `0.31.0`, the harness archive `SOVERSION 21` and the
-// counters archive `SOVERSION 6`. specs/043 FR-005 took the project and the
+// the project version `0.32.0`, the harness archive `SOVERSION 21` and the
+// counters archive `SOVERSION 7`. specs/043 FR-005 took the project and the
 // harness pair from the 0.28.0 and 19 that specs/037 landed. specs/046 moves
-// the pair again: the counters surface gains a record and its accessor, and
-// the hunt record gains its area text. Each figure below reads the property
-// line of the target it names.
+// the pair again, and specs/041-counter-probe moves the counters number once
+// more: one exported accessor over one new closed enumeration, with no
+// harness layout moved. Each figure below reads the property line of the
+// target it names.
 ///
 /// \pre the root `CMakeLists.txt` can be read
 /// \post the three rows answer the numbers FR-050 moves
@@ -1485,14 +1486,14 @@ auto theVersionBindingsReadTheMovedNumbers(const std::filesystem::path& start)
 {
   const std::string cmake = rootCMakeText(start);
   SG_ASSERT(!cmake.empty(), "pre: the root CMakeLists.txt can be read");
-  check(projectVersion(start) == "0.31.0",
-        "the project version reads 0.31.0 (FR-050)");
+  check(projectVersion(start) == "0.32.0",
+        "the project version reads 0.32.0 (FR-050)");
   check(soVersionOf(cmake, "speedgun-ng_harness") == "21",
         "the harness property line reads SOVERSION 21 (FR-050)");
-  check(soVersionOf(cmake, "speedgun-ng_speedgun-ng") == "6",
-        "the counters archive property line reads SOVERSION 6 (FR-050)");
-  check(soVersionNumbers(cmake) == "6 21",
-        "the two archive SOVERSION lines read 6 for the counters archive and "
+  check(soVersionOf(cmake, "speedgun-ng_speedgun-ng") == "7",
+        "the counters archive property line reads SOVERSION 7 (FR-050)");
+  check(soVersionNumbers(cmake) == "7 21",
+        "the two archive SOVERSION lines read 7 for the counters archive and "
         "21 for the harness archive, in file order (FR-050)");
 }
 
