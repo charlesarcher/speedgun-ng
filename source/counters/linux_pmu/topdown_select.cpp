@@ -553,19 +553,13 @@ auto topdownTree(const TopdownSelection& options)
     tree.refused.push_back(std::move(entry));
   }
 
-  // The shape the contract states, read back over the answer: a node names a
-  // row the table published, stands at or above the depth the answer states,
-  // and names a parent that stands earlier in the vector (FR-008, FR-013,
-  // FR-020).
-  [[maybe_unused]] const bool shapeHolds =
-      [&table, &rowsByName](const TopdownTree& built) -> bool
+  // The shape the contract states, read back over the answer: a node stands at
+  // a level the answer reaches, and names a parent that stands earlier in the
+  // vector one level above it (FR-008, FR-013, FR-020).
+  [[maybe_unused]] const bool shapeHolds = [](const TopdownTree& built) -> bool
   {
     for (std::size_t here = 0; here != built.nodes.size(); ++here) {
       const TopdownNode& node = built.nodes[here];
-      const auto stated = rowsByName.find(node.vendorName);
-      if (stated == rowsByName.end() || !table.rows[stated->second].published) {
-        return false;
-      }
       if (node.level < 1 || node.level > built.depth) {
         return false;
       }
@@ -589,10 +583,25 @@ auto topdownTree(const TopdownSelection& options)
     return true;
   }(tree);
 
+  // Whether every node names a row the table published. The pass adds a node
+  // for a row only once that row's `published` flag stands, and the metric
+  // layer refuses the second row of a duplicated name, so the index of a
+  // published name reaches a published row (FR-011, FR-016). Only a table a
+  // test composes by hand carries a duplicated name into this pass, and the
+  // readback over the whole vector is what names that shape.
+  [[maybe_unused]] const bool publishedHolds = std::ranges::all_of(
+      tree.nodes,
+      [&table, &rowsByName](const TopdownNode& node)
+      {
+        const auto stated = rowsByName.find(node.vendorName);
+        return stated != rowsByName.end()
+            && table.rows[stated->second].published;
+      });
+
   SG_ENSURE(tree.depth == options.level || tree.depth == deepest,
             "the depth is the asked level clamped to the deepest level the "
             "table " "holds (FR-008, FR-020)");
-  SG_ENSURE(shapeHolds,
+  SG_ENSURE(shapeHolds && publishedHolds,
             "no node stands that a published row of the table does not state, "
             "every parent names an element that stands earlier in the vector, "
             "and that element stands one level above (FR-013)");

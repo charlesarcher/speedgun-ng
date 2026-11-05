@@ -858,13 +858,13 @@ every record, and the standing contracts carry the deltas.
 **Purpose**: the hard gates of Principle VIII at the feature head, in
 the order of the plan Gate commands table.
 
-- [ ] T048 Run the release build and the full suite in the `build`
+- [x] T048 Run the release build and the full suite in the `build`
   directory: configure `ci-rocky`, build, and run every test, then the
   three-binary and the four-binary selections of the plan Gate commands
   table (constitution VIII, FR-033).
   (depends on T001 to T047)
   Verify: `cmake --preset=ci-rocky` exits 0, `cmake --build build` exits 0 with no warning line, `ctest --test-dir build --output-on-failure` reads `100% tests passed, 0 tests failed`, `ctest --test-dir build -R "harness_fwq_ftq_test|harness_spectrum_test|harness_jitter_bytes_test" --output-on-failure` exits 0 with three `***Passed` lines, and `ctest --test-dir build -R "harness_cli_table_test|harness_json_schema_test|harness_json_load_test|harness_compare_test" --output-on-failure` exits 0
-- [ ] T049 Run the full suite under a two-cpu mask, the probe cpus coming
+- [x] T049 Run the full suite under a two-cpu mask, the probe cpus coming
   from `sched_getaffinity` and no test naming a fixed cpu number. The
   `test` CI job of `.github/workflows/ci.yml` supplies the 2-cpu host
   reading, and T058 records it (FR-024, SC-006).
@@ -879,13 +879,13 @@ the order of the plan Gate commands table.
   (FR-032, SC-006, R-22).
   (depends on T048)
   Verify: `cmake --preset=ci-coverage` exits 0, `cmake --build build/coverage -j "$(nproc)"` exits 0, `ctest --test-dir build/coverage -j 1 --output-on-failure --no-tests=error` exits 0, `cmake --build build/coverage -t coverage` reads `lines......: 100.0%` and `branches...: 100.0%`, the gate prints no `branch shortfall` line so the shortfall stands 0 rows with the allowance unchanged at 21, `grep -rn "LCOV_EXCL" source/harness` reads no match, and `git diff --name-only origin/master...HEAD -- tools/dbc/coverage_gate.sh` reads no line, so no `--omit-lines`, `--ignore-errors` and `--remove` entry joins
-- [ ] T051 [P] Run the sanitizer and thread-sanitizer suites in their own
+- [x] T051 [P] Run the sanitizer and thread-sanitizer suites in their own
   binary directories `build/sanitize` and `build/tsan`: configure and
   build `ci-sanitize` and `ci-tsan`, and run each suite (constitution
   VIII, FR-033).
   (depends on T048)
   Verify: `cmake --preset=ci-sanitize`, `cmake --build build/sanitize -j "$(nproc)"` and `ctest --test-dir build/sanitize --output-on-failure -j "$(nproc)"` exit 0 with no `AddressSanitizer` line and no `runtime error` line, and `CXX=clang++ cmake --preset=ci-tsan`, `cmake --build build/tsan -j "$(nproc)"` and `ctest --test-dir build/tsan --output-on-failure -j "$(nproc)"` exit 0 with no `WARNING: ThreadSanitizer` line
-- [ ] T052 [P] Run the analyzer build once with clang-tidy and cppcheck
+- [x] T052 [P] Run the analyzer build once with clang-tidy and cppcheck
   wired in, and the DBC gate: every new name reads clean under
   `readability-identifier-naming`, and every other finding stands fixed
   (constitution V, IX, FR-033). The build stands in its own binary
@@ -893,23 +893,23 @@ the order of the plan Gate commands table.
   T049 and T054.
   (depends on T048)
   Verify: `cmake --preset=ci-ubuntu -B build/tidy` exits 0, `cmake --build build/tidy -j "$(nproc)"` exits 0 with no new finding, and `cmake -S . -B build/dev --preset=ci-ubuntu` then `cmake --build build/dev -t dbc-gate -j "$(nproc)"` exits 0
-- [ ] T053 [P] Run the time-source gate and the code-discipline review:
+- [x] T053 [P] Run the time-source gate and the code-discipline review:
   time stands from `sg::counters` alone, no lambda stands inside an `SG_*`
   macro, contract-only helpers carry `[[maybe_unused]]`, and simdjson
   stands the only JSON reader the change uses (FR-024, FR-033).
   (depends on T048)
   Verify: `bash test/time_source_gate.sh .` prints `time_source_gate: clean` and exits 0, `grep -nE "SG_(REQUIRE|ENSURE|INVARIANT)\(.*\] *\(" source/harness/spectrum.cpp source/harness/jitter_probe.cpp` reads no match, and `grep -rnE "nlohmann|rapidjson" source/harness/spectrum.cpp source/harness/detail/spectrum.hpp` reads no match
-- [ ] T054 Run the docs gates, their fixtures and the shape folds over
+- [x] T054 Run the docs gates, their fixtures and the shape folds over
   the branch, in the `build` directory T048 configures (FR-023, FR-029,
   SC-007).
   (depends on T039, T040, T041, T042, T043, and on T048 for the build
   directory)
   Verify: `ctest --test-dir build -R "example_drift|example_drift_fixtures|snippet_compile|example_run|example_run_fixtures|report_shape_fwq_ftq_sample|report_shape_jitter_sample|report_shape_fixtures" --output-on-failure` exits 0, each entry printing `***Passed` and the fold printing no difference, and `python3 tools/prose/prose_gate.py --base origin/master` reads `0 findings` and exits 0
-- [ ] T055 [P] Run the prose gate, the format gate and the spell gate
+- [x] T055 [P] Run the prose gate, the format gate and the spell gate
   over the branch range (constitution V, XI, FR-033).
   (depends on T048)
   Verify: `python3 tools/prose/prose_gate.py --base origin/master` reads `0 findings` and exits 0, `clang-format --version` prints `18.1.8`, the version CI pins and the version `tools/ci/prepush.sh:186-194` requires, then `cmake -D FORMAT_COMMAND=clang-format -P cmake/lint.cmake` exits 0 with no file named, and `cmake -P cmake/spell.cmake` exits 0
-- [ ] T056 Run the pre-push script over the lane, both its forms, and the
+- [x] T056 Run the pre-push script over the lane, both its forms, and the
   FR-034 diff-scope check: the lane adds no option row, no option value,
   no dependency, no CI change and no gate-configuration change, and moves
   no cap, threshold, preset, job, exclusion and allowance line
@@ -927,6 +927,9 @@ the order of the plan Gate commands table.
   read of T058 names (constitution History, FR-028).
   (depends on T056, T057)
   Verify: `git push --force-with-lease origin 043-fwq-ftq` exits 0, and `gh run list --branch 043-fwq-ftq --limit 1` prints one run id, which stands recorded in `specs/043-fwq-ftq/results/ci-run.md`
+  Note (specs/045-merge-fixes T111, 2026-11-03): the row stays open. The verify text demands a branch shortfall of 0 rows, and the 045 fix branch carries the standing allowance of 21 with its own dark positions mapped in specs/045-merge-fixes. The coverage figures at the 045 head stand in specs/045-merge-fixes/results/.
+  Note (specs/045-merge-fixes T111, 2026-11-03): the row stays open. The acceptance record it names belongs to the 043 lane, and the 045 fix branch writes no record under specs/043-fwq-ftq/results/.
+  Note (specs/045-merge-fixes T111, 2026-11-03): the row stays open. The 043 lane push stands with its owner; the 045 fix branch pushes only 045-merge-fixes.
 
 **Checkpoint**: every hard gate stands green at the head, and the pushed
 head stands recorded with its run reference.

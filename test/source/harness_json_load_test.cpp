@@ -34,6 +34,9 @@ namespace
 {
 constexpr const char* const kWritten = "harness_json_load_written.json";
 constexpr const char* const kAgain = "harness_json_load_again.json";
+// The document of the top-down arms: the plants write over `kAgain`, so the
+// record's own bytes stand under a path of their own (FR-034).
+constexpr const char* const kTopdownDoc = "harness_json_load_topdown.json";
 
 auto roundTripClosesTheFormat() -> void
 {
@@ -1740,6 +1743,209 @@ auto theGraphRefusalsNameTheirFields() -> void
   plantsRefuseAtTheirPointers(text, plants, "FR-023, FR-029");
 }
 
+// specs/042-topdown FR-033, FR-034, FR-050 (data-model.md E-16,
+// contracts/topdown-report-key.md): the entry's top-down object reads back
+// whole, and every key of it refuses its own missing presence, its own wrong
+// kind and its own container kind. Each refusal names the pointer of the
+// field the plant stands at, the shape the standing pre-check and graph arms
+// give.
+auto theTopdownRecordRefusalsNameTheirFields() -> void
+{
+  sg::detail::RunOptions options;
+  options.fixedIterations = sg::test::kWindowIterations;
+  auto run = sg::test::scriptedRun(options);
+
+  sg::TopdownRecord record;
+  record.supported = true;
+  record.reason = "the record reason";
+  record.reference = "v4.3";
+  record.directory = "arch/x86/skylakex/";
+  record.files.push_back(
+      sg::counters::TableFile {.name = "events.json", .manifestHash = "aa11"});
+  record.askedLevel = 2;
+  record.level = 2;
+  record.nodes.push_back(sg::TopdownNode {
+      .name = "topdown.frontend_bound",
+      .vendorName = "tma_frontend_bound",
+      .parent = {},
+      .level = 1,
+      .value = 20.5,
+      .availability = sg::counters::Availability::COUNTABLE,
+      .threshold = "> 65.0",
+  });
+  record.nodes.push_back(sg::TopdownNode {
+      .name = "topdown.intel.tma_fetch_latency",
+      .vendorName = "tma_fetch_latency",
+      .parent = "topdown.frontend_bound",
+      .level = 2,
+      .value = {},
+      .availability = sg::counters::Availability::GAP,
+      .threshold = {},
+  });
+  record.refused.push_back(sg::TopdownRefusal {
+      .name = "tma_orphan_row",
+      .refusal = "MISSING_LEAVES",
+      .reason = "the row reason",
+  });
+  run.result.topdown = record;
+
+  sg::ReportData data;
+  data.results.push_back(run.result);
+  data.rowRaw = run.rowRaw;
+  data.contextRaw = run.contextRaw;
+  check(sg::detail::writeReport(kTopdownDoc, data),
+        "the writer wrote the document with the top-down record (FR-034)");
+
+  const auto loaded = sg::loadReport(kTopdownDoc);
+  check(loaded.has_value() && loaded->results.size() == 1
+            && loaded->results[0].topdown.has_value(),
+        "the reader reads the entry's top-down record back (FR-034)");
+  if (loaded.has_value() && !loaded->results.empty()
+      && loaded->results[0].topdown.has_value())
+  {
+    const sg::TopdownRecord& back = *loaded->results[0].topdown;
+    check(back.supported && back.reason == "the record reason"
+              && back.reference == "v4.3"
+              && back.directory == "arch/x86/skylakex/" && back.askedLevel == 2
+              && back.level == 2,
+          "the six scalars of the record read back equal (FR-034)");
+    check(back.files.size() == 1 && back.files[0].name == "events.json"
+              && back.files[0].manifestHash == "aa11",
+          "the pair of one source file reads back equal (FR-034)");
+    check(back.nodes.size() == 2 && back.nodes[0].value.has_value()
+              && sg::test::sameValue(*back.nodes[0].value, 20.5)
+              && back.nodes[0].level == 1
+              && back.nodes[0].availability
+                     == sg::counters::Availability::COUNTABLE
+              && back.nodes[0].threshold == "> 65.0",
+          "a counted node reads back its figure, its availability and its "
+          "threshold (FR-034)");
+    check(!back.nodes[1].value.has_value()
+              && back.nodes[1].availability
+                     == sg::counters::Availability::GAP,
+          "a gap node reads back its null figure as an empty value (FR-030, "
+          "FR-034)");
+    check(back.refused.size() == 1 && back.refused[0].name == "tma_orphan_row"
+              && back.refused[0].refusal == "MISSING_LEAVES"
+              && back.refused[0].reason == "the row reason",
+          "the refused row reads back its three texts (FR-033, FR-034)");
+  }
+
+  const std::string text = sg::test::readText(kTopdownDoc);
+  const std::string fileItem =
+      R"json({"name":"events.json","manifest_hash":"aa11"})json";
+  const std::string countedItem =
+      R"json({"name":"topdown.frontend_bound","vendor_name":"tma_frontend_bound","parent":"","level":1,"value":20.5,"availability":"COUNTABLE","threshold":"> 65.0"})json";
+  const std::string gapItem =
+      R"json({"name":"topdown.intel.tma_fetch_latency","vendor_name":"tma_fetch_latency","parent":"topdown.frontend_bound","level":2,"value":null,"availability":"GAP","threshold":""})json";
+  const std::string refusalItem =
+      R"json({"name":"tma_orphan_row","kind":"MISSING_LEAVES","reason":"the row reason"})json";
+  const std::string filesArray = "\"files\":[" + fileItem + "]";
+  const std::string nodesArray =
+      "\"nodes\":[" + countedItem + "," + gapItem + "]";
+  const std::string refusedArray = "\"refused\":[" + refusalItem + "]";
+  const std::string filesComma = filesArray + ",";
+  const std::string nodesComma = nodesArray + ",";
+  const std::string commaRefused = "," + refusedArray;
+  const std::string filesOne = "\"files\":1";
+  const std::string filesNumberItem = "\"files\":[1]";
+  const std::string nodesOne = "\"nodes\":1";
+  const std::string nodesNumberItem = "\"nodes\":[1]";
+  const std::string refusedOne = "\"refused\":1";
+  const std::string refusedNumberItem = "\"refused\":[1]";
+  const Mutation plants[] = {
+      // The nine keys of the record: one plant per missing key and one per
+      // wrong kind.
+      {"\"supported\":true,", "", "/benchmarks/0/topdown"},
+      {"\"supported\":true",
+       "\"supported\":1",
+       "/benchmarks/0/topdown/supported"},
+      {"\"reason\":\"the record reason\",", "", "/benchmarks/0/topdown"},
+      {"\"reason\":\"the record reason\"",
+       "\"reason\":1",
+       "/benchmarks/0/topdown/reason"},
+      {"\"reference\":\"v4.3\",", "", "/benchmarks/0/topdown"},
+      {"\"reference\":\"v4.3\"",
+       "\"reference\":1",
+       "/benchmarks/0/topdown/reference"},
+      {"\"directory\":\"arch/x86/skylakex/\",", "", "/benchmarks/0/topdown"},
+      {"\"directory\":\"arch/x86/skylakex/\"",
+       "\"directory\":1",
+       "/benchmarks/0/topdown/directory"},
+      {"\"asked_level\":2,", "", "/benchmarks/0/topdown"},
+      {"\"asked_level\":2",
+       "\"asked_level\":\"x\"",
+       "/benchmarks/0/topdown/asked_level"},
+      {filesComma.c_str(), "", "/benchmarks/0/topdown"},
+      {filesArray.c_str(), filesOne.c_str(), "/benchmarks/0/topdown/files"},
+      {filesArray.c_str(),
+       filesNumberItem.c_str(),
+       "/benchmarks/0/topdown/files/0"},
+      // The closed pair of one source file.
+      {"\"name\":\"events.json\",", "", "/benchmarks/0/topdown/files/0"},
+      {"\"name\":\"events.json\"",
+       "\"name\":1",
+       "/benchmarks/0/topdown/files/0/name"},
+      {",\"manifest_hash\":\"aa11\"", "", "/benchmarks/0/topdown/files/0"},
+      {"\"manifest_hash\":\"aa11\"",
+       "\"manifest_hash\":1",
+       "/benchmarks/0/topdown/files/0/manifest_hash"},
+      // The seven keys of one node, and the null figure of the gap node.
+      {nodesComma.c_str(), "", "/benchmarks/0/topdown"},
+      {nodesArray.c_str(), nodesOne.c_str(), "/benchmarks/0/topdown/nodes"},
+      {nodesArray.c_str(),
+       nodesNumberItem.c_str(),
+       "/benchmarks/0/topdown/nodes/0"},
+      {"\"name\":\"topdown.frontend_bound\",",
+       "",
+       "/benchmarks/0/topdown/nodes/0"},
+      {"\"vendor_name\":\"tma_frontend_bound\",",
+       "",
+       "/benchmarks/0/topdown/nodes/0"},
+      {"\"vendor_name\":\"tma_frontend_bound\"",
+       "\"vendor_name\":1",
+       "/benchmarks/0/topdown/nodes/0/vendor_name"},
+      {"\"parent\":\"\",", "", "/benchmarks/0/topdown/nodes/0"},
+      {"\"parent\":\"\"",
+       "\"parent\":1",
+       "/benchmarks/0/topdown/nodes/0/parent"},
+      {"\"level\":1,", "", "/benchmarks/0/topdown/nodes/0"},
+      {"\"level\":1", "\"level\":\"x\"", "/benchmarks/0/topdown/nodes/0/level"},
+      {"\"value\":20.5,", "", "/benchmarks/0/topdown/nodes/0"},
+      {"\"value\":20.5",
+       "\"value\":\"x\"",
+       "/benchmarks/0/topdown/nodes/0/value"},
+      {",\"availability\":\"COUNTABLE\",\"threshold\":\"> 65.0\"",
+       "",
+       "/benchmarks/0/topdown/nodes/0"},
+      {"\"availability\":\"COUNTABLE\",\"threshold\"",
+       "\"availability\":\"BOGUS\",\"threshold\"",
+       "/benchmarks/0/topdown/nodes/0/availability"},
+      {",\"threshold\":\"> 65.0\"", "", "/benchmarks/0/topdown/nodes/0"},
+      {"\"threshold\":\"> 65.0\"",
+       "\"threshold\":1",
+       "/benchmarks/0/topdown/nodes/0/threshold"},
+      // The three keys of one refused row.
+      {commaRefused.c_str(), "", "/benchmarks/0/topdown"},
+      {refusedArray.c_str(),
+       refusedOne.c_str(),
+       "/benchmarks/0/topdown/refused"},
+      {refusedArray.c_str(),
+       refusedNumberItem.c_str(),
+       "/benchmarks/0/topdown/refused/0"},
+      {"\"name\":\"tma_orphan_row\",", "", "/benchmarks/0/topdown/refused/0"},
+      {"\"kind\":\"MISSING_LEAVES\",", "", "/benchmarks/0/topdown/refused/0"},
+      {"\"kind\":\"MISSING_LEAVES\"",
+       "\"kind\":1",
+       "/benchmarks/0/topdown/refused/0/kind"},
+      {",\"reason\":\"the row reason\"", "", "/benchmarks/0/topdown/refused/0"},
+      {"\"reason\":\"the row reason\"",
+       "\"reason\":1",
+       "/benchmarks/0/topdown/refused/0/reason"},
+  };
+  plantsRefuseAtTheirPointers(text, plants, "FR-033, FR-034");
+}
+
 // specs/043 T024, US4, FR-020, R-17: the series record the reader reads
 // back. The document carries the method word, two closed series items with
 // their 21 keys in the written order, and the period list of the first cpu;
@@ -2710,6 +2916,7 @@ auto main() -> int
   thePrecheckRecordRoundTrips();
   thePrecheckRefusalsNameTheirFields();
   theGraphRefusalsNameTheirFields();
+  theTopdownRecordRefusalsNameTheirFields();
   theSeriesRecordReadsBackEveryKey();
   thePeriodListReadsBack();
   aMissingMethodKeyLeavesTheRunRecordEmpty();

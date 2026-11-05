@@ -232,9 +232,16 @@ auto scriptedDelta(const std::uint64_t call) -> std::uint64_t
   if (scriptPlan.sinePeriod != 0) {
     const auto phase = kTwoPi * static_cast<double>(unit)
         / static_cast<double>(scriptPlan.sinePeriod);
-    return scriptPlan.windowStep
-        + static_cast<std::uint64_t>(
-               static_cast<double>(scriptPlan.sineAmplitude) * std::sin(phase));
+    // FR-007: the sum stands signed, and a negative delta clamps at 0, so
+    // no conversion of a negative value to an unsigned type takes part. The
+    // product truncates toward zero: a symmetric round closes every
+    // resample bin on a whole sine period and leaves the transform a level
+    // span with no period to name (FR-018).
+    const std::int64_t delta =
+        static_cast<std::int64_t>(scriptPlan.windowStep)
+        + static_cast<std::int64_t>(
+            static_cast<double>(scriptPlan.sineAmplitude) * std::sin(phase));
+    return delta < 0 ? 0 : static_cast<std::uint64_t>(delta);
   }
   return scriptPlan.windowStep;
 }

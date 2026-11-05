@@ -69,6 +69,38 @@ struct TimedWindow
   std::uint64_t pass = 0;
 };
 
+/// @brief specs/045-merge-fixes FR-008, D-5: the latch-time snapshot of
+/// one probe cpu: the figures the mid-run fold reads, copied at the
+/// latch line while the alongside loop runs on. The work item builds one
+/// per probe cpu once `seriesKeptAtLatch` stands stored there, and
+/// publishes it with one release store of the flag beside it. The
+/// pre-check record of a `mode=both` run and the method noise gate read
+/// this object, so no mid-run fold reads a live buffer (FR-008, R-04).
+/// The copy holds the fields the folds read: the series prefix the
+/// pre-check window kept with its kept count and the count of samples a
+/// full buffer dropped, the gap prefix with its kept count and the count
+/// of gaps a full buffer dropped, the effective threshold and loop
+/// period, the five calibration figures of E-22, and the method. Each
+/// method fills one prefix: FWQ and FTQ fill the series, and a `tsc` run
+/// fills the gaps.
+struct JitterLatchSnapshot
+{
+  std::vector<std::uint64_t> series;
+  std::size_t seriesKept = 0;
+  std::uint64_t droppedSamples = 0;
+  std::vector<GapRecord> gaps;
+  std::size_t gapsKept = 0;
+  std::uint64_t droppedGaps = 0;
+  std::uint64_t thresholdNs = 0;
+  std::uint64_t loopPeriodNs = 0;
+  std::uint64_t workCount = 0;
+  std::uint64_t unitTimeNs = 0;
+  std::uint64_t targetNs = 0;
+  std::uint64_t quantumNs = 0;
+  std::uint64_t calibrationSpanNs = 0;
+  JitterMethod method = JitterMethod::TSC;
+};
+
 /// @brief The per-cpu probe state: one instance per probe cpu, owned
 /// by the holder (E-05, R-03).
 ///
@@ -124,6 +156,14 @@ struct ProbeCpuState
   // specs/043 FR-020, R-11, E-26: the stamp the first series store
   // wrote, the base the window fold recovers each sample's stamp from.
   std::uint64_t seriesStartNs = 0;
+  // specs/045-merge-fixes FR-008, D-5: the latch-time snapshot and its
+  // publish flag. The item fills the snapshot at the latch line and
+  // release-stores the flag there, and the mid-run fold sites
+  // acquire-load the flag and read the snapshot while the alongside loop
+  // runs on. The flag stands off the loop's read path, which the stop
+  // flag below owns.
+  JitterLatchSnapshot latch;
+  std::atomic<bool> latchPublished {false};
   alignas(kCacheLineBytes) std::atomic<bool> stop {false};
 };
 
@@ -140,9 +180,10 @@ public:
   /// @brief Start the probe contexts; nothing runs before this call,
   /// and the call returns only once every probe cpu stands past its
   /// buffer's first touch and its measurement pass and, in the
-  /// precheck and both modes, past its pre-check phase, with the
+  /// precheck and both modes, past its pre-check phase, and past the
+  /// latch-time snapshot it publishes at the latch line, with the
   /// precheck mode stopping and joining the probe before the return
-  /// (FR-006, FR-009, FR-014, R-01).
+  /// (FR-006, FR-008, FR-009, FR-014, R-01).
   auto start() -> void;
 
   /// @brief Set every probe cpu's stop flag; the loop's own read of the
@@ -225,11 +266,10 @@ private:
 
 /// @brief specs/043-fwq-ftq FR-004, FR-020, E-27, R-04: the series fold
 /// of one probe cpu over a prefix of its kept samples: the figures of
-/// the first `prefixCount` samples of the series buffer, the shape the
-/// pre-check record of a `mode=both` run reads from the count the latch
-/// snapshotted. The buffer fills by index and drops what exceeds it, so
-/// the prefix stands written and never written again, and the fold reads
-/// it while the alongside loop runs on.
+/// the first `prefixCount` samples of the series buffer. The buffer
+/// fills by index and drops what exceeds it, so the prefix stands
+/// written and never written again. The caller reads the state only
+/// behind the join edge, the standing happens-before rule (R-04).
 ///
 /// \pre `prefixCount` stands at or below `state.seriesKept`
 /// \post the fold answers the figures of the first `prefixCount`
@@ -239,6 +279,54 @@ private:
 ///       <= p9999Value <= maxValue
 [[nodiscard]] auto seriesStatsOf(const ProbeCpuState& state,
                                  std::size_t prefixCount) -> JitterSeriesStats;
+
+/// @brief specs/045-merge-fixes FR-008, D-5: the series fold over one
+/// probe cpu's latch-time snapshot: the same `JitterSeriesStats` the
+/// state folds answer, over the prefix the latch copied. The pre-check
+/// record of a `mode=both` run and the method noise gate read this fold,
+/// the alongside loop running on, and the fold reads no live buffer
+/// (FR-004, FR-020, E-27).
+///
+/// \pre `seriesKept` equals the length of the copied series prefix
+/// \post the fold answers the figures of the copied prefix, the
+///       calibration figures and the drop count carrying the snapshot's
+///       own (FR-007, FR-022)
+/// \post minValue <= medianValue <= p90Value <= p99Value <= p999Value
+///       <= p9999Value <= maxValue
+/// \post `seriesRuntimeNs` is the span the copied prefix's recovered
+///       stamps cover, the calibration span out (FR-007, FR-010)
+/// \post an empty prefix leaves the series figures at 0 (FR-008)
+[[nodiscard]] auto seriesStatsOf(const JitterLatchSnapshot& snapshot)
+    -> JitterSeriesStats;
+
+/// @brief specs/045-merge-fixes FR-008, D-5: the gap fold over one probe
+/// cpu's latch-time snapshot: the same `JitterStats` the run-level fold
+/// answers, over the gap prefix the latch copied. The pre-check record
+/// of a `mode=both` run whose method is `tsc` reads this fold, the
+/// alongside loop running on, and the fold reads no live buffer.
+///
+/// \pre `gapsKept` equals the length of the copied gap prefix
+/// \post the fold answers the figures of the copied prefix, the
+///       threshold, the loop period and the drop count carrying the
+///       snapshot's own (FR-010, D-6)
+/// \post minNs <= medianNs <= p90Ns <= p99Ns <= p999Ns <= p9999Ns <=
+///       maxNs
+/// \post `runtimeNs` is the copied records' stamp span, and the rate
+///       fields divide by it (E-03, R-05)
+[[nodiscard]] auto gapStatsOf(const JitterLatchSnapshot& snapshot)
+    -> JitterStats;
+
+/// @brief specs/045-merge-fixes FR-008, D-5: the published latch-time
+/// snapshot of one probe cpu. The call acquire-loads the publish flag
+/// the item release-stores at the latch line, then answers the snapshot
+/// that store published. The fold sites of a running batch read through
+/// this call, and the read touches no field the alongside loop writes.
+///
+/// \pre the holder's `start` returned, so every item stands past its
+///       latch arrival and past its snapshot publish (FR-006, FR-008)
+/// \post the answer is the snapshot the item built at the latch line
+[[nodiscard]] auto latchSnapshotOf(const ProbeCpuState& state)
+    -> const JitterLatchSnapshot&;
 
 /// @brief specs/043-fwq-ftq: the per-benchmark series fold: the kept
 /// samples of one probe cpu whose recovered stamp falls inside the
@@ -268,7 +356,10 @@ private:
 /// threshold, in the order the planned list names. The gate reads the
 /// method's own figure: a FWQ window and a FTQ window keep no gaps, so
 /// the standing gap rule reads nothing there. A `tsc` window keeps no
-/// series, and a cpu the states do not name stands unjudged.
+/// series, and a cpu the states do not name stands unjudged. The fold
+/// reads each cpu's latch-time snapshot, the figures the pre-check
+/// window kept, so the gate stands race-free beside a running
+/// alongside loop (specs/045-merge-fixes FR-008, D-5).
 ///
 /// \pre none
 /// \post the answer names each planned cpu at or above the threshold,

@@ -253,9 +253,11 @@ add_test(
 )
 
 # Gate-effectiveness harness for the prose and commit lint gate (feature 002,
-# T009). Self-contained: invokes the Python driver directly. It was TDD red
-# until tools/prose/prose_gate.py landed, and it still exits with "gate
-# script not present (TDD red)" while that script is missing.
+# T009). Self-contained: the driver imports tools/prose/prose_gate.py and
+# calls the gate entry point in process for every case, the whole-tree work
+# case keeping its own subprocess run. The asserts read counts, the gate
+# invocations each phase performs and the units each run examines, so the
+# entry carries no wall-clock bound of its own (045 FR-009).
 add_test(
     NAME prose_gate_fixtures
     COMMAND
@@ -987,6 +989,13 @@ target_include_directories(harness_jitter_window_test
 target_compile_features(harness_jitter_window_test PRIVATE cxx_std_23)
 add_test(NAME harness_jitter_window_test
          COMMAND harness_jitter_window_test)
+# The entry drives whole probed runs whose pre-check window and per-entry
+# windows stand bounded by wall time, and its scripted jump stands shared
+# across the run: a sibling entry keeps a probe off a cpu for a whole
+# window, or lands a jumped stamp inside a window that must stand quiet,
+# and the record then carries the wrong fold. The entry takes the machine
+# to itself (specs/045-merge-fixes FR-013).
+set_tests_properties(harness_jitter_window_test PROPERTIES RUN_SERIAL TRUE)
 
 # The option grammar of contracts/cli-options.md (T008): every
 # status-2 case, the standing getopt paths, the option-value uniqueness
@@ -1000,6 +1009,8 @@ target_include_directories(harness_precheck_test
                            PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
 target_compile_features(harness_precheck_test PRIVATE cxx_std_23)
 add_test(NAME harness_precheck_test COMMAND harness_precheck_test)
+# The probe-driven entries take the machine to themselves (FR-013).
+set_tests_properties(harness_precheck_test PROPERTIES RUN_SERIAL TRUE)
 
 add_executable(harness_jitter_cli_test source/harness_jitter_cli_test.cpp)
 target_link_libraries(harness_jitter_cli_test PRIVATE speedgun-ng::harness)
@@ -1010,6 +1021,10 @@ target_compile_definitions(
     harness_jitter_cli_test
     PRIVATE SG_OPTIONS_SOURCE="${CMAKE_SOURCE_DIR}/source/harness/options.cpp")
 add_test(NAME harness_jitter_cli_test COMMAND harness_jitter_cli_test)
+# The same reading as harness_jitter_window_test: the entry drives whole
+# probed batches, and a sibling entry starves the probe's windows or
+# lands a jumped stamp in the wrong window (specs/045-merge-fixes FR-013).
+set_tests_properties(harness_jitter_cli_test PROPERTIES RUN_SERIAL TRUE)
 
 # The public surface of the noise tracer (specs/036 T001, T002): the
 # struct defaults of data-model.md E-16 and E-17, and the source-order

@@ -407,6 +407,37 @@ auto runFtqUnit(ProbeCpuState& state,
   }
 }
 
+// The latch-time snapshot: the prefix the pre-check phase kept, the
+// counts as they stand at the latch line, and the calibration figures
+// the search measured. The item calls this once per cpu at the latch
+// line, off the hot path, and the release store publishes the copy to
+// the mid-run fold sites, which read one object per cpu while the
+// alongside loop runs on (specs/045-merge-fixes FR-008, D-5, R-04). Each
+// method fills one prefix: a `tsc` run keeps no series, and the FWQ and
+// FTQ loops keep no gaps, so the other prefix stands empty on its own.
+auto publishLatchSnapshot(ProbeCpuState& state) noexcept -> void
+{
+  auto& latch = state.latch;
+  latch.method = state.method;
+  latch.workCount = state.workCount;
+  latch.unitTimeNs = state.unitTimeNs;
+  latch.targetNs = state.targetNs;
+  latch.quantumNs = state.quantumNs;
+  latch.calibrationSpanNs = state.calibrationSpanNs;
+  latch.thresholdNs = state.thresholdNs;
+  latch.loopPeriodNs = state.loopPeriodNs;
+  const std::span<const std::uint64_t> samples(state.series.data(),
+                                               state.seriesKept);
+  latch.series.assign(samples.begin(), samples.end());
+  latch.seriesKept = state.seriesKept;
+  latch.droppedSamples = state.droppedSamples;
+  const std::span<const GapRecord> gaps(state.buffer.data(), state.kept);
+  latch.gaps.assign(gaps.begin(), gaps.end());
+  latch.gapsKept = state.kept;
+  latch.droppedGaps = state.droppedGaps;
+  state.latchPublished.store(true, std::memory_order_release);
+}
+
 // The state one live holder's start owns: the seam reader, the start
 // barrier, the latch, the work nodes and the probe contexts. The
 // contexts stand declared last, so their destruction runs first: a node
@@ -588,6 +619,12 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
   // folds while the alongside loop below runs on.
   state->seriesKeptAtLatch = state->seriesKept;
 
+  // specs/045-merge-fixes FR-008, D-5: the snapshot hand-off. The copy
+  // and the release store stand here, behind the latch line and ahead of
+  // the alongside loop, so the mid-run fold sites read one published
+  // object per cpu and touch no field the loop writes.
+  publishLatchSnapshot(*state);
+
   // The wait stands outside the record: the alongside phase compares
   // each stamp with the one read here, behind the latch, so the time
   // the item spent waiting on the latch names no gap (FR-006, R-04).
@@ -693,19 +730,23 @@ auto seriesNoisePercent(const JitterMethod method,
 // carry: the values copy into the sorted double vector `percentileAt`
 // reads, the five points read through `percentileField` with the
 // standing minimum sample count, and the five calibration figures and
-// the drop count ride the state (FR-007, FR-008, R-09). The two series
-// folds share the reading, the run fold over the kept set and the
-// window fold over the set the windows placed, in any order.
-auto seriesFigures(const ProbeCpuState& state,
+// the drop count ride the source (FR-007, FR-008, R-09). The source is
+// the per-cpu state of a joined fold and the latch-time snapshot of a
+// mid-run fold alike: both carry the fields by the same name. The series
+// folds share the reading, the run fold over the kept set, the prefix
+// fold over the prefix, the snapshot fold over the copied prefix, and
+// the window fold over the set the windows placed, in any order.
+template<class Source>
+auto seriesFigures(const Source& source,
                    std::span<const std::uint64_t> values) -> JitterSeriesStats
 {
   JitterSeriesStats stats {};
-  stats.workCount = state.workCount;
-  stats.unitTimeNs = state.unitTimeNs;
-  stats.targetNs = state.targetNs;
-  stats.quantumNs = state.quantumNs;
-  stats.calibrationSpanNs = state.calibrationSpanNs;
-  stats.droppedSamples = state.droppedSamples;
+  stats.workCount = source.workCount;
+  stats.unitTimeNs = source.unitTimeNs;
+  stats.targetNs = source.targetNs;
+  stats.quantumNs = source.quantumNs;
+  stats.calibrationSpanNs = source.calibrationSpanNs;
+  stats.droppedSamples = source.droppedSamples;
   stats.sampleCount = values.size();
   if (values.empty()) {
     return stats;
@@ -730,7 +771,84 @@ auto seriesFigures(const ProbeCpuState& state,
   stats.p999Value = percentileField(sorted, 99.9);
   stats.p9999Value = percentileField(sorted, 99.99);
   stats.noisePercent = seriesNoisePercent(
-      state.method, stats.sampleCount, stats.minValue, stats.maxValue, total);
+      source.method, stats.sampleCount, stats.minValue, stats.maxValue, total);
+  return stats;
+}
+
+// The figures of one kept gap set, the shape the two run-level folds
+// answer: the values copy into the sorted double vector `percentileAt`
+// reads, the five points read through `percentileField` with the
+// standing minimum sample count, the covered span the records' own stamp
+// span, and the rate fields the duration divisions answer (E-03, R-05).
+// The joined fold passes the buffer's kept set, and the snapshot fold
+// passes the prefix the latch copied.
+auto gapFigures(std::span<const GapRecord> records,
+                const std::uint64_t droppedGaps,
+                const std::uint64_t thresholdNs,
+                const std::uint64_t loopPeriodNs) -> JitterStats
+{
+  JitterStats stats {};
+  stats.gapCount = records.size();
+  stats.droppedGaps = droppedGaps;
+  stats.thresholdNs = thresholdNs;
+  stats.loopPeriodNs = loopPeriodNs;
+
+  std::vector<double> sorted;
+  sorted.reserve(records.size());
+  std::uint64_t total = 0;
+  for (const auto& record : records) {
+    sorted.push_back(static_cast<double>(record.gapNs));
+    total += record.gapNs;
+  }
+  std::sort(sorted.begin(), sorted.end());
+  if (sorted.empty()) {
+    return stats;
+  }
+
+  stats.minNs = static_cast<std::uint64_t>(sorted.front());
+  stats.maxNs = static_cast<std::uint64_t>(sorted.back());
+  stats.totalNs = total;
+  stats.meanNs =
+      static_cast<double>(total) / static_cast<double>(sorted.size());
+  stats.medianNs = percentileField(sorted, 50.0);
+  stats.p90Ns = percentileField(sorted, 90.0);
+  stats.p99Ns = percentileField(sorted, 99.0);
+  stats.p999Ns = percentileField(sorted, 99.9);
+  stats.p9999Ns = percentileField(sorted, 99.99);
+
+  // The covered span the run-level fold reports: the kept records' own
+  // stamp span, the only duration the per-cpu figures carry. The loop's
+  // start-to-stop span needs a field the state does not declare; the
+  // deviation rides the wave ledger (E-03, R-05).
+  std::uint64_t firstStamp = records.front().stamp;
+  std::uint64_t lastStamp = firstStamp;
+  for (const auto& record : records) {
+    if (record.stamp < firstStamp) {
+      firstStamp = record.stamp;
+    }
+    if (record.stamp > lastStamp) {
+      lastStamp = record.stamp;
+    }
+  }
+  stats.runtimeNs = lastStamp - firstStamp;
+
+  // The rate fields divide by the span, and the span of a kept set that
+  // holds one record stands at zero: the stamp span of one stamp is zero
+  // by definition. The rate fields stand at zero there, the way the empty
+  // kept set's zeros stand, so no division by zero reaches the writer
+  // (E-03, R-05).
+  stats.gapsPerSecond = stats.runtimeNs == 0
+      ? 0.0
+      : static_cast<double>(stats.gapCount) * 1e9
+          / static_cast<double>(stats.runtimeNs);
+  stats.totalPercent = stats.runtimeNs == 0 ? 0.0
+                                            : static_cast<double>(stats.totalNs)
+          * 100.0 / static_cast<double>(stats.runtimeNs);
+  SG_ENSURE(stats.minNs <= stats.medianNs && stats.medianNs <= stats.p90Ns
+                && stats.p90Ns <= stats.p99Ns && stats.p99Ns <= stats.p999Ns
+                && stats.p999Ns <= stats.p9999Ns
+                && stats.p9999Ns <= stats.maxNs,
+            "the percentile chain stands ordered (E-03, PC-4)");
   return stats;
 }
 
@@ -843,6 +961,18 @@ auto JitterProbe::start() -> void
   // (FR-006, FR-009, FR-014, R-04).
   session->latch->arriveAndWait();
 
+  // specs/045-merge-fixes FR-008, D-5: the snapshot publish. Each item
+  // copies its prefix at the latch line and release-stores its flag
+  // behind the barrier. The holder waits for every flag, so the return
+  // stands behind the copies and the mid-run fold sites that follow read
+  // a published snapshot. The wait spans one prefix copy per cpu and
+  // stands off every measured window and off the hot path.
+  for (auto& state : m_states) {
+    while (!state.latchPublished.load(std::memory_order_acquire)) {
+      pauseHint();
+    }
+  }
+
   probeSession = std::move(session);
 
   if (m_options.mode == JitterProbeMode::PRECHECK) {
@@ -909,79 +1039,52 @@ auto JitterProbe::states() const noexcept -> const std::vector<ProbeCpuState>&
  */
 auto gapStatsOf(const ProbeCpuState& state) -> JitterStats
 {
-  JitterStats stats {};
-
-  std::vector<double> sorted;
-  sorted.reserve(state.kept);
-  std::uint64_t total = 0;
-  for (std::size_t index = 0; index < state.kept; ++index) {
-    const auto gap = state.buffer.at(index).gapNs;
-    sorted.push_back(static_cast<double>(gap));
-    total += gap;
-  }
-  std::sort(sorted.begin(), sorted.end());
-
-  stats.gapCount = state.kept;
-  stats.droppedGaps = state.droppedGaps;
-  stats.thresholdNs = state.thresholdNs;
-  stats.loopPeriodNs = state.loopPeriodNs;
-  if (sorted.empty()) {
-    return stats;
-  }
-
-  stats.minNs = static_cast<std::uint64_t>(sorted.front());
-  stats.maxNs = static_cast<std::uint64_t>(sorted.back());
-  stats.totalNs = total;
-  stats.meanNs =
-      static_cast<double>(total) / static_cast<double>(sorted.size());
-  stats.medianNs = percentileField(sorted, 50.0);
-  stats.p90Ns = percentileField(sorted, 90.0);
-  stats.p99Ns = percentileField(sorted, 99.0);
-  stats.p999Ns = percentileField(sorted, 99.9);
-  stats.p9999Ns = percentileField(sorted, 99.99);
-
-  // The covered span the run-level fold reports: the kept records' own
-  // stamp span, the only duration the joined per-cpu state carries. The
-  // loop's start-to-stop span needs a field the state does not declare;
-  // the deviation rides the wave ledger (E-03, R-05).
-  std::uint64_t firstStamp = state.buffer.front().stamp;
-  std::uint64_t lastStamp = firstStamp;
-  for (std::size_t index = 1; index < state.kept; ++index) {
-    const auto stamp = state.buffer.at(index).stamp;
-    if (stamp < firstStamp) {
-      firstStamp = stamp;
-    }
-    if (stamp > lastStamp) {
-      lastStamp = stamp;
-    }
-  }
-  stats.runtimeNs = lastStamp - firstStamp;
-
-  // The rate fields divide by the span, and the span of a kept set that
-  // holds one record stands at zero: the stamp span of one stamp is zero
-  // by definition. The rate fields stand at zero there, the way the empty
-  // kept set's zeros stand, so no division by zero reaches the writer
-  // (E-03, R-05).
-  stats.gapsPerSecond = stats.runtimeNs == 0
-      ? 0.0
-      : static_cast<double>(stats.gapCount) * 1e9
-          / static_cast<double>(stats.runtimeNs);
-  stats.totalPercent = stats.runtimeNs == 0 ? 0.0
-                                            : static_cast<double>(stats.totalNs)
-          * 100.0 / static_cast<double>(stats.runtimeNs);
-  SG_ENSURE(stats.minNs <= stats.medianNs && stats.medianNs <= stats.p90Ns
-                && stats.p90Ns <= stats.p99Ns && stats.p99Ns <= stats.p999Ns
-                && stats.p999Ns <= stats.p9999Ns
-                && stats.p9999Ns <= stats.maxNs,
-            "the percentile chain stands ordered (E-03, PC-4)");
+  const std::span<const GapRecord> kept(state.buffer.data(), state.kept);
+  auto stats = gapFigures(
+      kept, state.droppedGaps, state.thresholdNs, state.loopPeriodNs);
   SG_ENSURE(
       stats.gapCount == state.kept && stats.droppedGaps == state.droppedGaps,
       "the counts answer the kept and dropped records (FR-010, D-6)");
   SG_ENSURE(stats.thresholdNs == state.thresholdNs
                 && stats.loopPeriodNs == state.loopPeriodNs,
             "the effective fields carry the state's own (FR-007, R-05)");
-  SG_ENSURE(stats.runtimeNs == lastStamp - firstStamp,
-            "the covered span is the kept records' stamp span (E-03)");
+  SG_ENSURE(durationDivisionsHold(stats),
+            "the duration divisions answer the covered span (E-03, R-05)");
+  return stats;
+}
+
+/**
+ * @brief specs/045-merge-fixes FR-008, D-5: the gap fold over one probe
+ * cpu's latch-time snapshot (FR-010, D-6): the sixteen fields over the
+ * gap prefix the latch copied, the covered span that prefix's stamp
+ * span. The pre-check record of a `mode=both` run whose method is `tsc`
+ * reads this fold while the alongside loop runs on, and the fold reads
+ * no live buffer. The empty prefix answers the zero fields and none of
+ * the rows below.
+ *
+ * \pre `gapsKept` equals the length of the copied gap prefix
+ * \post the fold answers the figures of the copied prefix, the
+ *       threshold, the loop period and the drop count carrying the
+ *       snapshot's own (FR-010, D-6)
+ * \post minNs <= medianNs <= p90Ns <= p99Ns <= p999Ns <= p9999Ns <=
+ *       maxNs
+ * \post `runtimeNs` is the copied records' stamp span, and the rate
+ *       fields divide by it (E-03, R-05)
+ */
+auto gapStatsOf(const JitterLatchSnapshot& snapshot) -> JitterStats
+{
+  SG_REQUIRE(snapshot.gapsKept == snapshot.gaps.size(),
+             "the count names the copied prefix (FR-008, D-5)");
+  const std::span<const GapRecord> kept(snapshot.gaps.data(),
+                                        snapshot.gapsKept);
+  auto stats = gapFigures(
+      kept, snapshot.droppedGaps, snapshot.thresholdNs, snapshot.loopPeriodNs);
+  SG_ENSURE(stats.gapCount == snapshot.gapsKept
+                && stats.droppedGaps == snapshot.droppedGaps,
+            "the counts answer the copied and dropped records (FR-008, D-5)");
+  SG_ENSURE(stats.thresholdNs == snapshot.thresholdNs
+                && stats.loopPeriodNs == snapshot.loopPeriodNs,
+            "the effective fields carry the snapshot's own (FR-007, R-05)");
   SG_ENSURE(durationDivisionsHold(stats),
             "the duration divisions answer the covered span (E-03, R-05)");
   return stats;
@@ -1053,6 +1156,67 @@ auto seriesStatsOf(const ProbeCpuState& state,
 auto seriesStatsOf(const ProbeCpuState& state) -> JitterSeriesStats
 {
   return seriesStatsOf(state, state.seriesKept);
+}
+
+auto latchSnapshotOf(const ProbeCpuState& state) -> const JitterLatchSnapshot&
+{
+  SG_REQUIRE(state.latchPublished.load(std::memory_order_acquire),
+             "the item published its snapshot at the latch line (FR-008, D-5)");
+  return state.latch;
+}
+
+/**
+ * @brief specs/045-merge-fixes FR-008, D-5: the series fold over one
+ * probe cpu's latch-time snapshot (FR-007, FR-008, FR-009, R-09, R-10):
+ * the figures of the copied prefix, the five calibration figures of
+ * E-22, and the noise fraction of the method that filled the buffer. The
+ * covered span the runtime names is the span the copied prefix's
+ * recovered stamps covers, the calibration span standing out of it
+ * (FR-010). The pre-check record of a `mode=both` run and the method
+ * noise gate read this fold while the alongside loop runs on. The empty
+ * prefix answers the zero figures and none of the rows below.
+ *
+ * \pre `seriesKept` equals the length of the copied series prefix
+ * \post the fold answers the figures of the copied prefix, the
+ *       calibration figures and the drop count carrying the snapshot's
+ *       own (FR-007, FR-022)
+ * \post minValue <= medianValue <= p90Value <= p99Value <= p999Value
+ *       <= p9999Value <= maxValue
+ * \post the noise fraction answers the method's rule of FR-009, a
+ *       maximum count of 0 answering 100 (R-10)
+ * \post `seriesRuntimeNs` is the recovered stamp span of the copied
+ *       prefix (FR-007, FR-010)
+ */
+auto seriesStatsOf(const JitterLatchSnapshot& snapshot) -> JitterSeriesStats
+{
+  SG_REQUIRE(snapshot.seriesKept == snapshot.series.size(),
+             "the count names the copied prefix (FR-008, D-5)");
+  const std::span<const std::uint64_t> kept(snapshot.series.data(),
+                                            snapshot.seriesKept);
+  auto stats = seriesFigures(snapshot, kept);
+
+  // The span the recovered stamps cover: an FWQ stamp stands at the
+  // start plus the running sum of the unit times, and an FTQ stamp at
+  // the start plus the rank plus one, times the quantum, so the span
+  // from the start to the last stamp is the unit times' sum for FWQ and
+  // the sample count times the quantum for FTQ (R-11, FR-007, FR-010).
+  std::uint64_t span = 0;
+  for (const auto value : kept) {
+    span += snapshot.method == JitterMethod::FTQ ? snapshot.quantumNs : value;
+  }
+  stats.seriesRuntimeNs = span;
+  SG_ENSURE(stats.minValue <= stats.medianValue
+                && stats.medianValue <= stats.p90Value
+                && stats.p90Value <= stats.p99Value
+                && stats.p99Value <= stats.p999Value
+                && stats.p999Value <= stats.p9999Value
+                && stats.p9999Value <= stats.maxValue,
+            "the percentile chain stands ordered (FR-008, PC-4)");
+  SG_ENSURE(stats.sampleCount == snapshot.seriesKept
+                && stats.noisePercent >= 0.0 && stats.noisePercent <= 100.0,
+            "the count answers the copied prefix and the fraction stands in "
+            "the range 0 to 100 (FR-007, FR-009)");
+  return stats;
 }
 
 /**
@@ -1240,7 +1404,8 @@ auto precheckNoisyCpus(const std::vector<ProbeCpuState>& states,
     if (found == states.end() || found->method == JitterMethod::TSC) {
       continue;
     }
-    if (seriesStatsOf(*found).noisePercent >= static_cast<double>(noisePercent))
+    if (seriesStatsOf(latchSnapshotOf(*found)).noisePercent
+        >= static_cast<double>(noisePercent))
     {
       noisy.push_back(cpu);
     }

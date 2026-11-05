@@ -95,8 +95,8 @@ static_assert(
 // ============================================================================
 
 // The cpu indexes the scenarios pin probe threads to, taken from the
-// process affinity mask, each below the online count (FR-040). No cpu
-// number stands fixed in this file.
+// process affinity mask; the membership stands the whole rule the
+// pins obey, and no cpu number stands fixed in this file (FR-040).
 auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
 {
   cpu_set_t mask {};
@@ -104,15 +104,12 @@ auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
   if (sched_getaffinity(0, sizeof(mask), &mask) != 0) {
     fail("the process affinity mask is unreadable (FR-040)");
   }
-  const int online = CPU_COUNT(&mask);
-  check(online > 0, "the affinity mask holds cpus (FR-040)");
+  check(CPU_COUNT(&mask) > 0, "the affinity mask holds cpus (FR-040)");
   std::vector<std::uint32_t> cpus;
   for (std::size_t index = 0; index < CPU_SETSIZE && cpus.size() < count;
        ++index)
   {
     if (CPU_ISSET(index, &mask)) {
-      check(index < static_cast<std::size_t>(online),
-            "a picked cpu stands below the online count (FR-040)");
       cpus.push_back(static_cast<std::uint32_t>(index));
     }
   }

@@ -304,9 +304,19 @@ auto childMaskNarrowed() -> int
 }
 
 // R-04, Q-8: the synthetic description `1` yields no core and no group and
-// one thread under a mask holding cpu 0.
+// one thread under a mask holding cpu 0. The child holds that mask of
+// its own, the way a runner whose mask stands elsewhere stands at the
+// scenario: the description names the thread's cpu index, and the read
+// intersects with the mask the child carries.
 auto childSyntheticOne() -> int
 {
+  cpu_set_t one {};
+  CPU_ZERO(&one);
+  CPU_SET(0, &one);
+  if (sched_setaffinity(0, sizeof(one), &one) != 0) {
+    std::fprintf(stderr, "sched_setaffinity failed\n");
+    return 1;
+  }
   sg::detail::installTestTopologyDescription(std::string("1"));
   const auto& layout = sg::detail::layout();
   if (!layout.readable || layout.threads.size() != 1 || !layout.cores.empty()
@@ -404,6 +414,19 @@ auto childNoGroup() -> int
       : (hostCpus >= 4 ? "Package:2 Core:2 PU:1" : "Package:1 Core:2 PU:1");
   const auto expectedThreads = hostCpus >= 8 ? 8U : (hostCpus >= 4 ? 4U : 2U);
   const auto expectedCores = hostCpus >= 4 ? 4U : 2U;
+  // The description's own indexes run from 0, and the read intersects
+  // with the mask the child carries, so the child holds a dense mask of
+  // the same size the sizing read: a mask standing at an offset would
+  // intersect the description down to nothing.
+  cpu_set_t dense {};
+  CPU_ZERO(&dense);
+  for (std::size_t index = 0; index < hostCpus; ++index) {
+    CPU_SET(static_cast<std::size_t>(index), &dense);
+  }
+  if (sched_setaffinity(0, sizeof(dense), &dense) != 0) {
+    std::fprintf(stderr, "sched_setaffinity failed\n");
+    return 1;
+  }
   sg::detail::installTestTopologyDescription(std::string(description));
   const auto& layout = sg::detail::layout();
   if (!layout.readable || layout.cores.size() != expectedCores

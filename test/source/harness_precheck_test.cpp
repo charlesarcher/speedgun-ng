@@ -1395,6 +1395,16 @@ auto main(int argc, char** argv) -> int
     states.at(2).series = {1000, 1000, 1000, 1000};
     states.at(2).seriesKept = 4;
     states.at(2).unitTimeNs = 1000;
+    // specs/045-merge-fixes FR-008, D-5: the rule folds the latch-time
+    // snapshot, so each state here carries the snapshot its item would
+    // have published at the latch line, and the flag that published it.
+    for (auto& state : states) {
+      state.latch.method = state.method;
+      state.latch.series.assign(state.series.begin(), state.series.end());
+      state.latch.seriesKept = state.seriesKept;
+      state.latch.unitTimeNs = state.unitTimeNs;
+      state.latchPublished.store(true, std::memory_order_release);
+    }
 
     const std::vector<std::uint32_t> planned {cpu0, cpu1, cpu0 + 9U};
     const auto noisy = sg::detail::precheckNoisyCpus(states, planned, 0U);
