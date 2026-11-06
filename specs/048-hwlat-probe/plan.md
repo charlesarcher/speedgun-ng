@@ -243,14 +243,18 @@ choice the code must make once.
   one line each.
 - **P-9**: a setup that fails partway restores what it wrote before it
   answers the empty session. The standing engines gain the same
-  behaviour, and the lane records the amendment beside the spec `036`
+  behaviour in their own file, and their restore order and saved set
+  stand unchanged; the lane records the amendment beside the spec `036`
   contract line.
 - **P-10**: the detector's three figures come from the ring-buffer text
   the kernel writes at `sys/kernel/tracing/per_cpu/cpu<id>/trace`, the
   path `kernel/trace/trace.c:7672` creates. One detection stands on one
   line in the shape `kernel/trace/trace_output.c:1531` prints: `#` then a
   sequence number, then `inner/outer(us): <inner>/<outer>`, then `ts:`,
-  then `count:`, then `nmi-count:` only when the count stands above zero.
+  then `count:`, then `nmi-count:` only when the count stands above zero
+  (`kernel/trace/trace_output.c:1538`, `:1546` to `:1547`), then
+  `nmi-total:` only where the kernel holds no
+  `CONFIG_GENERIC_SCHED_CLOCK` (`:1543` to `:1545`).
   `maxGapNs` takes the larger of the two figures times 1000, the rule
   `kernel/trace/trace_hwlat.c:296` uses for its own maximum. `gapCount`
   counts the lines of the cpu. `nmiCount` sums the `nmi-count` fields and
@@ -261,10 +265,10 @@ choice the code must make once.
   `kJitterFields`, which moves from 32 rows to 35 and carries the count
   word `thirty-five` in its refusal line and in the rule-name contract.
   The three detector figures join a new `kHwlatFields` table of 3 rows
-  behind a new head word: `hwlat:<cpu|any>:<field>` with the standing
-  direction and threshold suffix. The standing jitter grammar keeps its
-  shape, and the detector names keep their own refusal line
-  (`source/harness/compare.cpp:519-532`).
+  behind a new head word: `hwlat:<cpu|any>:<hwlat-figure>` with the
+  standing direction and threshold suffix. The standing jitter grammar
+  keeps its shape, and the detector names keep their own refusal line
+  beside the jitter one at `source/harness/compare.cpp:423` to `:431`.
 - **P-12**: the availability disclosure rides the standing
   `jitter.disclosure` text, so no new key carries it, and the console
   prints one line per source per run.

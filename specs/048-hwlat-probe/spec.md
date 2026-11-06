@@ -127,7 +127,7 @@ shapes the prompt leaves open.
   stand at `source/harness/jitter_probe.cpp:1811` (`interruptsOfText`),
   `:1845` (`softirqsOfText`), `:1885` (`schedstatOfText`), `:1939` and
   `:1987`. The pre-check reads `/proc/interrupts` today at `:2055`
-  through `readUnderRoot`, and `interruptsOfText` sums every labelled row
+  through `readUnderRoot`, and `interruptsOfText` sums every labeled row
   of the cpu column, so an `NMI` count stands folded into the standing
   `interrupts` figure on a host that states the row. No reader parses the
   `NMI` label, and no reader of any `msr` node stands in the tree
@@ -645,7 +645,7 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
 - **FR-009**: When the probe runs the `hwlat` method on a cpu, the probe
   SHALL read the `NMI` line of `/proc/interrupts`, resolved under the
   file root, and SHALL take the count of that cpu's column. The standing
-  `interrupts` figure SHALL keep its standing sum over every labelled row
+  `interrupts` figure SHALL keep its standing sum over every labeled row
   of the column, so the new figure stands beside it with its own name.
 - **FR-010**: When the running part states no documented SMI counter, the
   SMI figures SHALL answer not available, and the feature SHALL name no
@@ -678,8 +678,11 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   across the same window, and the count of kept gaps marked SMI. The
   window stands the pre-check window in the pre-check phase and the
   probe's own run span in the alongside phase, and each delta answers the
-  two reads at its edges. Each console figure SHALL name its source file
-  beside it, the shape the standing attribution lines use.
+  two reads at its edges. The console SHALL print the three figures in
+  the standing shape of the block that prints them: the pre-check block
+  prints one source-named line per cpu, and the probe block prints one
+  line per figure with one column per probe cpu. A figure that answers
+  nothing names its source file in the standing disclosure line.
 - **FR-017**: The NMI change SHALL stand as a disclosed figure. The mark
   of one gap SHALL answer the SMI counter alone, and no figure of this
   feature SHALL change the run's exit status (D-14).
@@ -875,8 +878,10 @@ no order row:
 | `limits` | `jitter` | `hwlat` method | `loadReport` | `harness_hwlat_probe_test.cpp` |
 
 Eleven keys stand new. Two enum word sets gain one value each: the method words of the document
-(`TSC`, `FWQ`, `FTQ`, `HWLAT`) and the engine words (`osnoise`,
-`timerlat`, `hwlat`). No key changes its kind, and no key moves.
+(`TSC`, `FWQ`, `FTQ`, `HWLAT`) and the engine words (`NONE`, `osnoise`,
+`timerlat`, `hwlat`), whose first word answers the `NONE` enumerator and
+stands in no written document (`source/harness/detail/json_report.hpp:100`
+to `:102`). No key changes its kind, and no key moves.
 
 ## Success Criteria *(mandatory)*
 
