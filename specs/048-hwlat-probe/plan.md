@@ -313,7 +313,7 @@ choice the code must make once.
 | M6 | Reader | `json_load.cpp`, `harness_json_load_test.cpp` | M2, M5 key names | FR-004, FR-026, FR-029 | standing executable |
 | M7 | Console | `report.cpp`, `harness_jitter_window_test.cpp`, `harness_noise_report_test.cpp` | M2 | FR-016, FR-027, FR-030, FR-031 | two standing executables |
 | M8 | Comparison | `compare.cpp`, two compare test files | M2, M6 | FR-028 | two standing executables; the standing table reader answers a `double` (`:244`), so a nullable figure needs its absent check ahead of that read, before the fault line at `:1563` to `:1576` |
-| M9 | Contracts, docs, example | contracts, guide page, `README.md`, example pair, `example/CMakeLists.txt`, the nine standing contract rows of specs `026`, `027`, `034` and `036` | M3, M5, M7 | FR-006, FR-036 to FR-039 | the gates |
+| M9 | Contracts, docs, example | contracts, guide page, `README.md`, example pair, `example/CMakeLists.txt`, the nine standing contract files of specs `026`, `027`, `034` and `036` | M3, M5, M7 | FR-006, FR-036 to FR-039 | the gates |
 | M10 | Integration | `cli.cpp`, `test/CMakeLists.txt`, version and `SOVERSION` | M3, M4 | FR-003 wiring, version checks | the full suite |
 
 Waves, with the rule that two modules never own one file:

@@ -568,8 +568,12 @@ value before and after.
   FR-024, FR-038, SC-005, SC-007) (depends on T059 to T062). Verify:
   `grep -c "hwlat_detector/mode" specs/048-hwlat-probe/results/detector.md`
   counts at least two lines, the before row and the after row
-- [ ] T056 [US6] Put the two snapshot readings quickstart.md states
-  beside the detector record, rights needed: root on corsairone, the
+- [ ] T056 [US6] Append the two raw snapshot blocks to
+  `specs/048-hwlat-probe/results/detector.md`, the tracefs reading ahead
+  of the run and the reading after it, beside the line that states the
+  standing `diff` of the two stands empty: the table T055 wrote carries
+  each value, and these two blocks carry the whole text of both reads,
+  rights needed: root on corsairone, the
   lane host gives none to this session (FR-021, SC-007) (depends on
   T055). Verify: `diff /tmp/tracing-before.txt /tmp/tracing-after.txt` exits 0 on the lane host and the record names that empty diff
 
@@ -630,7 +634,7 @@ the ABI move.
 
 ---
 
-## Phase 10: Docs and Contracts - the nine standing rows (module M9, wave W3)
+## Phase 10: Docs and Contracts - the nine standing files (module M9, wave W3)
 
 **Purpose**: each amendment rides the commit that lands the code it
 describes (FR-039). This phase lands in wave W3, ahead of the docs phase
@@ -705,10 +709,11 @@ coverage contract, the pinned suite, the gate records and the commits.
   line coverage, the branch shortfall stands at or under 21 rows, the
   tree holds at most 84 exclusion markers, and no marker joins under
   `source/harness` (FR-038, SC-002, VI) (depends on T063). Verify: `bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` exits 0, `grep -rn "LCOV_EXCL" source/harness` reads no match and `grep -rn "LCOV_EXCL" source test example include tools | wc -l` reads at most 84
-- [ ] T080 Run the full suite and read the entry count: the three new
-  executables join the 181 entries of record, and the 13 tests of the
-  attribution record stand among them (FR-032, SC-001, SC-003, VIII)
-  (depends on T063). Verify: `ctest --test-dir build --output-on-failure` exits 0, `ctest --test-dir build -N | tail -n 1` reads `Total Tests: 184`, and `grep -hoE 'the[A-Za-z]+Rows' test/source/harness_hwlat_probe_test.cpp test/source/harness_hwlat_tracer_test.cpp test/source/harness_latency_counters_test.cpp | sort -u | wc -l` reads at least 13
+- [ ] T080 Run the full suite and read the entry count: three new
+  executables and one new shape entry join the 181 entries of record, and
+  the 13 tests of the attribution record stand among them (FR-032, SC-001,
+  SC-003, VIII)
+  (depends on T063). Verify: `ctest --test-dir build --output-on-failure` exits 0, `ctest --test-dir build -N | tail -n 1` reads `Total Tests: 185`, and `grep -hoE 'the[A-Za-z]+Rows' test/source/harness_hwlat_probe_test.cpp test/source/harness_hwlat_tracer_test.cpp test/source/harness_latency_counters_test.cpp | sort -u | wc -l` reads at least 13
 - [ ] T081 Run the pinned suite on corsairone in the `build/prepush`
   tree (FR-032, SC-003, VIII) (depends on T063). Verify: `taskset -c 0,1 ctest --preset prepush-quick -j 2` exits 0
 - [ ] T082 [P] Run the no-sleep and no-clock review over the three new
@@ -740,7 +745,7 @@ coverage contract, the pinned suite, the gate records and the commits.
   IX, XI). Verify: `git log -1 --format=%s | wc -c` reads at most 51 and `git log -1 --format=%B | grep -c "Approved-by: OmO"` counts one line
 - [ ] T087 Land the record and docs commit: the writer, the schema, the
   reader, the console, the comparison, the guide page, the example pair
-  and the nine contract rows with their tests, each test standing in the
+  and the nine contract files with their rows and tests, each test standing in the
   commit that carries the code it tests, on the same title, body, author
   and footer shape (FR-035, FR-039) (depends on T064 to T069). Verify:
   `git show --stat --format=%B HEAD | grep -c "Refs: specs/048-hwlat-probe N13d"`
@@ -819,7 +824,7 @@ priority.
 2. Phase 4, Phase 5 and Phase 6: the engine, the record surfaces and the
    grammar stand (W2, W3; four workers).
 3. Phase 3: the attribution closes User Story 1 (W3).
-4. Phase 10: the nine contract rows ride the code commits (W3).
+4. Phase 10: the nine contract files ride the code commits (W3).
 5. Phase 9: the integration closes the wiring and the version (W4).
 6. Phase 7 and Phase 8: the docs and the two acceptance records stand
    (W4).

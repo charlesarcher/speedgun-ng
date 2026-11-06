@@ -14,7 +14,7 @@ Entity ids here start at E-01, the way
 `specs/044-fix-rocky-pmu-stack/data-model.md` and
 `specs/047-loader-cross-field/data-model.md` start. One id names one
 record in the file that carries it.
-`specs/048-hwlat-probe/plan.md:121` states this file's range as E-01 to
+`specs/048-hwlat-probe/plan.md:125` states this file's range as E-01 to
 E-08, and this file holds that range.
 
 One word carries two surfaces (spec D-6). `hwlat` names a method of
@@ -727,8 +727,9 @@ run start
   before (spec D-7).
 - No new loaded record, no new top-level document key, and no new option
   row, option value or short letter (spec D-13, spec Constraints).
-- No new comparison status: an absent figure answers the standing fault
-  line (spec FR-028).
+- No new comparison status: an absent figure reads 0, and a report with no
+  tracer record, or no entry for the cpu a rule names, answers the standing
+  fault line (spec FR-028).
 - No figure for `osnoise` and `timerlat`, and no change to their restore
   order. The shared restore fix of spec D-15 reaches their defect path as
   a consequence, and the lane records it beside the spec `036` contract

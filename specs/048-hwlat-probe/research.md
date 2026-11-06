@@ -12,7 +12,7 @@ lane host is an Intel Skylake-X i9-9920X on one socket, kernel
 line names its rights.
 
 Numbering: the entries here read `R-01` to `R-16`, the spec's decisions read
-`D-1` to `D-15`, the plan's rulings read `P-1` to `P-14`, the plan's risks
+`D-1` to `D-15`, the plan's rulings read `P-1` to `P-16`, the plan's risks
 read `R-1` to `R-8` and cite as `plan R-1`, and a requirement reads
 `FR-0NN`. A bare `:NNN` continues the file of the cite above it.
 
