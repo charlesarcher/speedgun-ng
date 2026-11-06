@@ -17,18 +17,20 @@ jitter:run:any:<field>:<direction>:<mode>=<bound>
 | --- | --- | --- |
 | `<cpu>` | a probe cpu index the report's `jitter` object names | FR-030, FR-026 |
 | `any` | the worst cpu for that field: the probe cpu carrying the largest value; the rule is a uniform maximum over every field of the table alike, the configuration and span fields included, so a rule naming one of them reads the largest value the report carries for it | FR-030, D-11 |
-| `<field>` | one of the 32 field names the jitter table carries: the sixteen of `JitterStats`, then the sixteen of the series fold, in camelCase | FR-030, FR-002, specs/043 FR-021 |
+| `<field>` | one of the 35 field names the jitter table carries: the sixteen of `JitterStats`, then the sixteen of the series fold, then the three of the attribution, in camelCase | FR-030, FR-002, specs/043 FR-021, specs/048 FR-028 |
 | `<direction>:<mode>=<bound>` | the standing comparison suffix the N5 rule grammar carries | FR-033, D-11 |
 
 The example D-11 states the whole shape in one rule:
 `--compare-rule=jitter:any:p99Ns:lower:abs=5000`.
 
-The field names are exactly the names the two tables carry, in
-camelCase as those tables name them: the sixteen of data-model.md E-03,
-then the sixteen specs/043 adds for the series fold (E-22), listed
-below. A field name outside the 32 is the parser's usage error, one
-line and exit status 2, and the line reads `names none of the
-thirty-two jitter fields` (FR-038, specs/043 FR-021).
+The field names are exactly the names those tables carry, in camelCase
+as those tables name them: the sixteen of data-model.md E-03, then the
+sixteen specs/043 adds for the series fold (E-22), then the three
+specs/048 adds for the attribution: `smiDelta`, `nmiDelta` and
+`smiGapCount`, listed below. A field name outside the 35 is the
+parser's usage error, one line and exit status 2, and the line reads
+`names none of the thirty-five jitter fields` (FR-038, specs/043
+FR-021, specs/048 FR-028).
 
 | Series field name | Value the rule reads | Requirement |
 | --- | --- | --- |
@@ -44,8 +46,16 @@ thirty-two jitter fields` (FR-038, specs/043 FR-021).
 | `resampleStepNs` | the FWQ resample step, 0 for a FTQ run | specs/043 FR-021 |
 | `spectrumPoints` | the DFT bins the transform answered | specs/043 FR-021 |
 
+| Attribution field name | Value the rule reads | Requirement |
+| --- | --- | --- |
+| `smiDelta` | the change of the SMI count across the window the fold covers | specs/048 FR-025, FR-028 |
+| `nmiDelta` | the change of the NMI count across the same window | specs/048 FR-025, FR-028 |
+| `smiGapCount` | the count of kept gaps the run marked SMI | specs/048 FR-025, FR-028 |
+
 A fold that carries no series, the fold of a `TSC` run included, reads
-0 for every series field (specs/043 FR-021, FR-032).
+0 for every series field (specs/043 FR-021, FR-032). A fold that
+carries no value for one of the three attribution names reads 0 under
+the same rule (specs/048 FR-028).
 
 ## Prefix semantics
 
