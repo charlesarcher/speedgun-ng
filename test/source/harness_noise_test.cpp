@@ -1085,6 +1085,64 @@ auto theDeniedSetupWritesAnswerTheEmptySession(std::size_t which) -> void
         "the denied setup write answers the empty session (T010, D-5)");
 }
 
+// T022, specs/036 FR-007, FR-016, R-02; specs/048 FR-021, D-15, P-9: the start
+// write of a standing engine fails after the engine word and the tracer mask
+// stood written. The undo writes both files back, the mask ahead of the word,
+// the promise the specs/036 disclosure row carries for `osnoise` and
+// `timerlat`, beside the detector row
+// `theSetupWhoseDeniedWriteFailsRestoresWhatItWrote` that reads the same shared
+// undo for `hwlat`.
+auto theMidSetupFailureWritesBackTheWordAndTheMask(std::size_t which) -> void
+{
+  const auto engine =
+      which == 0 ? sg::TracerEngine::OSNOISE : sg::TracerEngine::TIMERLAT;
+  const auto word = sg::detail::engineWordOf(engine);
+  const auto cpus = pickCpus(1);
+  // The control beside the denial: the same tree with the start file standing
+  // writable rewrites both files, so the read below that finds them back names
+  // the undo's work and no write that never stood (T022, FR-007).
+  {
+    TracingRootGuard whole;
+    installStandingTree(whole.root(), "ffffffff");
+    const auto written = sg::detail::noiseTracerSetup(engine, cpus);
+    check(written.has_value(),
+          "the whole setup of the standing engine answers a session (T022, "
+          "FR-007)");
+    if (written.has_value()) {
+      check(readStream(
+                (whole.root() / "sys/kernel/tracing/current_tracer").string())
+                == word + "\n",
+            "the whole setup writes the engine word (T022, FR-007, R-02)");
+      check(readStream(
+                (whole.root() / "sys/kernel/tracing/tracing_cpumask").string())
+                == maskTextOf(cpus, 8) + "\n",
+            "the whole setup writes the tracer mask (T022, R-02, R-05)");
+      sg::detail::noiseTracerRestore(*written);
+    }
+  }
+  TracingRootGuard guard;
+  installStandingTree(guard.root(), "ffffffff");
+  check(denyTracingPath(guard.root(), "sys/kernel/tracing/tracing_on"),
+        "the start file stands a directory (T022, FR-017)");
+  const auto session = sg::detail::noiseTracerSetup(engine, cpus);
+  check(!session.has_value(),
+        "the failed start write answers the empty session (T022, FR-016, D-5)");
+  check(readStream(
+            (guard.root() / "sys/kernel/tracing/current_tracer").string())
+            == "nop\n",
+        "the undo writes the word file back at its standing text (T022, "
+        "FR-021, " "D-15, P-9)");
+  check(readStream(
+            (guard.root() / "sys/kernel/tracing/tracing_cpumask").string())
+            == "ffffffff\n",
+        "the undo writes the mask file back at its standing text (T022, "
+        "FR-021, " "D-15, P-9)");
+  check(std::filesystem::is_directory(
+            guard.root() / "sys/kernel/tracing/tracing_on"),
+        "the start file stands the denial the row planted, unwritten (T022, "
+        "FR-021, P-9)");
+}
+
 // The run's own file-size limit stood below one setup write's text:
 // the kernel refuses the write for every user, the root of a CI
 // container included (FR-017), so the denial needs no chmod. The
@@ -2199,6 +2257,8 @@ auto main() -> int
   theFailedEngineWriteAnswersTheEmptySession();
   theDeniedSetupWritesAnswerTheEmptySession(0);
   theDeniedSetupWritesAnswerTheEmptySession(1);
+  theMidSetupFailureWritesBackTheWordAndTheMask(0);
+  theMidSetupFailureWritesBackTheWordAndTheMask(1);
   theLimitedSetupWritesAnswerTheEmptySession(0);
   theLimitedSetupWritesAnswerTheEmptySession(1);
   theCommandLineSettlesOverTheOptionFile();
