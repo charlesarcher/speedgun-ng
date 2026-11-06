@@ -38,15 +38,15 @@ move, with the standing line's file and line beside it.
 | Object and line | `x-order` after the move |
 | --- | --- |
 | `jitter`, `docs/schema/report-v1.json:47` | `["mode", "thresholdNs", "loopPeriodNs", "method", "series", "cpus", "stats", "droppedGaps", "disclosure", "limits"]` |
-| `jitter.stats[]`, `:170` | `["cpu", "gapCount", "gapsPerSecond", "minNs", "medianNs", "meanNs", "p90Ns", "p99Ns", "p999Ns", "p9999Ns", "maxNs", "totalNs", "totalPercent", "runtimeNs", "thresholdNs", "loopPeriodNs", "droppedGaps", "smiDelta", "nmiDelta", "smiGapCount", "gaps"]` |
-| `gaps[]`, `:232` | `["stamp", "gapNs", "smi"]` |
-| `precheck.cpus[].stats`, `:268` | the sixteen standing names, then `"smiDelta", "nmiDelta", "smiGapCount"` |
-| `precheck.tracer`, `:367` | `["engine", "windowUs", "widthUs", "thresholdUs", "cpus"]` |
-| `precheck.tracer.cpus[]`, `:376` | `["cpu", "nmi", "irq", "softirq", "thread", "hardware", "maxGapNs", "gapCount", "nmiCount"]` |
+| `jitter.stats[]`, `:171` | `["cpu", "gapCount", "gapsPerSecond", "minNs", "medianNs", "meanNs", "p90Ns", "p99Ns", "p999Ns", "p9999Ns", "maxNs", "totalNs", "totalPercent", "runtimeNs", "thresholdNs", "loopPeriodNs", "droppedGaps", "smiDelta", "nmiDelta", "smiGapCount", "gaps"]` |
+| `gaps[]`, `:239` | `["stamp", "gapNs", "smi"]` |
+| `precheck.cpus[].stats`, `:277` | the sixteen standing names, then `"smiDelta", "nmiDelta", "smiGapCount"` |
+| `precheck.tracer`, `:382` | `["engine", "windowUs", "widthUs", "thresholdUs", "cpus"]` |
+| `precheck.tracer.cpus[]`, `:397` | `["cpu", "nmi", "irq", "softirq", "thread", "hardware", "maxGapNs", "gapCount", "nmiCount"]` |
 
 The `gaps` name keeps its place at the end of the `stats` item, because
 the writer writes the array last at
-`source/harness/json_report.cpp:354`. The three new `stats` names take
+`source/harness/json_report.cpp:402`. The three new `stats` names take
 positions 18, 19 and 20 of that item, and `gaps` moves from 18 to 21.
 The three `tracer` settings take positions 2, 3 and 4, beside the
 engine word, and `cpus` moves from 2 to 5.
@@ -57,19 +57,19 @@ engine word, and `cpus` moves from 2 to 5.
 | --- | --- | --- |
 | No new name joins a `required` list | the six lists at `docs/schema/report-v1.json` lines 47, 170, 232, 268, 367 and 376 keep their standing names, and each new key joins `properties` only | specs/036 FR-014, spec FR-029 |
 | Every object stays closed | `additionalProperties` stays `false` on each touched object, so a key the schema lists nowhere refuses with the pointer of the item that carries it | specs/036 FR-006 |
-| The writer's order is the schema's order | the checker compares the key set, the key order and the kinds of every written document, at `source/harness/json_load.cpp:2996` | spec FR-029 |
+| The writer's order is the schema's order | the checker compares the key set, the key order and the kinds of every written document, at `source/harness/json_load.cpp:3360` | spec FR-029 |
 
 ## The `jitter` object keys
 
 | Key | Kind | Written when | `null` rule | Requirement |
 | --- | --- | --- | --- | --- |
-| `method` | string, one of `FWQ`, `FTQ`, `HWLAT`, `TSC` | the run carried a probe whose method stands apart from `TSC`, the standing gate at `source/harness/json_report.cpp:1183` | never `null` | spec FR-004, FR-029 |
+| `method` | string, one of `FWQ`, `FTQ`, `HWLAT`, `TSC` | the run carried a probe whose method stands apart from `TSC`, the standing gate at `source/harness/json_report.cpp:1300` | never `null` | spec FR-004, FR-029 |
 | `limits` | string | the run carried `method=hwlat`, beside `disclosure` | never `null` | spec FR-031, P-13 |
 
 The `HWLAT` word joins the enum list at
-`docs/schema/report-v1.json:77`, which stands `["FWQ", "FTQ", "TSC"]`
+`docs/schema/report-v1.json:78`, which stands `["FWQ", "FTQ", "TSC"]`
 today. The checker tests membership only
-(`source/harness/json_load.cpp:3008` to `:3013`), so the position inside
+(`source/harness/json_load.cpp:3170` to `:3175`), so the position inside
 an enum list carries no meaning. `limits` carries the one sentence the
 console states, and a run of any other method writes neither key, so its
 bytes stand where master wrote them.
@@ -77,9 +77,9 @@ bytes stand where master wrote them.
 ## The `stats` item keys
 
 One table serves the three carriers that share
-`writeJitterCpu` at `source/harness/json_report.cpp:332`: the run-level
-`jitter.stats[]` at `:1208`, the per-benchmark `jitter.stats[]` at
-`:776`, and `precheck.cpus[].stats` at `:1242`.
+`writeJitterCpu` at `source/harness/json_report.cpp:374`: the run-level
+`jitter.stats[]` at `:1327`, the per-benchmark `jitter.stats[]` at
+`:831`, and `precheck.cpus[].stats` at `:1368`.
 
 | Key | Kind | Written when | `null` rule | Requirement |
 | --- | --- | --- | --- | --- |
@@ -88,7 +88,7 @@ One table serves the three carriers that share
 | `smiGapCount` | integer | the run carried `method=hwlat` | never `null`; 0 answers no marked gap | spec FR-025 |
 
 The schema types the per-entry `jitter` object open at
-`docs/schema/report-v1.json:572` to `:574`, with no `properties` list and
+`docs/schema/report-v1.json:613` to `:615`, with no `properties` list and
 no `x-order` list, so that carrier needs no order row of its own.
 
 A run of `tsc`, `fwq` or `ftq` writes none of the three in any of the
@@ -103,11 +103,11 @@ because one writer fills all three.
 
 | Key | Kind | Written when | `null` rule | Requirement |
 | --- | --- | --- | --- | --- |
-| `smi` | string or `null`, one of `SMI`, `NOT_SMI` | the run carried `method=hwlat` under the standing `--json-raw=gaps` gate at `source/harness/json_report.cpp:354` | `null` where the SMI count stands unavailable | spec FR-026 |
+| `smi` | string or `null`, one of `SMI`, `NOT_SMI` | the run carried `method=hwlat` under the standing `--json-raw=gaps` gate at `source/harness/json_report.cpp:402` | `null` where the SMI count stands unavailable | spec FR-026 |
 
 `loadReport` validates the kind and keeps no record of it, the standing
 shape of the two names it reads beside it at
-`source/harness/json_load.cpp:516` to `:542`. A value of another kind
+`source/harness/json_load.cpp:608` to `:644`. A value of another kind
 refuses, and a word outside the two refuses and names the item. An absent
 key loads as no mark. No name of this feature joins a `required` list, and a
 closed object refuses unknown keys alone, so the omission of the mark is the
@@ -123,7 +123,7 @@ shape of a document written before the feature (FR-029, A-7).
 
 The three names carry the values FR-020 names in microseconds: 10000,
 5000 and 1000 at A-3. The `engine` key takes the third word, `hwlat`,
-and its enum list at `docs/schema/report-v1.json:371` moves from two
+and its enum list at `docs/schema/report-v1.json:388` moves from two
 names to three.
 
 ## A `cpus` entry
@@ -155,14 +155,14 @@ of that cpu carries the token (spec FR-027, A-6).
 ## The enum word sets
 
 The document's method words, the table at
-`source/harness/detail/json_report.hpp:89`:
+`source/harness/detail/json_report.hpp:93`:
 
 ```text
 TSC, FWQ, FTQ, HWLAT
 ```
 
 The document's engine words, the table at
-`source/harness/detail/json_report.hpp:103`:
+`source/harness/detail/json_report.hpp:108`:
 
 ```text
 NONE, osnoise, timerlat, hwlat
@@ -170,7 +170,7 @@ NONE, osnoise, timerlat, hwlat
 
 The first word of each table answers the enumerator no document names:
 `TSC` writes no `method` key, and `NONE` writes no `tracer` object. Each
-table closes with a `static_assert` on its enum, at `:94` and `:108`, so
+table closes with a `static_assert` on its enum, at `:99` and `:114`, so
 a new enumerator without a word fails the build. The console spells the
 method in lower case and the document in upper case, the standing rule
 of specs/043 FR-019. The engine words stand lower case in both.
@@ -186,19 +186,19 @@ of specs/043 FR-019. The engine words stand lower case in both.
   the three `stats` keys ride the `hwlat` method alone (spec FR-025).
 - `loadReport` reads each new figure through the standing
   `optionalField` path at `source/harness/json_load.cpp:86`, the way the
-  `tracer` key itself reads at `:1198` and the `method` word at `:1457`.
+  `tracer` key itself reads at `:1350` and the `method` word at `:1609`.
   A document that omits a key loads as the absent figure (spec A-7).
 - The standing readers keep their required keys: `readJitterCpu` reads
-  its sixteen names as required at `source/harness/json_load.cpp:495` to
-  `:512`, and `readPrecheckTracer` reads `engine` and `cpus` as required
-  at `:1089` and `:1100`. A new name joins none of those calls, so a
+  its sixteen names as required at `source/harness/json_load.cpp:568` to
+  `:585`, and `readPrecheckTracer` reads `engine` and `cpus` as required
+  at `:1215` and `:1252`. A new name joins none of those calls, so a
   document written before this feature loads with no complaint (spec
   FR-029).
 - A nullable figure reads through the standing `readNullableCount` path
-  at `source/harness/json_load.cpp:723`, which answers an absent figure
+  at `source/harness/json_load.cpp:457`, which answers an absent figure
   for a `null` and refuses a value of another kind.
 - `loadReport` answers the tracer record in `ReportData::precheck` at
-  `include/speedgun-ng/benchmark.hpp:1223`, the carrier the comparison
+  `include/speedgun-ng/benchmark.hpp:1260`, the carrier the comparison
   reads for the detector names.
 - The schema checker fails a document that carries a duplicate key, a
   key a closed object does not list, or an order its `x-order` list does
@@ -210,12 +210,12 @@ of specs/043 FR-019. The engine words stand lower case in both.
 | --- | --- | --- |
 | `specs/027-jitter-probe/contracts/report-json.md:39` | the `method` kind lists `FWQ`, `FTQ`, `TSC` | the `method` kind lists `FWQ`, `FTQ`, `HWLAT`, `TSC` |
 | `specs/027-jitter-probe/contracts/report-json.md:42` | `cpu` and the sixteen fields of `JitterStats` in the E-03 order | `cpu` and the nineteen names of `JitterStats` in the E-03 order, the last three written for the `hwlat` method alone |
-| `specs/027-jitter-probe/contracts/report-json.md:93` | each gap item carries the stamp and the gap, the 16-byte gap record's two fields | each gap item carries the stamp, the gap, and the `smi` mark of the `hwlat` method |
-| `specs/027-jitter-probe/contracts/report-json.md:103` | `cpu` plus the sixteen fields in the E-03 order | `cpu` plus the nineteen names in the E-03 order, beside the `smi` name of the `gaps` item |
+| `specs/027-jitter-probe/contracts/report-json.md:94` | each gap item carries the stamp and the gap, the 16-byte gap record's two fields | each gap item carries the stamp, the gap, and the `smi` mark of the `hwlat` method |
+| `specs/027-jitter-probe/contracts/report-json.md:104` | `cpu` plus the sixteen fields in the E-03 order | `cpu` plus the nineteen names in the E-03 order, beside the `smi` name of the `gaps` item |
 | `specs/034-host-noise-precheck/contracts/report-json.md:37` | the sixteen standing stats fields of the console probe block | the nineteen standing stats fields of the console probe block |
 | `specs/036-osnoise-timerlat-tracers/contracts/report-json.md:34` | the `engine` kind lists `osnoise` or `timerlat` | the `engine` kind lists `osnoise`, `timerlat` or `hwlat` |
-| `specs/036-osnoise-timerlat-tracers/contracts/report-json.md:35` | the `cpus` row, the second and last row of the `tracer` object table | three rows join above it: `windowUs`, `widthUs`, `thresholdUs`, each an integer the `hwlat` run wrote |
-| `specs/036-osnoise-timerlat-tracers/contracts/report-json.md:46` | the `hardware` row, the last of the five source figures | three rows join below it: `maxGapNs`, `gapCount`, `nmiCount`, each integer or `null` |
+| `specs/036-osnoise-timerlat-tracers/contracts/report-json.md:38` | the `cpus` row, the second and last row of the `tracer` object table | three rows join above it: `windowUs`, `widthUs`, `thresholdUs`, each an integer the `hwlat` run wrote |
+| `specs/036-osnoise-timerlat-tracers/contracts/report-json.md:49` | the `hardware` row, the last of the five source figures | three rows join below it: `maxGapNs`, `gapCount`, `nmiCount`, each integer or `null` |
 | `specs/036-osnoise-timerlat-tracers/contracts/report-json.md:17` | the `precheck` order of six names, ending at `tracer` | unchanged: the new names join inside `tracer`, so the `precheck` order stands still |
 
 ## Consumers

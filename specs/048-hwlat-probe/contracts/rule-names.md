@@ -39,15 +39,15 @@ hwlat:any:<figure>:<direction>:<mode>=<bound>
 | `<direction>:<mode>=<bound>` | the standing comparison suffix the N5 rule grammar carries | specs/027 FR-033, D-11 |
 
 The head stands as a value name of its own, the way `jitter` does at
-`source/harness/compare.cpp:467`. The head word joins no entry of
+`source/harness/compare.cpp:591`. The head word joins no entry of
 `kLabelPrefixes` at `source/harness/compare.cpp:55`, which holds the
 four colon prefixes `counter:`, `metric:`, `stat:` and `topdown:`.
 
 The new branch joins the value-name dispatch of `readRule` at
-`source/harness/compare.cpp:443` to `:493`, beside the `jitter` branch at
-`:467` to `:476`. The three figures read a table of their own,
-`kHwlatFields`, beside `kJitterFields` at `:262` (plan P-11). A head word
-the dispatch names nowhere answers the standing line at `:489` to `:492`,
+`source/harness/compare.cpp:566` to `:627`, beside the `jitter` branch at
+`:591` to `:600`. The three figures read a table of their own,
+`kHwlatFields`, beside `kJitterFields` at `:271` (plan P-11). A head word
+the dispatch names nowhere answers the standing line at `:623` to `:626`,
 which for the new word reads `'hwlat' is not a value the report carries`.
 
 ## The field row
@@ -60,7 +60,7 @@ Line 20 of the standing contract becomes, in the standing columns
 ## The three new jitter names
 
 The three names join `kJitterFields` at
-`source/harness/compare.cpp:262` after the sixteen series names, at
+`source/harness/compare.cpp:271` after the sixteen series names, at
 indices 32, 33 and 34. Each reads the carrier the standing names read,
 the `JitterEntryFold` the bare prefix and the `run:` prefix select.
 
@@ -82,8 +82,8 @@ inserts.
 
 | Builder | The line as printed |
 | --- | --- |
-| `source/harness/compare.cpp:427` to `:431`, with the count word the 35-row table moves | `the value name of the rule 'jitter:any:smiDeltaX:lower:abs=5' is not readable: 'smiDeltaX' names none of the thirty-five jitter fields` |
-| the new `kHwlatFields` lookup beside `:423` to `:431`, in the same frame | `the value name of the rule 'hwlat:any:gapCounts:lower:abs=5' is not readable: 'gapCounts' names none of the three hwlat figures` |
+| `source/harness/compare.cpp:483` to `:487`, with the count word the 35-row table moves | `the value name of the rule 'jitter:any:smiDeltaX:lower:abs=5' is not readable: 'smiDeltaX' names none of the thirty-five jitter fields` |
+| the new `kHwlatFields` lookup beside `:479` to `:487`, in the same frame | `the value name of the rule 'hwlat:any:gapCounts:lower:abs=5' is not readable: 'gapCounts' names none of the three hwlat figures` |
 
 The standing frame reads `the value name of the rule '<rule text>' is
 not readable: <detail>`, and the rule text stands quoted by `quotedText`
@@ -97,11 +97,11 @@ comparison runs.
 | --- | --- |
 | A fold that carries no value for one of the three jitter names reads 0, the standing rule of a series field on a fold that carries no series at `source/harness/compare.cpp:251` to `:255` | specs/048 FR-028, specs/043 FR-032 |
 | A tracer cpu whose figure stands `null` reads 0 under the same rule, and the run gains no new status. The table reader answers a `double` at `source/harness/compare.cpp:244`, so the absent check stands ahead of that read | specs/048 FR-028, plan M8 |
-| A `hwlat:` name on a report that carries no tracer record answers the standing absence shape: one line naming the rule and the report, and exit status 2, the shape of `source/harness/compare.cpp:1563` to `:1576` | specs/027 FR-032, specs/048 FR-028 |
+| A `hwlat:` name on a report that carries no tracer record answers the standing absence shape: one line naming the rule and the report, and exit status 2, the shape of `source/harness/compare.cpp:1697` to `:1710` | specs/027 FR-032, specs/048 FR-028 |
 | A named cpu the tracer record does not carry answers that same line, the standing rule of a named probe cpu the jitter object does not carry | specs/027 FR-032 |
 
 The figures ride `ReportData::precheck` at
-`include/speedgun-ng/benchmark.hpp:1223`, the first pre-check figure the
+`include/speedgun-ng/benchmark.hpp:1260`, the first pre-check figure the
 comparison reads; `source/harness/compare.cpp` reads no pre-check record
 today (spec FR-028).
 
@@ -124,11 +124,11 @@ today (spec FR-028).
 | File and line | Standing text | New text |
 | --- | --- | --- |
 | `specs/027-jitter-probe/contracts/rule-names.md:20` | one of the 32 field names the jitter table carries: the sixteen of `JitterStats`, then the sixteen of the series fold | one of the 35 field names the jitter table carries, the three attribution names last |
-| `specs/027-jitter-probe/contracts/rule-names.md:31` | `names none of the thirty-two jitter fields` | `names none of the thirty-five jitter fields` |
-| `specs/027-jitter-probe/contracts/rule-names.md:26` to `:31` | the sentence that lists the names and the count | the same sentence with `smiDelta`, `nmiDelta` and `smiGapCount` named |
+| `specs/027-jitter-probe/contracts/rule-names.md:32` | `names none of the thirty-two jitter fields` | `names none of the thirty-five jitter fields` |
+| `specs/027-jitter-probe/contracts/rule-names.md:26` to `:33` | the sentence that lists the names and the count | the same sentence with `smiDelta`, `nmiDelta` and `smiGapCount` named |
 | `specs/026-regression-gate/contracts/rule-parse.md:35` | the `<value>` production ends with its `jitter` alternative | one further alternative joins below it, for the `hwlat` head |
-| `specs/026-regression-gate/contracts/rule-parse.md:39` | the `<jitter-field>` production names the sixteen field names of the stats record | the production names the thirty-five field names of the jitter table |
-| `specs/026-regression-gate/contracts/rule-parse.md:104` | the example row refuses an unknown field as "none of the sixteen jitter fields" | the same row reads "none of the thirty-five jitter fields", the words the moved table prints |
+| `specs/026-regression-gate/contracts/rule-parse.md:40` | the `<jitter-field>` production names the sixteen field names of the stats record | the production names the thirty-five field names of the jitter table |
+| `specs/026-regression-gate/contracts/rule-parse.md:116` | the example row refuses an unknown field as "none of the sixteen jitter fields" | the same row reads "none of the thirty-five jitter fields", the words the moved table prints |
 
 ## Consumers
 

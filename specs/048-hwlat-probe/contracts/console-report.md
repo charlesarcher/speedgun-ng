@@ -3,8 +3,8 @@
 Phase 1 output. The delta over the standing console contracts:
 `specs/034-host-noise-precheck/contracts/console-report.md` for the
 pre-check block and the probe block it borrows its field names from.
-`printJitterReport` at `source/harness/report.cpp:987` and
-`printPrecheckReport` at `:1469` gain the lines below, and every
+`printJitterReport` at `source/harness/report.cpp:1001` and
+`printPrecheckReport` at `:1543` gain the lines below, and every
 standing line stands byte-identical (spec FR-004, FR-016, FR-027,
 FR-030). The block order, the field names and the `not available`
 wording of the standing contracts stand unchanged; the amendments this
@@ -70,12 +70,12 @@ delta names join the standing files in the commit that lands the code.
   pre-check block answers the pre-check window, and the probe block
   answers the probe's own run span (spec FR-016).
 - Each figure line names its source file beside it, the shape the
-  standing attribution lines carry at `source/harness/report.cpp:1510`
-  to `:1520`. The marked-gap count names no source, because no file
+  standing attribution lines carry at `source/harness/report.cpp:1586`
+  to `:1596`. The marked-gap count names no source, because no file
   backs it (spec FR-016).
 - A figure whose source answers nothing prints the standing
   `not available` token in the figure position, the token
-  `kUnavailableFigure` holds at `source/harness/report.cpp:1094` (spec
+  `kUnavailableFigure` holds at `source/harness/report.cpp:989` (spec
   FR-011, FR-027).
 - The two disclosure lines print once per run per source, and the run
   keeps status 0 (spec FR-011). The same facts ride the
@@ -85,7 +85,7 @@ delta names join the standing files in the commit that lands the code.
   `jitter.limits` (spec FR-030, FR-031).
 - The tracer figure labels stand the JSON key names, the way the
   standing five labels stand the five source names at
-  `source/harness/report.cpp:1569` to `:1583`.
+  `source/harness/report.cpp:1671` to `:1685`.
 - The detector ran in the kernel's `per-cpu` mode, because the run
   writes `hwlat_detector/mode` with `per-cpu` before the engine word
   (spec D-9, P-14). Each tracer cpu therefore carries its own buffer, so
@@ -99,9 +99,9 @@ delta names join the standing files in the commit that lands the code.
   `hwlat_detector/window` and `tracing_thresh` (spec D-8).
 - A restore-failure line names the file below the tracefs root and the
   value the run saved, the shape the standing host-settings line uses
-  for its `key=value` pairs at `source/harness/report.cpp:1525`. The
+  for its `key=value` pairs at `source/harness/report.cpp:1617`. The
   line prints at the restore call site of
-  `source/harness/cli.cpp:1258`, ahead of the pre-check block (spec
+  `source/harness/cli.cpp:1278`, ahead of the pre-check block (spec
   FR-022).
 - `tracing_on` stands outside the saved set, so no restore-failure line
   can name it, and the run leaves tracing off the way the standing
@@ -117,10 +117,10 @@ delta names join the standing files in the commit that lands the code.
 | File and line | Standing text | New text |
 | --- | --- | --- |
 | `specs/034-host-noise-precheck/contracts/console-report.md` lines 4 to 5 | the field names are the sixteen the console probe block uses | the field names are the nineteen the console probe block uses |
-| `specs/034-host-noise-precheck/contracts/console-report.md:18` | `<the sixteen stats lines, one value>` | the sixteen stats lines stand, and the three detector figures join the attribution group after the `switch delta` line, the first two naming their source and the third naming none (FR-016) |
-| `specs/034-host-noise-precheck/contracts/console-report.md:21` | the `switch delta` line ends the per-cpu group | three `hwlat` lines follow it, each naming its source |
+| `specs/034-host-noise-precheck/contracts/console-report.md:20` | `<the sixteen stats lines, one value>` | the sixteen stats lines stand, and the three detector figures join the attribution group after the `switch delta` line, the first two naming their source and the third naming none (FR-016) |
+| `specs/034-host-noise-precheck/contracts/console-report.md:23` | the `switch delta` line ends the per-cpu group | three `hwlat` lines follow it, each naming its source |
 | `specs/036-osnoise-timerlat-tracers/contracts/console-report.md:15` | `tracer: engine <word> cpus <list>` | unchanged text, and a `hwlat` run adds the settings line below it |
-| `specs/036-osnoise-timerlat-tracers/contracts/console-report.md:20` | `tracer cpu <n> hardware: <figure>`, the last figure line | three further figure lines follow it for the `hwlat` engine |
+| `specs/036-osnoise-timerlat-tracers/contracts/console-report.md:21` | `tracer cpu <n> hardware: <figure>`, the last figure line | three further figure lines follow it for the `hwlat` engine |
 
 ## Consumers
 
