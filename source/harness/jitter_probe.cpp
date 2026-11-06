@@ -35,6 +35,7 @@
 
 #include "../detail/proc_root.hpp"
 #include "detail/internal.hpp"
+#include "detail/latency_counters.hpp"
 #include "detail/options.hpp"
 #include "detail/percentiles.hpp"
 #include "detail/spectrum.hpp"
@@ -45,6 +46,12 @@
 
 namespace sg::detail
 {
+
+// specs/034 R-03: the whole-file reader under the file-root seam. The
+// definition stands below, beside the attribution readers it serves, so the
+// window-edge reads of specs/048 name it here (FR-019, P-2).
+auto readUnderRoot(const std::string& relative) -> std::optional<std::string>;
+
 namespace
 {
 
@@ -102,16 +109,145 @@ auto catalogCarriesTsc() -> bool
   return false;
 }
 
+// specs/043 FR-003, D-1: the methods that fill the series ring, one sample
+// per entry. `tsc` and `hwlat` fill the gap ring, so neither calibrates a
+// unit loop nor pre-sizes the series buffer (E-05, A-4).
+auto fillsSeriesRing(const JitterMethod method) -> bool
+{
+  return method == JitterMethod::FWQ || method == JitterMethod::FTQ;
+}
+
+// specs/048 FR-012, FR-013, P-2, E-03: the SMI counter source of one probe
+// cpu over one window. The item opens the node once, outside every window,
+// through the unit that owns the kernel interface, and closes it at stop.
+// `before` holds the read the next gap read stands against: the opening edge
+// read for the window's first gap, and the previous kept gap's read for every
+// later gap (FR-012, D-7). A source the vendor gate refuses, a node the open
+// refuses and a read that answers nothing each leave the figures with no
+// value, and no figure stands set in their place (FR-010, FR-011, FR-015).
+struct SmiSource
+{
+  std::optional<int> descriptor {};
+  std::optional<std::uint64_t> before {};
+};
+
+// The one read of the open node, or nothing when the descriptor stands absent
+// or the kernel answers less than the counter's width (FR-007, FR-011).
+auto counterFigure(const SmiSource& source) noexcept
+    -> std::optional<std::uint64_t>
+{
+  if (!source.descriptor.has_value()) {
+    return std::nullopt;
+  }
+  return smiCountOf(*source.descriptor);
+}
+
+// The counter read of one window edge: the figure, and the base the first gap
+// read of that window stands against (FR-012, D-7).
+auto edgeCounter(SmiSource& source) noexcept -> std::optional<std::uint64_t>
+{
+  const auto figure = counterFigure(source);
+  source.before = figure;
+  return figure;
+}
+
+// The non-maskable-interrupt figure of one cpu, read through the standing
+// file-root reader and the unit's own text reader (FR-009). The read stands at
+// a window edge, outside the measured loop (P-2).
+auto nmiFigureOf(const std::uint32_t cpu) noexcept
+    -> std::optional<std::uint64_t>
+{
+  const auto text = readUnderRoot("proc/interrupts");
+  if (!text.has_value()) {
+    return std::nullopt;
+  }
+  return nmiCountOfText(*text, cpu);
+}
+
+// The two reads that open one window, one per source (FR-012, FR-016). The
+// counter read also sets the base of the window's first gap read (D-7).
+auto openWindowEdges(ProbeCpuState& state, SmiSource& source) noexcept -> void
+{
+  state.edges = WindowEdges {};
+  state.edges.smiOpening = edgeCounter(source);
+  state.edges.nmiOpening = nmiFigureOf(state.cpu);
+}
+
+// The two reads that close one window, one per source (FR-012, FR-016). The
+// closing read leaves the base where it stands, because no gap of that window
+// reads after it (D-7).
+auto closeWindowEdges(ProbeCpuState& state,
+                      const SmiSource& source) noexcept -> void
+{
+  state.edges.smiClosing = counterFigure(source);
+  state.edges.nmiClosing = nmiFigureOf(state.cpu);
+}
+
+// specs/048 P-3, E-03, FR-015: the change prefix of one kept set. The item's
+// keep step pairs the gap ring and the change ring element for element, so a
+// state whose change ring stands as long as its kept set answers that prefix
+// whole. A state built beside the item, the shape a fixture gives a fold,
+// carries a shorter ring, and the gaps that ring does not reach stand unmarked,
+// the answer an absent source leaves.
+auto changePrefixOf(const std::vector<std::uint64_t>& changes,
+                    const std::size_t kept) -> std::span<const std::uint64_t>
+{
+  return std::span<const std::uint64_t>(changes.data(),
+                                        std::min(kept, changes.size()));
+}
+
+// specs/048 FR-013, FR-014, FR-015, P-3: the change element of one kept gap:
+// the element the keep step paired with its record, and zero for a gap the
+// change ring does not reach.
+auto changeAt(std::span<const std::uint64_t> changes,
+              const std::size_t index) noexcept -> std::uint64_t
+{
+  if (index >= changes.size()) {
+    return 0;
+  }
+  return *(changes.begin() + static_cast<std::ptrdiff_t>(index));
+}
+
+// The change of one pair of window-edge reads. The pair answers nothing when
+// either read stands absent, and answers zero when the closing read stands at
+// or below the opening read, the floor FR-016 validates (FR-016).
+auto windowDeltaOf(const std::optional<std::uint64_t>& opening,
+                   const std::optional<std::uint64_t>& closing) noexcept
+    -> std::optional<std::uint64_t>
+{
+  if (!opening.has_value() || !closing.has_value()) {
+    return std::nullopt;
+  }
+  return *closing > *opening ? *closing - *opening : std::uint64_t {0};
+}
+
 // One record store into the pre-sized buffer, or the drop the filled
 // buffer answers with: the stamp is lost and the count, the total and
 // the max of the dropped gaps stand in the per-cpu counters (E-04,
-// FR-010, D-6).
+// FR-010, D-6). The counter read stands inside the keep step, so a gap the
+// buffer drops costs no read and the next kept gap's span covers it (FR-012,
+// E-03). The change answers this read over the read before it, and a read that
+// answers nothing leaves the gap unmarked and the base where it stands, so the
+// next gap's span covers the missing read too (FR-013, FR-014, FR-015).
 auto keepOrDrop(ProbeCpuState& state,
+                SmiSource& source,
                 const std::uint64_t stamp,
                 const std::uint64_t gap) noexcept -> void
 {
   if (state.kept < state.buffer.size()) {
+    const auto before = source.before;
+    const auto figure = counterFigure(source);
+    if (figure.has_value()) {
+      source.before = figure;
+    }
+    const auto change =
+        figure.has_value() && before.has_value() && *figure > *before
+        ? *figure - *before
+        : std::uint64_t {0};
+    SG_ASSERT(state.changes.size() > state.kept,
+              "the change ring stands as long as the gap ring (FR-012, E-03)");
     state.buffer.at(state.kept) = GapRecord {.stamp = stamp, .gapNs = gap};
+    state.changes.at(state.kept) = change;
     ++state.kept;
     return;
   }
@@ -490,8 +626,20 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
   // gaps key, one 8-byte sample per entry, so the measured loop stores
   // into standing space and allocates nothing (FR-014, FR-016, E-26,
   // D-6, R-08).
-  if (options->method != JitterMethod::TSC) {
+  if (fillsSeriesRing(options->method)) {
     state->series.assign(options->gapCount, 0);
+  }
+
+  // specs/048 D-1, FR-012, FR-013, P-2: the `hwlat` method carries the two
+  // kernel counters, and a run of another method reads neither. The node
+  // opens once at start, ahead of the measurement pass and of every window,
+  // and closes at the end of the item. The unit's vendor gate reads the
+  // vendor word once here, so a host the gate refuses opens no node, reads no
+  // counter and names no substitute (FR-010, FR-011, D-4).
+  SmiSource source;
+  const bool readsKernelCounters = options->method == JitterMethod::HWLAT;
+  if (readsKernelCounters && smiSourceSupported()) {
+    source.descriptor = openMsrNode(state->cpu);
   }
 
   // The read move: the installed reader's thunk over a fresh stack
@@ -525,9 +673,10 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
   // The calibration: FWQ and FTQ find their work count on this cpu,
   // after the buffer's first touch and before the measurement pass, so
   // the search's span stands out of the window's runtime and the latch
-  // line stands behind it (FR-010, FR-011, R-04, R-05). A TSC run keeps
-  // the standing layout and reads no prefix.
-  if (options->method != JitterMethod::TSC) {
+  // line stands behind it (FR-010, FR-011, R-04, R-05). A run of a method
+  // that fills the gap ring keeps the standing layout and reads no
+  // prefix (D-1, A-4).
+  if (fillsSeriesRing(options->method)) {
     calibrateUnit(*state, *options, readStamp);
   }
 
@@ -572,6 +721,12 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
       last = readStamp();
     }
     const std::uint64_t phaseStart = last;
+    if (readsKernelCounters) {
+      // specs/048 FR-012, FR-016, D-7: the pre-check window opens here, so
+      // the edge pair reads once, ahead of the phase loop, and sets the base
+      // the phase's first gap read stands against.
+      openWindowEdges(*state, source);
+    }
     if (options->method == JitterMethod::FWQ) {
       // FR-004: the pre-check phase of a FWQ run records unit times,
       // and the phase ends at its span.
@@ -599,13 +754,19 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
         const std::uint64_t stamp = readStamp();
         const std::uint64_t gap = stamp - last;
         if (gap >= state->thresholdNs) {
-          keepOrDrop(*state, stamp, gap);
+          keepOrDrop(*state, source, stamp, gap);
         }
         last = stamp;
         if (stamp - phaseStart >= span) {
           break;
         }
       }
+    }
+    if (readsKernelCounters) {
+      // specs/048 FR-012, FR-016: the phase's last read stands behind the
+      // loop, so the closing edge of the pre-check window reads here and no
+      // later gap of this window reads after it.
+      closeWindowEdges(*state, source);
     }
     if (options->precheckSerial) {
       // The release stands the next item's start; the store happens
@@ -645,7 +806,10 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
   // read after the phases to the read of the stop flag, one reader
   // call, one comparison, one record store and one stop-flag read per
   // pass, and no allocation, no syscall, no I/O anywhere in the body
-  // (FR-005, FR-006, D-7, R-04).
+  // (FR-005, FR-006, D-7, R-04). The `hwlat` method adds the counter
+  // read of the keep step alone, so a pass that keeps no gap costs no
+  // second read and the pair of reads that bound a gap stays adjacent to
+  // it (FR-012, P-2, E-03).
   if (options->mode == JitterProbeMode::ALONGSIDE
       || options->mode == JitterProbeMode::BOTH)
   {
@@ -653,6 +817,12 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
     // the window's first stamp, the base the series fold recovers every
     // sample's stamp from.
     const std::uint64_t windowStart = last;
+    if (readsKernelCounters) {
+      // specs/048 FR-012, FR-016, D-7: the run window opens behind the latch
+      // line, so the edge pair reads once, ahead of the loop, and the pair of
+      // the pre-check window stands copied into the snapshot below.
+      openWindowEdges(*state, source);
+    }
     if (options->method == JitterMethod::FWQ) {
       // FR-012, FR-014, R-08: one unit per pass, the calibrated body
       // and one read, the unit time the delta answers, and the record
@@ -674,11 +844,22 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
         const std::uint64_t stamp = readStamp();
         const std::uint64_t gap = stamp - last;
         if (gap >= state->thresholdNs) {
-          keepOrDrop(*state, stamp, gap);
+          keepOrDrop(*state, source, stamp, gap);
         }
         last = stamp;
       }
     }
+    if (readsKernelCounters) {
+      // specs/048 FR-012, FR-016: the loop ends at the stop flag, so the
+      // closing edge of the run window reads here, once, behind the loop.
+      closeWindowEdges(*state, source);
+    }
+  }
+
+  // specs/048 P-2: the descriptor closes once at stop, and the close's answer
+  // stands unread (FR-011).
+  if (source.descriptor.has_value()) {
+    closeMsrNode(*source.descriptor);
   }
 }
 
@@ -792,8 +973,14 @@ auto seriesFigures(const Source& source,
 // standing minimum sample count, the covered span the records' own stamp
 // span, and the rate fields the duration divisions answer (E-03, R-05).
 // The joined fold passes the buffer's kept set, and the snapshot fold
-// passes the prefix the latch copied.
+// passes the prefix the latch copied. The changes ride that prefix
+// element for element, and the edge pair names the window the reads
+// bound, so the three figures of specs/048 answer beside the standing
+// sixteen (FR-013, FR-014, FR-016, P-3, P-5). An empty kept set leaves
+// the standing sixteen at 0 and answers the window's own two changes.
 auto gapFigures(std::span<const GapRecord> records,
+                std::span<const std::uint64_t> changes,
+                const WindowEdges& edges,
                 const std::uint64_t droppedGaps,
                 const std::uint64_t thresholdNs,
                 const std::uint64_t loopPeriodNs) -> JitterStats
@@ -803,6 +990,18 @@ auto gapFigures(std::span<const GapRecord> records,
   stats.droppedGaps = droppedGaps;
   stats.thresholdNs = thresholdNs;
   stats.loopPeriodNs = loopPeriodNs;
+
+  // specs/048 FR-013, FR-014, FR-015, FR-016, P-3: a change above zero
+  // marks its gap `SMI` and a change of zero marks it `NOT_SMI`, so the
+  // marked count counts the elements above zero. An absent source leaves
+  // every element at zero, which leaves the count at 0. The two changes
+  // answer the edge pairs, and a pair whose reads stand absent answers
+  // nothing: no figure of its own stands set there.
+  for (const auto change : changes) {
+    stats.smiGapCount += change > 0 ? std::uint64_t {1} : std::uint64_t {0};
+  }
+  stats.smiDelta = windowDeltaOf(edges.smiOpening, edges.smiClosing);
+  stats.nmiDelta = windowDeltaOf(edges.nmiOpening, edges.nmiClosing);
 
   std::vector<double> sorted;
   sorted.reserve(records.size());
@@ -1047,12 +1246,24 @@ auto JitterProbe::states() const noexcept -> const std::vector<ProbeCpuState>&
  * \post `thresholdNs` and `loopPeriodNs` carry the state's own
  *       (FR-007, R-05)
  * \post `runtimeNs` is the kept records' stamp span (E-03, R-05)
+ * \post `smiGapCount` counts the kept gaps whose change element stands above
+ *       zero, and an absent source leaves it at 0. A change ring shorter than
+ *       the kept set leaves the gaps it does not reach unmarked (FR-014,
+ *       FR-015, P-3)
+ * \post `smiDelta` and `nmiDelta` answer the change of the state's pair of
+ *       edge reads and stand with no value when either read of that source
+ *       stands absent (FR-011, FR-016)
  */
 auto gapStatsOf(const ProbeCpuState& state) -> JitterStats
 {
   const std::span<const GapRecord> kept(state.buffer.data(), state.kept);
-  auto stats = gapFigures(
-      kept, state.droppedGaps, state.thresholdNs, state.loopPeriodNs);
+  const auto changes = changePrefixOf(state.changes, state.kept);
+  auto stats = gapFigures(kept,
+                          changes,
+                          state.edges,
+                          state.droppedGaps,
+                          state.thresholdNs,
+                          state.loopPeriodNs);
   SG_ENSURE(
       stats.gapCount == state.kept && stats.droppedGaps == state.droppedGaps,
       "the counts answer the kept and dropped records (FR-010, D-6)");
@@ -1068,10 +1279,11 @@ auto gapStatsOf(const ProbeCpuState& state) -> JitterStats
  * @brief specs/045-merge-fixes FR-008, D-5: the gap fold over one probe
  * cpu's latch-time snapshot (FR-010, D-6): the sixteen fields over the
  * gap prefix the latch copied, the covered span that prefix's stamp
- * span. The pre-check record of a `mode=both` run whose method is `tsc`
- * reads this fold while the alongside loop runs on, and the fold reads
- * no live buffer. The empty prefix answers the zero fields and none of
- * the rows below.
+ * span, and the three attribution figures of specs/048. The pre-check
+ * record of a `mode=both` run whose method is `tsc` reads this fold
+ * while the alongside loop runs on, and the fold reads no live buffer.
+ * The empty prefix answers the zero fields, the window's own two changes
+ * and none of the rows below.
  *
  * \pre `gapsKept` equals the length of the copied gap prefix
  * \post the fold answers the figures of the copied prefix, the
@@ -1081,6 +1293,13 @@ auto gapStatsOf(const ProbeCpuState& state) -> JitterStats
  *       maxNs
  * \post `runtimeNs` is the copied records' stamp span, and the rate
  *       fields divide by it (E-03, R-05)
+ * \post `smiGapCount` counts the copied gaps whose change element stands
+ *       above zero, and a copied change ring shorter than the copied prefix
+ *       leaves the gaps it does not reach unmarked (FR-014, FR-015, P-3)
+ * \post `smiDelta` and `nmiDelta` answer the change of the snapshot's pair
+ *       of edge reads, the two reads of the pre-check window, and stand with
+ *       no value when either read of that source stands absent (FR-011,
+ *       FR-016)
  */
 auto gapStatsOf(const JitterLatchSnapshot& snapshot) -> JitterStats
 {
@@ -1088,8 +1307,13 @@ auto gapStatsOf(const JitterLatchSnapshot& snapshot) -> JitterStats
              "the count names the copied prefix (FR-008, D-5)");
   const std::span<const GapRecord> kept(snapshot.gaps.data(),
                                         snapshot.gapsKept);
-  auto stats = gapFigures(
-      kept, snapshot.droppedGaps, snapshot.thresholdNs, snapshot.loopPeriodNs);
+  const auto changes = changePrefixOf(snapshot.changes, snapshot.gapsKept);
+  auto stats = gapFigures(kept,
+                          changes,
+                          snapshot.window,
+                          snapshot.droppedGaps,
+                          snapshot.thresholdNs,
+                          snapshot.loopPeriodNs);
   SG_ENSURE(stats.gapCount == snapshot.gapsKept
                 && stats.droppedGaps == snapshot.droppedGaps,
             "the counts answer the copied and dropped records (FR-008, D-5)");
@@ -1248,6 +1472,10 @@ auto seriesStatsOf(const JitterLatchSnapshot& snapshot) -> JitterSeriesStats
  * \post `thresholdNs` and `loopPeriodNs` carry the state's own
  *       (FR-007, R-05)
  * \post `runtimeNs` is the windows' total duration (E-03, R-05)
+ * \post `smiGapCount` counts the placed gaps whose change element stands
+ *       above zero, and the gaps a change ring shorter than the kept set does
+ *       not reach stand unmarked. The two delta fields stand with no value,
+ *       because this fold holds no window edge (FR-015, FR-016, FR-025, P-3)
  */
 auto gapStatsOf(const ProbeCpuState& state,
                 std::span<const TimedWindow> windows) -> JitterStats
@@ -1264,6 +1492,7 @@ auto gapStatsOf(const ProbeCpuState& state,
 
   std::vector<double> sorted;
   sorted.reserve(state.kept);
+  const auto changes = changePrefixOf(state.changes, state.kept);
   std::uint64_t total = 0;
   for (std::size_t index = 0; index < state.kept; ++index) {
     const auto& record = state.buffer.at(index);
@@ -1281,6 +1510,13 @@ auto gapStatsOf(const ProbeCpuState& state,
     }
     sorted.push_back(static_cast<double>(record.gapNs));
     total += record.gapNs;
+    // specs/048 FR-013, FR-014, FR-025, P-3: the change element the keep step
+    // paired with this record marks it, so the item's count counts the placed
+    // gaps whose element stands above zero, and a gap the change ring does not
+    // reach stands unmarked. The two window changes answer nothing here,
+    // because this fold holds no edge read (FR-015, FR-016).
+    stats.smiGapCount +=
+        changeAt(changes, index) > 0 ? std::uint64_t {1} : std::uint64_t {0};
   }
   std::sort(sorted.begin(), sorted.end());
 
@@ -1412,7 +1648,7 @@ auto precheckNoisyCpus(const std::vector<ProbeCpuState>& states,
   for (const auto cpu : plannedCpus) {
     const auto found = std::ranges::find_if(
         states, [cpu](const ProbeCpuState& state) { return state.cpu == cpu; });
-    if (found == states.end() || found->method == JitterMethod::TSC) {
+    if (found == states.end() || !fillsSeriesRing(found->method)) {
       continue;
     }
     if (seriesStatsOf(latchSnapshotOf(*found)).noisePercent

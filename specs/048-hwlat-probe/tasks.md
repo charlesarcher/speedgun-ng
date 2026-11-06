@@ -182,21 +182,21 @@ bound one gap marks that gap `SMI`, a flat counter marks every gap
   the run's `gapCount`, and the latch snapshot carries the change
   prefix beside the gap prefix (FR-012, FR-013, D-7, P-3, E-03). Verify:
   `g++ -fsyntax-only -std=c++23 -Iinclude -Isource -Isource/harness -Ibuild/export -x c++ source/harness/detail/jitter_probe.hpp` exits 0 and `grep -c "sizeof(GapRecord) == 16" source/harness/detail/jitter_probe.hpp` counts one line
-- [ ] T018 [US1] Add the reads in `source/harness/jitter_probe.cpp`:
+- [X] T018 [US1] Add the reads in `source/harness/jitter_probe.cpp`:
   open the node once at start through the unit of Phase 2, read once
   after a gap passes the threshold and outside the measured interval,
   read the two window edges, close at stop, and store record and change
   in the one keep-or-drop step (FR-012, FR-013, P-2, plan R-1) (depends on
   T012, T015, T017; the rows of T012 stay red until T019 folds them).
   Verify: `g++ -fsyntax-only -std=c++23 -Iinclude -Isource -Isource/harness -Ibuild/export source/harness/jitter_probe.cpp` exits 0
-- [ ] T019 [US1] Fold the attribution in `source/harness/jitter_probe.cpp`:
+- [X] T019 [US1] Fold the attribution in `source/harness/jitter_probe.cpp`:
   a change above zero marks the gap `SMI`, a change of zero marks it
   `NOT_SMI`, an absent source leaves every gap unmarked and answers
   `smiGapCount` 0, the two deltas answer the edge pairs, and the
   disclosure names each source once for the run (FR-013 to FR-017, D-7,
   D-14, P-5, P-12) (depends on T013, T014, T018; the rows of T012 to
   T015 turn green). Verify: `ctest --test-dir build -R harness_hwlat_probe_test --output-on-failure` exits 0
-- [ ] T020 [US1] Hold the loop cost in
+- [X] T020 [US1] Hold the loop cost in
   `source/harness/jitter_probe.cpp`: no read stands on the path of a gap
   below the threshold, no second seam enters the loop, and no background
   sampler reads the counter (FR-012, FR-013, VII, X.2) (depends on T016;
