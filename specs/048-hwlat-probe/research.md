@@ -4,16 +4,19 @@ Phase 0 output of `/speckit.plan` for `specs/048-hwlat-probe/spec.md`. Each
 entry names the choice the code makes, the reading that proves it, and the
 losing alternative. Every cite reads the working tree at the base `858c55d9`
 (version 0.31.0, schema 1.14, harness `SOVERSION` 21, archive `SOVERSION`
-6), the base of branch `048-hwlat-probe`. A cite that names `kernel/trace/`
-reads the upstream copy of that file. The lane host is an Intel Skylake-X
-i9-9920X on one socket, kernel `7.3.0-4-cachyos`, GCC 16.2.1, read as an
-unprivileged user except where a line names its rights.
+6), the commit `048-hwlat-probe` was cut from. The later commits on that
+branch carry the feature's records and move no code line a cite names. A
+cite that names `kernel/trace/` reads the upstream copy of that file. The
+lane host is an Intel Skylake-X i9-9920X on one socket, kernel
+`7.3.0-4-cachyos`, GCC 16.2.1, read as an unprivileged user except where a
+line names its rights.
 
-Numbering: the entries here read `R-1` to `R-16`, the spec's decisions read
-`D-1` to `D-15`, the plan's rulings read `P-1` to `P-14`, and a requirement
-reads `FR-0NN`. A bare `:NNN` continues the file of the cite above it.
+Numbering: the entries here read `R-01` to `R-16`, the spec's decisions read
+`D-1` to `D-15`, the plan's rulings read `P-1` to `P-14`, the plan's risks
+read `R-1` to `R-8` and cite as `plan R-1`, and a requirement reads
+`FR-0NN`. A bare `:NNN` continues the file of the cite above it.
 
-## R-1: the file root as the one door
+## R-01: the file root as the one door
 
 - **Decision**: Every path this lane opens resolves through `procRootPath`
   (`source/detail/proc_root.hpp:35`), and every test installs a fake tree
@@ -33,7 +36,7 @@ reads `FR-0NN`. A bare `:NNN` continues the file of the cite above it.
   root-only read, and the suite would fail on a host without the nodes (spec
   FR-032).
 
-## R-2: the register read at offset `0x34`
+## R-02: the register read at offset `0x34`
 
 - **Decision**: The unit opens `/dev/cpu/<cpu>/msr` once at probe start with
   `::open`, reads 8 bytes at offset `0x34` with `::pread` into a stack
@@ -52,7 +55,7 @@ reads `FR-0NN`. A bare `:NNN` continues the file of the cite above it.
   (`external/pmu-events/arch/x86/alderlake/adl-metrics.json:60`) needs
   `perf_event_open`, and no harness test opens it.
 
-## R-3: the vendor gate reads a text line
+## R-03: the vendor gate reads a text line
 
 - **Decision**: The gate reads the `vendor_id` line of `/proc/cpuinfo` under
   the seam. `GenuineIntel` supports `MSR_SMI_COUNT`, and any other text or
@@ -70,7 +73,7 @@ reads `FR-0NN`. A bare `:NNN` continues the file of the cite above it.
   host, so no case could plant a part. A model table: it names parts the
   lane cannot cite, which spec D-4 refuses.
 
-## R-4: the `NMI` row beside the standing sum
+## R-04: the `NMI` row beside the standing sum
 
 - **Decision**: A new reader takes one cpu's column from the `NMI:` row of
   `/proc/interrupts`. The standing `interruptsOfText` keeps its sum over
@@ -89,7 +92,7 @@ reads `FR-0NN`. A bare `:NNN` continues the file of the cite above it.
   scope names the `NMI` line alone, and an arm no test reaches costs a dark
   branch.
 
-## R-5: the span one gap's change answers
+## R-05: the span one gap's change answers
 
 - **Decision**: One gap carries the change of the SMI read over the read
   before it: the opening edge read for the window's first gap, and the
@@ -109,11 +112,13 @@ reads `FR-0NN`. A bare `:NNN` continues the file of the cite above it.
   with a hand-written threshold: FR-012 bars it, and it moves the printed
   `loopPeriodNs`.
 
-## R-6: the kept record and the change ring
+## R-06: the kept record and the change ring
 
 - **Decision**: The mark rides a per-cpu ring of 8-byte unsigned changes
   that the gap path appends in the same step as the gap ring, one element
   per kept gap. The kept gap record keeps its 16 bytes and its two fields.
+  The document carries the mark as the `smi` key of the standing gap item,
+  under the `--json-raw=gaps` gate.
 - **Rationale**: `static_assert(sizeof(GapRecord) == 16)` stands at
   `source/harness/detail/jitter_probe.hpp:47` over `stamp` and `gapNs` at
   `:41-45`, and the spec Constraints line keeps that number. `SeriesRecord`
@@ -123,13 +128,25 @@ reads `FR-0NN`. A bare `:NNN` continues the file of the cite above it.
   so the sizing at `source/harness/jitter_probe.cpp:477` and the latch copy
   at `:626` keep one pass. `test/source/harness_jitter_probe_alloc_test.cpp`
   runs the loop under an allocation budget, so the ring stands sized before
-  the reads.
+  the reads. One flag gates the array: `rawGaps` reaches the writer at
+  `source/harness/cli.cpp:559`, the option word parses at
+  `source/harness/options.cpp:258` for the row at `:608`, and the writer
+  opens the array at `source/harness/json_report.cpp:354-363`, where each
+  item already carries `stamp` and `gapNs`. The mark costs one key inside
+  that object and no new array. The item's shape stands closed at
+  `docs/schema/report-v1.json:228-240`, so `smi` joins `x-order` and
+  `properties` and stands outside `required`, which leaves a document that
+  names no mark valid. The item reader takes `stamp` and `gapNs` through
+  `field` (`source/harness/json_load.cpp:524`, `:532`), which refuses a key
+  that stands missing, so the mark reads through the optional path of R-07
+  inside that same loop (spec FR-026, FR-029).
 - **Alternatives considered**: Widening the gap record to 24 bytes: it
   breaks the assert at `:47` and the hot-path cost FR-012 fixes. A side map
   from a gap stamp to a mark: the fold must rebuild it, and one stamp can
-  name two gaps.
+  name two gaps. A second array beside `gaps`: it repeats the stamp of every
+  gap the run already listed.
 
-## R-7: where the three per-cpu figures ride
+## R-07: where the three per-cpu figures ride
 
 - **Decision**: `JitterStats` gains `smiDelta` and `nmiDelta` as optional
   counts and `smiGapCount` as a count. One record feeds the run-level
@@ -138,24 +155,33 @@ reads `FR-0NN`. A bare `:NNN` continues the file of the cite above it.
 - **Rationale**: `JitterStats` stands at
   `include/speedgun-ng/benchmark.hpp:516` with its 16 standing fields and
   rides inside `PrecheckCpuRecord` at `:685` and `JitterEntryFold` at
-  `:763`, so one record already reaches both writers
-  (`source/harness/json_report.cpp:332-364`, `:1219-1351`) and the
-  comparison (spec D-13, plan P-5). Both objects stand closed with
-  `additionalProperties: false` in `docs/schema/report-v1.json`, so a key
-  joins `properties`, joins `x-order`, and moves the minor in one commit
-  (spec FR-029, D-5). A run that names neither new word writes no new key,
-  so `test/source/harness_jitter_bytes_test.cpp` keeps its byte equality.
+  `:763`, so one record feeds every figure site. Two writers take its keys:
+  the per-cpu writer at `source/harness/json_report.cpp:332-364`, which the
+  run-level array and the per-entry object share, and the pre-check block
+  that writes the same 16 keys inline at `:1242-1262`. Two readers take them
+  back: `readJitterCpu` at `source/harness/json_load.cpp:461` and
+  `readPrecheckStats` at `:804` (spec D-13, plan P-5). Both objects stand
+  closed with `additionalProperties: false` in `docs/schema/report-v1.json`,
+  so a key joins `properties`, joins `x-order`, and moves the minor in one
+  commit (spec FR-029, D-5). A run that names neither new word writes no new
+  key, so `test/source/harness_jitter_bytes_test.cpp` keeps its byte
+  equality. The new keys read back through the optional path: `field`
+  refuses a key that stands missing (`source/harness/json_load.cpp:66` to
+  `:78`), `optionalField` answers nothing for one (`:86-94`), and
+  `readNullableCount` reads `null` as no figure (`:723-726`), so a document
+  the feature never wrote loads unchanged (spec FR-029, A-7).
 - **Alternatives considered**: A record beside `JitterStats`: the writer,
   the loader, the console and the comparison would each learn a second
   carrier for three figures. A top-level document key: spec D-13 bars it and
   the root `x-order` would move.
 
-## R-8: the detector directory the kernel makes
+## R-08: the detector directory the kernel makes
 
 - **Decision**: The run never waits for `hwlat_detector/`. It reads and
-  writes `window`, `width` and `mode` as plain files under that directory,
-  and it starts and stops the sampling through `current_tracer` and
-  `tracing_on`.
+  writes `window`, `width` and `mode` under that directory: the two knobs
+  carry a plain decimal each way, `mode` carries one of three words on a
+  write and a word list on a read. The run starts and stops the sampling
+  through `current_tracer` and `tracing_on`.
 - **Rationale**: `kernel/trace/trace_hwlat.c:774` creates the directory
   inside `init_tracefs` (`:765`), which `init_hwlat_tracer` calls at `:883`
   behind the `late_initcall` at `:887`, so the directory stands there from
@@ -164,14 +190,24 @@ reads `FR-0NN`. A bare `:NNN` continues the file of the cite above it.
   `TRACE_MODE_WRITE`, and `TRACE_MODE_WRITE` names mode `0640`
   (`kernel/trace/trace.h:34`), so an unprivileged read fails (plan R-5). The
   directory carries no `enable` file, so the engine word stands the only
-  start (spec D-9, FR-019), and the lane host shows the absent case (spec
-  audit point).
+  start (spec D-9, FR-019). No reading here confirms that layout: this
+  reader reaches no file under `/sys/kernel/tracing`, and SC-005 records the
+  run that will. The read form of `mode` differs from its write form. `:629`
+  to `:632` print the three words of `:67` on one line and put brackets
+  around the standing word, and `:642` ends that line, so a read answers a
+  list such as `none [round-robin] per-cpu`. The write path strips the text
+  (`:692`) and compares it whole against each word (`:706-711`), so a write
+  of the list answers `EINVAL` (`:694`) and only one bare word takes. The
+  saved `mode` value therefore holds the word inside the brackets, and the
+  restore writes that word (R-12). A `mode` write while the detector runs
+  stops its threads and starts them again (`:701-716`), so the write stands
+  ahead of the engine word.
 - **Alternatives considered**: A wait loop on the directory: a poll answers
   nothing the write does not answer. A `mkdir` from user space: it writes
   outside the file list FR-019 names and duplicates a layout the kernel
   owns.
 
-## R-9: the start path of the engine
+## R-09: the start path of the engine
 
 - **Decision**: The run writes the mask, then `mode`, then `width`, then
   `window`, then `tracing_thresh`, then `current_tracer` with the word
@@ -186,7 +222,15 @@ reads `FR-0NN`. A bare `:NNN` continues the file of the cite above it.
   holds the detector, so a busy host fails the write and states
   `not available` with status 0 (spec FR-023). The standing setup already
   answers a failed write with the empty session
-  (`noise_tracer.cpp:313-355`).
+  (`noise_tracer.cpp:313-355`). The word carries three further answers the
+  run reads as one shape. An unknown word answers `EINVAL`
+  (`kernel/trace/trace.c:5040`), a reader on a trace pipe answers `EBUSY`
+  (`:5069-5070`), and a write of the word that already stands answers
+  success with no init and no buffer reset
+  (`kernel/trace/trace.c:5043-5044`). The last shape names a host that
+  already runs `hwlat` here: the saved word comes back as `hwlat`, the
+  threads stay up, and the later `tracing_on` write starts no second one,
+  because `kernel/trace/trace_hwlat.c:423-424` and `:489-491` refuse one.
 - **Alternatives considered**: The engine word before the knobs: the tracer
   reads the standing mask and threshold and watches cpus no rule names. A
   read of `available_tracers` as the probe: it names registered tracers, so
@@ -224,11 +268,13 @@ reads `FR-0NN`. A bare `:NNN` continues the file of the cite above it.
   mask at `:585-591`, and `start_single_kthread` begins one thread at
   `:415-443` that `kthread_fn` moves to the next cpu each round
   (`:360-361`), so a cpu holds no window while that thread sits elsewhere.
-  Spec FR-027 reads a zero as a cpu the detector watched and found nothing
-  on, a reading the round-robin shape cannot carry. The choice accepts one
-  kernel thread per tracer cpu inside the measured window, with interrupts
-  disabled through the whole width (`:270`, `:363-365`); FR-031 fixes that
-  difference as a line of the guide page (plan P-14).
+  Spec FR-027 reads that shape: an entry answers `null` where the buffer of
+  that cpu holds no detector line, so the per-cpu mode keeps the two cases
+  apart. The round-robin shape cannot: one thread leaves every other cpu
+  with no line in every window. The choice accepts one kernel thread per
+  tracer cpu inside the measured window, with interrupts disabled through
+  the whole width (`:270`, `:363-365`); FR-031 fixes that difference as a
+  line of the guide page (plan P-14).
 - **Alternatives considered**: The kernel default `round-robin`: an empty
   buffer answers both a watched cpu and an untouched cpu. One thread on one
   cpu beside per-cpu figures: the figures would name cpus the detector never
@@ -239,7 +285,9 @@ reads `FR-0NN`. A bare `:NNN` continues the file of the cite above it.
 - **Decision**: The session holds one saved value per file it wrote and the
   restore walks them in reverse, so `tracing_thresh` goes back after the
   engine word. `tracing_on` stands outside the saved set and the restore
-  writes `0` there.
+  writes `0` there. The saved `mode` value holds one mode word, the text the
+  read puts inside the brackets (R-08), so the restore hands the kernel a
+  word it takes.
 - **Rationale**: `kernel/trace/trace_hwlat.c:836` saves `tracing_thresh`
   when the engine word lands and `:857` writes that saved value back at the
   reset at `:850`, so the kernel restores the run's own threshold and only
@@ -250,7 +298,13 @@ reads `FR-0NN`. A bare `:NNN` continues the file of the cite above it.
   last, so the host's value stands at the end of the run (spec FR-021, plan
   P-8). `noiseTracerRestore` (`source/harness/noise_tracer.cpp:375-384`)
   drops each result today, so the restore returns the paths whose write
-  failed and the caller prints one line each (spec FR-022, D-12).
+  failed and the caller prints one line each (spec FR-022, D-12). The two
+  knobs and the threshold read back one plain decimal each
+  (`kernel/trace/trace.c:6758`, `trace_min_max_read`) and take one plain
+  decimal each way (`:6721`, `trace_min_max_write`), so a saved value needs
+  no rule beyond the trim, while `mode` needs the word rule above: its write
+  compares the whole stripped text against the three words of `:67` and
+  answers `EINVAL` for anything else (`:692`, `:694`, `:706-711`).
 - **Alternatives considered**: Restore in write order: the kernel's reset
   then overwrites the host threshold with the run's value, and SC-007 fails
   on that file. A saved value for `tracing_on`: FR-021 fixes the write of
@@ -269,10 +323,26 @@ reads `FR-0NN`. A bare `:NNN` continues the file of the cite above it.
   `kernel/trace/trace_output.c:1531` prints the detection line with
   `inner/outer(us)`, `ts` and `count`, and adds `nmi-count` only above zero
   (`:1538`, `:1546`), so the reader needs a line rule and the sum needs its
-  default (plan P-10). `kernel/trace/trace_hwlat.c:296` takes the larger of
-  the two samples for its own maximum. The header prints `# tracer:` at
-  `kernel/trace/trace.c:3310`, so a rule that needs a digit second after `#`
-  skips it (plan R-2).
+  default (plan P-10). The sampler zeroes its own `nmi_count` before each
+  window (`kernel/trace/trace_hwlat.c:214-215`), so one field answers one
+  window and a sum over the lines of a cpu answers the run.
+  `kernel/trace/trace_hwlat.c:296` takes the larger of the two samples for
+  its own maximum. One line stands for one sampling window whose larger
+  sample passes the threshold (`:279-294`), and the `count` field names the
+  readings over the threshold inside that window, the count the sampler
+  keeps at `:255-259`, so `gapCount` counts the windows that detected and
+  counts no single interruption. The header prints `# tracer:` at
+  `kernel/trace/trace.c:3310` and the column legend at `:2897-2905`, so a
+  rule that needs a digit second after `#` skips both (plan R-2). The engine
+  word runs the reset that clears each online cpu's buffer, since
+  `tracer_init` clears the buffer ahead of the tracer's own init
+  (`kernel/trace/trace.c:4709-4713`) and the write of the word reaches it
+  (`:5111-5112`), so the text the run reads holds this run's lines. The
+  standing figure reader cannot carry these lines: `figuresOfCpu`
+  (`source/harness/noise_tracer.cpp:258-299`) takes one `<word>: <count>`
+  figure per line and voids the whole record on a line that carries no colon
+  (`:274-277`) or on a word it does not know (`:292-294`), so the detector
+  text needs its own reader beside it.
 - **Alternatives considered**: A statistics file: the detector writes none,
   and a file the run creates stands outside the list FR-019 names. Keeping
   the buffer text: spec Out of scope bars a stored trace.
