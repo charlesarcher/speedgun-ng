@@ -362,8 +362,9 @@ private:
 /// @brief specs/045-merge-fixes FR-008, D-5: the gap fold over one probe
 /// cpu's latch-time snapshot: the same `JitterStats` the run-level fold
 /// answers, over the gap prefix the latch copied. The pre-check record
-/// of a `mode=both` run whose method is `tsc` reads this fold, the
-/// alongside loop running on, and the fold reads no live buffer.
+/// of a `mode=both` run reads this fold for every method, the alongside
+/// loop running on, and the fold reads no live buffer. The `hwlat`
+/// method reads the same fold through the same record.
 ///
 /// \pre `gapsKept` equals the length of the copied gap prefix
 /// \post the fold answers the figures of the copied prefix, the
