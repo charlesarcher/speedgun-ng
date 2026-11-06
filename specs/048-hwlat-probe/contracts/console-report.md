@@ -83,9 +83,10 @@ delta names join the standing files in the commit that lands the code.
   `source/harness/report.cpp:1569` to `:1583`.
 - The detector ran in the kernel's `per-cpu` mode, because the run
   writes `hwlat_detector/mode` with `per-cpu` before the engine word
-  (spec D-9, P-14). Each tracer cpu therefore carries its own detector
-  thread, and a figure of 0 answers a cpu the detector watched and
-  found nothing on (spec FR-027).
+  (spec D-9, P-14). Each tracer cpu therefore carries its own buffer, so
+  a cpu the detector watched and found nothing on holds no detector line
+  and prints the `not available` token. A zero prints for the `nmiCount`
+  figure of a cpu whose lines carry no `nmi-count` field (spec FR-027).
 - The restore writes `tracing_on` at `0`, then each saved value in the
   reverse of the write order, so the engine word goes back before the
   threshold (spec FR-021). The saved set holds `current_tracer`,
