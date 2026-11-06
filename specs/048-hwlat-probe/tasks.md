@@ -720,13 +720,15 @@ coverage contract, the pinned suite, the gate records and the commits.
   least nine lines
 - [ ] T085 Read the CI run of the pushed head and add its job readings
   to `specs/048-hwlat-probe/results/gates.md`: every job green, the
-  coverage figures named, and the run reference recorded (VIII, FR-038)
-  (depends on T084). Verify: `grep -cE "lint|test|sanitize|tsan|coverage|dbc-gate|prose" specs/048-hwlat-probe/results/gates.md` counts at least seven lines
+  coverage figures named, and the run reference recorded. This task needs
+  a push of the squashed head to the remote and the owner's review of the
+  pull request, two rights this lane's session does not hold (VIII,
+  FR-038) (depends on T084). Verify: `grep -cE "lint|test|sanitize|tsan|coverage|dbc-gate|prose" specs/048-hwlat-probe/results/gates.md` counts at least seven lines
 - [ ] T086 Land the foundational commit: the surface of Phase 1 and the
   unit of Phase 2 with their tests, the title form
   `<Section>: <one-line imperative>` at 50 characters or fewer, the
-  why-body wrapped at 72 columns, the author `OmO
-  <omo@speedgun-ng.local>`, and the footer lines
+  why-body wrapped at 72 columns, the author name `OmO` with the address
+  `omo@speedgun-ng.local`, and the footer lines
   `Refs: specs/048-hwlat-probe N13d` and `Approved-by: OmO` (FR-035,
   IX, XI). Verify: `git log -1 --format=%s | wc -c` reads at most 51 and `git log -1 --format=%B | grep -c "Approved-by: OmO"` counts one line
 - [ ] T087 Land the record and docs commit: the writer, the schema, the
