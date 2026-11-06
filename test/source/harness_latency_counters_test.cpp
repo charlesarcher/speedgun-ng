@@ -153,6 +153,45 @@ auto countThroughPair(std::uint32_t cpu) -> std::optional<std::uint64_t>
   return count;
 }
 
+// The count one positive control node answers, the value a fault group
+// plants beside its fault shape (FR-032).
+constexpr std::uint64_t kControlCount = 0x000000000000c001ULL;
+
+// One positive control beside a fault shape: the node of the second cpu,
+// planted in the same tree, so an absent answer stands for the fault and
+// for nothing else.
+auto plantControlNode(const std::filesystem::path& root) -> void
+{
+  plant(root, nodePath(kSecondCpu), nodeImage(kControlCount), kNodeRights);
+}
+
+// The control row of one fault group: the same tree answers the count of
+// the node it holds (FR-007).
+auto checkControlNode(const char* what) -> void
+{
+  const auto count = countThroughPair(kSecondCpu);
+  check(count.has_value() && *count == kControlCount, what);
+}
+
+// One path of the tree replaced by a directory: the read fails for every
+// user, the root of a CI container included (specs/036 T010).
+auto denyPath(const std::filesystem::path& root,
+              const std::string& relative) -> void
+{
+  const auto path = root / std::filesystem::path(relative);
+  std::filesystem::remove(path);
+  std::filesystem::create_directories(path);
+}
+
+// One denied path put back, so the control text can stand in its place.
+auto clearPath(const std::filesystem::path& root,
+               const std::string& relative) -> void
+{
+  std::error_code removeFailed;
+  std::filesystem::remove_all(root / std::filesystem::path(relative),
+                              removeFailed);
+}
+
 // The `proc/cpuinfo` text of one vendor, the standing line shape (FR-010).
 auto cpuInfoOf(const std::string& vendor) -> std::string
 {
@@ -202,6 +241,9 @@ auto theAbsentNodeRows() -> void
   const CounterRootGuard guard;
   check(!countThroughPair(kFirstCpu).has_value(),
         "a node that stands absent answers no count (FR-007, FR-011)");
+  plantControlNode(guard.root());
+  checkControlNode(
+      "the same tree answers the count of the node it holds (FR-007)");
 }
 
 // T004, FR-007, FR-011: a directory in the place of the node answers no
@@ -214,6 +256,9 @@ auto theDirectoryNodeRows() -> void
   check(!countThroughPair(kFirstCpu).has_value(),
         "a directory in the place of the node answers no count "
         "(FR-007, FR-011)");
+  plantControlNode(guard.root());
+  checkControlNode(
+      "the same tree answers the count of the node it holds (FR-007)");
 }
 
 // T004, FR-007, FR-011: a node that answers fewer bytes than the counter
@@ -239,6 +284,9 @@ auto theShortNodeRows() -> void
   check(!count.has_value(),
         "a node that answers fewer bytes than the counter width answers no "
         "count (FR-007, FR-011)");
+  plantControlNode(guard.root());
+  checkControlNode(
+      "the same tree answers the count of the node it holds (FR-007)");
 }
 
 // T004, FR-007, FR-011: a node the process holds no rights on answers no
@@ -253,6 +301,9 @@ auto theDeniedNodeRows() -> void
         std::filesystem::perms::none);
   check(!countThroughPair(kFirstCpu).has_value(),
         "a node without rights answers no count (FR-007, FR-011)");
+  plantControlNode(guard.root());
+  checkControlNode(
+      "the same tree answers the count of the node it holds (FR-007)");
 }
 
 // T004, FR-007, D-3: the unit reaches the node for read alone. The node
@@ -273,22 +324,22 @@ auto theReadOnlyRows() -> void
         "the pair writes nowhere on the node (FR-007, D-3)");
 }
 
-// T005, FR-010, D-4: the gate takes its answer from the `vendor_id` text
-// under the file root, so a test plants the text it needs.
+// T005, FR-010, D-4, P-4: the gate takes its answer from the `vendor_id`
+// text under the file root, so a test plants the text it needs. Each
+// unsupported text stands beside a control text in the same tree, so an
+// unsupported answer stands for the text and for nothing else.
 auto theVendorGateRows() -> void
 {
-  {
-    const CounterRootGuard guard;
-    plant(guard.root(), "proc/cpuinfo", cpuInfoOf("GenuineIntel"), kNodeRights);
-    check(sg::detail::smiSourceSupported(),
-          "the gate answers supported for the vendor that documents the "
-          "counter (FR-010, D-4)");
-  }
+  const std::string control = cpuInfoOf("GenuineIntel");
   {
     const CounterRootGuard guard;
     plant(guard.root(), "proc/cpuinfo", cpuInfoOf("AuthenticAMD"), kNodeRights);
     check(!sg::detail::smiSourceSupported(),
           "the gate answers unsupported for a part that states no counter "
+          "(FR-010, D-4)");
+    plant(guard.root(), "proc/cpuinfo", control, kNodeRights);
+    check(sg::detail::smiSourceSupported(),
+          "the same tree answers supported for the documented vendor "
           "(FR-010, D-4)");
   }
   {
@@ -297,11 +348,45 @@ auto theVendorGateRows() -> void
     check(
         !sg::detail::smiSourceSupported(),
         "a cpuinfo that states no vendor answers unsupported " "(FR-010, D-4)");
+    plant(guard.root(), "proc/cpuinfo", control, kNodeRights);
+    check(
+        sg::detail::smiSourceSupported(),
+        "the same tree answers supported once the line stands " "(FR-010, "
+                                                                "D-4)");
   }
   {
     const CounterRootGuard guard;
+    plant(guard.root(), "proc/cpuinfo", "vendor_id\t:\n", kNodeRights);
     check(!sg::detail::smiSourceSupported(),
-          "an unreadable cpuinfo answers unsupported (FR-010, FR-011)");
+          "a vendor line that states no value answers unsupported "
+          "(FR-010, FR-011)");
+    plant(guard.root(), "proc/cpuinfo", control, kNodeRights);
+    check(
+        sg::detail::smiSourceSupported(),
+        "the same tree answers supported for a stated vendor " "(FR-010, D-4)");
+  }
+  {
+    const CounterRootGuard guard;
+    denyPath(guard.root(), "proc/cpuinfo");
+    check(!sg::detail::smiSourceSupported(),
+          "a cpuinfo the read cannot carry answers unsupported "
+          "(FR-010, FR-011)");
+    clearPath(guard.root(), "proc/cpuinfo");
+    plant(guard.root(), "proc/cpuinfo", control, kNodeRights);
+    check(
+        sg::detail::smiSourceSupported(),
+        "the same tree answers supported once the file reads " "(FR-010, D-4)");
+  }
+  {
+    const CounterRootGuard guard;
+    check(
+        !sg::detail::smiSourceSupported(),
+        "a tree that holds no cpuinfo answers unsupported " "(FR-010, FR-011)");
+    plant(guard.root(), "proc/cpuinfo", control, kNodeRights);
+    check(
+        sg::detail::smiSourceSupported(),
+        "the same tree answers supported once the file stands " "(FR-010, "
+                                                                "D-4)");
   }
 }
 
@@ -318,25 +403,27 @@ auto theNmiRows() -> void
   check(second.has_value() && *second == 4,
         "the second cpu reads the figure of its own column of the NMI row "
         "(FR-009)");
-  const auto noLine =
-      sg::detail::nmiCountOfText("  8:  10  20   IO-APIC  timer\n", kFirstCpu);
-  check(
-      !noLine.has_value(),
-      "a text whose NMI row stands absent answers no count " "(FR-009, "
-                                                             "FR-011)");
-  const auto shortLine = sg::detail::nmiCountOfText(
-      "NMI:         10   NMI   performance-metrics\n", kSecondCpu);
-  check(!shortLine.has_value(),
+  const std::string oneColumn = "NMI:  10  NMI  performance-metrics\n";
+  check(!sg::detail::nmiCountOfText(oneColumn, kSecondCpu).has_value(),
         "an NMI row that names fewer columns than the cpu asks for answers "
         "no count (FR-011)");
-  const auto blankLine = sg::detail::nmiCountOfText("NMI:\n", kFirstCpu);
-  check(
-      !blankLine.has_value(),
-      "an NMI row whose figure stands truncated answers no count " "(FR-011)");
-  const auto unparsable =
-      sg::detail::nmiCountOfText("NMI:  not-a-number  4\n", kFirstCpu);
-  check(!unparsable.has_value(),
+  const auto ownColumn = sg::detail::nmiCountOfText(oneColumn, kFirstCpu);
+  check(ownColumn.has_value() && *ownColumn == 10,
+        "the same row answers the column it names (FR-009)");
+  const std::string rough = "NMI:  not-a-number  4\n";
+  check(!sg::detail::nmiCountOfText(rough, kFirstCpu).has_value(),
         "an NMI figure that parses as no number answers no count (FR-011)");
+  const auto otherColumn = sg::detail::nmiCountOfText(rough, kSecondCpu);
+  check(otherColumn.has_value() && *otherColumn == 4,
+        "the same row answers the column that holds a number (FR-009)");
+  check(
+      !sg::detail::nmiCountOfText("NMI:\n", kFirstCpu).has_value(),
+      "an NMI row whose figure stands truncated answers no count " "(FR-011)");
+  const std::string noRow = "  8:  10  20   IO-APIC  8-edge  timer\n";
+  check(
+      !sg::detail::nmiCountOfText(noRow, kFirstCpu).has_value(),
+      "a text whose NMI row stands absent answers no count " "(FR-009, "
+                                                             "FR-011)");
 }
 
 // T005, FR-009, D-4: the new figure stands named apart, and the standing
