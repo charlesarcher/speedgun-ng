@@ -135,6 +135,12 @@ CALIBRATION_LINE = re.compile(
     r"^(method: (?:tsc|fwq|ftq)|workCount:|targetNs:|calibrationSpanNs:)( .*)?$"
 )
 CPU_WORD = ("tsc", "fwq", "ftq")
+# specs/048 FR-016, FR-018, T053: the absent mark carries two words, so a line
+# with one value per probe cpu repeats a pair. The pair reads as one entry here,
+# and a line whose keys differ keeps each key, because the mark rides inside the
+# key there.
+ABSENT_MARK = "not available"
+ABSENT_TOKEN = "\x00"
 
 
 def mask(line: str) -> str:
@@ -199,14 +205,16 @@ def fold_cpu_lists(shape: str) -> str:
     block and its disclosure name one cpu index per probe cpu, so the count
     the host's cpus set folds away while the field name, the method word and
     the value shape stay."""
-    shape = re.sub(r"#(,#)+", "#", shape)
+    masked = shape.replace(ABSENT_MARK, ABSENT_TOKEN)
+    masked = re.sub(r"#(,#)+", "#", masked)
     kept: list[str] = []
-    for token in shape.split(" "):
+    for token in masked.split(" "):
         if kept and token == kept[-1] and (VALUE_TOKEN.fullmatch(token)
-                                           or token in CPU_WORD):
+                                           or token in CPU_WORD
+                                           or token == ABSENT_TOKEN):
             continue
         kept.append(token)
-    return " ".join(kept)
+    return " ".join(kept).replace(ABSENT_TOKEN, ABSENT_MARK)
 
 
 def fold_host(side: list[Folded], no_candidates: bool) -> list[Folded]:
