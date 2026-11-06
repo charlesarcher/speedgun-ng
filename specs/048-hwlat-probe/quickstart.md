@@ -110,7 +110,7 @@ and the kernel's figures count only the gaps its own sampler found
 Each prints one quoted line naming the fault and exits 2 before any
 benchmark runs: the method word outside the four, the engine word outside
 the three, and the engine word on a run with no pre-check window (spec
-FR-005).
+FR-003, FR-005).
 
 ## The record and the round trip
 
@@ -177,7 +177,8 @@ six saved files beside the `tracing_on` value, the kernel's own
 the run's threshold as its remembered default (spec SC-005, SC-007). The
 gate record stands at [results/gates.md](./results/gates.md): the drift,
 lint, spell, time-source and prose gates, the `dbc-gate` target, the
-coverage reading with its line and branch figures, and the sanitizer and
+coverage reading with its line and branch figures, the release build, the
+analyzer build, the sanitizer lane, the thread-sanitizer lane, and the
 pinned suite reads (spec SC-003, SC-004).
 
 ## What this guide does not cover
