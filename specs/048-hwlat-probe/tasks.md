@@ -42,17 +42,17 @@ integrator's file.
 **Purpose**: the types every story stands on, and the executables the
 later phases reach red in. No module builds before this phase closes.
 
-- [ ] T001 Open `harness_latency_counters_test` in `test/CMakeLists.txt`
+- [X] T001 Open `harness_latency_counters_test` in `test/CMakeLists.txt`
   beside the standing harness units: the `add_executable` line, the
   harness link, the `source/harness` include, the `cxx_std_23` line and
   the `add_test` line, and stand
   `test/source/harness_latency_counters_test.cpp` with the standing
   `check` and `fail` scaffold and a `main` that prints the failure count
   (FR-032, FR-034, III). Verify: `ctest --test-dir build -N -R '^harness_latency_counters_test$'` exits 0 with one entry listed
-- [ ] T002 Open `harness_hwlat_tracer_test` in `test/CMakeLists.txt` the
+- [X] T002 Open `harness_hwlat_tracer_test` in `test/CMakeLists.txt` the
   same way, and stand `test/source/harness_hwlat_tracer_test.cpp` with
   the same scaffold (FR-032, FR-034, III). Verify: `ctest --test-dir build -N -R '^harness_hwlat_tracer_test$'` exits 0 with one entry listed
-- [ ] T003 [P] Add the surface in `include/speedgun-ng/benchmark.hpp`:
+- [X] T003 [P] Add the surface in `include/speedgun-ng/benchmark.hpp`:
   `JitterMethod::HWLAT` and `TracerEngine::HWLAT`, each last in its
   list; on `JitterStats` the fields `smiDelta`, `nmiDelta` and
   `smiGapCount` after `droppedGaps`; on `PrecheckTracerRecord` the
@@ -73,21 +73,21 @@ The probe executable joins Phase 3, whose rows reach red in wave W3.
 **Purpose**: one unit answers both kernel counter reads, so no other
 unit opens a kernel interface directly (P-1).
 
-- [ ] T004 Write the failing register rows in
+- [X] T004 Write the failing register rows in
   `test/source/harness_latency_counters_test.cpp` over fake trees: one
   cpu reads `MSR_SMI_COUNT` at address `0x34` from `dev/cpu/<cpu>/msr`
   as one 8-byte little-endian unsigned value; an absent node, a
   directory, a short read and a node without rights each leave the
   count absent; the node stands opened read-only and never for write
   (FR-001, FR-007, FR-011, D-3, P-1). Verify: `ctest --test-dir build -R harness_latency_counters_test --output-on-failure` exits non-zero (red observed)
-- [ ] T005 Write the failing vendor and `NMI` rows in the same file:
+- [X] T005 Write the failing vendor and `NMI` rows in the same file:
   the gate reads the `vendor_id` line of `proc/cpuinfo` under the file
   root, answers supported for `GenuineIntel` and unsupported for any
   other text and for an unreadable file; the reader takes one cpu's
   column of the `NMI` line of `proc/interrupts`, answers absent when the
   line stands absent, and leaves the standing `interrupts` sum named
   apart (FR-009, FR-010, FR-011, D-4, P-4). Verify: `ctest --test-dir build -R harness_latency_counters_test --output-on-failure` exits non-zero (red observed)
-- [ ] T006 Declare the unit in
+- [X] T006 Declare the unit in
   `source/harness/detail/latency_counters.hpp`: the vendor gate, the
   descriptor pair for the register node, the count read and the `NMI`
   text reader, each with its doxygen `\pre`, `\post` or
