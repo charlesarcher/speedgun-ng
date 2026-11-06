@@ -1029,6 +1029,22 @@ target_include_directories(harness_gap_test PRIVATE ${CMAKE_SOURCE_DIR}/source/h
 target_compile_features(harness_gap_test PRIVATE cxx_std_23)
 add_test(NAME harness_gap_test COMMAND harness_gap_test)
 
+# The two counter sources of specs/048-hwlat-probe: the model-specific
+# system-management-interrupt counter behind `dev/cpu/<cpu>/msr`, read with
+# no module and no write, and the non-maskable-interrupt line of
+# `proc/interrupts` (FR-007 to FR-010). Wave W2 writes the rows; the unit
+# stands open from Phase 1 so those rows reach red in a configured tree
+# (FR-032, FR-034).
+add_executable(harness_latency_counters_test
+               source/harness_latency_counters_test.cpp)
+target_link_libraries(harness_latency_counters_test
+                      PRIVATE speedgun-ng::harness)
+target_include_directories(harness_latency_counters_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_latency_counters_test PRIVATE cxx_std_23)
+add_test(NAME harness_latency_counters_test
+         COMMAND harness_latency_counters_test)
+
 # The foundational jitter probe surface: the option defaults of data-model.md
 # E-01 (FR-003, R-15), the sixteen-field stats aggregate in the E-03 order
 # (FR-002), the three mode enumerators (E-02, R-10), the declared entry point
@@ -1125,6 +1141,19 @@ target_include_directories(harness_noise_test
                            PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
 target_compile_features(harness_noise_test PRIVATE cxx_std_23)
 add_test(NAME harness_noise_test COMMAND harness_noise_test)
+
+# The detector engine of specs/048-hwlat-probe: the seven writes in order,
+# the six saved values, the restore in the reverse order on every path the
+# process controls, the three figures folded from each cpu's buffer text,
+# and the unavailable shapes that answer `not available` with status 0
+# (FR-018 to FR-024). Wave W2 writes the rows; the unit stands open from
+# Phase 1 (FR-032, FR-034).
+add_executable(harness_hwlat_tracer_test source/harness_hwlat_tracer_test.cpp)
+target_link_libraries(harness_hwlat_tracer_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_hwlat_tracer_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_hwlat_tracer_test PRIVATE cxx_std_23)
+add_test(NAME harness_hwlat_tracer_test COMMAND harness_hwlat_tracer_test)
 
 # The record surfaces of the tracer (specs/036 T013 to T016): the console
 # lines of the tracer record (FR-013, FR-016, R-14), the JSON round trip
