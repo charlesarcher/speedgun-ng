@@ -21,6 +21,7 @@
 #include <memory>
 #include <optional>
 #include <span>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -144,19 +145,26 @@ auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
 // The scripted provider: one FakeProvider declaring the machine/tsc leaf at
 // ReadMode::FAST_TSC (R-02), registered before the first catalog lookup, so
 // the availability gate answers to the scripted leaf and the scenarios drive
-// the loop through the reader seam (R-02, R-11).
+// the loop through the reader seam (R-02, R-11). The two time leaves stand
+// scripted as well, because the whole-run row reaches the entry point, and the
+// batch it runs reads them.
 auto scriptedProvider() -> sg::counters::FakeProvider&
 {
   static auto* provider = []
   {
     auto owned = std::make_unique<sg::counters::FakeProvider>();
     auto& ref = *owned;
+    ref.addCounter("machine", "monotonic", "nanoseconds", "host time");
+    ref.setPoints("machine", "monotonic", {0}, 4000);
+    ref.addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
+    ref.setPoints("machine", "thread_cpu", {0}, 2000);
     ref.addCounter("machine",
                    "tsc",
                    "none",
                    "raw tick counter",
                    sg::counters::Availability::COUNTABLE,
                    sg::counters::ReadMode::FAST_TSC);
+    ref.setPoints("machine", "tsc", {0}, 1);
     const auto registered =
         sg::counters::System::local().registerProvider(std::move(owned));
     check(registered.has_value(), "the scripted tsc provider registers (R-02)");
@@ -691,6 +699,97 @@ auto theNmiRows() -> void
       });
 }
 
+// The whole text of one file a row captured (T014, FR-011).
+auto readWhole(const std::filesystem::path& path) -> std::string
+{
+  std::ifstream file(path);
+  std::ostringstream text;
+  text << file.rdbuf();
+  return text.str();
+}
+
+// The number of times one whole line stands in one captured report: a run names
+// an absent source once, whatever the count of its cpus (FR-011, P-12).
+auto countLine(const std::string& text, const std::string& line) -> std::size_t
+{
+  std::size_t hits = 0;
+  for (auto at = text.find(line); at != std::string::npos;
+       at = text.find(line, at + line.size()))
+  {
+    ++hits;
+  }
+  return hits;
+}
+
+// The report of one whole run: the status the entry point answered, and the
+// bytes the report printed (T014).
+struct RunReport
+{
+  int status = 0;
+  std::string text;
+};
+
+// The quiet benchmark of the whole-run rows: one empty body, so the pre-check
+// window stands the run's only measured span (T014).
+auto bmQuiet(sg::State& state) -> void
+{
+  for (auto _ : state) {
+  }
+}
+
+// One speedgunMain run in this process, its report captured to a file the row
+// removes and read back: the row reads the status the entry point answered and
+// the lines the disclosure printed, the way the tracer suite carries its
+// whole-run rows (T014, FR-011).
+auto captureRunReport(const std::vector<std::string>& arguments) -> RunReport
+{
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_hwlat_probe_test"));
+  for (const auto& argument : arguments) {
+    argv.push_back(const_cast<char*>(argument.c_str()));
+  }
+  static int runIndex = 0;
+  const std::string path =
+      "harness_hwlat_probe_run_" + std::to_string(++runIndex) + ".txt";
+  const int saved = ::dup(STDOUT_FILENO);
+  if (saved < 0 || std::freopen(path.c_str(), "w", stdout) == nullptr) {
+    fail("the report stands unredirectable (T014)");
+  }
+  RunReport report;
+  report.status = sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+  std::fflush(stdout);
+  if (::dup2(saved, STDOUT_FILENO) < 0) {
+    fail("stdout stands unrestored (T014)");
+  }
+  ::close(saved);
+  report.text = readWhole(path);
+  std::remove(path.c_str());
+  return report;
+}
+
+// The one command line of the whole run: the quiet benchmark, the probe over
+// both scripted cpus with the detector method, the pre-check window the
+// scripted stamps span, the standing threshold, and the document the row reads.
+// No tracer stands on the line: the row names the probe's own source (T014).
+auto runArguments(std::span<const std::uint32_t> cpus,
+                  const std::string& tag) -> std::vector<std::string>
+{
+  std::string list;
+  for (const auto cpu : cpus) {
+    if (!list.empty()) {
+      list.push_back(',');
+    }
+    list += std::to_string(cpu);
+  }
+  return {"--filter=bmQuiet",
+          "--repetitions=1",
+          "--iterations=2",
+          "--jitter-probe=" + list + ",method=hwlat,mode=precheck,precheck="
+              + std::to_string(kPrecheckMs)
+              + ",threshold=" + std::to_string(kThresholdNs),
+          "--json=harness_hwlat_probe_" + tag + ".json"};
+}
+
 // T014: a node that stands absent leaves the marks off and the delta with no
 // value, while its neighbor cpu keeps its own figures (FR-011, FR-015,
 // D-14, P-12).
@@ -984,6 +1083,116 @@ auto theOncePerSourceRows() -> void
                   "the two unavailable sources keep the run's standing "
                   "figures (FR-011, FR-015, D-14)");
       });
+}
+
+// T014, FR-011, FR-015, FR-016, FR-025, D-14, P-12: one whole run over a tree
+// that holds no register node for either probe cpu. The console names the
+// management-interrupt source once for the run, the figure line states the
+// standing token in both columns, the run keeps the status of a run that lost a
+// source, and both folds keep the figures the scripted series dictates: the two
+// kept gaps, their widths, the threshold, the measured period and no drop. The
+// control run plants both nodes at one flat figure in the same tree, so the
+// same run names no absent source and states one count in both columns.
+auto theAbsentNodeRunDisclosesItsSourceOnce() -> void
+{
+  const auto cpus = pickCpus(2);
+  scriptedProvider();
+  const auto drive = [&](const bool nodesStand,
+                         const std::string& tag) -> RunReport
+  {
+    const HwlatRootGuard root;
+    plant(root.root(), "proc/cpuinfo", kIntelText, kNodeRights);
+    plant(root.root(),
+          "proc/interrupts",
+          interruptsText(columnCount(cpus), kNmiOpening),
+          kNodeRights);
+    if (nodesStand) {
+      for (const auto cpu : cpus) {
+        plant(root.root(),
+              nodePath(cpu),
+              nodeImage(kFlatCount, sg::detail::kSmiCountBytes),
+              kNodeRights);
+      }
+    }
+    resetScript(root.root(), columnCount(cpus));
+    gapCalls = {kGapOneCall, kGapTwoCall};
+    sg::detail::installTestReader(std::make_unique<SeriesReader>());
+    auto report = captureRunReport(runArguments(cpus, tag));
+    sg::detail::installTestReader(nullptr);
+    return report;
+  };
+  const auto widths = "minNs: " + std::to_string(kGapWidth) + " "
+      + std::to_string(kGapWidth) + "\n";
+  const std::string absentJson = "harness_hwlat_probe_no-node.json";
+  const auto absent = drive(false, "no-node");
+  check(absent.status == 0,
+        "the run over the tree with no register node keeps the status of a run "
+        "that lost a source (T014, FR-011)");
+  check(countLine(absent.text, "jitter: SMI count not available\n") == 1,
+        "the run names its absent source once, over the two cpus it probed "
+        "(T014, FR-011, FR-016, P-12)");
+  check(countLine(absent.text, "jitter: NMI count not available\n") == 0,
+        "the planted interrupt text answers, so the disclosure names the one "
+        "source that stands absent (T014, FR-016)");
+  check(countLine(absent.text,
+                   "smiDelta: not available not available\n")
+            == 1,
+        "the figure line states the standing token in one column per cpu "
+        "(T014, FR-016, FR-025)");
+  check(countLine(absent.text, "gapCount: 2 2\n") == 1
+            && countLine(absent.text, widths) == 1
+            && countLine(absent.text, "smiGapCount: 0 0\n") == 1,
+        "the console keeps the gap count, the widths and the marked count of "
+        "both cpus whole (T014, FR-015, E-03)");
+  const auto absentDoc = sg::loadReport(absentJson);
+  if (!absentDoc.has_value() || !absentDoc->runJitterStats.has_value()) {
+    const std::string why = "the run folds each probe cpu (T014, FR-025): "
+        + (absentDoc.has_value() ? "a record stands absent"
+                                 : absentDoc.error());
+    check(false, why.c_str());
+  } else {
+    const auto& folds = *absentDoc->runJitterStats;
+    check(folds.size() == cpus.size(),
+          "the run folds one entry per probe cpu (T014, FR-025)");
+    for (const auto& entry : folds) {
+      check(standingFigures(entry.stats, 2, 0),
+            "the absent node keeps every standing figure of its cpu (T014, "
+            "FR-015, E-03)");
+      check(!entry.stats.smiDelta.has_value()
+                && entry.stats.smiGapCount == 0,
+            "the fold of the absent node carries no delta and no marked gap "
+            "(T014, FR-011, FR-015)");
+      check(entry.stats.nmiDelta.has_value()
+                && *entry.stats.nmiDelta == 0,
+            "the planted interrupt text answers its delta in the fold (T014, "
+            "FR-016)");
+    }
+  }
+  std::remove(absentJson.c_str());
+  const std::string wholeJson = "harness_hwlat_probe_both-nodes.json";
+  const auto whole = drive(true, "both-nodes");
+  check(whole.status == 0,
+        "the control run keeps the same status (T014, FR-016)");
+  check(countLine(whole.text, "jitter: SMI count not available\n") == 0,
+        "the planted node answers its count, so the run names no absent source "
+        "(T014, FR-016, FR-032)");
+  check(countLine(whole.text, "smiDelta: 0 0\n") == 1
+            && countLine(whole.text, widths) == 1,
+        "the control run states one count in both columns beside the same "
+        "figures (T014, FR-016)");
+  const auto wholeDoc = sg::loadReport(wholeJson);
+  if (wholeDoc.has_value() && wholeDoc->runJitterStats.has_value()) {
+    for (const auto& entry : *wholeDoc->runJitterStats) {
+      check(standingFigures(entry.stats, 2, 0)
+                && entry.stats.smiDelta.has_value()
+                && *entry.stats.smiDelta == 0,
+            "the control fold keeps its figures beside its counter (T014, "
+            "FR-016)");
+    }
+  } else {
+    check(false, "the control run folds each probe cpu (T014, FR-025)");
+  }
+  std::remove(wholeJson.c_str());
 }
 
 // T015: a full buffer drops record and change in one step, raises the one
@@ -1344,6 +1553,8 @@ auto theDetectorNameRow() -> void
 
 }  // namespace
 
+SG_BENCHMARK(bmQuiet);
+
 auto main() -> int
 {
   theRiseRows();
@@ -1355,6 +1566,7 @@ auto main() -> int
   theVendorRows();
   theNoNmiRows();
   theOncePerSourceRows();
+  theAbsentNodeRunDisclosesItsSourceOnce();
   theBufferRows();
   theEdgeRows();
   theStandingMethodRows();
