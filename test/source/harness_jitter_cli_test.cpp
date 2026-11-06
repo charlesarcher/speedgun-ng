@@ -45,8 +45,10 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <memory>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <string>
@@ -63,8 +65,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "../../source/detail/proc_root.hpp"
 #include "detail/internal.hpp"
 #include "detail/jitter_probe.hpp"
+#include "detail/latency_counters.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_fake.hpp"
 #include "speedgun-ng/counters_system.hpp"
@@ -3114,19 +3118,117 @@ auto scenarioFileLineRefused() -> int
   return 0;
 }
 
+// specs/048 FR-032, FR-001: the file-root seam of the detector scenarios. The
+// counter reads of a `method=hwlat` run resolve under the installed root, so a
+// scenario reads the files it plants ahead of the host's own `/proc/cpuinfo`,
+// `/proc/interrupts` and `/dev/cpu/<n>/msr`. The seam stands process-global,
+// and these scenarios call `speedgunMain` in this process, the way the tracer
+// unit's whole-run rows do, so the install reaches every read of the run.
+class HwlatRootGuard
+{
+public:
+  HwlatRootGuard()
+  {
+    static int sequence = 0;
+    m_root = std::filesystem::path("harness_jitter_cli_root_")
+        / ("pid" + std::to_string(::getpid()) + "-"
+           + std::to_string(sequence++));
+    std::error_code treeFailed;
+    std::filesystem::remove_all(m_root, treeFailed);
+    std::filesystem::create_directories(m_root, treeFailed);
+    check(!treeFailed, "the planted root stands created (FR-032)");
+    sg::detail::installTestProcRoot(m_root);
+  }
+
+  ~HwlatRootGuard()
+  {
+    sg::detail::installTestProcRoot(std::nullopt);
+    std::error_code removeFailed;
+    std::filesystem::remove_all(m_root, removeFailed);
+  }
+
+  HwlatRootGuard(const HwlatRootGuard&) = delete;
+  auto operator=(const HwlatRootGuard&) -> HwlatRootGuard& = delete;
+
+  auto root() const -> const std::filesystem::path& { return m_root; }
+
+private:
+  std::filesystem::path m_root;
+};
+
+// One file of the planted tree, the bytes written whole (FR-032).
+auto plantRootFile(const std::filesystem::path& root,
+                   const std::string& relative,
+                   const std::string& bytes) -> void
+{
+  const auto path = root / std::filesystem::path(relative);
+  std::filesystem::create_directories(path.parent_path());
+  std::ofstream file(path, std::ios::binary | std::ios::trunc);
+  check(static_cast<bool>(file), "the planted file opens (FR-032)");
+  file.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+}
+
+// The vendor text the counter gate reads, the pair the gate answers supported
+// on (FR-010, D-4).
+constexpr const char* kIntelVendor = "vendor_id\t: GenuineIntel\n";
+
+// The image of one register node: the padding the reader steps over, then one
+// count at the width and the address the counter reader names (FR-007).
+auto counterNodeImage(std::uint64_t count) -> std::string
+{
+  std::string bytes(sg::detail::kSmiCountAddress, '\0');
+  for (std::size_t index = 0; index < sg::detail::kSmiCountBytes; ++index) {
+    bytes.push_back(static_cast<char>((count >> (8U * index)) & 0xffULL));
+  }
+  return bytes;
+}
+
+// The `NMI` row of the planted interrupt text, one column per cpu below the
+// named one (FR-009).
+auto interruptText(std::uint32_t cpu, std::uint64_t count) -> std::string
+{
+  std::string text = "NMI:";
+  for (std::uint32_t column = 0; column <= cpu; ++column) {
+    text += "  " + std::to_string(column == cpu ? count : std::uint64_t {0});
+  }
+  return text + "   NMI       performance-metrics\n";
+}
+
+// The tree that answers both counter sources: the vendor gate, the register
+// node of the probe cpu and the interrupt row (FR-009, FR-010, FR-032). The
+// tree that withholds both plants the gate alone, so the two missing files
+// stand the two causes of the absence (FR-011).
+auto installCounterSources(const std::filesystem::path& root,
+                           std::uint32_t cpu) -> void
+{
+  plantRootFile(root, "proc/cpuinfo", kIntelVendor);
+  plantRootFile(
+      root, "dev/cpu/" + std::to_string(cpu) + "/msr", counterNodeImage(0));
+  plantRootFile(root, "proc/interrupts", interruptText(cpu, 0));
+}
+
 // specs/048 FR-002, FR-005, D-1: the fourth method word. The word parses, the
 // run reaches the batch, and the settled word reaches the document, while the
 // series group stands out of it, the way it stands out of a `tsc` run.
 auto scenarioDetectorWordAccepted() -> int
 {
-  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  const auto probe = pickCpus(1).at(0);
+  const std::string cpu = std::to_string(probe);
   const std::string path = "harness_jitter_cli_hwlat.json";
+  const HwlatRootGuard root;
+  installCounterSources(root.root(), probe);
   auto arguments = quickArguments();
   arguments.push_back("--json=" + path);
   arguments.push_back("--jitter-probe=" + cpu + ",method=hwlat,precheck=1");
-  check(captureRun(arguments).find("bmQuiet") != std::string::npos,
+  const auto report = captureRun(arguments);
+  check(report.find("bmQuiet") != std::string::npos,
         "the detector method word stands accepted and runs the batch "
         "(FR-002, D-1)");
+  check(report.find("smiDelta:") != std::string::npos
+            && report.find("jitter: SMI count not available")
+                    == std::string::npos,
+        "the planted node answers its count, so the block prints its figure "
+        "line and names no absent source (FR-011, FR-016, FR-032)");
   const auto document = readDocument(path);
   std::remove(path.c_str());
   check(document.find("\"method\":\"HWLAT\"") != std::string::npos,
@@ -3192,14 +3294,25 @@ auto scenarioDetectorFileLineRefused() -> int
 }
 
 // specs/048 FR-011, FR-021, D-1, R-15: the status surface of the detector
-// method. A host that withholds both counter sources answers no refusal line
-// and keeps status 0. The run keeps the calibration group and the noise gate
+// method. A planted tree that withholds both counter sources answers no refusal
+// line and keeps status 0: the row plants the premise it names, ahead of any
+// host fact (FR-032). The run keeps the calibration group and the noise gate
 // off, because the method fills no series ring, and a `noise=` value beside it
 // stands accepted and disclosed with the wording of a method that keeps no
 // noise fraction. The `tsc` method keeps its own sentence beside the same key.
 auto scenarioDetectorStatusSurface() -> int
 {
-  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  const auto probe = pickCpus(1).at(0);
+  const std::string cpu = std::to_string(probe);
+  const HwlatRootGuard root;
+  // The planted tree opens the vendor gate and holds neither counter file: no
+  // register node stands below `dev/cpu`, and no interrupt text stands at all,
+  // so the withheld pair the row names stands planted on every host (FR-011,
+  // FR-032).
+  plantRootFile(root.root(), "proc/cpuinfo", kIntelVendor);
+  check(sg::detail::smiSourceSupported(),
+        "the planted vendor text opens the counter gate, so the two missing "
+        "files stand the withheld sources (FR-010, FR-011, FR-032)");
   auto plain = quickArguments();
   plain.push_back("--jitter-probe=" + cpu + ",method=hwlat,precheck=1");
   const auto silence = captureError(plain, 0);
