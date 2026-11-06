@@ -1374,6 +1374,15 @@ auto speedgunMain(int argc, char** argv) -> int
         if (tracerSession.has_value()) {
           PrecheckTracerRecord tracerRecord;
           tracerRecord.engine = detail::engineWordOf(*options.noiseTracer);
+          // specs/048 FR-020, FR-027, A-3, D-12: the detector run wrote the
+          // three settings, so the record carries the values it wrote. The
+          // standing engines keep their record free of them, the rule that a
+          // figure no engine wrote stays absent from the document.
+          if (*options.noiseTracer == sg::TracerEngine::HWLAT) {
+            tracerRecord.windowUs = detail::kHwlatWindowUs;
+            tracerRecord.widthUs = detail::kHwlatWidthUs;
+            tracerRecord.thresholdUs = detail::kHwlatThresholdUs;
+          }
           tracerRecord.cpus = std::move(tracerFigures);
           built.tracer = std::move(tracerRecord);
         }
