@@ -37,6 +37,9 @@ namespace
 #endif
 
 constexpr const char* const kDocument = "harness_jitter_bytes_document.json";
+constexpr const char* const kOsnoiseDocument =
+    "harness_jitter_bytes_osnoise.json";
+constexpr const char* const kOsnoiseBare = "harness_jitter_bytes_bare.json";
 constexpr const char* const kBlockFile = "harness_jitter_bytes_block.txt";
 constexpr std::string_view kDigits = "0123456789";
 // The cpu index a synthetic record carries. The scenarios build the
@@ -298,7 +301,22 @@ auto eachMaskedSpanHoldsANumber() -> void
 }
 
 // FR-019, FR-026: a run with no method key writes neither new key, in the
-// run-level object or in the per-entry object.
+// run-level object or in the per-entry object. The keys specs/048 adds ride
+// the same rule for the standing methods, so the same document answers for
+// them (FR-025, FR-029).
+constexpr std::string_view kDetectorKeys[] = {
+    "\"smiDelta\":",
+    "\"nmiDelta\":",
+    "\"smiGapCount\":",
+    "\"smi\":",
+    "\"limits\":",
+    "\"windowUs\":",
+    "\"widthUs\":",
+    "\"thresholdUs\":",
+    "\"maxGapNs\":",
+    "\"nmiCount\":",
+};
+
 auto theNewKeysStandAbsentFromTheDocument() -> void
 {
   const std::string document = tscDocument();
@@ -310,6 +328,117 @@ auto theNewKeysStandAbsentFromTheDocument() -> void
           "theNewKeysStandAbsentFromTheDocument: the document carries no new "
           "key (FR-019, FR-026)");
   }
+  for (const std::string_view key : kDetectorKeys) {
+    if (document.find(key) != std::string::npos) {
+      std::printf("  the document carries %s\n", std::string(key).c_str());
+    }
+    check(document.find(key) == std::string::npos,
+          "theNewKeysStandAbsentFromTheDocument: the tsc document carries none "
+          "of the detector keys (FR-025, FR-029, SC-006)");
+  }
+}
+
+// The pre-check record of a standing tracer engine: one measured cpu that
+// carries the three detector figures of the record, and the tracer entry of
+// `osnoise` with the settings and the detector figures set as well. The
+// writer answers none of them for a standing engine, so the two documents
+// below fold to one byte string (FR-025, FR-027, P-7).
+auto osnoiseRecord() -> sg::PrecheckRecord
+{
+  sg::PrecheckRecord record;
+  record.serial = true;
+  record.windowMs = 10;
+  sg::PrecheckCpuRecord cpu;
+  cpu.cpu = 2;
+  cpu.planned = true;
+  cpu.stats.gapCount = 2;
+  cpu.stats.gapsPerSecond = 1.5;
+  cpu.stats.maxNs = 280;
+  cpu.stats.smiDelta = 1;
+  cpu.stats.nmiDelta = 4;
+  cpu.stats.smiGapCount = 2;
+  cpu.attribution.interrupts = 5;
+  record.cpus.push_back(cpu);
+  sg::PrecheckTracerRecord tracer;
+  tracer.engine = "osnoise";
+  tracer.windowUs = 10000;
+  tracer.widthUs = 5000;
+  tracer.thresholdUs = 1000;
+  sg::PrecheckTracerCpuRecord entry;
+  entry.cpu = 2;
+  entry.nmi = 3;
+  entry.hardware = 2;
+  entry.maxGapNs = 7000;
+  entry.gapCount = 3;
+  entry.nmiCount = 2;
+  tracer.cpus = {entry};
+  record.tracer = tracer;
+  return record;
+}
+
+// The same record with none of the detector figures: the record of a run that
+// names neither new word. The two documents stand the two halves of the byte
+// claim below (FR-025, FR-029, P-7).
+auto bareRecord(sg::PrecheckRecord record) -> sg::PrecheckRecord
+{
+  auto& stats = record.cpus.at(0).stats;
+  stats.smiDelta = std::nullopt;
+  stats.nmiDelta = std::nullopt;
+  stats.smiGapCount = 0;
+  auto& tracer = *record.tracer;
+  tracer.windowUs = std::nullopt;
+  tracer.widthUs = std::nullopt;
+  tracer.thresholdUs = std::nullopt;
+  tracer.cpus.at(0).maxGapNs = std::nullopt;
+  tracer.cpus.at(0).gapCount = std::nullopt;
+  tracer.cpus.at(0).nmiCount = std::nullopt;
+  return record;
+}
+
+// The document the writer writes for one pre-check record, the speedgun
+// object and the schema minor held out the way the standing rows hold them
+// out.
+auto maskedDocument(const sg::PrecheckRecord& record,
+                    const char* const path) -> std::string
+{
+  sg::ReportData data;
+  data.precheck = record;
+  check(
+      sg::detail::writeReport(path, data, {}, std::nullopt, record),
+      "the writer wrote the document of the standing tracer record " "(FR-"
+                                                                     "029)");
+  return maskSchemaVersion(maskSpeedgun(sg::test::readText(path)));
+}
+
+// FR-025, FR-029, FR-027, SC-006: an `osnoise` document loses no byte and no
+// name, because the six new tracer names and the three stats names ride the
+// detector surfaces alone.
+auto anOsnoiseDocumentLosesNoByteAndNoName() -> void
+{
+  const auto record = osnoiseRecord();
+  const std::string filled = maskedDocument(record, kOsnoiseDocument);
+  const std::string bare = maskedDocument(bareRecord(record), kOsnoiseBare);
+  if (filled != bare) {
+    std::printf("  the record with the figures: %s\n", filled.c_str());
+    std::printf("  the record without them:   %s\n", bare.c_str());
+  }
+  check(filled == bare,
+        "anOsnoiseDocumentLosesNoByteAndNoName: an osnoise document of the "
+        "detector figures folds to the bytes of the same record without them "
+        "(FR-025, FR-027, FR-029, SC-006)");
+  for (const std::string_view key : kDetectorKeys) {
+    if (filled.find(key) != std::string::npos) {
+      std::printf("  the document carries %s\n", std::string(key).c_str());
+    }
+    check(filled.find(key) == std::string::npos,
+          "anOsnoiseDocumentLosesNoByteAndNoName: the osnoise document carries "
+          "none of the detector keys (FR-025, FR-027, P-7)");
+  }
+  const auto tracer = filled.find("\"tracer\":{");
+  check(tracer != std::string::npos
+            && filled.find("\"gapCount\":", tracer) == std::string::npos,
+        "anOsnoiseDocumentLosesNoByteAndNoName: the tracer entry of a standing "
+        "engine carries no detector gap count (FR-027, P-7)");
 }
 
 // FR-026, FR-031: the console block of the same probe state matches the
@@ -346,9 +475,11 @@ auto theStandingConsoleLinesMatchTheRecordedBytes() -> void
 auto aTscRunPassesTheSchemaAtTheStampedMinor() -> void
 {
   const std::string document = tscDocument();
+  // specs/048-hwlat-probe FR-004, FR-029, D-5: the eleven detector keys move
+  // the stamp to 1.15.
   check(document.find("\"schemaVersion\":\"1.15\"") != std::string::npos,
         "aTscRunPassesTheSchemaAtTheStampedMinor: the writer stamps the minor "
-        "1.15 (FR-026, R-16, specs/042-topdown FR-036, "
+        "1.15 (FR-004, FR-026, FR-029, R-16, specs/042-topdown FR-036, "
         "specs/046-hunter-topdown FR-020, specs/041-counter-probe FR-051)");
   const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, document);
   check(clean.has_value(),
@@ -368,7 +499,13 @@ auto main() -> int
   theNewKeysStandAbsentFromTheDocument();
   theStandingConsoleLinesMatchTheRecordedBytes();
   aTscRunPassesTheSchemaAtTheStampedMinor();
+  // specs/048-hwlat-probe T035: the byte identity a standing run owes while
+  // the detector keys land. The row stands red until T040 stamps the moved
+  // minor, so it closes the unit.
+  anOsnoiseDocumentLosesNoByteAndNoName();
   std::remove(kDocument);
+  std::remove(kOsnoiseDocument);
+  std::remove(kOsnoiseBare);
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;

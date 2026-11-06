@@ -351,7 +351,7 @@ new key, and a document written before the feature loads unchanged.
 
 ### Tests for User Story 3 (write first, observe failure)
 
-- [ ] T033 [P] [US3] Write the failing writer rows in
+- [X] T033 [P] [US3] Write the failing writer rows in
   `test/source/harness_json_report_test.cpp`: `smiDelta`, `nmiDelta` and
   `smiGapCount` stand after `droppedGaps` in `jitter.stats[]`, the
   per-benchmark items and `precheck.cpus[].stats` for the `hwlat` method
@@ -364,7 +364,7 @@ new key, and a document written before the feature loads unchanged.
   beside `hardware` for that engine alone; `limits` stands beside
   `disclosure` for the method alone; `kSchemaVersion` reads `1.15`
   (FR-004, FR-025 to FR-027, FR-031, D-5, D-13, P-7, P-13). Verify: `ctest --test-dir build -R harness_json_report_test --output-on-failure` exits non-zero (red observed)
-- [ ] T034 [P] [US3] Write the failing schema rows in
+- [X] T034 [P] [US3] Write the failing schema rows in
   `test/source/harness_json_schema_test.cpp`: the six `x-order` lists of
   `jitter`, `jitter.stats[]`, the gap item, `precheck.cpus[].stats`,
   `precheck.tracer` and `precheck.tracer.cpus[]` read the order the
@@ -372,20 +372,20 @@ new key, and a document written before the feature loads unchanged.
   joins a `required` list, each touched object keeps
   `additionalProperties` at `false`, and the top-level `x-order` stands
   unchanged (FR-004, FR-029, D-6). Verify: `ctest --test-dir build -R harness_json_schema_test --output-on-failure` exits non-zero (red observed)
-- [ ] T035 [US3] Write the failing byte-identity rows in
+- [X] T035 [US3] Write the failing byte-identity rows in
   `test/source/harness_jitter_bytes_test.cpp`: a run that names neither
   new word writes a document whose bytes fold equal to the standing
   fixture apart from the schema and version values, and an `osnoise`
   document loses no byte and no name (FR-025, FR-029, SC-006). Verify:
   `ctest --test-dir build -R harness_jitter_bytes_test --output-on-failure`
   exits non-zero (red observed)
-- [ ] T036 [P] [US3] Write the failing loader rows in
+- [X] T036 [P] [US3] Write the failing loader rows in
   `test/source/harness_json_load_test.cpp`: the six figures read back
   with equal values, a gap item whose `smi` carries neither word
   refuses, a `null` reads as the absent figure, and a document of schema
   `1.14` loads with no new key and no complaint (FR-004, FR-026, FR-029,
   A-7). Verify: `ctest --test-dir build -R harness_json_load_test --output-on-failure` exits non-zero (red observed)
-- [ ] T037 [P] [US3] Write the failing probe-block rows in
+- [X] T037 [P] [US3] Write the failing probe-block rows in
   `test/source/harness_jitter_window_test.cpp`: the lines `smiDelta:`,
   `nmiDelta:` and `smiGapCount:` stand after `droppedGaps:` with one
   column per probe cpu for the method alone; `jitter: SMI count not
@@ -395,7 +395,7 @@ new key, and a document written before the feature loads unchanged.
   `nmi delta:` naming `/proc/interrupts` and `smi gaps:` per measured
   cpu, with the `not available` token in an absent figure position
   (FR-004, FR-016, FR-030, FR-031, P-12, P-13). Verify: `ctest --test-dir build -R harness_jitter_window_test --output-on-failure` exits non-zero (red observed)
-- [ ] T038 [P] [US2] Write the failing tracer-block rows in
+- [X] T038 [P] [US2] Write the failing tracer-block rows in
   `test/source/harness_noise_report_test.cpp`: the line `tracer:
   windowUs=<us> widthUs=<us> thresholdUs=<us>` stands after the standing
   engine header, three figure lines stand per tracer cpu in ascending
@@ -406,7 +406,7 @@ new key, and a document written before the feature loads unchanged.
 
 ### Implementation for User Story 3
 
-- [ ] T039 [P] [US3] Move the word tables in
+- [X] T039 [P] [US3] Move the word tables in
   `source/harness/detail/json_report.hpp`: `HWLAT` joins
   `kJitterMethodWords`, `hwlat` joins `kTracerEngineWords`, and each
   `static_assert` moves to the new last enumerator, so a table that
@@ -415,7 +415,10 @@ new key, and a document written before the feature loads unchanged.
 - [ ] T040 [US3] Write the keys in `source/harness/json_report.cpp`: the
   eleven keys in the six objects in the order T034 states, the method
   gate on the three stats keys, `smi` and `limits`, the engine gate on
-  the six tracer keys, and `kSchemaVersion` at `1.15` (FR-004, FR-025 to
+  the six tracer keys, and `kSchemaVersion` at `1.15`, the two standing
+  `1.14` pins at `test/source/harness_hunt_json_test.cpp:1587` and
+  `test/source/harness_topdown_report_test.cpp:816` moving with the stamp in
+  a commit of their own (FR-004, FR-025 to
   FR-027, FR-029, FR-031, D-5, P-5, P-7, P-13) (depends on T033, T039;
   the rows of T033 turn green). Verify: `ctest --test-dir build -R harness_json_report_test --output-on-failure` exits 0
 - [ ] T041 [P] [US3] Extend `docs/schema/report-v1.json`: the eleven keys
@@ -489,7 +492,9 @@ output.
   `test/source/harness_jitter_cli_test.cpp`: a run of `method=hwlat` on
   a host that withholds both sources keeps status 0, a missing `msr`
   node answers no refusal line, and the only status-2 paths for the two
-  new words stand the value refusals (FR-005, FR-011, FR-023, FR-024)
+  new words stand the value refusals. The same run keeps the series group
+  and the noise gate off, because the method holds no series: the gate and
+  the series lines read the two calibrated methods alone (D-1)
   (depends on T047). Verify: `ctest --test-dir build -R harness_jitter_cli_test --output-on-failure` exits 0
 
 **Checkpoint**: four method words and three engine words settle, every

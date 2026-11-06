@@ -87,13 +87,17 @@ static_assert(kJitterModeWords.size()
 // document spells the method with the upper-case word the enumerator
 // names, and the first word stands in no written document: a run that
 // names no method writes no method key (specs/043 FR-006, FR-019, D-7).
-inline constexpr std::array<std::string_view, 3> kJitterMethodWords {
+// The fourth word answers the specs/048 method, whose document word stands
+// upper case while the option and the console spell it `hwlat` (specs/048
+// FR-002, FR-029, E-01).
+inline constexpr std::array<std::string_view, 4> kJitterMethodWords {
     "TSC",
     "FWQ",
     "FTQ",
+    "HWLAT",
 };
 static_assert(kJitterMethodWords.size()
-              == std::to_underlying(sg::JitterMethod::FTQ) + 1);
+              == std::to_underlying(sg::JitterMethod::HWLAT) + 1);
 
 // The engine words of the optional tracer record (specs/036 E-20,
 // contracts/report-json.md). The document spells the engine words the way
@@ -262,6 +266,12 @@ struct JitterReportCpu
   std::uint32_t cpu = 0;
   sg::JitterStats stats {};
   std::vector<GapRecord> gaps;
+  // specs/048-hwlat-probe FR-013, FR-026, E-03, P-3: the SMI change of each
+  // kept gap's span, index-paired with `gaps`, one element per entry of that
+  // list. The writer pairs the two lists to write one gap's `smi` mark, and
+  // a cpu whose SMI source stood unavailable leaves the list empty, so every
+  // gap of that cpu marks nothing (FR-015).
+  std::vector<std::uint64_t> smiChanges {};
   // specs/043 FR-020, E-23: the series of the same covered windows, the
   // record the `series` array carries beside the standing `stats` array.
   // A `TSC` run keeps no series, so the member stands empty for it

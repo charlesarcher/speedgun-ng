@@ -15,6 +15,7 @@
 #include "detail/internal.hpp"
 #include "detail/jitter_probe.hpp"
 #include "detail/json_report.hpp"
+#include "detail/noise_tracer.hpp"
 #include "detail/spectrum.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
@@ -1466,9 +1467,14 @@ auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
 // once, then the warning lines and the pinning-candidate line
 // (FR-012, FR-013, the clarify answers). The strict refusal never
 // reaches this printer: the run stops at the error surface (FR-014).
+// specs/048-hwlat-probe FR-016, FR-025: the `method` parameter gates the
+// three attribution lines of the detector method. The gate stands unwritten
+// while the rows of T037 stand red: T043 reads it, and every other method
+// keeps the bytes this printer printed before (SC-006).
 auto printPrecheckReport(const PrecheckRecord& record,
                          sg::TracerEngine requestedEngine,
-                         const std::uint32_t noisePercent) -> void
+                         const std::uint32_t noisePercent,
+                         [[maybe_unused]] const sg::JitterMethod method) -> void
 {
   const auto figureText =
       [](const std::optional<std::uint64_t>& value) -> std::string
@@ -1655,6 +1661,15 @@ auto printPrecheckReport(const PrecheckRecord& record,
     std::printf(" cpu %u %.2f", static_cast<unsigned>(cpu), rate);
   }
   std::printf("\n");
+}
+
+// specs/048-hwlat-probe T038, FR-022, D-12: the restore defect lines. The
+// lines stand unwritten while the row of T038 stands red: T043 prints one
+// line per pair, naming the file and the saved value, at the restore call
+// site ahead of the pre-check block.
+auto printTracerRestoreFailures(
+    [[maybe_unused]] const std::vector<TracerSetting>& failures) -> void
+{
 }
 
 }  // namespace sg::detail

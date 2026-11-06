@@ -19,6 +19,7 @@
 #include "graph.hpp"
 #include "jitter_probe.hpp"
 #include "memory_bind.hpp"
+#include "noise_tracer.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
@@ -1472,13 +1473,35 @@ auto printJitterReport(bool available,
 /// is the parsed `noise=` threshold, the same number the strict refusal
 /// reads: a planned cpu whose noise fraction stands under it prints no
 /// warning line, and one at or above it prints one.
+/// specs/048-hwlat-probe FR-016, FR-025, FR-030, SC-006: `method` is the
+/// method the run probed with, the one fact that gates the three attribution
+/// lines. A run whose counter source stood unavailable carries no delta and a
+/// zero count and still prints those lines, so the figures carry no gate
+/// (FR-011). The block prints them for `JitterMethod::HWLAT` alone, and every
+/// other method keeps the bytes it printed before.
 ///
 /// \pre none
 /// \post none
 auto printPrecheckReport(
     const PrecheckRecord& record,
     sg::TracerEngine requestedEngine = sg::TracerEngine::NONE,
-    std::uint32_t noisePercent = sg::kDefaultNoisePercent) -> void;
+    std::uint32_t noisePercent = sg::kDefaultNoisePercent,
+    sg::JitterMethod method = sg::JitterMethod::TSC) -> void;
+
+/// @brief specs/048-hwlat-probe FR-022, D-12: one line per tracer setting
+/// whose restore write failed, each naming the file below the tracefs root
+/// and the value the run saved for it. The line prints at the restore call
+/// site of `source/harness/cli.cpp`, ahead of the pre-check block, and the
+/// run keeps its exit status: the tracer fails no run (FR-022, D-14). An
+/// empty list prints nothing, the shape of a restore that wrote every saved
+/// value back.
+///
+/// \pre `failures` holds its pairs in restore order, and no pair names
+///      `tracing_on`, which stands outside the saved set (D-8)
+/// \post one line stands per pair of the list, and no line stands for a pair
+///       the list does not hold (FR-022)
+auto printTracerRestoreFailures(const std::vector<TracerSetting>& failures)
+    -> void;
 /// @brief specs/029 T035, FR-012, FR-013, data-model E-07: the plan line of
 /// one hunt run, and the one line a cut plan adds below it.
 ///

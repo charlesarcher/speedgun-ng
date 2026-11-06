@@ -47,14 +47,17 @@ namespace
 // The console capture the block tests read: the printer's own bytes, taken
 // through the redirect the standing capture carries (T013).
 auto capturePrecheck(const sg::PrecheckRecord& record,
-                     sg::TracerEngine requestedEngine) -> std::string
+                     sg::TracerEngine requestedEngine,
+                     sg::JitterMethod method = sg::JitterMethod::TSC)
+    -> std::string
 {
   const char* const path = "harness_noise_report_block.txt";
   const int saved = dup(STDOUT_FILENO);
   if (saved < 0 || std::freopen(path, "w", stdout) == nullptr) {
     fail("cannot redirect the pre-check block");
   }
-  sg::detail::printPrecheckReport(record, requestedEngine);
+  sg::detail::printPrecheckReport(
+      record, requestedEngine, sg::kDefaultNoisePercent, method);
   std::fflush(stdout);
   if (dup2(saved, STDOUT_FILENO) < 0) {
     fail("cannot restore stdout");
@@ -456,8 +459,8 @@ auto maskSpeedgun(std::string text) -> std::string
 
 // T016: a record without the tracer member writes a document whose bytes
 // fold equal to the fixture bytes, the fixture carrying the standing key set
-// with `schemaVersion` at 1.14 (FR-012, FR-015, R-10, specs/046-hunter-topdown
-// FR-023).
+// with `schemaVersion` at the minor this build stamps (FR-012, FR-015, R-10,
+// specs/046-hunter-topdown FR-023, specs/048-hwlat-probe FR-029).
 constexpr std::string_view kDocumentFixture =
     "{\"schemaVersion\":\"1.15\",\"speedgun\":\"?\",\"precheck\":{"
     "\"serial\":false,\"windowMs\":0,\"cpus\":[],"
@@ -497,6 +500,146 @@ auto theNotAvailableRecordWritesNoTracerKey() -> void
   const auto block = capturePrecheck(record, sg::TracerEngine::OSNOISE);
   check(block.find(kNotAvailableLine) != std::string::npos,
         "the not-available run prints the one disclosure line (FR-016)");
+}
+
+// specs/048-hwlat-probe T038: the detector lines of the tracer block. The
+// settings line stands after the standing engine header, the three detector
+// figures stand after the standing `hardware` line of each tracer cpu, the
+// not-available line stands unchanged, and one line stands per restore that
+// failed (FR-020, FR-022, FR-027, D-12).
+
+// The tracer record of the detector engine: the three settings FR-020 names,
+// and two cpus ascending, the second with no detector figure, the shape of a
+// buffer that holds no detector line (FR-027, A-6).
+auto detectorTracer() -> sg::PrecheckTracerRecord
+{
+  sg::PrecheckTracerRecord tracer;
+  tracer.engine = "hwlat";
+  tracer.windowUs = 10000;
+  tracer.widthUs = 5000;
+  tracer.thresholdUs = 1000;
+  sg::PrecheckTracerCpuRecord first;
+  first.cpu = 2;
+  first.nmi = 3;
+  first.irq = 1;
+  first.softirq = 4;
+  first.thread = 7;
+  first.hardware = 2;
+  first.maxGapNs = 7000;
+  first.gapCount = 3;
+  first.nmiCount = 2;
+  sg::PrecheckTracerCpuRecord second;
+  second.cpu = 5;
+  second.nmi = 1;
+  second.softirq = 2;
+  tracer.cpus = {first, second};
+  return tracer;
+}
+
+// The settings line and the three figure lines of the record above, byte for
+// byte, in the order `contracts/console-report.md` states (FR-020, FR-027).
+constexpr std::string_view kDetectorTracerLines =
+    "tracer: engine hwlat cpus 2,5\n"
+    "tracer: windowUs=10000 widthUs=5000 thresholdUs=1000\n"
+    "tracer cpu 2 nmi: 3\n"
+    "tracer cpu 2 irq: 1\n"
+    "tracer cpu 2 softirq: 4\n"
+    "tracer cpu 2 thread: 7\n"
+    "tracer cpu 2 hardware: 2\n"
+    "tracer cpu 2 maxGapNs: 7000\n"
+    "tracer cpu 2 gapCount: 3\n"
+    "tracer cpu 2 nmiCount: 2\n"
+    "tracer cpu 5 nmi: 1\n"
+    "tracer cpu 5 irq: not available\n"
+    "tracer cpu 5 softirq: 2\n"
+    "tracer cpu 5 thread: not available\n"
+    "tracer cpu 5 hardware: not available\n"
+    "tracer cpu 5 maxGapNs: not available\n"
+    "tracer cpu 5 gapCount: not available\n"
+    "tracer cpu 5 nmiCount: not available\n";
+
+// FR-020, FR-027: the settings line stands after the standing engine header,
+// the three figures of each cpu stand after that cpu's standing `hardware`
+// line in the ascending cpu order, and an absent figure stands the standing
+// `not available` token. Every standing line stands byte-identical.
+auto theDetectorLinesStandBesideTheStandingTracerBlock() -> void
+{
+  auto record = standingRecord();
+  record.tracer = detectorTracer();
+  const auto block = capturePrecheck(record, sg::TracerEngine::HWLAT);
+  check(block == std::string(kBlockHead) + std::string(kDetectorTracerLines)
+              + std::string(kBlockTail),
+        "the settings line and the three detector figures of each cpu stand "
+        "beside the standing tracer lines, byte for byte (FR-020, FR-027, "
+        "D-12)");
+  check(block.find("tracer: windowUs=10000 widthUs=5000 thresholdUs=1000\n")
+                != std::string::npos,
+        "the settings line states the window, the width and the threshold the "
+        "run wrote (FR-020, FR-027)");
+  check(block.find("tracer cpu 5 maxGapNs: not available\n")
+                != std::string::npos,
+        "a cpu whose buffer holds no detector line prints the standing token "
+        "(FR-027, A-6)");
+}
+
+// FR-023, FR-027: a run whose detector stood not available prints the
+// standing line and no figure line, the way the two standing engines do.
+auto theDetectorNotAvailableLineStandsUnchanged() -> void
+{
+  auto record = standingRecord();
+  const auto block = capturePrecheck(record, sg::TracerEngine::HWLAT);
+  check(block == std::string(kBlockHead) + std::string(kNotAvailableLine)
+              + std::string(kBlockTail),
+        "the not-available record of the detector prints the standing line and "
+        "keeps the standing block byte-identical (FR-023, FR-016, R-14)");
+  check(block.find("tracer cpu") == std::string::npos
+            && block.find("windowUs") == std::string::npos,
+        "the not-available case prints no figure line and no settings line "
+        "(FR-023, FR-027)");
+}
+
+// The printer's own bytes for the restore failures below.
+auto captureRestore(const std::vector<sg::detail::TracerSetting>& failures)
+    -> std::string
+{
+  const char* const path = "harness_noise_report_restore.txt";
+  const int saved = dup(STDOUT_FILENO);
+  if (saved < 0 || std::freopen(path, "w", stdout) == nullptr) {
+    fail("cannot redirect the restore lines");
+  }
+  sg::detail::printTracerRestoreFailures(failures);
+  std::fflush(stdout);
+  if (dup2(saved, STDOUT_FILENO) < 0) {
+    fail("cannot restore stdout");
+  }
+  close(saved);
+  std::ifstream file(path);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  std::remove(path);
+  return buffer.str();
+}
+
+// FR-022, D-12: one line per file whose restore write failed, naming the file
+// below the tracefs root and the value the run saved, and no line for a
+// restore that wrote every value back.
+auto theRestoreLinesStandOnePerFailedFile() -> void
+{
+  const std::vector<sg::detail::TracerSetting> failures {
+      {"sys/kernel/tracing/hwlat_detector/window", "1000000"},
+      {"sys/kernel/tracing/current_tracer", "nop"},
+  };
+  const auto block = captureRestore(failures);
+  check(block
+            == "tracer: restore failed: sys/kernel/tracing/hwlat_detector/"
+               "window = 1000000\n"
+               "tracer: restore failed: sys/kernel/tracing/current_tracer = "
+               "nop\n",
+        "one line stands per failed restore, naming the file and the saved "
+        "value (FR-022, D-12)");
+  check(captureRestore({}).empty(),
+        "a restore that wrote every saved value back prints no line (FR-022, "
+        "FR-021)");
 }
 
 }  // namespace
@@ -564,6 +707,11 @@ auto main() -> int
   theTracerLessDocumentMatchesTheFixtureBytes();
   theNotAvailableRecordWritesNoTracerKey();
   theTracerReaderErrorArms();
+  // specs/048-hwlat-probe T038: the detector lines. The rows stand red until
+  // T043 prints them, so they close the unit.
+  theDetectorLinesStandBesideTheStandingTracerBlock();
+  theDetectorNotAvailableLineStandsUnchanged();
+  theRestoreLinesStandOnePerFailedFile();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;
