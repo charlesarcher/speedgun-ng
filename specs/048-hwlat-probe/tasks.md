@@ -140,34 +140,34 @@ bound one gap marks that gap `SMI`, a flat counter marks every gap
 - [X] T011 [US1] Open `harness_hwlat_probe_test` in `test/CMakeLists.txt` the
   same way, and stand `test/source/harness_hwlat_probe_test.cpp` with
   the same scaffold (FR-032, FR-034, III). Verify: `ctest --test-dir build -N -R '^harness_hwlat_probe_test$'` exits 0 with one entry listed
-- [ ] T012 [US1] Write the failing gap-mark rows in
+- [X] T012 [US1] Write the failing gap-mark rows in
   `test/source/harness_hwlat_probe_test.cpp`: a node that rises by one
   between the two reads that bound one gap marks that gap `SMI`, a flat
   node marks it `NOT_SMI`, the first gap answers the opening edge read,
   and index `i` of the change ring answers index `i` of the gap ring
   (FR-012, FR-013, FR-014, D-7, P-3, SC-001, SC-008). Verify: `ctest --test-dir build -R harness_hwlat_probe_test --output-on-failure` exits non-zero (red observed)
-- [ ] T013 [US1] Write the failing per-cpu figure rows in the same
+- [X] T013 [US1] Write the failing per-cpu figure rows in the same
   file: `smiDelta` answers the change of the two edge reads of that
   cpu's window, `nmiDelta` answers the change of the same window,
   `smiGapCount` counts the kept gaps whose span carries a change above
   zero, and the window stands the pre-check window in the pre-check
   phase and the probe's own run span in the alongside phase (FR-016,
   FR-017, P-5). Verify: `ctest --test-dir build -R harness_hwlat_probe_test --output-on-failure` exits non-zero (red observed)
-- [ ] T014 [US1] Write the failing not-available rows in the same file:
+- [X] T014 [US1] Write the failing not-available rows in the same file:
   an absent node, a node without rights, a short read, a part that
   states no documented counter and a `/proc/interrupts` read with no
   `NMI` line each leave the marks off every gap, keep the standing figures,
   print the standing wording once per source for the run and keep status
   0; one cpu keeps its own figures while its neighbor answers absent
   (FR-011, FR-015, FR-017, D-14, P-12, SC-001). Verify: `ctest --test-dir build -R harness_hwlat_probe_test --output-on-failure` exits non-zero (red observed)
-- [ ] T015 [US1] Write the failing buffer and edge rows in the same
+- [X] T015 [US1] Write the failing buffer and edge rows in the same
   file: a full buffer drops record and change in one step and raises
   `droppedGaps` once, the marked count counts kept gaps only, a gap at
   the last instant carries the change of the span that ends at it while
   the window delta keeps the change of the two edge reads, and a gap the
   probe's own read opens answers `NOT_SMI` (FR-012, FR-013, FR-014,
   D-7, E-03). Verify: `ctest --test-dir build -R harness_hwlat_probe_test --output-on-failure` exits non-zero (red observed)
-- [ ] T016 [P] [US1] Extend the cost proof in
+- [X] T016 [P] [US1] Extend the cost proof in
   `test/source/harness_jitter_probe_alloc_test.cpp`: the no-allocation
   executable keeps its exit 0 with the register read on the gap path,
   and the kept gap record keeps `static_assert(sizeof(GapRecord) == 16)`
@@ -175,7 +175,7 @@ bound one gap marks that gap `SMI`, a flat counter marks every gap
 
 ### Implementation for User Story 1
 
-- [ ] T017 [P] [US1] Add the change ring in
+- [X] T017 [P] [US1] Add the change ring in
   `source/harness/detail/jitter_probe.hpp`: one
   `std::vector<std::uint64_t>` per probe cpu beside the gap ring, one
   capacity and one drop counter shared with it, the vector pre-sized to

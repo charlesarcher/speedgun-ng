@@ -21,6 +21,7 @@
 #include <cstdlib>
 #include <new>
 #include <thread>
+#include <type_traits>
 #include <vector>
 
 #include <sched.h>
@@ -207,6 +208,72 @@ auto passSeries(std::uint64_t step) -> std::vector<std::uint64_t>
   return points;
 }
 
+// T016, specs/048 FR-012, Constraints: the kept gap record keeps its 16-byte
+// size and its two standing fields, and the SMI change rides the ring beside
+// it. The gap path costs no third field.
+static_assert(sizeof(sg::detail::GapRecord) == 16,
+              "one kept gap record is 16 bytes (E-04, specs/048 FR-012)");
+static_assert(
+    std::is_same_v<decltype(sg::detail::GapRecord::stamp), std::uint64_t>,
+    "the record keeps its stamp field (E-04, specs/048 FR-012)");
+static_assert(
+    std::is_same_v<decltype(sg::detail::GapRecord::gapNs), std::uint64_t>,
+    "the record keeps its gap width field (E-04, specs/048 FR-012)");
+
+// The tail step of the gap scenarios: a delta past the threshold the
+// measurement pass of a 1,000 ns series rises to, so every pass past the
+// scripted points keeps a gap and the armed span covers the keep step
+// (specs/048 FR-012, FR-007).
+constexpr std::uint64_t kGapTailStep = 20000;
+
+// The read the gap span arms at: past the 1,024 reads of the measurement
+// pass and past the latch line, so the setup, the pass, and the two
+// window-edge reads of the run span stand outside the count (FR-012,
+// FR-041).
+constexpr std::uint64_t kGapArmPast = 200;
+
+// The wait for one scripted read count: the bound turns a stalled series
+// into a reported failure, so the wait cannot hang (FR-039).
+auto waitForActions(const std::uint64_t target, const char* what) -> void
+{
+  auto& provider = scriptedProvider();
+  std::uint64_t spins = 0;
+  while (provider.readActions() < target) {
+    std::this_thread::yield();
+    if (++spins > 1000000000ULL) {
+      fail(what);
+    }
+  }
+}
+
+// One armed span over the gap path of the `tsc` loop: the hooks arm over the
+// passes the fake's read counter names, the hook runs while the span stands
+// armed, and the answer is the count the hooks took (FR-012, FR-041). The
+// kept count answers how many gaps the span kept.
+template<class Hook>
+auto runGapSpan(const sg::JitterProbeOptions& loopOptions,
+                const std::uint64_t spanEnd,
+                Hook&& hook,
+                std::uint64_t& keptOut) -> std::uint64_t
+{
+  auto& provider = scriptedProvider();
+  provider.setPoints("machine", "tsc", passSeries(1000), kGapTailStep);
+  const auto baseActions = provider.readActions();
+  sg::detail::JitterProbe probe(loopOptions);
+  probe.start();
+  waitForActions(baseActions + sg::detail::kPassReads + kGapArmPast,
+                 "the gap loop never opened its window (FR-041)");
+  allocationCount.store(0, std::memory_order_relaxed);
+  countAllocations.store(true, std::memory_order_relaxed);
+  hook();
+  waitForActions(baseActions + spanEnd,
+                 "the gap loop never ran the armed passes (FR-041)");
+  countAllocations.store(false, std::memory_order_relaxed);
+  probe.stopAndJoin();
+  keptOut = probe.states().at(0).kept;
+  return allocationCount.load(std::memory_order_relaxed);
+}
+
 // One armed span over one method's measured loop: the counting hooks
 // arm over the loop passes the fake's read counter names, so the setup
 // allocations, the buffer's first touch, the calibration and the
@@ -333,6 +400,45 @@ auto main() -> int
                  1200,
                  30000,
                  "the FTQ quantum loop takes no allocation (FR-014, D-6)");
+  }
+
+  // T016, specs/048 FR-012, FR-013, P-2, plan R-1: the gap path with the
+  // register read beside it. Every pass past the scripted points keeps a gap,
+  // so the armed span covers the step that stores record and change together.
+  // The count stays clean, and the kept count proves the step ran under the
+  // armed count.
+  {
+    sg::JitterProbeOptions gapOptions;
+    gapOptions.cpus = pickCpus(1);
+    std::uint64_t kept = 0;
+    const auto clean = runGapSpan(gapOptions, 20000, [] {}, kept);
+    check(clean == 0,
+          "the gap path takes no allocation (specs/048 FR-012, P-2)");
+    check(kept > 0,
+          "the armed span covered the keep step of the gap path (specs/048 "
+          "FR-012, FR-013)");
+  }
+
+  // T016, FR-041, Q-2: the plant on the gap path. One allocation the armed
+  // gap span plants moves the count, so the clean run above cannot come from
+  // a guard that inspects nothing.
+  {
+    sg::JitterProbeOptions plantOptions;
+    plantOptions.cpus = pickCpus(1);
+    std::uint64_t kept = 0;
+    const auto planted = runGapSpan(
+        plantOptions,
+        20000,
+        []
+        {
+          std::vector<char> allocation(1 << 20);
+          plantedEscapeSink = allocation.data();
+        },
+        kept);
+    check(planted == 1,
+          "a planted allocation on the gap path moves the count (T016, "
+          "FR-041, Q-2)");
+    check(kept > 0, "the planted span kept gaps on the gap path (T016)");
   }
 
   std::puts("harness_jitter_probe_alloc_test: ok");
