@@ -26,7 +26,7 @@ its standing file in the commit that lands the writer (spec FR-029).
 
 | Rule | Detail | Requirement |
 | --- | --- | --- |
-| The stamp moves to `1.16` | `kSchemaVersion` stands `"1.15"` at `source/harness/json_report.cpp:58`, where specs/041-counter-probe left it, and the writer stamps the new value | spec D-5, FR-004 |
+| The stamp moves to `1.16` | `kSchemaVersion` stood `"1.15"` at `source/harness/json_report.cpp:58`, where specs/041-counter-probe left it, and the writer stamps `"1.16"` | spec D-5, FR-004 |
 | The top level gains no name | `docs/schema/report-v1.json:7` keeps its nine-name `x-order`, the ninth being the run-level `counterLimits` array specs/041-counter-probe joined, because every key of this feature joins an object the document already carries | spec FR-029 |
 | Each touched object moves in the same commit | the six `x-order` lists below move with the writer, the habit specs/036 FR-006 states | spec FR-029 |
 
@@ -76,10 +76,12 @@ bytes stand where master wrote them.
 
 ## The `stats` item keys
 
-One table serves the three carriers that share
-`writeJitterCpu` at `source/harness/json_report.cpp:374`: the run-level
-`jitter.stats[]` at `:1327`, the per-benchmark `jitter.stats[]` at
-`:831`, and `precheck.cpus[].stats` at `:1368`.
+One table serves the three carriers. Two of them share
+`writeJitterCpu` at `source/harness/json_report.cpp:374`: the
+per-benchmark `jitter.stats[]` block at `:831` and the run-level
+`jitter.stats[]` block at `:1327`. `precheck.cpus[].stats` writes the
+same keys inline at `:1368`, and its three detector figures stand at
+`:1392` to `:1398`.
 
 | Key | Kind | Written when | `null` rule | Requirement |
 | --- | --- | --- | --- | --- |
@@ -97,7 +99,7 @@ benchmark's windows and holds no window edge, so its two delta figures
 stand `null` for a `hwlat` run, and its count figure counts that item's
 own kept gaps whose mark stands set (spec FR-013, FR-025). The spec's
 key table names two carriers; the third joins it in the same commit,
-because one writer fills all three.
+because all three print the same keys of one fold.
 
 ## The `gaps[]` item key
 
