@@ -613,8 +613,10 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   use fake files.
 - **FR-002**: The user-space mode SHALL stand as one key of
   `--jitter-probe`: the word `hwlat` of the `method=` key, beside `tsc`,
-  `fwq` and `ftq`. No option value SHALL join the option table unless the
-  owner rules.
+  `fwq` and `ftq`. The method keeps the gap loop of `tsc`, so the sample
+  series record of specs/043 SHALL stand absent for it, as it stands
+  absent for `tsc` (D-1). No option value SHALL join the option table
+  unless the owner rules.
 - **FR-003**: The detector run SHALL stand off by default. It SHALL
   require the engine word `hwlat` of `--os-noise`. A value that names an
   engine on a run whose mode plans no pre-check window SHALL refuse with
