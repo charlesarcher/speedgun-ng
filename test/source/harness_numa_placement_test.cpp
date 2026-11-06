@@ -52,6 +52,11 @@
 //   nodePredicate    the plan's postcondition predicate answers true
 //                    for a valid plan and false for each invalid one
 //                    (FR-012, R-04)
+//   bindReadsPlanCpu the bind at the context start reads the plan for
+//                    that context's own cpu: a cpu the plan carries
+//                    not binds nothing, and a denied bind stands its
+//                    refusal on that context (FR-010, FR-013, R-05,
+//                    R-07)
 //   nodeDisclose     the rows and the JSON field read `cpu@group@node`,
 //                    and the binder records validation, then the starts
 //                    (T008, T009, FR-010, FR-011, R-05)
@@ -91,6 +96,7 @@
 
 #include "detail/internal.hpp"
 #include "speedgun-ng/benchmark.hpp"
+#include "speedgun-ng/execution_context.hpp"
 
 namespace
 {
@@ -795,6 +801,67 @@ auto childFieldTail() -> int
   return 0;
 }
 
+// T009, FR-010, FR-013, R-05, R-07: the bind at the context start reads the
+// plan for the cpu that context's own policy names, and not for the run as a
+// whole. A cpu the plan carries not reaches no bind, and a bind the binder
+// denies stands its refusal on that context. The plan stands installed through
+// the seam, so both shapes reach the block on every host (FR-017).
+auto childBindReadsThePlanCpu() -> int
+{
+  // The cpus the two policies name stand online, so the pin's account stays
+  // the host's own answer and the block reads the plan either way (FR-041).
+  sg::detail::installTestOnlineCpus(std::vector<std::uint32_t> {0, 1, 2, 3});
+  installFakeBinder();
+  binderDenyNodeFrom() = 1;
+  sg::detail::PlacementPlan plan;
+  plan.places = 2;
+  plan.cpu = {0, 1};
+  plan.group = {0, 0};
+  plan.node = {0, 1};
+  sg::detail::resolvedNodePlan() = plan;
+
+  const sg::ContextPolicy outsidePlan {.waitMode = sg::WaitMode::BLOCK,
+                                       .placement = sg::PlacementSlot::cpu(2U)};
+  {
+    sg::ExecutionContext context {outsidePlan};
+    context.requestStop();
+    context.join();
+    if (!binderCalls().empty()) {
+      std::fprintf(
+          stderr,
+          "a context whose cpu stands outside the plan reached a " "bind\n");
+      return 1;
+    }
+    if (sg::detail::bindRefusalOf(context).has_value()) {
+      std::fprintf(stderr, "a context that bound nothing recorded a refusal\n");
+      return 1;
+    }
+  }
+
+  const sg::ContextPolicy insidePlan {.waitMode = sg::WaitMode::BLOCK,
+                                      .placement = sg::PlacementSlot::cpu(1U)};
+  {
+    sg::ExecutionContext context {insidePlan};
+    context.requestStop();
+    context.join();
+    const std::vector<std::uint32_t> expected {1};
+    if (binderCalls() != expected) {
+      std::fprintf(stderr,
+                   "the planned cpu bound a node the plan states not\n");
+      return 1;
+    }
+    const auto refusal = sg::detail::bindRefusalOf(context);
+    if (!refusal.has_value() || *refusal != 1U) {
+      std::fprintf(stderr,
+                   "the denied bind of the planned cpu left no refusal on its "
+                   "context\n");
+      return 1;
+    }
+  }
+  sg::detail::resolvedNodePlan().reset();
+  return 0;
+}
+
 auto scenarioNodeDisclose() -> int
 {
   const Captured run = runCaptured("disclose",
@@ -1029,7 +1096,7 @@ auto main(int argc, char** argv) -> int
     int (*run)();
   };
 
-  const std::array<Scenario, 16> children {
+  const std::array<Scenario, 17> children {
       Scenario {"walkOneNode", &childWalkOneNode},
       Scenario {"walkTwoNodes", &childWalkTwoNodes},
       Scenario {"walkFourNodes", &childWalkFourNodes},
@@ -1046,7 +1113,8 @@ auto main(int argc, char** argv) -> int
       Scenario {"nodeUnfittable", &childNodeUnfittable},
       Scenario {"nodeOneNode", &childNodeOneNode},
       Scenario {"nodePredicate", &childNodePredicate},
-      Scenario {"fieldTail", &childFieldTail}};
+      Scenario {"fieldTail", &childFieldTail},
+      Scenario {"bindReadsPlanCpu", &childBindReadsThePlanCpu}};
 
   if (argc > 1) {
     for (const auto& scenario : children) {
