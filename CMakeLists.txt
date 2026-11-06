@@ -75,7 +75,11 @@ project(
     # FR-004). No exported layout moves. Hard rule 12 asks the hand-kept number
     # to move with a public header change, so the counters number goes to 8. The
     # harness header changes nothing, so the harness SOVERSION stays 21.
-    VERSION 0.33.0
+    # specs/048-hwlat-probe FR-004, FR-038 (D-5): this feature takes the next
+    # free minor past 0.33.0, 0.34.0. JitterStats gains three figures, and the
+    # pre-check tracer record gains three settings beside the three figures its
+    # cpu record gains, so the exported layouts move again.
+    VERSION 0.34.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -441,7 +445,15 @@ set_target_properties(
     # specs/046-hunter-topdown FR-014, FR-019 (D-8): RankedEvent gains its
     # topdownArea member, so the exported layouts move again and the
     # hand-kept number rises to 21 past the 20 specs/043 landed.
-    SOVERSION 21
+    # specs/048-hwlat-probe FR-004, FR-038 (D-5): JitterStats gains the three
+    # attribution figures and the pre-check tracer record gains three settings
+    # beside the three figures its cpu record gains, so the exported layouts
+    # move again and the hand-kept number rises to 22 past the 21 specs/046
+    # landed. JitterMethod and TracerEngine each gain a word, and a layout that
+    # gained a field moved anyway. The counters library surface moves nothing,
+    # and that archive keeps its SOVERSION 8, because the two readers of the new
+    # keys live on the harness side.
+    SOVERSION 22
     EXPORT_NAME harness
     OUTPUT_NAME speedgun-ng-harness
 )
