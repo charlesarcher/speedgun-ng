@@ -435,6 +435,13 @@ auto publishLatchSnapshot(ProbeCpuState& state) noexcept -> void
   latch.gaps.assign(gaps.begin(), gaps.end());
   latch.gapsKept = state.kept;
   latch.droppedGaps = state.droppedGaps;
+  // specs/048 FR-012, FR-016, E-03: the change prefix rides beside the
+  // gap prefix, and the edge pair of the pre-check window rides with it,
+  // so the record folds the window it copied and reads no live buffer.
+  const std::span<const std::uint64_t> changes(state.changes.data(),
+                                               state.kept);
+  latch.changes.assign(changes.begin(), changes.end());
+  latch.window = state.edges;
   state.latchPublished.store(true, std::memory_order_release);
 }
 
@@ -475,6 +482,10 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
   // read, so the first-touch faults land on the probe cpu and outside
   // every measured window (FR-009, R-03).
   state->buffer.assign(options->gapCount, GapRecord {});
+  // specs/048 FR-012, P-3, E-03: the change ring pre-sizes with the gap
+  // ring, one 8-byte count per gap the run can keep, so the gap path
+  // stores record and change into standing space (D-6, R-08).
+  state->changes.assign(options->gapCount, 0);
   // The series buffer of the two quanta methods pre-sizes from the same
   // gaps key, one 8-byte sample per entry, so the measured loop stores
   // into standing space and allocates nothing (FR-014, FR-016, E-26,

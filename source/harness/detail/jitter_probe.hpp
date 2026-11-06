@@ -69,6 +69,21 @@ struct TimedWindow
   std::uint64_t pass = 0;
 };
 
+/// @brief specs/048-hwlat-probe D-7, P-3, E-02: the counter reads that
+/// bound one window, one pair per source. The probe reads each source
+/// once at the opening edge of a window and once at its closing edge, and
+/// the change of the pair answers the change across the window (FR-012,
+/// FR-016). A source that stands absent, unreadable or unparsable leaves
+/// its pair with no value at both edges, and no figure stands in its
+/// place (FR-011, FR-015).
+struct WindowEdges
+{
+  std::optional<std::uint64_t> smiOpening;
+  std::optional<std::uint64_t> smiClosing;
+  std::optional<std::uint64_t> nmiOpening;
+  std::optional<std::uint64_t> nmiClosing;
+};
+
 /// @brief specs/045-merge-fixes FR-008, D-5: the latch-time snapshot of
 /// one probe cpu: the figures the mid-run fold reads, copied at the
 /// latch line while the alongside loop runs on. The work item builds one
@@ -79,7 +94,9 @@ struct TimedWindow
 /// The copy holds the fields the folds read: the series prefix the
 /// pre-check window kept with its kept count and the count of samples a
 /// full buffer dropped, the gap prefix with its kept count and the count
-/// of gaps a full buffer dropped, the effective threshold and loop
+/// of gaps a full buffer dropped, the change prefix beside that gap
+/// prefix (specs/048 E-03), the two counter reads that bound the pre-check
+/// window (specs/048 FR-016), the effective threshold and loop
 /// period, the five calibration figures of E-22, and the method. Each
 /// method fills one prefix: FWQ and FTQ fill the series, and a `tsc` run
 /// fills the gaps.
@@ -91,6 +108,16 @@ struct JitterLatchSnapshot
   std::vector<GapRecord> gaps;
   std::size_t gapsKept = 0;
   std::uint64_t droppedGaps = 0;
+  // specs/048-hwlat-probe FR-012, FR-013, P-3, E-03: the change prefix
+  // beside the gap prefix, one unsigned change per kept gap of that
+  // prefix (D-7). The copied kept count ends both prefixes, so index i of
+  // one answers index i of the other and the fold needs no third list.
+  std::vector<std::uint64_t> changes;
+  // specs/048-hwlat-probe FR-016, P-5: the edge reads of the pre-check
+  // window. The record folds this copy while the alongside loop runs on,
+  // so the window's own two reads ride the copy and no live buffer stands
+  // read mid-run.
+  WindowEdges window;
   std::uint64_t thresholdNs = 0;
   std::uint64_t loopPeriodNs = 0;
   std::uint64_t workCount = 0;
@@ -117,9 +144,13 @@ struct JitterLatchSnapshot
 /// fold reads (specs/043 FR-009, R-10), and `seriesStartNs` carries the
 /// stamp the first series store wrote, the base the window fold
 /// recovers every sample's stamp from (specs/043 FR-020, R-11, E-26).
-/// The stop flag stands last in the field list, inside its own `alignas`
-/// block, so the one read per loop pass shares no cache line with a
-/// field the runner writes (FR-005, R-04).
+/// The change ring of specs/048 stands beside the gap ring with the same
+/// capacity, one 8-byte count per kept gap (E-03, P-3), and the two
+/// counter edge reads of this cpu's run span stand beside the series
+/// figures (specs/048 FR-016, E-02). The stop flag stands last in the
+/// field list, inside its own `alignas` block, so the one read per loop
+/// pass shares no cache line with a field the runner writes (FR-005,
+/// R-04).
 struct ProbeCpuState
 {
   std::uint32_t cpu = 0;
@@ -131,6 +162,17 @@ struct ProbeCpuState
   std::uint64_t droppedGaps = 0;
   std::uint64_t droppedTotalNs = 0;
   std::uint64_t droppedMaxNs = 0;
+  // specs/048-hwlat-probe FR-012, FR-013, D-7, P-3, E-03: the change ring
+  // beside the gap ring, one unsigned change per kept gap. One element
+  // holds this gap's counter read minus the read before it: the opening
+  // edge read for the first gap of the window, and the previous gap's read
+  // for every later gap (D-7). The ring pre-sizes to the same `gapCount`
+  // entries, and the kept count and the count of records a full buffer
+  // dropped above serve both rings, so index i of one answers index i of
+  // the other (P-3). The gap path stores record and change in one step, so
+  // a dropped gap stands in neither ring and raises no second counter
+  // (FR-012).
+  std::vector<std::uint64_t> changes;
   std::uint64_t loopPeriodNs = 0;
   std::uint64_t thresholdNs = 0;
   std::uint64_t workCount = 0;
@@ -156,6 +198,12 @@ struct ProbeCpuState
   // specs/043 FR-020, R-11, E-26: the stamp the first series store
   // wrote, the base the window fold recovers each sample's stamp from.
   std::uint64_t seriesStartNs = 0;
+  // specs/048-hwlat-probe FR-016, P-5: the edge reads of this cpu's own
+  // run span, the read behind the latch and the read after the loop. The
+  // run-level fold answers `smiDelta` and `nmiDelta` from this pair, and a
+  // source that stood unavailable leaves its pair with no value at both
+  // edges (FR-011, FR-016).
+  WindowEdges edges;
   // specs/045-merge-fixes FR-008, D-5: the latch-time snapshot and its
   // publish flag. The item fills the snapshot at the latch line and
   // release-stores the flag there, and the mid-run fold sites
@@ -220,6 +268,12 @@ private:
 ///       maxNs
 /// \post `gapCount` counts the kept gaps, and `droppedGaps` counts the
 ///       gaps the buffer dropped (FR-010, D-6)
+/// \post `smiGapCount` counts the kept gaps whose change element stands
+///       above zero, and a change of zero marks its gap not SMI (FR-014,
+///       P-3)
+/// \post `smiDelta` and `nmiDelta` answer the change of the pair of edge
+///       reads of this cpu's run span, and stand with no value when
+///       either read of that source stands absent (FR-011, FR-016)
 [[nodiscard]] auto gapStatsOf(const ProbeCpuState& state) -> JitterStats;
 
 /// @brief The per-benchmark fold: the kept gaps of one probe cpu
@@ -305,10 +359,17 @@ private:
 /// of a `mode=both` run whose method is `tsc` reads this fold, the
 /// alongside loop running on, and the fold reads no live buffer.
 ///
-/// \pre `gapsKept` equals the length of the copied gap prefix
+/// \pre `gapsKept` equals the length of the copied gap prefix, and the
+///      copied change prefix holds that length too (E-03, P-3)
 /// \post the fold answers the figures of the copied prefix, the
 ///       threshold, the loop period and the drop count carrying the
 ///       snapshot's own (FR-010, D-6)
+/// \post `smiGapCount` counts the copied gaps whose change element stands
+///       above zero (FR-014, P-3)
+/// \post `smiDelta` and `nmiDelta` answer the change of the snapshot's
+///       pair of edge reads, the two reads of the pre-check window, and
+///       stand with no value when either read of that source stands
+///       absent (FR-011, FR-016)
 /// \post minNs <= medianNs <= p90Ns <= p99Ns <= p999Ns <= p9999Ns <=
 ///       maxNs
 /// \post `runtimeNs` is the copied records' stamp span, and the rate
