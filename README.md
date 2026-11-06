@@ -747,7 +747,7 @@ auto main(int argc, char** argv) -> int
 }
 ```
 ### Noise tracer
-The `--os-noise` value runs the `osnoise` or the `timerlat` tracer across the pre-check window. The report prints one header line naming the engine and the tracer cpus, then one figure line per source per tracer cpu. The disclosure covers three host states: no tracefs mount at the standing path, no tracer engine, and no rights for the setup writes. It stands one line, `tracer: not available`, on the tracer lines alone, and the exit status stays 0. A `cpus=` list naming a planned cpu runs the tracer's own load beside the measured cpus. See [jitter probe in detail](docs/pages/harness.md#jitter-probe) for the value grammar, the refusal shape and the record.
+The `--os-noise` value runs the `osnoise`, `timerlat` or `hwlat` tracer across the pre-check window. The report prints one header line naming the engine and the tracer cpus, then one figure line per source per tracer cpu. The disclosure covers three host states: no tracefs mount at the standing path, no tracer engine, and no rights for the setup writes. It stands one line, `tracer: not available`, on the tracer lines alone, and the exit status stays 0. A `cpus=` list naming a planned cpu runs the tracer's own load beside the measured cpus. See [jitter probe in detail](docs/pages/harness.md#jitter-probe) for the value grammar, the refusal shape and the record.
 <!-- sg-example: example/docs/jitter_probe.cpp#probe-main -->
 ```cpp
 auto main(int argc, char** argv) -> int
@@ -929,7 +929,7 @@ The run writes its document at `--json=path`, loads it back with `loadReport`, a
 | `PrecheckTracerRecord` | tracer type | The tracer record one run carries: the engine and one entry per tracer cpu | [noise tracer](#noise-tracer) |
 | `PrecheckTracerCpuRecord` | tracer type | One tracer cpu's five noise-by-source counts | [noise tracer](#noise-tracer) |
 | `PrecheckRecord::tracer` | tracer field | The optional record standing when the tracer ran | [noise tracer](#noise-tracer) |
-| `JitterMethod` | method type | The three methods one probe run measures with | [fixed work and time quanta](#fixed-work-and-time-quanta) |
+| `JitterMethod` | method type | The four methods one probe run measures with | [fixed work and time quanta](#fixed-work-and-time-quanta) |
 | `JitterProbeOptions::method` | method field | Names the method the run measures with | [fixed work and time quanta](#fixed-work-and-time-quanta) |
 | `JitterProbeOptions::noisePercent` | method field | Sets the noise percent a strict pre-check refuses at | [fixed work and time quanta](#fixed-work-and-time-quanta) |
 | `JitterSeriesStats` | method type | One probe cpu's fold over the kept series samples, the periods included | [fixed work and time quanta](#fixed-work-and-time-quanta) |
@@ -962,8 +962,8 @@ The run writes its document at `--json=path`, loads it back with `loadReport`, a
 | `--no-percentiles` | Turns the percentile lines off |
 | `--json` | Writes one JSON report document for the run |
 | `--json-raw` | Selects the chunk columns the document carries |
-| `--jitter-probe` | Runs the jitter probe over the batch by one value; `precheck=<ms>` or `precheck=serial` runs the host noise pre-check; `method=`, `quantum=`, `work=` and `noise=` state the method, its quantum, its work count and the noise bound |
-| `--os-noise` | Runs the named noise tracer across the pre-check window |
+| `--jitter-probe` | Runs the jitter probe over the batch by one value; `precheck=<ms>` or `precheck=serial` runs the host noise pre-check; `method=tsc|fwq|ftq|hwlat`, `quantum=`, `work=` and `noise=` state the method, its quantum, its work count and the noise bound |
+| `--os-noise` | Runs the `osnoise`, `timerlat` or `hwlat` tracer across the pre-check window |
 | `--graph` | Orders the context starts of every threaded run by that graph file; the bare form reads its path from the option file |
 | `--dry-run` | Runs one iteration and prints the row shape |
 | `--counter` | Adds one catalog counter address or `@file` of addresses to the report columns |

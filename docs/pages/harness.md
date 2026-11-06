@@ -1890,7 +1890,7 @@ key in `test/source/harness_topdown_report_test.cpp`. Each of them drives a
 scripted host, so no unit of this feature opens the kernel event interface,
 reads a clock or sleeps.
 ## Jitter probe
-The `--jitter-probe` option and the `runJitterProbe` call state the probe options of the run: a spinning context per touched L3 group counts the gaps the host inserts above a threshold while the batch runs, and the report prints one block of the folds after the benchmark tables. An empty `cpus` field names the `idle` preset: in `precheck` mode the probe runs on the planned cpus, and in the other modes on one cpu of each L3 group the plans leave free. In `precheck` and `both` modes the run prints the pre-check block before the benchmark tables: one block per measured cpu carrying the sixteen field lines, the attribution deltas each naming its source, then the host settings once, then one warning line per noisy planned cpu and the pinning-candidate line ranked by gap rate. The fold block opens with `jitter probe: cpus`, carries one field line per stats field from `gapCount:` to `droppedGaps:`, one value per probe cpu, carries the series lines of the `fwq` and `ftq` methods, and closes with the disclosure lines.
+The `--jitter-probe` option and the `runJitterProbe` call state the probe options of the run: a spinning context per touched L3 group counts the gaps the host inserts above a threshold while the batch runs, and the report prints one block of the folds after the benchmark tables. An empty `cpus` field names the `idle` preset: in `precheck` mode the probe runs on the planned cpus, and in the other modes on one cpu of each L3 group the plans leave free. In `precheck` and `both` modes the run prints the pre-check block before the benchmark tables: one block per measured cpu carrying the sixteen field lines, the attribution deltas each naming its source, the three counter lines of the `hwlat` method each naming the file its figure reads, then the host settings once, then one warning line per noisy planned cpu and the pinning-candidate line ranked by gap rate. The fold block opens with `jitter probe: cpus`, carries one field line per stats field from `gapCount:` to `droppedGaps:`, one value per probe cpu, carries the series lines of the `fwq` and `ftq` methods, and closes with the disclosure lines. The `hwlat` method reads two kernel counters around the window: the machine-check interrupt count of the model-specific register node of each probe cpu, and the non-maskable interrupt count of `/proc/interrupts`. A kept gap carries a mark, and the mark answers the span between the two reads of the machine-check counter: a gap whose mark stands set holds one move of that counter inside it. A counter the host keeps out of reach prints the standing `not available` token where its figure would stand, and the run keeps its status.
 <!-- sg-example: example/docs/jitter_probe.cpp#probe-main -->
 ```cpp
 auto main(int argc, char** argv) -> int
@@ -2194,6 +2194,153 @@ jitter: cpu 1 kept 0 dropped 0
 jitter: split and percentiles use the kept gaps only
 ```
 
+The block one `hwlat` run prints, recorded on one host: the three counter lines
+inside each pre-check unit, the three detector lines after `droppedGaps`, the two
+counter disclosures, and none of the series lines.
+
+<!-- sg-sample-output: example/docs/hwlat_probe.expected#report -->
+```text
+speedgun-ng 0.31.0 build=Release
+topology: packages=1 l3-groups=1 cores=12 threads=24
+precheck cpu 0 (planned)
+gapCount: 0
+gapsPerSecond: 0.00
+minNs: 0
+medianNs: 0
+meanNs: 0.00
+p90Ns: 0
+p99Ns: 0
+p999Ns: 0
+p9999Ns: 0
+maxNs: 0
+totalNs: 0
+totalPercent: 0.00
+runtimeNs: 0
+thresholdNs: 1000000000
+loopPeriodNs: 480
+droppedGaps: 0
+interrupts delta: 450 (source: /proc/interrupts)
+softirq HI delta: 0 (source: /proc/softirqs)
+softirq TIMER delta: 0 (source: /proc/softirqs)
+softirq NET_TX delta: 0 (source: /proc/softirqs)
+softirq NET_RX delta: 0 (source: /proc/softirqs)
+softirq BLOCK delta: 0 (source: /proc/softirqs)
+softirq IRQ_POLL delta: 0 (source: /proc/softirqs)
+softirq TASKLET delta: 0 (source: /proc/softirqs)
+softirq SCHED delta: 112 (source: /proc/softirqs)
+softirq HRTIMER delta: 0 (source: /proc/softirqs)
+softirq RCU delta: 26 (source: /proc/softirqs)
+switch delta: 0, schedule delta: 0 (source: /proc/schedstat)
+smi delta: not available (source: /dev/cpu/0/msr)
+nmi delta: 0 (source: /proc/interrupts)
+smi gaps: 0
+precheck cpu 12 (planned)
+gapCount: 0
+gapsPerSecond: 0.00
+minNs: 0
+medianNs: 0
+meanNs: 0.00
+p90Ns: 0
+p99Ns: 0
+p999Ns: 0
+p9999Ns: 0
+maxNs: 0
+totalNs: 0
+totalPercent: 0.00
+runtimeNs: 0
+thresholdNs: 1000000000
+loopPeriodNs: 486
+droppedGaps: 0
+interrupts delta: 441 (source: /proc/interrupts)
+softirq HI delta: 0 (source: /proc/softirqs)
+softirq TIMER delta: 10 (source: /proc/softirqs)
+softirq NET_TX delta: 0 (source: /proc/softirqs)
+softirq NET_RX delta: 0 (source: /proc/softirqs)
+softirq BLOCK delta: 0 (source: /proc/softirqs)
+softirq IRQ_POLL delta: 0 (source: /proc/softirqs)
+softirq TASKLET delta: 0 (source: /proc/softirqs)
+softirq SCHED delta: 119 (source: /proc/softirqs)
+softirq HRTIMER delta: 0 (source: /proc/softirqs)
+softirq RCU delta: 21 (source: /proc/softirqs)
+switch delta: 0, schedule delta: 0 (source: /proc/schedstat)
+smi delta: not available (source: /dev/cpu/12/msr)
+nmi delta: 0 (source: /proc/interrupts)
+smi gaps: 0
+precheck cpu 1 (candidate)
+gapCount: 0
+gapsPerSecond: 0.00
+minNs: 0
+medianNs: 0
+meanNs: 0.00
+p90Ns: 0
+p99Ns: 0
+p999Ns: 0
+p9999Ns: 0
+maxNs: 0
+totalNs: 0
+totalPercent: 0.00
+runtimeNs: 0
+thresholdNs: 1000000000
+loopPeriodNs: 176
+droppedGaps: 0
+interrupts delta: 442 (source: /proc/interrupts)
+softirq HI delta: 0 (source: /proc/softirqs)
+softirq TIMER delta: 2 (source: /proc/softirqs)
+softirq NET_TX delta: 0 (source: /proc/softirqs)
+softirq NET_RX delta: 0 (source: /proc/softirqs)
+softirq BLOCK delta: 0 (source: /proc/softirqs)
+softirq IRQ_POLL delta: 0 (source: /proc/softirqs)
+softirq TASKLET delta: 0 (source: /proc/softirqs)
+softirq SCHED delta: 113 (source: /proc/softirqs)
+softirq HRTIMER delta: 0 (source: /proc/softirqs)
+softirq RCU delta: 22 (source: /proc/softirqs)
+switch delta: 0, schedule delta: 0 (source: /proc/schedstat)
+smi delta: not available (source: /dev/cpu/1/msr)
+nmi delta: 0 (source: /proc/interrupts)
+smi gaps: 0
+host settings: isolcpus=not available nohz_full=not available rcu_nocbs=not available
+governor: cpu 0 powersave (source: /sys devices system cpu scaling_governor)
+governor: cpu 12 powersave (source: /sys devices system cpu scaling_governor)
+governor: cpu 1 powersave (source: /sys devices system cpu scaling_governor)
+irq affinity: cpu 0 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,26,27,29,30,31,32,33,42,44,53,54,56,57,87,90,92,93,94,95,96,97,98,99,101,102,103,104,105,106,107,108,109 (source: /proc/irq)
+irq affinity: cpu 12 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,26,27,29,30,31,32,33,42,44,53,54,56,57,88,90,92,93,94,95,96,97,98,99,101,102,103,104,105,106,107,108,109 (source: /proc/irq)
+irq affinity: cpu 1 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,26,27,29,30,31,32,33,42,44,53,54,56,57,65,90,92,93,94,95,96,97,98,99,101,102,103,104,105,106,107,108,109 (source: /proc/irq)
+tracer: not available
+pinning candidates: cpu 0 0.00 cpu 12 0.00
+bmMeasured/threads:2     iterations= 433953742  real time/iter (ns)=    1.615  cpu time/iter (ns)=    1.613  overhead floor (ns)= 2862.000  endpoint samples=4
+  contexts=2  ctx0=SPIN/0@0/applied/l3-0  ctx1=SPIN/12@0/applied/l3-0
+jitter probe: cpus 0,12,1
+gapCount: 0 0 0
+gapsPerSecond: 0.00 0.00 0.00
+minNs: 0 0 0
+medianNs: 0 0 0
+meanNs: 0.00 0.00 0.00
+p90Ns: 0 0 0
+p99Ns: 0 0 0
+p999Ns: 0 0 0
+p9999Ns: 0 0 0
+maxNs: 0 0 0
+totalNs: 0 0 0
+totalPercent: 0.00 0.00 0.00
+runtimeNs: 0 0 0
+thresholdNs: 1000000000 1000000000 1000000000
+loopPeriodNs: 480 486 176
+droppedGaps: 0 0 0
+smiDelta: not available not available not available
+nmiDelta: 0 0 0
+smiGapCount: 0 0 0
+jitter: probe on cpus 0,12,1
+jitter: loop period 480 ns, threshold 1000000000 ns
+jitter: cpu 0 kept 0 dropped 0
+jitter: cpu 12 kept 0 dropped 0
+jitter: cpu 1 kept 0 dropped 0
+jitter: split and percentiles use the kept gaps only
+jitter: SMI count not available
+jitter: probe runs with interrupts enabled
+```
+
+
+
 The value takes a head, a cpu list or the word `idle`, and the keys follow, each once:
 
 | Part | Meaning | Default |
@@ -2204,12 +2351,12 @@ The value takes a head, a cpu list or the word `idle`, and the keys follow, each
 | `precheck=<ms>` | The pre-check duration in ms, at or above 1 | 200 |
 | `gaps=<n>` | The gap buffer size per probe cpu, 1 to 16,777,216 | 65,536 |
 | `strict` | An unavailable time-stamp counter stops the run | Absent: the run discloses it and continues |
-| `method=` | `tsc`, `fwq`, or `ftq`: one method per run, the words the value takes | `tsc` |
+| `method=` | `tsc`, `fwq`, `ftq`, or `hwlat`: one method per run, the words the value takes | `tsc` |
 | `quantum=<us>` | The FTQ quantum in microseconds, 10 to 100,000 | 100 us |
 | `work=<n>` | The FWQ work count of one unit, 1 to 16,777,216 | 0: the calibration measures the count on the probe cpu |
 | `noise=<percent>` | The noise percent at which a strict run refuses, 0 to 100, a whole number | 1 |
 
-The block prints one field line per stats field, in this order, one value per probe cpu:
+The block prints one field line per stats field, in this order, one value per probe cpu. The three detector lines stand after `droppedGaps`, and the `hwlat` method prints them alone:
 
 | Field | Unit | Rule |
 | --- | --- | --- |
@@ -2229,6 +2376,9 @@ The block prints one field line per stats field, in this order, one value per pr
 | `thresholdNs` | ns | The effective threshold the run used |
 | `loopPeriodNs` | ns | The minimum loop period the measurement pass measured |
 | `droppedGaps` | count | The gaps a full buffer dropped; zero when the buffer never filled |
+| `smiDelta` | count | The machine-check interrupts between the two reads of the window; nothing where the node stands unreadable |
+| `nmiDelta` | count | The non-maskable interrupts between the two reads of the window |
+| `smiGapCount` | count | The kept gaps whose mark stands set, so the kept gaps that hold a machine-check move |
 
 The `fwq` and `ftq` methods print 30 series fields, one line each, one value per probe
 cpu. The calibration group of four prints ahead of the batch's first run, and the 26
@@ -2280,14 +2430,14 @@ The names of the probe surface:
 | `JitterProbeMode` | type | The three phases one probe run can take | [jitter-probe](#jitter-probe) |
 | `JitterStats` | type | One probe cpu's fold over the covered windows | [jitter-probe](#jitter-probe) |
 | `JitterEntryFold` | type | One probe cpu's fold over one benchmark's windows | [jitter-probe](#jitter-probe) |
-| `JitterMethod` | type | The three methods one probe run measures with | [jitter-probe](#jitter-probe) |
+| `JitterMethod` | type | The four methods one probe run measures with | [jitter-probe](#jitter-probe) |
 | `JitterSeriesStats` | type | One probe cpu's fold over the kept samples of its series | [jitter-probe](#jitter-probe) |
 | `JitterPeriodRecord` | type | One detected period and its power over the strongest | [jitter-probe](#jitter-probe) |
 | `JitterRunRecord` | type | The method and the per-cpu series one document carries | [jitter-probe](#jitter-probe) |
 
 ### The noise tracer
 
-The `--os-noise` value reads `osnoise|timerlat[,cpus=<cpu-list>]`: one engine
+The `--os-noise` value reads `osnoise|timerlat|hwlat[,cpus=<cpu-list>]`: one engine
 name first, then one optional `cpus` key whose value the standing cpu-list
 parser reads, the form the `--topology` listing prints. Each key stands once,
 and a second occurrence of one key is an invalid value. The value binds beside
@@ -2295,7 +2445,7 @@ the other options: the command line first, then the option file, then the
 environment, then the built-in default.
 
 A bad value refuses one line on standard error with exit status 2 before
-anything runs: an engine word outside the two, a `cpus` value outside the
+anything runs: an engine word outside the three, a `cpus` value outside the
 standing cpu-list rules, and a repeated key each name their fault. A bad value
 from an option file line names the path, the line and the token, the standing
 file-fault shape. A value on a run whose mode runs no pre-check window refuses
@@ -2313,8 +2463,46 @@ the sources in the NMI, IRQ, softirq, thread, hardware order, cpus ascending.
 A figure the engine states nothing for prints the standing `not available`
 wording for that source alone.
 
+The `hwlat` engine writes three settings around its window and states them on one
+line below the header: the window, the width and the threshold, each in
+microseconds. Each tracer cpu then carries three figures after the standing five:
+the longer of the two figures of its longest sample line in nanoseconds, the count
+of its own sample lines, and the sum of the non-maskable-interrupt counts those
+lines carry. A cpu whose buffer holds no detector line prints the standing token
+for those three, and a cpu whose lines carry no such count answers 0 for the sum.
+
 A `cpus=` list naming a planned cpu runs as named: the tracer's own load
 stands beside the measured cpus while they run.
+
+The engine stands one kernel thread per tracer cpu, and interrupts stand disabled
+for the width of each window. That is the difference a reader cannot read off the
+figures: the detector sees the interruptions a probe thread with interrupts enabled
+cannot see, and a probe run of the `hwlat` method discloses
+`jitter: probe runs with interrupts enabled` for that reason.
+
+The restore writes every saved value back, and one value stays behind. The kernel
+remembers the threshold the run wrote as the threshold the detector keeps, so a
+later run that names no threshold takes the value this run wrote. The two surfaces
+differ in three ways. The engine needs the rights that let it write the trace file
+system, and the probe needs none. The engine states its threshold in microseconds,
+and the probe states its gap threshold in nanoseconds. The engine samples with
+interrupts disabled, and the probe samples with interrupts enabled.
+
+The call a detector run states, method and engine on one run:
+
+<!-- sg-example: example/docs/hwlat_probe.cpp#hwlat-main -->
+```cpp
+auto main(int argc, char** argv) -> int
+{
+  sg::runJitterProbe({.thresholdNs = 1000000000,
+                      .mode = sg::JitterProbeMode::PRECHECK,
+                      .precheckMs = 500,
+                      .precheckSerial = true,
+                      .tracerEngine = sg::TracerEngine::HWLAT,
+                      .method = sg::JitterMethod::HWLAT});
+  return sg::speedgunMain(argc, argv);
+}
+```
 
 The names of the tracer surface:
 
@@ -2324,7 +2512,7 @@ The names of the tracer surface:
 | `JitterProbeOptions::tracerEngine` | field | The engine field of the probe options | [the noise tracer](#the-noise-tracer) |
 | `JitterProbeOptions::tracerCpus` | field | The tracer cpu list of the probe options | [the noise tracer](#the-noise-tracer) |
 | `PrecheckTracerRecord` | type | The tracer record one run carries: the engine and one entry per tracer cpu | [the noise tracer](#the-noise-tracer) |
-| `PrecheckTracerCpuRecord` | type | One tracer cpu's five noise-by-source counts | [the noise tracer](#the-noise-tracer) |
+| `PrecheckTracerCpuRecord` | type | One tracer cpu's five noise-by-source counts, beside the three figures of the detector engine | [the noise tracer](#the-noise-tracer) |
 | `PrecheckRecord::tracer` | field | The optional record standing when the tracer ran | [the noise tracer](#the-noise-tracer) |
 
 ## Hunter mode

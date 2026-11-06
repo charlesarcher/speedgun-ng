@@ -512,7 +512,7 @@ and the main page holds its cap.
 folds equal against the run, the page block matches its region, and the
 prose gate reads no finding on the new lines.
 
-- [ ] T049 [US5] Add the two sections to `docs/pages/harness.md`:
+- [X] T049 [US5] Add the two sections to `docs/pages/harness.md`:
   the method word joins the jitter section and the engine word joins the
   noise tracer subsection in the page's standing shape; the two sections
   state the three rules a reader cannot read off the figures: a mark
@@ -521,26 +521,26 @@ prose gate reads no finding on the new lines.
   leaves the kernel's remembered threshold at the run's value; the
   added lines carry no spec id, no requirement id, no commit hash and no
   kernel reference (FR-006, FR-031, FR-036, XI). Verify: `python3 tools/prose/prose_gate.py --check prose --mode tree` exits 0 and `grep -c "probe runs with interrupts enabled" docs/pages/harness.md` counts at least one line
-- [ ] T050 [P] [US5] Stand the example pair: `example/docs/hwlat_probe.cpp`
+- [X] T050 [P] [US5] Stand the example pair: `example/docs/hwlat_probe.cpp`
   and its recorded run in `example/docs/hwlat_probe.expected`, the
   markers `# sg-example:begin report` and `# sg-example:end report`
   around the recorded block, the print behind `speedgunMain`, and the
   `--list` answer kept to the registry (FR-006, FR-037, IV.1). Verify:
   `g++ -fsyntax-only -std=c++23 -Iinclude -Isource -Isource/harness -Ibuild/export example/docs/hwlat_probe.cpp` exits 0 and `grep -c "sg-example:begin report" example/docs/hwlat_probe.expected` counts one line
-- [ ] T051 [US5] Register the example and its page block:
+- [X] T051 [US5] Register the example and its page block:
   `add_docs_example(hwlat_probe)` in `example/CMakeLists.txt`, the
   `report_shape_hwlat_probe_sample` entry with its 120 s ceiling and its
   one-line budget row in `test/CMakeLists.txt`, and the one
   `<!-- sg-sample-output: example/docs/hwlat_probe.expected#report -->`
   block in `docs/pages/harness.md` built from the recorded file (FR-006,
   FR-037, SC-010) (depends on T049, T050). Verify: `ctest --test-dir build -R "example_drift|snippet_compile|example_run|report_shape" --output-on-failure` exits 0
-- [ ] T052 [P] [US5] Move the two option rows in `README.md` in place:
+- [X] T052 [P] [US5] Move the two option rows in `README.md` in place:
   the `--jitter-probe` row names the fourth method word and the
   `--os-noise` row names the third engine word, the teaching of the two
   new words stays on the guide page, and the page holds the
   `PAGE_LINE_CAP` of 1,004 lines against the 1,001 lines of master
   (FR-006, FR-037, SC-009, IV.1). Verify: `python3 tools/docs/example_drift.py .` exits 0 and `wc -l < README.md` counts at most 1004
-- [ ] T053 [US5] State the residue and the difference in
+- [X] T053 [US5] State the residue and the difference in
   `docs/pages/harness.md`: the kernel keeps the run's threshold as the
   default a later run takes when it names none, and the two surfaces
   differ in privilege, threshold unit and interrupt state (FR-031,
@@ -855,3 +855,34 @@ priority.
 - The plan names module M3 in W3; this list lands the method-word branch
   of FR-002 in W2 as T047, because the attribution of Phase 3 reads that
   branch, and the covering test task T045 stands with it.
+
+- [X] T049 [US6] Teach the method and the engine in
+  `docs/pages/harness.md`. The lead names the two counter sources
+  and what one mark answers, and the option table, the field table and the names
+  table carry the fourth word and the three figures. The noise tracer names the
+  third engine word in its grammar, in its refusal and in its record, states the
+  settings line the detector writes, the rule that one thread per tracer cpu runs
+  with interrupts disabled for the width, and the threshold the kernel keeps after
+  the restore. The probe names both sources for both surfaces. The tree-wide prose
+  gate reads 1027 sources, 197535 units, 0 findings, and `grep -c` finds
+  `probe runs with interrupts enabled` twice on the page.
+- [X] T051 [US6] [P] Pair the example in `example/docs/hwlat_probe.cpp`, and the
+  parent adds `add_docs_example(hwlat_probe)` to `example/CMakeLists.txt` and the
+  `report_shape_hwlat_probe_sample` entry, with the 120-second budget exception,
+  to `test/CMakeLists.txt`. The file calls `sg::runJitterProbe` with
+  `sg::JitterMethod::HWLAT` and `sg::TracerEngine::HWLAT` and prints nothing of
+  its own, and `sg::speedgunMain` runs after the call. The recorded run of
+  `example/docs/hwlat_probe.expected` answers the shape gate.
+- [X] T052 [US6] Move the two option rows in place in `README.md`:
+  the `--jitter-probe` row reads `method=tsc|fwq|ftq|hwlat`, and the `--os-noise`
+  row names the three engines. The two capability-summary lines that named two
+  methods or two engines name the third with them, in the same lines. The file
+  stands at 1001 lines, below the 1004 bound, and
+  `python3 tools/docs/example_drift.py .` reads no findings.
+- [X] T053 [US6] Record the run in `example/docs/hwlat_probe.expected`, beside the
+  page block that matches it line for line. The block carries the three
+  attribution lines inside each pre-check unit, the three detector figures after
+  `droppedGaps`, the two disclosures and no series line, and the shape gate folds
+  it equal against a real run. `tools/docs/report_shape.py` reads no finding on
+  this host, and its cpu-fold leaves the figures, the method word and the line
+  classes standing.
