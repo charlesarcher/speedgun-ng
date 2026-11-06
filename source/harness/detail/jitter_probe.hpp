@@ -270,7 +270,9 @@ private:
 ///       gaps the buffer dropped (FR-010, D-6)
 /// \post `smiGapCount` counts the kept gaps whose change element stands
 ///       above zero, and a change of zero marks its gap not SMI. A change ring
-///       shorter than the kept set leaves the gaps it does not reach unmarked
+///       shorter than the kept set leaves the gaps it does not reach unmarked,
+///       and a window whose SMI reads answer only one of its two edges leaves
+///       the count at 0, because no gap of that run carries a mark
 ///       (FR-014, FR-015, P-3)
 /// \post `smiDelta` and `nmiDelta` answer the change of the pair of edge
 ///       reads of this cpu's run span, and stand with no value when
