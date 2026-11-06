@@ -1584,9 +1584,10 @@ auto twoStageDocument() -> void
 auto schemaConformance() -> void
 {
   const auto text = huntDocumentText(singleStageHunt());
-  check(text.starts_with("{\"schemaVersion\":\"1.15\""),
-        "the hunt document stamps the minor 1.15 the writer carries, the "
-        "minor whose run-level record names a limit's finder (FR-020, FR-023, "
+  check(text.starts_with("{\"schemaVersion\":\"1.16\""),
+        "the hunt document stamps the minor 1.16 the writer carries, the "
+        "minor specs/048-hwlat-probe takes past the 1.15 whose run-level "
+        "record names a limit's finder (FR-020, FR-023, "
         "specs/039 FR-032, specs/037 FR-005, specs/043 FR-006, "
         "specs/042-topdown FR-036, specs/046-hunter-topdown FR-020, "
         "specs/041-counter-probe FR-051)");

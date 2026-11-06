@@ -18,7 +18,7 @@ six standing values, writes the mask, the per-cpu mode, the detector
 width and window, the threshold, the engine word and `tracing_on`, folds
 three figures from each tracer cpu's buffer text, and writes the saved
 values back in reverse order on each path the process controls. Both surfaces disclose `not available` and continue
-with status 0. The schema moves to `1.15` with eleven new keys, the loader
+with status 0. The schema moves to `1.16` with eleven new keys, the loader
 reads the six figures back, the comparison gains six rule names, and the
 harness `SOVERSION` rises from `21` to `22` with the version move to
 `0.32.0`.
@@ -453,8 +453,10 @@ Eleven document keys: `smiDelta`, `nmiDelta` and `smiGapCount` in
   `PrecheckTracerRecord` and `PrecheckTracerCpuRecord` change layout.
 - Archive `SOVERSION` stays `6`: no archive type changes, and the readers
   live in the harness.
-- Schema `1.14` to `1.15`: keys are added, no key changes kind or name,
-  and no old document loses a key.
+- Schema `1.15` to `1.16`: keys are added, no key changes kind or name,
+  and no old document loses a key. This branch cut at `1.14` and named `1.15`
+  for its own move, which specs/041-counter-probe landed on master first, so
+  the eleven keys take the next free minor.
 
 ## Test Plan
 

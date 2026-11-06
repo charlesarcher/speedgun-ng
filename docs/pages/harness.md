@@ -1437,10 +1437,11 @@ a guessed one.
 `schemaVersion` names the shape of the document. A document whose major stands
 at 1 loads, whatever its minor says; a later major is refused, and the refusal
 names the version the document carries. The writer moves the minor for a key
-it adds inside major 1. A run writes `1.15`, the shape that carries the
+it adds inside major 1. A run writes `1.16`, the shape that carries the
 `method` key and the `series` array of the `jitter` object, the `topdown`
-object of the entry record, the `topdownArea` key of each ranked event and the
-run-level `counterLimits` array; a `1.0` document, which carries neither the
+object of the entry record, the `topdownArea` key of each ranked event, the
+run-level `counterLimits` array and the keys the detector run adds to the
+`jitter` and `precheck` records; a `1.0` document, which carries neither the
 hunt keys nor the pass fields, loads through the same rule.
 
 ### The null rule

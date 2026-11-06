@@ -113,7 +113,9 @@ auto versionRuleGatesTheReader() -> void
     return mutated;
   };
 
-  sg::test::writeText("harness_json_load_minor.json", withVersion("\"1.16\""));
+  // The plant stands one minor past the stamp, which is 1.16 for this build
+  // (specs/048-hwlat-probe FR-004, D-5).
+  sg::test::writeText("harness_json_load_minor.json", withVersion("\"1.17\""));
   check(sg::loadReport("harness_json_load_minor.json").has_value(),
         "a later minor of the same major loads (FR-010)");
 
@@ -121,13 +123,14 @@ auto versionRuleGatesTheReader() -> void
   // `source/harness/json_report.cpp`, is the current one for the reader: it
   // loads and answers that text through `schemaVersion` (specs/046 FR-020,
   // FR-023, SC-003).
-  // specs/048-hwlat-probe FR-004, D-5: the stamp moves to 1.15 with the
+  // specs/048-hwlat-probe FR-004, D-5: the stamp moves to 1.16 with the
   // eleven detector keys, the minor specs/023's schema-file rule states for a
-  // key added inside major 1.
+  // key added inside major 1. The feature named 1.15 at its cut, and
+  // specs/041-counter-probe landed that minor on master first.
   sg::test::writeText("harness_json_load_nowminor.json",
-                      withVersion("\"1.15\""));
+                      withVersion("\"1.16\""));
   const auto current = sg::loadReport("harness_json_load_nowminor.json");
-  check(current.has_value() && current->schemaVersion == "1.15",
+  check(current.has_value() && current->schemaVersion == "1.16",
         "a document at the minor this build stamps loads and answers it "
         "(specs/046-hunter-topdown FR-020, specs/041-counter-probe FR-051, "
         "SC-003)");
@@ -1041,7 +1044,7 @@ auto theRootListAndTheWarningKeyAnswerTheirOwnRules(const std::string& text)
 constexpr Mutation kMutations[] = {
     // The needle names the minor `kSchemaVersion` stamps, the way every row
     // of this unit names it (specs/048-hwlat-probe FR-004, FR-029).
-    {"\"schemaVersion\":\"1.15\"", "\"schemaVersion\":1", "/schemaVersion"},
+    {"\"schemaVersion\":\"1.16\"", "\"schemaVersion\":1", "/schemaVersion"},
     {"\"name\":\"bmJsonWindow\"", "\"name\":[]", "/benchmarks/0/name"},
     // The two kinds the naming word has no other caller for: a document
     // that holds null, and one that holds a flag, at a name.
@@ -1407,14 +1410,14 @@ auto theHeaderFieldsAndTheStoredWarningsLoad(const std::string& text) -> void
         "nothing (FR-070, E-07)");
 
   // The field answers the text the document carried. The build stamps
-  // its own number elsewhere; a later minor loads and answers its own
-  // number in the field.
+  // its own number elsewhere; a later minor, one past the 1.16 this build
+  // stamps, loads and answers its own number in the field.
   std::string other = text;
   const auto stamp = other.find("\"schemaVersion\":") + 16;
-  other.replace(stamp, other.find('"', stamp + 1) + 1 - stamp, "\"1.15\"");
+  other.replace(stamp, other.find('"', stamp + 1) + 1 - stamp, "\"1.17\"");
   sg::test::writeText("harness_json_load_headertext.json", other);
   const auto minor = sg::loadReport("harness_json_load_headertext.json");
-  check(minor.has_value() && minor->schemaVersion == "1.15",
+  check(minor.has_value() && minor->schemaVersion == "1.17",
         "the field answers the version of a later minor (FR-070, FR-010)");
 
   // A document that omits the speedgun object entirely stays readable and
@@ -1773,7 +1776,8 @@ auto aGapMarkOutsideTheTwoWordsRefuses() -> void
   std::remove(kMarkDoc);
 }
 
-// FR-029, A-7: a document of the standing minor, which carries none of the
+// FR-029, A-7: a document of the minor that stands before this feature's,
+// which carries the limit record of specs/041-counter-probe and none of the
 // eleven keys, loads with no complaint and answers no new figure.
 auto aDocumentOfTheStandingMinorLoadsUnchanged() -> void
 {
@@ -1796,8 +1800,11 @@ auto aDocumentOfTheStandingMinorLoadsUnchanged() -> void
   check(sg::detail::writeReport(kDetectorDoc, data, {}, std::nullopt, record),
         "the writer wrote the document of a standing engine (FR-001)");
   std::string text = sg::test::readText(kDetectorDoc);
+  // The minor 1.15, which is the one the writer stamped before the eleven
+  // keys joined: it carries the limit record and none of them (FR-029,
+  // specs/041-counter-probe FR-051, specs/048-hwlat-probe FR-004).
   const auto start = text.find("\"schemaVersion\":") + 16;
-  text.replace(start, text.find('"', start + 1) + 1 - start, "\"1.14\"");
+  text.replace(start, text.find('"', start + 1) + 1 - start, "\"1.15\"");
   check(text.find("\"smiDelta\"") == std::string::npos
             && text.find("\"maxGapNs\"") == std::string::npos
             && text.find("\"limits\"") == std::string::npos,
@@ -3568,7 +3575,9 @@ auto theLimitRecordReadsItsOwnMinor() -> void
   }
 
   // The document a build before this feature wrote: the record taken away, and
-  // the minor moved back to the one that stood then.
+  // the minor moved back to the one that stood before the record's own minor.
+  // The plant names the stamp this build writes, which stands past that minor
+  // (specs/041-counter-probe FR-052, specs/048-hwlat-probe FR-004).
   const auto keyAt = written.find("\"counterLimits\":[");
   const auto endAt = written.find(']', keyAt);
   if (keyAt == std::string::npos || endAt == std::string::npos) {
@@ -3578,7 +3587,7 @@ auto theLimitRecordReadsItsOwnMinor() -> void
   std::string older = written;
   older.erase(keyAt, static_cast<std::size_t>(endAt) - keyAt + 2);
   const std::string legacyText = planted(
-      older, "\"schemaVersion\":\"1.15\"", "\"schemaVersion\":\"1.14\"");
+      older, "\"schemaVersion\":\"1.16\"", "\"schemaVersion\":\"1.14\"");
   aDocumentLoads(legacyText,
                  "theLimitRecordReadsItsOwnMinor: a document older than the "
                  "record's minor loads (FR-052)");

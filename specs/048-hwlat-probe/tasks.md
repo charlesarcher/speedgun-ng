@@ -342,7 +342,7 @@ status 0.
 
 **Goal**: the console, the document and the loader carry the new
 figures, the document carries the limits statement, the schema moves to
-`1.15`, and a run that names neither new word writes the bytes master
+`1.16`, and a run that names neither new word writes the bytes master
 writes. The wave W3 half adds the loader.
 
 **Independent Test**: a run of the method prints the limits line once
@@ -362,7 +362,7 @@ new key, and a document written before the feature loads unchanged.
   `SMI`, `NOT_SMI` or `null`; `windowUs`, `widthUs` and `thresholdUs`
   stand beside the engine word and `maxGapNs`, `gapCount` and `nmiCount`
   beside `hardware` for that engine alone; `limits` stands beside
-  `disclosure` for the method alone; `kSchemaVersion` reads `1.15`
+  `disclosure` for the method alone; `kSchemaVersion` reads `1.16`
   (FR-004, FR-025 to FR-027, FR-031, D-5, D-13, P-7, P-13). Verify: `ctest --test-dir build -R harness_json_report_test --output-on-failure` exits non-zero (red observed)
 - [X] T034 [P] [US3] Write the failing schema rows in
   `test/source/harness_json_schema_test.cpp`: the six `x-order` lists of
@@ -415,8 +415,8 @@ new key, and a document written before the feature loads unchanged.
 - [X] T040 [US3] Write the keys in `source/harness/json_report.cpp`: the
   eleven keys in the six objects in the order T034 states, the method
   gate on the three stats keys, `smi` and `limits`, the engine gate on
-  the six tracer keys, and `kSchemaVersion` at `1.15`, the two standing
-  `1.14` pins at `test/source/harness_hunt_json_test.cpp:1587` and
+  the six tracer keys, and `kSchemaVersion` at `1.16`, the two standing pins
+  at `test/source/harness_hunt_json_test.cpp:1587` and
   `test/source/harness_topdown_report_test.cpp:816` moving with the stamp in
   a commit of their own (FR-004, FR-025 to
   FR-027, FR-029, FR-031, D-5, P-5, P-7, P-13) (depends on T033, T039;
@@ -446,7 +446,7 @@ new key, and a document written before the feature loads unchanged.
   version values, keeping every other byte (FR-029, SC-006) (depends on
   T035, T040; the rows of T035 turn green). Verify: `ctest --test-dir build -R harness_jitter_bytes_test --output-on-failure` exits 0
 
-**Checkpoint**: the eleven keys, the closed schema at `1.15`, the loader,
+**Checkpoint**: the eleven keys, the closed schema at `1.16`, the loader,
 the console lines and the byte identity all pass.
 
 ---
