@@ -92,7 +92,6 @@ constexpr std::uint64_t kPhaseCalls =
     static_cast<std::uint64_t>(kPrecheckMs) * 1000000ULL / kStep;
 constexpr std::uint64_t kJumpCalls = kJump / kStep;
 constexpr std::uint64_t kPhaseGapCall = kPassCalls + kPhaseCalls - kJumpCalls;
-constexpr std::uint64_t kPhaseOpeningCall = kPassCalls + 1;
 constexpr std::uint64_t kBothOpeningCall = kPhaseGapCall + 1;
 constexpr std::uint64_t kBothFirstPassCall = kBothOpeningCall + 1;
 constexpr std::uint64_t kBothGapCall = kBothFirstPassCall + 4;
