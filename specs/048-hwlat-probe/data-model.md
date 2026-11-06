@@ -387,7 +387,7 @@ writer, and the record the writer reads for the tracer.
 | `stats` | `JitterStats` | mixed | the fold of E-02 |
 | `gaps` | `vector<GapRecord>` | records | the kept records |
 | `smiChanges` | `vector<uint64_t>` | count | new; the span prefix |
-| `series` | `optional<JitterSeriesStats>` | mixed | specs/043 E-23 |
+| `series` | `optional<JitterSeriesStats>` | mixed | specs/043 E-23; absent for `hwlat` with `tsc` (D-1) |
 
 `JitterReportRecord` stands at
 `source/harness/detail/json_report.hpp:266-280`:
