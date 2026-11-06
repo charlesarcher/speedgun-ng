@@ -748,9 +748,11 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   write them for a run of the `hwlat` method at every place that record
   stands in the document: the run-level `jitter.stats[]`, the per-entry
   `jitter.stats[]` items, and `precheck.cpus[].stats`. In a per-entry item
-  the two delta figures SHALL answer `null` and the count figure SHALL
-  answer 0, because that fold covers one benchmark's windows and holds no
-  window edge. The writer SHALL write no key of the three for a run of any
+  the two delta figures SHALL answer `null`, because that fold covers one
+  benchmark's windows and holds no window edge, and the count figure SHALL
+  fold the changes of that item's own kept gaps, so the counts of the items
+  add to the run-level figure the way the standing counts of that item
+  add. The writer SHALL write no key of the three for a run of any
   other method.
 - **FR-026**: Each kept gap the document writes under the standing
   `--json-raw=gaps` gate SHALL carry, for the `hwlat` method, the mark key

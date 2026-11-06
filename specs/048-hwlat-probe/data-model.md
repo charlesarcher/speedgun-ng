@@ -285,6 +285,12 @@ what the record cannot hold (spec FR-012).
 - The read that fills the ring stands on the gap path and at the two
   window edges: one `pread` of 8 bytes per kept gap, outside the measured
   interval (spec FR-012, plan P-2, plan R-1).
+- Edge carrier: the probe state and the latch snapshot each carry the four
+  edge reads of their own window as one `WindowEdges` record:
+  `smiOpening`, `smiClosing`, `nmiOpening`, `nmiClosing`, each optional.
+  The two change figures of E-02 answer the pair of their own window, and
+  the latch hand-off carries no other carrier for them, so the snapshot
+  holds the record beside the two prefixes (spec FR-016, plan P-5).
 - The latch path: the pre-check record folds the latch-time snapshot at
   `source/harness/cli.cpp:1393`, read through
   `source/harness/detail/jitter_probe.hpp:316` and
