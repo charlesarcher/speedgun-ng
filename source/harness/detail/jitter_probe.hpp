@@ -446,6 +446,16 @@ private:
 /// \pre none
 /// \post the answer names the word of the enumerator
 auto jitterMethodName(JitterMethod method) -> const char*;
+///
+/// @brief specs/043 FR-003, D-1, specs/048 D-1: the methods that fill the
+/// series ring, one sample per entry. The two calibrated methods fill it, and
+/// `tsc` and `hwlat` fill the gap ring alone, so neither calibrates a unit loop
+/// nor pre-sizes the series buffer (E-05, A-4). The report, the console and the
+/// noise fraction read this answer, so one rule stands behind all three.
+///
+/// \pre none
+/// \post the answer names the methods that carry a series
+auto fillsSeriesRing(JitterMethod method) -> bool;
 
 /// @brief specs/043-fwq-ftq FR-017, FR-018, FR-022: the spectrum keys of
 /// one cpu's series record: the transform reads the FTQ count series at

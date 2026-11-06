@@ -109,14 +109,6 @@ auto catalogCarriesTsc() -> bool
   return false;
 }
 
-// specs/043 FR-003, D-1: the methods that fill the series ring, one sample
-// per entry. `tsc` and `hwlat` fill the gap ring, so neither calibrates a
-// unit loop nor pre-sizes the series buffer (E-05, A-4).
-auto fillsSeriesRing(const JitterMethod method) -> bool
-{
-  return method == JitterMethod::FWQ || method == JitterMethod::FTQ;
-}
-
 // specs/048 FR-012, FR-013, P-2, E-03: the SMI counter source of one probe
 // cpu over one window. The item opens the node once, outside every window,
 // through the unit that owns the kernel interface, and closes it at stop.
@@ -1658,6 +1650,14 @@ auto precheckNoisyCpus(const std::vector<ProbeCpuState>& states,
     }
   }
   return noisy;
+}
+
+// specs/043 FR-003, D-1: the methods that fill the series ring, one sample
+// per entry. `tsc` and `hwlat` fill the gap ring, so neither calibrates a
+// unit loop nor pre-sizes the series buffer (E-05, A-4).
+auto fillsSeriesRing(const JitterMethod method) -> bool
+{
+  return method == JitterMethod::FWQ || method == JitterMethod::FTQ;
 }
 
 auto jitterMethodName(const JitterMethod method) -> const char*
