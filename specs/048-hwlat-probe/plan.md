@@ -51,7 +51,7 @@ report file `--json` names.
 **Testing**: the repository's own harness, one executable per area,
 registered in `test/CMakeLists.txt`. Three executables join:
 `harness_latency_counters_test`, `harness_hwlat_probe_test` and
-`harness_hwlat_tracer_test`. Eleven standing executables carry the rest
+`harness_hwlat_tracer_test`. Twelve standing executables carry the rest
 of the new checks. Fake files stand under a temporary root the seam
 installs; the fake provider and the scripted `WindowReader` carry time,
 so no test sleeps and no test reads a clock.
@@ -175,7 +175,8 @@ test/source/
 ├── harness_noise_report_test.cpp        # M7: the console lines and the record
 ├── harness_jitter_window_test.cpp       # M7: the probe block figures
 ├── harness_compare_test.cpp             # M8: the six names
-└── harness_compare_cli_test.cpp         # M8: the refusal lines and the statuses
+├── harness_compare_cli_test.cpp         # M8: the refusal lines and the statuses
+└── harness_cli_table_test.cpp           # M3, M10: the option-value guard, the version readers
 ```
 
 Harness sources need no CMake edit: the target globs
