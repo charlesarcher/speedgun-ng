@@ -96,18 +96,19 @@ static_assert(kJitterMethodWords.size()
               == std::to_underlying(sg::JitterMethod::FTQ) + 1);
 
 // The engine words of the optional tracer record (specs/036 E-20,
-// contracts/report-json.md). The document spells the two engine words the
-// way the `--os-noise` value names them, so this table stands apart from
-// the enumerator spellings above; the first word answers the `NONE`
-// enumerator and stands in no written document, since a run that requests
-// no tracer writes no key.
-inline constexpr std::array<std::string_view, 3> kTracerEngineWords {
+// contracts/report-json.md). The document spells the engine words the way
+// the `--os-noise` value names them, so this table stands apart from the
+// enumerator spellings above; the first word answers the `NONE` enumerator
+// and stands in no written document, since a run that requests no tracer
+// writes no key (specs/048 FR-026, D-2).
+inline constexpr std::array<std::string_view, 4> kTracerEngineWords {
     "NONE",
     "osnoise",
     "timerlat",
+    "hwlat",
 };
 static_assert(kTracerEngineWords.size()
-              == std::to_underlying(sg::TracerEngine::TIMERLAT) + 1);
+              == std::to_underlying(sg::TracerEngine::HWLAT) + 1);
 
 inline constexpr std::array<std::string_view, 2> kStatUnitWords {
     "TIME",
