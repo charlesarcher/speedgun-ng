@@ -143,10 +143,11 @@ sixteen standing fields of specs/027 E-03 in the E-03 order
 (`include/speedgun-ng/benchmark.hpp:516-534`), and the three new
 figures beside them (spec FR-025, plan P-5). One record feeds
 `jitter.stats[]`, `precheck.cpus[].stats` and the per-entry
-`jitter.stats[]` items, because the writer shares one function for all
-three (`source/harness/json_report.cpp:332-364`,
-`source/harness/json_report.cpp:776`,
-`source/harness/json_report.cpp:1242-1262`).
+`jitter.stats[]` items. Two write sites cover the three shapes: the
+shared per-cpu writer at `source/harness/json_report.cpp:332-364`, which
+serves the run-level and the per-entry items, and the inline pre-check
+block at `source/harness/json_report.cpp:1242-1262`, which repeats the
+standing sixteen keys.
 
 | Field | Type | Unit | Holds a value when | Key |
 | --- | --- | --- | --- | --- |
@@ -518,7 +519,7 @@ the run writes, and the vector the session carries across the window
 | Field | Type | Unit | Rule |
 | --- | --- | --- | --- |
 | `path` | `string` | path | the file the run wrote |
-| `value` | `string` | text | the standing text, trimmed |
+| `value` | `string` | text | the standing text, trimmed; for `hwlat_detector/mode`, the bracketed word alone |
 
 - Fields: a `vector<TracerSetting>` beside the standing members of
   `NoiseTracerSession` at `source/harness/detail/noise_tracer.hpp:45-51`,
@@ -555,6 +556,13 @@ the run writes, and the vector the session carries across the window
   steps 3 to 5 stand the named constants of spec A-3 and spec FR-020,
   and step 6 needs the third word of `engineWordOf` at
   `source/harness/noise_tracer.cpp:306-311`.
+- Read form of `mode`: the file answers all three words with the active
+  one inside brackets, the shape `none [round-robin] per-cpu`, the print
+  at `kernel/trace/trace_hwlat.c:629-632` and `:642`. The write handler
+  compares one stripped word (`kernel/trace/trace_hwlat.c:692`, `:694`,
+  `:706-711`), so the saved value of that pair holds the bracketed word
+  alone. The whole read form would answer `EINVAL` at the restore, and no
+  other saved file carries a form the write refuses.
 - Why this order: the kernel bounds a width write by the standing window
   (`kernel/trace/trace_hwlat.c:731-736`) and bounds a window write by the
   standing width (`kernel/trace/trace_hwlat.c:743-748`), so the two
@@ -685,6 +693,8 @@ run start
   ├─ --os-noise absent ............. no session, no tracer key
   └─ --os-noise=hwlat
        ├─ the mode runs no pre-check window .. one refusal line, status 2
+       ├─ current_tracer already reads hwlat .... no write, one disclosure
+       │    line, the tracer lines not available, status 0
        └─ the setup reads six texts, then writes seven files
             ├─ a read or a write fails ... restore what it wrote, then
             │                            not available, status 0
