@@ -96,8 +96,8 @@ comparison runs.
 | Rule | Requirement |
 | --- | --- |
 | A fold that carries no value for one of the three jitter names reads 0, the standing rule of a series field on a fold that carries no series at `source/harness/compare.cpp:251` to `:255` | specs/048 FR-028, specs/043 FR-032 |
-| A tracer cpu whose figure stands `null` reads 0 under the same rule, and the run gains no new status | specs/048 FR-028 |
-| A `hwlat:` name on a report that carries no tracer record answers the standing absence shape: one line naming the rule and the report, and exit status 2, the shape of `source/harness/compare.cpp:1564` and `:1573` | specs/027 FR-032, specs/048 FR-028 |
+| A tracer cpu whose figure stands `null` reads 0 under the same rule, and the run gains no new status. The table reader answers a `double` at `source/harness/compare.cpp:244`, so the absent check stands ahead of that read | specs/048 FR-028, plan M8 |
+| A `hwlat:` name on a report that carries no tracer record answers the standing absence shape: one line naming the rule and the report, and exit status 2, the shape of `source/harness/compare.cpp:1563` to `:1576` | specs/027 FR-032, specs/048 FR-028 |
 | A named cpu the tracer record does not carry answers that same line, the standing rule of a named probe cpu the jitter object does not carry | specs/027 FR-032 |
 
 The figures ride `ReportData::precheck` at
@@ -128,6 +128,7 @@ today (spec FR-028).
 | `specs/027-jitter-probe/contracts/rule-names.md:26` to `:31` | the sentence that lists the names and the count | the same sentence with `smiDelta`, `nmiDelta` and `smiGapCount` named |
 | `specs/026-regression-gate/contracts/rule-parse.md:35` | the `<value>` production ends with its `jitter` alternative | one further alternative joins below it, for the `hwlat` head |
 | `specs/026-regression-gate/contracts/rule-parse.md:39` | the `<jitter-field>` production names the sixteen field names of the stats record | the production names the thirty-five field names of the jitter table |
+| `specs/026-regression-gate/contracts/rule-parse.md:104` | the example row refuses an unknown field as "none of the sixteen jitter fields" | the same row reads "none of the thirty-five jitter fields", the words the moved table prints |
 
 ## Consumers
 
