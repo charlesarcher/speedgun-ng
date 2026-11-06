@@ -1259,8 +1259,9 @@ auto gapStatsOf(const ProbeCpuState& state) -> JitterStats
  * cpu's latch-time snapshot (FR-010, D-6): the sixteen fields over the
  * gap prefix the latch copied, the covered span that prefix's stamp
  * span, and the three attribution figures of specs/048. The pre-check
- * record of a `mode=both` run whose method is `tsc` reads this fold
- * while the alongside loop runs on, and the fold reads no live buffer.
+ * record of a `mode=both` run reads this fold for every method while the
+ * alongside loop runs on, and the fold reads no live buffer. The
+ * `hwlat` method reads the same fold through the same record.
  * The empty prefix answers the zero fields, the window's own two changes
  * and none of the rows below.
  *
