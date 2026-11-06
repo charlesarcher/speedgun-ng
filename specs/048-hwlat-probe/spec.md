@@ -698,8 +698,14 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   `sys/kernel/tracing/per_cpu/cpu<id>/trace` under the same file root and
   SHALL take its three figures from the detector's own lines (A-6).
 - **FR-019**: When the detector engine starts, the feature SHALL read the
-  standing value of each file it saves, then SHALL write
-  `tracing_cpumask` with the tracer cpu set, the standing step, then SHALL
+  standing value of each file it saves. Before the first write the session
+  reads `current_tracer`, and when that text already reads `hwlat` the
+  session writes nothing and answers the shape FR-023 names: the kernel
+  returns success without initializing a tracer that already stands
+  (`kernel/trace/trace.c:5043` to `:5044`), so it clears no buffer, and
+  the live detector's lines stand outside this run (P-15). With that read
+  answered by any other word, the session SHALL write `tracing_cpumask`
+  with the tracer cpu set, the standing step, then SHALL
   write `hwlat_detector/mode` with the word `per-cpu`, then SHALL write
   `hwlat_detector/width` and `hwlat_detector/window` with the two values
   FR-020 names, the width first, then SHALL write `tracing_thresh` with
@@ -723,9 +729,11 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   stands new console output on the standing rule that the run never fails
   on the tracer.
 - **FR-023**: When no tracefs stands at the standing path, the detector
-  stands absent, or the process holds no rights for the writes, the
-  tracer lines SHALL state `not available`, the user-space figures SHALL
-  stand whole, and the exit status SHALL stand 0.
+  stands absent, the process holds no rights for the writes, or
+  `current_tracer` already reads `hwlat` ahead of the run, the tracer
+  lines SHALL state `not available`, one disclosure line SHALL name that
+  last cause, the user-space figures SHALL stand whole, and the exit
+  status SHALL stand 0.
 - **FR-024**: The feature SHALL gain no setuid helper, no capability
   grant, no daemon, and no write outside the files FR-019 names.
 
@@ -856,8 +864,9 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
 
 The new report keys, with the figure each carries and the test that
 guards it. One writer function fills all three stats shapes
-(`source/harness/json_report.cpp:332`, `:776`, `:1242`), so the three
-figures reach the per-entry items too. The schema types that per-entry
+(`source/harness/json_report.cpp:332` to `:364` and the inline pre-check
+block at `:1242` to `:1262`), so the three figures reach the per-entry
+items too. The schema types that per-entry
 `jitter` object open (`docs/schema/report-v1.json:572-574`), so it needs
 no order row:
 
