@@ -175,19 +175,6 @@ auto closeWindowEdges(ProbeCpuState& state,
   state.edges.nmiClosing = nmiFigureOf(state.cpu);
 }
 
-// specs/048 P-3, E-03, FR-015: the change prefix of one kept set. The item's
-// keep step pairs the gap ring and the change ring element for element, so a
-// state whose change ring stands as long as its kept set answers that prefix
-// whole. A state built beside the item, the shape a fixture gives a fold,
-// carries a shorter ring, and the gaps that ring does not reach stand unmarked,
-// the answer an absent source leaves.
-auto changePrefixOf(const std::vector<std::uint64_t>& changes,
-                    const std::size_t kept) -> std::span<const std::uint64_t>
-{
-  return std::span<const std::uint64_t>(changes.data(),
-                                        std::min(kept, changes.size()));
-}
-
 // specs/048 FR-013, FR-014, FR-015, P-3: the change element of one kept gap:
 // the element the keep step paired with its record, and zero for a gap the
 // change ring does not reach.
@@ -1650,6 +1637,19 @@ auto precheckNoisyCpus(const std::vector<ProbeCpuState>& states,
     }
   }
   return noisy;
+}
+
+// specs/048 P-3, E-03, FR-015: the change prefix of one kept set. The item's
+// keep step pairs the gap ring and the change ring element for element, so a
+// state whose change ring stands as long as its kept set answers that prefix
+// whole. A state built beside the item, the shape a fixture gives a fold,
+// carries a shorter ring, and the gaps that ring does not reach stand unmarked,
+// the answer an absent source leaves.
+auto changePrefixOf(const std::vector<std::uint64_t>& changes,
+                    const std::size_t kept) -> std::span<const std::uint64_t>
+{
+  return std::span<const std::uint64_t>(changes.data(),
+                                        std::min(kept, changes.size()));
 }
 
 // specs/043 FR-003, D-1: the methods that fill the series ring, one sample

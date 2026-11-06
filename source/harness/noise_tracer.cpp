@@ -474,6 +474,18 @@ auto engineWordOf(TracerEngine engine) -> std::string
   return "hwlat";
 }
 
+auto tracerStandsAsCurrent(const TracerEngine engine) -> bool
+{
+  // specs/048 FR-023, P-15: the standing engines write the engine word, so a
+  // run that asked for one of them names no standing tracer, whatever the file
+  // happens to hold after a failed setup wrote its saved word back.
+  if (engine != TracerEngine::HWLAT) {
+    return false;
+  }
+  const auto text = readTracerFile("sys/kernel/tracing/current_tracer");
+  return text.has_value() && trimmedWordOf(*text) == engineWordOf(engine);
+}
+
 auto noiseTracerSetup(TracerEngine engine,
                       const std::vector<std::uint32_t>& cpus)
     -> std::optional<NoiseTracerSession>

@@ -937,7 +937,8 @@ constexpr std::size_t kWindowSamples = 1'000;
 // names its cpu: the `idle` preset resolves over the batch's plans, and these
 // rows pin no benchmark, so the preset would plan no cpu at all.
 auto runArguments(std::uint32_t cpu,
-                  const std::string& tag) -> std::vector<std::string>
+                  const std::string& tag,
+                  const std::string& probeTail = "") -> std::vector<std::string>
 {
   const std::string list = std::to_string(cpu);
   return {"--filter=bmQuiet",
@@ -945,7 +946,7 @@ auto runArguments(std::uint32_t cpu,
           "--iterations=2",
           "--jitter-probe=" + list + ",mode=precheck,precheck="
               + std::to_string(kPrecheckSpanNs / 1'000'000)
-              + ",threshold=1000000",
+              + ",threshold=1000000" + probeTail,
           "--os-noise=hwlat,cpus=" + list,
           "--json=harness_hwlat_" + tag + ".json"};
 }
@@ -1285,6 +1286,329 @@ auto theInterruptedChildRestoresTheTree() -> void
   std::remove(json.c_str());
 }
 
+// ---- T059, T061, T089: the record the entry point builds, and the tracer
+// that already stands (module M10)
+
+// The vendor text the counter gate reads: one key and one word, the pair the
+// gate answers supported on (FR-010, D-4).
+constexpr const char* kIntelCpuinfo = "vendor_id\t: GenuineIntel\n";
+
+// The register node of one cpu, the file spec D-3 names. The node answers one
+// 8-byte count at the address of the system-management-interrupt counter, so a
+// node of this length stands readable (FR-007, P-2).
+constexpr std::size_t kMsrNodeBytes = 64;
+constexpr std::size_t kSmiCountAddress = 0x34;
+
+// One register node below the seam's root, with one count at the counter
+// address, and the vendor text the gate reads ahead of it. The seam's writer
+// takes any path below the root, so the two counter files ride it too.
+auto installMsrNode(const std::filesystem::path& root,
+                    std::uint32_t cpu,
+                    std::uint64_t count) -> void
+{
+  writeTracingFile(root, "proc/cpuinfo", kIntelCpuinfo);
+  const auto path =
+      root / std::filesystem::path("dev/cpu/" + std::to_string(cpu) + "/msr");
+  std::filesystem::create_directories(path.parent_path());
+  std::ofstream file(path, std::ios::binary);
+  check(static_cast<bool>(file), "the fake register node opens (T059)");
+  std::string bytes(kMsrNodeBytes, '\0');
+  for (std::size_t at = 0; at < 8U; ++at) {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+    bytes[kSmiCountAddress + at] =
+        static_cast<char>((count >> (8U * at)) & 0xFFULL);
+  }
+  file.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+}
+
+// The `NMI` row of `proc/interrupts`: one column per cpu up to the named one,
+// the count of that cpu standing the value given (FR-009).
+auto nmiRowText(std::uint32_t cpu, std::uint64_t value) -> std::string
+{
+  std::ostringstream row;
+  row << "NMI:";
+  for (std::uint32_t column = 0; column <= cpu; ++column) {
+    row << '\t' << (column == cpu ? value : 0ULL);
+  }
+  row << '\n';
+  return row.str();
+}
+
+// The value behind the first `smi` key of one document, the blanks between the
+// key and its value dropped. The reader keeps no record of the mark, so a row
+// that reads a mark reads the document's own bytes (FR-026, FR-029).
+auto smiMarkOf(const std::string& path) -> std::string
+{
+  const std::string text = readStream(std::filesystem::path(path));
+  const auto key = text.find("\"smi\"");
+  if (key == std::string::npos) {
+    return "no smi key";
+  }
+  std::size_t at = key + 5U;
+  while (at < text.size() && (text[at] == ':' || text[at] == ' ')) {
+    ++at;
+  }
+  const auto end = text.find_first_of(",}", at);
+  if (end == std::string::npos) {
+    return text.substr(at);
+  }
+  return text.substr(at, end - at);
+}
+
+// The step of the scripted stamps: the loop period the run reads, and the one
+// jump that stands the gap the row reads. The measurement pass reads
+// `kPassReads` of them ahead of the pre-check window, so the jump stands behind
+// that pass and inside the window.
+constexpr std::uint64_t kStampStepNs = 1'000;
+constexpr std::uint64_t kStampJumpNs = 2'000'000;
+constexpr std::size_t kPassReads = 1'024;
+constexpr std::size_t kJumpIndex = kPassReads + 16;
+constexpr std::size_t kStampCount = kJumpIndex + 16;
+
+// The stamps of the two raw-gap rows: one step apart, with one jump at
+// `kJumpIndex`. The step keeps the window's span short, and the jump stands the
+// run's one kept gap.
+class GapScriptedReader final : public sg::counters::WindowReader
+{
+public:
+  GapScriptedReader()
+      : m_stamps(makeStamps())
+  {
+  }
+
+  auto readPoints(sg::counters::PointSink& sink) noexcept -> void override
+  {
+    const auto index = m_reads.fetch_add(1);
+    const std::uint64_t stamp = index < m_stamps.size()
+        ? m_stamps.at(index)
+        : m_stamps.back() + (index - m_stamps.size() + 1) * kStampStepNs;
+    sink.put(stamp);
+  }
+
+private:
+  static auto makeStamps() -> std::vector<std::uint64_t>
+  {
+    std::vector<std::uint64_t> stamps;
+    stamps.reserve(kStampCount);
+    std::uint64_t stamp = 0;
+    for (std::size_t at = 0; at < kStampCount; ++at) {
+      stamps.push_back(stamp);
+      stamp += at == kJumpIndex ? kStampJumpNs : kStampStepNs;
+    }
+    return stamps;
+  }
+
+  std::vector<std::uint64_t> m_stamps;
+  std::atomic<std::uint64_t> m_reads {0};
+};
+
+// The command line of the two raw-gap rows: the detector method, the pre-check
+// window the scripted stamps span, the document, and the raw gaps the document
+// carries. No tracer stands on the line: the mark belongs to the probe alone.
+auto gapArguments(std::uint32_t cpu,
+                  const std::string& tag) -> std::vector<std::string>
+{
+  const std::string list = std::to_string(cpu);
+  return {"--filter=bmQuiet",
+          "--repetitions=1",
+          "--iterations=2",
+          "--jitter-probe=" + list + ",mode=precheck,precheck="
+              + std::to_string(kPrecheckSpanNs / 1'000'000)
+              + ",threshold=1000000,method=hwlat",
+          "--json=harness_hwlat_" + tag + ".json",
+          "--json-raw=gaps"};
+}
+
+// T059, FR-015, FR-026, D-13, P-6: the register node answers, so the window
+// holds two reads of the counter and the change prefix rides the kept gaps. The
+// scripted stamps hold one jump above the threshold, so the run keeps one gap.
+// The count stands unchanged across the window, so that gap's mark reads
+// `NOT_SMI`.
+auto theAnsweredSourceMarksItsKeptGap() -> void
+{
+  const auto cpus = pickCpus(1);
+  if (cpus.empty()) {
+    return;
+  }
+  TracingRootGuard guard;
+  installMsrNode(guard.root(), cpus.at(0), 7U);
+  sg::detail::installTestReader(std::make_unique<GapScriptedReader>());
+  const std::string json = "harness_hwlat_marked.json";
+  const auto report = captureRunReport(gapArguments(cpus.at(0), "marked"));
+  check(report.status == 0,
+        "the run of an answered source holds status 0 (T059, FR-015)");
+  const auto mark = smiMarkOf(json);
+  checkWith(mark == "\"NOT_SMI\"",
+            "the kept gap of an answered source carries its mark (T059, "
+            "FR-015, " "FR-026, P-3)",
+            "mark=" + mark);
+  std::remove(json.c_str());
+}
+
+// T059, FR-015, P-6: no node stands under the root, so the source answers
+// nothing and the change prefix stays empty. The gap the same stamps keep
+// marks nothing, the answer the writer states for a cpu whose source stood
+// absent.
+auto theAbsentSourceMarksNoKeptGap() -> void
+{
+  const auto cpus = pickCpus(1);
+  if (cpus.empty()) {
+    return;
+  }
+  TracingRootGuard guard;
+  sg::detail::installTestReader(std::make_unique<GapScriptedReader>());
+  const std::string json = "harness_hwlat_unmarked.json";
+  const auto report = captureRunReport(gapArguments(cpus.at(0), "unmarked"));
+  check(report.status == 0,
+        "the run of an absent source holds status 0 (T059, FR-015)");
+  const auto mark = smiMarkOf(json);
+  checkWith(
+      mark == "null",
+      "the kept gap of an absent source marks nothing (T059, FR-015, P-6)",
+      "mark=" + mark);
+  std::remove(json.c_str());
+}
+
+// T061, FR-004, FR-027, D-6: one run names the detector method and the detector
+// engine. The tracer buffer states its three figures, the probe reads its own
+// counters, and the document keeps each figure on the keys of its own surface.
+auto theTwoSurfacesRecordTheirOwnFigures() -> void
+{
+  const auto cpus = pickCpus(1);
+  if (cpus.empty()) {
+    return;
+  }
+  const auto figure = [](const std::optional<std::uint64_t>& value) {
+    return value.has_value() ? std::to_string(*value) : std::string("absent");
+  };
+  TracingRootGuard guard;
+  installDetectorTree(guard.root());
+  writeTracingFile(guard.root(),
+                   bufferPath(cpus.at(0)),
+                   std::string(kLegend) + detectionLine(0, 12345, 12000, 7));
+  writeTracingFile(guard.root(), "proc/interrupts", nmiRowText(cpus.at(0), 3U));
+  const std::string json = "harness_hwlat_surfaces.json";
+  const auto report =
+      captureRunReport(runArguments(cpus.at(0), "surfaces", ",method=hwlat"));
+  check(report.status == 0,
+        "the run of both surfaces holds status 0 (T061, FR-004)");
+  const auto loaded = sg::loadReport(json);
+  if (!loaded.has_value() || !loaded->precheck.has_value()
+      || !loaded->precheck->tracer.has_value()
+      || !loaded->runJitterStats.has_value())
+  {
+    check(false,
+          ("the run of both surfaces writes both records (T061, FR-027): "
+           + (loaded.has_value() ? "a record stands absent" : loaded.error()))
+              .c_str());
+    std::remove(json.c_str());
+    return;
+  }
+  const auto& tracerCpus = loaded->precheck->tracer->cpus;
+  checkWith(tracerCpus.size() == 1,
+            "the tracer record names its own cpu (T061, FR-027)",
+            "entries=" + std::to_string(tracerCpus.size()));
+  if (tracerCpus.size() != 1) {
+    std::remove(json.c_str());
+    return;
+  }
+  const auto& tracer = tracerCpus.at(0);
+  checkWith(tracer.maxGapNs.has_value() && *tracer.maxGapNs == 12'345'000ULL
+                && tracer.gapCount.has_value() && *tracer.gapCount == 1
+                && tracer.nmiCount.has_value() && *tracer.nmiCount == 7,
+            "the tracer record carries the three figures of its buffer "
+            "(T061, FR-027)",
+            "maxGapNs=" + figure(tracer.maxGapNs)
+            + " gapCount=" + figure(tracer.gapCount)
+            + " nmiCount=" + figure(tracer.nmiCount));
+  const auto& folds = *loaded->runJitterStats;
+  const auto probe =
+      std::ranges::find(folds, cpus.at(0), &sg::JitterEntryFold::cpu);
+  checkWith(probe != folds.end(),
+            "the probe record names its own cpu (T061, FR-025)",
+            "entries=" + std::to_string(folds.size()));
+  if (probe == folds.end()) {
+    std::remove(json.c_str());
+    return;
+  }
+  const auto& stats = probe->stats;
+  checkWith(!stats.smiDelta.has_value(),
+            "the probe names the source its run could not read (T061, FR-025)",
+            "smiDelta=" + figure(stats.smiDelta));
+  checkWith(stats.nmiDelta.has_value() && *stats.nmiDelta == 0
+                && stats.smiGapCount == 0,
+            "the probe states its own two figures, apart from the tracer's "
+            "(T061, FR-004, FR-025)",
+            "nmiDelta=" + figure(stats.nmiDelta)
+                + " smiGapCount=" + std::to_string(stats.smiGapCount));
+  checkWith(
+      stats.maxNs != 12'345'000ULL,
+      "no figure of the tracer enters the probe's fold (T061, FR-004, D-6)",
+      "maxNs=" + std::to_string(stats.maxNs));
+  std::remove(json.c_str());
+}
+
+// T089, FR-019, FR-023, P-15: `current_tracer` already reads `hwlat`, so the
+// kernel answers success without initializing the tracer. The session writes no
+// file, the block names the standing tracer ahead of the standing
+// not-available line, the user-space figures stand whole and the run holds
+// status 0.
+auto theStandingTracerWritesNoFile() -> void
+{
+  const auto cpus = pickCpus(1);
+  if (cpus.empty()) {
+    return;
+  }
+  const auto lineOf = [](const std::string& text,
+                         const std::string& start) -> std::string
+  {
+    const auto found = text.find(start);
+    if (found == std::string::npos) {
+      return "no line begins " + start;
+    }
+    return text.substr(found, text.find('\n', found) - found);
+  };
+  TracingRootGuard guard;
+  installDetectorTree(guard.root());
+  writeTracingFile(
+      guard.root(), "sys/kernel/tracing/current_tracer", "hwlat\n");
+  const std::string json = "harness_hwlat_standing.json";
+  const auto report = captureRunReport(runArguments(cpus.at(0), "standing"));
+  check(report.status == 0,
+        "the run whose tracer already stands holds status 0 (T089, FR-023)");
+  const auto unchanged =
+      [&](const std::string& relative, const std::string& text)
+  {
+    check(readStream(guard.root() / std::filesystem::path(relative)) == text,
+          ("the standing tracer leaves " + relative
+           + " as the tree held it (T089, FR-019)")
+              .c_str());
+  };
+  unchanged("sys/kernel/tracing/current_tracer", "hwlat\n");
+  unchanged("sys/kernel/tracing/tracing_cpumask", "ffffffff\n");
+  unchanged("sys/kernel/tracing/hwlat_detector/mode",
+            "none [round-robin] per-cpu\n");
+  unchanged("sys/kernel/tracing/hwlat_detector/width", "500000\n");
+  unchanged("sys/kernel/tracing/hwlat_detector/window", "1000000\n");
+  unchanged("sys/kernel/tracing/tracing_thresh", "10\n");
+  unchanged("sys/kernel/tracing/tracing_on", "0\n");
+  const auto standing =
+      lineOf(report.text, "tracer: hwlat already stands as the current tracer");
+  checkWith(
+      standing == "tracer: hwlat already stands as the current tracer",
+      "the block names the tracer that already stands (T089, FR-023, P-15)",
+      standing);
+  const auto unavailable = report.text.find("tracer: not available");
+  checkWith(report.text.find("tracer: hwlat already stands") < unavailable
+                && unavailable != std::string::npos,
+            "the standing line reads ahead of the not-available line (T089, "
+            "FR-023, P-15)",
+            "standing=" + standing + " unavailable="
+                + (unavailable == std::string::npos ? "absent" : "present"));
+  theUserSpaceStandsWhole(json);
+  std::remove(json.c_str());
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmQuiet);
@@ -1310,6 +1634,10 @@ auto main() -> int
   theWholeDetectorRunNamesItsThreeSettings();
   theInWindowFailureStillRestoresTheTree();
   theInterruptedChildRestoresTheTree();
+  theStandingTracerWritesNoFile();
+  theTwoSurfacesRecordTheirOwnFigures();
+  theAnsweredSourceMarksItsKeptGap();
+  theAbsentSourceMarksNoKeptGap();
   std::printf(failures == 0 ? "ok\n" : "%d checks failed\n", failures);
   return failures == 0 ? 0 : 1;
 }

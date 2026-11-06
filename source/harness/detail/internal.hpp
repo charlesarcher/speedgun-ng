@@ -1479,6 +1479,10 @@ auto printJitterReport(bool available,
 /// zero count and still prints those lines, so the figures carry no gate
 /// (FR-011). The block prints them for `JitterMethod::HWLAT` alone, and every
 /// other method keeps the bytes it printed before.
+/// specs/048-hwlat-probe FR-023, P-15: `tracerStands` names the run whose
+/// detector setup wrote no file, because the tracer the kernel already runs
+/// stands as the current one. The block then names that tracer ahead of the
+/// standing not-available line, and the run keeps its status.
 ///
 /// \pre none
 /// \post none
@@ -1486,7 +1490,8 @@ auto printPrecheckReport(
     const PrecheckRecord& record,
     sg::TracerEngine requestedEngine = sg::TracerEngine::NONE,
     std::uint32_t noisePercent = sg::kDefaultNoisePercent,
-    sg::JitterMethod method = sg::JitterMethod::TSC) -> void;
+    sg::JitterMethod method = sg::JitterMethod::TSC,
+    bool tracerStands = false) -> void;
 
 /// @brief specs/048-hwlat-probe FR-022, D-12: one line per tracer setting
 /// whose restore write failed, each naming the file below the tracefs root
