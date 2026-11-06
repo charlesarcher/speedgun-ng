@@ -39,11 +39,16 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <vector>
 
+#include <sched.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "../../source/detail/proc_root.hpp"
+#include "../source/counters/linux_pmu/kernel_calls.hpp"
+#include "../source/counters/linux_pmu/pmu_ident.hpp"
 #include "detail/hunt_fixture.hpp"
 #include "detail/hunt_selection.hpp"
 #include "detail/internal.hpp"
@@ -3282,6 +3287,161 @@ auto scenarioRefusedHostPrintsOneRefusalLineAndKeepsTheStatus() -> void
       "a-refused-host-prints-one-refusal-line-and-keeps-the-status: ok\n");
 }
 
+// ---------------------------------------------------------------------------
+// The coverage line of a run that names a level (specs/042-topdown T008;
+// FR-042, FR-043; D-6, D-19)
+// ---------------------------------------------------------------------------
+
+// The child of the two rows below: the fake sysfs root, the scripted host, and
+// the command line. The coverage value settles at the first read of a process
+// (D-6), so the root stands before the child reaches the entry point, and each
+// shape reads in a child of its own.
+constexpr const char* kCoverageChildMode = "coverage-line";
+// The two shapes of that root: no topology file at all, and one list naming
+// the one cpu of one core.
+constexpr const char* kSiblingsUnreadable = "nosiblings";
+constexpr const char* kSiblingsOneCpu = "onesibling";
+
+// The cpus this process may run on. The reader asks for the cpu
+// `::sched_getcpu()` names, so the root carries a list for every cpu the
+// affinity mask holds and the reading settles the same way wherever the
+// scheduler puts the child.
+[[nodiscard]] auto processCpus() -> std::vector<std::size_t>
+{
+  cpu_set_t mask {};
+  CPU_ZERO(&mask);
+  check(::sched_getaffinity(0, sizeof(mask), &mask) == 0,
+        "the process answers its own affinity mask");
+  std::vector<std::size_t> cpus;
+  for (std::size_t cpu = 0; cpu < CPU_SETSIZE; ++cpu) {
+    if (CPU_ISSET(cpu, &mask) != 0) {
+      cpus.push_back(cpu);
+    }
+  }
+  check(!cpus.empty(), "the affinity mask holds one cpu at least");
+  return cpus;
+}
+
+// One fake root of one shape, under the scratch names of this process. The
+// seam joins the read under the root, so the list stands at the path the
+// kernel publishes (specs/042-topdown D-19, FR-054).
+auto siblingRoot(const std::string& shape) -> std::filesystem::path
+{
+  const auto root = capturePath("_sysroot");
+  std::error_code stale;
+  std::filesystem::remove_all(root, stale);
+  check(std::filesystem::create_directories(root),
+        "the fake sysfs root stands created");
+  if (shape == kSiblingsUnreadable) {
+    return root;
+  }
+  // One list naming one cpu for every cpu the process may run on: on each of
+  // them the run's counters span the core (FR-042).
+  for (const std::size_t cpu : processCpus()) {
+    const auto directory = root / "sys/devices/system/cpu"
+        / ("cpu" + std::to_string(cpu)) / "topology";
+    std::error_code missed;
+    std::filesystem::create_directories(directory, missed);
+    std::ofstream out(directory / "core_cpus_list");
+    out << cpu << "\n";
+    check(out.good(), "the fake sibling list stands written");
+  }
+  return root;
+}
+
+// The command line of the coverage child: the root it stands under, then a run
+// that names a level, the gate the line stands behind (FR-035).
+auto coverageArguments(const std::string& root) -> std::vector<std::string>
+{
+  std::vector<std::string> arguments {root};
+  for (const auto& argument : withFilter({"--topdown"})) {
+    arguments.push_back(argument);
+  }
+  return arguments;
+}
+
+// The coverage line reads the sibling list of the cpu the run stands on, and
+// the two answers that list owes stand in two children: a root with no list
+// prints no line at all (FR-043), and a list naming one cpu prints the
+// whole-core word (FR-042). Both runs reach their benchmark, so the silence and
+// the word are answers and not an empty run.
+auto scenarioTheCoverageLineReadsTheSiblingList() -> void
+{
+  const std::string unreadable = siblingRoot(kSiblingsUnreadable).string();
+  std::string silent;
+  const int silentStatus = childRun(
+      selfPath, kCoverageChildMode, coverageArguments(unreadable), silent);
+  check(WIFEXITED(silentStatus) && WEXITSTATUS(silentStatus) == 0,
+        "the run over a root with no sibling list exits 0");
+  check(silent.find("BENCHMARK_RAN") != std::string::npos,
+        "that run reached its benchmark, so the line below names a rule and "
+        "not an empty run");
+  check(countOf(silent, "topdown: core-wide coverage=") == 0,
+        "a host that answers no sibling list prints no coverage line, which "
+        "keeps the standing refusal of the constant (FR-043)");
+
+  const std::string oneCpu = siblingRoot(kSiblingsOneCpu).string();
+  std::string whole;
+  const int wholeStatus =
+      childRun(selfPath, kCoverageChildMode, coverageArguments(oneCpu), whole);
+  check(WIFEXITED(wholeStatus) && WEXITSTATUS(wholeStatus) == 0,
+        "the run over a one-cpu sibling list exits 0");
+  check(whole.find("BENCHMARK_RAN") != std::string::npos,
+        "that run reached its benchmark too");
+  check(lineHolding(whole, "topdown: core-wide coverage=")
+            == "topdown: core-wide coverage=whole_core",
+        "a list naming one cpu prints the whole-core word, because that "
+        "thread's counters span the core (FR-042)");
+  std::printf("the-coverage-line-reads-the-sibling-list: ok\n");
+}
+
+// ---------------------------------------------------------------------------
+// The area ask of an identity no vendored table carries (specs/046-hunter-
+// topdown FR-009, FR-017, FR-040; D-8, D-17)
+// ---------------------------------------------------------------------------
+
+// The child of the row below: the scripted host and the command line, the
+// shape of the `hunt` child above, beside one install. The CPUID words the
+// ident decodes answer a vendor no vendored table carries, and the ask reads
+// them on each call, so the whole process asks one identity that answers no
+// tree.
+constexpr const char* kAreaChildMode = "area-identity";
+
+// The area of every ranked record answers `unmapped` where the ask hands no
+// tree, and the run prints the one refusal line the library owns (FR-009,
+// FR-017, FR-040). No option word plants an identity on a command line, so the
+// identity stands scripted through the CPUID seam of the child.
+auto scenarioAnIdentityNoTableCarriesAnswersNoArea() -> void
+{
+  const std::string hunt = "--hunt=" + address(0) + "," + address(1);
+  std::vector<std::string> arguments {kScriptFull};
+  for (const auto& argument : withFilter({hunt})) {
+    arguments.push_back(argument);
+  }
+  std::string output;
+  const int status = childRun(selfPath, kAreaChildMode, arguments, output);
+  check(WIFEXITED(status) && WEXITSTATUS(status) == 0,
+        "the hunt under an identity no table carries keeps the status of the "
+        "same run (FR-017)");
+  check(output.find("BENCHMARK_RAN") != std::string::npos,
+        "that run reached its benchmark, so the rows below name a rule and not "
+        "an empty run");
+  check(countOf(output, "no vendored table carries this vendor") == 1,
+        "the ask answers the refusal the library owns, one line for the "
+        "process (FR-017, FR-040)");
+  const auto rows = huntLines(output, "rank ");
+  check(rows.size() == 2, "the run ranks the two events of the selection");
+  for (const std::string& row : rows) {
+    check(row.find("area=unmapped") != std::string::npos,
+          "every ranked row answers an unmapped area, because the ask handed "
+          "no " "tree to the stamp (FR-009)");
+  }
+  check(countOf(output, "topdown: level=") == 0,
+        "the companion of the same ask runs no pass, so the run prints no "
+        "block (FR-016, FR-017)");
+  std::printf("an-identity-no-table-carries-answers-no-area: ok\n");
+}
+
 [[nodiscard]] auto scenarios() -> const std::vector<Scenario>&
 {
   static const std::vector<Scenario> kList {
@@ -3376,6 +3536,10 @@ auto scenarioRefusedHostPrintsOneRefusalLineAndKeepsTheStatus() -> void
                 &scenarioHunterDocumentCarriesNoTopdownObject},
       Scenario {"a-refused-host-prints-one-refusal-line-and-keeps-the-status",
                 &scenarioRefusedHostPrintsOneRefusalLineAndKeepsTheStatus},
+      Scenario {"the-coverage-line-reads-the-sibling-list",
+                &scenarioTheCoverageLineReadsTheSiblingList},
+      Scenario {"an-identity-no-table-carries-answers-no-area",
+                &scenarioAnIdentityNoTableCarriesAnswersNoArea},
   };
   return kList;
 }
@@ -3409,6 +3573,49 @@ auto runChild(const std::string& script,
   return sg::speedgunMain(static_cast<int>(inner.size()), inner.data());
 }
 
+// The child of the coverage rows: the fake sysfs root stands installed ahead of
+// every read, because the coverage value settles at the first read of the
+// process (D-6, D-19). The host, the benchmark and the marker stand as the
+// `hunt` child leaves them.
+auto runCoverageChild(const std::string& root,
+                      const std::string& script,
+                      const std::vector<std::string>& arguments,
+                      char** argv) -> int
+{
+  sg::detail::installTestProcRoot(std::filesystem::path {root});
+  return runChild(script, arguments, argv);
+}
+
+// The words of a vendor no vendored table carries: the mapping file keys its
+// rows by the vendor text, and no row of it names this one.
+[[nodiscard]] auto noTableWords() -> sg::counters::detail::CpuidWords
+{
+  return {.leaf0Eax = 0x15U,
+          .leaf0Ebx = 0x75536F4EU,  // "Nosu"
+          .leaf0Edx = 0x6E655663U,  // "cVen"
+          .leaf0Ecx = 0x58726F64U,  // "dorX"
+          .leaf1Answered = true,
+          .leaf1Eax = 0x30650U};  // family 6, model 5
+}
+
+// The child of the area row: the real call set stands copied and only the
+// words the ident decodes change, so every kernel call of the run stays the
+// call the code issues. The install keeps no copy, so the set lives in a static
+// for the life of the child (R-02).
+auto runAreaChild(const std::string& script,
+                  const std::vector<std::string>& arguments,
+                  char** argv) -> int
+{
+  static const sg::counters::detail::KernelCalls kScriptedCalls = []
+  {
+    auto calls = sg::counters::detail::kernelCalls();
+    calls.cpuidWords = &noTableWords;
+    return calls;
+  }();
+  sg::counters::detail::installKernelCalls(&kScriptedCalls);
+  return runChild(script, arguments, argv);
+}
+
 }  // namespace
 
 auto main(const int argc, char** argv) -> int
@@ -3421,6 +3628,18 @@ auto main(const int argc, char** argv) -> int
   if (mode == "hunt" && argc > 2 && argv[2] != nullptr) {
     const std::vector<std::string> arguments(argv + 3, argv + argc);
     return runChild(argv[2], arguments, argv);
+  }
+  // The two children of the coverage and area rows name what they install
+  // first, then the scripted host, then the command line the host runs.
+  if (mode == kCoverageChildMode && argc > 3 && argv[2] != nullptr
+      && argv[3] != nullptr)
+  {
+    const std::vector<std::string> arguments(argv + 4, argv + argc);
+    return runCoverageChild(argv[2], argv[3], arguments, argv);
+  }
+  if (mode == kAreaChildMode && argc > 2 && argv[2] != nullptr) {
+    const std::vector<std::string> arguments(argv + 3, argv + argc);
+    return runAreaChild(argv[2], arguments, argv);
   }
 
   const auto& list = scenarios();
