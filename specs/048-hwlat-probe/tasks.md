@@ -93,24 +93,24 @@ unit opens a kernel interface directly (P-1).
   text reader, each with its doxygen `\pre`, `\post` or
   `\invariant` (FR-001, FR-007, FR-009, FR-010, II, P-1). Verify:
   `g++ -fsyntax-only -std=c++23 -Iinclude -Isource -Isource/harness -Ibuild/export -x c++ source/harness/detail/latency_counters.hpp` exits 0
-- [ ] T007 Implement the register read in
+- [X] T007 Implement the register read in
   `source/harness/latency_counters.cpp`: one read-only `::open` under
   the file root, one `::pread` of 8 bytes into a stack buffer at `0x34`,
   the close, the absent answer for each fault T004 plants, and no write
   call anywhere (FR-007, FR-011, D-3, P-2) (depends on T004, T006; the
   rows of T004 turn green). Verify: `ctest --test-dir build -R harness_latency_counters_test --output-on-failure` exits 0
-- [ ] T008 Implement the gate and the text reader in
+- [X] T008 Implement the gate and the text reader in
   `source/harness/latency_counters.cpp`: a file-local reader over
   `procRootPath` reads the two files, the shape `noise_tracer.cpp` sets,
   since `readUnderRoot` stands undeclared in every header,
   `std::from_chars` settles each figure, and a truncated line
   answers absent (FR-009, FR-010, FR-011, P-1, P-4) (depends on T005,
   T007; the rows of T005 turn green). Verify: `ctest --test-dir build -R harness_latency_counters_test --output-on-failure` exits 0
-- [ ] T009 Hold the two refusals in
+- [X] T009 Hold the two refusals in
   `source/harness/latency_counters.cpp`: no module load, no module
   parameter, no second counter, and no substitute named for a part that
   states none (FR-008, FR-010, FR-024, D-4, X.2). Verify: `grep -rnE "modprobe|request_module|insmod" source/harness/latency_counters.cpp source/harness/detail/latency_counters.hpp` reads no match and `grep -c "GenuineIntel" source/harness/latency_counters.cpp` counts at least one line
-- [ ] T010 Pair the contracts of the new unit in
+- [X] T010 Pair the contracts of the new unit in
   `source/harness/detail/latency_counters.hpp` and
   `source/harness/latency_counters.cpp`: one enforced kind per
   documented kind, and `[[maybe_unused]]` on a contract-only helper

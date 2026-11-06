@@ -46,10 +46,10 @@ inline constexpr std::size_t kSmiCountBytes = 8;
 /// `dev/cpu/<cpu>/msr` through `procRootPath`, one `::open` call with
 /// read rights and no write rights anywhere (D-3). The probe holds the
 /// descriptor across one window, so the gap-path read costs one `::pread`
-/// and no open (P-2, FR-012). A node that stands absent, a node that
-/// stands a directory, and a node the process holds no rights on each
-/// answer the empty optional, and the source stands not available
-/// (FR-011).
+/// and no open (P-2, FR-012). A node that stands absent and a node the
+/// process holds no rights on each answer the empty optional, and the
+/// source stands not available (FR-011). A directory in the place of the
+/// node answers a descriptor whose read answers nothing (FR-011).
 ///
 /// \pre none
 /// \post a held answer stands an open read-only descriptor of the node
