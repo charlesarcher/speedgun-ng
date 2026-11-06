@@ -497,8 +497,8 @@ struct ContextDisclosure
  */
 /**
  * @brief The jitter result of one probe cpu over one set of covered
- * windows: the sixteen fields of data-model.md E-03 in the E-03 order
- * (FR-002, R-05).
+ * windows: the sixteen standing fields of data-model.md E-03 in the
+ * E-03 order (FR-002, R-05), beside three further figures.
  *
  * The percentile fields follow the nearest-rank rule of
  * `source/harness/percentiles.cpp` over the sorted kept gaps (PC-4),
@@ -509,6 +509,15 @@ struct ContextDisclosure
  * writer. The fold functions of the probe carry
  * the field relations this struct's fills establish; the aggregate
  * itself imposes nothing at construction.
+ *
+ * The three figures of specs/048 ride beside the sixteen. `smiDelta`
+ * holds the change of the `MSR_SMI_COUNT` counter of spec FR-013 across
+ * the cpu's window, and it stands absent when the counter answers
+ * nothing. `nmiDelta` holds the change of the `NMI` count of spec FR-009
+ * across the same window, and it stands absent when the line stands
+ * unread. `smiGapCount` counts the kept gaps whose span carried a change
+ * above 0, and it answers 0 when the source stands unavailable, the
+ * standing rule of spec FR-015 (FR-025, D-13, P-5).
  *
  * \pre none
  * \post none
@@ -531,11 +540,14 @@ struct JitterStats
   std::uint64_t thresholdNs = 0;
   std::uint64_t loopPeriodNs = 0;
   std::uint64_t droppedGaps = 0;
+  std::optional<std::uint64_t> smiDelta;
+  std::optional<std::uint64_t> nmiDelta;
+  std::uint64_t smiGapCount = 0;
 };
 
 /**
- * @brief specs/043-fwq-ftq: the method one probe run measures, the three
- * closed values of data-model.md E-21 (FR-001, D-1).
+ * @brief specs/043-fwq-ftq: the method one probe run measures, the four
+ * closed values of data-model.md E-21 and specs/048 E-01 (FR-001, D-1).
  *
  * `TSC` stands the probe of specs/027 as it shipped, and a value with no
  * `method` key takes it (FR-001, FR-031). `FWQ` times one calibrated unit
@@ -553,6 +565,9 @@ enum class JitterMethod : std::uint8_t
   TSC,
   FWQ,
   FTQ,
+  // The specs/048 method keeps the standing gap loop and reads the two
+  // kernel counters beside it (FR-002, D-1).
+  HWLAT,
 };
 
 /**
@@ -676,7 +691,7 @@ struct PrecheckHostSettings
 /**
  * @brief One measured cpu of the pre-check: its index, whether the
  * run plans it (the planned cpus stand the run's own; the candidates
- * stand the cpus the `idle` preset would take), the sixteen-field
+ * stand the cpus the `idle` preset would take), the nineteen-field
  * stats of its pre-check window, and its attribution deltas
  * (specs/034 FR-010, FR-012). The series record of the same window rides
  * beside the gap stats, so the pair of the two figures stands readable
@@ -696,9 +711,18 @@ struct PrecheckCpuRecord
 /**
  * @brief One measured cpu of the tracer: its index and the five
  * noise-by-source counts the engine's count files state (specs/036
- * FR-010, data-model.md E-17). A figure the source states nothing for
+ * FR-010, data-model.md E-17), beside the three detector figures
+ * specs/048 states (D-13). A figure the source states nothing for
  * stands absent, the file form of the console's `not available`
  * wording (specs/036 FR-013).
+ *
+ * The three figures fold from the detector lines of that cpu's buffer.
+ * `maxGapNs` takes the longer of the two sample figures of one
+ * detection, in nanoseconds. `gapCount` counts that cpu's detection
+ * lines, and `nmiCount` sums their `nmi-count` fields. The sum stands
+ * at 0 when no line of the buffer carries that field. Each of the three
+ * figures stands absent when that buffer holds no detector line, the
+ * file form of the console's `not available` (FR-027, A-6, P-10).
  *
  * \pre none
  * \post none
@@ -711,13 +735,23 @@ struct PrecheckTracerCpuRecord
   std::optional<std::uint64_t> softirq;
   std::optional<std::uint64_t> thread;
   std::optional<std::uint64_t> hardware;
+  std::optional<std::uint64_t> maxGapNs;
+  std::optional<std::uint64_t> gapCount;
+  std::optional<std::uint64_t> nmiCount;
 };
 
 /**
  * @brief The tracer record one run carries: the engine word the
- * value named, and one entry per tracer cpu ascending (specs/036
- * FR-014, data-model.md E-17). The entry names its cpu, so the cpus
- * the tracer ran on stand the array itself (specs/036 D-3).
+ * value named, the three settings a detector run wrote, and one entry
+ * per tracer cpu ascending (specs/036 FR-014, data-model.md E-17). The
+ * entry names its cpu, so the cpus the tracer ran on stand the array
+ * itself (specs/036 D-3).
+ *
+ * The three settings of specs/048 carry the values the run wrote to the
+ * detector, in microseconds (FR-027, FR-020, A-3). The setup reads each
+ * file before it writes it, so a record of the `hwlat` engine holds a
+ * value for each of the three, and a record of another engine holds no
+ * value for any of them.
  *
  * \pre none
  * \post none
@@ -725,6 +759,9 @@ struct PrecheckTracerCpuRecord
 struct PrecheckTracerRecord
 {
   std::string engine;
+  std::optional<std::uint64_t> windowUs;
+  std::optional<std::uint64_t> widthUs;
+  std::optional<std::uint64_t> thresholdUs;
   std::vector<PrecheckTracerCpuRecord> cpus;
 };
 
@@ -2460,6 +2497,9 @@ enum class TracerEngine : std::uint8_t
   NONE,
   OSNOISE,
   TIMERLAT,
+  // The kernel's hardware-latency detector specs/048 runs, beside the
+  // two engines of specs/036 (FR-018, D-2).
+  HWLAT,
 };
 
 /**

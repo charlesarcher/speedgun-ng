@@ -1,8 +1,9 @@
 // ============================================================================
 // T003: the foundational jitter probe surface. The option defaults of
-// data-model.md E-01 (FR-003, R-15), the sixteen-field JitterStats
-// aggregate in the E-03 order (FR-002, E-03), the three mode
-// enumerators (E-02, R-10), the declared entry point and seam
+// data-model.md E-01 (FR-003, R-15), the JitterStats aggregate of the
+// nineteen fields whose first sixteen ride the E-03 order (FR-002,
+// E-03), the four mode enumerators (E-02, R-10), the declared entry
+// point and seam
 // signatures (contracts/public-api.md, R-02), and the record and
 // per-cpu state shapes the probe carries (E-04, E-05).
 // Frameworkless check()/fail() convention, the way harness_gap_test
