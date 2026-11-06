@@ -950,10 +950,19 @@ auto runArguments(std::uint32_t cpu,
           "--json=harness_hwlat_" + tag + ".json"};
 }
 
-// One speedgunMain run in this process, its report captured to a file the
-// row removes: the row reads the status, and the suite's own output stays
-// the row's own lines.
-auto captureRun(const std::vector<std::string>& arguments) -> int
+// The report of one in-process run: the status the entry point answered, and
+// the bytes the report printed (T024, FR-023).
+struct RunReport
+{
+  int status = 0;
+  std::string text;
+};
+
+// One speedgunMain run in this process, its report captured to a file the row
+// removes and read back: a row reads the status, and a row that reads the block
+// the console printed reads the text. The suite's own output stays the row's
+// own lines.
+auto captureRunReport(const std::vector<std::string>& arguments) -> RunReport
 {
   std::vector<char*> argv;
   argv.push_back(const_cast<char*>("harness_hwlat_tracer_test"));
@@ -967,15 +976,22 @@ auto captureRun(const std::vector<std::string>& arguments) -> int
   if (saved < 0 || std::freopen(path.c_str(), "w", stdout) == nullptr) {
     fail("the report stands unredirectable (T024)");
   }
-  const int status =
-      sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+  RunReport report;
+  report.status = sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
   std::fflush(stdout);
   if (::dup2(saved, STDOUT_FILENO) < 0) {
     fail("stdout stands unrestored (T024)");
   }
   ::close(saved);
+  report.text = readStream(std::filesystem::path(path));
   std::remove(path.c_str());
-  return status;
+  return report;
+}
+
+// The status of one run, the shape the standing rows read.
+auto captureRun(const std::vector<std::string>& arguments) -> int
+{
+  return captureRunReport(arguments).status;
 }
 
 // The user-space figures of one run: the pre-check record and its cpu
@@ -1041,6 +1057,65 @@ auto theDeniedKnobRunStandsWhole() -> void
         "the mask file stands restored (T024, FR-021, D-15)");
   check(readStream(guard.root() / "sys/kernel/tracing/tracing_on") == "0\n",
         "the on-off file stands down (T024, FR-021, SC-007)");
+  std::remove(json.c_str());
+}
+
+// T024, FR-020, FR-027, D-12: a whole detector run names the three settings it
+// wrote to the detector in both surfaces. The console block states them on one
+// line below the engine word, and the document carries the three keys inside
+// `precheck.tracer`, the values the setup wrote (A-3). The run's record carries
+// them, so neither surface reads a constant of its own.
+auto theWholeDetectorRunNamesItsThreeSettings() -> void
+{
+  const auto cpus = pickCpus(1);
+  if (cpus.empty()) {
+    return;
+  }
+  const auto lineOf = [](const std::string& text,
+                         const std::string& start) -> std::string
+  {
+    const auto found = text.find(start);
+    if (found == std::string::npos) {
+      return "no line begins " + start;
+    }
+    return text.substr(found, text.find('\n', found) - found);
+  };
+  const auto figure = [](const std::optional<std::uint64_t>& value) {
+    return value.has_value() ? std::to_string(*value) : std::string("absent");
+  };
+  TracingRootGuard guard;
+  installDetectorTree(guard.root());
+  const std::string json = "harness_hwlat_settings.json";
+  const auto report = captureRunReport(runArguments(cpus.at(0), "settings"));
+  check(report.status == 0,
+        "the whole detector run holds status 0 (T024, FR-023)");
+  checkWith(lineOf(report.text, "tracer: windowUs=")
+                == "tracer: windowUs=10000 widthUs=5000 thresholdUs=1000",
+            "the block states the three settings below the engine word "
+            "(FR-020, FR-027, FR-023, D-12)",
+            lineOf(report.text, "tracer: windowUs="));
+  const auto loaded = sg::loadReport(json);
+  checkWith(loaded.has_value(),
+            "the run writes the document (T024, FR-023)",
+            loaded.has_value() ? "written" : loaded.error());
+  if (!loaded.has_value() || !loaded->precheck.has_value()
+      || !loaded->precheck->tracer.has_value())
+  {
+    std::remove(json.c_str());
+    return;
+  }
+  const auto& tracer = *loaded->precheck->tracer;
+  check(tracer.engine == "hwlat",
+        "the document names the detector engine (FR-024, FR-027)");
+  checkWith(tracer.windowUs.has_value() && *tracer.windowUs == 10'000
+                && tracer.widthUs.has_value() && *tracer.widthUs == 5'000
+                && tracer.thresholdUs.has_value()
+                && *tracer.thresholdUs == 1'000,
+            "the document carries the three settings inside the tracer object "
+            "(FR-027, FR-020, A-3)",
+            "windowUs=" + figure(tracer.windowUs) + " widthUs="
+                + figure(tracer.widthUs)
+                + " thresholdUs=" + figure(tracer.thresholdUs));
   std::remove(json.c_str());
 }
 
@@ -1232,6 +1307,7 @@ auto main() -> int
   aBufferWithNoLineAnswersTheThreeFiguresAbsent();
   theMissingTracefsRunStandsWhole();
   theDeniedKnobRunStandsWhole();
+  theWholeDetectorRunNamesItsThreeSettings();
   theInWindowFailureStillRestoresTheTree();
   theInterruptedChildRestoresTheTree();
   std::printf(failures == 0 ? "ok\n" : "%d checks failed\n", failures);
