@@ -473,7 +473,7 @@ auto probeStatePointers(const std::vector<detail::ProbeCpuState>& states)
 auto printCalibrationLines(
     const std::vector<const detail::ProbeCpuState*>& states) -> void
 {
-  if (states.empty() || states.front()->method == JitterMethod::TSC) {
+  if (states.empty() || !detail::fillsSeriesRing(states.front()->method)) {
     return;
   }
   std::printf("method:");
@@ -568,8 +568,9 @@ auto buildJitterReportRecord(const JitterProbeOptions& probe,
           state->buffer.begin() + static_cast<std::ptrdiff_t>(state->kept));
     }
     // specs/043 FR-020, E-23: the series of the whole run rides beside
-    // the gaps, and a `TSC` run keeps no series to carry (FR-006).
-    if (state->method != JitterMethod::TSC) {
+    // the gaps, and a method that keeps no series carries none (FR-006,
+    // specs/048 D-1).
+    if (detail::fillsSeriesRing(state->method)) {
       entry.series = detail::seriesStatsOf(*state);
       detail::addSpectrumTo(*state, *entry.series);
     }
@@ -1314,8 +1315,7 @@ auto speedgunMain(int argc, char** argv) -> int
       // fires no noise gate, and a `tsc` run keeps the gap gate above.
       if (options.jitterProbe->mode != JitterProbeMode::ALONGSIDE
           && options.jitterProbe->strict
-          && (jitterProbe->states().front().method == JitterMethod::FWQ
-              || jitterProbe->states().front().method == JitterMethod::FTQ))
+          && detail::fillsSeriesRing(jitterProbe->states().front().method))
       {
         const auto noisy = detail::precheckNoisyCpus(
             jitterProbe->states(), planned, options.jitterProbe->noisePercent);
@@ -1402,8 +1402,7 @@ auto speedgunMain(int argc, char** argv) -> int
           // specs/048 FR-002, D-1: the `hwlat` method keeps the gap loop
           // of `tsc` and writes no sample series, so only the two
           // calibrated methods carry the record.
-          if (state.method == JitterMethod::FWQ
-              || state.method == JitterMethod::FTQ) {
+          if (detail::fillsSeriesRing(state.method)) {
             entry.series =
                 detail::seriesStatsOf(detail::latchSnapshotOf(state));
           }
@@ -1421,7 +1420,8 @@ auto speedgunMain(int argc, char** argv) -> int
         detail::printPrecheckReport(
             *precheckRecord,
             options.noiseTracer.value_or(sg::TracerEngine::NONE),
-            options.jitterProbe->noisePercent, options.jitterProbe->method);
+            options.jitterProbe->noisePercent,
+            options.jitterProbe->method);
       }
     }
   }
@@ -2196,12 +2196,14 @@ auto speedgunMain(int argc, char** argv) -> int
     if (options.jitterProbe.has_value()
         && options.jitterProbe->noisePercent != kDefaultNoisePercent
         && (!options.jitterProbe->strict
-            || options.jitterProbe->method == JitterMethod::TSC))
+            || !detail::fillsSeriesRing(options.jitterProbe->method)))
     {
       std::printf("jitter: noise=%u stands unused: %s\n",
                   options.jitterProbe->noisePercent,
                   options.jitterProbe->strict
-                      ? "the tsc method keeps no noise fraction"
+                      ? (options.jitterProbe->method == JitterMethod::TSC
+                             ? "the tsc method keeps no noise fraction"
+                             : "the method keeps no noise fraction")
                       : "no strict pre-check reads the fraction");
     }
   }
