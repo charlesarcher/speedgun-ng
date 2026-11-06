@@ -437,10 +437,11 @@ private:
     const std::vector<std::uint32_t>& plannedCpus,
     std::uint32_t noisePercent) -> std::vector<std::uint32_t>;
 
-/// @brief specs/043-fwq-ftq FR-019: the console spelling of one method,
-/// the lower-case words the value takes: `tsc`, `fwq` and `ftq`. The
-/// JSON writer keeps its own upper-case table beside its own keys, and
-/// the console block and the calibration lines read this one, so the two
+/// @brief specs/043-fwq-ftq FR-019, specs/048 FR-002, D-1: the console
+/// spelling of one method, the lower-case words the value takes: `tsc`, `fwq`,
+/// `ftq` and `hwlat`. The JSON writer keeps its own upper-case table beside
+/// its own keys, and the console block and the calibration lines read this
+/// one, so the two
 /// console surfaces spell the method alike.
 ///
 /// \pre none

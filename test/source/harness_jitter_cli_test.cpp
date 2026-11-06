@@ -3114,6 +3114,132 @@ auto scenarioFileLineRefused() -> int
   return 0;
 }
 
+// specs/048 FR-002, FR-005, D-1: the fourth method word. The word parses, the
+// run reaches the batch, and the settled word reaches the document, while the
+// series group stands out of it, the way it stands out of a `tsc` run.
+auto scenarioDetectorWordAccepted() -> int
+{
+  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  const std::string path = "harness_jitter_cli_hwlat.json";
+  auto arguments = quickArguments();
+  arguments.push_back("--json=" + path);
+  arguments.push_back("--jitter-probe=" + cpu + ",method=hwlat,precheck=1");
+  check(captureRun(arguments).find("bmQuiet") != std::string::npos,
+        "the detector method word stands accepted and runs the batch "
+        "(FR-002, D-1)");
+  const auto document = readDocument(path);
+  std::remove(path.c_str());
+  check(document.find("\"method\":\"HWLAT\"") != std::string::npos,
+        "the value settles the fourth method word the document names "
+        "(FR-002, FR-019, D-1)");
+  check(document.find("\"series\"") == std::string::npos,
+        "a method that fills no series ring writes no series group (FR-002, "
+        "D-1)");
+  return 0;
+}
+
+// specs/048 FR-005: a method word outside the four names the word it read and
+// the four words it accepts, on one line at status 2.
+auto scenarioDetectorWordRefused() -> int
+{
+  auto arguments = quickArguments();
+  arguments.push_back("--jitter-probe=idle,method=smi");
+  const auto note = captureError(arguments, 2);
+  checkOneLine(note, "a method word outside the four stands rejected (FR-005)");
+  check(note.find("the method 'smi' is not tsc, fwq, ftq or hwlat")
+            != std::string::npos,
+        "the refusal names the word it read and the four words it accepts "
+        "(FR-005, D-1)");
+  return 0;
+}
+
+// specs/048 FR-005, US4: the fourth word repeated in one value answers the
+// standing repeated-key line at status 2.
+auto scenarioDetectorMethodTwiceRefused() -> int
+{
+  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  auto arguments = quickArguments();
+  arguments.push_back("--jitter-probe=" + cpu + ",method=hwlat,method=hwlat");
+  const auto note = captureError(arguments, 2);
+  checkOneLine(note, "a repeated method key stands rejected (FR-005, FR-003)");
+  check(note.find("the key 'method' stands twice in the value")
+            != std::string::npos,
+        "the refusal names the key that stands twice (FR-005, FR-003)");
+  return 0;
+}
+
+// specs/048 FR-005, FR-027: a bad method word on an option file line names the
+// path, the line and the token on one line at status 2.
+auto scenarioDetectorFileLineRefused() -> int
+{
+  const std::string path = "harness_jitter_cli_hwlat_file.txt";
+  {
+    std::ofstream file(path);
+    file << "jitter-probe=idle,method=smi\n";
+  }
+  auto arguments = quickArguments();
+  arguments.push_back("--options=" + path);
+  const auto note = captureError(arguments, 2);
+  check(note.find(path + ":1: --jitter-probe: ") == 0,
+        "a file line's detector-word refusal names the path and the line "
+        "(FR-005, FR-027)");
+  check(std::count(note.begin(), note.end(), '\n') == 1,
+        "the file line's refusal stands one line (FR-005, SC-005)");
+  check(note.find("'smi'") != std::string::npos,
+        "the file line's refusal names the token (FR-005, FR-027)");
+  std::remove(path.c_str());
+  return 0;
+}
+
+// specs/048 FR-011, FR-021, D-1, R-15: the status surface of the detector
+// method. A host that withholds both counter sources answers no refusal line
+// and keeps status 0. The run keeps the calibration group and the noise gate
+// off, because the method fills no series ring, and a `noise=` value beside it
+// stands accepted and disclosed with the wording of a method that keeps no
+// noise fraction. The `tsc` method keeps its own sentence beside the same key.
+auto scenarioDetectorStatusSurface() -> int
+{
+  const std::string cpu = std::to_string(pickCpus(1).at(0));
+  auto plain = quickArguments();
+  plain.push_back("--jitter-probe=" + cpu + ",method=hwlat,precheck=1");
+  const auto silence = captureError(plain, 0);
+  check(
+      silence.find("--jitter-probe: ") == std::string::npos,
+      "an unavailable counter source answers no refusal line (FR-011, SC-006)");
+  check(captureRun(plain).find("bmQuiet") != std::string::npos,
+        "a withheld counter source keeps the batch running at status 0 "
+        "(FR-011, FR-015, A-5)");
+
+  auto strictRun = quickArguments();
+  strictRun.push_back("--jitter-probe=" + cpu
+                      + ",method=hwlat,mode=both,precheck=1,strict,noise=0");
+  const auto report = captureRun(strictRun);
+  check(report.find("bmQuiet") != std::string::npos,
+        "the lowest noise bound refuses no run of a method that keeps no "
+        "series (D-1, R-15)");
+  check(report.find("method: hwlat") == std::string::npos
+            && report.find("workCount:") == std::string::npos
+            && report.find("targetNs:") == std::string::npos
+            && report.find("calibrationSpanNs:") == std::string::npos,
+        "the calibration group stands off for a method that fills no series "
+        "ring (FR-002, D-1)");
+  check(report.find("noise=0 stands unused: the method keeps no noise "
+                    "fraction")
+            != std::string::npos,
+        "the unused noise value names the wording of a method that keeps no "
+        "series (FR-021, D-9)");
+
+  auto carried = quickArguments();
+  carried.push_back("--jitter-probe=" + cpu
+                    + ",method=tsc,mode=both,precheck=1,strict,noise=0");
+  check(captureRun(carried).find("noise=0 stands unused: the tsc method keeps "
+                                 "no noise fraction")
+            != std::string::npos,
+        "the tsc method keeps its own unused-noise sentence beside the same "
+        "key (FR-021, D-9)");
+  return 0;
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmQuiet);
@@ -3646,6 +3772,16 @@ auto main(int argc, char** argv) -> int
   check(scenarioPairingRefused() == 0, "pairingRefused");
   check(scenarioMethodTwiceRefused() == 0, "methodTwiceRefused");
   check(scenarioFileLineRefused() == 0, "fileLineRefused");
+
+  // specs/048-hwlat-probe T045, T047, T048: the fourth method word, its three
+  // refusals, and the status surface of a run of the detector method (FR-002,
+  // FR-005, FR-011, FR-021, D-1).
+  check(scenarioDetectorWordAccepted() == 0, "detectorWordAccepted");
+  check(scenarioDetectorWordRefused() == 0, "detectorWordRefused");
+  check(scenarioDetectorMethodTwiceRefused() == 0,
+        "detectorMethodTwiceRefused");
+  check(scenarioDetectorFileLineRefused() == 0, "detectorFileLineRefused");
+  check(scenarioDetectorStatusSurface() == 0, "detectorStatusSurface");
 
   // contracts/cli-options.md: `--jitter-probe` with no argument keeps
   // the standing getopt_long missing-argument path, and an unknown flag

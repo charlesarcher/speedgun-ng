@@ -464,7 +464,7 @@ output.
 
 ### Tests for User Story 4 (write first, observe failure)
 
-- [ ] T045 [US4] Write the failing method-word rows in
+- [X] T045 [US4] Write the failing method-word rows in
   `test/source/harness_jitter_cli_test.cpp`: `method=hwlat` settles
   `sg::JitterMethod::HWLAT`, the refusal reads `--jitter-probe: the
   method 'smi' is not tsc, fwq, ftq or hwlat`, a second `method` key
@@ -472,7 +472,7 @@ output.
   a bad value from an option file line names the path, the line and the
   token, and each case prints one line at status 2 with no benchmark
   output (FR-002, FR-005, D-1, D-6). Verify: `ctest --test-dir build -R harness_jitter_cli_test --output-on-failure` exits non-zero (red observed)
-- [ ] T046 [P] [US4] Write the unchanged-table guard rows in
+- [X] T046 [P] [US4] Write the unchanged-table guard rows in
   `test/source/harness_cli_table_test.cpp`: the name and value
   uniqueness checks stand over the unchanged table,
   `kJitterProbeOptionValue` holds `260`, `kOsNoiseOptionValue` holds
@@ -481,14 +481,14 @@ output.
 
 ### Implementation for User Story 4
 
-- [ ] T047 [US4] Add the fourth method word in
+- [X] T047 [US4] Add the fourth method word in
   `source/harness/jitter_probe.cpp`: the branch accepts `hwlat`, the
   accepted-word list the refusal prints stands in the same branch, and
   the method keeps the standing threshold rule of 200 ns, rising to ten
   times the measured loop period, with an explicit `threshold=` value
   over both (FR-002, FR-005, D-1, D-11, A-4) (depends on T045, T046;
   the rows of T045 turn green). Verify: `ctest --test-dir build -R "harness_jitter_cli_test|harness_cli_table_test" --output-on-failure` exits 0
-- [ ] T048 [US4] Hold the status surface in
+- [X] T048 [US4] Hold the status surface in
   `test/source/harness_jitter_cli_test.cpp`: a run of `method=hwlat` on
   a host that withholds both sources keeps status 0, a missing `msr`
   node answers no refusal line, and the only status-2 paths for the two
