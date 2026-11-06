@@ -152,8 +152,8 @@ add_custom_target(
     coverage
     COMMAND ${COVERAGE_TRACE_COMMAND}
     COMMAND ${COVERAGE_EXTRACT_COMMAND}
-    COMMAND ${LCOV_EXECUTABLE} --branch-coverage --list
-            "${PROJECT_BINARY_DIR}/coverage.info"
+    COMMAND ${LCOV_EXECUTABLE} --branch-coverage --ignore-errors inconsistent
+            --list "${PROJECT_BINARY_DIR}/coverage.info"
     COMMAND ${COVERAGE_SUMMARY_COMMAND}
     COMMAND ${COVERAGE_HTML_COMMAND}
     COMMENT "Generating coverage report (100% line and branch required)"
