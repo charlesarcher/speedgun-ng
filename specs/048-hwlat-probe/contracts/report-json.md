@@ -105,7 +105,10 @@ because one writer fills all three.
 `loadReport` validates the kind and keeps no record of it, the standing
 shape of the two names it reads beside it at
 `source/harness/json_load.cpp:516` to `:542`. A value of another kind
-refuses, and an absent key refuses, the way `stamp` and `gapNs` do.
+refuses, and a word outside the two refuses and names the item. An absent
+key loads as no mark. No name of this feature joins a `required` list, and a
+closed object refuses unknown keys alone, so the omission of the mark is the
+shape of a document written before the feature (FR-029, A-7).
 
 ## The `tracer` object keys
 
