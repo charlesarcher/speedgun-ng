@@ -234,6 +234,30 @@ auto maskTextOf(const std::vector<std::uint32_t>& cpus,
   return text;
 }
 
+// The number of times one whole line stands in one captured report.
+auto countLine(const std::string& text, const std::string& line) -> std::size_t
+{
+  std::size_t hits = 0;
+  for (auto at = text.find(line); at != std::string::npos;
+       at = text.find(line, at + line.size()))
+  {
+    ++hits;
+  }
+  return hits;
+}
+
+// The whole line one captured report carries behind one prefix, an empty
+// answer when no line carries it.
+auto lineStarting(const std::string& text,
+                  const std::string& start) -> std::string
+{
+  const auto found = text.find(start);
+  if (found == std::string::npos) {
+    return {};
+  }
+  return text.substr(found, text.find('\n', found) - found);
+}
+
 // One read or one write of one file below the tracing root, in the order the
 // kernel queued the event.
 struct TracingStep
@@ -1286,6 +1310,127 @@ auto theInterruptedChildRestoresTheTree() -> void
   std::remove(json.c_str());
 }
 
+// Whether the scheduled read of the reader below found the file and stood the
+// denial in it. The run's session takes the reader and the session dies with
+// the run, so the flag stands outside both for the row to read, the way the
+// probe suite carries the flag of its scripted writes (T022, FR-017, FR-022).
+std::atomic<bool> denialPlanted {false};
+
+// The reader of the failed-restore row: one scheduled read replaces one saved
+// file with a directory, so the write the restore owes that file stands denied
+// while every setup write stood through. The reader owns the moment, so the
+// denial stands planted inside the window ahead of the restore call, with no
+// sleep and no clock read. Past the scheduled read the stamps keep the step of
+// the window script, so the window reaches its span (T022, FR-021, FR-022,
+// D-12, D-15).
+class DeniedRestoreReader final : public sg::counters::WindowReader
+{
+public:
+  DeniedRestoreReader(std::filesystem::path denied, std::size_t readAt)
+      : m_denied(std::move(denied))
+      , m_readAt(readAt)
+      , m_step(kPrecheckSpanNs / kWindowSamples)
+  {
+  }
+
+  auto readPoints(sg::counters::PointSink& sink) noexcept -> void override
+  {
+    const auto index = m_reads.fetch_add(1);
+    if (index == m_readAt) {
+      std::error_code removed;
+      std::error_code made;
+      const bool taken = std::filesystem::remove(m_denied, removed) && !removed;
+      const bool stood =
+          std::filesystem::create_directory(m_denied, made) && !made;
+      denialPlanted.store(taken && stood, std::memory_order_relaxed);
+    }
+    sink.put(index * m_step);
+  }
+
+private:
+  std::filesystem::path m_denied;
+  std::size_t m_readAt = 0;
+  std::uint64_t m_step = 1;
+  std::atomic<std::uint64_t> m_reads {0};
+};
+
+// T022, FR-003, FR-021, FR-022, FR-023, D-12, D-15: the setup stands whole, the
+// window runs, and one restore write stands denied. The console names that file
+// and the value it saved on one line, and the run keeps the status its path
+// carried, because the standing rule holds the tracer out of the run's status.
+// The control run schedules the same denial past the window's last read, so the
+// same tree with the same reader prints no restore line and leaves every saved
+// file standing restored.
+auto aDeniedRestoreWriteKeepsTheStatusItsPathCarried() -> void
+{
+  const auto cpus = pickCpus(1);
+  if (cpus.empty()) {
+    return;
+  }
+  constexpr const char* kWindowFile =
+      "sys/kernel/tracing/hwlat_detector/window";
+  constexpr std::size_t kMidWindow = kWindowSamples / 2;
+  {
+    TracingRootGuard guard;
+    installDetectorTree(guard.root());
+    denialPlanted.store(false, std::memory_order_relaxed);
+    sg::detail::installTestReader(std::make_unique<DeniedRestoreReader>(
+        guard.root() / kWindowFile, kMidWindow));
+    const auto report =
+        captureRunReport(runArguments(cpus.at(0), "restore-denied"));
+    const bool planted = denialPlanted.load(std::memory_order_relaxed);
+    sg::detail::installTestReader(nullptr);
+    const std::string json = "harness_hwlat_restore-denied.json";
+    check(planted,
+          "the scheduled read stood its denial over one saved file (T022, "
+          "FR-022)");
+    check(report.status == 0,
+          "the run whose restore write stood denied keeps the status its path "
+          "carried (T022, FR-003, FR-022, D-12)");
+    check(countLine(report.text, "tracer: restore failed:") == 1,
+          "the run states the failed write once (T022, FR-022)");
+    checkWith(lineStarting(report.text, "tracer: restore failed:")
+                  == "tracer: restore failed: sys/kernel/tracing/hwlat_detector/"
+                     "window = 1000000",
+              "the line names the file and the value it saved (T022, FR-022, "
+              "US2)",
+              lineStarting(report.text, "tracer: restore failed:"));
+    theUserSpaceStandsWhole(json);
+    check(std::filesystem::is_directory(guard.root() / kWindowFile),
+          "the denied file stands the denial the run met, unwritten (T022, "
+          "FR-022)");
+    check(readStream(guard.root() / "sys/kernel/tracing/current_tracer")
+              == "nop\n",
+          "the undo still returns the standing word (T022, FR-021, D-15)");
+    check(readStream(guard.root() / "sys/kernel/tracing/tracing_thresh")
+              == "10\n",
+          "the undo still returns the saved threshold (T022, FR-021, D-15)");
+    std::remove(json.c_str());
+  }
+  {
+    TracingRootGuard guard;
+    installDetectorTree(guard.root());
+    denialPlanted.store(false, std::memory_order_relaxed);
+    sg::detail::installTestReader(std::make_unique<DeniedRestoreReader>(
+        guard.root() / kWindowFile, kWindowSamples * 64));
+    const auto report =
+        captureRunReport(runArguments(cpus.at(0), "restore-whole"));
+    const bool planted = denialPlanted.load(std::memory_order_relaxed);
+    sg::detail::installTestReader(nullptr);
+    const std::string json = "harness_hwlat_restore-whole.json";
+    check(!planted,
+          "the control read never came, so no denial stood (T022, FR-022)");
+    check(report.status == 0,
+          "the control run holds the same status (T022, FR-023)");
+    check(report.text.find("tracer: restore failed:") == std::string::npos,
+          "the whole restore prints no failed-write line (T022, FR-022)");
+    check(
+        readStream(guard.root() / kWindowFile) == "1000000\n",
+        "the whole restore writes the saved window back (T022, FR-021, D-15)");
+    std::remove(json.c_str());
+  }
+}
+
 // ---- T059, T061, T089: the record the entry point builds, and the tracer
 // that already stands (module M10)
 
@@ -1750,6 +1895,7 @@ auto main() -> int
   theWholeDetectorRunNamesItsThreeSettings();
   theInWindowFailureStillRestoresTheTree();
   theInterruptedChildRestoresTheTree();
+  aDeniedRestoreWriteKeepsTheStatusItsPathCarried();
   theStandingTracerWritesNoFile();
   theTwoSurfacesRecordTheirOwnFigures();
   theAnsweredSourceMarksItsKeptGap();
