@@ -412,7 +412,7 @@ new key, and a document written before the feature loads unchanged.
   `static_assert` moves to the new last enumerator, so a table that
   misses a word fails the build (FR-002, FR-018, FR-029, E-01). Verify:
   `g++ -fsyntax-only -std=c++23 -Iinclude -Isource -Isource/harness -Ibuild/export -x c++ source/harness/detail/json_report.hpp` exits 0 and `grep -c "HWLAT" source/harness/detail/json_report.hpp` counts at least one line
-- [ ] T040 [US3] Write the keys in `source/harness/json_report.cpp`: the
+- [X] T040 [US3] Write the keys in `source/harness/json_report.cpp`: the
   eleven keys in the six objects in the order T034 states, the method
   gate on the three stats keys, `smi` and `limits`, the engine gate on
   the six tracer keys, and `kSchemaVersion` at `1.15`, the two standing
@@ -421,18 +421,18 @@ new key, and a document written before the feature loads unchanged.
   a commit of their own (FR-004, FR-025 to
   FR-027, FR-029, FR-031, D-5, P-5, P-7, P-13) (depends on T033, T039;
   the rows of T033 turn green). Verify: `ctest --test-dir build -R harness_json_report_test --output-on-failure` exits 0
-- [ ] T041 [P] [US3] Extend `docs/schema/report-v1.json`: the eleven keys
+- [X] T041 [P] [US3] Extend `docs/schema/report-v1.json`: the eleven keys
   join `properties` with their kinds, the six `x-order` lists move, the
   two enum lists gain their word, and no new name joins a `required`
   list (FR-004, FR-029, D-6) (depends on T034, T040; the rows of T034
   turn green). Verify: `ctest --test-dir build -R harness_json_schema_test --output-on-failure` exits 0
-- [ ] T042 [P] [US3] Read the figures in `source/harness/json_load.cpp`
+- [X] T042 [P] [US3] Read the figures in `source/harness/json_load.cpp`
   through the standing optional path: the three stats figures, the six
   tracer figures and the `smi` kind check beside `stamp` and `gapNs`,
   with no new required key, so an older document loads unchanged
   (FR-004, FR-026, FR-029, A-7) (depends on T036, T040; the rows of T036
   turn green). Verify: `ctest --test-dir build -R harness_json_load_test --output-on-failure` exits 0
-- [ ] T043 [P] [US3] Print the lines in `source/harness/report.cpp`: the
+- [X] T043 [P] [US3] Print the lines in `source/harness/report.cpp`: the
   three probe figure lines, the two disclosures, the limits line, the
   three pre-check attribution lines each naming its source file, the
   tracer settings line, the three tracer figure lines and one
@@ -441,7 +441,7 @@ new key, and a document written before the feature loads unchanged.
   `kUnavailableFigure` (FR-004, FR-016, FR-022, FR-027, FR-030, FR-031,
   P-12, P-13) (depends on T037, T038, T040; the rows of T037 and T038
   turn green). Verify: `ctest --test-dir build -R "harness_jitter_window_test|harness_noise_report_test" --output-on-failure` exits 0
-- [ ] T044 [US3] Re-record the byte fixtures in
+- [X] T044 [US3] Re-record the byte fixtures in
   `test/source/harness_jitter_bytes_test.cpp` for the moved schema and
   version values, keeping every other byte (FR-029, SC-006) (depends on
   T035, T040; the rows of T035 turn green). Verify: `ctest --test-dir build -R harness_jitter_bytes_test --output-on-failure` exits 0

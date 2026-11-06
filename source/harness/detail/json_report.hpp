@@ -114,6 +114,28 @@ inline constexpr std::array<std::string_view, 4> kTracerEngineWords {
 static_assert(kTracerEngineWords.size()
               == std::to_underlying(sg::TracerEngine::HWLAT) + 1);
 
+// The two words of the gap mark of specs/048 FR-026, the document's own
+// spellings. The writer spells one of them for each kept gap the `hwlat`
+// method marks, and the reader tests membership and keeps no record, so no
+// second table of the two words stands in the tree (FR-026, FR-013).
+inline constexpr std::array<std::string_view, 2> kGapMarkWords {
+    "NOT_SMI",
+    "SMI",
+};
+
+// The word the detector engine writes, read from the table above so the
+// writer and the printer compare the record's text against one name
+// (specs/048 FR-018, FR-027, FR-029).
+inline constexpr std::string_view kHwlatEngineWord =
+    kTracerEngineWords.at(std::to_underlying(sg::TracerEngine::HWLAT));
+
+// The one limit the user-space probe carries: its loop runs with the cpu's
+// interrupts enabled. The `jitter.limits` text and the console limits line read
+// this one sentence, so the two states cannot drift apart (specs/048 FR-030,
+// FR-031, P-13).
+inline constexpr std::string_view kJitterLimitsText =
+    "probe runs with interrupts enabled";
+
 inline constexpr std::array<std::string_view, 2> kStatUnitWords {
     "TIME",
     "PERCENTAGE",

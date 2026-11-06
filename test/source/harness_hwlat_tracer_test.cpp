@@ -36,7 +36,6 @@
 #include <sched.h>
 #include <signal.h>
 #include <sys/inotify.h>
-#include <sys/resource.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -403,52 +402,6 @@ auto describeSaved(const std::vector<sg::detail::TracerSetting>& saved)
   return text;
 }
 
-// The run's own file-size limit stands below one write's text: the kernel
-// refuses that write for every user, the root of a CI container included
-// (FR-017), so the denial needs no permission change. The standing limit and
-// the standing signal disposition stand restored when the guard ends.
-class SetupWriteLimit
-{
-public:
-  explicit SetupWriteLimit(rlim_t limit)
-  {
-    m_savedSignal = ::signal(SIGXFSZ, SIG_IGN);
-    if (m_savedSignal == SIG_ERR) {
-      fail("the file-size signal stands unrestorable (T022)");
-      return;
-    }
-    if (::getrlimit(RLIMIT_FSIZE, &m_saved) != 0) {
-      fail("the file-size limit stands unreadable (T022)");
-      return;
-    }
-    rlimit limited = m_saved;
-    limited.rlim_cur = limit;
-    if (::setrlimit(RLIMIT_FSIZE, &limited) != 0) {
-      fail("the file-size limit stands unset (T022)");
-      return;
-    }
-    m_lowered = true;
-  }
-
-  SetupWriteLimit(const SetupWriteLimit&) = delete;
-  auto operator=(const SetupWriteLimit&) -> SetupWriteLimit& = delete;
-
-  ~SetupWriteLimit()
-  {
-    if (m_lowered) {
-      ::setrlimit(RLIMIT_FSIZE, &m_saved);
-    }
-    if (m_savedSignal != SIG_ERR) {
-      ::signal(SIGXFSZ, m_savedSignal);
-    }
-  }
-
-private:
-  rlimit m_saved {};
-  void (*m_savedSignal)(int) = SIG_DFL;
-  bool m_lowered = false;
-};
-
 // The path of one tracer cpu's buffer text, the file
 // `kernel/trace/trace.c:7672` creates (FR-018, A-6, P-10).
 auto bufferPath(std::uint32_t cpu) -> std::string
@@ -680,13 +633,17 @@ auto theRestoreWritesTheStopThenTheSavedSetInReverse() -> void
 // T022, FR-003, FR-021, D-15, P-9: a setup that fails after one write
 // restores the file it wrote before it answers the empty session. The run's
 // file-size limit stands at the byte count of the mask write the row
-// rendered, so that write lands at the limit and the write ahead of it stands
-// bounded. Three facts stand observable: the log names no file beyond the mask
-// and the bounded mode file, the last write names the mask, and the mask file
-// stands back at its standing text, which the render differs from. The queue
-// merges one file's consecutive writes, and a bounded write still touches its
-// file, so the row reads those three facts over a counted list of two writes.
-auto theSetupThatFailsAfterOneWriteRestoresWhatItWrote() -> void
+// FR-017: the denial stands a directory in the place of the on-off file, so the
+// open of that write fails for every user, the root of a CI container included.
+// The path bounds no other write of the process: a file-size limit bounds every
+// write in it, the writes of the unit itself among them. The on-off file is the
+// one control the setup writes and never reads, so the read set stays whole and
+// the refusal lands on a write. Four facts stand observable: the log names no
+// file beyond the six the setup writes, the last write names the mask, the mask
+// file stands back at its standing text, which the render differs from, and the
+// denied file stands unwritten. The queue merges one file's consecutive writes,
+// so the write of a restored file and its restore read as one step.
+auto theSetupWhoseDeniedWriteFailsRestoresWhatItWrote() -> void
 {
   const auto cpus = pickCpus(1);
   if (cpus.empty()) {
@@ -695,14 +652,20 @@ auto theSetupThatFailsAfterOneWriteRestoresWhatItWrote() -> void
   const std::string render = maskTextOf(cpus, 1);
   TracingRootGuard guard;
   installDetectorTree(guard.root(), "e");
+  const std::string denied = "sys/kernel/tracing/tracing_on";
+  check(denyTracingPath(guard.root(), denied),
+        "the on-off path stands a directory (T022, FR-017)");
   TracingEventLog log(guard.root());
-  const SetupWriteLimit limit(render.size() + 1);
   const auto session =
       sg::detail::noiseTracerSetup(sg::TracerEngine::HWLAT, cpus);
   const auto written = writtenOrder(log.steps());
   const std::vector<std::string> touched {
       "sys/kernel/tracing/tracing_cpumask",
-      "sys/kernel/tracing/hwlat_detector/mode"};
+      "sys/kernel/tracing/hwlat_detector/mode",
+      "sys/kernel/tracing/hwlat_detector/width",
+      "sys/kernel/tracing/hwlat_detector/window",
+      "sys/kernel/tracing/tracing_thresh",
+      "sys/kernel/tracing/current_tracer"};
   bool bounded = true;
   for (const auto& path : written) {
     bounded = bounded
@@ -711,22 +674,26 @@ auto theSetupThatFailsAfterOneWriteRestoresWhatItWrote() -> void
   check(!session.has_value(),
         "the failed setup answers the empty session (T022, FR-021, D-15)");
   checkWith(bounded,
-            "the setup writes no file beyond the write it bounded (T022, "
-            "FR-021, D-15)",
+            "the setup writes no file beyond the writes it made (T022, FR-021, "
+            "D-15)",
             joined(written));
   checkWith(!written.empty() && written.back() == touched.front(),
             "the last write restores the mask the setup wrote (T022, FR-021, "
             "P-9, D-15)",
             joined(written));
+  check(render != "e",
+        "the render differs from the standing mask text, so the restore of the "
+        "mask stands observable (T022, P-9)");
   check(
       readStream(guard.root() / "sys/kernel/tracing/tracing_cpumask") == "e\n",
       "the mask file stands back at its standing text (T022, FR-021, D-15, "
       "P-9)");
   check(
       readStream(guard.root() / "sys/kernel/tracing/current_tracer") == "nop\n",
-      "the word file stands unwritten (T022, FR-021, FR-024)");
-  check(readStream(guard.root() / "sys/kernel/tracing/tracing_on") == "0\n",
-        "the on-off file stands unwritten (T022, FR-021, D-8)");
+      "the word file stands back at its standing text (T022, FR-021, FR-024, "
+      "P-9)");
+  check(std::find(written.begin(), written.end(), denied) == written.end(),
+        "the denied file stands unwritten (T022, FR-021, D-8, FR-017)");
 }
 
 // T022, FR-022, D-12: a restore write that fails answers one pair naming the
@@ -1257,7 +1224,7 @@ auto main() -> int
   theSetupWritesTheSevenInOrder();
   theMaskWriteTakesTheWidthTheStandingMaskCarried();
   theRestoreWritesTheStopThenTheSavedSetInReverse();
-  theSetupThatFailsAfterOneWriteRestoresWhatItWrote();
+  theSetupWhoseDeniedWriteFailsRestoresWhatItWrote();
   aFailedRestoreWriteNamesItsFileAndItsValue();
   theFiguresFoldTheLinesOfEachCpuBuffer();
   theColumnRuleSkipsTheLegendLines();

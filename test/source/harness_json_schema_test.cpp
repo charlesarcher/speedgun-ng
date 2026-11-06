@@ -428,8 +428,9 @@ auto aSeriesKeyOutOfOrderStandsRefused() -> void
   }
 }
 
-// FR-006: the method word stands in a list of three, so a fourth spelling
-// refuses beside the list.
+// FR-006: the method word stands in a closed list, so a spelling outside it
+// refuses beside the list. specs/048 took the list from three words to four
+// (specs/048-hwlat-probe FR-002, FR-029).
 auto aMethodWordOutsideTheThreeStandsRefused() -> void
 {
   const auto answer = sg::detail::checkReport(
@@ -437,7 +438,7 @@ auto aMethodWordOutsideTheThreeStandsRefused() -> void
       withSeries(documentWithJitter(), "\"AUTO\"", kSeriesItem));
   check(!answer.has_value(),
         "aMethodWordOutsideTheThreeStandsRefused: a method word outside the "
-        "three stands refused (FR-006)");
+        "closed list stands refused (FR-006)");
   if (!answer.has_value()) {
     check(answer.error().find("/jitter/method") != std::string::npos
               && answer.error().find("outside the list") != std::string::npos,
@@ -685,6 +686,8 @@ auto theLimitRecordPairsAtTheStampedMinor() -> void
                           "/counterLimits/0/limit",
                           "theLimitRecordPairsAtTheStampedMinor: a limit of "
                           "another kind stands " "refused (FR-051, FR-010)");
+}
+
 // specs/048-hwlat-probe T034: the six moved `x-order` lists, the two moved
 // enum lists, the closed objects and the still-standing top level. The rows
 // read the schema file the way the standing rows read it, and plant documents
@@ -750,14 +753,22 @@ constexpr std::string_view kStatsRequired =
     "p9999Ns,maxNs,totalNs,totalPercent,runtimeNs,thresholdNs,loopPeriodNs,"
     "droppedGaps";
 constexpr std::string_view kGapRequired = "stamp,gapNs";
+// The pre-check stats object names no cpu, because the entry above it names
+// the cpu (specs/036 E-05).
+constexpr std::string_view kPrecheckStatsRequired =
+    "gapCount,gapsPerSecond,minNs,medianNs,meanNs,p90Ns,p99Ns,p999Ns,p9999Ns,"
+    "maxNs,totalNs,totalPercent,runtimeNs,thresholdNs,loopPeriodNs,"
+    "droppedGaps";
 constexpr std::string_view kTracerRequired = "engine,cpus";
 constexpr std::string_view kTracerCpuRequired =
     "cpu,nmi,irq,softirq,thread,hardware";
 
-// The top-level order, which stands unchanged: every new key joins an object
-// the document already carries (FR-029).
+// The top-level order the schema states. specs/041-counter-probe joined the
+// run-level `counterLimits` array after `graph`, and every detector key joins
+// an object the document already carries (FR-029, D-13).
 constexpr std::string_view kTopOrder =
-    "schemaVersion,speedgun,run,jitter,precheck,graph,benchmarks,hunt";
+    "schemaVersion,speedgun,run,jitter,precheck,graph,counterLimits,"
+    "benchmarks,hunt";
 
 // The positions of the six objects in the schema file, in the order the rows
 // read them.
@@ -883,7 +894,7 @@ auto theRequiredListsHoldNoNewName() -> void
           && listNames(schema, "\"required\"", places.stats) == kStatsRequired
           && listNames(schema, "\"required\"", places.gap) == kGapRequired
           && listNames(schema, "\"required\"", places.precheckStats)
-              == kStatsRequired
+              == kPrecheckStatsRequired
           && listNames(schema, "\"required\"", places.tracer) == kTracerRequired
           && listNames(schema, "\"required\"", places.tracerCpu)
               == kTracerCpuRequired,
@@ -896,7 +907,8 @@ auto theTopLevelOrderStandsUnchanged() -> void
 {
   const std::string schema = sg::test::readText(SG_SCHEMA_PATH);
   check(listNames(schema, "\"x-order\"", 0) == kTopOrder,
-        "the top-level order holds the eight standing names (FR-029, D-13)");
+        "the top-level order holds the nine names the schema states (FR-029, "
+        "D-13)");
 }
 
 // FR-029, FR-004: the two enum lists take the detector words, and a word

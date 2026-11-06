@@ -1351,6 +1351,26 @@ auto aStandingMethodPrintsNoDetectorLine() -> void
         "(FR-004, FR-029)");
 }
 
+// FR-002, FR-025, D-1: the detector fills the gap ring and keeps no series, so
+// its block carries none of the series lines the two series methods print, the
+// way the standing method carries none.
+auto theDetectorMethodPrintsNoSeriesLine() -> void
+{
+  const auto series = probeBlockOf(sg::JitterMethod::FWQ, true);
+  check(series.find("sampleCount:") != std::string::npos,
+        "a method that keeps a series prints the standing series lines "
+        "(FR-013, FR-019)");
+  const auto detector = probeBlockOf(sg::JitterMethod::HWLAT, true);
+  check(detector.find("sampleCount:") == std::string::npos
+            && detector.find("medianValue:") == std::string::npos
+            && detector.find("noisePercent:") == std::string::npos,
+        "the detector run prints no series line (FR-002, FR-025, D-1, SC-006)");
+  check(detector.find("smiDelta:") != std::string::npos
+            && detector.find("droppedGaps:") != std::string::npos,
+        "the detector run prints its figures beside the standing field group "
+        "(FR-016, FR-025)");
+}
+
 // FR-016: the pre-check block prints the three attribution lines per measured
 // cpu after the standing switch and schedule line, each naming its source
 // file, and the count naming none.
@@ -3393,6 +3413,7 @@ auto main() -> int
   // rows stand red until T043 prints them, so they close the unit. The two
   // rows of the standing method guard the bytes the standing runs keep.
   aStandingMethodPrintsNoDetectorLine();
+  theDetectorMethodPrintsNoSeriesLine();
   theThreeProbeFigureLinesStandAfterTheStandingCount();
   theTwoCounterDisclosuresPrintOncePerRun();
   theLimitsLineStandsOncePerDetectorRun();

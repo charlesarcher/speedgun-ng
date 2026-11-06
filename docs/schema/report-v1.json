@@ -53,7 +53,8 @@
         "cpus",
         "stats",
         "droppedGaps",
-        "disclosure"
+        "disclosure",
+        "limits"
       ],
       "required": [
         "mode",
@@ -74,7 +75,7 @@
         "loopPeriodNs": { "type": "integer" },
         "method": {
           "type": "string",
-          "enum": ["FWQ", "FTQ", "TSC"]
+          "enum": ["FWQ", "FTQ", "HWLAT", "TSC"]
         },
         "series": {
           "type": "array",
@@ -185,6 +186,9 @@
               "thresholdNs",
               "loopPeriodNs",
               "droppedGaps",
+              "smiDelta",
+              "nmiDelta",
+              "smiGapCount",
               "gaps"
             ],
             "required": [
@@ -225,16 +229,20 @@
               "thresholdNs": { "type": "integer" },
               "loopPeriodNs": { "type": "integer" },
               "droppedGaps": { "type": "integer" },
+              "smiDelta": { "type": ["integer", "null"] },
+              "nmiDelta": { "type": ["integer", "null"] },
+              "smiGapCount": { "type": "integer" },
               "gaps": {
                 "type": "array",
                 "items": {
                   "type": "object",
-                  "x-order": ["stamp", "gapNs"],
+                  "x-order": ["stamp", "gapNs", "smi"],
                   "required": ["stamp", "gapNs"],
                   "additionalProperties": false,
                   "properties": {
                     "stamp": { "type": "integer" },
-                    "gapNs": { "type": "integer" }
+                    "gapNs": { "type": "integer" },
+                    "smi": { "type": ["string", "null"] }
                   }
                 }
               }
@@ -242,7 +250,8 @@
           }
         },
         "droppedGaps": { "type": "integer" },
-        "disclosure": { "type": "string" }
+        "disclosure": { "type": "string" },
+        "limits": { "type": "string" }
       }
     },
     "precheck": {
@@ -281,7 +290,10 @@
                   "runtimeNs",
                   "thresholdNs",
                   "loopPeriodNs",
-                  "droppedGaps"
+                  "droppedGaps",
+                  "smiDelta",
+                  "nmiDelta",
+                  "smiGapCount"
                 ],
                 "required": [
                   "gapCount",
@@ -318,7 +330,10 @@
                   "runtimeNs": { "type": "integer" },
                   "thresholdNs": { "type": "integer" },
                   "loopPeriodNs": { "type": "integer" },
-                  "droppedGaps": { "type": "integer" }
+                  "droppedGaps": { "type": "integer" },
+                  "smiDelta": { "type": ["integer", "null"] },
+                  "nmiDelta": { "type": ["integer", "null"] },
+                  "smiGapCount": { "type": "integer" }
                 }
               },
               "attribution": {
@@ -364,11 +379,17 @@
         },
         "tracer": {
           "type": "object",
-          "x-order": ["engine", "cpus"],
+          "x-order": ["engine", "windowUs", "widthUs", "thresholdUs", "cpus"],
           "required": ["engine", "cpus"],
           "additionalProperties": false,
           "properties": {
-            "engine": { "type": "string", "enum": ["osnoise", "timerlat"] },
+            "engine": {
+              "type": "string",
+              "enum": ["osnoise", "timerlat", "hwlat"]
+            },
+            "windowUs": { "type": "integer" },
+            "widthUs": { "type": "integer" },
+            "thresholdUs": { "type": "integer" },
             "cpus": {
               "type": "array",
               "items": {
@@ -379,7 +400,10 @@
                   "irq",
                   "softirq",
                   "thread",
-                  "hardware"
+                  "hardware",
+                  "maxGapNs",
+                  "gapCount",
+                  "nmiCount"
                 ],
                 "required": [
                   "cpu",
@@ -396,7 +420,10 @@
                   "irq": { "type": ["integer", "null"] },
                   "softirq": { "type": ["integer", "null"] },
                   "thread": { "type": ["integer", "null"] },
-                  "hardware": { "type": ["integer", "null"] }
+                  "hardware": { "type": ["integer", "null"] },
+                  "maxGapNs": { "type": ["integer", "null"] },
+                  "gapCount": { "type": ["integer", "null"] },
+                  "nmiCount": { "type": ["integer", "null"] }
                 }
               }
             }
