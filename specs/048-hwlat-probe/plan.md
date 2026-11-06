@@ -21,7 +21,7 @@ values back in reverse order on each path the process controls. Both surfaces di
 with status 0. The schema moves to `1.16` with eleven new keys, the loader
 reads the six figures back, the comparison gains six rule names, and the
 harness `SOVERSION` rises from `21` to `22` with the version move to
-`0.32.0`.
+`0.34.0`.
 
 ## Technical Context
 
@@ -448,11 +448,12 @@ Eleven document keys: `smiDelta`, `nmiDelta` and `smiGapCount` in
 
 ### Version and SOVERSION
 
-- Version `0.31.0` to `0.32.0` (spec D-5).
+- Version `0.33.0` to `0.34.0` (spec D-5): the `0.32.0` this branch named
+  and the `0.33.0` that followed stand taken on master.
 - Harness `SOVERSION` `21` to `22`: `JitterStats`,
   `PrecheckTracerRecord` and `PrecheckTracerCpuRecord` change layout.
-- Archive `SOVERSION` stays `6`: no archive type changes, and the readers
-  live in the harness.
+- Archive `SOVERSION` stands at `8`, where specs/050-limit-table-lifecycle
+  left it: no archive type changes here, and the readers live in the harness.
 - Schema `1.15` to `1.16`: keys are added, no key changes kind or name,
   and no old document loses a key. This branch cut at `1.14` and named `1.15`
   for its own move, which specs/041-counter-probe landed on master first, so

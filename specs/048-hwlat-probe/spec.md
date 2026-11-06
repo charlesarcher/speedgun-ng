@@ -37,10 +37,10 @@ shapes the prompt leaves open.
 - Branch: `048-hwlat-probe`, cut from master `858c55d9` on 2026-11-05.
   Master stands on that hash at branch time, so no moved-base record
   applies.
-- Version: master stands at `0.31.0` (`CMakeLists.txt:64`). The lane
-  takes the next free minor, `0.32.0`. The one open pull request (`#80`,
-  head `046-report-rows`) changes one file under `specs/` and reserves no
-  version (read 2026-11-05).
+- Version: the branch cut at `0.31.0` and named `0.32.0`, which
+  specs/041-counter-probe landed on master while the branch stood. Master
+  stands at `0.33.0` (`CMakeLists.txt:64`, read 2026-11-06), so the lane
+  takes `0.34.0`.
 - Report schema: master stands at `1.15` (`kSchemaVersion`,
   `source/harness/json_report.cpp:58`). This branch cut at `1.14` and
   named `1.15` for its own move, which specs/041-counter-probe landed on
@@ -58,11 +58,12 @@ shapes the prompt leaves open.
   and `TracerEngine` (`:2458`) gain one value each. The number rises to
   `22`, and the commit that writes the fields records the check beside
   the numbers, the shape specs `036` FR-004 and `043` FR-005 state.
-- Archive `SOVERSION`: master stands at `6` (`CMakeLists.txt:143`). The
-  two new readers live on the harness side under `source/harness/`, and
-  no header of the counters library under `include/speedgun-ng/` changes,
-  so the number stays `6`. A plan that moves a reader into the counters
-  library moves this check with it.
+- Archive `SOVERSION`: master stands at `8` (`CMakeLists.txt:173`), the
+  number specs/050-limit-table-lifecycle landed. The two new readers live
+  on the harness side under `source/harness/`, and no header of the
+  counters library under `include/speedgun-ng/` changes, so the number
+  stands. A plan that moves a reader into the counters library moves this
+  check with it.
 - Option values: the feature adds no option row and no option value.
   `kJitterProbeOptionValue` at `260` and `kOsNoiseOptionValue` at `320`
   (`source/harness/detail/options.hpp:88`, `:96`) stand unchanged, the
@@ -272,7 +273,7 @@ shapes the prompt leaves open.
   not available. On AMD parts the counter at `0x34` stands undocumented
   across the family, so the SMI read answers not available there. The
   feature names no counter it cannot cite.
-- **D-5 (Q-5, taken)**: the version takes the next free minor, `0.32.0`,
+- **D-5 (Q-5, taken)**: the version takes the next free minor, `0.34.0`,
   and the schema minor moves to `1.16`, one past the `1.15` that
   specs/041-counter-probe took while this branch stood.
 - **D-6**: one word, two surfaces. `hwlat` names a method of
