@@ -107,9 +107,9 @@ ahead of the expansion.
 
 | Builder | The line as printed |
 | --- | --- |
-| `source/harness/jitter_probe.cpp:1676`, with the word set the new branch adds | `--jitter-probe: the method 'smi' is not tsc, fwq, ftq or hwlat` |
+| `source/harness/jitter_probe.cpp:1928`, with the word set the new branch adds | `--jitter-probe: the method 'smi' is not tsc, fwq, ftq or hwlat` |
 | `source/harness/jitter_probe.cpp:1632` | `--jitter-probe: the key 'method' stands twice in the value` |
-| `source/harness/noise_tracer.cpp:55`, with the word set the new branch adds | `--os-noise: the engine 'hwlato' is not osnoise, timerlat or hwlat` |
+| `source/harness/noise_tracer.cpp:67`, with the word set the new branch adds | `--os-noise: the engine 'hwlato' is not osnoise, timerlat or hwlat` |
 | `source/harness/cli.cpp:191` | `--os-noise: the batch carries no pre-check window for the tracer` |
 | `source/harness/cli.cpp:1265` | `--jitter-probe: the machine/tsc leaf is not available` |
 | `source/harness/options.cpp:270` | `--json-raw: 'chunks', 'gaps' and 'none' are the values the option names` |

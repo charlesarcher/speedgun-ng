@@ -117,7 +117,7 @@ delta names join the standing files in the commit that lands the code.
 | File and line | Standing text | New text |
 | --- | --- | --- |
 | `specs/034-host-noise-precheck/contracts/console-report.md` lines 4 to 5 | the field names are the sixteen the console probe block uses | the field names are the nineteen the console probe block uses |
-| `specs/034-host-noise-precheck/contracts/console-report.md:18` | `<the sixteen stats lines, one value>` | `<the nineteen stats lines, one value>`, the last three standing for a `hwlat` run alone |
+| `specs/034-host-noise-precheck/contracts/console-report.md:18` | `<the sixteen stats lines, one value>` | the sixteen stats lines stand, and the three detector figures join the attribution group after the `switch delta` line, the first two naming their source and the third naming none (FR-016) |
 | `specs/034-host-noise-precheck/contracts/console-report.md:21` | the `switch delta` line ends the per-cpu group | three `hwlat` lines follow it, each naming its source |
 | `specs/036-osnoise-timerlat-tracers/contracts/console-report.md:15` | `tracer: engine <word> cpus <list>` | unchanged text, and a `hwlat` run adds the settings line below it |
 | `specs/036-osnoise-timerlat-tracers/contracts/console-report.md:20` | `tracer cpu <n> hardware: <figure>`, the last figure line | three further figure lines follow it for the `hwlat` engine |
