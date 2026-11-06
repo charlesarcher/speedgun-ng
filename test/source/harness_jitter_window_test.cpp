@@ -3245,10 +3245,10 @@ auto main() -> int
           "a field name outside the table is a fault (FR-038)");
     check(fault.has_value()
               || fault.error().find(
-                     "'madeUpNs' names none of the thirty-two jitter fields")
+                     "'madeUpNs' names none of the thirty-five jitter fields")
                      != std::string::npos,
-          "theFaultTextNamesThirtyTwoFields: the fault names the thirty-two "
-          "fields (FR-021, FR-038)");
+          "theFaultTextNamesThirtyFiveFields: the fault names the thirty-five "
+          "fields (FR-021, FR-038, specs/048 FR-028)");
 
     // FR-021, FR-031: the run-scoped name reads the run record's series,
     // and the bare name reads the entry's own. The armed wait places the

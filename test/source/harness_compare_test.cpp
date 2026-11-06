@@ -96,6 +96,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <expected>
 #include <initializer_list>
@@ -2906,6 +2907,375 @@ auto thePassDisclosureStaysOutOfTheComparison() -> void
           "the disclosure cleared (FR-038, FR-054)");
   }
 }
+
+// specs/048 T032, FR-025, FR-028: one probe fold of these cases carries
+// the three attribution figures beside the standing stats.
+auto attributionFold(const std::uint32_t cpu,
+                     const std::optional<std::uint64_t> smiDelta,
+                     const std::optional<std::uint64_t> nmiDelta,
+                     const std::uint64_t smiGapCount) -> sg::JitterEntryFold
+{
+  sg::JitterEntryFold fold;
+  fold.cpu = cpu;
+  fold.stats.smiDelta = smiDelta;
+  fold.stats.nmiDelta = nmiDelta;
+  fold.stats.smiGapCount = smiGapCount;
+  return fold;
+}
+
+// The entry of these cases with the given probe folds attached, the
+// carrier the bare prefix reads (specs/027 FR-031).
+auto withFolds(sg::BenchmarkResult result,
+               std::vector<sg::JitterEntryFold> folds) -> sg::BenchmarkResult
+{
+  result.jitterFolds = std::move(folds);
+  return result;
+}
+
+// One tracer cpu of a detector record, with the three figures the run
+// read. A figure left absent stands for a buffer that held no detector
+// line (specs/048 FR-027).
+auto tracerCpu(const std::uint32_t cpu,
+               const std::optional<std::uint64_t> maxGapNs,
+               const std::optional<std::uint64_t> gapCount,
+               const std::optional<std::uint64_t> nmiCount)
+    -> sg::PrecheckTracerCpuRecord
+{
+  sg::PrecheckTracerCpuRecord record;
+  record.cpu = cpu;
+  record.maxGapNs = maxGapNs;
+  record.gapCount = gapCount;
+  record.nmiCount = nmiCount;
+  return record;
+}
+
+// One report whose pre-check record carries the detector record of the
+// given tracer cpus (specs/048 FR-028). A report left alone carries no
+// pre-check at all.
+auto withTracer(sg::ReportData report,
+                std::vector<sg::PrecheckTracerCpuRecord> cpus) -> sg::ReportData
+{
+  sg::PrecheckTracerRecord tracer;
+  tracer.engine = "hwlat";
+  tracer.cpus = std::move(cpus);
+  sg::PrecheckRecord record;
+  record.tracer = std::move(tracer);
+  report.precheck = std::move(record);
+  return report;
+}
+
+// The value one entry carries, read against the figure the case set: the
+// house rule against comparing two doubles with `==`.
+auto answersValue(const std::optional<double>& value, const double want) -> bool
+{
+  return value.has_value() && std::fabs(*value - want) <= 1e-9;
+}
+
+// FR-028, FR-030: the three attribution names resolve in the four
+// standing heads, and a field outside the grown table faults with the
+// count word of the 35 rows.
+auto theThreeAttributionNamesResolve() -> void
+{
+  const std::vector<std::string> heads {
+      "jitter:0:", "jitter:any:", "jitter:run:0:", "jitter:run:any:"};
+  const std::vector<std::string_view> fields {
+      "smiDelta", "nmiDelta", "smiGapCount"};
+  for (const auto& head : heads) {
+    for (const auto field : fields) {
+      const std::string text = head + std::string(field) + ":lower:abs=5000";
+      const auto rule = sg::parseCompareRule(text);
+      check(rule.has_value() && rule->text == text
+                && rule->valueName == head + std::string(field),
+            "the three attribution names resolve in the four standing heads "
+            "(FR-028, FR-030)");
+    }
+  }
+  faultTextIs("jitter:any:smiDeltaX:lower:abs=5",
+              "the value name of the rule 'jitter:any:smiDeltaX:lower:abs=5' "
+              "is not readable: 'smiDeltaX' names none of the thirty-five "
+              "jitter fields",
+              "the fault of a field outside the grown table names the 35 "
+              "fields (FR-028, FR-038)");
+}
+
+// FR-025, FR-028: each of the three names reads its own figure of the
+// fold the bare prefix selects, and a change past the bound regresses.
+auto theThreeAttributionNamesReadTheFolds() -> void
+{
+  const auto baseline = makeReport(
+      {withFolds(measured("bmGate", 100.0), {attributionFold(0, 4, 2, 1)})});
+  const auto contender = makeReport(
+      {withFolds(measured("bmGate", 100.0), {attributionFold(0, 9, 2, 6)})});
+  const auto answer = compared(baseline,
+                               contender,
+                               rulesOf({"jitter:any:smiDelta:lower:abs=1",
+                                        "jitter:any:nmiDelta:lower:abs=1",
+                                        "jitter:any:smiGapCount:lower:abs=1"}),
+                               false);
+  if (!answer.has_value()) {
+    std::printf("  %s\n", answer.error().c_str());
+    fail("the three attribution names read the folds of the entry (FR-025, "
+         "FR-028)");
+    return;
+  }
+  if (answer->entries.size() != 3) {
+    fail("the three attribution rules answer one row each (FR-002)");
+    return;
+  }
+  check(answer->entries[0].state == sg::CompareState::REGRESSED
+            && answersValue(answer->entries[0].baseline, 4.0)
+            && answersValue(answer->entries[0].contender, 9.0),
+        "the SMI delta row carries the two figures of the fold (FR-025, "
+        "FR-028)");
+  check(answer->entries[1].state == sg::CompareState::OK
+            && answersValue(answer->entries[1].baseline, 2.0)
+            && answersValue(answer->entries[1].contender, 2.0),
+        "the NMI delta row reads its own figure, which stands equal "
+        "(FR-025, FR-028)");
+  check(answer->entries[2].state == sg::CompareState::REGRESSED
+            && answersValue(answer->entries[2].baseline, 1.0)
+            && answersValue(answer->entries[2].contender, 6.0),
+        "the SMI gap count row reads its own figure (FR-025, FR-028)");
+  check(!answer->passed,
+        "a change past the bound of an attribution name fails the verdict "
+        "(FR-028, FR-044)");
+}
+
+// specs/027 FR-031, FR-032, specs/048 FR-028: the `run:` prefix reads the
+// run record's folds for an attribution name, and the bare name reads the
+// entry's own folds, which these reports leave empty.
+auto theRunScopedAttributionNameReadsTheRunRecord() -> void
+{
+  auto baseline = makeReport({measured("bmGate", 100.0)});
+  auto contender = makeReport({measured("bmGate", 100.0)});
+  baseline.runJitterStats = std::vector {attributionFold(0, 4, 2, 1)};
+  contender.runJitterStats = std::vector {attributionFold(0, 9, 2, 6)};
+  const auto moved = compared(baseline,
+                              contender,
+                              rulesOf({"jitter:run:any:smiDelta:lower:abs=1"}),
+                              false);
+  if (!moved.has_value()) {
+    std::printf("  %s\n", moved.error().c_str());
+    fail("the run-scoped attribution name reads the run record (FR-031, "
+         "FR-028)");
+    return;
+  }
+  check(moved->entries.size() == 1
+            && moved->entries[0].state == sg::CompareState::REGRESSED
+            && answersValue(moved->entries[0].baseline, 4.0)
+            && answersValue(moved->entries[0].contender, 9.0),
+        "the run-scoped row carries the run record's two figures (FR-031, "
+        "FR-028)");
+  const auto bare = compared(
+      baseline, contender, rulesOf({"jitter:any:smiDelta:lower:abs=1"}), false);
+  check(!bare.has_value()
+            && faultNames(bare.error(),
+                          "jitter:any:smiDelta:lower:abs=1",
+                          "carry no probe cpu"),
+        "the bare attribution name reads the entry, which carries no fold "
+        "(FR-031, FR-032)");
+}
+
+// specs/048 FR-028, specs/043 FR-032: a fold that carries no attribution
+// value reads 0, the standing rule of a series field on a fold that
+// carries no series, and the row answers no change.
+auto anAbsentAttributionFigureReadsZero() -> void
+{
+  const auto baseline = makeReport(
+      {withFolds(measured("bmGate", 100.0), {attributionFold(0, {}, {}, 0)})});
+  const auto contender = makeReport(
+      {withFolds(measured("bmGate", 100.0), {attributionFold(0, {}, {}, 0)})});
+  const auto answer = compared(baseline,
+                               contender,
+                               rulesOf({"jitter:any:smiDelta:lower:abs=1",
+                                        "jitter:any:nmiDelta:lower:abs=1"}),
+                               false);
+  if (!answer.has_value()) {
+    std::printf("  %s\n", answer.error().c_str());
+    fail("an absent attribution figure reads 0 (FR-028)");
+    return;
+  }
+  if (answer->entries.size() != 2) {
+    fail("the two absent-figure rules answer one row each (FR-002)");
+    return;
+  }
+  check(answer->passed && answersValue(answer->entries[0].baseline, 0.0)
+            && answersValue(answer->entries[0].contender, 0.0)
+            && answersValue(answer->entries[1].baseline, 0.0)
+            && answersValue(answer->entries[1].contender, 0.0),
+        "a fold that carries no figure reads 0 for both names (FR-028)");
+}
+
+// specs/027 FR-030, D-11, specs/048 FR-028: `any` answers the largest
+// figure of the probe cpus for an attribution name.
+auto theWorstCpuAnswersTheLargestAttributionFigure() -> void
+{
+  const auto baseline = makeReport(
+      {withFolds(measured("bmGate", 100.0),
+                 {attributionFold(0, 4, 2, 1), attributionFold(1, 11, 2, 1)})});
+  const auto contender = makeReport(
+      {withFolds(measured("bmGate", 100.0), {attributionFold(0, 20, 2, 1)})});
+  const auto answer = compared(
+      baseline, contender, rulesOf({"jitter:any:smiDelta:lower:abs=1"}), false);
+  if (!answer.has_value()) {
+    std::printf("  %s\n", answer.error().c_str());
+    fail("the worst cpu answers the largest attribution figure (FR-030, "
+         "FR-028)");
+    return;
+  }
+  check(answer->entries.size() == 1
+            && answer->entries[0].state == sg::CompareState::REGRESSED
+            && answersValue(answer->entries[0].baseline, 11.0)
+            && answersValue(answer->entries[0].contender, 20.0),
+        "the row carries the largest figure of the two probe cpus (FR-030, "
+        "D-11, FR-028)");
+}
+
+// specs/048 FR-028: the three detector names resolve in both heads, and
+// the three refusals name the head, the cpu token and the aggregate a
+// single value takes nowhere.
+auto theThreeDetectorNamesResolve() -> void
+{
+  struct Case
+  {
+    const char* text;
+    const char* valueName;
+  };
+
+  for (const Case item :
+       {Case {"hwlat:any:maxGapNs:lower:abs=5", "hwlat:any:maxGapNs"},
+        Case {"hwlat:2:gapCount:higher:abs=5", "hwlat:2:gapCount"},
+        Case {"hwlat:0:nmiCount:lower:5%", "hwlat:0:nmiCount"},
+        Case {"hwlat:any:nmiCount:lower:5%:^bmGate$", "hwlat:any:nmiCount"}})
+  {
+    const auto rule = sg::parseCompareRule(item.text);
+    check(rule.has_value() && rule->text == item.text
+              && rule->valueName == item.valueName
+              && !rule->aggregate.has_value(),
+          "the detector name resolves in its head and carries no aggregate "
+          "(FR-028)");
+  }
+  faultTextIs("hwlat:any:gapCounts:lower:abs=5",
+              "the value name of the rule 'hwlat:any:gapCounts:lower:abs=5' "
+              "is not readable: 'gapCounts' names none of the three hwlat "
+              "figures",
+              "the fault of a figure outside the three names the three "
+              "(FR-028)");
+  faultTextIs("hwlat:x:maxGapNs:lower:abs=5",
+              "the value name of the rule 'hwlat:x:maxGapNs:lower:abs=5' is "
+              "not readable: 'x' is neither an index nor 'any'",
+              "the fault of a cpu token outside the grammar names the token "
+              "(FR-028, FR-030)");
+  faultTextIs("hwlat:any:maxGapNs@mean:lower:abs=5",
+              "the aggregate of the rule 'hwlat:any:maxGapNs@mean:lower:abs=5' "
+              "is not readable: this value carries one value and takes no "
+              "aggregate",
+              "a written aggregate on a detector name faults (FR-028, D-21)");
+}
+
+// specs/048 FR-028: the detector name reads the tracer record of the
+// pre-check. `any` answers the largest figure of the tracer cpus, and a
+// named cpu answers its own figure.
+auto theDetectorRuleReadsTheTracerRecord() -> void
+{
+  const auto baseline =
+      withTracer(makeReport({measured("bmGate", 100.0)}),
+                 {tracerCpu(0, 100, 3, 1), tracerCpu(1, 250, 7, 2)});
+  const auto contender =
+      withTracer(makeReport({measured("bmGate", 100.0)}),
+                 {tracerCpu(0, 100, 3, 1), tracerCpu(1, 400, 7, 2)});
+  const auto answer = compared(baseline,
+                               contender,
+                               rulesOf({"hwlat:any:maxGapNs:lower:abs=1",
+                                        "hwlat:0:gapCount:lower:abs=1"}),
+                               false);
+  if (!answer.has_value()) {
+    std::printf("  %s\n", answer.error().c_str());
+    fail("the detector name reads the tracer record of the pre-check "
+         "(FR-028)");
+    return;
+  }
+  if (answer->entries.size() != 2) {
+    fail("the two detector rules answer one row each (FR-002)");
+    return;
+  }
+  check(answer->entries[0].state == sg::CompareState::REGRESSED
+            && answersValue(answer->entries[0].baseline, 250.0)
+            && answersValue(answer->entries[0].contender, 400.0),
+        "the largest gap of the tracer cpus rides the row of `any` (FR-028, "
+        "D-11)");
+  check(answer->entries[1].state == sg::CompareState::OK
+            && answersValue(answer->entries[1].baseline, 3.0)
+            && answersValue(answer->entries[1].contender, 3.0),
+        "the named tracer cpu answers its own gap count (FR-028)");
+  check(!answer->passed,
+        "a detector figure past the bound fails the verdict (FR-028, FR-044)");
+}
+
+// specs/048 FR-028, specs/027 FR-032: a cpu the tracer record does not
+// carry, and a report that carries no tracer record, are the standing
+// absence shape: one fault naming the rule and the report it looked in.
+auto aDetectorNameTheTracerRecordLacksFaults() -> void
+{
+  const auto baseline =
+      withTracer(makeReport({measured("bmGate", 100.0)}),
+                 {tracerCpu(0, 100, 3, 1), tracerCpu(1, 250, 7, 2)});
+  const auto absentCpu = compared(
+      baseline, baseline, rulesOf({"hwlat:9:nmiCount:lower:abs=1"}), false);
+  check(!absentCpu.has_value()
+            && faultNames(absentCpu.error(),
+                          "hwlat:9:nmiCount:lower:abs=1",
+                          "names cpu 9")
+            && faultNames(absentCpu.error(),
+                          "hwlat:9:nmiCount:lower:abs=1",
+                          "baseline report does not carry it"),
+        "a tracer cpu the record does not carry faults with the cpu and the "
+        "report (FR-028, FR-032)");
+  const auto plain = makeReport({measured("bmGate", 100.0)});
+  const auto noRecord = compared(
+      baseline, plain, rulesOf({"hwlat:any:maxGapNs:lower:abs=1"}), false);
+  check(!noRecord.has_value()
+            && faultNames(noRecord.error(),
+                          "hwlat:any:maxGapNs:lower:abs=1",
+                          "contender report carries no tracer record"),
+        "a report that carries no tracer record faults with the rule and the "
+        "report (FR-028, FR-032)");
+}
+
+// specs/048 FR-027, FR-028, contracts/rule-names.md: a tracer cpu whose
+// buffer held no detector line carries no figure, and the comparison reads 0
+// for it, the standing rule of a fold that carries no value. The run gains no
+// status for an absent figure, so each row below answers a value where the
+// standing missing-value shape would have answered a fault line.
+auto anAbsentDetectorFigureReadsZero() -> void
+{
+  const auto baseline =
+      withTracer(makeReport({measured("bmGate", 100.0)}),
+                 {tracerCpu(0, 100, 3, 1), tracerCpu(1, 250, 7, 2)});
+  const auto contender =
+      withTracer(makeReport({measured("bmGate", 100.0)}),
+                 {tracerCpu(0, {}, 3, 1), tracerCpu(1, {}, 7, 2)});
+  const auto named = compared(
+      baseline, contender, rulesOf({"hwlat:0:maxGapNs:lower:abs=1"}), false);
+  check(named.has_value() && named->entries.size() == 1
+            && answersValue(named->entries[0].baseline, 100.0)
+            && answersValue(named->entries[0].contender, 0.0),
+        "a named tracer cpu whose figure stands absent reads 0 (FR-027, FR-028)");
+  const auto worst = compared(
+      baseline, contender, rulesOf({"hwlat:any:maxGapNs:higher:abs=1"}), false);
+  check(worst.has_value() && worst->entries.size() == 1
+            && answersValue(worst->entries[0].baseline, 250.0)
+            && answersValue(worst->entries[0].contender, 0.0),
+        "the largest figure of a report whose cpus carry none reads 0, and the "
+        "run gains no status (FR-027, FR-028)");
+  const auto gapCount = compared(
+      baseline, contender, rulesOf({"hwlat:any:gapCount:lower:abs=1"}), false);
+  check(gapCount.has_value() && gapCount->entries.size() == 1
+            && answersValue(gapCount->entries[0].contender, 7.0),
+        "a figure the same cpus do carry reaches the row beside the absent "
+        "one (FR-027, FR-028)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -2974,6 +3344,15 @@ auto main() -> int
   theBatchFilterDropsAndMovesTheLists();
   theTablePrintsTheShapesNoFixtureCarries();
   thePassDisclosureStaysOutOfTheComparison();
+  theThreeAttributionNamesResolve();
+  theThreeAttributionNamesReadTheFolds();
+  theRunScopedAttributionNameReadsTheRunRecord();
+  anAbsentAttributionFigureReadsZero();
+  theWorstCpuAnswersTheLargestAttributionFigure();
+  theThreeDetectorNamesResolve();
+  theDetectorRuleReadsTheTracerRecord();
+  aDetectorNameTheTracerRecordLacksFaults();
+  anAbsentDetectorFigureReadsZero();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;

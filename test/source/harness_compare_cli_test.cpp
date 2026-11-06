@@ -101,6 +101,14 @@ constexpr const char* kPartialDocument =
 constexpr const char* kTreelessDocument =
     "harness_compare_cli_topdown_treeless.json";
 
+// One path per document of the detector cases, for the same reason: the
+// document whose tracer record carries the smaller gap, and the document
+// whose tracer record carries the larger one (T032, specs/048 FR-028).
+constexpr const char* kTracerBaseDocument =
+    "harness_compare_cli_tracer_base.json";
+constexpr const char* kTracerMoveDocument =
+    "harness_compare_cli_tracer_move.json";
+
 // One path per rules file, for the same reason (T051, FR-061, FR-062,
 // FR-063, FR-064, FR-065).
 constexpr const char* kThreeRuleFile = "harness_compare_cli_three_rules.txt";
@@ -1504,6 +1512,132 @@ auto aRuleOverATreelessReportAnswersOneLine() -> void
                 "for bmTopdownGate in the contender report"});
 }
 
+// The benchmark of the two detector documents, named so the pair matches
+// by its whole name (specs/048 FR-028).
+constexpr const char* kTracerBenchmark = "bmHwlatGate";
+
+// The rule of the detector cases: the largest gap of the tracer cpus,
+// bound one nanosecond (specs/048 FR-028).
+constexpr const char* kTracerRule =
+    "--compare-rule=hwlat:any:maxGapNs:lower:abs=1";
+
+// One document of the detector cases: one benchmark the pair matches, and
+// the tracer record of a detector run that read one gap per tracer cpu.
+// `maxGapNs` carries the figure of each cpu in ascending order, and the
+// figure `std::nullopt` stands for a cpu whose buffer held no detector
+// line (T032, specs/048 FR-027, FR-028).
+auto writeTracerDocument(
+    const char* path,
+    const std::vector<std::optional<std::uint64_t>>& maxGapNs) -> void
+{
+  sg::BenchmarkResult result;
+  result.name = kTracerBenchmark;
+  result.suite = kTracerBenchmark;
+  result.caseName = kTracerBenchmark;
+  result.outcome = sg::RunOutcome::MEASURED;
+  auto& row = result.rows.emplace_back();
+  row.kind = sg::RowKind::REPETITION;
+  row.timePerIterationNs = 1000.0;
+  row.cpuTimePerIterationNs = 1000.0;
+
+  sg::PrecheckTracerRecord tracer;
+  tracer.engine = "hwlat";
+  for (std::size_t index = 0; index < maxGapNs.size(); ++index) {
+    auto& cpu = tracer.cpus.emplace_back();
+    cpu.cpu = static_cast<std::uint32_t>(index);
+    cpu.maxGapNs = maxGapNs[index];
+    cpu.gapCount = 3U;
+    cpu.nmiCount = 1U;
+  }
+  sg::PrecheckRecord record;
+  record.tracer = std::move(tracer);
+
+  sg::ReportData data;
+  data.results.push_back(std::move(result));
+  data.rowRaw.push_back({});
+  data.contextRaw.push_back({});
+  // The writer takes the pre-check record beside the results, the shape the
+  // run path hands it (specs/034 FR-024).
+  check(sg::detail::writeReport(path, data, {}, std::nullopt, record),
+        "the writer wrote the document of the detector case");
+}
+
+// T032, specs/048 FR-028, FR-053: a detector rule reads the tracer record
+// the two documents carry. The largest gap of the tracer cpus moves from
+// 2000 to 5000, so the row answers REGRESSED, the verdict answers status
+// 1, and no fault line stands.
+auto aDetectorRuleReadsTheWrittenDocuments() -> void
+{
+  writeTracerDocument(kTracerBaseDocument, {1000, 2000});
+  writeTracerDocument(kTracerMoveDocument, {1000, 5000});
+  const ModeRun run = runMode({kTracerRule,
+                               std::string("--compare=") + kTracerBaseDocument
+                                   + "," + kTracerMoveDocument});
+
+  check(run.status == 1,
+        "a detector figure past the bound answers status 1 (FR-028, SC-004)");
+  if (!containsAll(run.out,
+                   {kTracerBenchmark, "hwlat:any:maxGapNs", "REGRESSED"}))
+  {
+    dump("the detector rule over two tracer documents", run);
+  }
+  check(containsAll(run.out, {kTracerBenchmark, "hwlat:any:maxGapNs", "REGRESSED"}),
+        "the row carries the detector rule and the regressed state word "
+        "(FR-028, FR-053)");
+  check(run.err.empty(),
+        "the pair of tracer documents prints no fault (FR-051)");
+}
+
+// T032, specs/048 FR-028, FR-051: a figure outside the three the head
+// carries is the parse fault of the option, printed where the option
+// reads. One line names the rule and the three figures, the status is 2,
+// and no table stands.
+auto aRuleNamingAnUnknownDetectorFigureAnswersOneLine(const std::string& data)
+    -> void
+{
+  const ModeRun run = runMode({"--compare-rule=hwlat:any:gapCounts:lower:abs=5",
+                               "--compare=" + data + "/gate_ok_base.json,"
+                                   + data + "/gate_ok_contender.json"});
+
+  oneFaultLine(run,
+               "the rule naming a detector figure outside the three",
+               {"'hwlat:any:gapCounts:lower:abs=5'",
+                "names none of the three hwlat figures"});
+}
+
+// T032, specs/027 FR-038, specs/048 FR-028: the standing refusal of a
+// field outside the jitter table reads over the grown table, one line at
+// status 2, the words the 35 rows print.
+auto aRuleNamingAFieldOutsideTheGrownTableAnswersOneLine(
+    const std::string& data) -> void
+{
+  const ModeRun run = runMode({"--compare-rule=jitter:any:madeUpNs:lower:abs=1",
+                               "--compare=" + data + "/gate_ok_base.json,"
+                                   + data + "/gate_ok_contender.json"});
+
+  oneFaultLine(run,
+               "the rule naming a field outside the 35 jitter fields",
+               {"'jitter:any:madeUpNs:lower:abs=1'",
+                "names none of the thirty-five jitter fields"});
+}
+
+// T032, specs/048 FR-028, specs/027 FR-032: a detector rule over a pair
+// whose documents carry no tracer record stops where the value reads. One
+// line names the rule and the report it looked in, the status is 2, and no
+// table stands.
+auto aDetectorRuleOverAReportWithNoTracerRecordAnswersOneLine(
+    const std::string& data) -> void
+{
+  const ModeRun run = runMode({kTracerRule,
+                               "--compare=" + data + "/gate_ok_base.json,"
+                                   + data + "/gate_ok_contender.json"});
+
+  oneFaultLine(run,
+               "the detector rule over a report with no tracer record",
+               {"'hwlat:any:maxGapNs:lower:abs=1'",
+                "baseline report carries no tracer record"});
+}
+
 auto bmNeverRuns(sg::State& state) -> void
 {
   for (auto _ : state) {
@@ -1561,6 +1695,10 @@ auto main(const int argc, char** argv) -> int
   aForgedSchemaVersionPrintsNoRawLine(data);
   aRuleNamingAnAbsentNodeAnswersOneLine();
   aRuleOverATreelessReportAnswersOneLine();
+  aDetectorRuleReadsTheWrittenDocuments();
+  aRuleNamingAnUnknownDetectorFigureAnswersOneLine(data);
+  aRuleNamingAFieldOutsideTheGrownTableAnswersOneLine(data);
+  aDetectorRuleOverAReportWithNoTracerRecordAnswersOneLine(data);
 
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
