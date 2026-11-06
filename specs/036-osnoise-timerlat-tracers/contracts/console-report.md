@@ -13,6 +13,7 @@ standing file in the commit that lands the code (spec FR-024).
 ```text
 [after the host-settings lines, before the warning lines]
   tracer: engine <word> cpus <list>
+  tracer: windowUs=<us> widthUs=<us> thresholdUs=<us>   [the hwlat engine alone]
   tracer cpu <n> nmi: <figure>
   tracer cpu <n> irq: <figure>
   tracer cpu <n> softirq: <figure>
@@ -20,6 +21,9 @@ standing file in the commit that lands the code (spec FR-024).
   tracer cpu <n> hardware: <figure>
       [one line per source per tracer cpu, the sources in the NMI,
        IRQ, softirq, thread, hardware order, cpus ascending]
+  tracer cpu <n> maxGapNs: <figure>          [the three detector figures of the
+  tracer cpu <n> gapCount: <figure>           hwlat engine, one set per tracer
+  tracer cpu <n> nmiCount: <figure>           cpu, after the standing five]
 [the not-available case]
   tracer: not available
 ```
@@ -31,6 +35,12 @@ standing file in the commit that lands the code (spec FR-024).
 - One figure line stands per source per tracer cpu, the sources in the
   NMI, IRQ, softirq, thread, hardware order, cpus ascending (spec
   FR-013).
+- The settings line and the three detector figure lines stand for the
+  `hwlat` engine alone, so `osnoise` and `timerlat` print the bytes
+  they printed before (specs/048 FR-020, FR-027). The detector labels
+  stand the JSON key names, and a detector figure whose buffer holds
+  no line prints the standing `not available` wording (specs/048
+  FR-027).
 - A figure the engine states nothing for prints the standing
   `not available` wording in the figure position, for that source
   alone (spec FR-010, the standing rule of specs/034).

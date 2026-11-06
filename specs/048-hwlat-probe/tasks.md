@@ -649,36 +649,36 @@ the ABI move.
 describes (FR-039). This phase lands in wave W3, ahead of the docs phase
 that quotes the same words.
 
-- [ ] T064 [P] Move the method-word rows in
+- [X] T064 [P] Move the method-word rows in
   `specs/027-jitter-probe/contracts/cli-options.md`: the grammar names
   four words, the word row names `hwlat`, and the error row reads `A
   method word outside the four` (FR-002, FR-005, FR-039) (depends on
   T047). Verify: `grep -c "outside the four" specs/027-jitter-probe/contracts/cli-options.md` counts one line
-- [ ] T065 [P] Move the engine-word rows in
+- [X] T065 [P] Move the engine-word rows in
   `specs/036-osnoise-timerlat-tracers/contracts/cli-options.md`: the
   grammar names three words, the word row names `hwlat`, the error row
   reads `An engine word outside the three`, and the restore row records
   the partial-setup fix the shared lifecycle gains (FR-003, FR-018,
   FR-021, FR-039, D-15) (depends on T031). Verify: `grep -c "outside the three" specs/036-osnoise-timerlat-tracers/contracts/cli-options.md` counts one line
-- [ ] T066 [P] Move the report rows in
+- [X] T066 [P] Move the report rows in
   `specs/027-jitter-probe/contracts/report-json.md` and
   `specs/034-host-noise-precheck/contracts/report-json.md`: the stats
   items carry the nineteen names of `JitterStats` and the gap item
   carries the `smi` mark (FR-025, FR-026, FR-039) (depends on T040,
   T043). Verify: `grep -c "nineteen" specs/027-jitter-probe/contracts/report-json.md` counts at least two lines and `grep -c "nineteen" specs/034-host-noise-precheck/contracts/report-json.md` counts at least one line
-- [ ] T067 [P] Move the tracer rows in
+- [X] T067 [P] Move the tracer rows in
   `specs/036-osnoise-timerlat-tracers/contracts/report-json.md`: the
   engine kind names `hwlat`, three settings rows join above the `cpus`
   row, and three figure rows join below the `hardware` row (FR-027,
   FR-039) (depends on T040). Verify: `grep -c "windowUs" specs/036-osnoise-timerlat-tracers/contracts/report-json.md` counts at least one line
-- [ ] T068 [P] Move the console rows in
+- [X] T068 [P] Move the console rows in
   `specs/034-host-noise-precheck/contracts/console-report.md` and
   `specs/036-osnoise-timerlat-tracers/contracts/console-report.md`: the
   field names are the nineteen the console probe block uses, three
   `hwlat` lines follow the per-cpu attribution group, and three figure
   lines follow the standing `hardware` line (FR-016, FR-027, FR-039)
   (depends on T043). Verify: `grep -c "nineteen" specs/034-host-noise-precheck/contracts/console-report.md` counts at least two lines
-- [ ] T069 [P] Move the rule rows in
+- [X] T069 [P] Move the rule rows in
   `specs/027-jitter-probe/contracts/rule-names.md` and
   `specs/026-regression-gate/contracts/rule-parse.md`: the field row
   names the 35 names, the refusal reads `names none of the thirty-five

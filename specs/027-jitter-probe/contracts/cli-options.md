@@ -20,7 +20,7 @@ value in the option table is unique (FR-011).
 ## Value grammar
 
 ```text
---jitter-probe=<cpu-list|idle>[,threshold=<ns>][,mode=alongside|precheck|both][,precheck=<ms>|serial][,gaps=<n>][,strict][,method=tsc|fwq|ftq][,quantum=<us>][,work=<n>][,noise=<percent>]
+--jitter-probe=<cpu-list|idle>[,threshold=<ns>][,mode=alongside|precheck|both][,precheck=<ms>|serial][,gaps=<n>][,strict][,method=tsc|fwq|ftq|hwlat][,quantum=<us>][,work=<n>][,noise=<percent>]
 ```
 
 | Part | Meaning | Default | Requirement |
@@ -32,7 +32,7 @@ value in the option table is unique (FR-011).
 | `precheck=serial` | the word `serial`: the pre-check runs one measured cpu per window, ascending cpu order, the planned cpus before the candidates (specs/034 FR-002, D-2) | absent: all measured cpus run in one window | specs/034 FR-009 |
 | `gaps=<n>` | the gap buffer size per probe cpu, 1 to 16,777,216 | 65,536 | FR-009 |
 | `strict` | a flag: an unavailable TSC stops the run | absent: an unavailable TSC is disclosed and the run continues | FR-037 |
-| `method=` | `tsc`, `fwq`, or `ftq`: one method per run, the words the value takes | `tsc` | specs/043 FR-001, FR-002, D-1 |
+| `method=` | `tsc`, `fwq`, `ftq`, or `hwlat`: one method per run, the words the value takes | `tsc` | specs/043 FR-001, FR-002, D-1, specs/048 FR-002, D-1 |
 | `quantum=<us>` | the FTQ quantum in microseconds, 10 to 100,000 | 100 us | specs/043 FR-002, FR-015, D-4 |
 | `work=<n>` | the FWQ work count of one unit, 1 to 16,777,216 | 0: the calibration measures the count on the probe cpu | specs/043 FR-002, FR-010, D-2 |
 | `noise=<percent>` | the noise percent at which a strict run refuses, 0 to 100, a whole number | 1 | specs/043 FR-002, FR-021, D-9 |
@@ -94,7 +94,7 @@ and exits with status 2, before the first run starts (FR-038, SC-002):
 | An overlap in `alongside` mode or in the alongside phase of `both`: a probe cpu that is a planned cpu of a benchmark context, or an SMT sibling of one | the cpu and the benchmark | 2 |
 | An unpinned benchmark whose affinity mask the probe cpus empty | the benchmark | 2 |
 | The `machine/tsc` leaf missing, with `strict` | the availability fact | 2 |
-| A method word outside the three | the word | 2 |
+| A method word outside the four | the word | 2 |
 | `quantum=0`, a value outside 10 to 100,000, a value that is not a number | the value | 2 |
 | `work=0`, a value above 16,777,216, a value that is not a number | the value | 2 |
 | `noise=` a value outside 0 to 100, a value that is not a number | the value | 2 |

@@ -28,12 +28,12 @@ value moves, and the name and value uniqueness tests carry the row
 ## Value grammar
 
 ```text
---os-noise=osnoise|timerlat[,cpus=<cpu-list>]
+--os-noise=osnoise|timerlat|hwlat[,cpus=<cpu-list>]
 ```
 
 | Part | Meaning | Default | Requirement |
 | --- | --- | --- | --- |
-| `osnoise\|timerlat` | the engine word, one of the two the kernel's tracing tree carries | none: the value names an engine | specs/036 FR-002, D-4 |
+| `osnoise\|timerlat\|hwlat` | the engine word, one of the three the kernel's tracing tree carries | none: the value names an engine | specs/036 FR-002, D-4, specs/048 FR-018, D-2 |
 | `cpus=<cpu-list>` | one or more cpu indexes or closed `a-b` ranges, comma separated, the form the `--topology` listing prints, no cpu standing twice; every cpu stands inside the process affinity mask and the online set, the standing reader rules | absent: the pre-check's candidate set, one cpu per L3 group the plans touch | specs/036 FR-008, D-2 |
 
 Each key stands once in a value; a second occurrence of one key stands
@@ -68,7 +68,7 @@ SC-003):
 
 | Case | The line names | Status |
 | --- | --- | --- |
-| An engine word outside the two | the word | 2 |
+| An engine word outside the three | the word | 2 |
 | A `cpus` value that is no cpu index or range, or a cpu outside the process affinity mask, or a cpu the online cpu set does not hold | the token | 2 |
 | A cpu that stands twice in one `cpus` list | the index and the whole value | 2 |
 | A key repeated in one value | the key | 2 |
@@ -92,6 +92,7 @@ probe, so it refuses the same way (research.md R-9).
 | Case | Behavior |
 | --- | --- |
 | No tracefs mount at the standing path, no tracer engine, or no rights for the setup writes | the tracer lines print the standing `not available` disclosure, the user-space pre-check stands whole, and the run exits 0 (spec FR-016, D-5) |
+| A setup write fails after an earlier write stood | the lifecycle writes back each file the run wrote, in the reverse of the write order, the tracer lines print the standing `not available` disclosure, and the run exits 0 (specs/048 FR-021, FR-022, D-15, P-9) |
 | A tracer cpu whose count files state nothing at read time | that cpu's figure lines print the `not available` wording for the missing sources alone (spec Edge Cases) |
 | A source the engine states no figure for | the same per-source disclosure (spec FR-010) |
 

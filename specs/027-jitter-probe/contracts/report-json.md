@@ -36,12 +36,13 @@ E-07 states (FR-037).
 | `mode` | string, one of `ALONGSIDE`, `PRECHECK`, `BOTH` | the mode the run used, the words the `JitterProbeMode` enumerators name | FR-026, R-10 |
 | `thresholdNs` | integer | the effective threshold in ns | FR-007, FR-026 |
 | `loopPeriodNs` | integer | the minimum loop period the probe measured | FR-007, FR-026 |
-| `method` | string, one of `FWQ`, `FTQ`, `TSC` | the method the run measured, the words the `JitterMethod` enumerators name | specs/043 FR-006, FR-019 |
+| `method` | string, one of `FWQ`, `FTQ`, `HWLAT`, `TSC` | the method the run measured, the words the `JitterMethod` enumerators name | specs/043 FR-006, FR-019, specs/048 FR-004 |
 | `series` | array of objects | one closed item per probe cpu, ascending, the 21 keys of the E-22 order | specs/043 FR-006, FR-020 |
 | `cpus` | array of integer | the probe cpu indexes, ascending | FR-026 |
-| `stats` | array of objects | one object per probe cpu: `cpu` and the sixteen fields of `JitterStats` in the E-03 order | FR-002, FR-026 |
+| `stats` | array of objects | one object per probe cpu: `cpu` and the nineteen names of `JitterStats` in the E-03 order, the last three written for the `hwlat` method alone | FR-002, FR-026, specs/048 FR-025 |
 | `droppedGaps` | integer | the gaps the buffers dropped, summed over the probe cpus | FR-010, D-6, FR-026 |
 | `disclosure` | string | the disclosure text of the run, the record data-model.md E-09 canonically carries | FR-025, D-8, FR-026 |
+| `limits` | string | the one limit of the `hwlat` method, the sentence the console states beside the run's disclosures; no other method writes the key | specs/048 FR-030, FR-031 |
 
 The `disclosure` text carries the facts FR-025 lists; the wording stays
 unpinned, and the schema checks the key's presence and kind.
@@ -71,7 +72,7 @@ The key joins the entry `x-order` directly after `noiseWarning`, in
 
 | State of the benchmark's windows | Value | Requirement |
 | --- | --- | --- |
-| The run carried a probe and kept gaps landed inside the windows | an object holding `stats`, one object per probe cpu over those windows: `cpu` and the sixteen fields in the E-03 order | FR-021, FR-027 |
+| The run carried a probe and kept gaps landed inside the windows | an object holding `stats`, one object per probe cpu over those windows: `cpu` and the nineteen names in the E-03 order, the last three written for the `hwlat` method alone; that fold covers one benchmark's windows and holds no window edge, so its two delta names stand `null` and its count name stands 0 | FR-021, FR-027, specs/048 FR-025 |
 | The run carried a probe and no kept gap landed inside the windows | `null` | FR-027, User Story 3 |
 | The run carried no probe | the key stands absent | FR-013 |
 
@@ -90,7 +91,7 @@ pass (FR-022, PC-5).
 | Rule | Requirement |
 | --- | --- |
 | No gap list appears in the document unless `--json-raw=gaps` is given. | FR-028 |
-| Under `--json-raw=gaps`, each per-cpu stats object gains `gaps`: an array of the kept records, each `{"stamp": integer, "gapNs": integer}`, the 16-byte gap record's two fields (D-6). | FR-028, D-6 |
+| Under `--json-raw=gaps`, each per-cpu stats object gains `gaps`: an array of the kept records, each `{"stamp": integer, "gapNs": integer, "smi": string or null}`, the 16-byte gap record's two fields and the `smi` mark of the `hwlat` method, one of `SMI` or `NOT_SMI` and `null` where that cpu's SMI count stood unavailable (D-6, specs/048 FR-026). | FR-028, D-6, specs/048 FR-026 |
 | The list holds only the kept gaps; the gaps the buffer dropped carry no stamps the split can place, and `droppedGaps` counts them (D-6). | FR-010 |
 
 ## Schema deltas (`docs/schema/report-v1.json`)
@@ -100,7 +101,7 @@ pass (FR-022, PC-5).
 | Root `x-order` | `jitter` between `speedgun` and `benchmarks`; in `properties`, out of `required` | FR-026, R-09 |
 | Root `jitter` schema | `x-order` `mode`, `thresholdNs`, `loopPeriodNs`, `cpus`, `stats`, `droppedGaps`, `disclosure`; a closed three-word enum on `mode`; `additionalProperties: false` | FR-026 |
 | Entry `x-order` | `jitter` after `noiseWarning`; in `properties`, out of `required`; kind `["object", "null"]` | FR-027, R-09 |
-| Per-cpu stats object schema | `cpu` plus the sixteen fields in the E-03 order, integer or real per the `JitterStats` kinds; `additionalProperties: false`; the `gaps` array allowed only under `--json-raw=gaps` | FR-002, FR-028 |
+| Per-cpu stats object schema | `cpu` plus the nineteen names in the E-03 order, integer or real per the `JitterStats` kinds, the last three written for the `hwlat` method alone, beside the `smi` name of the `gaps` item; `additionalProperties: false`; the `gaps` array allowed only under `--json-raw=gaps` | FR-002, FR-028, specs/048 FR-025, FR-026 |
 | Root `jitter` keys | `method` and `series` in `x-order` after `loopPeriodNs`, in `properties`, out of `required`; `additionalProperties` stays `false` | specs/043 FR-006, R-16 |
 | `series` item schema | the 21 keys in the E-22 order in `x-order`; `required` of 19 names omitting `quantumNs` and `resampleStepNs`; `additionalProperties: false`; a closed `periods` item of `periodNs` and `powerRatio` | specs/043 FR-006, FR-018, R-16 |
 | Stamped minor | the writer stamps `1.12`, the minor the series record moves; the reader accepts every 1.x, so the check runs against the schema at the stamped minor | specs/043 FR-005, SC-009 |

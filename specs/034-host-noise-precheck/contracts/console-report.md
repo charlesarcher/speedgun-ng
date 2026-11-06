@@ -1,14 +1,16 @@
 # Contract: the pre-check console block
 
 Phase 1 output. The block `printPrecheckReport` prints before the
-benchmark tables (spec FR-023, D-8). The field names are the sixteen
+benchmark tables (spec FR-023, D-8). The field names are the nineteen
 the console probe block uses
 (`specs/027-jitter-probe` E-03: `gapCount`, `gapsPerSecond`,
 `minNs`, `medianNs`, `meanNs`, `p90Ns`, `p99Ns`, `p999Ns`,
 `p9999Ns`, `maxNs`, `totalNs`, `totalPercent`, `runtimeNs`,
-`thresholdNs`, `loopPeriodNs`, `droppedGaps`). The wording of the
-message lines stays unpinned; the tests assert the presence, the
-order and the named figures.
+`thresholdNs`, `loopPeriodNs`, `droppedGaps`, `smiDelta`, `nmiDelta`,
+`smiGapCount`). The block prints the sixteen gap names as stats lines,
+and the three detector figures as attribution lines of a `hwlat` run
+(specs/048 FR-016). The wording of the message lines stays unpinned;
+the tests assert the presence, the order and the named figures.
 
 ## Block order
 
@@ -19,6 +21,9 @@ order and the named figures.
   interrupts delta: <figure> (source: /proc/interrupts)
   softirq <kind> delta: <figure> (source: /proc/softirqs)   [per kind]
   switch delta: <figure>, schedule delta: <figure> (source: /proc/schedstat)
+  smi delta: <figure> (source: /dev/cpu/<n>/msr)          [specs/048, per measured
+  nmi delta: <figure> (source: /proc/interrupts)           cpu of a `hwlat` run; the
+  smi gaps: <count>                                        count names no source]
 [once]
   host settings: isolcpus=<...> nohz_full=<...> rcu_nocbs=<...>
   governor: cpu <n> <name> ... (source: /sys .../scaling_governor)
@@ -69,15 +74,21 @@ for it (specs/043 FR-031, SC-004). The order:
 3. `period1Ns` through `period5Ns`, then `period1Power` through
    `period5Power`.
 
-The console spells the method `tsc`, `fwq` and `ftq`, the words the
-value takes, and the JSON spells it `TSC`, `FWQ` and `FTQ` (specs/043
-FR-019). A rank a cpu does not carry prints 0, and the drop count
-stands disclosed for every method (specs/043 FR-019, FR-022).
+The console spells the method `tsc`, `fwq`, `ftq` and `hwlat`, the
+words the value takes, and the JSON spells it `TSC`, `FWQ`, `FTQ` and
+`HWLAT` (specs/043 FR-019, specs/048 FR-002, FR-004). A rank a cpu
+does not carry prints 0, and the drop count stands disclosed for every
+method (specs/043 FR-019, FR-022).
 
 ## Rules
 
 - The attribution lines stand beside the gap figures in each cpu
   block, each figure naming its source (spec FR-016).
+- The field group carries the nineteen names of the console probe
+  block in two shapes: the sixteen gap names stand as stats lines, and
+  the three detector figures stand as attribution lines of a `hwlat`
+  run, the two delta lines naming their file and the count naming none
+  (specs/048 FR-016).
 - A source that is missing, unreadable or unparsable prints the
   `not available` wording for that source alone; the block never
   fails the run on it (spec FR-018, AC-b2).

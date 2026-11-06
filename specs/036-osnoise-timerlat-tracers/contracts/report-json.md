@@ -31,7 +31,10 @@ the document carries, and a closed object refuses a key the
 
 | Key | Kind | Meaning |
 | --- | --- | --- |
-| `engine` | string, enum `osnoise` or `timerlat` | the engine word the value named |
+| `engine` | string, enum `osnoise`, `timerlat` or `hwlat` | the engine word the value named (spec FR-002, specs/048 FR-018) |
+| `windowUs` | integer | the detector window in microseconds the run wrote; the `hwlat` engine writes it, and no other engine carries the key (specs/048 FR-020, FR-027) |
+| `widthUs` | integer | the detector width in microseconds the run wrote; the `hwlat` engine writes it, and no other engine carries the key (specs/048 FR-020, FR-027) |
+| `thresholdUs` | integer | the detector threshold in microseconds the run wrote; the `hwlat` engine writes it, and no other engine carries the key (specs/048 FR-020, FR-027) |
 | `cpus` | array | one entry per tracer cpu, ascending |
 
 ## A `cpus` entry
@@ -44,6 +47,9 @@ the document carries, and a closed object refuses a key the
 | `softirq` | integer or `null` | the softirq noise count |
 | `thread` | integer or `null` | the thread noise count |
 | `hardware` | integer or `null` | the hardware noise count, the source the kernel's files word `hw` |
+| `maxGapNs` | integer or `null` | the longer of the two figures of the detector's sample lines, in nanoseconds; the `hwlat` engine alone (specs/048 FR-027) |
+| `gapCount` | integer or `null` | the count of the detector sample lines of that cpu; the `hwlat` engine alone (specs/048 FR-027) |
+| `nmiCount` | integer or `null` | the sum of the `nmi-count` values of that cpu's lines, 0 where no line of that cpu carries the token; the `hwlat` engine alone (specs/048 FR-027) |
 
 The figures stand the engine's cumulative totals since the tracer's
 start, read once after the measurement ends (spec FR-009). A count of
@@ -51,8 +57,11 @@ zero stands a figure like any other; `null` stands only for a source
 the engine states no figure for, or a cpu whose files state nothing at
 read time, the file form of the console's `not available` (spec
 FR-010, the Edge Cases, the standing shape of the `attribution`
-object). The record names cpus alone, and the CCD mapping stands in
-the acceptance evidence (spec FR-014, D-7).
+object). The three detector figures ride the detector's own sample
+lines of that cpu's buffer, and `null` stands for a cpu whose buffer
+holds no detector line (specs/048 FR-027). The record names cpus
+alone, and the CCD mapping stands in the acceptance evidence (spec
+FR-014, D-7).
 
 ## Rules
 

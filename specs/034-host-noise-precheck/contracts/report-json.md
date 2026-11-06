@@ -34,7 +34,7 @@ order with the new member in place.
 | --- | --- | --- |
 | `cpu` | integer | the cpu index |
 | `role` | string | `planned` or `candidate` |
-| `stats` | object | the sixteen standing stats fields of the console probe block, same names, same kinds as the `jitter` stats object of specs/027 |
+| `stats` | object | the nineteen standing stats fields of the console probe block, same names, same kinds as the `jitter` stats object of specs/027; the last three stand written for the `hwlat` method alone (specs/048 FR-025) |
 | `attribution` | object | the window deltas, each figure carrying its source name |
 
 ## The `attribution` object
@@ -70,14 +70,17 @@ R-11).
 
 | Key | Kind | Meaning |
 | --- | --- | --- |
-| `engine` | string, enum `osnoise` or `timerlat` | the engine word the value named |
+| `engine` | string, enum `osnoise`, `timerlat` or `hwlat` | the engine word the value named (specs/036 FR-002, specs/048 FR-018) |
 | `cpus` | array | one entry per tracer cpu, ascending |
 
 A `cpus` entry carries `cpu` (integer) then `nmi`, `irq`,
 `softirq`, `thread` and `hardware` (each integer or `null`), the
 cumulative figures the engine's count files state; `null` stands
 only for a source the engine states no figure for, or a cpu whose
-files state nothing at read time (specs/036 FR-010, FR-014).
+files state nothing at read time (specs/036 FR-010, FR-014). The
+`hwlat` engine adds `windowUs`, `widthUs` and `thresholdUs` to the
+`tracer` object, and `maxGapNs`, `gapCount` and `nmiCount` to each
+entry, each integer or `null` (specs/048 FR-027).
 
 - A run that requests no tracer, and a run whose tracer stands not
   available, write no `tracer` key: the document stands
