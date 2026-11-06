@@ -1638,6 +1638,66 @@ auto aDetectorRuleOverAReportWithNoTracerRecordAnswersOneLine(
                 "baseline report carries no tracer record"});
 }
 
+// T079 (FR-038, SC-002): the two refusals of the detector head that stand
+// outside the three figures and the cpu token, each beside the control of a
+// readable name of the same head over the same pair.
+
+// The control of the two refusals below: the head with a figure the grammar
+// reads answers one row of the pair of tracer documents, so a name that reads
+// nothing clears neither refusal (FR-028, FR-051).
+auto readableDetectorNameAnswersOneRow(const std::string& rule) -> void
+{
+  writeTracerDocument(kTracerBaseDocument, {1000, 2000});
+  writeTracerDocument(kTracerMoveDocument, {1000, 5000});
+  const ModeRun run = runMode({"--compare-rule=" + rule,
+                               "--compare=" + std::string(kTracerBaseDocument)
+                                   + "," + kTracerMoveDocument});
+
+  check(
+      run.err.empty(),
+      "the readable detector name of the head prints no fault (T079, FR-051)");
+  check(run.status == 0,
+        "the readable detector name of the head answers the standing verdict "
+        "(T079, FR-028, SC-004)");
+  check(
+      containsAll(run.out, {kTracerBenchmark, "hwlat:", "OK"}),
+      "the readable detector name of the head answers one row (T079, FR-028)");
+}
+
+// T079, specs/048 FR-028, FR-051: a cpu token of all digits that stands past
+// the range an index holds is outside the grammar of the head. One line names
+// the rule and the token, the status is 2, and no table stands.
+auto aRuleNamingAnIndexPastTheRangeOfAnCpuAnswersOneLine(
+    const std::string& data) -> void
+{
+  const ModeRun run =
+      runMode({"--compare-rule=hwlat:99999999999999999999:nmiCount:lower:abs=1",
+               "--compare=" + data + "/gate_ok_base.json," + data
+                   + "/gate_ok_contender.json"});
+
+  oneFaultLine(run,
+               "the rule naming an index past the range an cpu index holds",
+               {"'hwlat:99999999999999999999:nmiCount:lower:abs=1'",
+                "'99999999999999999999' is neither an index nor 'any'"});
+  readableDetectorNameAnswersOneRow("hwlat:any:nmiCount:lower:abs=1");
+}
+
+// T079, specs/048 FR-028, FR-051: a detector name that stops after its cpu
+// token carries no figure to read. One line names the rule and the field that
+// stands missing, the status is 2, and no table stands.
+auto aRuleNamingNoFigureAfterItsCpuAnswersOneLine(const std::string& data)
+    -> void
+{
+  const ModeRun run = runMode({"--compare-rule=hwlat:2",
+                               "--compare=" + data + "/gate_ok_base.json,"
+                                   + data + "/gate_ok_contender.json"});
+
+  oneFaultLine(run,
+               "the rule whose detector name carries no figure",
+               {"'hwlat:2'", "the name carries no field"});
+  readableDetectorNameAnswersOneRow("hwlat:0:nmiCount:lower:abs=1");
+}
+
 auto bmNeverRuns(sg::State& state) -> void
 {
   for (auto _ : state) {
@@ -1699,6 +1759,8 @@ auto main(const int argc, char** argv) -> int
   aRuleNamingAnUnknownDetectorFigureAnswersOneLine(data);
   aRuleNamingAFieldOutsideTheGrownTableAnswersOneLine(data);
   aDetectorRuleOverAReportWithNoTracerRecordAnswersOneLine(data);
+  aRuleNamingAnIndexPastTheRangeOfAnCpuAnswersOneLine(data);
+  aRuleNamingNoFigureAfterItsCpuAnswersOneLine(data);
 
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);

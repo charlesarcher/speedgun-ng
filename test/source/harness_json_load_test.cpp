@@ -1823,6 +1823,189 @@ auto aDocumentOfTheStandingMinorLoadsUnchanged() -> void
   std::remove(kMarkDoc);
 }
 
+// ---- T079: the eleven readers refuse a value of another kind (FR-038,
+// SC-002). Each row writes one document, reads its figures back as the
+// control, then plants one value of another kind and names the pointer the
+// refusal answers. A plant that loads, or a refusal that names no pointer,
+// fails the row, so a reader that tests no kind cannot clear it.
+
+constexpr const char* const kKindDoc = "harness_json_load_kind.json";
+
+// FR-025, FR-029: the three attribution figures of the run-level statistics
+// record. The two deltas read as the absent figure and the marked-gap count
+// reads as a count, so each carries its own kind and its own refusal.
+auto theRunStatsFiguresOfAnotherKindRefuse() -> void
+{
+  const auto jitter = detectorJitter();
+  sg::ReportData data;
+  check(sg::detail::writeReport(kKindDoc, data, {}, jitter),
+        "the writer wrote the document of the run-level statistics (T079, "
+        "FR-001)");
+  const std::string text = sg::test::readText(kKindDoc);
+  const auto control = sg::loadReport(kKindDoc);
+  const auto read = control.has_value() && control->runJitterStats.has_value()
+          && control->runJitterStats->size() == 1
+      ? &control->runJitterStats->at(0).stats
+      : nullptr;
+  check(read != nullptr && read->smiDelta.has_value() && *read->smiDelta == 1
+            && read->nmiDelta.has_value() && *read->nmiDelta == 4
+            && read->smiGapCount == 1,
+        "the document of the run-level statistics reads its three figures "
+        "(T079, FR-025)");
+  std::remove(kKindDoc);
+  const Mutation plants[] = {
+      {"\"smiDelta\":1", "\"smiDelta\":\"x\"", "/jitter/stats/0/smiDelta"},
+      {"\"nmiDelta\":4", "\"nmiDelta\":\"x\"", "/jitter/stats/0/nmiDelta"},
+      {"\"smiGapCount\":1",
+       "\"smiGapCount\":\"x\"",
+       "/jitter/stats/0/smiGapCount"},
+      {"\"smiGapCount\":1",
+       "\"smiGapCount\":null",
+       "/jitter/stats/0/smiGapCount"},
+  };
+  plantsRefuseAtTheirPointers(text, plants, "T079, FR-025, FR-029");
+}
+
+// FR-025, FR-029: the same three figures of the pre-check window, read by
+// their own reader over the standing sixteen.
+auto thePrecheckStatsFiguresOfAnotherKindRefuse() -> void
+{
+  auto jitter = detectorJitter();
+  auto record = detectorPrecheck();
+  // The writer spells the three figures of the pre-check window for the
+  // detector method, so the document carries the run's statistics beside the
+  // window. The two carriers hold figures apart, so each plant stands on its
+  // own figure (FR-025, E-08).
+  record.cpus.at(0).stats.smiDelta = 21;
+  record.cpus.at(0).stats.nmiDelta = 22;
+  record.cpus.at(0).stats.smiGapCount = 23;
+  sg::ReportData data;
+  data.precheck = record;
+  check(sg::detail::writeReport(kKindDoc, data, {}, jitter, record),
+        "the writer wrote the document of the pre-check window (T079, FR-001)");
+  const std::string text = sg::test::readText(kKindDoc);
+  const auto control = sg::loadReport(kKindDoc);
+  const auto read = control.has_value() && control->precheck.has_value()
+          && control->precheck->cpus.size() == 1
+      ? &control->precheck->cpus.at(0).stats
+      : nullptr;
+  check(read != nullptr && read->smiDelta.has_value() && *read->smiDelta == 21
+            && read->nmiDelta.has_value() && *read->nmiDelta == 22
+            && read->smiGapCount == 23,
+        "the document of the pre-check window reads its three figures (T079, "
+        "FR-025)");
+  std::remove(kKindDoc);
+  const Mutation plants[] = {
+      {"\"smiDelta\":21",
+       "\"smiDelta\":\"x\"",
+       "/precheck/cpus/0/stats/smiDelta"},
+      {"\"nmiDelta\":22",
+       "\"nmiDelta\":\"x\"",
+       "/precheck/cpus/0/stats/nmiDelta"},
+      {"\"smiGapCount\":23",
+       "\"smiGapCount\":\"x\"",
+       "/precheck/cpus/0/stats/smiGapCount"},
+      {"\"smiGapCount\":23",
+       "\"smiGapCount\":null",
+       "/precheck/cpus/0/stats/smiGapCount"},
+  };
+  plantsRefuseAtTheirPointers(text, plants, "T079, FR-025, FR-029");
+}
+
+// FR-027, FR-029: the three detector figures of one tracer cpu. A figure
+// reads as the absent figure, so a word and an object both refuse it.
+auto theTracerFiguresOfAnotherKindRefuse() -> void
+{
+  const auto record = detectorPrecheck();
+  sg::ReportData data;
+  data.precheck = record;
+  check(sg::detail::writeReport(kKindDoc, data, {}, std::nullopt, record),
+        "the writer wrote the document of the tracer record (T079, FR-001)");
+  const std::string text = sg::test::readText(kKindDoc);
+  const auto control = sg::loadReport(kKindDoc);
+  const auto read = control.has_value() && control->precheck.has_value()
+          && control->precheck->tracer.has_value()
+          && control->precheck->tracer->cpus.size() == 2
+      ? &control->precheck->tracer->cpus.at(0)
+      : nullptr;
+  check(read != nullptr && read->maxGapNs.has_value() && *read->maxGapNs == 7000
+            && read->gapCount.has_value() && *read->gapCount == 3
+            && read->nmiCount.has_value() && *read->nmiCount == 2,
+        "the tracer cpu of the written document reads its three figures "
+        "(T079, FR-027)");
+  std::remove(kKindDoc);
+  const Mutation plants[] = {
+      {"\"maxGapNs\":7000",
+       "\"maxGapNs\":\"x\"",
+       "/precheck/tracer/cpus/0/maxGapNs"},
+      {"\"gapCount\":3", "\"gapCount\":{}", "/precheck/tracer/cpus/0/gapCount"},
+      {"\"nmiCount\":2",
+       "\"nmiCount\":[1]",
+       "/precheck/tracer/cpus/0/nmiCount"},
+  };
+  plantsRefuseAtTheirPointers(text, plants, "T079, FR-027, FR-029");
+}
+
+// FR-027: the three settings of the detector head state a figure the run
+// wrote, so each refuses a word, an absent mark and an object beside its own
+// pointer.
+auto theTracerSettingsOfAnotherKindRefuse() -> void
+{
+  const auto record = detectorPrecheck();
+  sg::ReportData data;
+  data.precheck = record;
+  check(
+      sg::detail::writeReport(kKindDoc, data, {}, std::nullopt, record),
+      "the writer wrote the document of the detector settings (T079, FR-001)");
+  const std::string text = sg::test::readText(kKindDoc);
+  const auto control = sg::loadReport(kKindDoc);
+  const auto read = control.has_value() && control->precheck.has_value()
+          && control->precheck->tracer.has_value()
+      ? &*control->precheck->tracer
+      : nullptr;
+  check(read != nullptr && read->windowUs.has_value()
+            && *read->windowUs == 10000 && read->widthUs.has_value()
+            && *read->widthUs == 5000
+            && read->thresholdUs.has_value() && *read->thresholdUs == 1000,
+        "the detector head of the written document reads its three settings "
+        "(T079, FR-027)");
+  std::remove(kKindDoc);
+  const Mutation plants[] = {
+      {"\"windowUs\":10000", "\"windowUs\":\"x\"", "/precheck/tracer/windowUs"},
+      {"\"widthUs\":5000", "\"widthUs\":null", "/precheck/tracer/widthUs"},
+      {"\"thresholdUs\":1000",
+       "\"thresholdUs\":[]",
+       "/precheck/tracer/thresholdUs"},
+  };
+  plantsRefuseAtTheirPointers(text, plants, "T079, FR-027, FR-030");
+}
+
+// FR-030, FR-031: the limit text of the detector run stands beside the
+// disclosure. The reader tests its kind and keeps no record of the text, so
+// the refusal of a number is the only mark the row reads.
+auto theLimitsTextOfAnotherKindRefuses() -> void
+{
+  const auto jitter = detectorJitter();
+  sg::ReportData data;
+  check(sg::detail::writeReport(kKindDoc, data, {}, jitter),
+        "the writer wrote the document of the detector limits (T079, FR-001)");
+  const std::string text = sg::test::readText(kKindDoc);
+  const std::string limits = std::string("\"limits\":\"")
+      + std::string(sg::detail::kJitterLimitsText) + "\"";
+  check(text.find(limits) != std::string::npos,
+        "the document of a detector run carries the limit text (T079, FR-030)");
+  const auto control = sg::loadReport(kKindDoc);
+  check(control.has_value(),
+        "the document of the detector limits loads as the control (T079, "
+        "FR-030)");
+  std::remove(kKindDoc);
+  const Mutation plants[] = {
+      {limits.c_str(), "\"limits\":7", "/jitter/limits"},
+      {limits.c_str(), "\"limits\":null", "/jitter/limits"},
+  };
+  plantsRefuseAtTheirPointers(text, plants, "T079, FR-030, FR-031");
+}
+
 }  // namespace
 
 // specs/034 T018, FR-006, FR-024, SC-004, R-08: the pre-check record
@@ -3588,6 +3771,11 @@ auto main() -> int
   // they close the unit.
   theDetectorFiguresReadBackEqual();
   aGapMarkOutsideTheTwoWordsRefuses();
+  theRunStatsFiguresOfAnotherKindRefuse();
+  thePrecheckStatsFiguresOfAnotherKindRefuse();
+  theTracerFiguresOfAnotherKindRefuse();
+  theTracerSettingsOfAnotherKindRefuse();
+  theLimitsTextOfAnotherKindRefuses();
   aDocumentOfTheStandingMinorLoadsUnchanged();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);

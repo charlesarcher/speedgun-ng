@@ -1609,6 +1609,122 @@ auto theStandingTracerWritesNoFile() -> void
   std::remove(json.c_str());
 }
 
+// ---- T079: the lines the coverage contract reads (FR-038, SC-002)
+
+// The mode file of the standing tree carries the chosen word inside
+// brackets, the list the kernel prints. A host that prints the words without
+// brackets leaves one word on the line, and that word stands the value the
+// setup saves whole (FR-019, P-16). The two shapes stand in one row: each ends
+// with the file back at the same text, and only the read of the pair, or of the
+// whole line, answers it.
+auto aModeTextWithNoBracketsSavesItsWholeWord() -> void
+{
+  const auto cpus = pickCpus(1);
+  if (cpus.empty()) {
+    return;
+  }
+  constexpr const char* kModePath = "sys/kernel/tracing/hwlat_detector/mode";
+  // The kernel's own list, the chosen word inside the brackets. The text the
+  // read would answer for the other shape stands a whole line longer.
+  {
+    TracingRootGuard guard;
+    installDetectorTree(guard.root());
+    const auto session =
+        sg::detail::noiseTracerSetup(sg::TracerEngine::HWLAT, cpus);
+    check(session.has_value(),
+          "the setup of the bracketed mode text answers a session (T079, "
+          "FR-019)");
+    if (session.has_value()) {
+      check(readStream(guard.root() / kModePath) == "per-cpu\n",
+            "the setup writes the mode the run chose (T079, FR-019, D-9)");
+      sg::detail::noiseTracerRestore(*session);
+      check(readStream(guard.root() / kModePath) == "round-robin\n",
+            "the bracketed text saves the word the brackets hold (T079, "
+            "FR-019, P-16)");
+    }
+  }
+  // One word on the line, blanks beside it and no bracket anywhere. The read
+  // saves the word trimmed, so the restore writes one line and no blank.
+  {
+    TracingRootGuard guard;
+    installDetectorTree(guard.root());
+    writeTracingFile(guard.root(), kModePath, "  round-robin  \n");
+    const auto session =
+        sg::detail::noiseTracerSetup(sg::TracerEngine::HWLAT, cpus);
+    check(session.has_value(),
+          "the setup of the unbracketed mode text answers a session (T079, "
+          "FR-019)");
+    if (!session.has_value()) {
+      return;
+    }
+    check(readStream(guard.root() / kModePath) == "per-cpu\n",
+          "the setup writes the mode the run chose beside the unbracketed "
+          "text (T079, FR-019, D-9)");
+    sg::detail::noiseTracerRestore(*session);
+    check(readStream(guard.root() / kModePath) == "round-robin\n",
+          "the unbracketed text saves its whole word trimmed (T079, FR-019, "
+          "P-16)");
+  }
+}
+
+// The three shapes the buffer walk reads as no gap, and the one line it reads
+// as one: a line whose marker names no slash, a line whose pair holds one side
+// that reads no count, a line that carries no marker at all, and the standing
+// detection line (FR-018, FR-027, A-6, P-10).
+constexpr const char* kNoSlashLine =
+    "#1 inner/outer(us): 999 ts:0000000000000000 count:1\n";
+constexpr const char* kNoCountLine =
+    "#2 inner/outer(us): wide/5 ts:0000000000000000 count:1\n";
+constexpr const char* kNoMarkerLine = "#7 no marker of a gap here\n";
+
+// T079, FR-018, FR-027, A-6, P-10: the walk of one buffer text skips the three
+// shapes and folds the line that names a pair. The same three shapes alone
+// answer no figure at all, so the three cannot clear the row between
+// themselves.
+auto aBufferLineThatNamesNoPairCountsAsNoGap() -> void
+{
+  const auto cpus = pickCpus(1);
+  if (cpus.empty()) {
+    return;
+  }
+  TracingRootGuard guard;
+  installDetectorTree(guard.root());
+  writeTracingFile(guard.root(),
+                   bufferPath(cpus.at(0)),
+                   std::string(kLegend) + kNoSlashLine + kNoCountLine
+                       + kNoMarkerLine + detectionLine(9, 1234, 5678, 2));
+  const auto session =
+      sg::detail::noiseTracerSetup(sg::TracerEngine::HWLAT, cpus);
+  check(session.has_value(),
+        "the setup of the four-shape buffer answers a session (T079, FR-019)");
+  if (!session.has_value()) {
+    return;
+  }
+  const auto counted = sg::detail::noiseTracerFigures(*session);
+  checkWith(counted.size() == 1 && counted.at(0).gapCount.has_value()
+                && *counted.at(0).gapCount == 1
+                && counted.at(0).maxGapNs.has_value()
+                && *counted.at(0).maxGapNs == 5678000ULL
+                && counted.at(0).nmiCount.has_value()
+                && *counted.at(0).nmiCount == 2,
+            "the line that names a pair stands the three figures, and the "
+            "three shapes beside it stand skipped (T079, FR-018, FR-027, A-6, "
+            "P-10)",
+            "entries=" + std::to_string(counted.size()));
+  writeTracingFile(
+      guard.root(),
+      bufferPath(cpus.at(0)),
+      std::string(kLegend) + kNoSlashLine + kNoCountLine + kNoMarkerLine);
+  const auto skipped = sg::detail::noiseTracerFigures(*session);
+  checkWith(skipped.size() == 1 && !skipped.at(0).gapCount.has_value()
+                && !skipped.at(0).maxGapNs.has_value()
+                && !skipped.at(0).nmiCount.has_value(),
+            "the three shapes alone count no gap, so the cpu answers the "
+            "three figures absent (T079, FR-018, A-6, P-10)",
+            "entries=" + std::to_string(skipped.size()));
+  sg::detail::noiseTracerRestore(*session);
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmQuiet);
@@ -1638,6 +1754,8 @@ auto main() -> int
   theTwoSurfacesRecordTheirOwnFigures();
   theAnsweredSourceMarksItsKeptGap();
   theAbsentSourceMarksNoKeptGap();
+  aModeTextWithNoBracketsSavesItsWholeWord();
+  aBufferLineThatNamesNoPairCountsAsNoGap();
   std::printf(failures == 0 ? "ok\n" : "%d checks failed\n", failures);
   return failures == 0 ? 0 : 1;
 }

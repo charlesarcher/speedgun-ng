@@ -3277,6 +3277,118 @@ auto anAbsentDetectorFigureReadsZero() -> void
         "one (FR-027, FR-028)");
 }
 
+// ---- T079: the three detector lines the rows above leave unread (FR-038,
+// SC-002): the third figure of the table, the record that carries no tracer
+// cpu, and the name of a rule the parse never read.
+
+// FR-028: the count of non-maskable intercepts reads the way the two figures
+// above it read. `any` answers the largest count of the tracer cpus, and a
+// named cpu answers its own count. The gap count of the same cpus stands beside
+// both rows, so a name that reads no figure clears nothing.
+auto theDetectorRuleReadsTheInterceptCount() -> void
+{
+  const auto baseline =
+      withTracer(makeReport({measured("bmGate", 100.0)}),
+                 {tracerCpu(0, 100, 3, 1), tracerCpu(1, 250, 7, 2)});
+  const auto contender =
+      withTracer(makeReport({measured("bmGate", 100.0)}),
+                 {tracerCpu(0, 100, 3, 1), tracerCpu(1, 400, 7, 9)});
+  const auto answer = compared(baseline,
+                               contender,
+                               rulesOf({"hwlat:any:nmiCount:lower:abs=1",
+                                        "hwlat:0:nmiCount:lower:abs=1",
+                                        "hwlat:any:gapCount:lower:abs=1"}),
+                               false);
+  if (!answer.has_value()) {
+    std::printf("  %s\n", answer.error().c_str());
+    fail("the count of non-maskable intercepts reads the tracer record "
+         "(T079, FR-028)");
+    return;
+  }
+  check(answer->entries.size() == 3,
+        "the three detector rules answer one row each (T079, FR-002)");
+  if (answer->entries.size() != 3) {
+    return;
+  }
+  check(answer->entries[0].state == sg::CompareState::REGRESSED
+            && answersValue(answer->entries[0].baseline, 2.0)
+            && answersValue(answer->entries[0].contender, 9.0),
+        "the largest count of the tracer cpus rides the row of `any` (T079, "
+        "FR-028, D-11)");
+  check(answer->entries[1].state == sg::CompareState::OK
+            && answersValue(answer->entries[1].baseline, 1.0)
+            && answersValue(answer->entries[1].contender, 1.0),
+        "the named tracer cpu answers its own count (T079, FR-028)");
+  check(answer->entries[2].state == sg::CompareState::OK
+            && answersValue(answer->entries[2].baseline, 7.0)
+            && answersValue(answer->entries[2].contender, 7.0),
+        "the gap count of the same cpus answers its own row beside the counts "
+        "(T079, FR-028)");
+  check(!answer->passed,
+        "a detector count past the bound fails the verdict (T079, FR-028, "
+        "FR-044)");
+}
+
+// FR-028, FR-032: the word `any` names the largest figure of the tracer cpus.
+// A record that carries no cpu leaves that name with nothing to answer, so the
+// call answers one line naming the rule, the worst cpu, and the report it
+// looked in, the standing shape of the absence faults of the same head. The
+// record that carries one cpu answers its own figure beside that line.
+auto theWorstCpuOfARecordThatCarriesNoTracerCpuFaults() -> void
+{
+  const auto full = withTracer(makeReport({measured("bmGate", 100.0)}),
+                               {tracerCpu(0, 100, 3, 1)});
+  const auto empty = withTracer(makeReport({measured("bmGate", 100.0)}), {});
+  faultRow(full,
+           empty,
+           {"hwlat:any:maxGapNs:lower:abs=1"},
+           {"'hwlat:any:maxGapNs:lower:abs=1'",
+            "names the worst cpu",
+            "contender report carries no tracer cpu"},
+           "a tracer record that carries no cpu faults the name of the worst "
+           "cpu " "(T079, FR-028, FR-032)");
+  const auto both =
+      compared(full, full, rulesOf({"hwlat:any:nmiCount:lower:abs=1"}), false);
+  check(both.has_value() && both->entries.size() == 1
+            && answersValue(both->entries[0].baseline, 1.0),
+        "the record that carries one tracer cpu answers its own figure (T079, "
+        "FR-028)");
+}
+
+// FR-030, D-08: a rule built in code whose detector name the grammar would
+// refuse answers the fault of the walk, the standing shape of the jitter name
+// above it. The parse of the same name answers the same words, which stands as
+// the control: the walk reads the name the grammar reads.
+auto aHandBuiltRuleWithAnUnreadableDetectorNameFaults() -> void
+{
+  const auto baseline = makeReport({measured("first", 100.0)});
+  const auto contender = makeReport({measured("first", 104.0)});
+  const sg::CompareRule handBuilt {.text = "hwlat:2:lower:abs=1",
+                                   .valueName = "hwlat:2",
+                                   .aggregate = std::nullopt,
+                                   .direction = sg::Direction::LOWER_IS_BETTER,
+                                   .relativeThreshold = 1.0,
+                                   .absoluteThreshold = 1.0,
+                                   .filter = ""};
+  const auto answer = libraryCall(baseline, contender, {handBuilt}, false);
+  check(!answer.has_value()
+            && faultNames(answer.error(),
+                          "hwlat:2:lower:abs=1",
+                          "names a detector value that is not readable")
+            && faultNames(answer.error(), "hwlat:2:lower:abs=1", "no field"),
+        "a rule built in code whose detector name the grammar refuses answers "
+        "one fault naming the rule and the name (T079, FR-030, D-08)");
+  faultTextIs("hwlat:2",
+              "the value name of the rule 'hwlat:2' is not readable: the name "
+              "carries no field",
+              "the parse of the same name answers the words the walk answers "
+              "(T079, FR-028, FR-030)");
+  faulted("hwlat:99999999999999999999:nmiCount:lower:abs=1",
+          "'99999999999999999999' is neither an index nor 'any'",
+          "a cpu token of all digits past the range of an index stands refused "
+          "(T079, FR-028)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -3354,6 +3466,9 @@ auto main() -> int
   theDetectorRuleReadsTheTracerRecord();
   aDetectorNameTheTracerRecordLacksFaults();
   anAbsentDetectorFigureReadsZero();
+  theDetectorRuleReadsTheInterceptCount();
+  theWorstCpuOfARecordThatCarriesNoTracerCpuFaults();
+  aHandBuiltRuleWithAnUnreadableDetectorNameFaults();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;
