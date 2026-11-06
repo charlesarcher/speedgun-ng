@@ -1664,9 +1664,10 @@ auto jitterMethodName(const JitterMethod method) -> const char*
 {
   // The names sit in a table indexed by the enumerator, the reading the
   // availability names take: a value outside the closed enumeration
-  // answers the last word (FR-019).
-  constexpr std::array<const char*, 3> kNames {"tsc", "fwq", "ftq"};
-  static_assert(kNames.size() == std::to_underlying(JitterMethod::FTQ) + 1);
+  // answers the last word (FR-019). specs/048 D-1 adds the fourth word, and
+  // the last word with it (FR-002).
+  constexpr std::array<const char*, 4> kNames {"tsc", "fwq", "ftq", "hwlat"};
+  static_assert(kNames.size() == std::to_underlying(JitterMethod::HWLAT) + 1);
   const auto index = std::to_underlying(method);
   return index < kNames.size() ? kNames.at(index) : kNames.back();
 }
@@ -1910,18 +1911,21 @@ auto parseJitterProbeValue(const std::string& value,
         return false;
       }
     } else if (key == "method") {
-      // specs/043 FR-001, D-1: one method per run, the three words the
-      // value names; a value with no method key keeps the standing
-      // method.
+      // specs/043 FR-001, D-1 and specs/048 FR-002, D-1: one method per run,
+      // the four words the value names; a value with no method key keeps the
+      // standing method. The fourth word keeps the gap loop, the standing
+      // threshold rule and the two counter reads (D-11, A-4).
       if (keyArgument == "tsc") {
         parsed.method = JitterMethod::TSC;
       } else if (keyArgument == "fwq") {
         parsed.method = JitterMethod::FWQ;
       } else if (keyArgument == "ftq") {
         parsed.method = JitterMethod::FTQ;
+      } else if (keyArgument == "hwlat") {
+        parsed.method = JitterMethod::HWLAT;
       } else {
         message = "the method '" + quotedText(keyArgument)
-            + "' is not tsc, fwq or ftq";
+            + "' is not tsc, fwq, ftq or hwlat";
         return false;
       }
     } else if (key == "quantum") {

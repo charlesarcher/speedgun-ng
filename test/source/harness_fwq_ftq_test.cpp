@@ -1035,8 +1035,8 @@ auto theSpectrumGuardsLeaveTheTransformUnread() -> void
         "theSpectrumGuardsLeaveTheTransformUnread: a FTQ quantum of 0 leaves "
         "the transform unread (FR-017, FR-018, R-12)");
 
-  // FR-019: the three words of the table, and the last word for a value
-  // outside the closed enumeration.
+  // FR-019: the words of the table, and the last word for a value outside the
+  // closed enumeration. specs/048 D-1 adds `hwlat` and the last word with it.
   const std::string_view tsc =
       sg::detail::jitterMethodName(sg::JitterMethod::TSC);
   const std::string_view fwq =
@@ -1045,10 +1045,11 @@ auto theSpectrumGuardsLeaveTheTransformUnread() -> void
       sg::detail::jitterMethodName(sg::JitterMethod::FTQ);
   const std::string_view outside =
       sg::detail::jitterMethodName(static_cast<sg::JitterMethod>(7));
-  check(tsc == "tsc" && fwq == "fwq" && ftqName == "ftq" && outside == "ftq",
+  check(tsc == "tsc" && fwq == "fwq" && ftqName == "ftq"
+            && outside == "hwlat",
         "theMethodNameOfAValueOutsideTheTableAnswersTheLastWord: the console "
-        "spells the three words and the last word for a value outside the "
-        "enumeration (FR-019)");
+        "spells the four words and the last word for a value outside the "
+        "enumeration (FR-019, specs/048 D-1)");
 }
 
 // FR-004: mode=precheck runs the selected method. The pre-check phase of

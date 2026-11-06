@@ -22,6 +22,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -1307,6 +1308,17 @@ auto theItemFoldRows() -> void
       });
 }
 
+// T045, FR-002, FR-019, D-1: the console spelling of the detector method. The
+// name table carries a fourth word, and the detector method reads it.
+auto theDetectorNameRow() -> void
+{
+  const std::string_view detector =
+      sg::detail::jitterMethodName(sg::JitterMethod::HWLAT);
+  check(detector == "hwlat",
+        "the detector method reads the fourth word of the name table "
+        "(FR-002, FR-019, D-1)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -1326,6 +1338,7 @@ auto main() -> int
   theLateNodeRows();
   theFallingNodeRows();
   theItemFoldRows();
+  theDetectorNameRow();
   std::printf(failures == 0 ? "ok\n" : "%d checks failed\n", failures);
   return failures == 0 ? 0 : 1;
 }

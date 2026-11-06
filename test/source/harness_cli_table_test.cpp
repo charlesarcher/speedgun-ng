@@ -1247,6 +1247,37 @@ auto theCarriedConstantsNameTheirOptions(const std::vector<Row>& rows) -> void
   }
 }
 
+// specs/048-hwlat-probe T046, FR-002, FR-018, D-1, D-2: the two new words ride
+// the value of a standing name in each grammar, so the option table gains no
+// row. The two constants hold the numbers the contracts fix, the two rows keep
+// answering them, the constants block keeps the tracer block's free numbers,
+// neither new word joins the table as a name, and the row list stands where the
+// contract fixes it, so the standing name and value uniqueness checks cover the
+// table as they did before the two words.
+auto theDetectorWordsAddNoTableRow(const std::vector<Row>& rows,
+                                   const std::string& header) -> void
+{
+  check(sg::detail::kJitterProbeOptionValue == 260,
+        "the jitter probe's constant holds 260 (FR-002, FR-004)");
+  check(sg::detail::kOsNoiseOptionValue == 320,
+        "the tracer's constant holds 320 (FR-018, FR-004)");
+  const Row* const probe = rowNamed(rows, "jitter-probe");
+  const Row* const tracer = rowNamed(rows, "os-noise");
+  check(probe != nullptr && tracer != nullptr,
+        "the table carries the two names the two words ride (FR-002, FR-018)");
+  check(probe != nullptr && probe->value == sg::detail::kJitterProbeOptionValue,
+        "the jitter probe's row answers its constant, unchanged (FR-004)");
+  check(tracer != nullptr && tracer->value == sg::detail::kOsNoiseOptionValue,
+        "the tracer's row answers its constant, unchanged (FR-018, FR-004)");
+  check(rowNamed(rows, "hwlat") == nullptr && rowNamed(rows, "smi") == nullptr,
+        "neither new word joins the table as a row (FR-002, FR-018, X.2)");
+  check(rows.size() == kContract.size(),
+        "the table gains no row, so the standing uniqueness checks cover the "
+        "same list (FR-002, FR-004, SC-001)");
+  check(header.find("321 to 329 free") != std::string::npos,
+        "the constants block keeps 321 to 329 free for tracers (FR-018, D-2)");
+}
+
 auto theScanCarriesNoShortLetter(const std::string& optionText) -> void
 {
   std::string letters = optionText;
@@ -2051,6 +2082,7 @@ auto main(int argc, char** argv) -> int
   theHuntNamesTakeTheReservedConstants(rows);
   theFixtureTwinReportsItsPlantedDefects();
   theCarriedConstantsNameTheirOptions(rows);
+  theDetectorWordsAddNoTableRow(rows, header);
   theScanCarriesNoShortLetter(optionText);
 
   const std::string version = projectVersion(*directory);
