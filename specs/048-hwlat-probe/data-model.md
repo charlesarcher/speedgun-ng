@@ -357,11 +357,9 @@ wrote and the three figures the detector states (spec FR-027, plan P-7).
   reached with an empty buffer, so a `null` under the mode the run wrote
   answers a cpu the detector watched with no gap in its buffer, and the
   console states the standing not-available wording for it.
-- Reading note: the second sentence of spec FR-027 reads a zero as the
-  answer for a watched cpu with nothing to report, while the `SHALL` of
-  its first sentence names `null` for a buffer that holds no line. This
-  file follows the `SHALL`: no line answers `null` for all three
-  figures, and the zero stands only for the `nmi-count` case above.
+- Reading: no detector line in a cpu's buffer answers `null` for all
+  three figures, and a zero stands only for the `nmi-count` case above
+  (spec FR-027).
 - Lifecycle: the record stands when the tracer ran. A run that asks for
   no tracer and a run whose tracer stands not available leave the member
   empty and write no key (specs/036 FR-015,
@@ -500,12 +498,8 @@ one, and the rule for an unavailable figure. The root objects stand
   `source/harness/detail/json_report.hpp:361-376`.
 - The eleventh key: `jitter.limits` carries the run's statement that the
   user-space probe runs with the cpu's interrupts enabled (spec FR-031,
-  plan P-13). The key table of `specs/048-hwlat-probe/spec.md:840-853`
-  lists ten keys and names no such key, and the plan counts ten keys at
-  `specs/048-hwlat-probe/plan.md:21`, `:75`, `:126`, `:149`, `:154`,
-  `:168` and `:413`. This file records eleven keys, because FR-031 asks the
-  document for the statement and P-13 names the key. The schema row, the
-  contract and the count follow this file.
+  plan P-13). The spec's key table, the plan's file map, the report
+  contract and this file count eleven keys.
 - Owner: `docs/schema/report-v1.json`,
   `source/harness/json_report.cpp`, `source/harness/json_load.cpp`,
   `specs/048-hwlat-probe/contracts/report-json.md`.
