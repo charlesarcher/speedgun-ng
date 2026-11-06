@@ -2197,6 +2197,23 @@ if(TARGET docs_fwq_ftq)
   set_tests_properties(report_shape_fwq_ftq_sample PROPERTIES TIMEOUT 120)
 endif()
 
+if(TARGET docs_hwlat_probe)
+  # The guide page carries the recorded run of the detector example, so the
+  # selector names which recorded run this invocation owns. The fold checks the
+  # recorded file against a real run of the example, and reads the cpus the host
+  # gives the run out of both sides, which is what keeps a host with another cpu
+  # count from failing a block it cannot print byte for byte (048 T053, SC-011).
+  add_test(
+      NAME report_shape_hwlat_probe_sample
+      COMMAND
+        python3 ${CMAKE_SOURCE_DIR}/tools/docs/report_shape.py
+        --binary $<TARGET_FILE:docs_hwlat_probe>
+        --readme ${CMAKE_SOURCE_DIR}/docs/pages/harness.md
+        --example hwlat_probe
+  )
+  set_tests_properties(report_shape_hwlat_probe_sample PROPERTIES TIMEOUT 120)
+endif()
+
 if(TARGET docs_numa_placement)
   # The guide page carries the recorded node-planned run of the numa
   # example, so the fold checks the recorded file against a real run of
@@ -2523,6 +2540,10 @@ endforeach()
 #   master sets for the shape fold of the hunt top-down example: slowest
 #   3.20 s, the `ci-rocky` lane of this host, read on 2026-11-03. No CI
 #   run has a reading for the entry yet.
+# budget exception report_shape_hwlat_probe_sample keeps the 120 s
+#   master sets for the shape fold of the detector example: slowest
+#   3.33 s, two cpus of this host under `taskset -c 0,12`, read on
+#   2026-11-05. No CI run has a reading for the entry yet.
 # budget exception example_run keeps the 300 s master sets for the
 #   entry that runs every docs example through `example_run.sh`, equal
 #   to the budget this loop gives: slowest 7.78 s, the `coverage` lane.

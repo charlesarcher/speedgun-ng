@@ -1,0 +1,139 @@
+# sg-example:begin report
+speedgun-ng 0.31.0 build=Release
+topology: packages=1 l3-groups=1 cores=12 threads=24
+precheck cpu 0 (planned)
+gapCount: 0
+gapsPerSecond: 0.00
+minNs: 0
+medianNs: 0
+meanNs: 0.00
+p90Ns: 0
+p99Ns: 0
+p999Ns: 0
+p9999Ns: 0
+maxNs: 0
+totalNs: 0
+totalPercent: 0.00
+runtimeNs: 0
+thresholdNs: 1000000000
+loopPeriodNs: 480
+droppedGaps: 0
+interrupts delta: 450 (source: /proc/interrupts)
+softirq HI delta: 0 (source: /proc/softirqs)
+softirq TIMER delta: 0 (source: /proc/softirqs)
+softirq NET_TX delta: 0 (source: /proc/softirqs)
+softirq NET_RX delta: 0 (source: /proc/softirqs)
+softirq BLOCK delta: 0 (source: /proc/softirqs)
+softirq IRQ_POLL delta: 0 (source: /proc/softirqs)
+softirq TASKLET delta: 0 (source: /proc/softirqs)
+softirq SCHED delta: 112 (source: /proc/softirqs)
+softirq HRTIMER delta: 0 (source: /proc/softirqs)
+softirq RCU delta: 26 (source: /proc/softirqs)
+switch delta: 0, schedule delta: 0 (source: /proc/schedstat)
+smi delta: not available (source: /dev/cpu/0/msr)
+nmi delta: 0 (source: /proc/interrupts)
+smi gaps: 0
+precheck cpu 12 (planned)
+gapCount: 0
+gapsPerSecond: 0.00
+minNs: 0
+medianNs: 0
+meanNs: 0.00
+p90Ns: 0
+p99Ns: 0
+p999Ns: 0
+p9999Ns: 0
+maxNs: 0
+totalNs: 0
+totalPercent: 0.00
+runtimeNs: 0
+thresholdNs: 1000000000
+loopPeriodNs: 486
+droppedGaps: 0
+interrupts delta: 441 (source: /proc/interrupts)
+softirq HI delta: 0 (source: /proc/softirqs)
+softirq TIMER delta: 10 (source: /proc/softirqs)
+softirq NET_TX delta: 0 (source: /proc/softirqs)
+softirq NET_RX delta: 0 (source: /proc/softirqs)
+softirq BLOCK delta: 0 (source: /proc/softirqs)
+softirq IRQ_POLL delta: 0 (source: /proc/softirqs)
+softirq TASKLET delta: 0 (source: /proc/softirqs)
+softirq SCHED delta: 119 (source: /proc/softirqs)
+softirq HRTIMER delta: 0 (source: /proc/softirqs)
+softirq RCU delta: 21 (source: /proc/softirqs)
+switch delta: 0, schedule delta: 0 (source: /proc/schedstat)
+smi delta: not available (source: /dev/cpu/12/msr)
+nmi delta: 0 (source: /proc/interrupts)
+smi gaps: 0
+precheck cpu 1 (candidate)
+gapCount: 0
+gapsPerSecond: 0.00
+minNs: 0
+medianNs: 0
+meanNs: 0.00
+p90Ns: 0
+p99Ns: 0
+p999Ns: 0
+p9999Ns: 0
+maxNs: 0
+totalNs: 0
+totalPercent: 0.00
+runtimeNs: 0
+thresholdNs: 1000000000
+loopPeriodNs: 176
+droppedGaps: 0
+interrupts delta: 442 (source: /proc/interrupts)
+softirq HI delta: 0 (source: /proc/softirqs)
+softirq TIMER delta: 2 (source: /proc/softirqs)
+softirq NET_TX delta: 0 (source: /proc/softirqs)
+softirq NET_RX delta: 0 (source: /proc/softirqs)
+softirq BLOCK delta: 0 (source: /proc/softirqs)
+softirq IRQ_POLL delta: 0 (source: /proc/softirqs)
+softirq TASKLET delta: 0 (source: /proc/softirqs)
+softirq SCHED delta: 113 (source: /proc/softirqs)
+softirq HRTIMER delta: 0 (source: /proc/softirqs)
+softirq RCU delta: 22 (source: /proc/softirqs)
+switch delta: 0, schedule delta: 0 (source: /proc/schedstat)
+smi delta: not available (source: /dev/cpu/1/msr)
+nmi delta: 0 (source: /proc/interrupts)
+smi gaps: 0
+host settings: isolcpus=not available nohz_full=not available rcu_nocbs=not available
+governor: cpu 0 powersave (source: /sys devices system cpu scaling_governor)
+governor: cpu 12 powersave (source: /sys devices system cpu scaling_governor)
+governor: cpu 1 powersave (source: /sys devices system cpu scaling_governor)
+irq affinity: cpu 0 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,26,27,29,30,31,32,33,42,44,53,54,56,57,87,90,92,93,94,95,96,97,98,99,101,102,103,104,105,106,107,108,109 (source: /proc/irq)
+irq affinity: cpu 12 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,26,27,29,30,31,32,33,42,44,53,54,56,57,88,90,92,93,94,95,96,97,98,99,101,102,103,104,105,106,107,108,109 (source: /proc/irq)
+irq affinity: cpu 1 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,26,27,29,30,31,32,33,42,44,53,54,56,57,65,90,92,93,94,95,96,97,98,99,101,102,103,104,105,106,107,108,109 (source: /proc/irq)
+tracer: not available
+pinning candidates: cpu 0 0.00 cpu 12 0.00
+bmMeasured/threads:2     iterations= 433953742  real time/iter (ns)=    1.615  cpu time/iter (ns)=    1.613  overhead floor (ns)= 2862.000  endpoint samples=4
+  contexts=2  ctx0=SPIN/0@0/applied/l3-0  ctx1=SPIN/12@0/applied/l3-0
+jitter probe: cpus 0,12,1
+gapCount: 0 0 0
+gapsPerSecond: 0.00 0.00 0.00
+minNs: 0 0 0
+medianNs: 0 0 0
+meanNs: 0.00 0.00 0.00
+p90Ns: 0 0 0
+p99Ns: 0 0 0
+p999Ns: 0 0 0
+p9999Ns: 0 0 0
+maxNs: 0 0 0
+totalNs: 0 0 0
+totalPercent: 0.00 0.00 0.00
+runtimeNs: 0 0 0
+thresholdNs: 1000000000 1000000000 1000000000
+loopPeriodNs: 480 486 176
+droppedGaps: 0 0 0
+smiDelta: not available not available not available
+nmiDelta: 0 0 0
+smiGapCount: 0 0 0
+jitter: probe on cpus 0,12,1
+jitter: loop period 480 ns, threshold 1000000000 ns
+jitter: cpu 0 kept 0 dropped 0
+jitter: cpu 12 kept 0 dropped 0
+jitter: cpu 1 kept 0 dropped 0
+jitter: split and percentiles use the kept gaps only
+jitter: SMI count not available
+jitter: probe runs with interrupts enabled
+# sg-example:end report
