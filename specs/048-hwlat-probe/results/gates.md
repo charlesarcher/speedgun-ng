@@ -146,6 +146,54 @@ the sanitizer lanes use. A future lane of this repository should run the warning
 check on both compilers, and the cheap-gate table above records gcc only because that
 is what ran.
 
+## The lanes over the branch that fixes the lanes (T092)
+
+Head `b8204413`, run `42289059046`, and head `602730e6`, run `42297681487`, both on the branch
+`fix/ci-lane-rows` over base `39bd33d0`. The runners answer as root. The Rocky lane builds with
+gcc 14, the two sanitizer lanes build with clang, and the delta between the two heads is two
+`lcov` reads that carry one tolerated error class.
+
+| Job | Run at `b8204413` | Run at `602730e6` |
+| --- | --- | --- |
+| `test` | 190 of 190 | 190 of 190 |
+| `test-rocky` | 188 of 190 | 188 of 190 |
+| `sanitize` | passes | fails one entry |
+| `tsan` | passes | fails one entry |
+| `coverage` | fails at the gate | fails at the gate |
+| `lint`, `prose-lint`, `dbc-gate`, `shared-audit`, the two consumer jobs, the three analyzer scopes | pass | pass |
+
+`test-rocky` names the same two entries in both runs: `prose_gate_fixtures` and the mapping row
+of `harness_hunt_topdown_test`. Both stand on base work, because the same two entries fail at
+the head of pull request #86.
+
+The second run adds two entries that fail under instrumentation alone. `sanitize` fails
+`harness_hunt_cli_test` in 20.77 seconds on two checks, `one run of one benchmark answers one
+block, so the named level admits no second block of the companion (FR-016, FR-034)` and `the
+re-executed scenario passes`. `tsan` fails `example_run` in 71.37 seconds with `FAIL:
+docs_argument_families registered bmSquares/cells:128 but printed no row`. The uninstrumented
+`test` job of that same run passes both, in 4.16 seconds and 44.06 seconds. Both names also
+fail on the lane host under load, so the reading of record stays with the uninstrumented job
+until a run separates them.
+
+## The coverage figures the gate reads (T090)
+
+The coverage lane carries 185 entries and passes every one of them in the second run. The gate
+then reads the trace that run wrote and answers `coverage-gate: line coverage is not 100%` with
+`lines.......: 99.9% (18637 of 18639 lines)` and `branches....: 99.5% (9747 of 9793 branches)`.
+That is two cold lines and 46 cold branch records against the allowance of 21, so the branch
+shortfall stands at 25 records over. The two cold lines are `group_io.cpp:452` and `:454`.
+
+The first run's trace read `lines.......: 99.9% (18633 of 18638 lines)` and `branches....:
+99.5% (9746 of 9793 branches)`, three lines colder and one record colder: the print of the
+probe-source limit line of specs/050 at `source/harness/runner.cpp:1609` to `:1611` stood cold
+there and reads covered in the second run. Nothing in the source moved between those two heads,
+so the two traces differ by a reading of the runner and not by a change of code.
+
+Before these two runs the gate never reached a figure. It stopped on `lcov` reading a function
+as hit while every line inside it stood omitted, and the tool answered with no numbers at all.
+Four reads of the trace carry the tolerated class now: the capture, the extract, the `--list`
+step of the coverage target, and the `--summary` read of the gate script.
+
 ## Pending
 
 - The root-only acceptance of SC-005 and SC-007 (T054, T055, T056) stands unrun: this
