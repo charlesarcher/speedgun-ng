@@ -3257,10 +3257,11 @@ auto anAbsentDetectorFigureReadsZero() -> void
                  {tracerCpu(0, {}, 3, 1), tracerCpu(1, {}, 7, 2)});
   const auto named = compared(
       baseline, contender, rulesOf({"hwlat:0:maxGapNs:lower:abs=1"}), false);
-  check(named.has_value() && named->entries.size() == 1
-            && answersValue(named->entries[0].baseline, 100.0)
-            && answersValue(named->entries[0].contender, 0.0),
-        "a named tracer cpu whose figure stands absent reads 0 (FR-027, FR-028)");
+  check(
+      named.has_value() && named->entries.size() == 1
+          && answersValue(named->entries[0].baseline, 100.0)
+          && answersValue(named->entries[0].contender, 0.0),
+      "a named tracer cpu whose figure stands absent reads 0 (FR-027, FR-028)");
   const auto worst = compared(
       baseline, contender, rulesOf({"hwlat:any:maxGapNs:higher:abs=1"}), false);
   check(worst.has_value() && worst->entries.size() == 1
