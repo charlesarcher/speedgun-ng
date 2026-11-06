@@ -101,14 +101,38 @@ builds with gcc while the sanitizer jobs build with clang. The three findings we
 
 `fix/clang-and-rocky-lanes`, as pull request #88, merged as `39bd33d0` and carries three
 commits: the planted read through the buffer, the duplicate constant removed, and the two
-dead seam tallies removed. At the cut of this record its run answers `lint` pass and
-`shared-audit` pass with the remaining jobs queued behind a congested runner pool; the
-rows for `test`, `test-rocky`, `sanitize`, `tsan`, `coverage`, `dbc-gate`, `prose-lint`
-and `static-analysis` join here when they report. Its proof here is a clang build of the whole tree with
+dead seam tallies removed. Its run answered `lint`, `prose-lint`, `test`, `sanitize`,
+`tsan` at its build, `dbc-gate`, `shared-audit`, all three `static-analysis` scopes and
+both consumer jobs pass, which carries the two clang findings and the gcc 14 finding that
+branch cleared. Three jobs report failures at the test step or later: Its proof here is a clang build of the whole tree with
 `CXX=clang++ cmake --preset=ci-sanitize -B build/sanclang` and
 `cmake --build build/sanclang -j 12`, which answers exit 0 with no `error:` line.
 Before the three commits the same build stopped at the disclosure unit, so the specs/041
 finding stood behind this lane's.
+
+| Job | Row | Reading |
+| --- | --- | --- |
+| `test-rocky` | `harness_latency_counters_test` | `FAILED: a node without rights answers no count (FR-007, FR-011)` |
+| `test-rocky` | `harness_hwlat_probe_test` | `FAILED: a node without rights leaves every gap unmarked, the marked count at 0 and the SMI figure with no value (FR-011, FR-015)` |
+| `test-rocky` | `report_shape_hwlat_probe_sample` | `line 33: header line differs: block 'nmi delta: 0 (source: /proc/interrupts)' against run 'nmi delta: not available (source: /proc/interrupts)'`, the pair again at 65, 97 and 128, and `line 137: the block omits this header line` |
+| `test-rocky` | `prose_gate_fixtures` | the row stands failed at pull request #86 too |
+| `test-rocky` | `harness_hunt_topdown_test` | `HARNESS HUNT TOPDOWN TEST FAIL: three calls leave the process holding the mappings it held before`, the row behind it failed at pull request #86 too |
+| `tsan` | `harness_hunt_cli_test` | `HARNESS HUNT CLI TEST FAIL: one run of one benchmark answers one block, so the named level admits no second block of the companion (FR-016, FR-034)` |
+| `coverage` | the extract step | `lcov: ERROR: (inconsistent) "/home/runner/work/speedgun-ng/speedgun-ng/source/harness/runner.cpp":708: function '_ZZN2sg6detail19stripTopdownColumnsE..._clEm' is hit but no contained lines are hit`, the identical line at pull request #86 |
+
+The Rocky and sanitizer runners read as root, so the rights bits of a planted file bind
+nothing there. The two rights rows belong to this lane: they planted a node with no rights
+and expected a refusal. Both now read the kernel's answer through the same open the reader
+uses and assert the figure that answer owes, the rule specs/036 T010 states for the
+denied-path rows of this tree. The sample row is a fold the shape gate lacked: the recorded
+block came from a host that holds an interrupts row and withholds the node, and the runner
+holds the node and answers no non-maskable-interrupt row. The three rows behind them are
+base work that stands failed ahead of this lane: specs/042 landed the two hunt rows, and
+the prose fixture row stands failed on that runner since pull request #86.
+
+`fix/ci-lane-rows`, as pull request #89, carries the two rights rows, the four fold rules
+the sample needs, and the `inconsistent` class the extract step repeats from the capture.
+Its readings join here when it reports.
 
 ## The finding this lane's own gate let through
 
