@@ -72,7 +72,7 @@ rows, 84 exclusion markers as the ceiling, the prose gate, the DBC pair
 gate at 347 interfaces with 0 gaps, the drift gate, and the `README.md`
 cap of 1,004 lines against the 1,001 lines of master.
 
-**Scale/Scope**: two new units, 10 new report keys, two new enum values,
+**Scale/Scope**: two new units, 11 new report keys, two new enum values,
 six new comparison names, three new executables, roughly 900 new source
 lines and 1,600 new test lines.
 
@@ -202,8 +202,9 @@ choice the code must make once.
   and closes at stop. `std::ifstream` stands only on the window-edge text
   reads. The no-allocation executable keeps its exit 0.
 - **P-3**: one gap's mark rides a per-cpu ring of 8-byte unsigned
-  changes, the shape the standing series ring carries
-  (`detail/jitter_probe.hpp:52`). The gap ring and the change ring append
+  changes, the storage shape the standing series ring uses
+  (`detail/jitter_probe.hpp:145`, the element record `SeriesRecord` at
+  `:52`). The gap ring and the change ring append
   in the same step of the gap path, share one capacity and one drop
   counter, so index `i` of one answers index `i` of the other. One element
   holds this gap's read minus the read before it, so the mark answers the
@@ -217,8 +218,12 @@ choice the code must make once.
 - **P-5**: the three per-cpu figures ride `JitterStats`: `smiDelta` and
   `nmiDelta` as `std::optional<std::uint64_t>`, `smiGapCount` as an
   unsigned count. The one record feeds `jitter.stats[]` and
-  `precheck.cpus[].stats`, so the schema carries the three keys in both
-  items and a run of another method writes none of the three.
+  `precheck.cpus[].stats`, so the schema carries the three keys in each
+  place that record stands, and a run of another method writes none of the
+  three. The latch snapshot carrier `JitterLatchSnapshot`
+  (`detail/jitter_probe.hpp:86`) gains the change vector beside its
+  `series` vector, because the pre-check folds through `gapStatsOf`
+  (`:316`) at `source/harness/cli.cpp:1393`.
 - **P-6**: the gap mark rides the standing `gaps[]` items as `smi`, with
   the words `SMI` and `NOT_SMI` or `null`, written only for the `hwlat`
   method under the standing `--json-raw=gaps` gate. The loader reads the
@@ -285,7 +290,7 @@ choice the code must make once.
 | M5 | Writer and schema | `detail/json_report.hpp`, `json_report.cpp`, schema, three test files | M2 | FR-004, FR-025 to FR-027, FR-029, FR-031 | three standing executables |
 | M6 | Reader | `json_load.cpp`, `harness_json_load_test.cpp` | M2, M5 key names | FR-004, FR-026, FR-029 | standing executable |
 | M7 | Console | `report.cpp`, `harness_jitter_window_test.cpp`, `harness_noise_report_test.cpp` | M2 | FR-016, FR-027, FR-030, FR-031 | two standing executables |
-| M8 | Comparison | `compare.cpp`, two compare test files | M2, M6 | FR-028 | two standing executables |
+| M8 | Comparison | `compare.cpp`, two compare test files | M2, M6 | FR-028 | two standing executables; the standing table reader answers a `double` (`:244`), so a nullable figure needs its absent check ahead of that read, before the fault line at `:1563` to `:1576` |
 | M9 | Contracts, docs, example | contracts, guide page, `README.md`, example pair, `example/CMakeLists.txt`, the nine standing contract rows of specs `026`, `027`, `034` and `036` | M3, M5, M7 | FR-006, FR-036 to FR-039 | the gates |
 | M10 | Integration | `cli.cpp`, `test/CMakeLists.txt`, version and `SOVERSION` | M3, M4 | FR-003 wiring, version checks | the full suite |
 
@@ -365,8 +370,8 @@ probe stop      NMI text read   record edge pair
 The detector engine, one run:
 
 ```text
-setup    read current_tracer, tracing_cpumask, tracing_thresh,
-         width, window
+setup    read current_tracer, tracing_cpumask, hwlat_detector/mode,
+         width, window, tracing_thresh
          write tracing_cpumask           (kernel reads it at the start)
          write hwlat_detector/mode=per-cpu
          write hwlat_detector/width      (kernel bound: width < window)
@@ -401,7 +406,8 @@ missing, unreadable or malformed (spec FR-011, FR-023).
 
 `include/speedgun-ng/benchmark.hpp`:
 
-- `JitterMethod::HWLAT`, the fourth method word, written `hwlat`.
+- `JitterMethod::HWLAT`, the fourth method word. The document word reads
+  `HWLAT`, the console word and the command-line word read `hwlat`.
 - `TracerEngine::HWLAT`, the third engine word, written `hwlat`.
 - On `JitterStats`: `smiDelta` and `nmiDelta` as
   `std::optional<std::uint64_t>`, and `smiGapCount` as

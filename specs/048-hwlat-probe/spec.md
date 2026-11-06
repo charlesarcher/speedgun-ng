@@ -202,7 +202,7 @@ shapes the prompt leaves open.
   one commit.
 - Two word tables move with the two new enumerators:
   `kJitterMethodWords` (`source/harness/detail/json_report.hpp:89`) and
-  `kTracerEngineWords` (`:104`), each closed by a `static_assert` on the
+  `kTracerEngineWords` (`:103`), each closed by a `static_assert` on the
   enum, beside the loader's word list and the schema's enum list.
 - The engine word of the `--os-noise` value parses at
   `source/harness/noise_tracer.cpp:48` and names `osnoise` or `timerlat`
@@ -730,8 +730,10 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
 
 - **FR-025**: The per-cpu gap figures record SHALL carry three new
   figures: `smiDelta`, `nmiDelta` and `smiGapCount`. The writer SHALL
-  write them for a run of the `hwlat` method, and SHALL write no key of
-  the three for a run of any other method.
+  write them for a run of the `hwlat` method at every place that record
+  stands in the document: the run-level `jitter.stats[]`, the per-entry
+  `jitter.stats[]` items, and `precheck.cpus[].stats`. The writer SHALL
+  write no key of the three for a run of any other method.
 - **FR-026**: Each kept gap the document writes under the standing
   `--json-raw=gaps` gate SHALL carry, for the `hwlat` method, the mark key
   `smi` with the word `SMI` or `NOT_SMI`, and SHALL carry `null` where the
@@ -741,8 +743,10 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   and `thresholdUs`. Each per-cpu tracer entry of the `hwlat` engine SHALL
   carry `maxGapNs`, `gapCount` and `nmiCount`, each `null` where the
   buffer of that cpu holds no detector line. Under the per-cpu mode of
-  D-9 each tracer cpu carries its own thread, so a zero answers a cpu the
-  detector watched and found nothing on. The console block SHALL print the three figures
+  D-9 each tracer cpu carries its own buffer, so a cpu the detector
+  watched and found nothing on holds no line and answers `null`. A zero
+  answers the `nmiCount` figure of a cpu whose lines carry no `nmi-count`
+  field. The console block SHALL print the three figures
   for each tracer cpu, in the shape the standing tracer lines use, and
   SHALL print the three settings beside them.
 - **FR-028**: The comparison SHALL carry one rule name for each of the six
@@ -840,14 +844,19 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   `gapCount` from the sample lines of the cpu, and `nmiCount` as their
   NMI count total, each nullable.
 - **Setting snapshot**: one file's saved value and its path, one entry per
-  file the run writes, the restore's whole input.
+  file the run saves, six entries with `tracing_on` outside the set, the
+  restore's whole input.
 - **Disclosure**: one not-available statement, naming its source, printed
   once per run per source.
 - **Limits statement**: the run's text that the user-space probe runs with
   interrupts enabled.
 
 The new report keys, with the figure each carries and the test that
-guards it:
+guards it. One writer function fills all three stats shapes
+(`source/harness/json_report.cpp:332`, `:776`, `:1242`), so the three
+figures reach the per-entry items too. The schema types that per-entry
+`jitter` object open (`docs/schema/report-v1.json:572-574`), so it needs
+no order row:
 
 | Key | Object | Written when | Read back by | Test |
 | --- | --- | --- | --- | --- |
