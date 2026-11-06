@@ -188,6 +188,17 @@ auto installDetectorTree(const std::filesystem::path& root,
   writeTracingFile(root, "sys/kernel/tracing/tracing_on", "0\n");
 }
 
+// The same tracefs tree without the detector's own directory: the four files
+// that stand at the root of the mount, and no `hwlat_detector/` below them,
+// the shape of a kernel that built no detector (FR-023).
+auto installTracefsWithoutDetector(const std::filesystem::path& root) -> void
+{
+  writeTracingFile(root, "sys/kernel/tracing/current_tracer", "nop\n");
+  writeTracingFile(root, "sys/kernel/tracing/tracing_cpumask", "ffffffff\n");
+  writeTracingFile(root, "sys/kernel/tracing/tracing_thresh", "10\n");
+  writeTracingFile(root, "sys/kernel/tracing/tracing_on", "0\n");
+}
+
 // One denied control path of the fake tree: the standing file replaced by a
 // directory, so the open fails for every user, the root of a CI container
 // included (FR-017).
@@ -1055,6 +1066,60 @@ auto theMissingTracefsRunStandsWhole() -> void
   std::remove(json.c_str());
 }
 
+// T024, FR-021, FR-023, D-15: tracefs stands at the standing path and the
+// detector's own directory does not stand in it. The setup reads the standing
+// word and the standing mask, answers nothing at the detector mode file, writes
+// no file at all, and the run prints the standing `tracer: not available` line,
+// keeps the user-space figures whole and holds status 0. The same tree with the
+// detector directory planted stands the control: the settings line prints, and
+// the not-available line does not.
+auto aTreeWithNoDetectorDirectoryDisclosesNoTracer() -> void
+{
+  const auto cpus = pickCpus(1);
+  if (cpus.empty()) {
+    return;
+  }
+  {
+    TracingRootGuard guard;
+    installTracefsWithoutDetector(guard.root());
+    const std::string json = "harness_hwlat_no-detector.json";
+    const auto report =
+        captureRunReport(runArguments(cpus.at(0), "no-detector"));
+    check(report.status == 0,
+          "the run whose detector directory stands absent holds status 0 "
+          "(T024, FR-023)");
+    check(
+        countLine(report.text, "tracer: not available\n") == 1,
+        "the block states the standing not-available line once (T024, FR-023)");
+    check(report.text.find("tracer: windowUs=") == std::string::npos,
+          "no settings line stands for a session that never opened (T024, "
+          "FR-020, " "FR-023)");
+    theUserSpaceStandsWhole(json);
+    check(!std::filesystem::exists(guard.root()
+                                   / "sys/kernel/tracing/hwlat_detector/mode"),
+          "the run wrote no detector file (T024, FR-024)");
+    check(readStream(guard.root() / "sys/kernel/tracing/current_tracer")
+              == "nop\n",
+          "the word file stands unwritten (T024, FR-021, D-15)");
+    std::remove(json.c_str());
+  }
+  {
+    TracingRootGuard guard;
+    installDetectorTree(guard.root());
+    const std::string json = "harness_hwlat_detector.json";
+    const auto report = captureRunReport(runArguments(cpus.at(0), "detector"));
+    check(report.status == 0,
+          "the control run over the whole tree holds status 0 (T024, FR-019)");
+    check(countLine(report.text, "tracer: not available\n") == 0,
+          "the planted detector directory answers no not-available line (T024, "
+          "FR-019, FR-023)");
+    check(report.text.find("tracer: windowUs=") != std::string::npos,
+          "the whole tree prints the settings line its session wrote (T024, "
+          "FR-020)");
+    std::remove(json.c_str());
+  }
+}
+
 // T024, FR-003, FR-023, D-15: one knob stands without rights. The run
 // reaches the restore list, the tree stands as it stood, and the run keeps
 // status 0 with the user-space figures whole.
@@ -1895,6 +1960,7 @@ auto main() -> int
   theWholeDetectorRunNamesItsThreeSettings();
   theInWindowFailureStillRestoresTheTree();
   theInterruptedChildRestoresTheTree();
+  aTreeWithNoDetectorDirectoryDisclosesNoTracer();
   aDeniedRestoreWriteKeepsTheStatusItsPathCarried();
   theStandingTracerWritesNoFile();
   theTwoSurfacesRecordTheirOwnFigures();
