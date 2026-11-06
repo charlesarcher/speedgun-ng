@@ -282,9 +282,10 @@ path.
 - [ ] T089 [US2] Write the failing standing-tracer rows in
   `test/source/harness_hwlat_tracer_test.cpp`: a tree whose
   `current_tracer` text already reads `hwlat` before the setup leaves the
-  session writing no file at all, the tracer block printing `tracer: hwlat
-  already stands as the current tracer` beside the standing `tracer: not
-  available` line, the user-space figures whole and the exit status 0
+  session writing no file at all, the tracer block printing the line
+  `tracer: hwlat already stands as the current tracer` ahead of the
+  standing `tracer: not available` line, the user-space figures whole and
+  the exit status 0
   (FR-019, FR-023, P-15). Verify: `ctest --test-dir build -R harness_hwlat_tracer_test --output-on-failure` exits non-zero (red observed)
 
 ### Implementation for User Story 2
@@ -691,9 +692,9 @@ coverage contract, the pinned suite, the gate records and the commits.
   documented kind and its enforced kind (II, FR-038). Verify: `cmake --build build -t dbc-gate` exits 0 and its report names 0 gaps
 - [ ] T076 [P] Run the analyzer build in a fresh tree, because a
   reconfigure over a built tree recompiles no unit and an empty finding
-  list proves nothing (V.1, VIII). Verify: `cmake -S . -B build/dev --preset=ci-ubuntu` exits 0 and `cmake --build build/dev` exits 0
-- [ ] T077 [P] Run the sanitizer lane (VIII). Verify: `cmake --preset=ci-sanitize` exits 0, `cmake --build build/sanitize` exits 0 and `ctest --test-dir build/sanitize --preset ci-sanitize` exits 0
-- [ ] T078 [P] Run the thread-sanitizer lane (VIII). Verify: `cmake --preset=ci-tsan` exits 0, `cmake --build build/tsan` exits 0 and `ctest --test-dir build/tsan --preset ci-tsan` exits 0
+  list proves nothing (V.1, VIII, SC-004). Verify: `cmake -S . -B build/dev --preset=ci-ubuntu` exits 0 and `cmake --build build/dev` exits 0
+- [ ] T077 [P] Run the sanitizer lane (VIII, SC-004). Verify: `cmake --preset=ci-sanitize` exits 0, `cmake --build build/sanitize` exits 0 and `ctest --test-dir build/sanitize --preset ci-sanitize` exits 0
+- [ ] T078 [P] Run the thread-sanitizer lane (VIII, SC-004). Verify: `cmake --preset=ci-tsan` exits 0, `cmake --build build/tsan` exits 0 and `ctest --test-dir build/tsan --preset ci-tsan` exits 0
 - [ ] T079 Run the coverage contract in `build/coverage`: configure,
   build, run the suite and produce the trace; the reading holds 100%
   line coverage, the branch shortfall stands at or under 21 rows, the
@@ -702,7 +703,7 @@ coverage contract, the pinned suite, the gate records and the commits.
 - [ ] T080 Run the full suite and read the entry count: the three new
   executables join the 181 entries of record, and the 13 tests of the
   attribution record stand among them (FR-032, SC-001, SC-003, VIII)
-  (depends on T063). Verify: `ctest --test-dir build --output-on-failure` exits 0 and `ctest --test-dir build -N | tail -n 1` reads `Total Tests: 184`
+  (depends on T063). Verify: `ctest --test-dir build --output-on-failure` exits 0, `ctest --test-dir build -N | tail -n 1` reads `Total Tests: 184`, and `grep -hoE 'the[A-Za-z]+Rows' test/source/harness_hwlat_probe_test.cpp test/source/harness_hwlat_tracer_test.cpp test/source/harness_latency_counters_test.cpp | sort -u | wc -l` reads at least 13
 - [ ] T081 Run the pinned suite on corsairone in the `build/prepush`
   tree (FR-032, SC-003, VIII) (depends on T063). Verify: `taskset -c 0,1 ctest --preset prepush-quick -j 2` exits 0
 - [ ] T082 [P] Run the no-sleep and no-clock review over the three new
@@ -787,9 +788,11 @@ M9 contracts land in W3, ahead of the M9 docs half in W4.
 ### MVP note
 
 The MVP stands at the end of Phase 3 with Phase 6 landed: a run of
-`--jitter-probe=idle,method=hwlat` marks its gaps, folds the two deltas
-and the marked count, and writes the eleven keys. The detector, the
-console detail, the docs and the records follow by priority.
+`--jitter-probe=idle,method=hwlat` marks its gaps and folds the two deltas
+and the marked count into the record, and an invalid value refuses before
+anything runs. Phase 5 puts the eleven keys into the document, and the
+detector, the console detail, the docs and the records follow by
+priority.
 
 ---
 
