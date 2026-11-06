@@ -593,23 +593,23 @@ branch is `fix/post-merge-78-79`, cut from `origin/master`, and it carries
 the spec 046 row PM46-001 beside these rows. No version, schema or SOVERSION
 change. No CI or gate change.
 
-- [ ] PM45-001 [US1] On thrawn at `858c55d9`, run `ci-coverage` and list each
+- [x] PM45-001 [US1] On thrawn at `858c55d9`, run `ci-coverage` and list each
       short branch row by file and line. Add real tests until the shortfall
       reads 21 rows or fewer. Each test lands in its own commit with the code
       it reaches, if any. No code shaped for coverage. No new `LCOV_EXCL`, no
       new `--omit-lines`, no new `--ignore-errors` and no new `--remove`. The
       marker count from `git grep -c LCOV_EXCL -- source include` stays 84 or
       fewer.
-- [ ] PM45-002 [US1] When a short row stands beyond the reach of any real
+- [x] PM45-002 [US1] When a short row stands beyond the reach of any real
       test, do not hide it. List it with its reason in
       `specs/045-merge-fixes/results/post-merge.md` and stop for an owner
       ruling.
-- [ ] PM45-003 [US1] On thrawn at the pull-request head, run the full `ctest`,
+- [x] PM45-003 [US1] On thrawn at the pull-request head, run the full `ctest`,
       `taskset -c 0,1 ctest`, the address and undefined-behavior sanitizer
       preset, the thread sanitizer preset and `ci-coverage`. Record the host,
       the kernel, the GCC version, the head sha and the counts in
       `specs/045-merge-fixes/results/post-merge.md`.
-- [ ] PM-END [US1] Squash the lane into one commit with author OmO, a title of
+- [x] PM-END [US1] Squash the lane into one commit with author OmO, a title of
       50 characters or fewer, and the `Refs:` then `Approved-by: OmO` footer
       (owner ruling 2026-11-04), then measure on that head. Open one pull
       request to `master` whose body gives the host, the kernel, the GCC
@@ -626,14 +626,14 @@ closed by real work. No `LCOV_EXCL` marker, no `--omit-lines`, no
 `--ignore-errors` and no `--remove` joins the route, and the marker count from
 `git grep -c LCOV_EXCL -- source include` stays 84 or fewer.
 
-- [ ] PM45-004 [US1] Make the two readbacks of the top-down selection testable.
+- [x] PM45-004 [US1] Make the two readbacks of the top-down selection testable.
       Move the shape readback and the published readback of
       `source/counters/linux_pmu/topdown_select.cpp` into internal functions with
       their own contract, and call those functions from the selection. Drive each
       clause of each readback from `counters_topdown_select_test.cpp` with a
       hand-built tree. The eight short arms at lines 617, 620, 627, 633 and 652
       stand read.
-- [ ] PM45-005 [US1] Close the five arms of this host through the seams the
+- [x] PM45-005 [US1] Close the five arms of this host through the seams the
       repository already carries. `installTestProcRoot` feeds a sibling list of
       one cpu, and a sibling list of none, to the coverage line of
       `source/harness/cli.cpp:1621` to `:1628`. The `cpuidWords` seam of
@@ -642,11 +642,11 @@ closed by real work. No `LCOV_EXCL` marker, no `--omit-lines`, no
       `detail::resolvedNodePlan()` and `detail::memoryBinder()` stand a cpu
       outside the plan, and a refused bind, in front of
       `source/harness/execution_context.cpp:464` to `:477`.
-- [ ] PM45-006 [US1] Close the five rows the record of PM45-002 names reachable:
+- [x] PM45-006 [US1] Close the five rows the record of PM45-002 names reachable:
       two probed families whose last instances interleave, a second probed family
       beside the `machine/tsc` availability refusal, and one document whose first
       field of one record read answers an error.
-- [ ] PM45-007 [US1] Measure at the head of this branch with `ci-coverage`. The
+- [x] PM45-007 [US1] Measure at the head of this branch with `ci-coverage`. The
       gate must read a shortfall of 21 rows or fewer with the allowance of D-14
       unchanged. Record the reading, the rows this phase closed and the reason for
       every row that still stands in
