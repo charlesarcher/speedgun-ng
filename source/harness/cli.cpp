@@ -1415,10 +1415,10 @@ auto speedgunMain(int argc, char** argv) -> int
           // `both` the loop runs on while the record builds, and the
           // snapshot carries the prefix the latch line ended, so the
           // record reads one source in either mode and reads no live
-          // buffer. The `tsc` gap figures ride the same shape: the
-          // snapshot carries the kept gap prefix and the dropped-gap
-          // count, so the record names the pre-check window's own
-          // gaps.
+          // buffer. The gap figures of every method ride the same
+          // shape: the snapshot carries the kept gap prefix and the
+          // dropped-gap count, so the record names the pre-check
+          // window's own gaps.
           entry.stats = detail::gapStatsOf(detail::latchSnapshotOf(state));
           // specs/043 FR-004, FR-020, E-23: the series of the same
           // pre-check window rides beside the gaps. A TSC run keeps no
