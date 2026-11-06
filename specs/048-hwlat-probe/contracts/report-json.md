@@ -27,7 +27,7 @@ its standing file in the commit that lands the writer (spec FR-029).
 | Rule | Detail | Requirement |
 | --- | --- | --- |
 | The stamp moves to `1.16` | `kSchemaVersion` stands `"1.15"` at `source/harness/json_report.cpp:58`, where specs/041-counter-probe left it, and the writer stamps the new value | spec D-5, FR-004 |
-| The top level stands still | `docs/schema/report-v1.json:7` keeps its eight-name `x-order`, because every new key joins an object the document already carries | spec FR-029 |
+| The top level gains no name | `docs/schema/report-v1.json:7` keeps its nine-name `x-order`, the ninth being the run-level `counterLimits` array specs/041-counter-probe joined, because every key of this feature joins an object the document already carries | spec FR-029 |
 | Each touched object moves in the same commit | the six `x-order` lists below move with the writer, the habit specs/036 FR-006 states | spec FR-029 |
 
 ## Key order
