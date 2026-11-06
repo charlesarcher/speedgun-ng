@@ -176,20 +176,6 @@ auto probedKindTable() -> std::map<std::string, TargetMask>&
   return table;
 }
 
-// The programmable-counter limit each object's event source published at
-// registration, keyed by the object's canonical path (FR-005). A source
-// that cannot answer records nothing, so the table holds only the objects
-// whose source answered, and an object missing from it answers nothing.
-// The tree keeps no field for the fact, so it rides beside the tree as
-// the probe table above does. The table is filled while a provider
-// registers and read only after the catalog opens, so no read races a
-// write (FR-009).
-auto programmableLimitTable() -> std::map<std::string, std::size_t>&
-{
-  static std::map<std::string, std::size_t> table;
-  return table;
-}
-
 }  // namespace
 
 System::System()
@@ -199,6 +185,7 @@ System::System()
   root->kind = "machine";
   root->path = "machine";
   root->description = "local machine";
+  root->owner = this;
   m_impl->objects.emplace(root->path, std::move(root));
 }
 
@@ -291,6 +278,7 @@ auto System::registerProvider(std::unique_ptr<ProviderIface> provider)
       stagedAliases.emplace_back(alias, path);
     }
     node->leaves = std::move(*leaves);
+    node->owner = this;
     staged.push_back(std::move(node));
   }
 
@@ -302,7 +290,7 @@ auto System::registerProvider(std::unique_ptr<ProviderIface> provider)
     m_impl->aliases.emplace(std::move(alias), std::move(path));
   }
   for (const auto& [path, limit] : stagedLimits) {
-    programmableLimitTable().insert_or_assign(path, limit);
+    m_impl->limits.insert_or_assign(path, limit);
   }
   m_impl->providers.push_back(std::move(provider));
   return {};
@@ -446,7 +434,7 @@ auto Object::description() const noexcept -> std::string_view
 auto Object::programmableCounters() const noexcept -> std::optional<std::size_t>
 {
   const auto* node = static_cast<const TreeNode*>(m_node);
-  const auto& limits = programmableLimitTable();
+  const auto& limits = node->owner->m_impl->limits;
   const auto answered = limits.find(node->path);
   if (answered == limits.end()) {
     return std::nullopt;
@@ -460,7 +448,7 @@ auto Object::parent() const noexcept -> const Object*
   if (node->path == "machine") {
     return nullptr;
   }
-  auto& systemRef = System::local();
+  auto& systemRef = *node->owner;
   const auto slash = node->path.rfind('/');
   const std::string parentPath = slash == std::string::npos
       ? std::string("machine")
@@ -515,7 +503,7 @@ auto Object::counters() const -> std::vector<CatalogEntry>
 auto Object::children() const -> std::vector<const Object*>
 {
   const auto* node = static_cast<const TreeNode*>(m_node);
-  auto& systemRef = System::local();
+  auto& systemRef = *node->owner;
   std::vector<const Object*> direct;
   for (const auto& [objectPath, child] : systemRef.m_impl->objects) {
     // The direct-child test stands per leg, so each edge lands on its

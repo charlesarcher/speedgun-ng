@@ -10,10 +10,12 @@
 //
 // The record reuses the public `sg::counters::LimitSource`, so the writer
 // and the reader name one closed set of answers. The store is process
-// state beside the tree, the shape `programmableLimitTable()` keeps at
-// `source/counters/system.cpp:187-191`: one table keyed by the object
-// path, filled while a provider registers and read after the catalog
-// opens, so no read races a write (FR-009).
+// state beside the tree: one table keyed by the object path, filled
+// while a provider registers and read after the catalog opens, so no
+// read races a write (FR-009). The published limits stand in
+// `System::Impl` since specs/050-limit-table-lifecycle moved them
+// there, one table per System, and this store keeps the source of each
+// figure for the life of the process (FR-043).
 //
 // The seam is private: never installed, and read by three places, the
 // provider's enumeration, the accessor's own definition, and the unit

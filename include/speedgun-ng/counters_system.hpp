@@ -80,6 +80,12 @@ public:
    * `enumerate`. No value is the answer of a source that cannot answer:
    * such a source limits nothing for the counters it owns.
    *
+   * Registration writes the table before its `System` opens, and a read
+   * follows the open of that same `System`. Within one `System`, no
+   * read races a write, because registration closes when the boundary
+   * opens. Two `System` objects share nothing, so no lock spans the
+   * two: each holds its own tree and its own table (FR-003).
+   *
    * \pre none
    * \post none
    */
@@ -236,12 +242,40 @@ enum class LimitSource : std::uint8_t
  * Registration is accepted before the first use; the first use opens
  * the boundary, closes registration, and freezes the catalog, which
  * makes concurrent catalog reads safe by construction (FR-009).
+ *
+ * Each `System` owns its tree, its merged catalog and its limit table,
+ * and the limit table ends with its `System` (FR-005). A read through a
+ * handle reaches the table of the `System` that owns that handle's node,
+ * and no other table (FR-007). A program may build a `System` of its
+ * own, and two such objects hold two trees and answer their own limits
+ * (FR-008).
  */
 class SPEEDGUN_NG_EXPORT System
 {
 public:
   System(const System&) = delete;
   auto operator=(const System&) -> System& = delete;
+
+  /**
+   * @brief Builds a system the program owns, with its own tree, its own
+   * catalog and its own limit table (FR-008).
+   *
+   * Registration stays open on a new object until its first use opens
+   * the boundary and freezes the catalog (FR-009).
+   *
+   * \pre none
+   * \post none
+   */
+  System();
+
+  /**
+   * @brief Ends one `System` and releases its tree, its merged catalog
+   * and its limit table (FR-005).
+   *
+   * \pre none
+   * \post none
+   */
+  ~System();
 
   /**
    * @brief The process-local root handle.
@@ -332,9 +366,6 @@ public:
   [[nodiscard]] auto tsc() const -> std::expected<Counter<Dim<0, 1>>, Error>;
 
 private:
-  System();
-  ~System();
-
   friend class Object;
 
   [[nodiscard]] auto handleFor(const std::string& canonical)

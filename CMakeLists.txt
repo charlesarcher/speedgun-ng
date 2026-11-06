@@ -67,7 +67,15 @@ project(
     # number moves; the harness archive answers no new exported type, because
     # the source of a limit reaches the report as JSON text, so the harness
     # SOVERSION stays 21 (FR-051, FR-053).
-    VERSION 0.32.0
+    # specs/050-limit-table-lifecycle FR-010, FR-012 (D-5): this feature takes
+    # the next free minor past 0.32.0, 0.33.0. The counters public header moves,
+    # because the constructor and the destructor of System leave its private
+    # section. Two exported symbols join that archive over no new type, and the
+    # limit table moves into System::Impl as one table per System (FR-001,
+    # FR-004). No exported layout moves. Hard rule 12 asks the hand-kept number
+    # to move with a public header change, so the counters number goes to 8. The
+    # harness header changes nothing, so the harness SOVERSION stays 21.
+    VERSION 0.33.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -152,7 +160,12 @@ set_target_properties(
     # existing layout moves and no existing symbol changes, and the rule the
     # comment above carries asks the number to move with a public header
     # change, so the hand-kept number goes to 7 (hard rule 12).
-    SOVERSION 7
+    # specs/050-limit-table-lifecycle FR-010, FR-012 (D-5): the public header
+    # include/speedgun-ng/counters_system.hpp moves again, because two members of
+    # System leave its private section and gain exported definitions. No existing
+    # layout moves and no existing symbol changes, and hard rule 12 asks the
+    # number to move with a public header change, so it goes to 8.
+    SOVERSION 8
     EXPORT_NAME speedgun-ng
     OUTPUT_NAME speedgun-ng
 )
