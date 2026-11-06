@@ -137,7 +137,7 @@ bound one gap marks that gap `SMI`, a flat counter marks every gap
 
 ### Tests for User Story 1 (write first, observe failure)
 
-- [ ] T011 [US1] Open `harness_hwlat_probe_test` in `test/CMakeLists.txt` the
+- [X] T011 [US1] Open `harness_hwlat_probe_test` in `test/CMakeLists.txt` the
   same way, and stand `test/source/harness_hwlat_probe_test.cpp` with
   the same scaffold (FR-032, FR-034, III). Verify: `ctest --test-dir build -N -R '^harness_hwlat_probe_test$'` exits 0 with one entry listed
 - [ ] T012 [US1] Write the failing gap-mark rows in
