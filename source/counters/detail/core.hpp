@@ -46,6 +46,7 @@ struct TreeNode
   std::string alias;
   std::string description;
   std::vector<LeafRecord> leaves;
+  System* owner = nullptr;  // the System whose tree holds this node
 };
 
 // Shared buffer state living beside every recorder arena (US2) and
@@ -204,6 +205,13 @@ struct System::Impl
   // (FR-010). No contract check guards it, because a lock does.
   std::mutex handlesLock;
   std::map<std::string, std::string> aliases;  // alias to path
+  // The programmable-counter limit each object's event source published
+  // at registration, keyed by the object's canonical path (specs/050
+  // FR-001, FR-004). A source that cannot answer records nothing, so an
+  // object with no record answers nothing (specs/050 FR-006).
+  // Registration writes this table before its `System` opens the
+  // catalog, and every read follows that open.
+  std::map<std::string, std::size_t> limits;
   // The catalog opens lazily, on the first resolution that needs it, so no
   // separate open call exists to own the transition. The flag is atomic
   // and the store runs through a compare-and-exchange, which makes the

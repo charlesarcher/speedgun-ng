@@ -1,5 +1,5 @@
 # sg-example:begin report
-speedgun-ng 0.32.0 build=Release
+speedgun-ng 0.33.0 build=Release
 bmProbeTick              iterations=3915069546  real time/iter (ns)=    0.178  cpu time/iter (ns)=    0.178  overhead floor (ns)=  100.000  endpoint samples=2
 counter limit: cpu limit=6 source=decode probe=6
 # sg-example:end report

@@ -126,10 +126,10 @@
 //   theScanCarriesNoShortLetter    the option string of the scan holds no
 //                                  letter (FR-005)
 //   theVersionBindingsReadTheMovedNumbers
-//                                  the project block reads 0.30.1, the
-//                                  harness target answers SOVERSION 20,
+//                                  the project block reads 0.33.0, the
+//                                  harness target answers SOVERSION 21,
 //                                  and the counters archive answers
-//                                  SOVERSION 5 (FR-050)
+//                                  SOVERSION 8 (FR-050)
 //   theHelpAnswerPrintsOneLinePerRow
 //                                  `--help` prints one line per table row
 //                                  in table order, each the two leading
@@ -1471,13 +1471,13 @@ auto soVersionOf(const std::string& cmake,
 }
 
 // FR-050: the version bindings read the numbers the version move lands:
-// the project version `0.32.0`, the harness archive `SOVERSION 21` and the
-// counters archive `SOVERSION 7`. specs/043 FR-005 took the project and the
+// the project version `0.33.0`, the harness archive `SOVERSION 21` and the
+// counters archive `SOVERSION 8`. specs/043 FR-005 took the project and the
 // harness pair from the 0.28.0 and 19 that specs/037 landed. specs/046 moves
-// the pair again, and specs/041-counter-probe moves the counters number once
-// more: one exported accessor over one new closed enumeration, with no
-// harness layout moved. Each figure below reads the property line of the
-// target it names.
+// the pair again, specs/041-counter-probe moves the counters number with a new
+// exported accessor, and specs/050-limit-table-lifecycle moves it once more
+// with two members of System that leave the private section of the public
+// header. Each figure below reads the property line of the target it names.
 ///
 /// \pre the root `CMakeLists.txt` can be read
 /// \post the three rows answer the numbers FR-050 moves
@@ -1486,14 +1486,14 @@ auto theVersionBindingsReadTheMovedNumbers(const std::filesystem::path& start)
 {
   const std::string cmake = rootCMakeText(start);
   SG_ASSERT(!cmake.empty(), "pre: the root CMakeLists.txt can be read");
-  check(projectVersion(start) == "0.32.0",
-        "the project version reads 0.32.0 (FR-050)");
+  check(projectVersion(start) == "0.33.0",
+        "the project version reads 0.33.0 (FR-050)");
   check(soVersionOf(cmake, "speedgun-ng_harness") == "21",
         "the harness property line reads SOVERSION 21 (FR-050)");
-  check(soVersionOf(cmake, "speedgun-ng_speedgun-ng") == "7",
-        "the counters archive property line reads SOVERSION 7 (FR-050)");
-  check(soVersionNumbers(cmake) == "7 21",
-        "the two archive SOVERSION lines read 7 for the counters archive and "
+  check(soVersionOf(cmake, "speedgun-ng_speedgun-ng") == "8",
+        "the counters archive property line reads SOVERSION 8 (FR-050)");
+  check(soVersionNumbers(cmake) == "8 21",
+        "the two archive SOVERSION lines read 8 for the counters archive and "
         "21 for the harness archive, in file order (FR-050)");
 }
 

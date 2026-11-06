@@ -1368,7 +1368,7 @@ not price prints `probe=no limit`.
 
 <!-- sg-sample-output: example/docs/counter_probe.expected#report -->
 ```text
-speedgun-ng 0.32.0 build=Release
+speedgun-ng 0.33.0 build=Release
 bmProbeTick              iterations=3915069546  real time/iter (ns)=    0.178  cpu time/iter (ns)=    0.178  overhead floor (ns)=  100.000  endpoint samples=2
 counter limit: cpu limit=6 source=decode probe=6
 ```
@@ -1618,6 +1618,10 @@ Two published facts drive the split: `Object::programmableCounters` states
 how many programmable counters one context can hold open on one event
 source, and a loaded metric states how many events its column needs. The
 planner reads both before the first timed window and opens no counter.
+The limit table behind that read belongs to one `System`, and each `System`
+holds its own table. That table ends with its `System`, and no call clears a
+record while the `System` lives. A read answers the table of the `System` that
+owns the object, so a program's own `System` answers its own limits.
 
 That figure reaches the library from one of two finders, and
 `objectLimitSource` names which one answered a path. The decode reads the
@@ -2579,7 +2583,7 @@ auto rankHuntWithAreas(const std::vector<sg::hunt::EventSamples>& collected,
 
 <!-- sg-sample-output: example/docs/hunt_topdown.expected#report -->
 ```text
-speedgun-ng 0.31.0 build=Release
+speedgun-ng 0.33.0 build=Release
 bmHuntTopdown/16         iterations= 131148497  real time/iter (ns)=    5.343  cpu time/iter (ns)=    5.337  overhead floor (ns)=  680.000  endpoint samples=2
 hunt: rank 1 cpu/hunt_loads instr=2000.000 cv=0.00 correlation=n/a slope=n/a delta=n/a area=topdown.backend_bound > topdown.intel.tma_l1_bound
 hunt: rank 2 cpu/hunt_branches instr=1000.000 cv=0.00 correlation=n/a slope=n/a delta=n/a area=pipeline

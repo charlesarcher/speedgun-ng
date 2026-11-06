@@ -721,6 +721,20 @@ add_test(NAME counters_objects_limit_test COMMAND counters_objects_limit_test)
 set_tests_properties(counters_objects_limit_test PROPERTIES
                      SKIP_RETURN_CODE 2)
 
+# The limit table one `System` owns, and the split between two `System`
+# objects (specs/050-limit-table-lifecycle T003, T014, T011; FR-002, FR-004,
+# FR-005, FR-006, FR-009, data-model E-02). T003 writes three cases, then
+# T014 and T011 add the walk read and the ended-`System` read. Each case
+# scripts its counts on the fake provider, so no case needs a kernel counter
+# or a privilege. The entry sets no skip rule, because
+# `test/tier_labels.sh:81-94` lists the entries that may carry one.
+add_executable(counters_limit_lifecycle_test
+               source/counters_limit_lifecycle_test.cpp)
+target_link_libraries(counters_limit_lifecycle_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_limit_lifecycle_test PRIVATE cxx_std_23)
+add_test(NAME counters_limit_lifecycle_test COMMAND counters_limit_lifecycle_test)
+
 # ---- Nanosecond-rate counter (feature 011) ----
 
 # The nanosecond-rate clock leaf (specs/011 FR-001..FR-008; US2):
