@@ -616,7 +616,9 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   `fwq` and `ftq`. No option value SHALL join the option table unless the
   owner rules.
 - **FR-003**: The detector run SHALL stand off by default. It SHALL
-  require the engine word `hwlat` of `--os-noise`. It SHALL change no
+  require the engine word `hwlat` of `--os-noise`. A value that names an
+  engine on a run whose mode plans no pre-check window SHALL refuse with
+  one line at exit status 2 ahead of any benchmark. It SHALL change no
   kernel setting without that word, SHALL restore each setting on every
   exit path, and SHALL carry no setuid helper.
 - **FR-004**: The console, the JSON document and the N5 comparison SHALL
@@ -867,7 +869,7 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   interrupts enabled.
 
 The new report keys, with the figure each carries and the test that
-guards it. One writer function fills all three stats shapes
+guards it. Two write sites fill the three stats shapes
 (`source/harness/json_report.cpp:332` to `:364` and the inline pre-check
 block at `:1242` to `:1262`), so the three figures reach the per-entry
 items too. The schema types that per-entry

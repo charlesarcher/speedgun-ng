@@ -229,7 +229,8 @@ path.
   standing text of each of the six saved files first, then writes
   `tracing_cpumask`, then `hwlat_detector/mode` with `per-cpu`, then
   `hwlat_detector/width` with `5000`, then `hwlat_detector/window` with
-  `10000`, then `tracing_thresh` with `1000000`, then `current_tracer`
+  `10000`, then `tracing_thresh` with `1000000`, the three constants spec
+  A-3 names, then `current_tracer`
   with `hwlat`, then `tracing_on` with `1`, each path under the file
   root, the mask in the word width the standing mask carried (FR-018,
   FR-019, FR-020, D-9, D-10, P-14, A-3). Verify: `ctest --test-dir build -R harness_hwlat_tracer_test --output-on-failure` exits non-zero (red observed)
@@ -275,8 +276,11 @@ path.
   reads `names none of the thirty-five jitter fields`, an unknown
   detector figure reads `names none of the three hwlat figures`, each
   fault prints one line at status 2 before any comparison runs, a figure
-  that stands `null` reads the standing absence shape, and the standing
-  refusals hold word for word over the grown table (FR-028, P-11, plan R-7).
+  the record carries as absent reads 0, a `hwlat:` name on a report that
+  carries no tracer record prints one line at status 2, and one on a
+  record with no entry for the cpu the rule names prints that same line,
+  and the standing refusals hold word for word over the grown table
+  (FR-028, P-11, plan R-7, SC-001).
   Verify: `ctest --test-dir build -R harness_compare_cli_test --output-on-failure` exits non-zero (red observed)
 
 - [ ] T089 [US2] Write the failing standing-tracer rows in
@@ -349,7 +353,8 @@ new key, and a document written before the feature loads unchanged.
   `test/source/harness_json_report_test.cpp`: `smiDelta`, `nmiDelta` and
   `smiGapCount` stand after `droppedGaps` in `jitter.stats[]`, the
   per-benchmark items and `precheck.cpus[].stats` for the `hwlat` method
-  alone; `smi` stands beside each raw gap under `--json-raw=gaps` with
+  alone, each per-benchmark item reading `null` for both deltas and 0 for
+  the count (spec FR-025); `smi` stands beside each raw gap under `--json-raw=gaps` with
   `SMI`, `NOT_SMI` or `null`; `windowUs`, `widthUs` and `thresholdUs`
   stand beside the engine word and `maxGapNs`, `gapCount` and `nmiCount`
   beside `hardware` for that engine alone; `limits` stands beside
@@ -711,7 +716,8 @@ coverage contract, the pinned suite, the gate records and the commits.
 - [ ] T083 [P] Run the code-discipline review over the lane's sources:
   no lambda stands inside an `SG_` macro, the unit of Phase 2 stands the
   only kernel interface reader, and simdjson stands the only JSON reader
-  the change uses (FR-038, II, X.2). Verify: `grep -rnE "SG_(REQUIRE|ENSURE|INVARIANT)\(.*\] *\(" source/harness/latency_counters.cpp source/harness/noise_tracer.cpp source/harness/jitter_probe.cpp` reads no match and `grep -rnE "nlohmann|rapidjson" source/harness | wc -l` reads 0
+  the change uses, and no unit of the lane reaches for a privilege the
+  process does not hold (FR-024, FR-038, II, X.2). Verify: `grep -rnE "SG_(REQUIRE|ENSURE|INVARIANT)\(.*\] *\(" source/harness/latency_counters.cpp source/harness/noise_tracer.cpp source/harness/jitter_probe.cpp` reads no match, `grep -rnE "nlohmann|rapidjson" source/harness | wc -l` reads 0 and `grep -rniE "setuid|capset|daemon|modprobe|request_module|insmod" source/harness | wc -l` reads 0
 - [ ] T084 Write the gate record in
   `specs/048-hwlat-probe/results/gates.md`: each gate with its command
   and its exit code, the coverage reading with its line and branch
