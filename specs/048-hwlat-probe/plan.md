@@ -282,6 +282,20 @@ choice the code must make once.
   moves one thread across the mask and leaves the cpus it never reached
   with an empty buffer (spec D-9). The mode file stands in the saved set,
   so a host that starts in `per-cpu` ends there.
+- **P-15**: a host whose `current_tracer` already reads `hwlat` ahead of
+  the run answers the unavailable shape of spec FR-023, with one
+  disclosure line, and the session writes no file. The kernel returns
+  success without initializing a tracer that already stands
+  (`kernel/trace/trace.c:5043` to `:5044`), and `tracer_init` stands as
+  the only path that resets the cpu buffers (`:4709` to `:4713`, reached
+  at `:5111` to `:5112`), so the live detector's lines would answer for
+  this run. The run gains no refusal, because the run never fails on the
+  tracer.
+- **P-16**: the saved value of `hwlat_detector/mode` holds the bracketed
+  word alone. The read form lists the three words with the active one
+  inside brackets (`kernel/trace/trace_hwlat.c:629-632`, `:642`), and the
+  write handler compares one stripped word (`:692`, `:694`, `:706-711`),
+  so the whole read form would answer `EINVAL` at the restore.
 
 ### Modules and dependency order
 
@@ -290,7 +304,7 @@ choice the code must make once.
 | M1 | Counter sources | `latency_counters.{hpp,cpp}`, `harness_latency_counters_test.cpp` | none | FR-001, FR-007 to FR-011 | new executable |
 | M2 | Public surface | `benchmark.hpp` | none | FR-002 words, FR-025 fields, FR-027 fields | existing tables |
 | M3 | Probe attribution | `detail/jitter_probe.hpp`, `jitter_probe.cpp`, three jitter test files | M1, M2 | FR-002, FR-005, FR-012 to FR-017, FR-030 | `harness_hwlat_probe_test`, three standing files |
-| M4 | Detector engine | `detail/noise_tracer.hpp`, `noise_tracer.cpp`, `harness_noise_test.cpp`, `harness_hwlat_tracer_test.cpp` | M2 | FR-003, FR-018 to FR-024 | new plus standing executable |
+| M4 | Detector engine | `detail/noise_tracer.hpp`, `noise_tracer.cpp`, `harness_noise_test.cpp`, `harness_hwlat_tracer_test.cpp` | M2 | FR-003, FR-018 to FR-024 | new plus standing executable; a host that already runs `hwlat` answers the unavailable shape (P-15) |
 | M5 | Writer and schema | `detail/json_report.hpp`, `json_report.cpp`, schema, three test files | M2 | FR-004, FR-025 to FR-027, FR-029, FR-031 | three standing executables |
 | M6 | Reader | `json_load.cpp`, `harness_json_load_test.cpp` | M2, M5 key names | FR-004, FR-026, FR-029 | standing executable |
 | M7 | Console | `report.cpp`, `harness_jitter_window_test.cpp`, `harness_noise_report_test.cpp` | M2 | FR-016, FR-027, FR-030, FR-031 | two standing executables |
