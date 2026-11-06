@@ -100,8 +100,10 @@ unit opens a kernel interface directly (P-1).
   call anywhere (FR-007, FR-011, D-3, P-2) (depends on T004, T006; the
   rows of T004 turn green). Verify: `ctest --test-dir build -R harness_latency_counters_test --output-on-failure` exits 0
 - [ ] T008 Implement the gate and the text reader in
-  `source/harness/latency_counters.cpp`: `readUnderRoot` reads the two
-  files, `std::from_chars` settles each figure, and a truncated line
+  `source/harness/latency_counters.cpp`: a file-local reader over
+  `procRootPath` reads the two files, the shape `noise_tracer.cpp` sets,
+  since `readUnderRoot` stands undeclared in every header,
+  `std::from_chars` settles each figure, and a truncated line
   answers absent (FR-009, FR-010, FR-011, P-1, P-4) (depends on T005,
   T007; the rows of T005 turn green). Verify: `ctest --test-dir build -R harness_latency_counters_test --output-on-failure` exits 0
 - [ ] T009 Hold the two refusals in
