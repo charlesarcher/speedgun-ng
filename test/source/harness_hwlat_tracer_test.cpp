@@ -1358,6 +1358,29 @@ auto theInterruptedChildRestoresTheTree() -> void
         "the interrupted run holds the standing interrupt status (T024, "
         "FR-003)");
   theUserSpaceStandsWhole(json);
+  // AC-4, FR-003, D-15: the record states the path the run took. The standing
+  // interrupt rule marks the entry skipped with its one reason ahead of the
+  // writer, so the loaded document carries both the outcome and the reason the
+  // signal path took.
+  const auto loaded = sg::loadReport(json);
+  checkWith(loaded.has_value(),
+            "the interrupted run writes the document (T024, AC-4, FR-003)",
+            loaded.has_value() ? "written" : loaded.error());
+  if (loaded.has_value()) {
+    checkWith(
+        loaded->results.size() == 1,
+        "the interrupted run records its one benchmark (T024, AC-4, " "FR-003)",
+        "results=" + std::to_string(loaded->results.size()));
+    for (const auto& result : loaded->results) {
+      check(result.outcome == sg::RunOutcome::SKIPPED,
+            "the record states the skipped outcome the interrupt took (T024, "
+            "AC-4, FR-003)");
+      checkWith(result.reason == "interrupted by the user (SIGINT)",
+                "the record names the signal behind that outcome (T024, AC-4, "
+                "FR-003)",
+                "reason=" + result.reason);
+    }
+  }
   check(
       readStream(guard.root() / "sys/kernel/tracing/current_tracer") == "nop\n",
       "the restore returns the standing word (T024, FR-021, D-15)");
