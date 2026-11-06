@@ -656,9 +656,11 @@ report.
   (spec FR-028). The three detector names stand in the new `kHwlatFields`
   table of 3 rows with their own refusal line, so a standing jitter
   refusal keeps its words (plan P-11, plan R-7).
-- Validation: a name with no figure answers the standing shape, one fault
-  line naming the rule and what the report lacks, at exit status 2
-  (`source/harness/compare.cpp:1563-1576`, the note at
+- Validation: two cases stand apart. A figure the record carries as
+  absent reads 0, the standing rule of a fold with no value. A report that
+  carries no tracer record, or no entry for a cpu a rule names, answers
+  one fault line naming the rule and what the report lacks, at exit status
+  2 (`source/harness/compare.cpp:1563-1576`, the note at
   `source/harness/compare.cpp:1539-1545`). No name gains a status (spec
   FR-028). The standing table reader answers a `double` at
   `source/harness/compare.cpp:244`, so a reader for a nullable figure has
