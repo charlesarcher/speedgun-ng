@@ -971,15 +971,22 @@ auto gapFigures(std::span<const GapRecord> records,
   stats.loopPeriodNs = loopPeriodNs;
 
   // specs/048 FR-013, FR-014, FR-015, FR-016, P-3: a change above zero
-  // marks its gap `SMI` and a change of zero marks it `NOT_SMI`, so the
-  // marked count counts the elements above zero. An absent source leaves
-  // every element at zero, which leaves the count at 0. The two changes
-  // answer the edge pairs, and a pair whose reads stand absent answers
-  // nothing: no figure of its own stands set there.
-  for (const auto change : changes) {
-    stats.smiGapCount += change > 0 ? std::uint64_t {1} : std::uint64_t {0};
-  }
+  // marks its gap `SMI` and a change of zero marks it `NOT_SMI`, and the
+  // marked count counts the gaps that carry that mark. One availability
+  // stands over the marks and the count together: FR-015 leaves no gap of
+  // the run marked when the count stands unavailable, so a window whose
+  // SMI reads answer only one of its two edges carries no mark, and the
+  // count stays at 0 beside the empty mark list the writer leaves (D-13,
+  // P-3). A fold that holds no edge read is the per-benchmark and latch
+  // shape, which counts the gaps of its own item (FR-025).
   stats.smiDelta = windowDeltaOf(edges.smiOpening, edges.smiClosing);
+  const bool windowReadTheSource =
+      edges.smiOpening.has_value() || edges.smiClosing.has_value();
+  if (!windowReadTheSource || stats.smiDelta.has_value()) {
+    for (const auto change : changes) {
+      stats.smiGapCount += change > 0 ? std::uint64_t {1} : std::uint64_t {0};
+    }
+  }
   stats.nmiDelta = windowDeltaOf(edges.nmiOpening, edges.nmiClosing);
 
   std::vector<double> sorted;

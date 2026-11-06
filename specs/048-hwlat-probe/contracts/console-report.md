@@ -77,6 +77,12 @@ delta names join the standing files in the commit that lands the code.
   `not available` token in the figure position, the token
   `kUnavailableFigure` holds at `source/harness/report.cpp:989` (spec
   FR-011, FR-027).
+- One availability stands over the marks and the marked count: where the
+  two reads at the edges of a window answer only one read, `smiDelta`
+  prints the standing token, `smiGapCount` answers 0, and the document
+  carries `null` for the mark of every gap, so no count claims a mark its
+  carriers leave empty (spec FR-015, FR-016; the gate at
+  `source/harness/cli.cpp:573`).
 - The two disclosure lines print once per run per source, and the run
   keeps status 0 (spec FR-011). The same facts ride the
   `jitter.disclosure` text, so no new key carries them (plan P-12).

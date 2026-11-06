@@ -310,6 +310,14 @@ auto writeInterruptsWhole(const std::filesystem::path& root,
 std::vector<std::uint64_t> gapCalls;
 std::vector<std::pair<std::uint64_t, std::uint64_t>> nodeWrites;
 std::vector<std::pair<std::uint64_t, std::uint64_t>> interruptsWrites;
+// The calls at which one cpu's node figure appears in the tree, with the bytes
+// the node then answers. The item opens its node once at its start, so the path
+// has to stand for the figure to reach the reads of the window: the list writes
+// whole bytes into the standing path, which brings a figure to a node that
+// answered none (FR-011, D-13). A write that failed reaches the flag beside the
+// reader, so a row reads the premise it planted (FR-032, FR-039).
+std::vector<std::pair<std::uint64_t, std::string>> nodeAppears;
+std::atomic<bool> scriptCreateFailed {false};
 std::filesystem::path scriptRoot;
 std::size_t scriptColumns = 1;
 std::atomic<bool> scriptWriteFailed {false};
@@ -363,6 +371,21 @@ auto writeCounterAt(const std::filesystem::path& path,
 auto applyScriptWrites(std::uint64_t call) noexcept -> void
 {
   const int cpu = sched_getcpu();
+  for (const auto& [at, bytes] : nodeAppears) {
+    if (at != call || cpu < 0) {
+      continue;
+    }
+    const auto path =
+        sg::detail::procRootPath(nodePath(static_cast<std::uint32_t>(cpu)));
+    std::error_code made;
+    std::filesystem::create_directories(path.parent_path(), made);
+    std::ofstream file(path, std::ios::binary | std::ios::trunc);
+    file.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    file.close();
+    if (made || !file) {
+      scriptCreateFailed.store(true, std::memory_order_relaxed);
+    }
+  }
   for (const auto& [at, figure] : nodeWrites) {
     if (at != call || cpu < 0) {
       continue;
@@ -420,6 +443,8 @@ auto resetScript(const std::filesystem::path& root, std::size_t columns) -> void
   gapCalls.clear();
   nodeWrites.clear();
   interruptsWrites.clear();
+  nodeAppears.clear();
+  scriptCreateFailed.store(false, std::memory_order_relaxed);
   scriptRoot = root;
   scriptColumns = columns;
   scriptWriteFailed.store(false, std::memory_order_relaxed);
@@ -1353,10 +1378,14 @@ auto theLateNodeRows() -> void
         const auto& state = states.at(0);
         const auto stats = sg::detail::gapStatsOf(state);
         check(state.kept == 2 && state.changes.at(0) == 0
-                  && state.changes.at(1) == 2 && stats.smiGapCount == 1,
+                  && state.changes.at(1) == 2,
               "a node that answers nothing at the opening edge leaves the "
               "first gap unmarked, and the next gap's span answers the two "
               "reads that did answer (FR-011, FR-013, D-7, FR-014)");
+        check(stats.smiGapCount == 0,
+              "the window whose two edge reads answer one read marks no gap of "
+              "the run, so the count answers 0 beside a ring that carries a "
+              "rise (FR-015, FR-016, D-13, P-3)");
         check(!stats.smiDelta.has_value(),
               "an opening edge that answered nothing leaves the window change "
               "with no value, past the reads that answered (FR-011, FR-016)");
@@ -1386,6 +1415,107 @@ auto theLateNodeRows() -> void
               "a node that answers at the opening edge marks the window's "
               "first gap too, and the window change answers the edge pair "
               "(FR-013, FR-014, FR-016)");
+      });
+}
+
+// T014, FR-011, FR-015, FR-016, FR-025, P-3, D-13: a register node that stands
+// out of reach of the window's opening read and answers from the first gap read
+// onward. The item opens its node once at its start, so the row plants a node
+// that opens and answers no figure, and the scripted list brings the figure to
+// that node at the call of the run's first gap. The pair of edge reads then
+// answers one read: the window change carries no value, and FR-015 leaves no
+// gap of that run marked, so the marked count answers 0 while the change ring
+// carries the rise the scripted write planted and every standing figure holds.
+// The document leaves the mark of every gap empty beside that count, so no
+// figure claims a mark its carriers leave empty. The control plants the whole
+// node from the start behind the same scripted writes and reads the marked
+// count above zero, so the row cannot pass on a run that kept no gap.
+auto theNodeThatAnswersFromTheFirstGapOnward() -> void
+{
+  const auto cpus = pickCpus(1);
+  const auto marksOf = [](const sg::detail::ProbeCpuState& state)
+  {
+    std::size_t marks = 0;
+    for (std::size_t index = 0; index < state.kept; ++index) {
+      marks += state.changes.at(index) > 0 ? std::size_t {1} : std::size_t {0};
+    }
+    return marks;
+  };
+  const auto drive = [&](const bool nodeStands, const auto& assertions)
+  {
+    const HwlatRootGuard root;
+    plant(root.root(), "proc/cpuinfo", kIntelText, kNodeRights);
+    plant(root.root(),
+          nodePath(cpus.at(0)),
+          nodeImage(kOpeningCount,
+                    nodeStands ? sg::detail::kSmiCountBytes : std::size_t {0}),
+          kNodeRights);
+    plant(root.root(),
+          "proc/interrupts",
+          interruptsText(columnCount(cpus), kNmiOpening),
+          kNodeRights);
+    resetScript(root.root(), columnCount(cpus));
+    gapCalls = {kGapOneCall, kGapTwoCall};
+    nodeWrites = {{kGapTwoCall, kRiseCount}};
+    if (!nodeStands) {
+      nodeAppears = {
+          {kGapOneCall, nodeImage(kOpeningCount, sg::detail::kSmiCountBytes)}};
+    }
+    runSpan(
+        spanOptions(cpus, sg::JitterProbeMode::ALONGSIDE, kGapCount),
+        1,
+        kGapTwoCall,
+        [] {},
+        assertions);
+    check(!scriptCreateFailed.load(std::memory_order_relaxed)
+              && !scriptWriteFailed.load(std::memory_order_relaxed),
+          "the scripted node writes reached the node they name (FR-011, "
+          "FR-032, FR-039)");
+  };
+  drive(
+      false,
+      [&](const auto& states)
+      {
+        const auto& state = states.at(0);
+        const auto stats = sg::detail::gapStatsOf(state);
+        check(state.kept == 2,
+              "the run over the node that answers behind its first gap keeps "
+              "its two scripted gaps (FR-011, FR-025)");
+        check(!state.edges.smiOpening.has_value()
+                  && state.edges.smiClosing.has_value(),
+              "the node answers nothing at the window's opening read and "
+              "answers at its closing read (FR-011, D-13)");
+        check(!stats.smiDelta.has_value(),
+              "the edge pair that answers one read leaves the window change "
+              "with no value (FR-011, FR-016)");
+        check(marksOf(state) > 0 && stats.smiGapCount == 0,
+              "the marked count answers 0 while the change ring carries a gap "
+              "above zero, because no gap of that run carries a mark (FR-015, "
+              "FR-016, D-13, P-3)");
+        check(standingFigures(stats, 2, 0),
+              "the node that answers one edge read keeps every standing figure "
+              "of the run (FR-011, FR-025, E-03)");
+      });
+  drive(
+      true,
+      [&](const auto& states)
+      {
+        const auto& state = states.at(0);
+        const auto stats = sg::detail::gapStatsOf(state);
+        check(state.edges.smiOpening.has_value()
+                  && state.edges.smiClosing.has_value(),
+              "the control node answers both edge reads of the same window "
+              "(FR-011, FR-016)");
+        check(stats.smiDelta.has_value() && *stats.smiDelta == 1,
+              "the control window answers the change of its two edge reads "
+              "(FR-016, FR-025)");
+        check(marksOf(state) > 0 && stats.smiGapCount == marksOf(state),
+              "the control count counts the gaps that carry the mark, so the "
+              "row above cannot pass on a run that kept no gap (FR-015, FR-016, "
+              "P-3)");
+        check(
+            standingFigures(stats, 2, 0),
+            "the control run keeps the same standing figures (FR-011, FR-025)");
       });
 }
 
@@ -1547,6 +1677,7 @@ auto main() -> int
   theEdgeRows();
   theStandingMethodRows();
   theLateNodeRows();
+  theNodeThatAnswersFromTheFirstGapOnward();
   theFallingNodeRows();
   theItemFoldRows();
   theDetectorNameRow();
