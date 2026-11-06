@@ -302,7 +302,7 @@ path.
   `NoiseTracerSession` holding six pairs in write order, and the restore
   result list, each with its doxygen contract (FR-019, FR-021, FR-022,
   D-8, P-8, E-07, II). Verify: `g++ -fsyntax-only -std=c++23 -Iinclude -Isource -Isource/harness -Ibuild/export -x c++ source/harness/detail/noise_tracer.hpp` exits 0
-- [ ] T029 [US2] Add the engine word and the setup order in
+- [X] T029 [US2] Add the engine word and the setup order in
   `source/harness/noise_tracer.cpp`: `engineWordOf` gains its third
   branch, the setup reads the six standing texts before its first write,
   the saved `hwlat_detector/mode` value holds the bracketed
@@ -311,12 +311,12 @@ path.
   window (FR-019, FR-003, FR-018, FR-020, D-9, P-14, P-16, plan R-3)
   (depends on T021, T025, T028; the rows of T021 stay red until T031).
   Verify: `g++ -fsyntax-only -std=c++23 -Iinclude -Isource -Isource/harness -Ibuild/export source/harness/noise_tracer.cpp` exits 0
-- [ ] T030 [US2] Add the figure read in `source/harness/noise_tracer.cpp`:
+- [X] T030 [US2] Add the figure read in `source/harness/noise_tracer.cpp`:
   one entry per tracer cpu in session order, the parse rule that needs a
   digit second, three optional figures, and no stored buffer of the
   run's own (FR-018, FR-027, A-6, P-10) (depends on T023, T029).
   Verify: `g++ -fsyntax-only -std=c++23 -Iinclude -Isource -Isource/harness -Ibuild/export source/harness/noise_tracer.cpp` exits 0
-- [ ] T031 [US2] Rewrite the restore in `source/harness/noise_tracer.cpp`:
+- [X] T031 [US2] Rewrite the restore in `source/harness/noise_tracer.cpp`:
   the mode value reads back the one saved word,
   `tracing_on` at `0` first, then the saved vector in reverse, the
   restore write compares the one stripped word, the

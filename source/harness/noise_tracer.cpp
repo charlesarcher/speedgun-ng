@@ -1,22 +1,30 @@
 // ============================================================================
 // The noise tracer value parser and the engine session
-// (specs/036-osnoise-timerlat-tracers T007, T011, T012).
+// (specs/036-osnoise-timerlat-tracers T007, T011, T012;
+// specs/048-hwlat-probe T029, T030, T031).
 //
 // One translation unit owns the tracer: the value grammar of
 // contracts/cli-options.md, the standing cpu-list reader of the jitter
 // probe, the refusal shape the option module quotes, and the session
 // lifecycle and the figure read over the tracefs files the file-root
-// seam resolves (R-01 to R-05, R-07).
+// seam resolves (R-01 to R-05, R-07). The detector engine joins the two
+// standing engines on that lifecycle: the six saved texts, the seven
+// writes in the order FR-019 names, the three figures off the buffer
+// text, and the restore that walks the saved set in reverse for all
+// three engines (FR-018 to FR-022, FR-027, D-8, D-9, D-15).
 // ============================================================================
 
 #include <array>
+#include <cctype>
 #include <charconv>
 #include <cstdint>
 #include <fstream>
 #include <iomanip>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "detail/noise_tracer.hpp"
@@ -29,8 +37,9 @@
 namespace sg::detail
 {
 
-// The value grammar of contracts/cli-options.md (FR-002, FR-003, D-4,
-// R-06): the head names the engine word osnoise or timerlat, then at most
+// The value grammar of contracts/cli-options.md (FR-002, FR-003, FR-018,
+// D-4, R-06): the head names the engine word osnoise, timerlat or hwlat,
+// then at most
 // one optional cpus key follows, whose items the standing cpu-list reader
 // reads whole, and the key stands once in the value. Every rejection
 // names the token it read, quoted the way the option module quotes a
@@ -49,11 +58,13 @@ auto parseOsNoiseValue(const std::string& value,
     engine = TracerEngine::OSNOISE;
   } else if (head == "timerlat") {
     engine = TracerEngine::TIMERLAT;
+  } else if (head == "hwlat") {
+    engine = TracerEngine::HWLAT;
   } else {
     // An empty word refuses the same way: the value names an engine, so
-    // the refusal reads the empty token (FR-002, R-06).
-    message =
-        "the engine '" + quotedText(head) + "' is not osnoise or timerlat";
+    // the refusal reads the empty token (FR-002, FR-018, R-06).
+    message = "the engine '" + quotedText(head)
+        + "' is not osnoise, timerlat or hwlat";
     return false;
   }
   if (headEnd == std::string::npos) {
@@ -221,6 +232,50 @@ auto maskWidthOf(const std::string& text) -> std::optional<std::size_t>
   return word.substr(begin, end - begin + 1).size();
 }
 
+// The word the mode file's write handler compares (P-16): the kernel
+// prints the mode list with the standing mode inside brackets, the form
+// `none [round-robin] per-cpu`, so the bracketed word stands the value to
+// save and to write back. A text that carries no brackets stands its one
+// word (FR-019).
+auto modeWordOf(const std::string& text) -> std::string
+{
+  const auto line = trimmedWordOf(text);
+  const auto open = line.find('[');
+  const auto close = line.find(']');
+  if (open == std::string::npos || close == std::string::npos || close < open) {
+    return line;
+  }
+  return line.substr(open + 1, close - open - 1);
+}
+
+// The mode the detector run writes: the per-cpu mode samples every tracer
+// cpu, the mode the lane rules (D-9, P-14).
+constexpr const char* kHwlatModeWord = "per-cpu";
+
+// One write of the setup: the file with the value the setup saves ahead of
+// it, and the text the setup writes (FR-019, D-8, D-9).
+struct SetupStep
+{
+  TracerSetting saved;
+  std::string text;
+};
+
+// The saved set written back in the reverse of the write order (FR-021,
+// P-8, D-8): each file whose write failed joins `failed` in the order the
+// writes landed. The setup's undo path passes only the files it wrote and
+// reads no answer: the not-available shape discloses the tracer's absence
+// whole, so a failed undo adds no line (FR-021, D-15, P-9).
+auto writeSavedBack(const std::vector<TracerSetting>& saved,
+                    std::vector<TracerSetting>& failed) -> void
+{
+  for (auto at = saved.size(); at > 0; --at) {
+    const auto& pair = saved.at(at - 1);
+    if (!writeTracerFile(pair.path, pair.value + "\n")) {
+      failed.push_back(pair);
+    }
+  }
+}
+
 // The five source words of the pinned count-file format, and the
 // record figure each one feeds (R-03).
 struct CountSource
@@ -299,6 +354,107 @@ auto figuresOfCpu(std::uint32_t cpu, const std::optional<std::string>& text)
   return record;
 }
 
+// The marker `kernel/trace/trace_output.c:1531` prints ahead of the two
+// microsecond figures of one detected gap (A-6, P-10).
+constexpr std::string_view kGapMarker = "inner/outer(us):";
+
+// The field that names this cpu's count for the gap one line carries.
+// `nmi-total` names a different count, so the sum reads this field alone
+// (P-10).
+constexpr std::string_view kNmiField = "nmi-count:";
+
+// The wider of the two microsecond figures of one line, scaled to no
+// unit: the text after the marker stands `<inner>/<outer>` ahead of the
+// fields that follow (A-6). A tail that answers no pair answers nothing.
+auto widerGapOf(const std::string& tail) -> std::optional<std::uint64_t>
+{
+  const auto slash = tail.find('/');
+  if (slash == std::string::npos) {
+    return std::nullopt;
+  }
+  const auto space = tail.find_first_of(" \t", slash + 1);
+  const auto inner = countOfToken(trimmedWordOf(tail.substr(0, slash)));
+  const auto outer = countOfToken(trimmedWordOf(tail.substr(
+      slash + 1,
+      space == std::string::npos ? std::string::npos : space - slash - 1)));
+  if (!inner.has_value() || !outer.has_value()) {
+    return std::nullopt;
+  }
+  return inner.value() > outer.value() ? inner : outer;
+}
+
+// The `nmi-count` figure of one line, absent where the line carries no
+// such field (P-10).
+auto nmiOf(const std::string& line) -> std::optional<std::uint64_t>
+{
+  const auto at = line.find(kNmiField);
+  if (at == std::string::npos) {
+    return std::nullopt;
+  }
+  const auto begin = at + kNmiField.size();
+  const auto end = line.find_first_of(" \t", begin);
+  return countOfToken(line.substr(
+      begin, end == std::string::npos ? std::string::npos : end - begin));
+}
+
+// The figures the buffer text of one cpu carries (FR-018, FR-027, A-6,
+// P-10): a line stands one detected gap when `#` fills column 1 and a
+// digit fills column 2, the shape `kernel/trace/trace_output.c:1531`
+// prints, so each header legend line stands outside the count. The widest
+// line of the cpu stands `maxGapNs` in nanoseconds, the count of lines
+// stands `gapCount`, and the sum of the `nmi-count` fields stands
+// `nmiCount`, 0 where lines stand and none carries one. A line whose two
+// figures answer no pair counts as no gap, the standing rule that no
+// figure stands a guess (R-07). A text that counts no gap, stands
+// missing, or stands unreadable answers all three figures absent.
+auto gapFiguresOfCpu(std::uint32_t cpu, const std::optional<std::string>& text)
+    -> PrecheckTracerCpuRecord
+{
+  PrecheckTracerCpuRecord record;
+  record.cpu = cpu;
+  if (!text.has_value()) {
+    return record;
+  }
+  std::uint64_t widest = 0;
+  std::uint64_t gaps = 0;
+  std::uint64_t nmi = 0;
+  std::istringstream stream(*text);
+  std::string line;
+  while (std::getline(stream, line)) {
+    if (line.size() < 2 || line.front() != '#'
+        || std::isdigit(static_cast<unsigned char>(line.at(1))) == 0)
+    {
+      continue;
+    }
+    const auto marker = line.find(kGapMarker);
+    if (marker == std::string::npos) {
+      continue;
+    }
+    const auto wider = widerGapOf(line.substr(marker + kGapMarker.size()));
+    if (!wider.has_value()) {
+      continue;
+    }
+    ++gaps;
+    if (wider.value() > widest) {
+      widest = wider.value();
+    }
+    const auto counted = nmiOf(line);
+    if (counted.has_value()) {
+      nmi += counted.value();
+    }
+  }
+  if (gaps == 0) {
+    return record;
+  }
+  record.gapCount = gaps;
+  record.maxGapNs = widest * 1000ULL;
+  record.nmiCount = nmi;
+  SG_ENSURE(record.gapCount.has_value() && record.maxGapNs.has_value()
+                && record.nmiCount.has_value(),
+            "gapFiguresOfCpu answers three figures beside a counted gap");
+  return record;
+}
+
 }  // namespace
 
 // The word the engine writes into `current_tracer` (R-02): see the
@@ -307,7 +463,15 @@ auto engineWordOf(TracerEngine engine) -> std::string
 {
   SG_REQUIRE(engine != TracerEngine::NONE,
              "engineWordOf reaches an engine that names no tracer");
-  return engine == TracerEngine::OSNOISE ? "osnoise" : "timerlat";
+  if (engine == TracerEngine::OSNOISE) {
+    return "osnoise";
+  }
+  if (engine == TracerEngine::TIMERLAT) {
+    return "timerlat";
+  }
+  // The requirement above stands NONE out, so the detector word stands the
+  // only answer left (FR-018, D-2).
+  return "hwlat";
 }
 
 auto noiseTracerSetup(TracerEngine engine,
@@ -317,29 +481,81 @@ auto noiseTracerSetup(TracerEngine engine,
   SG_REQUIRE(engine != TracerEngine::NONE,
              "noiseTracerSetup reaches an engine that names no tracer");
   SG_REQUIRE(!cpus.empty(), "noiseTracerSetup reaches an empty cpu list");
+  // The word stands read first, because the word decides whether the run
+  // writes at all (FR-019, R-04, P-15).
   const auto word = readTracerFile("sys/kernel/tracing/current_tracer");
   if (!word.has_value()) {
+    return std::nullopt;
+  }
+  const std::string engineWord = engineWordOf(engine);
+  if (engine == TracerEngine::HWLAT && trimmedWordOf(*word) == engineWord) {
+    // The kernel answers success without initializing a tracer that
+    // already stands, so it clears no buffer and the live detector's lines
+    // stand outside this run: the run writes nothing and answers the shape
+    // FR-023 names (FR-019, FR-023, P-15).
     return std::nullopt;
   }
   const auto mask = readTracerFile("sys/kernel/tracing/tracing_cpumask");
   if (!mask.has_value()) {
     return std::nullopt;
   }
-  const auto width = maskWidthOf(*mask);
-  if (!width.has_value()) {
+  const auto maskWidth = maskWidthOf(*mask);
+  if (!maskWidth.has_value()) {
     return std::nullopt;
   }
-  if (!writeTracerFile("sys/kernel/tracing/current_tracer",
-                       engineWordOf(engine) + "\n"))
-  {
-    return std::nullopt;
+  // The detector's four further reads stand ahead of the first write with
+  // the two above, the six reads FR-019 names (FR-019, D-8).
+  std::optional<std::string> mode;
+  std::optional<std::string> knobWidth;
+  std::optional<std::string> knobWindow;
+  std::optional<std::string> knobThreshold;
+  if (engine == TracerEngine::HWLAT) {
+    mode = readTracerFile("sys/kernel/tracing/hwlat_detector/mode");
+    knobWidth = readTracerFile("sys/kernel/tracing/hwlat_detector/width");
+    knobWindow = readTracerFile("sys/kernel/tracing/hwlat_detector/window");
+    knobThreshold = readTracerFile("sys/kernel/tracing/tracing_thresh");
+    if (!mode.has_value() || !knobWidth.has_value() || !knobWindow.has_value()
+        || !knobThreshold.has_value())
+    {
+      return std::nullopt;
+    }
   }
-  if (!writeTracerFile("sys/kernel/tracing/tracing_cpumask",
-                       renderCpuMask(cpus, *width) + "\n"))
-  {
-    return std::nullopt;
+  // The writes, each with the value the setup saves ahead of it, in the
+  // order FR-019 names for the detector and the order R-04 names for the
+  // two standing engines (D-9, D-8, P-14).
+  const SetupStep maskStep {
+      {"sys/kernel/tracing/tracing_cpumask", trimmedWordOf(*mask)},
+      renderCpuMask(cpus, *maskWidth)};
+  const SetupStep wordStep {
+      {"sys/kernel/tracing/current_tracer", trimmedWordOf(*word)}, engineWord};
+  std::vector<SetupStep> steps;
+  if (engine == TracerEngine::HWLAT) {
+    steps = {
+        maskStep,
+        {{"sys/kernel/tracing/hwlat_detector/mode", modeWordOf(*mode)},
+         kHwlatModeWord},
+        {{"sys/kernel/tracing/hwlat_detector/width", trimmedWordOf(*knobWidth)},
+         std::to_string(kHwlatWidthUs)},
+        {{"sys/kernel/tracing/hwlat_detector/window",
+          trimmedWordOf(*knobWindow)},
+         std::to_string(kHwlatWindowUs)},
+        {{"sys/kernel/tracing/tracing_thresh", trimmedWordOf(*knobThreshold)},
+         std::to_string(kHwlatThresholdUs * 1000ULL)},
+        wordStep};
+  } else {
+    steps = {wordStep, maskStep};
+  }
+  std::vector<TracerSetting> saved;
+  std::vector<TracerSetting> undone;
+  for (const auto& step : steps) {
+    if (!writeTracerFile(step.saved.path, step.text + "\n")) {
+      writeSavedBack(saved, undone);
+      return std::nullopt;
+    }
+    saved.push_back(step.saved);
   }
   if (!writeTracerFile("sys/kernel/tracing/tracing_on", "1\n")) {
+    writeSavedBack(saved, undone);
     return std::nullopt;
   }
   NoiseTracerSession session;
@@ -347,10 +563,12 @@ auto noiseTracerSetup(TracerEngine engine,
   session.cpus = cpus;
   session.previousTracer = trimmedWordOf(*word);
   session.previousCpuMask = trimmedWordOf(*mask);
+  session.saved = std::move(saved);
   SG_ENSURE(session.engine == engine && session.cpus == cpus
-                && !session.previousCpuMask.empty(),
+                && !session.previousCpuMask.empty()
+                && session.saved.size() == steps.size(),
             "noiseTracerSetup answers a session that carries the engine, "
-            "the cpus and the standing mask text");
+            "the cpus, the standing mask text and one saved pair per write");
   return session;
 }
 
@@ -362,6 +580,17 @@ auto noiseTracerFigures(const NoiseTracerSession& session)
   std::vector<PrecheckTracerCpuRecord> figures;
   figures.reserve(session.cpus.size());
   for (const auto cpu : session.cpus) {
+    if (session.engine == TracerEngine::HWLAT) {
+      // The detector names no count file, so the three figures come off
+      // the buffer text the detector wrote (FR-018, FR-027, A-6). The read
+      // keeps no buffer of the run's own: it folds the text into the entry
+      // and answers (FR-018).
+      figures.push_back(
+          gapFiguresOfCpu(cpu,
+                          readTracerFile("sys/kernel/tracing/per_cpu/cpu"
+                                         + std::to_string(cpu) + "/trace")));
+      continue;
+    }
     figures.push_back(
         figuresOfCpu(cpu,
                      readTracerFile("sys/kernel/tracing/osnoise/cpu"
@@ -377,14 +606,16 @@ auto noiseTracerRestore(const NoiseTracerSession& session)
 {
   SG_REQUIRE(session.engine != TracerEngine::NONE,
              "noiseTracerRestore reaches a session that names no tracer");
+  // The stop stands written ahead of the saved set, so the engine stops
+  // before any file it reads stands back (FR-021, P-8, SC-007). The answer
+  // names no failure of this write: no saved value backs it (D-8).
   writeTracerFile("sys/kernel/tracing/tracing_on", "0\n");
-  writeTracerFile("sys/kernel/tracing/current_tracer",
-                  session.previousTracer + "\n");
-  writeTracerFile("sys/kernel/tracing/tracing_cpumask",
-                  session.previousCpuMask + "\n");
-  // T031 walks the saved set in reverse and collects the writes that
-  // failed, so the answer names each one (FR-021, FR-022).
-  return {};
+  std::vector<TracerSetting> failed;
+  writeSavedBack(session.saved, failed);
+  SG_ENSURE(failed.size() <= session.saved.size(),
+            "noiseTracerRestore answers no more failures than the saved set "
+            "holds files");
+  return failed;
 }
 
 }  // namespace sg::detail

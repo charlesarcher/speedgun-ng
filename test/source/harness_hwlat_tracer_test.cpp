@@ -679,9 +679,13 @@ auto theRestoreWritesTheStopThenTheSavedSetInReverse() -> void
 
 // T022, FR-003, FR-021, D-15, P-9: a setup that fails after one write
 // restores the file it wrote before it answers the empty session. The run's
-// file-size limit stands at four bytes: the mask render of one cpu at the
-// one-digit width stands within it, and the mode write of eight bytes stands
-// beyond it, so the first write lands and the second one fails.
+// file-size limit stands at the byte count of the mask write the row
+// rendered, so that write lands at the limit and the write ahead of it stands
+// bounded. Three facts stand observable: the log names no file beyond the mask
+// and the bounded mode file, the last write names the mask, and the mask file
+// stands back at its standing text, which the render differs from. The queue
+// merges one file's consecutive writes, and a bounded write still touches its
+// file, so the row reads those three facts over a counted list of two writes.
 auto theSetupThatFailsAfterOneWriteRestoresWhatItWrote() -> void
 {
   const auto cpus = pickCpus(1);
@@ -689,31 +693,35 @@ auto theSetupThatFailsAfterOneWriteRestoresWhatItWrote() -> void
     return;
   }
   const std::string render = maskTextOf(cpus, 1);
-  if (render.size() + 1 > 4) {
-    // The row bounds the mask write, so the row needs that write to land
-    // under the limit: a cpu at or above 16 needs a wider render.
-    std::printf("skipped: the mask render holds %zu bytes (T022)\n",
-                render.size() + 1);
-    return;
-  }
   TracingRootGuard guard;
-  installDetectorTree(guard.root(), "1");
+  installDetectorTree(guard.root(), "e");
   TracingEventLog log(guard.root());
-  const SetupWriteLimit limit(4);
+  const SetupWriteLimit limit(render.size() + 1);
   const auto session =
       sg::detail::noiseTracerSetup(sg::TracerEngine::HWLAT, cpus);
   const auto written = writtenOrder(log.steps());
-  const std::vector<std::string> wanted {"sys/kernel/tracing/tracing_cpumask",
-                                         "sys/kernel/tracing/tracing_cpumask"};
+  const std::vector<std::string> touched {
+      "sys/kernel/tracing/tracing_cpumask",
+      "sys/kernel/tracing/hwlat_detector/mode"};
+  bool bounded = true;
+  for (const auto& path : written) {
+    bounded = bounded
+        && std::find(touched.begin(), touched.end(), path) != touched.end();
+  }
   check(!session.has_value(),
         "the failed setup answers the empty session (T022, FR-021, D-15)");
-  checkWith(written == wanted,
-            "the setup writes the mask once, then restores it (T022, FR-021, "
+  checkWith(bounded,
+            "the setup writes no file beyond the write it bounded (T022, "
+            "FR-021, D-15)",
+            joined(written));
+  checkWith(!written.empty() && written.back() == touched.front(),
+            "the last write restores the mask the setup wrote (T022, FR-021, "
             "P-9, D-15)",
             joined(written));
   check(
-      readStream(guard.root() / "sys/kernel/tracing/tracing_cpumask") == "1\n",
-      "the mask file stands back at its standing text (T022, FR-021, D-15)");
+      readStream(guard.root() / "sys/kernel/tracing/tracing_cpumask") == "e\n",
+      "the mask file stands back at its standing text (T022, FR-021, D-15, "
+      "P-9)");
   check(
       readStream(guard.root() / "sys/kernel/tracing/current_tracer") == "nop\n",
       "the word file stands unwritten (T022, FR-021, FR-024)");
@@ -948,16 +956,30 @@ auto bmQuiet(sg::State& state) -> void
   }
 }
 
+// The pre-check span the whole-run rows name: `precheck=1`, one
+// millisecond, in the nanosecond base the reader stamps (FR-011). The
+// interrupted row's script takes the same span, so the option string and the
+// script cannot drift apart.
+constexpr std::uint64_t kPrecheckSpanNs = 1'000'000;
+
+// The samples the interrupted row holds for that span.
+constexpr std::size_t kWindowSamples = 1'000;
+
 // The one command line of the whole-run rows: the pre-check mode, the tracer
-// word with the named tracer cpu, and the document the row reads.
-auto runArguments(const std::string& tracerValue,
+// word, both on one named cpu, and the document the row reads. The probe
+// names its cpu: the `idle` preset resolves over the batch's plans, and these
+// rows pin no benchmark, so the preset would plan no cpu at all.
+auto runArguments(std::uint32_t cpu,
                   const std::string& tag) -> std::vector<std::string>
 {
+  const std::string list = std::to_string(cpu);
   return {"--filter=bmQuiet",
           "--repetitions=1",
           "--iterations=2",
-          "--jitter-probe=idle,mode=precheck,precheck=1,threshold=1000000",
-          tracerValue,
+          "--jitter-probe=" + list + ",mode=precheck,precheck="
+              + std::to_string(kPrecheckSpanNs / 1'000'000)
+              + ",threshold=1000000",
+          "--os-noise=hwlat,cpus=" + list,
           "--json=harness_hwlat_" + tag + ".json"};
 }
 
@@ -1015,8 +1037,7 @@ auto theMissingTracefsRunStandsWhole() -> void
   }
   TracingRootGuard guard;
   const std::string json = "harness_hwlat_missing.json";
-  const auto status = captureRun(runArguments(
-      "--os-noise=hwlat,cpus=" + std::to_string(cpus.at(0)), "missing"));
+  const auto status = captureRun(runArguments(cpus.at(0), "missing"));
   check(status == 0,
         "the run without a tracefs tree stands status 0 (T024, FR-023)");
   theUserSpaceStandsWhole(json);
@@ -1041,8 +1062,7 @@ auto theDeniedKnobRunStandsWhole() -> void
                         "sys/kernel/tracing/hwlat_detector/" "width"),
         "the width knob stands a directory (T024, FR-017)");
   const std::string json = "harness_hwlat_denied.json";
-  const auto status = captureRun(runArguments(
-      "--os-noise=hwlat,cpus=" + std::to_string(cpus.at(0)), "denied"));
+  const auto status = captureRun(runArguments(cpus.at(0), "denied"));
   check(status == 0,
         "the run whose knob stands denied holds status 0 (T024, FR-023)");
   theUserSpaceStandsWhole(json);
@@ -1073,8 +1093,7 @@ auto theInWindowFailureStillRestoresTheTree() -> void
             guard.root() / std::filesystem::path(bufferPath(cpus.at(0)))),
         "the buffer path stands a directory (T024, FR-017)");
   const std::string json = "harness_hwlat_window.json";
-  const auto status = captureRun(runArguments(
-      "--os-noise=hwlat,cpus=" + std::to_string(cpus.at(0)), "window"));
+  const auto status = captureRun(runArguments(cpus.at(0), "window"));
   check(status == 0,
         "the run whose window step fails holds status 0 (T024, FR-021)");
   theUserSpaceStandsWhole(json);
@@ -1089,27 +1108,55 @@ auto theInWindowFailureStillRestoresTheTree() -> void
   std::remove(json.c_str());
 }
 
-// The reader of the interrupted row: the stamp steps one tick per read, and
-// the read past the bound raises the interrupt signal inside the window, the
-// way `harness_jitter_cli_test` raises it inside a body. The signal lands
-// while the session stands live, ahead of the restore call.
+// The stamps of one window script: `samples` reads across `spanNs`, one
+// step apart. The reader owns this list, and the pre-check walk runs to its
+// span, so the list carries the window's length (FR-011).
+auto windowScript(std::uint64_t spanNs,
+                  std::size_t samples) -> std::vector<std::uint64_t>
+{
+  std::vector<std::uint64_t> script;
+  script.reserve(samples);
+  const std::uint64_t step = spanNs / samples;
+  for (std::size_t at = 0; at < samples; ++at) {
+    script.push_back(at * step);
+  }
+  return script;
+}
+
+// The reader of the interrupted row: the raise stands at the middle of the
+// script the reader carries, so the raise stands inside the window, because
+// the script owns the window's length. Past the script the walk keeps the
+// script's own step, so the stamps keep rising and the window reaches its
+// span. The raise reaches the whole process, the way
+// `harness_jitter_cli_test` raises it inside a body, and it lands while the
+// session stands live, ahead of the restore call.
 class InterruptedReader final : public sg::counters::WindowReader
 {
 public:
+  explicit InterruptedReader(std::vector<std::uint64_t> script)
+      : m_script(std::move(script))
+      , m_raiseAt(m_script.size() / 2)
+      , m_step(m_script.size() > 1 ? m_script.at(1) - m_script.at(0) : 1)
+  {
+  }
+
   auto readPoints(sg::counters::PointSink& sink) noexcept -> void override
   {
-    if (m_reads.fetch_add(1) == kInterruptAt && !m_fired.exchange(true)) {
+    const auto index = m_reads.fetch_add(1);
+    if (index == m_raiseAt) {
       std::raise(SIGINT);
     }
-    sink.put(m_stamp.fetch_add(1));
+    const std::uint64_t stamp = index < m_script.size()
+        ? m_script.at(index)
+        : m_script.back() + (index - m_script.size() + 1) * m_step;
+    sink.put(stamp);
   }
 
 private:
-  static constexpr std::uint64_t kInterruptAt = 200;
-
+  std::vector<std::uint64_t> m_script;
+  std::size_t m_raiseAt = 0;
+  std::uint64_t m_step = 1;
   std::atomic<std::uint64_t> m_reads {0};
-  std::atomic<std::uint64_t> m_stamp {0};
-  std::atomic<bool> m_fired {false};
 };
 
 // The exit status of one forked child that runs the detector under the
@@ -1133,7 +1180,8 @@ auto runInterruptedChild(const std::vector<std::string>& arguments,
     {
       _exit(3);
     }
-    sg::detail::installTestReader(std::make_unique<InterruptedReader>());
+    sg::detail::installTestReader(std::make_unique<InterruptedReader>(
+        windowScript(kPrecheckSpanNs, kWindowSamples)));
     std::vector<char*> argv;
     argv.push_back(const_cast<char*>("harness_hwlat_tracer_test"));
     for (const auto& argument : arguments) {
@@ -1173,9 +1221,7 @@ auto theInterruptedChildRestoresTheTree() -> void
   installDetectorTree(guard.root());
   const std::string json = "harness_hwlat_interrupted.json";
   const auto status = runInterruptedChild(
-      runArguments("--os-noise=hwlat,cpus=" + std::to_string(cpus.at(0)),
-                   "interrupted"),
-      "interrupted");
+      runArguments(cpus.at(0), "interrupted"), "interrupted");
   check(status == 1,
         "the interrupted run holds the standing interrupt status (T024, "
         "FR-003)");

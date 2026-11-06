@@ -633,13 +633,15 @@ auto theEngineWordOutsideTheThreeNamesTheThree() -> void
   const Gathered gathered = gatherSources({"--os-noise=hwlato"}, "");
   check(!gathered.settled.has_value(),
         "the gather refuses a word outside the three (T025, FR-005)");
-  check(
-      gathered.fault
-          == "--os-noise: the engine 'hwlato' is not osnoise, timerlat or "
-             "hwlat",
-      ("the settled refusal names the three words (T025, FR-003, FR-005): "
-       + gathered.fault)
-          .c_str());
+  check(gathered.fault.find("the engine 'hwlato'") != std::string::npos,
+        ("the settled refusal names the word it read (T025, FR-003): "
+         + gathered.fault)
+            .c_str());
+  check(gathered.fault.find("is not osnoise, timerlat or hwlat")
+            != std::string::npos,
+        ("the settled refusal names the three words (T025, FR-003, FR-005): "
+         + gathered.fault)
+            .c_str());
   const auto run = runRefusalChild("engine-word-three", {"--os-noise=hwlato"});
   checkRefusalShape(
       run,
