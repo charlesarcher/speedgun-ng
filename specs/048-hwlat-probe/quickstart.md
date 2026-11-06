@@ -138,9 +138,11 @@ FR-004, FR-025 to FR-029).
 The three probe figures ride the standing jitter grammar, whose field
 table now carries 35 rows, and the three detector figures ride the new
 head word `hwlat`, each name with the standing direction and threshold
-suffix ([contracts/rule-names.md](./contracts/rule-names.md)). A name
-whose document carries no figure answers the standing shape for a
-missing value and keeps the standing status (spec FR-028).
+suffix ([contracts/rule-names.md](./contracts/rule-names.md)). A figure
+the record carries as absent reads 0, and the run gains no new status. A
+name whose document carries no tracer record at all, or names a cpu the
+tracer record does not carry, answers the standing shape for a missing
+value at status 2 (spec FR-028).
 
 ## The fake-file suite path
 
