@@ -242,10 +242,7 @@
                   "properties": {
                     "stamp": { "type": "integer" },
                     "gapNs": { "type": "integer" },
-                    "smi": {
-                      "type": ["string", "null"],
-                      "enum": ["SMI", "NOT_SMI", null]
-                    }
+                    "smi": { "type": ["string", "null"] }
                   }
                 }
               }
