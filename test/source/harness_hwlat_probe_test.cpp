@@ -740,8 +740,24 @@ auto theAbsentNodeRows() -> void
       });
 }
 
-// T014: a node the process holds no rights on stands unavailable, and the
-// other source keeps its figure (FR-011, FR-015, D-14).
+// Whether the kernel's rights check binds this process on the planted node. A
+// process that holds the discretionary-access override reads a node that
+// carries no rights bits, and the continuous integration runner of specs/036
+// runs as one (specs/036 T010, FR-032).
+auto theRightsBind(std::uint32_t cpu) -> bool
+{
+  const auto probe = sg::detail::openMsrNode(cpu);
+  const bool refused = !probe.has_value();
+  if (probe.has_value()) {
+    sg::detail::closeMsrNode(*probe);
+  }
+  return refused;
+}
+
+// T014: a node the process holds no rights on stands unavailable to a process
+// the kernel checks, and answers its count to a process that holds the
+// discretionary-access override. The other source keeps its figure on both
+// answers (FR-007, FR-011, FR-015, D-14, specs/036 T010).
 auto theNoRightsRows() -> void
 {
   const auto cpus = pickCpus(1);
@@ -756,6 +772,7 @@ auto theNoRightsRows() -> void
         interruptsText(columnCount(cpus), kNmiOpening),
         kNodeRights);
   resetScript(root.root(), columnCount(cpus));
+  const bool rightsRefused = theRightsBind(cpus.at(0));
   gapCalls = {kGapOneCall, kGapTwoCall};
   runSpan(
       spanOptions(cpus, sg::JitterProbeMode::ALONGSIDE, kGapCount),
@@ -766,17 +783,24 @@ auto theNoRightsRows() -> void
       {
         const auto& state = states.at(0);
         const auto stats = sg::detail::gapStatsOf(state);
-        checkSourceAbsent(state,
-                              stats,
-                              "a node without rights leaves every gap "
-                              "unmarked, the marked count at 0 and the SMI "
-                              "figure with no value (FR-011, FR-015)");
+        if (rightsRefused) {
+          checkSourceAbsent(state,
+                            stats,
+                            "a node without rights leaves every gap "
+                            "unmarked, the marked count at 0 and the SMI "
+                            "figure with no value (FR-011, FR-015)");
+        } else {
+          check(stats.smiDelta.has_value(),
+                "a node that carries no rights bits answers its count to a "
+                "process the kernel lets read past them, so the source stands "
+                "available (FR-007, FR-011, FR-015)");
+        }
         check(standingFigures(stats, 2, 0),
                   "a node without rights keeps every standing figure "
                   "(FR-011, FR-015, E-03)");
         check(stats.nmiDelta.has_value(),
-                  "the other source keeps its figure while the node stands "
-                  "unreadable (FR-009, FR-011)");
+              "the other source keeps its figure on the answer the node gave "
+              "(FR-009, FR-011)");
       });
 }
 

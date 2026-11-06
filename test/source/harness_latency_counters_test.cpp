@@ -194,6 +194,21 @@ auto clearPath(const std::filesystem::path& root,
                               removeFailed);
 }
 
+// Whether the kernel's rights check binds this process on a node that carries
+// no rights bits. A process that holds the discretionary-access override reads
+// such a node, and the continuous integration runner of specs/036 runs as one,
+// so a row that names a refusal reads the kernel's answer first and states the
+// figure that answer owes (specs/036 T010, FR-032).
+auto theRightsBind() -> bool
+{
+  const auto probe = sg::detail::openMsrNode(kFirstCpu);
+  const bool refused = !probe.has_value();
+  if (probe.has_value()) {
+    sg::detail::closeMsrNode(*probe);
+  }
+  return refused;
+}
+
 // The `proc/cpuinfo` text of one vendor, the standing line shape (FR-010).
 auto cpuInfoOf(const std::string& vendor) -> std::string
 {
@@ -291,9 +306,10 @@ auto theShortNodeRows() -> void
       "the same tree answers the count of the node it holds (FR-007)");
 }
 
-// T004, FR-007, FR-011: a node the process holds no rights on answers no
-// count. The suite runs as an unprivileged user, so the rights stand the
-// refusal (FR-032).
+// T004, FR-007, FR-011: a node the process holds no rights on answers no count
+// to a process the kernel checks. A process that holds the discretionary-access
+// override reads the same node, so the row reads the kernel's answer and states
+// the figure that answer owes (FR-032, specs/036 T010).
 auto theDeniedNodeRows() -> void
 {
   const CounterRootGuard guard;
@@ -301,8 +317,15 @@ auto theDeniedNodeRows() -> void
         nodePath(kFirstCpu),
         nodeImage(7),
         std::filesystem::perms::none);
-  check(!countThroughPair(kFirstCpu).has_value(),
-        "a node without rights answers no count (FR-007, FR-011)");
+  const auto count = countThroughPair(kFirstCpu);
+  if (theRightsBind()) {
+    check(!count.has_value(),
+          "a node without rights answers no count (FR-007, FR-011)");
+  } else {
+    check(count.has_value() && *count == 7,
+          "a node that carries no rights bits answers the count it holds to a "
+          "process the kernel lets read past them (FR-007, FR-011)");
+  }
   plantControlNode(guard.root());
   checkControlNode(
       "the same tree answers the count of the node it holds (FR-007)");
