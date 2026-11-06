@@ -15,8 +15,8 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
-#include <iterator>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <system_error>
 
@@ -118,13 +118,15 @@ auto plant(const std::filesystem::path& root,
   check(!rightsFailed, "the fake file takes the rights the row plants (T004)");
 }
 
-// The bytes of one planted file, read whole.
+// The bytes of one planted file, read whole, or no bytes when the file stands
+// unopenable.
 auto plantedBytes(const std::filesystem::path& root,
                   const std::string& relative) -> std::string
 {
   std::ifstream file(root / std::filesystem::path(relative), std::ios::binary);
-  return {std::istreambuf_iterator<char>(file),
-          std::istreambuf_iterator<char>()};
+  std::ostringstream text;
+  text << file.rdbuf();
+  return text.str();
 }
 
 // The node image of one counter figure: padding up to the counter
