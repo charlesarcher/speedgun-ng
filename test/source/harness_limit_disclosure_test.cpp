@@ -128,8 +128,6 @@ constexpr std::string_view kSecondEvent {"disc_b"};
 std::filesystem::path gDevicesRoot;
 std::filesystem::path gParanoidPath;
 int gNextFd = 100;
-int gOpened = 0;
-int gClosed = 0;
 int gGroupSize = 0;
 std::size_t gMaxFit = 6;
 
@@ -137,7 +135,6 @@ auto scriptedOpen(void*, int, int cpu, int groupFd, unsigned long) -> long
 {
   gGroupSize = groupFd < 0 ? 1 : gGroupSize + 1;
   const int fd = gNextFd++;
-  ++gOpened;
   static_cast<void>(cpu);
   return fd;
 }
@@ -165,7 +162,6 @@ auto scriptedRead(int, void* buffer, std::size_t count) -> long
 
 auto scriptedClose(int) -> int
 {
-  ++gClosed;
   return 0;
 }
 
