@@ -21,7 +21,7 @@ ctest --test-dir build -R 'harness_latency_counters|harness_hwlat' --output-on-f
 The suite passes pinned to two cpus, the shape the coverage host uses:
 
 ```sh
-taskset -c 0,1 ctest --test-dir build --preset prepush-quick -j 2
+taskset -c 0,1 ctest --preset prepush-quick -j 2
 ```
 
 Every kernel read of the suite resolves fake files installed through the
