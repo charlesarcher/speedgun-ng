@@ -355,8 +355,8 @@ new key, and a document written before the feature loads unchanged.
   `test/source/harness_json_report_test.cpp`: `smiDelta`, `nmiDelta` and
   `smiGapCount` stand after `droppedGaps` in `jitter.stats[]`, the
   per-benchmark items and `precheck.cpus[].stats` for the `hwlat` method
-  alone, each per-benchmark item reading `null` for both deltas and 0 for
-  the count (spec FR-025), and `series` stands absent for the method, the
+  alone, each per-benchmark item reading `null` for both deltas and folding
+  its count from its own kept gaps (spec FR-025), and `series` stands absent for the method, the
   way it stands absent for `tsc` (D-1); `smi` stands beside each raw gap
   under `--json-raw=gaps` with
   `SMI`, `NOT_SMI` or `null`; `windowUs`, `widthUs` and `thresholdUs`
