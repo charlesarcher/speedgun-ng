@@ -2523,6 +2523,35 @@ auto theSeriesKeyRefusalsNameTheirArms() -> void
   plantsRefuseAtTheirPointers(kSeries, kSeriesKeyRefusals, "FR-020, FR-029");
 }
 
+// FR-020, FR-029, SC-007: the fold over the parts of a series item keeps the
+// first answer that carries an error and stops there. The cpu key stands first
+// of the twenty keys the item reads, so a wrong kind there names itself and
+// leaves every key beside it unreported.
+auto theFirstKeyOfASeriesItemStopsTheFold() -> void
+{
+  constexpr std::string_view kCpu = "\"cpu\":2,\"workCount\":7";
+  std::string broken(kSeries);
+  const auto at = broken.find(kCpu);
+  if (at == std::string::npos) {
+    sg::test::fail("the document carries no series item to plant at");
+    return;
+  }
+  broken.replace(at, kCpu.size(), "\"cpu\":\"x\",\"workCount\":7");
+  sg::test::writeText("harness_json_load_seriesfirst.json", broken);
+  const auto refused = sg::loadReport("harness_json_load_seriesfirst.json");
+  if (refused.has_value()) {
+    sg::test::fail("a series item whose first key stands a wrong kind loads");
+    return;
+  }
+  check(refused.error().find(
+            "/jitter/series/0/cpu: expected an integer, found string")
+            != std::string::npos,
+        "the refusal names the cpu key, the first part of the item");
+  check(refused.error().find("workCount") == std::string::npos,
+        "the fold stops, so the key beside the cpu stands unreported");
+  std::printf("ok: the first key of a series item stops the fold\n");
+}
+
 // FR-020, FR-029, E-07, E-08: the arm of the fold that refuses a series
 // item naming a cpu the stats array does not carry, at the run level and
 // beside one entry. The refusal names the cpu and the array that lacks it.
@@ -3130,6 +3159,7 @@ auto main() -> int
   aClosedPeriodItemRefusesAnUnknownKey();
   thePerEntrySeriesReadsIntoTheFolds();
   theSeriesKeyRefusalsNameTheirArms();
+  theFirstKeyOfASeriesItemStopsTheFold();
   theSeriesCpuOutsideTheStatsRefuses();
   thePassMethodRefusesItsCount();
   thePassSpreadRefusesItsCount();
