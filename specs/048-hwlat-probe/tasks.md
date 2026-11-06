@@ -266,14 +266,14 @@ path.
   value on a batch with no `--jitter-probe` option and on a mode that
   runs no pre-check window each answer one line at status 2 (FR-003,
   FR-005, FR-018, D-2, D-6). Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits non-zero (red observed)
-- [ ] T026 [P] [US2] Write the failing comparison rows in
+- [X] T026 [P] [US2] Write the failing comparison rows in
   `test/source/harness_compare_test.cpp`: `smiDelta`, `nmiDelta` and
   `smiGapCount` resolve at indices 32, 33 and 34 of a table of 35 rows
   and read the carrier the standing jitter names read, every standing
   name keeps its index, and `hwlat:any:maxGapNs` reads the tracer record
   with the standing direction and threshold suffix (FR-004, FR-028,
   P-11, E-08). Verify: `ctest --test-dir build -R harness_compare_test --output-on-failure` exits non-zero (red observed)
-- [ ] T027 [P] [US2] Write the failing comparison refusal rows in
+- [X] T027 [P] [US2] Write the failing comparison refusal rows in
   `test/source/harness_compare_cli_test.cpp`: an unknown jitter field
   reads `names none of the thirty-five jitter fields`, an unknown
   detector figure reads `names none of the three hwlat figures`, each
@@ -324,7 +324,7 @@ path.
   partial setup wrote ahead of the empty session for all three engines
   (FR-003, FR-021, FR-022, D-8, D-12, D-15, P-8, P-9, P-16) (depends on T022,
   T024, T030, T089; the rows of T021 to T025 and T089 turn green). Verify: `ctest --test-dir build -R "harness_hwlat_tracer_test|harness_noise_test" --output-on-failure` exits 0
-- [ ] T032 [P] [US2] Grow the tables in `source/harness/compare.cpp`:
+- [X] T032 [P] [US2] Grow the tables in `source/harness/compare.cpp`:
   three rows join `kJitterFields` at indices 32, 33 and 34, the refusal
   line moves its count word to `thirty-five`, a `kHwlatFields` table of
   three rows stands behind the head word `hwlat` with its own refusal

@@ -254,12 +254,21 @@ auto seriesOf(const JitterEntryFold& fold) -> const JitterSeriesStats&
   return fold.series.has_value() ? *fold.series : kKeptNothing;
 }
 
-// The 32 field names the jitter rules read: the sixteen of `JitterStats`
+// One attribution figure of a fold as a value, and 0 where the run
+// carried no value for it: the reading the standing series rule carries
+// for a fold that kept nothing (specs/048 FR-028, specs/043 FR-032).
+auto keptFigureOf(const std::optional<std::uint64_t>& figure) -> double
+{
+  return figure.has_value() ? static_cast<double>(*figure) : 0.0;
+}
+
+// The 35 field names the jitter rules read: the sixteen of `JitterStats`
 // in the E-03 order, then the sixteen the series fold carries in the
-// E-22 order (specs/043 FR-021, R-18). The one table the name lookup and
-// the value read share is what makes a field name outside the 32 read
-// nowhere (specs/027 FR-002, E-03, FR-030).
-constexpr std::array<JitterField, 32> kJitterFields {{
+// E-22 order, then the three the attribution adds last in the order
+// specs/048-hwlat-probe lists (specs/043 FR-021, specs/048 FR-028, R-18).
+// The one table the name lookup and the value read share is what makes a
+// field name outside the 35 read nowhere (specs/027 FR-002, E-03, FR-030).
+constexpr std::array<JitterField, 35> kJitterFields {{
     {"gapCount",
      [](const JitterEntryFold& fold)
      { return static_cast<double>(fold.stats.gapCount); }},
@@ -350,6 +359,52 @@ constexpr std::array<JitterField, 32> kJitterFields {{
     {"spectrumPoints",
      [](const JitterEntryFold& fold)
      { return static_cast<double>(seriesOf(fold).spectrumPoints); }},
+    {"smiDelta",
+     [](const JitterEntryFold& fold)
+     { return keptFigureOf(fold.stats.smiDelta); }},
+    {"nmiDelta",
+     [](const JitterEntryFold& fold)
+     { return keptFigureOf(fold.stats.nmiDelta); }},
+    {"smiGapCount",
+     [](const JitterEntryFold& fold)
+     { return static_cast<double>(fold.stats.smiGapCount); }},
+}};
+
+// The prefix the detector value names carry (specs/048 FR-028).
+constexpr std::string_view kHwlatPrefix = "hwlat:";
+
+// One figure of the detector table carries, with the reader that answers
+// its value or answers nothing. A tracer cpu whose buffer held no
+// detector line carries no figure, and the walk reads that absence as the
+// missing value of the standing table (specs/048 FR-028).
+struct HwlatField
+{
+  std::string_view name;
+  std::optional<double> (*value)(const PrecheckTracerCpuRecord&);
+};
+
+// One detector figure as a value, and nothing where the buffer of that
+// cpu held no detector line (specs/048 FR-027, FR-028).
+auto figureOf(const std::optional<std::uint64_t>& figure)
+    -> std::optional<double>
+{
+  if (!figure.has_value()) {
+    return std::nullopt;
+  }
+  return static_cast<double>(*figure);
+}
+
+// The three figures the `hwlat` head reads, in the order
+// specs/048-hwlat-probe/contracts/rule-names.md lists them (FR-028). The
+// one table the name lookup and the value read share is what makes a
+// figure outside the three read nowhere.
+constexpr std::array<HwlatField, 3> kHwlatFields {{
+    {"maxGapNs",
+     [](const PrecheckTracerCpuRecord& cpu) { return figureOf(cpu.maxGapNs); }},
+    {"gapCount",
+     [](const PrecheckTracerCpuRecord& cpu) { return figureOf(cpu.gapCount); }},
+    {"nmiCount",
+     [](const PrecheckTracerCpuRecord& cpu) { return figureOf(cpu.nmiCount); }},
 }};
 
 // The parts of one jitter value name, the grammar
@@ -368,7 +423,8 @@ struct JitterNameParts
 // Read the parts of one jitter value name and the length the name ends
 // at, where `name` is the text after the `jitter:` prefix: the optional
 // `run:` scope, the cpu (the word `any` or a decimal index), and one of
-// the 32 field names (specs/027 FR-030, FR-031, specs/043 FR-021). The
+// the 35 field names (specs/027 FR-030, FR-031, specs/043 FR-021,
+// specs/048 FR-028). The
 // parse of the value name and the comparison's own read share this one
 // reader, so the grammar stands in one place (FR-033, R-12).
 auto readJitterName(std::string_view name)
@@ -426,11 +482,78 @@ auto readJitterName(std::string_view name)
                                   { return candidate.name == fieldToken; });
   if (field == kJitterFields.end()) {
     return std::unexpected("'" + std::string(fieldToken)
-                           + "' names none of the thirty-two jitter "
+                           + "' names none of the thirty-five jitter "
                              "fields");
   }
   parts.field = static_cast<std::size_t>(field - kJitterFields.begin());
   return {std::pair {parts, name.size() - rest.size() + fieldEnd}};
+}
+
+// The parts of one detector value name: the cpu index or the word `any`
+// for the largest figure of that name, and the figure as its index into
+// the detector table above (specs/048 FR-028).
+struct HwlatNameParts
+{
+  bool worstCpu = true;
+  std::uint32_t cpu = 0;
+  std::size_t figure = 0;
+};
+
+// Read the parts of one detector value name and the length the name ends
+// at, where `name` is the text after the `hwlat:` prefix: the cpu (the
+// word `any` or a decimal index) and one of the three figures (specs/048
+// FR-028). The parse of the value name and the comparison's own read
+// share this one reader, so the grammar stands in one place (specs/027
+// FR-033, R-12).
+auto readHwlatName(std::string_view name)
+    -> std::expected<std::pair<HwlatNameParts, std::size_t>, std::string>
+{
+  std::string_view rest = name;
+  HwlatNameParts parts;
+  const std::size_t cpuEnd = findOrEnd(rest, ':', 0);
+  const std::string_view cpuToken = rest.substr(0, cpuEnd);
+  // The word `any` names the largest figure of the tracer cpus for that
+  // name, and a decimal index names one cpu the tracer record carries
+  // (specs/048 FR-028, specs/027 D-11).
+  if (cpuToken != "any") {
+    parts.worstCpu = false;
+    if (cpuToken.empty()
+        || !std::all_of(cpuToken.begin(), cpuToken.end(), isDigit))
+    {
+      return std::unexpected("'" + std::string(cpuToken)
+                             + "' is neither an index nor 'any'");
+    }
+    const auto* const begin = cpuToken.data();
+    const auto* const end = begin + cpuToken.size();
+    const auto conversion = std::from_chars(begin, end, parts.cpu);
+    // The token stands all digits and ends at the colon or at the end of
+    // the name, so the conversion consumes the token whole or refuses the
+    // value; a partial consumption stands outside the grammar (FR-028).
+    if (conversion.ec != std::errc {}) {
+      return std::unexpected("'" + std::string(cpuToken)
+                             + "' is neither an index nor 'any'");
+    }
+  }
+  if (cpuEnd == rest.size()) {
+    return std::unexpected("the name carries no field");
+  }
+  rest.remove_prefix(cpuEnd + 1);
+  // The figure name ends at the colon that opens the standing suffix, at
+  // an aggregate marker, or at the end of the name; a written aggregate
+  // marker then reads as the fault of a single-value name (spec D-21).
+  const std::size_t figureEnd =
+      std::min(findOrEnd(rest, ':', 0), findOrEnd(rest, '@', 0));
+  const std::string_view figureToken = rest.substr(0, figureEnd);
+  const auto figure = std::find_if(kHwlatFields.begin(),
+                                   kHwlatFields.end(),
+                                   [figureToken](const HwlatField& candidate)
+                                   { return candidate.name == figureToken; });
+  if (figure == kHwlatFields.end()) {
+    return std::unexpected("'" + std::string(figureToken)
+                           + "' names none of the three hwlat figures");
+  }
+  parts.figure = static_cast<std::size_t>(figure - kHwlatFields.begin());
+  return {std::pair {parts, name.size() - rest.size() + figureEnd}};
 }
 
 // Read one whole rule text into one rule value, the fields in the order
@@ -448,8 +571,9 @@ auto readRule(std::string_view text) -> std::expected<CompareRule, std::string>
   // (FR-016, FR-018, spec D-21).
   bool statisticsValue = false;
   // The end of a value name that carries a grammar of its own: the
-  // jitter names read their scope, cpu and field before the standing
-  // suffix reads (specs/027 FR-030, FR-031).
+  // jitter names read their scope, cpu and field, and the detector names
+  // read their cpu and figure, before the standing suffix reads
+  // (specs/027 FR-030, FR-031, specs/048 FR-028).
   std::optional<std::size_t> valueEnd;
   if (!prefix.empty()) {
     if (name.empty()) {
@@ -474,6 +598,16 @@ auto readRule(std::string_view text) -> std::expected<CompareRule, std::string>
     rule.valueName =
         std::string(text.substr(0, afterName + 1 + jitterName->second));
     valueEnd = afterName + 1 + jitterName->second;
+  } else if (name == "hwlat" && afterName < text.size()
+             && text[afterName] == ':')
+  {
+    const auto hwlatName = readHwlatName(text.substr(afterName + 1));
+    if (!hwlatName.has_value()) {
+      return ruleFault("value name", text, hwlatName.error());
+    }
+    rule.valueName =
+        std::string(text.substr(0, afterName + 1 + hwlatName->second));
+    valueEnd = afterName + 1 + hwlatName->second;
   } else if (name == "time" || name == "real_time" || name == "cpu_time") {
     rule.valueName = name;
     statisticsValue = true;
@@ -1583,6 +1717,60 @@ auto jitterValueOf(const std::optional<std::vector<JitterEntryFold>>& runStats,
   return worst;
 }
 
+// The value one detector rule names in one report (specs/048 FR-028):
+// the pre-check record's tracer entry carries the figures of one run, one
+// per tracer cpu. A report that holds no tracer record, and a cpu that
+// record does not carry, are the usage errors of the standing jitter
+// shape: the fault the comparison run prints as its one line at status 2
+// (specs/027 FR-032). A cpu whose buffer held no detector line carries no
+// figure, and the read answers the missing value of the standing table
+// for it, so an unmeasured cpu stands as the value the rule cannot read.
+auto hwlatValueOf(const ReportData& report,
+                  const HwlatNameParts& parts,
+                  const CompareRule& rule,
+                  std::string_view reportLabel)
+    -> std::expected<double, std::string>
+{
+  if (!report.precheck.has_value() || !report.precheck->tracer.has_value()) {
+    return std::unexpected(
+        "the rule '" + rule.text + "' names a detector figure and the "
+        + std::string(reportLabel) + " report carries no tracer record");
+  }
+  const auto& cpus = report.precheck->tracer->cpus;
+  const auto readFigure = [&parts](const PrecheckTracerCpuRecord& cpu)
+  { return kHwlatFields.at(parts.figure).value(cpu); };
+  if (!parts.worstCpu) {
+    const auto found = std::find_if(cpus.begin(),
+                                    cpus.end(),
+                                    [parts](const PrecheckTracerCpuRecord& cpu)
+                                    { return cpu.cpu == parts.cpu; });
+    if (found == cpus.end()) {
+      return std::unexpected(
+          "the rule '" + rule.text + "' names cpu " + std::to_string(parts.cpu)
+          + " and the tracer record of the " + std::string(reportLabel)
+          + " report does not carry it");
+    }
+    // specs/048 FR-028, contracts/rule-names.md: a tracer cpu whose figure
+    // stands `null` reads 0, the standing rule of a fold that carries no
+    // value, so the comparison gains no status for an absent figure.
+    return readFigure(*found).value_or(0.0);
+  }
+  if (cpus.empty()) {
+    return std::unexpected(
+        "the rule '" + rule.text + "' names the worst cpu and the tracer "
+        "record of the " + std::string(reportLabel)
+        + " report carries no tracer cpu");
+  }
+  // FR-028, specs/027 D-11: the largest figure of the tracer cpus that
+  // carry one, so the maximum stays uniform over the three names alike.
+  std::optional<double> largest;
+  for (const auto& cpu : cpus) {
+    const auto value = readFigure(cpu).value_or(0.0);
+    largest = largest.has_value() ? std::max(*largest, value) : value;
+  }
+  return *largest;
+}
+
 /**
  * @brief The walk of one rule over its scope, before any value is compared
  * (specs/026 FR-035, FR-036, FR-037, FR-038, FR-039, FR-040, spec D-20).
@@ -1596,8 +1784,9 @@ auto jitterValueOf(const std::optional<std::vector<JitterEntryFold>>& runStats,
  * \post one fault text, in the order the table of
  *       `contracts/compare-call.md` lists them, for a filter the regex
  *       library refuses, a filter that selects nothing, a value one report
- *       lacks, a metric that is not countable, or a scope of paired
- *       benchmarks none of which holds a readable row
+ *       lacks, a tracer record one report lacks, a metric that is not
+ *       countable, or a scope of paired benchmarks none of which holds a
+ *       readable row (specs/048 FR-028)
  */
 auto scopedValuesOf(const ReportData& baseline,
                     const ReportData& contender,
@@ -1649,6 +1838,20 @@ auto scopedValuesOf(const ReportData& baseline,
     }
     jitterParts = parts->first;
   }
+  // The parts of a detector value name, read once for the whole walk, the
+  // same shape as the jitter parts above (specs/048 FR-028, D-08).
+  std::optional<HwlatNameParts> hwlatParts;
+  if (rule.valueName.starts_with(kHwlatPrefix)) {
+    const auto parts =
+        readHwlatName(rule.valueName.substr(kHwlatPrefix.size()));
+    if (!parts.has_value()) {
+      return std::unexpected("the rule '" + rule.text
+                             + "' names a detector value that is not "
+                               "readable: "
+                             + parts.error());
+    }
+    hwlatParts = parts->first;
+  }
   std::size_t comparable = 0;
   std::string_view firstPaired;
   for (ScopedValue& slot : scope) {
@@ -1668,6 +1871,11 @@ auto scopedValuesOf(const ReportData& baseline,
                                const std::string_view reportLabel)
         -> std::expected<double, std::string>
     {
+      // specs/048 FR-028: a detector name reads the tracer record the
+      // report carries, with the usage errors of specs/027 FR-032.
+      if (hwlatParts.has_value()) {
+        return hwlatValueOf(report, *hwlatParts, rule, reportLabel);
+      }
       // specs/027 FR-030 to FR-032: a jitter name reads the stats the
       // report carries for it, with the usage errors of FR-032.
       if (jitterParts.has_value()) {
