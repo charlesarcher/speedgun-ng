@@ -571,8 +571,9 @@ auto main() -> int
             && sg::JitterProbeMode::ALONGSIDE != sg::JitterProbeMode::BOTH,
         "the three mode enumerators stand distinct (E-02, R-10)");
 
-  // E-03: the designated initializers name the sixteen fields in the
-  // E-03 order; a misordered initializer is a compile error.
+  // E-03: the designated initializers name the nineteen fields, the
+  // first sixteen in the E-03 order; a misordered initializer is a
+  // compile error (E-03, E-02).
   const sg::JitterStats stats {
       .gapCount = 1,
       .gapsPerSecond = 2.0,
@@ -590,9 +591,17 @@ auto main() -> int
       .thresholdNs = 14,
       .loopPeriodNs = 15,
       .droppedGaps = 16,
+      .smiDelta = 17,
+      .nmiDelta = 18,
+      .smiGapCount = 19,
   };
   check(stats.gapCount == 1 && stats.droppedGaps == 16,
         "the aggregate carries the E-03 fields in the E-03 order (E-03)");
+  check(stats.smiDelta.has_value() && *stats.smiDelta == 17
+            && stats.nmiDelta.has_value() && *stats.nmiDelta == 18
+            && stats.smiGapCount == 19,
+        "the three figures of specs/048 ride after the standing field "
+        "(FR-025, D-13)");
   // The real-valued fields compare through the fabs form the house
   // convention carries, since -Werror=float-equal rules out `==` on a
   // double (the literals stand exact, so any small bound holds).
