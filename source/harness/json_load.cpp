@@ -451,12 +451,6 @@ auto readFit(Element value,
   return fit;
 }
 
-// One per-cpu stats object of a jitter record: the cpu index and the
-// sixteen fields in the E-03 order, plus the kept gap records when the
-// document carries them (E-03, E-10). The reader answers the parsed cpu
-// and stats so the per-entry read fills the result's carrier with them
-// (E-08, FR-027); the run-level read lets them go. Each key is read and
-// kind-checked in order, so a wrong kind names itself before a later
 // One count the document may stand `null`: an attribution figure the
 // pre-check could not read, the file form of the console's
 // `not available` (specs/034 FR-017, FR-024).
@@ -529,7 +523,14 @@ auto readGapMark(Element value,
   return {};
 }
 
-// key's absence does (FR-029).
+// One per-cpu stats object of a jitter record: the cpu index, the
+// sixteen fields in the E-03 order, the three detector figures of
+// specs/048 read behind them, and the kept gap records when the
+// document carries them (E-03, E-10, FR-025). The reader answers the
+// parsed cpu and stats so the per-entry read fills the result's carrier
+// with them (E-08, FR-027); the run-level read lets them go. Each key
+// of the standing group is read and kind-checked in order, so a wrong
+// kind names itself before a later key's absence does (FR-029).
 auto readJitterCpu(Element value, const std::string& where)
     -> std::expected<std::pair<std::uint32_t, sg::JitterStats>, std::string>
 {
