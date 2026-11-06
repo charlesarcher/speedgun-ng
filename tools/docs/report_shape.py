@@ -80,16 +80,25 @@ GOVERNOR_VALUE = re.compile(
 IRQ_AFFINITY_VALUE = re.compile(
     r"^(irq affinity: cpu #) .* (\(source: /proc/irq\))$"
 )
+# specs/048 FR-011, FR-015, T053: the probe's two counter lines stand the absent
+# mark in the figure position on a host whose node answers no read and on a host
+# whose interrupts file holds no non-maskable-interrupt row, so each position
+# folds beside a figure while the key and the source token keep their bytes. The
+# node source names the cpu the probe read, and the mask leaves that index as one
+# token.
 ATTRIBUTION_VALUE = re.compile(
-    r"^((?:interrupts|softirq \S+) delta:) (?:not available|#)"
-    r" (\(source: /proc/(?:interrupts|softirqs)\))$"
+    r"^((?:interrupts|softirq \S+|nmi|smi) delta:) (?:not available|#)"
+    r" (\(source: (?:/proc/(?:interrupts|softirqs)|/dev/cpu/#/msr)\))$"
 )
 # specs/036 FR-023, R-14: the tracer figure lines stand the not-available
 # wording in the figure position on a host without the rights, so the
 # position folds beside a figure while the source word and the prefix keep
-# their bytes. The disclosure line and the header line keep their bytes.
+# their bytes. The three labels the detector engine adds carry the same shape
+# (specs/048 FR-027), and the longer name stands first in the list so the
+# shorter prefix cannot take it. The disclosure line and the header line keep their bytes.
 TRACER_FIGURE_VALUE = re.compile(
-    r"^(tracer cpu #) (nmi|irq|softirq|thread|hardware): (?:not available|#)$"
+    r"^(tracer cpu #) (nmiCount|nmi|maxGapNs|gapCount|irq|softirq|thread|"
+    r"hardware): (?:not available|#)$"
 )
 SCHEDSTAT_VALUE = re.compile(
     r"^(switch delta:) (?:not available|#), (schedule delta:)"
@@ -113,12 +122,14 @@ PER_CPU_LINE = (
 # free prints the skipped-group disclosure, and a host that gives a threaded
 # run fewer cpus than its spinning contexts prints the noise warning
 # (034 console contract, the empty candidate set answer; 027 FR-035;
-# 020 FR-026). Whether each of the three stands is the host's answer, not the
-# shape the program owns.
+# 020 FR-026). A host whose counter source answers no figure prints one of the
+# two count disclosures below it (048 FR-011, FR-015). The host answers whether
+# each of them stands, and the program owns no shape there.
 NO_CANDIDATES = "precheck candidates: none"
 HOST_CONDITION = (
     re.compile(r"^jitter: skipped L# group\(s\) #"),
     re.compile(r"^warning: spinning contexts oversubscribed \(# spin, # cpus\)$"),
+    re.compile(r"^jitter: (?:SMI|NMI) count not available$"),
 )
 # The probe fold block: one value per probe cpu on every field line, and the
 # cpu indexes the block and its disclosure name.
@@ -137,8 +148,9 @@ CALIBRATION_LINE = re.compile(
 CPU_WORD = ("tsc", "fwq", "ftq")
 # specs/048 FR-016, FR-018, T053: the absent mark carries two words, so a line
 # with one value per probe cpu repeats a pair. The pair reads as one entry here,
-# and a line whose keys differ keeps each key, because the mark rides inside the
-# key there.
+# and it reads as one figure token, because the host answers whether its source
+# stands. A line whose keys differ keeps each key, because the mark rides inside
+# the key there.
 ABSENT_MARK = "not available"
 ABSENT_TOKEN = "\x00"
 
@@ -204,7 +216,9 @@ def fold_cpu_lists(shape: str) -> str:
     the batch carries one column per probe cpu on its four lines, and the
     block and its disclosure name one cpu index per probe cpu, so the count
     the host's cpus set folds away while the field name, the method word and
-    the value shape stay."""
+    the value shape stay. The absent mark of a source that answered nothing
+    reads as one figure token, so a block recorded from a host that held the
+    source stands beside a run on a host that does not (048 FR-011, FR-015)."""
     masked = shape.replace(ABSENT_MARK, ABSENT_TOKEN)
     masked = re.sub(r"#(,#)+", "#", masked)
     kept: list[str] = []
@@ -214,7 +228,7 @@ def fold_cpu_lists(shape: str) -> str:
                                            or token == ABSENT_TOKEN):
             continue
         kept.append(token)
-    return " ".join(kept).replace(ABSENT_TOKEN, ABSENT_MARK)
+    return " ".join(kept).replace(ABSENT_TOKEN, "#")
 
 
 def fold_host(side: list[Folded], no_candidates: bool) -> list[Folded]:

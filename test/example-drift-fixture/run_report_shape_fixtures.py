@@ -472,6 +472,20 @@ def golden_pairs() -> None:
           mask(tracer_figure) != mask(renamed_tracer_source),
           "both folded to the same shape")
 
+    # specs/048 FR-027: the three labels the detector engine adds behind the
+    # standing five carry the same shape, so each folds the absent mark beside a
+    # figure while its label keeps its bytes.
+    for label in ("maxGapNs", "gapCount", "nmiCount"):
+        stated_detector = f"tracer cpu 1 {label}: 5200"
+        absent_detector = f"tracer cpu 1 {label}: not available"
+        check(f"the detector figure of {label} folds equal beside an absent one",
+              mask(stated_detector) == mask(absent_detector),
+              f"{mask(stated_detector)!r} against {mask(absent_detector)!r}")
+    check("a renamed detector label folds different",
+          mask("tracer cpu 1 maxGapNs: 5200")
+          != mask("tracer cpu 1 maxGap: 5200"),
+          "both folded to the same shape")
+
     tracer_header = "tracer: engine osnoise cpus 1,9"
     other_header = "tracer: engine timerlat cpus 1,9"
     check("the tracer header line keeps its bytes",
@@ -526,6 +540,62 @@ def golden_pairs() -> None:
     check("a renamed series field folds different",
           mask("meanValue: 65.37") != mask("meanTime: 65.37"),
           "both folded to the same shape")
+
+    # specs/048 FR-011, FR-015, T053: a host whose node answers no read and a
+    # host whose interrupts file holds no non-maskable-interrupt row print the
+    # absent mark in the figure position of the probe's two counter lines. Each
+    # position folds beside a figure, and the key and the source token keep
+    # their bytes.
+    nmi_delta = "nmi delta: 0 (source: /proc/interrupts)"
+    absent_nmi = "nmi delta: not available (source: /proc/interrupts)"
+    check("the non-maskable-interrupt delta folds equal beside an absent one",
+          mask(nmi_delta) == mask(absent_nmi),
+          f"{mask(nmi_delta)!r} against {mask(absent_nmi)!r}")
+    check("a renamed non-maskable-interrupt source folds different",
+          mask(nmi_delta)
+          != mask(nmi_delta.replace("/proc/interrupts", "/proc/misread")),
+          "both folded to the same shape")
+    smi_delta = "smi delta: 3 (source: /dev/cpu/12/msr)"
+    absent_smi = "smi delta: not available (source: /dev/cpu/12/msr)"
+    check("the system-management-interrupt delta folds equal beside an absent one",
+          mask(smi_delta) == mask(absent_smi),
+          f"{mask(smi_delta)!r} against {mask(absent_smi)!r}")
+    check("a renamed node source folds different",
+          mask(smi_delta) != mask(smi_delta.replace("/msr", "/msrx")),
+          "both folded to the same shape")
+
+    # The field line of the probe block carries one value per probe cpu, so the
+    # mark of a host that read nothing folds beside a figure of a host that
+    # read one. The key keeps its bytes, so a renamed key still fails.
+    probe_head = "jitter probe: cpus 0"
+    check("a probe field line of absent marks folds equal beside its figures",
+          compare([probe_head, "nmiDelta: 0 0 0"],
+                  [probe_head, "nmiDelta: not available not available "
+                               "not available"]) == [],
+          " ".join(compare([probe_head, "nmiDelta: 0 0 0"],
+                           [probe_head, "nmiDelta: not available not available "
+                                        "not available"]))[:1])
+    check("a renamed probe field line still fails",
+          any("omits" in line or "differs" in line
+              for line in compare([probe_head, "nmiDelta: 0 0 0"],
+                                  [probe_head, "smiDelta: 0 0 0"])),
+          "the comparison answered nothing")
+
+    # The disclosure a host prints when its source answered nothing stands on
+    # one side alone, so the fold reads it out of both sides (048 FR-011).
+    tail = "jitter: probe runs with interrupts enabled"
+    check("a count disclosure on one side alone folds away",
+          compare([probe_head, tail],
+                  [probe_head, "jitter: NMI count not available", tail]) == [],
+          " ".join(compare([probe_head, tail],
+                           [probe_head, "jitter: NMI count not available",
+                                        tail]))[:1])
+    check("a disclosure word the fold does not own still fails",
+          any("differs" in line or "omits" in line
+              for line in compare([probe_head, tail],
+                                  [probe_head, "jitter: NMI rate not available",
+                                               tail])),
+          "the comparison answered nothing")
 
     # The line class names the finding a shape change prints. The warning's
     # presence is a host condition the fold reads out, so each class stands
