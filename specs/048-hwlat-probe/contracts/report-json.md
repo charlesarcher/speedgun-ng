@@ -12,6 +12,14 @@ FR-004, FR-029, D-6, D-13). The standing contracts' key tables stand
 unchanged apart from the rows this file names, and each amendment joins
 its standing file in the commit that lands the writer (spec FR-029).
 
+## Names
+
+| Rule | Detail | Requirement |
+| --- | --- | --- |
+| No key changes its name, its kind or its place | every new name joins a list, and no standing name moves or renames | spec FR-029 |
+| The third detector figure carries the name `nmiCount` | the word stands the kernel's own `nmi-count` token at `kernel/trace/trace_output.c:1546`, and the console label and the rule name read the same word | spec FR-027, FR-028 |
+| `smi` stands validated | `loadReport` tests its kind and keeps no public record, the way it treats the two names beside it | spec FR-026 |
+
 ## Schema version
 
 | Rule | Detail | Requirement |
@@ -69,13 +77,17 @@ bytes stand where master wrote them.
 One table serves the three carriers that share
 `writeJitterCpu` at `source/harness/json_report.cpp:332`: the run-level
 `jitter.stats[]` at `:1208`, the per-benchmark `jitter.stats[]` at
-`:768`, and `precheck.cpus[].stats` at `:1242`.
+`:776`, and `precheck.cpus[].stats` at `:1242`.
 
 | Key | Kind | Written when | `null` rule | Requirement |
 | --- | --- | --- | --- | --- |
 | `smiDelta` | integer or `null` | the run carried `method=hwlat` | `null` where the SMI count stands unavailable | spec FR-025 |
 | `nmiDelta` | integer or `null` | the run carried `method=hwlat` | `null` where the NMI count stands unavailable | spec FR-025 |
 | `smiGapCount` | integer | the run carried `method=hwlat` | never `null`; 0 answers no marked gap | spec FR-025 |
+
+The schema types the per-entry `jitter` object open at
+`docs/schema/report-v1.json:572` to `:574`, with no `properties` list and
+no `x-order` list, so that carrier needs no order row of its own.
 
 A run of `tsc`, `fwq` or `ftq` writes none of the three in any of the
 three carriers (spec FR-025). The per-benchmark fold covers one
@@ -117,9 +129,22 @@ names to three.
 | `nmiCount` | integer or `null` | the engine stands `hwlat` | `null` where the buffer of that cpu holds no detector line | spec FR-027 |
 
 Under the `per-cpu` mode the run writes (spec D-9, P-14), each tracer
-cpu carries its own detector thread, so a figure of 0 answers a cpu the
-detector watched and found nothing on. `null` stands for a buffer that
-states nothing, the file form of the console's `not available`.
+cpu carries its own buffer. `null` stands for a cpu whose buffer holds no
+detector line, the file form of the console's `not available`: a cpu the
+detector watched and found nothing on holds no line and answers `null`. A
+zero answers the `nmiCount` figure of a cpu whose lines carry no
+`nmi-count` field, the token the kernel prints only above zero
+(`kernel/trace/trace_output.c:1538`, `:1546`) (spec FR-027).
+
+The three figures answer the detector's own sample lines, the shape
+`kernel/trace/trace_output.c:1531` prints:
+`#<seq> inner/outer(us): <inner>/<outer> ts:<stamp> count:<n>`, then
+` nmi-total:<us>` where the kernel holds no `CONFIG_GENERIC_SCHED_CLOCK`
+(`:1543` to `:1545`), then ` nmi-count:<n>` where that count stands
+above zero (`:1538`, `:1546` to `:1547`). `maxGapNs` takes the longer of
+the two sample figures, `gapCount` counts the sample lines of that cpu,
+and `nmiCount` sums the `nmi-count` values, which answer 0 where no line
+of that cpu carries the token (spec FR-027, A-6).
 
 ## The enum word sets
 

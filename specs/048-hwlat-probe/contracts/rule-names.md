@@ -43,6 +43,13 @@ The head stands as a value name of its own, the way `jitter` does at
 `kLabelPrefixes` at `source/harness/compare.cpp:55`, which holds the
 four colon prefixes `counter:`, `metric:`, `stat:` and `topdown:`.
 
+The new branch joins the value-name dispatch of `readRule` at
+`source/harness/compare.cpp:443` to `:493`, beside the `jitter` branch at
+`:467` to `:476`. The three figures read a table of their own,
+`kHwlatFields`, beside `kJitterFields` at `:262` (plan P-11). A head word
+the dispatch names nowhere answers the standing line at `:489` to `:492`,
+which for the new word reads `'hwlat' is not a value the report carries`.
+
 ## The field row
 
 Line 20 of the standing contract becomes, in the standing columns
@@ -76,7 +83,7 @@ inserts.
 | Builder | The line as printed |
 | --- | --- |
 | `source/harness/compare.cpp:427` to `:431`, with the count word the 35-row table moves | `the value name of the rule 'jitter:any:smiDeltaX:lower:abs=5' is not readable: 'smiDeltaX' names none of the thirty-five jitter fields` |
-| the new table lookup beside it, in the same frame | `the value name of the rule 'hwlat:any:gapCounts:lower:abs=5' is not readable: 'gapCounts' names none of the three hwlat figures` |
+| the new `kHwlatFields` lookup beside `:423` to `:431`, in the same frame | `the value name of the rule 'hwlat:any:gapCounts:lower:abs=5' is not readable: 'gapCounts' names none of the three hwlat figures` |
 
 The standing frame reads `the value name of the rule '<rule text>' is
 not readable: <detail>`, and the rule text stands quoted by `quotedText`
