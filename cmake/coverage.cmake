@@ -85,6 +85,20 @@ set(
 # caller, so no code runs at the brace). The source returns its local
 # plainly and this filter removes the false record; no copy is built in
 # source to move a coverage count.
+# The extract step carries the `inconsistent` class the capture carries, because
+# the filter pass re-reads the captured data and repeats the complaint the
+# capture was told to tolerate. The continuous integration lane of pull request
+# #86 and of pull request #87 both stopped here:
+# `lcov: ERROR: (inconsistent) "source/harness/runner.cpp":708: function
+# '_ZZN2sg6detail19stripTopdownColumnsE..._clEm' is hit but no contained lines
+# are hit`. The named function is the lambda of the `SG_REQUIRE` pair of that
+# line, whose own body lines the `--omit-lines` pattern above removes from the
+# trace, so the filter reads the record and the omission as a contradiction and
+# ends the step. The class names that one parsing complaint, every other lcov
+# check and gcov's own diagnostics stay live, and no figure the gate reads
+# changes: the lines outside the contract span carry their own line and branch
+# counters either way (specs/042 T035, specs/048 T079).
+#
 # `tools/hostcheck/*` joins the two application roots, because specs/031 puts
 # the mapfile matcher and the chooser builder there, outside the library on
 # the ruling that keeps the chooser away from the library internals
@@ -97,6 +111,7 @@ set(
 set(
     COVERAGE_EXTRACT_COMMAND
     "${LCOV_EXECUTABLE}" --branch-coverage
+    --ignore-errors inconsistent
     --filter exception,branch,brace
     --omit-lines "SG_(REQUIRE|ENSURE|INVARIANT|ASSERT)(_ALWAYS)?"
     --omit-lines "if \\(cpus\\.empty\\(\\)\\) \\{"
