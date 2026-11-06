@@ -372,7 +372,8 @@ auto noiseTracerFigures(const NoiseTracerSession& session)
   return figures;
 }
 
-auto noiseTracerRestore(const NoiseTracerSession& session) -> void
+auto noiseTracerRestore(const NoiseTracerSession& session)
+    -> std::vector<TracerSetting>
 {
   SG_REQUIRE(session.engine != TracerEngine::NONE,
              "noiseTracerRestore reaches a session that names no tracer");
@@ -381,6 +382,9 @@ auto noiseTracerRestore(const NoiseTracerSession& session) -> void
                   session.previousTracer + "\n");
   writeTracerFile("sys/kernel/tracing/tracing_cpumask",
                   session.previousCpuMask + "\n");
+  // T031 walks the saved set in reverse and collects the writes that
+  // failed, so the answer names each one (FR-021, FR-022).
+  return {};
 }
 
 }  // namespace sg::detail

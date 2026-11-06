@@ -605,6 +605,47 @@ auto theEngineWordOutsideTheTwoRefuses() -> void
   checkRefusalShape(run, "--os-noise: ");
 }
 
+// specs/048 T025, FR-018, D-2: the third engine word settles the
+// carrier through the scan and the gather, the shape the two standing
+// words carry. The absent cpus key keeps naming the candidate set.
+auto theEngineWordHwlatSettlesTheCarrier() -> void
+{
+  const Gathered gathered = gatherSources({"--os-noise=hwlat"}, "");
+  check(gathered.settled.has_value(),
+        ("the gather accepts the word hwlat (T025, FR-018): " + gathered.fault)
+            .c_str());
+  if (!gathered.settled.has_value()) {
+    return;
+  }
+  const auto& settled = gathered.settled->options;
+  check(settled.noiseTracer.has_value()
+            && *settled.noiseTracer == sg::TracerEngine::HWLAT,
+        "the word hwlat settles the detector engine (T025, FR-018, R-06)");
+  check(settled.noiseTracerCpus.empty(),
+        "the absent key names the candidate set (T025, FR-008, R-09)");
+}
+
+// specs/048 T025, FR-003, FR-005, D-6: the engine refusal names the
+// three words the value takes, word for word, at the settle and at the
+// child's one line (contracts/cli-options.md).
+auto theEngineWordOutsideTheThreeNamesTheThree() -> void
+{
+  const Gathered gathered = gatherSources({"--os-noise=hwlato"}, "");
+  check(!gathered.settled.has_value(),
+        "the gather refuses a word outside the three (T025, FR-005)");
+  check(
+      gathered.fault
+          == "--os-noise: the engine 'hwlato' is not osnoise, timerlat or "
+             "hwlat",
+      ("the settled refusal names the three words (T025, FR-003, FR-005): "
+       + gathered.fault)
+          .c_str());
+  const auto run = runRefusalChild("engine-word-three", {"--os-noise=hwlato"});
+  checkRefusalShape(
+      run,
+      "--os-noise: the engine 'hwlato' is not osnoise, timerlat" " or hwlat");
+}
+
 // T005, FR-003: a cpus value that is no cpu index or range refuses.
 auto theCpusTokenOutsideTheListRulesRefuses() -> void
 {
@@ -1853,6 +1894,41 @@ auto theMissingWindowRefusalRows() -> void
         "the compare mode's refusal prints no benchmark output (FR-011)");
 }
 
+// specs/048 T025, FR-003, FR-005: the detector word on a batch that
+// names no probe option, and the detector word on the alongside mode,
+// each take the standing window refusal: one line naming the missing
+// window, at status 2, ahead of any benchmark (contracts/cli-options.md,
+// the two rows the missing pre-check window names).
+auto theHwlatValueWithoutAPrecheckWindowRefuses() -> void
+{
+  const auto noProbe = runRefusalChild("hwlat-no-probe",
+                                       {"--os-noise=hwlat",
+                                        "--filter=bmQuiet",
+                                        "--repetitions=1",
+                                        "--iterations=2"});
+  checkRefusalShape(noProbe, "--os-noise: ");
+  check(noProbe.err.find("no pre-check window") != std::string::npos,
+        ("the batch without a probe option names the window (T025, FR-003): "
+         + noProbe.err)
+            .c_str());
+
+  const auto probe = pickCpus(1);
+  if (probe.empty()) {
+    return;
+  }
+  const auto alongside =
+      runRefusalChild("hwlat-alongside",
+                      {"--os-noise=hwlat",
+                       "--jitter-probe=" + std::to_string(probe.at(0)),
+                       "--filter=bmQuiet",
+                       "--repetitions=1",
+                       "--iterations=2"});
+  checkRefusalShape(alongside, "--os-noise: ");
+  check(alongside.err.find("no pre-check window") != std::string::npos,
+        ("the alongside mode names the window (T025, FR-003): " + alongside.err)
+            .c_str());
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmQuiet);
@@ -2093,10 +2169,12 @@ auto main() -> int
   theDefaultOptionsCarryNoTracer();
   theDefaultRecordCarriesNoTracer();
   theEngineWordSettlesTheCarrier();
+  theEngineWordHwlatSettlesTheCarrier();
   theCpusKeySettlesTheTracerCpus();
   theSecondCpusKeyStandsTheRepeatedKeyRefusal();
   theBareOptionTakesTheMissingArgumentPath();
   theEngineWordOutsideTheTwoRefuses();
+  theEngineWordOutsideTheThreeNamesTheThree();
   theCpusTokenOutsideTheListRulesRefuses();
   theCpuOutsideTheAffinityMaskRefuses();
   theCpuOutsideTheOnlineSetRefuses();
@@ -2158,6 +2236,7 @@ auto main() -> int
                 "fewer than four cpus)\n");
   }
   theMissingWindowRefusalRows();
+  theHwlatValueWithoutAPrecheckWindowRefuses();
   std::printf(failures == 0 ? "ok\n" : "%d checks failed\n", failures);
   return failures == 0 ? 0 : 1;
 }

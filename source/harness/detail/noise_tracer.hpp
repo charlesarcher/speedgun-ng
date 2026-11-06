@@ -38,16 +38,34 @@ namespace sg::detail
                                      std::vector<std::uint32_t>& cpus,
                                      std::string& message) -> bool;
 
+/// @brief One file the detector run saved (data-model.md E-07, D-8,
+/// P-8): the path the run wrote below the tracefs root, and the
+/// standing text the setup read there before the write. The
+/// `hwlat_detector/mode` value holds the bracketed word alone, the one
+/// form the mode file's write handler compares (P-16).
+struct TracerSetting
+{
+  std::string path;
+  std::string value;
+};
+
 /// @brief The engine state one run owns across the pre-check window
-/// (data-model.md E-18): the engine and the cpu list the run chose,
-/// and the standing `current_tracer` word and the standing
-/// `tracing_cpumask` text the setup read for the restore (R-04).
+/// (data-model.md E-18, E-07): the engine and the cpu list the run
+/// chose, the standing `current_tracer` word and the standing
+/// `tracing_cpumask` text the setup read for the restore (R-04), and
+/// the saved set the spec `036` session shape grows to carry (D-8).
 struct NoiseTracerSession
 {
   TracerEngine engine = TracerEngine::NONE;
   std::vector<std::uint32_t> cpus;
   std::string previousTracer;
   std::string previousCpuMask;
+  /// @brief The saved set in write order, one pair per file the setup
+  /// saved: the six files FR-019 names for the `hwlat` engine (FR-021,
+  /// D-8, P-8). The restore walks it in reverse. `tracing_on` stands
+  /// outside the set: the restore writes `0` there, the standing shape
+  /// spec SC-007 measures (D-8).
+  std::vector<TracerSetting> saved;
 };
 
 /// @brief The word the engine writes into `current_tracer` (specs/036
@@ -99,21 +117,30 @@ struct NoiseTracerSession
 [[nodiscard]] auto noiseTracerFigures(const NoiseTracerSession& session)
     -> std::vector<PrecheckTracerCpuRecord>;
 
-/// @brief The restore (specs/036 FR-007, FR-016, R-04): the function
-/// writes `tracing_on` at `0`, then the standing `current_tracer`
-/// word and the standing `tracing_cpumask` text the session carries,
-/// in that order. Every file resolves
+/// @brief The restore (specs/036 FR-007, FR-016, R-04; specs/048
+/// FR-021, FR-022, D-8, P-8): the function writes `tracing_on` at `0`,
+/// then the saved set in the reverse of the write order, so the engine
+/// word goes back before the threshold and the kernel's own reset runs
+/// ahead of the host threshold. The two standing engines carry an empty
+/// saved set and keep their own order: `tracing_on`, then the standing
+/// word, then the standing mask. Every file resolves
 /// `procRootPath("sys/kernel/tracing/<file>")` (R-01). A failed write
-/// answers nothing and refuses nothing: the run never fails on the
-/// tracer (FR-016). The function stands on the entry-point thread,
-/// outside every timed window (R-05).
+/// refuses nothing: the run never fails on the tracer (FR-016). The
+/// function stands on the entry-point thread, outside every timed
+/// window (R-05).
 ///
 /// \pre `session` stands the setup's answer, the engine naming a
 ///       tracer
-/// \post the three files stand at the values the session carries
-///       where the writes stand through, and stand unchanged beside a
-///       failed write
-auto noiseTracerRestore(const NoiseTracerSession& session) -> void;
+/// \post every file whose write stood through stands at the value the
+///       session carries, and a file beside a failed write stands
+///       unchanged
+/// \post the answer carries one pair per saved file whose write
+///       failed, in the order the restore wrote them, and stands empty
+///       where every write stood through (FR-022, D-12); `tracing_on`
+///       stands outside the answer, because no saved value backs it
+///       (D-8)
+auto noiseTracerRestore(const NoiseTracerSession& session)
+    -> std::vector<TracerSetting>;
 
 }  // namespace sg::detail
 

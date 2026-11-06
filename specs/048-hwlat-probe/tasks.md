@@ -226,7 +226,7 @@ path.
 
 ### Tests for User Story 2 (write first, observe failure)
 
-- [ ] T021 [US2] Write the failing setup-order rows in
+- [X] T021 [US2] Write the failing setup-order rows in
   `test/source/harness_hwlat_tracer_test.cpp`: the setup reads the
   standing text of each of the six saved files first, then writes
   `tracing_cpumask`, then `hwlat_detector/mode` with `per-cpu`, then
@@ -236,7 +236,7 @@ path.
   with `hwlat`, then `tracing_on` with `1`, each path under the file
   root, the mask in the word width the standing mask carried (FR-018,
   FR-019, FR-020, D-9, D-10, P-14, A-3). Verify: `ctest --test-dir build -R harness_hwlat_tracer_test --output-on-failure` exits non-zero (red observed)
-- [ ] T022 [US2] Write the failing restore rows in the same file:
+- [X] T022 [US2] Write the failing restore rows in the same file:
   the restore writes `tracing_on` at `0`, then each saved value in the
   reverse of the write order, so `current_tracer` stands before
   `tracing_thresh` and the kernel's own reset runs ahead of the host
@@ -246,7 +246,7 @@ path.
   fix; a failed restore write answers one line naming the file and the
   saved value and the run keeps its status (FR-003, FR-021, FR-022,
   D-8, D-12, D-15, P-8, P-9, SC-007). Verify: `ctest --test-dir build -R harness_hwlat_tracer_test --output-on-failure` exits non-zero (red observed)
-- [ ] T023 [US2] Write the failing figure rows in the same file over
+- [X] T023 [US2] Write the failing figure rows in the same file over
   the fake text at `sys/kernel/tracing/per_cpu/cpu<id>/trace`: a line
   counts only when `#` stands at column 1 and a digit at column 2, so a
   header legend line stands skipped, `maxGapNs` takes the larger of the
@@ -254,12 +254,12 @@ path.
   cpu, `nmiCount` sums the `nmi-count` fields and answers 0 where lines
   stand and none carries one, and a text with no line answers all three
   figures absent (FR-018, FR-027, A-6, P-10, plan R-2). Verify: `ctest --test-dir build -R harness_hwlat_tracer_test --output-on-failure` exits non-zero (red observed)
-- [ ] T024 [US2] Write the failing path rows in the same file: no
+- [X] T024 [US2] Write the failing path rows in the same file: no
   tracefs at the standing path, a knob without rights, a write that
   fails inside the window and a `SIGINT` sent to a forked child each
   reach the restore list and leave the user-space figures whole at
   status 0 (FR-003, FR-021, FR-023, D-15, plan R-5, plan R-6). Verify: `ctest --test-dir build -R harness_hwlat_tracer_test --output-on-failure` exits non-zero (red observed)
-- [ ] T025 [P] [US4] Write the failing engine-word rows in
+- [X] T025 [P] [US4] Write the failing engine-word rows in
   `test/source/harness_noise_test.cpp`: `hwlat` settles
   `sg::TracerEngine::HWLAT`, the refusal reads `--os-noise: the engine
   'hwlato' is not osnoise, timerlat or hwlat`, and a `--os-noise`
@@ -296,7 +296,7 @@ path.
 
 ### Implementation for User Story 2
 
-- [ ] T028 [P] [US2] Add the saved set in
+- [X] T028 [P] [US2] Add the saved set in
   `source/harness/detail/noise_tracer.hpp`: a pair type with `path` and
   `value`, a `std::vector<TracerSetting>` beside the standing members of
   `NoiseTracerSession` holding six pairs in write order, and the restore
