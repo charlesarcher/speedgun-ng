@@ -51,8 +51,8 @@ report file `--json` names.
 **Testing**: the repository's own harness, one executable per area,
 registered in `test/CMakeLists.txt`. Three executables join:
 `harness_latency_counters_test`, `harness_hwlat_probe_test` and
-`harness_hwlat_tracer_test`. Nine standing executables carry the rest of
-the new checks. Fake files stand under a temporary root the seam
+`harness_hwlat_tracer_test`. Eleven standing executables carry the rest
+of the new checks. Fake files stand under a temporary root the seam
 installs; the fake provider and the scripted `WindowReader` carry time,
 so no test sleeps and no test reads a clock.
 
@@ -107,8 +107,11 @@ Gates that bind this lane, each with the obligation the plan meets:
   units, no speculative field, and no second seam.
 - XI prose: Simplified Technical English in every added line.
 
-No gate needs a justified violation, so Complexity Tracking stands
-empty.
+Complexity Tracking records one allowance, and the lane grants no new
+exception: the allowance stands in the tree today. The branch shortfall of
+spec SC-002 reads at most 21 rows, the
+number `tools/dbc/coverage_gate.sh:102` computes today, and line coverage
+stands 100% with no new exclusion marker (spec FR-038).
 
 ## Project Structure
 
@@ -189,7 +192,7 @@ the tracefs lifecycle, and one owner per shared file.
 
 ### Decision index
 
-The spec carries D-1 to D-15. This plan adds P-1 to P-14, each one a
+The spec carries D-1 to D-15. This plan adds P-1 to P-16, each one a
 choice the code must make once.
 
 - **P-1**: one unit answers both counter sources:
@@ -353,9 +356,10 @@ owning worker.
   names none, a residue no user-space write can reach, so the guide page
   states it (spec D-8, FR-036).
 - **R-5**: `mode`, `window` and `width` stand mode `0640`. A non-root read
-  fails, and the engine already refuses to run without root, so the saved
-  set stays complete. A test plants an unreadable knob and expects the
-  `not available` disclosure with status 0.
+  fails, and the run answers the not-available shape of spec FR-023 with
+  status 0, because the feature owns no root refusal, so the saved set
+  never stands incomplete. A test plants an unreadable knob and expects
+  that shape.
 - **R-6**: coverage cannot reach a real root path in the suite. The
   fakes carry every branch: a refused open, a short read, a directory in
   a file's place, a lowered file-size limit, and a truncated text. SC-005
@@ -566,4 +570,8 @@ an observation for spec `036` without changing it.
 
 ## Complexity Tracking
 
-No gate needs an exception, so this section stays empty.
+| Item | Reading | Source |
+| --- | --- | --- |
+| Branch coverage shortfall | at most 21 uncovered branch rows, with line coverage at 100% and the exclusion-marker count at or under 84 | standing allowance at `tools/dbc/coverage_gate.sh:102`, the ceiling `coverage_gate.sh:45` checks; spec SC-002, FR-038 |
+
+No other gate needs an exception.
