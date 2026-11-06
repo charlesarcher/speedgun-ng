@@ -877,7 +877,7 @@ priority.
   the `--jitter-probe` row reads `method=tsc|fwq|ftq|hwlat`, and the `--os-noise`
   row names the three engines. The two capability-summary lines that named two
   methods or two engines name the third with them, in the same lines. The file
-  stands at 1001 lines, below the 1004 bound, and
+  stands at 1002 lines, below the 1004 bound, and
   `python3 tools/docs/example_drift.py .` reads no findings.
 - [X] T053 [US6] Record the run in `example/docs/hwlat_probe.expected`, beside the
   page block that matches it line for line. The block carries the three
