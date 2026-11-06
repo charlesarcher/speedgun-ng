@@ -94,7 +94,8 @@ no `x-order` list, so that carrier needs no order row of its own.
 A run of `tsc`, `fwq` or `ftq` writes none of the three in any of the
 three carriers (spec FR-025). The per-benchmark fold covers one
 benchmark's windows and holds no window edge, so its two delta figures
-stand `null` for a `hwlat` run and its count figure stands 0. The spec's
+stand `null` for a `hwlat` run, and its count figure counts that item's
+own kept gaps whose mark stands set (spec FR-013, FR-025). The spec's
 key table names two carriers; the third joins it in the same commit,
 because one writer fills all three.
 
