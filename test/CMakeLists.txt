@@ -1045,6 +1045,19 @@ target_compile_features(harness_latency_counters_test PRIVATE cxx_std_23)
 add_test(NAME harness_latency_counters_test
          COMMAND harness_latency_counters_test)
 
+# The probe path of the `hwlat` method: the read beside each kept gap, the
+# mark the change of its span carries, the two window deltas and the marked
+# count that fold onto a cpu's figures, and the shapes each source answers
+# when it stands unavailable (FR-012 to FR-017). Wave W3 writes the rows;
+# the unit stands open from this phase (FR-032, FR-034).
+add_executable(harness_hwlat_probe_test
+               source/harness_hwlat_probe_test.cpp)
+target_link_libraries(harness_hwlat_probe_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_hwlat_probe_test
+                           PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_hwlat_probe_test PRIVATE cxx_std_23)
+add_test(NAME harness_hwlat_probe_test COMMAND harness_hwlat_probe_test)
+
 # The foundational jitter probe surface: the option defaults of data-model.md
 # E-01 (FR-003, R-15), the sixteen-field stats aggregate in the E-03 order
 # (FR-002), the three mode enumerators (E-02, R-10), the declared entry point
