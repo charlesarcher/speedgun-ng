@@ -1796,6 +1796,59 @@ auto childFamilyNarrowedEmptyTwo() -> int
   return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
 }
 
+// FR-015, FR-019, R-01: the empty narrowing beside a session the walk joined
+// ahead of it. The first family names one cpu of the mask, so its instance
+// keeps the rest and its own probe stops behind that instance. The second
+// names every cpu of the mask, so the walk leaves at that instance with the
+// first family's session joined and its own still live.
+auto childFamilyNarrowedEmptyJoined() -> int
+{
+  scriptedProvider();
+  auto maskCpus = std::vector<std::uint32_t> {};
+  cpu_set_t mask {};
+  CPU_ZERO(&mask);
+  if (sched_getaffinity(0, sizeof(mask), &mask) != 0) {
+    fail("the child cannot read its own affinity mask");
+  }
+  for (std::size_t cpu = 0; cpu < static_cast<std::size_t>(CPU_SETSIZE); ++cpu)
+  {
+    if (CPU_ISSET(cpu, &mask) != 0) {
+      maskCpus.push_back(static_cast<std::uint32_t>(cpu));
+    }
+  }
+  auto firstOptions = sg::JitterProbeOptions {};
+  firstOptions.cpus = {pickCpus(1).front()};
+  firstOptions.thresholdNs = 65000;
+  firstOptions.gapCount = 2000000;
+  auto secondOptions = sg::JitterProbeOptions {};
+  secondOptions.cpus = maskCpus;
+  secondOptions.thresholdNs = 65000;
+  secondOptions.gapCount = 2000000;
+  auto first = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmNarrowFirst");
+  first.threads(2).jitterProbe(firstOptions);
+  auto second = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmNarrowSecond");
+  second.threads(2).jitterProbe(secondOptions);
+  std::vector<std::string> arguments {"--repetitions=1", "--iterations=2"};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
 // The fresh process of the family availability scenarios: the fake
 // publishes a monotonic and a thread-cpu leaf with no machine/tsc leaf,
 // so the catalog the availability check reads carries no qualifying
@@ -1825,6 +1878,62 @@ auto childFamilyUnavailable(const bool strict) -> int
   probeOptions.gapCount = 2000000;
   probeOptions.strict = strict;
   handle.jitterProbe(probeOptions);
+  std::vector<std::string> arguments {"--repetitions=1", "--iterations=2"};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
+// FR-024, FR-037, R-01: the strict stop over three probed families on a
+// machine with no machine/tsc leaf. The first family's probe discloses the
+// answer and its session stops behind that family's own instance. The second
+// family asks for strict, so the walk leaves at its instance: the walk joins
+// the live session there, passes the joined one by, and reaches the third
+// family, whose probe never started.
+auto childFamilyUnavailableStrictThree() -> int
+{
+  auto owned = std::make_unique<sg::counters::FakeProvider>();
+  auto& provider = *owned;
+  provider.addCounter("machine", "monotonic", "nanoseconds", "wall clock");
+  provider.setPoints("machine", "monotonic", {0}, 4000);
+  provider.addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
+  provider.setPoints("machine", "thread_cpu", {0}, 2000);
+  const auto registered =
+      sg::counters::System::local().registerProvider(std::move(owned));
+  check(registered.has_value(), "the fresh process registers its fake (R-02)");
+  auto plain = sg::JitterProbeOptions {};
+  plain.cpus = {pickCpus(1).front()};
+  plain.thresholdNs = 65000;
+  plain.gapCount = 2000000;
+  auto strict = plain;
+  strict.strict = true;
+  auto first = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmStrictFirst");
+  auto second = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmStrictSecond");
+  auto third = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        for (auto _ : state) {
+        }
+      },
+      "bmStrictThird");
+  first.jitterProbe(plain);
+  second.jitterProbe(strict);
+  third.jitterProbe(plain);
   std::vector<std::string> arguments {"--repetitions=1", "--iterations=2"};
   std::vector<char*> argv;
   argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
@@ -1955,6 +2064,52 @@ auto childFamilyHandover() -> int
   }
   std::vector<std::string> arguments {
       "--repetitions=1", "--iterations=2", "--interleave=2"};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  return sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+}
+
+// R-01, FR-015: two probed families of two instances each under an interleave
+// whose walk starts the second family's probe inside the first family's span.
+// That start joins the first family's session, and the walk reaches the first
+// family's last instance afterwards, where the stop of a probe the walk
+// started finds the session joined already.
+auto childFamilyInterleavedLast() -> int
+{
+  scriptedProvider();
+  const auto cpus = pickCpus(1);
+  auto first = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        const auto label = state.range(0);
+        (void)label;
+        for (auto _ : state) {
+        }
+      },
+      "bmLastFirst");
+  auto second = sg::registerBenchmark(
+      [](sg::State& state)
+      {
+        const auto label = state.range(0);
+        (void)label;
+        for (auto _ : state) {
+        }
+      },
+      "bmLastSecond");
+  first.arg(1).arg(2);
+  second.arg(1).arg(2);
+  for (auto handle : {first, second}) {
+    sg::JitterProbeOptions probeOptions;
+    probeOptions.cpus.push_back(cpus.front());
+    probeOptions.thresholdNs = 65000;
+    probeOptions.gapCount = 2000000;
+    handle.jitterProbe(probeOptions);
+  }
+  std::vector<std::string> arguments {
+      "--repetitions=1", "--iterations=2", "--interleave=7"};
   std::vector<char*> argv;
   argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
   for (auto& argument : arguments) {
@@ -2287,6 +2442,23 @@ auto scenarioFamilyNarrowedEmptyTwo() -> int
   return 0;
 }
 
+// FR-015, FR-019, R-01: the empty narrowing beside a session the walk joined
+// at the first family's own instance. The refusal lands on the live session of
+// the second family and passes the joined one by.
+auto scenarioFamilyNarrowedEmptyJoined() -> int
+{
+  const Captured run =
+      runExecChild("--jitter-cli-child=family-narrowed-empty-joined",
+                   "family-narrowed-empty-joined");
+  check(run.status == 2,
+        "the empty narrowing beside a joined session leaves status 2 (FR-019)");
+  check(
+      run.err.find("the probe cpus leave no cpu for 'bmNarrowSecond/threads:2'")
+          != std::string::npos,
+      "the refusal names the family whose probe empties the mask (FR-019)");
+  return 0;
+}
+
 // FR-024, FR-037: a family probe over a machine with no machine/tsc
 // leaf answers the availability line and leaves status two behind when
 // the handle asks for strict.
@@ -2297,6 +2469,24 @@ auto scenarioFamilyUnavailableStrict() -> int
                    "family-unavailable-strict");
   check(run.status == 2,
         "the strict family probe with no leaf stops with status 2 (FR-024)");
+  check(run.err.find("the machine/tsc leaf is not available")
+            != std::string::npos,
+        "the refusal names the missing leaf (FR-024)");
+  return 0;
+}
+
+// FR-024, FR-037, R-01: the strict stop over three probed families answers one
+// line and status two: the first family's session stands joined, the second
+// family's stands live, and the third family's probe never started.
+auto scenarioFamilyUnavailableStrictThree() -> int
+{
+  const Captured run =
+      runExecChild("--jitter-cli-child=family-unavailable-strict-three",
+                   "family-unavailable-strict-three");
+  check(run.status == 2,
+        "the strict stop over three probed families leaves status 2 (FR-037)");
+  checkOneLine(run.err,
+               "the strict stop over three families prints one line (FR-037)");
   check(run.err.find("the machine/tsc leaf is not available")
             != std::string::npos,
         "the refusal names the missing leaf (FR-024)");
@@ -2339,6 +2529,28 @@ auto scenarioFamilyHandover() -> int
   check(run.out.find("bmHandFirst") != std::string::npos
             && run.out.find("bmHandSecond") != std::string::npos,
         "both probed families run (R-01)");
+  return 0;
+}
+
+// R-01, FR-015: the interleaved walk hands the session over inside the first
+// family's span and reaches that family's last instance behind the handover.
+// The narrowing lines follow the walk, so their order states the order the
+// instances ran in.
+auto scenarioFamilyInterleavedLast() -> int
+{
+  const Captured run = runExecChild(
+      "--jitter-cli-child=family-interleaved-last", "family-interleaved-last");
+  check(run.status == 0, "the interleaved families finish the run (R-01)");
+  const auto secondStart =
+      run.out.find("affinity mask narrowed for 'bmLastSecond/1'");
+  const auto firstLast =
+      run.out.find("affinity mask narrowed for 'bmLastFirst/2'");
+  check(secondStart != std::string::npos && firstLast != std::string::npos
+            && secondStart < firstLast,
+        "the walk reaches the first family's last instance behind the second "
+        "family's start (R-01)");
+  check(run.out.find("jitter: cpu ") != std::string::npos,
+        "one report carries the probe reads of both families (FR-015)");
   return 0;
 }
 
@@ -2974,10 +3186,20 @@ auto main(int argc, char** argv) -> int
     {
       return childFamilyHandover();
     }
+    if (mode == "--jitter-cli-child=family-interleaved-last"
+        && redirect("family-interleaved-last"))
+    {
+      return childFamilyInterleavedLast();
+    }
     if (mode == "--jitter-cli-child=family-narrowed-empty-two"
         && redirect("family-narrowed-empty-two"))
     {
       return childFamilyNarrowedEmptyTwo();
+    }
+    if (mode == "--jitter-cli-child=family-narrowed-empty-joined"
+        && redirect("family-narrowed-empty-joined"))
+    {
+      return childFamilyNarrowedEmptyJoined();
     }
     if (mode == "--jitter-cli-child=family-narrowed-empty"
         && redirect("family-narrowed-empty"))
@@ -2988,6 +3210,11 @@ auto main(int argc, char** argv) -> int
         && redirect("family-unavailable-strict"))
     {
       return childFamilyUnavailable(true);
+    }
+    if (mode == "--jitter-cli-child=family-unavailable-strict-three"
+        && redirect("family-unavailable-strict-three"))
+    {
+      return childFamilyUnavailableStrictThree();
     }
     if (mode == "--jitter-cli-child=family-unavailable"
         && redirect("family-unavailable"))
@@ -3086,10 +3313,14 @@ auto main(int argc, char** argv) -> int
   check(scenarioFileVersusCommandLine() == 0, "fileVersusCommandLine");
   check(scenarioFamilyTwoFamilies() == 0, "familyTwoFamilies");
   check(scenarioFamilyHandover() == 0, "familyHandover");
+  check(scenarioFamilyInterleavedLast() == 0, "familyInterleavedLast");
   check(scenarioFamilyUnavailableStrict() == 0, "familyUnavailableStrict");
+  check(scenarioFamilyUnavailableStrictThree() == 0,
+        "familyUnavailableStrictThree");
   check(scenarioFamilyUnavailable() == 0, "familyUnavailable");
   check(scenarioFamilyNarrowedEmpty() == 0, "familyNarrowedEmpty");
   check(scenarioFamilyNarrowedEmptyTwo() == 0, "familyNarrowedEmptyTwo");
+  check(scenarioFamilyNarrowedEmptyJoined() == 0, "familyNarrowedEmptyJoined");
   check(scenarioFamilyPrecheckIdle() == 0, "familyPrecheckIdle");
   check(scenarioFamilyPlantedProbe() == 0, "familyPlantedProbe");
   check(scenarioFamilyVersusCommandLine() == 0, "familyVersusCommandLine");
