@@ -870,12 +870,12 @@ priority.
   pinned lane out of the reading the CI jobs stand in for (per SC-003, T081)
   (partial, HIGH)
 
-- [ ] T094 Decide the rule the marked-gap count and the counter disclosure answer
+- [X] T094 Decide the rule the marked-gap count and the counter disclosure answer
   to one source: a node that answers after the window's opening edge
   prints `SMI count not available` beside `smi gaps: n`, so either gate
   the count on the source or state the split in
   `contracts/console-report.md` and add the report row that reads the
-  pair together (per FR-015, FR-016, T019) (ruled, code and contract on `fix/048-convergence` with its row, MEDIUM)
+  pair together (per FR-015, FR-016, T019) (done at ef49f14d on `fix/048-convergence`, MEDIUM)
 
 - [X] T095 Restate the three guide lines that call the counter a machine-check
   interrupt: the figure is the system-management-interrupt count (per
@@ -911,16 +911,15 @@ priority.
   `specs/036-osnoise-timerlat-tracers/contracts/cli-options.md:95`)
   (done at 12917398 on `fix/048-convergence`, MEDIUM)
 
-- [ ] T101 Stand one named row that installs a denial after a setup that
+- [X] T101 Stand one named row that installs a denial after a setup that
   succeeded and reads the run's exit status, the status clause of the
   restore-failure requirement (per FR-022, FR-034;
-  `source/harness/cli.cpp:1277-1278`) (partial, MEDIUM)
+  `source/harness/cli.cpp:1277-1278`) (done at 20f0f105 on `fix/048-convergence`, MEDIUM)
 
-- [ ] T102 Stand one named row over a tree that carries `sys/kernel/tracing` and
+- [X] T102 Stand one named row over a tree that carries `sys/kernel/tracing` and
   no `hwlat_detector/` directory, reading `tracer: not available`, the
   user-space figures whole and status 0 (per SC-001, FR-023, FR-034;
-  `test/source/harness_hwlat_tracer_test.cpp:1016, :1037`) (partial,
-  MEDIUM)
+  `test/source/harness_hwlat_tracer_test.cpp:1016, :1037`) (done at 2b16602e on `fix/048-convergence`, MEDIUM)
 
 - [ ] T103 Re-take the cheap-gate rows at a head the branch carries, so the
   record names no head that stands off its own history (per SC-004,
@@ -945,10 +944,10 @@ priority.
   file holds (per T052, FR-037; `specs/048-hwlat-probe/tasks.md:880`)
   (done at 9d1a9d32 on `fix/048-convergence`, LOW)
 
-- [ ] T108 Read the loaded document's interrupt outcome on the interrupted-run
+- [X] T108 Read the loaded document's interrupt outcome on the interrupted-run
   row, the clause of US2 scenario 4 the row leaves unasserted (per
   FR-021; `test/source/harness_hwlat_tracer_test.cpp:1257-1287`)
-  (partial, LOW)
+  (done at 4181a0b8 on `fix/048-convergence`, LOW)
 
 - [ ] T109 Justify the detector engine the docs example requests, or record the
   host limit it carries: a host that holds tracefs prints a tracer block
