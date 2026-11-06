@@ -35,6 +35,9 @@ delta names join the standing files in the commit that lands the code.
   tracer cpu <n> nmiCount: <figure>
 [the not-available case, unchanged]
   tracer: not available
+  tracer: hwlat already stands as the current tracer   [only when the read
+                                       `current_tracer` answered `hwlat`
+                                       ahead of the run, once per run]
 [restore defect path, at the restore call site, ahead of the pre-check block]
   tracer: restore failed: <file> = <saved value>     [one line per file whose write failed]
 ```
@@ -47,6 +50,7 @@ delta names join the standing files in the commit that lands the code.
 | `jitter: SMI count not available` | the probe block's disclosure region | once per run when that source answers nothing | spec FR-011 |
 | `jitter: NMI count not available` | the probe block's disclosure region | once per run when that source answers nothing | spec FR-011 |
 | `jitter: probe runs with interrupts enabled` | the probe block's disclosure region | once per run of the `hwlat` method | spec FR-030 |
+| `tracer: hwlat already stands as the current tracer` | the tracer block, ahead of the standing `tracer: not available` line | once per run whose `current_tracer` read answered `hwlat` before the setup wrote | spec FR-023, plan P-15 |
 | `smi delta: <figure> (source: /dev/cpu/<n>/msr)` | the pre-check block, after the standing attribution lines | once per measured cpu of a `hwlat` run | spec FR-016 |
 | `nmi delta: <figure> (source: /proc/interrupts)` | the pre-check block, after the standing attribution lines | once per measured cpu of a `hwlat` run | spec FR-016 |
 | `smi gaps: <count>` | the pre-check block, after the standing attribution lines | once per measured cpu of a `hwlat` run | spec FR-016 |
