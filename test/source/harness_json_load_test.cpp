@@ -1679,7 +1679,10 @@ auto theDetectorFiguresReadBackEqual() -> void
   const auto record = detectorPrecheck();
   sg::ReportData data;
   data.precheck = record;
-  check(sg::detail::writeReport(kDetectorDoc, data, {}, std::nullopt, record),
+  // The figures belong to a probe run, so the document carries the probe
+  // record of the detector method beside the pre-check record (FR-025).
+  const auto jitter = detectorJitter();
+  check(sg::detail::writeReport(kDetectorDoc, data, {}, jitter, record),
         "the writer wrote the document of the detector record (FR-001)");
   const auto loaded = sg::loadReport(kDetectorDoc);
   check(loaded.has_value(),

@@ -457,6 +457,78 @@ auto readFit(Element value,
 // and stats so the per-entry read fills the result's carrier with them
 // (E-08, FR-027); the run-level read lets them go. Each key is read and
 // kind-checked in order, so a wrong kind names itself before a later
+// One count the document may stand `null`: an attribution figure the
+// pre-check could not read, the file form of the console's
+// `not available` (specs/034 FR-017, FR-024).
+auto readNullableCount(Element value, const std::string& where)
+    -> std::expected<std::optional<std::uint64_t>, std::string>
+{
+  if (value.is_null()) {
+    return std::optional<std::uint64_t> {};
+  }
+  auto number = asUnsigned(value, where);
+  if (!number.has_value()) {
+    return std::unexpected(number.error());
+  }
+  return std::optional<std::uint64_t> {*number};
+}
+
+// One figure the document may stand out: the detector figures of specs/048
+// FR-025 and FR-027 arrived after the format stood published, so a document
+// written before them reads each figure as the absent figure and keeps the
+// default of a run that measured none (FR-029, A-7). A figure that stands
+// present keeps its own kind and its own refusal.
+auto optionalFigure(Element value,
+                    std::string_view key,
+                    const std::string& where)
+    -> std::expected<std::optional<std::uint64_t>, std::string>
+{
+  const auto found = optionalField(value, key);
+  if (!found.has_value()) {
+    return std::optional<std::uint64_t> {};
+  }
+  return readNullableCount(*found, where + "/" + std::string(key));
+}
+
+// One count the document may stand out, and never `null`: the three detector
+// settings and the marked-gap count state a figure the run wrote, so a `null`
+// refuses the way the standing count of the same object does, and an absent
+// key answers zero (specs/048 FR-025, FR-027, A-7).
+auto optionalCount(Element value,
+                   std::string_view key,
+                   const std::string& where)
+    -> std::expected<std::uint64_t, std::string>
+{
+  const auto found = optionalField(value, key);
+  if (!found.has_value()) {
+    return std::uint64_t {0};
+  }
+  return asUnsigned(*found, where + "/" + std::string(key));
+}
+
+// The gap mark of specs/048 FR-026: `null` answers the absent figure, and a
+// word stands one of the two the writer spells. The reader keeps no record of
+// the word, the shape of the item's two names beside it, so a value of another
+// kind or a word outside the two refuses and names the item.
+auto readGapMark(Element value,
+                 const std::string& where) -> std::expected<void, std::string>
+{
+  if (value.is_null()) {
+    return {};
+  }
+  auto text = asString(value, where);
+  if (!text.has_value()) {
+    return std::unexpected(text.error());
+  }
+  const auto word = std::find(
+      detail::kGapMarkWords.begin(), detail::kGapMarkWords.end(), *text);
+  if (word == detail::kGapMarkWords.end()) {
+    return std::unexpected(where + ": '" + detail::quotedText(*text)
+                           + "' stands outside the two names the mark takes");
+  }
+  return {};
+}
+
 // key's absence does (FR-029).
 auto readJitterCpu(Element value, const std::string& where)
     -> std::expected<std::pair<std::uint32_t, sg::JitterStats>, std::string>
@@ -513,6 +585,25 @@ auto readJitterCpu(Element value, const std::string& where)
   if (!settledValues.has_value()) {
     return std::unexpected(settledValues.error());
   }
+  // specs/048 FR-025, FR-026, FR-029: the three figures and the gap mark stand
+  // out of the required list, so a document written before them reads with no
+  // delta, a zero count and no mark, the standing shape of an absent figure
+  // (A-7).
+  auto smiDelta = optionalFigure(value, "smiDelta", where);
+  if (!smiDelta.has_value()) {
+    return std::unexpected(smiDelta.error());
+  }
+  auto nmiDelta = optionalFigure(value, "nmiDelta", where);
+  if (!nmiDelta.has_value()) {
+    return std::unexpected(nmiDelta.error());
+  }
+  auto smiGapCount = optionalCount(value, "smiGapCount", where);
+  if (!smiGapCount.has_value()) {
+    return std::unexpected(smiGapCount.error());
+  }
+  read.second.smiDelta = std::move(*smiDelta);
+  read.second.nmiDelta = std::move(*nmiDelta);
+  read.second.smiGapCount = *smiGapCount;
   if (const auto gaps = field(value, where, "gaps"); gaps.has_value()) {
     auto items = asArray(*gaps, where + "/gaps");
     if (!items.has_value()) {
@@ -536,6 +627,16 @@ auto readJitterCpu(Element value, const std::string& where)
       auto gapValue = asUnsigned(*gap, here + "/gapNs");
       if (!gapValue.has_value()) {
         return std::unexpected(gapValue.error());
+      }
+      // specs/048 FR-026: the mark rides the item under the same gate the
+      // writer wrote it under, and an item of a document that predates it
+      // carries none.
+      if (const auto mark = optionalField(item, "smi"); mark.has_value()) {
+        if (const auto settledMark = readGapMark(*mark, here + "/smi");
+            !settledMark)
+        {
+          return std::unexpected(settledMark.error());
+        }
       }
       ++index;
     }
@@ -717,22 +818,6 @@ auto foldJitterSeries(
   return {};
 }
 
-// One count the document may stand `null`: an attribution figure the
-// pre-check could not read, the file form of the console's
-// `not available` (specs/034 FR-017, FR-024).
-auto readNullableCount(Element value, const std::string& where)
-    -> std::expected<std::optional<std::uint64_t>, std::string>
-{
-  if (value.is_null()) {
-    return std::optional<std::uint64_t> {};
-  }
-  auto number = asUnsigned(value, where);
-  if (!number.has_value()) {
-    return std::unexpected(number.error());
-  }
-  return std::optional<std::uint64_t> {*number};
-}
-
 // One text the document may stand `null`: a host setting the host does
 // not state (specs/034 FR-017, FR-024). A null answers an empty optional,
 // the reading of a setting the run disclosed as unavailable.
@@ -854,6 +939,24 @@ auto readPrecheckStats(Element value, const std::string& where)
   if (!settledValues.has_value()) {
     return std::unexpected(settledValues.error());
   }
+  // specs/048 FR-025, FR-029: the three figures of the pre-check window stand
+  // after the standing sixteen and out of the required list, so a document
+  // that carries none reads them as absent (A-7).
+  auto smiDelta = optionalFigure(value, "smiDelta", where);
+  if (!smiDelta.has_value()) {
+    return std::unexpected(smiDelta.error());
+  }
+  auto nmiDelta = optionalFigure(value, "nmiDelta", where);
+  if (!nmiDelta.has_value()) {
+    return std::unexpected(nmiDelta.error());
+  }
+  auto smiGapCount = optionalCount(value, "smiGapCount", where);
+  if (!smiGapCount.has_value()) {
+    return std::unexpected(smiGapCount.error());
+  }
+  read.smiDelta = std::move(*smiDelta);
+  read.nmiDelta = std::move(*nmiDelta);
+  read.smiGapCount = *smiGapCount;
   return read;
 }
 
@@ -1074,6 +1177,28 @@ auto readPrecheckTracerCpu(Element value, const std::string& where)
   if (!settledValues.has_value()) {
     return std::unexpected(settledValues.error());
   }
+  // specs/048 FR-027, FR-029: the three detector figures stand after the
+  // standing five and out of the required list, so an entry of a record that
+  // carries none reads them as absent, the file form of a buffer that holds no
+  // detector line (A-6, A-7).
+  const auto readDetectorFigure = [&](std::string_view key,
+                                      std::optional<std::uint64_t>* into)
+      -> std::expected<void, std::string>
+  {
+    auto figure = optionalFigure(value, key, where);
+    if (!figure.has_value()) {
+      return std::unexpected(figure.error());
+    }
+    *into = std::move(*figure);
+    return {};
+  };
+  auto settledFigures =
+      allSettled(readDetectorFigure("maxGapNs", &read.maxGapNs),
+                 readDetectorFigure("gapCount", &read.gapCount),
+                 readDetectorFigure("nmiCount", &read.nmiCount));
+  if (!settledFigures.has_value()) {
+    return std::unexpected(settledFigures.error());
+  }
   return read;
 }
 
@@ -1097,6 +1222,32 @@ auto readPrecheckTracer(Element value, const std::string& where)
   }
   read.engine = std::string(detail::enumWord(detail::kTracerEngineWords,
                                              std::to_underlying(*engineValue)));
+  // specs/048 FR-027, FR-029: the three settings the detector run wrote stand
+  // beside the engine word and out of the required list, so a record of a
+  // standing engine, and a record written before them, read with none. A
+  // setting states a figure the run wrote, so a value of another kind refuses.
+  const auto readSetting = [&](std::string_view key,
+                               std::optional<std::uint64_t>* into)
+      -> std::expected<void, std::string>
+  {
+    const auto found = optionalField(value, key);
+    if (!found.has_value()) {
+      return {};
+    }
+    auto number = asUnsigned(*found, where + "/" + std::string(key));
+    if (!number.has_value()) {
+      return std::unexpected(number.error());
+    }
+    *into = *number;
+    return {};
+  };
+  auto settledSettings =
+      allSettled(readSetting("windowUs", &read.windowUs),
+                 readSetting("widthUs", &read.widthUs),
+                 readSetting("thresholdUs", &read.thresholdUs));
+  if (!settledSettings.has_value()) {
+    return std::unexpected(settledSettings.error());
+  }
   auto cpus = field(value, where, "cpus");
   if (!cpus.has_value()) {
     return std::unexpected(cpus.error());
@@ -1513,6 +1664,16 @@ auto readJitterRecord(Element value, const std::string& where)
                     { return asString(found, where + "/disclosure"); });
   if (!disclosure.has_value()) {
     return std::unexpected(disclosure.error());
+  }
+  // specs/048 FR-030, FR-031: the limit text stands beside the disclosure for
+  // the detector method and out of the required list. The reader tests its kind
+  // and keeps no record of the text, the way it keeps none of the gap mark, so
+  // a document that carries no limit loads unchanged (FR-029, A-7).
+  if (const auto limits = optionalField(value, "limits"); limits.has_value()) {
+    auto text = asString(*limits, where + "/limits");
+    if (!text.has_value()) {
+      return std::unexpected(text.error());
+    }
   }
   return std::pair {std::move(folds), method};
 }

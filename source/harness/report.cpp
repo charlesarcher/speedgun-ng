@@ -980,11 +980,24 @@ auto printSeriesLines(const std::vector<const ProbeCpuState*>& states) -> void
 
 }  // namespace
 
+namespace
+{
+
+// The token that stands in a line where the run holds no figure, the one
+// the pass spread, the percentile fields and the hunt lines print for the
+// same case (specs/048 FR-011, FR-027).
+constexpr const char* kUnavailableFigure = "not available";
+
+}  // namespace
+
 // T012, FR-023, R-08: the console probe block. One line per stats field
 // in the E-03 order, one value per probe cpu; the disclosure lines
 // follow in the end-of-report region the noise warning owns (FR-036,
 // D-8, D-12), the block extending and replacing nothing the probe-free
-// report prints (PC-6, FR-013).
+// report prints (PC-6, FR-013). specs/048-hwlat-probe adds the three
+// detector figures to the field group, the two counter disclosures and the
+// limits line to the disclosure region, for the detector method alone
+// (FR-016, FR-030, FR-031, SC-006).
 auto printJitterReport(const bool available,
                        const std::vector<const ProbeCpuState*>& states) -> void
 {
@@ -1057,6 +1070,34 @@ auto printJitterReport(const bool available,
   printUintField("droppedGaps",
                  [](const JitterStats& fold) { return fold.droppedGaps; });
 
+  // specs/048 FR-016, FR-025, SC-006: the three figures of the detector stand
+  // after the standing field group, one column per probe cpu in the cpu order
+  // the block already walks, and for the detector method alone. A delta whose
+  // source answered nothing prints the standing token in the figure position,
+  // and the count of marked gaps answers zero (FR-011).
+  const bool detectorMethod = states.front()->method == JitterMethod::HWLAT;
+  if (detectorMethod) {
+    const auto printFigure = [&folds](const char* name, const auto get)
+    {
+      std::printf("%s:", name);
+      for (const auto& fold : folds) {
+        const auto figure = get(fold);
+        if (figure.has_value()) {
+          std::printf(" %llu", static_cast<unsigned long long>(*figure));
+        } else {
+          std::printf(" %s", kUnavailableFigure);
+        }
+      }
+      std::printf("\n");
+    };
+    printFigure("smiDelta",
+                [](const JitterStats& fold) { return fold.smiDelta; });
+    printFigure("nmiDelta",
+                [](const JitterStats& fold) { return fold.nmiDelta; });
+    printUintField("smiGapCount",
+                   [](const JitterStats& fold) { return fold.smiGapCount; });
+  }
+
   // specs/043 T035, FR-013, FR-016, FR-019, FR-022, R-14: the series
   // lines, one field per line and one column per probe cpu in the cpu
   // order the block already walks: the 16 figures of FR-021, then the
@@ -1066,7 +1107,11 @@ auto printJitterReport(const bool available,
   // lower-case words the value takes, the JSON in upper case (FR-019). A
   // `tsc` run keeps no series, so it prints none of the series lines and
   // keeps the bytes it printed before (FR-031, SC-004).
-  if (states.front()->method != JitterMethod::TSC) {
+  // specs/048 FR-002, FR-025, D-1: the gate reads the one rule the entry point
+  // and the writer read, so the series group belongs to the methods that fill
+  // the series ring. The detector fills the gap ring, so it prints no series
+  // line, the way the standing `tsc` method prints none.
+  if (fillsSeriesRing(states.front()->method)) {
     printSeriesLines(states);
   }
 
@@ -1085,14 +1130,36 @@ auto printJitterReport(const bool available,
                 static_cast<unsigned long long>(state->droppedGaps));
   }
   std::printf("jitter: split and percentiles use the kept gaps only\n");
+  // specs/048 FR-011, FR-030, FR-031, P-12: the two counter disclosures and the
+  // limits line close the disclosure region, once per run. A counter the host
+  // keeps out of reach stands disclosed, and the run keeps its status. The same
+  // two facts ride the `jitter.disclosure` text, and the same sentence rides
+  // the `jitter.limits` key, so no new key carries them.
+  if (detectorMethod) {
+    const auto anyFigure =
+        [](const std::vector<JitterStats>& values, const auto get)
+    {
+      return std::any_of(values.begin(),
+                         values.end(),
+                         [&get](const JitterStats& fold)
+                         { return get(fold).has_value(); });
+    };
+    if (!anyFigure(folds,
+                   [](const JitterStats& fold) { return fold.smiDelta; }))
+    {
+      std::printf("jitter: SMI count not available\n");
+    }
+    if (!anyFigure(folds,
+                   [](const JitterStats& fold) { return fold.nmiDelta; }))
+    {
+      std::printf("jitter: NMI count not available\n");
+    }
+    std::printf("jitter: %s\n", std::string(kJitterLimitsText).c_str());
+  }
 }
 
 namespace
 {
-
-// The token that stands in a hunt line where the run holds no figure, the one
-// the pass spread and the percentile fields print for the same case.
-constexpr const char* kUnavailableFigure = "not available";
 
 // specs/029 E-02, FR-040: the label of the column a hunt rate prints under,
 // indexed by the enumerator, the table shape the availability names and the
@@ -1467,14 +1534,16 @@ auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
 // once, then the warning lines and the pinning-candidate line
 // (FR-012, FR-013, the clarify answers). The strict refusal never
 // reaches this printer: the run stops at the error surface (FR-014).
-// specs/048-hwlat-probe FR-016, FR-025: the `method` parameter gates the
-// three attribution lines of the detector method. The gate stands unwritten
-// while the rows of T037 stand red: T043 reads it, and every other method
-// keeps the bytes this printer printed before (SC-006).
+// specs/048-hwlat-probe FR-016, FR-025, FR-030: the `method` parameter gates
+// the three attribution lines of the detector method, which stand after the
+// standing attribution group of each measured cpu. The figures carry no gate:
+// a run whose counter source stood unavailable carries no delta, a zero count
+// and still prints the three lines (FR-011). Every other method keeps the
+// bytes this printer printed before (SC-006).
 auto printPrecheckReport(const PrecheckRecord& record,
                          sg::TracerEngine requestedEngine,
                          const std::uint32_t noisePercent,
-                         [[maybe_unused]] const sg::JitterMethod method) -> void
+                         const sg::JitterMethod method) -> void
 {
   const auto figureText =
       [](const std::optional<std::uint64_t>& value) -> std::string
@@ -1524,6 +1593,22 @@ auto printPrecheckReport(const PrecheckRecord& record,
         "switch delta: %s, schedule delta: %s (source: /proc/schedstat)\n",
         figureText(attribution.switches).c_str(),
         figureText(attribution.schedules).c_str());
+    // specs/048 FR-016, FR-030: the three attribution lines of the detector
+    // stand after the standing group, for the detector method alone. Each
+    // figure names the file behind it, the shape the two lines above carry,
+    // and the count of marked gaps names none, because no file backs it. A
+    // figure whose source answered nothing prints the standing token, and the
+    // count answers zero, so the lines stand for an unavailable source as
+    // well (FR-011, SC-006).
+    if (method == sg::JitterMethod::HWLAT) {
+      std::printf("smi delta: %s (source: /dev/cpu/%u/msr)\n",
+                  figureText(stats.smiDelta).c_str(),
+                  static_cast<unsigned>(entry.cpu));
+      std::printf("nmi delta: %s (source: /proc/interrupts)\n",
+                  figureText(stats.nmiDelta).c_str());
+      std::printf("smi gaps: %llu\n",
+                  static_cast<unsigned long long>(stats.smiGapCount));
+    }
   }
   const auto& host = record.host;
   const auto settingText = [](const std::optional<std::string>& value)
@@ -1571,6 +1656,16 @@ auto printPrecheckReport(const PrecheckRecord& record,
     }
     std::printf(
         "tracer: engine %s cpus %s\n", tracer.engine.c_str(), cpuList.c_str());
+    // specs/048 FR-020, FR-027, D-12: the settings the run wrote to the
+    // detector stand below the standing engine header, for that engine alone,
+    // so a standing engine keeps the bytes it printed before (P-7).
+    const bool detectorEngine = tracer.engine == kHwlatEngineWord;
+    if (detectorEngine) {
+      std::printf("tracer: windowUs=%s widthUs=%s thresholdUs=%s\n",
+                  figureText(tracer.windowUs).c_str(),
+                  figureText(tracer.widthUs).c_str(),
+                  figureText(tracer.thresholdUs).c_str());
+    }
     for (const auto& entry : tracer.cpus) {
       std::printf("tracer cpu %u nmi: %s\n",
                   static_cast<unsigned>(entry.cpu),
@@ -1587,6 +1682,21 @@ auto printPrecheckReport(const PrecheckRecord& record,
       std::printf("tracer cpu %u hardware: %s\n",
                   static_cast<unsigned>(entry.cpu),
                   figureText(entry.hardware).c_str());
+      // specs/048 FR-027, D-9: the three figures of the detector's own sample
+      // lines stand after the standing five, their labels the JSON key names. A
+      // cpu whose buffer holds no detector line prints the standing token, the
+      // console form of the document's `null` (A-6).
+      if (detectorEngine) {
+        std::printf("tracer cpu %u maxGapNs: %s\n",
+                    static_cast<unsigned>(entry.cpu),
+                    figureText(entry.maxGapNs).c_str());
+        std::printf("tracer cpu %u gapCount: %s\n",
+                    static_cast<unsigned>(entry.cpu),
+                    figureText(entry.gapCount).c_str());
+        std::printf("tracer cpu %u nmiCount: %s\n",
+                    static_cast<unsigned>(entry.cpu),
+                    figureText(entry.nmiCount).c_str());
+      }
     }
   } else if (requestedEngine != sg::TracerEngine::NONE) {
     std::printf("tracer: not available\n");
@@ -1663,13 +1773,22 @@ auto printPrecheckReport(const PrecheckRecord& record,
   std::printf("\n");
 }
 
-// specs/048-hwlat-probe T038, FR-022, D-12: the restore defect lines. The
-// lines stand unwritten while the row of T038 stands red: T043 prints one
-// line per pair, naming the file and the saved value, at the restore call
-// site ahead of the pre-check block.
-auto printTracerRestoreFailures(
-    [[maybe_unused]] const std::vector<TracerSetting>& failures) -> void
+// specs/048-hwlat-probe FR-022, D-12: the restore defect lines, printed at the
+// restore call site of the cli path ahead of the pre-check block: one line per
+// file whose restore write failed, naming the file below the tracefs root and
+// the value the run saved for it, the shape the standing host-settings line
+// uses for its pairs. The list stands in restore order, so the engine word
+// names itself before the threshold. A restore that wrote every value back
+// hands over an empty list and prints nothing, and the run keeps its exit
+// status: the tracer fails no run (D-14, FR-021).
+auto printTracerRestoreFailures(const std::vector<TracerSetting>& failures)
+    -> void
 {
+  for (const auto& setting : failures) {
+    std::printf("tracer: restore failed: %s = %s\n",
+                setting.path.c_str(),
+                setting.value.c_str());
+  }
 }
 
 }  // namespace sg::detail

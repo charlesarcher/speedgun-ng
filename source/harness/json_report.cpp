@@ -240,6 +240,31 @@ auto putOrNull(Builder& builder,
   builder.escape_and_append_with_quotes(value);
 }
 
+// The mark of one kept gap: `SMI` above a change of zero, `NOT_SMI` at a
+// change of zero, and `null` where the run holds no change for the item,
+// because its SMI count stood unavailable. The reader tests the kind and keeps
+// no record of the word, the shape of the two names beside it (specs/048
+// FR-026, FR-013, FR-015, P-3).
+auto putGapMark(Builder& builder,
+                JsonObjectWriter& object,
+                const std::size_t index,
+                const std::vector<std::uint64_t>& changes) noexcept -> void
+{
+  // The first word answers a span that carried no change, the second a span
+  // that carried one (FR-013).
+  constexpr std::size_t kNoChange = 0;
+  constexpr std::size_t kChanged = 1;
+  if (index >= changes.size()) {
+    putOrNull(builder, object, "smi", std::string_view {});
+    return;
+  }
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+  put(builder,
+      object,
+      "smi",
+      kGapMarkWords[changes[index] == 0 ? kNoChange : kChanged]);
+}
+
 // A count the run leaves unset stands `null`, the spelling the reader
 // answers back as an empty optional (E-05, specs/024 E-08).
 auto putOrNull(Builder& builder,
@@ -327,12 +352,21 @@ void writeMetricValue(Builder& builder,
 }
 
 // One per-cpu object of the run-level `stats` array: the cpu index and
-// the sixteen fields in the E-03 order, and under the `--json-raw=gaps`
+// the sixteen fields in the E-03 order, then the three detector figures of
+// FR-025 for the `hwlat` method alone, and under the `--json-raw=gaps`
 // condition alone the kept gap records, each one object of the two
-// fields E-04 carries (E-03, E-10, FR-028).
+// fields E-04 carries and of the `smi` mark of the same method (E-03, E-10,
+// FR-028, specs/048 FR-025, FR-026, FR-029).
+//
+// One writer fills the three carriers that share it: the run-level
+// `jitter.stats[]`, the per-benchmark `jitter.stats[]`, and
+// `precheck.cpus[].stats`. The per-benchmark fold covers one benchmark's
+// windows and holds no window edge, so its two deltas stand `null` and its
+// count figure answers that item's own kept gaps (specs/048 FR-025, E-08).
 void writeJitterCpu(Builder& builder,
                     const JitterReportCpu& entry,
-                    bool rawGaps)
+                    bool rawGaps,
+                    bool detectorMethod)
 {
   JsonObjectWriter object(builder);
   put(builder, object, "cpu", std::uint64_t {entry.cpu});
@@ -352,14 +386,24 @@ void writeJitterCpu(Builder& builder,
   put(builder, object, "thresholdNs", entry.stats.thresholdNs);
   put(builder, object, "loopPeriodNs", entry.stats.loopPeriodNs);
   put(builder, object, "droppedGaps", entry.stats.droppedGaps);
+  if (detectorMethod) {
+    putAttributionFigure(builder, object, "smiDelta", entry.stats.smiDelta);
+    putAttributionFigure(builder, object, "nmiDelta", entry.stats.nmiDelta);
+    put(builder, object, "smiGapCount", entry.stats.smiGapCount);
+  }
   if (rawGaps) {
     object.key("gaps");
     JsonArrayWriter gaps(builder);
-    for (const auto& gap : entry.gaps) {
+    for (std::size_t index = 0; index < entry.gaps.size(); ++index) {
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+      const auto& gap = entry.gaps[index];
       gaps.item();
       JsonObjectWriter record(builder);
       put(builder, record, "stamp", gap.stamp);
       put(builder, record, "gapNs", gap.gapNs);
+      if (detectorMethod) {
+        putGapMark(builder, record, index, entry.smiChanges);
+      }
     }
   }
 }
@@ -753,6 +797,8 @@ void writeEntry(Builder& builder,
   } else {
     builder.append_null();
   }
+  const bool detectorMethod =
+      jitter.has_value() && jitter->method == sg::JitterMethod::HWLAT;
   if (jitter.has_value()) {
     // E-08, FR-027: the per-entry key stands after `noiseWarning`: null
     // when no kept gap landed inside this benchmark's windows, and the
@@ -774,7 +820,7 @@ void writeEntry(Builder& builder,
           JitterReportCpu placed;
           placed.cpu = fold.cpu;
           placed.stats = fold.stats;
-          writeJitterCpu(builder, placed, false);
+          writeJitterCpu(builder, placed, false, detectorMethod);
         }
       }
       // specs/043 FR-020, E-23: the series array stands beside the stats
@@ -1214,6 +1260,19 @@ auto writeReport(const std::string& path,
       root.key("run");
       writeRunObject(builder, disclosure);
     }
+    // specs/048 FR-025, FR-026, FR-031: the method decides the seven keys of
+    // the detector: the three stats figures, the gap mark and the limit text.
+    // The pre-check record carries no method of its own, so the run's probe
+    // record names it for that carrier too, and a run that carried no probe
+    // record carried no detector (FR-029, A-7).
+    const bool detectorMethod =
+        jitter.has_value() && jitter->method == sg::JitterMethod::HWLAT;
+    // specs/043 FR-019, FR-020; specs/048 FR-002, FR-025, D-1: the series array
+    // belongs to the methods that fill the series ring, the one rule the entry
+    // point and the console read too, so a `tsc` run and a detector run write
+    // no series key.
+    const bool seriesKept =
+        jitter.has_value() && fillsSeriesRing(jitter->method);
     if (jitter.has_value()) {
       // E-07: the run-level object stands after `speedgun` and before
       // `benchmarks`, in the key order the schema row states (FR-026,
@@ -1235,6 +1294,8 @@ auto writeReport(const std::string& path,
             probe,
             "method",
             enumWord(kJitterMethodWords, std::to_underlying(jitter->method)));
+      }
+      if (seriesKept) {
         probe.key("series");
         {
           JsonArrayWriter series(builder);
@@ -1260,11 +1321,18 @@ auto writeReport(const std::string& path,
         JsonArrayWriter stats(builder);
         for (const auto& entry : jitter->stats) {
           stats.item();
-          writeJitterCpu(builder, entry, jitter->rawGaps);
+          writeJitterCpu(builder, entry, jitter->rawGaps, detectorMethod);
         }
       }
       put(builder, probe, "droppedGaps", jitter->droppedGaps);
       put(builder, probe, "disclosure", jitter->disclosure);
+      // specs/048 FR-030, FR-031, P-13: the one limit of the user-space probe
+      // stands beside the disclosure for the detector method alone, the same
+      // sentence the console prints; a run of any other method writes no key
+      // and keeps the bytes it wrote.
+      if (detectorMethod) {
+        put(builder, probe, "limits", kJitterLimitsText);
+      }
     }
     if (precheck.has_value()) {
       // specs/034 FR-024, D-8: the pre-check object stands after
@@ -1309,6 +1377,17 @@ auto writeReport(const std::string& path,
             put(builder, statsWriter, "thresholdNs", fields.thresholdNs);
             put(builder, statsWriter, "loopPeriodNs", fields.loopPeriodNs);
             put(builder, statsWriter, "droppedGaps", fields.droppedGaps);
+            // specs/048 FR-025: the three figures of the pre-check window
+            // stand after the standing sixteen, the carrier the console
+            // pre-check block shares. A window whose source answered nothing
+            // carries no delta and a zero count, and prints both (FR-011).
+            if (detectorMethod) {
+              putAttributionFigure(
+                  builder, statsWriter, "smiDelta", fields.smiDelta);
+              putAttributionFigure(
+                  builder, statsWriter, "nmiDelta", fields.nmiDelta);
+              put(builder, statsWriter, "smiGapCount", fields.smiGapCount);
+            }
           }
           cpuWriter.key("attribution");
           {
@@ -1382,6 +1461,24 @@ auto writeReport(const std::string& path,
         precheckWriter.key("tracer");
         JsonObjectWriter tracerWriter(builder);
         put(builder, tracerWriter, "engine", precheck->tracer->engine);
+        // specs/048 FR-027, P-7: the three settings the run wrote to the
+        // detector stand beside the engine word for that engine alone, so an
+        // `osnoise` or `timerlat` record writes none of the six new names. The
+        // three stand together or not at all: the record of a run that handed
+        // over no setting carries none, and a figure the writer took from a
+        // constant would state a write no run made. The three names stand out
+        // of the `required` list, so a record that carries none stays a valid
+        // document (FR-029).
+        const bool detectorEngine =
+            precheck->tracer->engine == kHwlatEngineWord;
+        const auto& settings = *precheck->tracer;
+        if (detectorEngine && settings.windowUs.has_value()
+            && settings.widthUs.has_value() && settings.thresholdUs.has_value())
+        {
+          put(builder, tracerWriter, "windowUs", *settings.windowUs);
+          put(builder, tracerWriter, "widthUs", *settings.widthUs);
+          put(builder, tracerWriter, "thresholdUs", *settings.thresholdUs);
+        }
         tracerWriter.key("cpus");
         {
           JsonArrayWriter tracerCpus(builder);
@@ -1395,6 +1492,18 @@ auto writeReport(const std::string& path,
             putAttributionFigure(builder, tracerCpu, "thread", entry.thread);
             putAttributionFigure(
                 builder, tracerCpu, "hardware", entry.hardware);
+            // specs/048 FR-027, A-6: the three figures of the detector's own
+            // sample lines stand after the standing five. `null` answers a cpu
+            // whose buffer holds no detector line, the file form of the
+            // console's `not available`.
+            if (detectorEngine) {
+              putAttributionFigure(
+                  builder, tracerCpu, "maxGapNs", entry.maxGapNs);
+              putAttributionFigure(
+                  builder, tracerCpu, "gapCount", entry.gapCount);
+              putAttributionFigure(
+                  builder, tracerCpu, "nmiCount", entry.nmiCount);
+            }
           }
         }
       }

@@ -905,6 +905,8 @@ auto theCounterLimitRecordRoundTrips() -> void
   check(none.has_value() && none->empty(),
         "a document without the record answers no entry (FR-052)");
   std::remove("harness_json_nolimits.json");
+}
+
 // specs/048-hwlat-probe T033: the eleven keys of the detector surfaces.
 // The rows below write one document per carrier, so each search reads the
 // one object its message names. The method word, the three stats figures,
@@ -1035,19 +1037,16 @@ constexpr std::string_view kStatsKeys[] {
     "\"smiGapCount\":2",
 };
 
-// Whether each key of the list stands in `text`, each one after the key
-// before it, from `from` to `limit`.
+// Whether each key of the list stands in `text` after the key before it, from
+// `from` to the end of the text.
 auto standsInOrder(const std::string& text,
                    std::size_t from,
-                   std::size_t limit,
                    const std::vector<std::string_view>& keys) -> bool
 {
   auto at = from;
   for (const auto key : keys) {
     const auto found = text.find(key, at);
-    if (found == std::string::npos
-        || (limit != std::string::npos && found + key.size() > limit))
-    {
+    if (found == std::string::npos) {
       return false;
     }
     at = found + 1;
@@ -1070,7 +1069,7 @@ auto theDetectorStatsStandAfterTheStandingCount() -> void
   std::vector<std::string_view> order {std::begin(kStatsKeys),
                                        std::end(kStatsKeys)};
   check(
-      dropped != std::string::npos && standsInOrder(text, dropped, 0, order),
+      dropped != std::string::npos && standsInOrder(text, dropped, order),
       "the detector stats stand after the standing count key (FR-025, FR-004)");
   std::remove("harness_json_hwlat_stats.json");
 }
@@ -1123,7 +1122,7 @@ auto thePrecheckStatsCarryTheThreeFigures() -> void
   std::vector<std::string_view> order {std::begin(kStatsKeys),
                                        std::end(kStatsKeys)};
   check(stats != std::string::npos && dropped != std::string::npos
-            && standsInOrder(text, dropped, 0, order),
+            && standsInOrder(text, dropped, order),
         "the pre-check stats carry the three figures after the standing "
         "sixteen (FR-025, FR-004)");
   std::remove("harness_json_hwlat_precheck.json");
@@ -1203,7 +1202,7 @@ auto theTracerSettingsStandBesideTheEngineWord() -> void
       "\"cpus\":[",
   };
   const auto tracer = text.find("\"tracer\":{");
-  check(tracer != std::string::npos && standsInOrder(text, tracer, 0, order),
+  check(tracer != std::string::npos && standsInOrder(text, tracer, order),
         "the tracer settings stand beside the engine word, ahead of the cpus "
         "array (FR-027, FR-020, FR-004)");
   std::remove("harness_json_hwlat_tracer.json");
@@ -1226,7 +1225,7 @@ auto theDetectorFiguresStandBesideTheHardwareFigure() -> void
       "\"gapCount\":3",
       "\"nmiCount\":2",
   };
-  check(first != std::string::npos && standsInOrder(text, first, 0, order),
+  check(first != std::string::npos && standsInOrder(text, first, order),
         "the three detector figures stand after the standing hardware figure "
         "(FR-027, FR-004)");
   check(second != std::string::npos
@@ -1248,12 +1247,18 @@ auto aStandingEngineWritesNoDetectorName() -> void
                                 sg::ReportData {},
                                 std::nullopt,
                                 record);
+  // The stats object of the measured cpu carries a `gapCount` of its own, so
+  // that name reads inside the tracer object alone.
+  const auto tracer = text.find("\"tracer\":{");
+  const auto tail = text.find("\"benchmarks\"", tracer);
+  const auto limit = tail == std::string::npos ? text.size() : tail;
   check(text.find("\"windowUs\"") == std::string::npos
             && text.find("\"widthUs\"") == std::string::npos
             && text.find("\"thresholdUs\"") == std::string::npos
             && text.find("\"maxGapNs\"") == std::string::npos
-            && text.find("\"gapCount\":") == std::string::npos
-            && text.find("\"nmiCount\"") == std::string::npos,
+            && text.find("\"nmiCount\"") == std::string::npos
+            && tracer != std::string::npos
+            && text.find("\"gapCount\":", tracer) >= limit,
         "a standing engine writes none of the six tracer names (FR-027, P-7)");
   std::remove("harness_json_timerlat_tracer.json");
 }
