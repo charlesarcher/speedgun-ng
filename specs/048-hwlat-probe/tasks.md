@@ -732,7 +732,7 @@ coverage contract, the pinned suite, the gate records and the commits.
   only kernel interface reader, and simdjson stands the only JSON reader
   the change uses, and no unit of the lane reaches for a privilege the
   process does not hold (FR-024, FR-038, II, X.2). Verify: `grep -rnE "SG_(REQUIRE|ENSURE|INVARIANT)\(.*\] *\(" source/harness/latency_counters.cpp source/harness/noise_tracer.cpp source/harness/jitter_probe.cpp` reads no match, `grep -rnE "nlohmann|rapidjson" source/harness | wc -l` reads 0 and `grep -rniE "setuid|capset|daemon|modprobe|request_module|insmod" source/harness | wc -l` reads 0
-- [ ] T084 Write the gate record in
+- [X] T084 Write the gate record in
   `specs/048-hwlat-probe/results/gates.md`: each gate with its command
   and its exit code, the coverage reading with its line and branch
   figures, the marker count, the entry count and the pinned suite
