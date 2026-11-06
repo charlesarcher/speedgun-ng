@@ -1255,7 +1255,11 @@ auto speedgunMain(int argc, char** argv) -> int
     // restore (R-04) and the run never fails on the tracer (FR-016).
     if (tracerSession.has_value()) {
       tracerFigures = detail::noiseTracerFigures(*tracerSession);
-      detail::noiseTracerRestore(*tracerSession);
+      // specs/048 FR-022: the pairs whose restore write failed print one
+      // line each, ahead of the pre-check block, and the run keeps the
+      // status the path carries.
+      detail::printTracerRestoreFailures(
+          detail::noiseTracerRestore(*tracerSession));
     }
     if (jitterProbe->states().empty()) {
       // The availability answer (Q-1): strict stops the batch before
@@ -1310,7 +1314,8 @@ auto speedgunMain(int argc, char** argv) -> int
       // fires no noise gate, and a `tsc` run keeps the gap gate above.
       if (options.jitterProbe->mode != JitterProbeMode::ALONGSIDE
           && options.jitterProbe->strict
-          && jitterProbe->states().front().method != JitterMethod::TSC)
+          && (jitterProbe->states().front().method == JitterMethod::FWQ
+              || jitterProbe->states().front().method == JitterMethod::FTQ))
       {
         const auto noisy = detail::precheckNoisyCpus(
             jitterProbe->states(), planned, options.jitterProbe->noisePercent);
@@ -1394,7 +1399,11 @@ auto speedgunMain(int argc, char** argv) -> int
           // specs/043 FR-004, FR-020, E-23: the series of the same
           // pre-check window rides beside the gaps. A TSC run keeps no
           // series to carry (FR-006).
-          if (state.method != JitterMethod::TSC) {
+          // specs/048 FR-002, D-1: the `hwlat` method keeps the gap loop
+          // of `tsc` and writes no sample series, so only the two
+          // calibrated methods carry the record.
+          if (state.method == JitterMethod::FWQ
+              || state.method == JitterMethod::FTQ) {
             entry.series =
                 detail::seriesStatsOf(detail::latchSnapshotOf(state));
           }
@@ -1412,7 +1421,7 @@ auto speedgunMain(int argc, char** argv) -> int
         detail::printPrecheckReport(
             *precheckRecord,
             options.noiseTracer.value_or(sg::TracerEngine::NONE),
-            options.jitterProbe->noisePercent);
+            options.jitterProbe->noisePercent, options.jitterProbe->method);
       }
     }
   }

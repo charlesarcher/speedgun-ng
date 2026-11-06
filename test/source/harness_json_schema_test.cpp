@@ -685,6 +685,315 @@ auto theLimitRecordPairsAtTheStampedMinor() -> void
                           "/counterLimits/0/limit",
                           "theLimitRecordPairsAtTheStampedMinor: a limit of "
                           "another kind stands " "refused (FR-051, FR-010)");
+// specs/048-hwlat-probe T034: the six moved `x-order` lists, the two moved
+// enum lists, the closed objects and the still-standing top level. The rows
+// read the schema file the way the standing rows read it, and plant documents
+// the checker reads (FR-004, FR-029, D-6).
+
+// The names of the schema list named `key` that stands at or after `from`,
+// joined by commas with no space, so one list reads as one line whatever the
+// file's wrapping (FR-029).
+auto listNames(const std::string& schema,
+               std::string_view key,
+               std::size_t from) -> std::string
+{
+  const auto at = schema.find(std::string(key), from);
+  check(at != std::string::npos, "the schema states the list the row reads");
+  if (at == std::string::npos) {
+    return {};
+  }
+  const auto open = schema.find('[', at);
+  const auto close = schema.find(']', open);
+  std::string names;
+  for (auto pos = open + 1; pos < close; ++pos) {
+    if (schema[static_cast<std::size_t>(pos)] != '"') {
+      continue;
+    }
+    const auto end = schema.find('"', pos + 1);
+    if (!names.empty()) {
+      names.push_back(',');
+    }
+    names += schema.substr(static_cast<std::size_t>(pos) + 1,
+                           end - static_cast<std::size_t>(pos) - 1);
+    pos = end;
+  }
+  return names;
+}
+
+// The written order of the six objects, as `contracts/report-json.md` states
+// it after the move (FR-029).
+constexpr std::
+    string_view
+        kJitterOrder =
+            "mode,thresholdNs,loopPeriodNs,method,series,cpus,stats,"
+            "droppedGaps," "disclosure,limits";
+constexpr std::string_view kStatsOrder =
+    "cpu,gapCount,gapsPerSecond,minNs,medianNs,meanNs,p90Ns,p99Ns,p999Ns,"
+    "p9999Ns,maxNs,totalNs,totalPercent,runtimeNs,thresholdNs,loopPeriodNs,"
+    "droppedGaps,smiDelta,nmiDelta,smiGapCount,gaps";
+constexpr std::string_view kGapOrder = "stamp,gapNs,smi";
+constexpr std::string_view kPrecheckStatsOrder =
+    "gapCount,gapsPerSecond,minNs,medianNs,meanNs,p90Ns,p99Ns,p999Ns,p9999Ns,"
+    "maxNs,totalNs,totalPercent,runtimeNs,thresholdNs,loopPeriodNs,"
+    "droppedGaps,smiDelta,nmiDelta,smiGapCount";
+constexpr std::string_view kTracerOrder =
+    "engine,windowUs,widthUs,thresholdUs,cpus";
+constexpr std::string_view kTracerCpuOrder =
+    "cpu,nmi,irq,softirq,thread,hardware,maxGapNs,gapCount,nmiCount";
+
+// The standing `required` lists, which gain no name (FR-029, specs/036
+// FR-014).
+constexpr std::string_view kJitterRequired =
+    "mode,thresholdNs,loopPeriodNs,cpus,stats,droppedGaps,disclosure";
+constexpr std::string_view kStatsRequired =
+    "cpu,gapCount,gapsPerSecond,minNs,medianNs,meanNs,p90Ns,p99Ns,p999Ns,"
+    "p9999Ns,maxNs,totalNs,totalPercent,runtimeNs,thresholdNs,loopPeriodNs,"
+    "droppedGaps";
+constexpr std::string_view kGapRequired = "stamp,gapNs";
+constexpr std::string_view kTracerRequired = "engine,cpus";
+constexpr std::string_view kTracerCpuRequired =
+    "cpu,nmi,irq,softirq,thread,hardware";
+
+// The top-level order, which stands unchanged: every new key joins an object
+// the document already carries (FR-029).
+constexpr std::string_view kTopOrder =
+    "schemaVersion,speedgun,run,jitter,precheck,graph,benchmarks,hunt";
+
+// The positions of the six objects in the schema file, in the order the rows
+// read them.
+struct SchemaPlaces
+{
+  std::size_t jitter = 0;
+  std::size_t stats = 0;
+  std::size_t gap = 0;
+  std::size_t precheckStats = 0;
+  std::size_t tracer = 0;
+  std::size_t tracerCpu = 0;
+};
+
+auto readPlaces(const std::string& schema) -> SchemaPlaces
+{
+  SchemaPlaces places;
+  places.jitter = schema.find("\"jitter\": {");
+  places.stats = schema.find("\"stats\": {", places.jitter);
+  places.stats = schema.find("\"items\": {", places.stats);
+  places.gap = schema.find("\"gaps\": {", places.stats);
+  places.gap = schema.find("\"items\": {", places.gap);
+  const auto precheck = schema.find("\"precheck\": {");
+  places.precheckStats = schema.find("\"stats\": {", precheck);
+  places.tracer = schema.find("\"tracer\": {");
+  places.tracerCpu = schema.find("\"cpus\": {", places.tracer);
+  places.tracerCpu = schema.find("\"items\": {", places.tracerCpu);
+  check(places.jitter != std::string::npos && places.stats != std::string::npos
+            && places.gap != std::string::npos
+            && places.precheckStats != std::string::npos
+            && places.tracer != std::string::npos
+            && places.tracerCpu != std::string::npos,
+        "the schema carries the six objects the detector keys join (FR-029)");
+  return places;
+}
+
+// The written document with the tracer object of the detector engine: the
+// engine word, the three settings the record carries and two cpu entries,
+// the first with the three detector figures and the second without a
+// figure (FR-027).
+auto documentWithTracer() -> std::string
+{
+  sg::ReportData data;
+  sg::PrecheckRecord record;
+  sg::PrecheckCpuRecord cpu;
+  cpu.cpu = 2;
+  cpu.planned = true;
+  cpu.stats.smiDelta = 1;
+  cpu.stats.nmiDelta = 4;
+  cpu.stats.smiGapCount = 2;
+  record.cpus.push_back(cpu);
+  sg::PrecheckTracerRecord tracer;
+  tracer.engine = "osnoise";
+  sg::PrecheckTracerCpuRecord first;
+  first.cpu = 2;
+  first.hardware = 2;
+  first.maxGapNs = 7000;
+  first.gapCount = 3;
+  first.nmiCount = 2;
+  sg::PrecheckTracerCpuRecord second;
+  second.cpu = 5;
+  second.hardware = 1;
+  tracer.cpus = {first, second};
+  tracer.windowUs = 10000;
+  tracer.widthUs = 5000;
+  tracer.thresholdUs = 1000;
+  record.tracer = tracer;
+  check(sg::detail::writeReport(
+            "harness_json_schema_tracer.json", data, {}, std::nullopt, record),
+        "the writer wrote the document with the tracer object (FR-014)");
+  return sg::test::readText("harness_json_schema_tracer.json");
+}
+
+// The text with `keys` spliced in after the whole of `needle`.
+auto after(const std::string& text,
+           std::string_view needle,
+           std::string_view keys) -> std::string
+{
+  const auto at = text.find(needle);
+  check(at != std::string::npos,
+        "the document carries the key the row splices");
+  if (at == std::string::npos) {
+    return text;
+  }
+  std::string spliced = text;
+  spliced.insert(at + needle.size(), std::string(",") + std::string(keys));
+  return spliced;
+}
+
+// FR-029, D-6: each of the six lists states the order the writer writes, the
+// new names in the places the contract names.
+auto theSixOrdersReadTheWrittenOrder() -> void
+{
+  const std::string schema = sg::test::readText(SG_SCHEMA_PATH);
+  const auto places = readPlaces(schema);
+  check(listNames(schema, "\"x-order\"", places.jitter) == kJitterOrder,
+        "the jitter order states the limit key after the disclosure key "
+        "(FR-029, FR-031)");
+  check(listNames(schema, "\"x-order\"", places.stats) == kStatsOrder,
+        "the stats order states the three attribution names after the "
+        "standing count, ahead of the gap list (FR-025, FR-029)");
+  check(listNames(schema, "\"x-order\"", places.gap) == kGapOrder,
+        "the gap order states the mark after the gap figure (FR-026, FR-029)");
+  check(listNames(schema, "\"x-order\"", places.precheckStats)
+            == kPrecheckStatsOrder,
+        "the pre-check stats order states the three attribution names after "
+        "the standing sixteen (FR-025, FR-029)");
+  check(listNames(schema, "\"x-order\"", places.tracer) == kTracerOrder,
+        "the tracer order states the three settings beside the engine word "
+        "(FR-027, FR-029)");
+  check(listNames(schema, "\"x-order\"", places.tracerCpu) == kTracerCpuOrder,
+        "the tracer cpu order states the three detector figures after the "
+        "standing hardware figure (FR-027, FR-029)");
+}
+
+// FR-029, specs/036 FR-014: no new name joins a `required` list, so a
+// document written before the feature keeps loading.
+auto theRequiredListsHoldNoNewName() -> void
+{
+  const std::string schema = sg::test::readText(SG_SCHEMA_PATH);
+  const auto places = readPlaces(schema);
+  check(
+      listNames(schema, "\"required\"", places.jitter) == kJitterRequired
+          && listNames(schema, "\"required\"", places.stats) == kStatsRequired
+          && listNames(schema, "\"required\"", places.gap) == kGapRequired
+          && listNames(schema, "\"required\"", places.precheckStats)
+              == kStatsRequired
+          && listNames(schema, "\"required\"", places.tracer) == kTracerRequired
+          && listNames(schema, "\"required\"", places.tracerCpu)
+              == kTracerCpuRequired,
+      "no new name joins a required list (FR-029, specs/036 FR-014, A-7)");
+}
+
+// FR-029: the top level stands unchanged, because no top-level key joins the
+// document.
+auto theTopLevelOrderStandsUnchanged() -> void
+{
+  const std::string schema = sg::test::readText(SG_SCHEMA_PATH);
+  check(listNames(schema, "\"x-order\"", 0) == kTopOrder,
+        "the top-level order holds the eight standing names (FR-029, D-13)");
+}
+
+// FR-029, FR-004: the two enum lists take the detector words, and a word
+// outside the method list still refuses.
+auto theTwoEnumListsTakeTheDetectorWords() -> void
+{
+  const auto standing = documentWithJitter();
+  const auto method = sg::detail::checkReport(
+      SG_SCHEMA_PATH, withSeries(standing, "\"HWLAT\"", kSeriesItem));
+  check(method.has_value(),
+        "the method list takes the detector word (FR-002, FR-029)");
+  if (!method.has_value()) {
+    std::printf("  the detector method word refused: %s\n",
+                method.error().c_str());
+  }
+  const auto engine = sg::detail::checkReport(
+      SG_SCHEMA_PATH,
+      std::string(documentWithTracer())
+          .replace(documentWithTracer().find("\"osnoise\""), 9, "\"hwlat\""));
+  check(engine.has_value(),
+        "the engine list takes the detector word (FR-018, FR-029)");
+  if (!engine.has_value()) {
+    std::printf("  the detector engine word refused: %s\n",
+                engine.error().c_str());
+  }
+  const auto outside = sg::detail::checkReport(
+      SG_SCHEMA_PATH, withSeries(standing, "\"HWLATO\"", kSeriesItem));
+  check(!outside.has_value(),
+        "a method word outside the four still stands refused (FR-002, FR-005)");
+}
+
+// FR-029, FR-025, FR-027, FR-031: each new key joins the `properties` of the
+// object that carries it, so a document that holds the keys in the written
+// order passes.
+auto theWrittenKeysStandInTheSchema() -> void
+{
+  const auto stats = after(documentWithJitter(),
+                           "\"droppedGaps\":30",
+                           "\"smiDelta\":1,\"nmiDelta\":4,\"smiGapCount\":2");
+  const auto limits =
+      after(stats,
+            "\"disclosure\":\"the run's disclosure\"",
+            "\"limits\":\"probe runs with interrupts enabled\"");
+  const auto answer = sg::detail::checkReport(SG_SCHEMA_PATH, limits);
+  check(answer.has_value(),
+        "the schema lists the three attribution names and the limit text "
+        "(FR-025, FR-029, FR-031)");
+  if (!answer.has_value()) {
+    std::printf("  the planted document refused: %s\n", answer.error().c_str());
+  }
+  const auto tracer = after(documentWithTracer(),
+                            "\"hardware\":2",
+                            "\"maxGapNs\":7000,\"gapCount\":3,\"nmiCount\":2");
+  const auto figures = sg::detail::checkReport(SG_SCHEMA_PATH, tracer);
+  check(figures.has_value(),
+        "the schema lists the three detector figures of a tracer cpu "
+        "(FR-027, FR-029)");
+  if (!figures.has_value()) {
+    std::printf("  the planted figures refused: %s\n", figures.error().c_str());
+  }
+}
+
+// FR-029, specs/036 FR-006: every touched object stays closed, so a key the
+// schema lists nowhere still refuses with the pointer of that object.
+auto eachTouchedObjectStaysClosed() -> void
+{
+  struct Plant
+  {
+    std::string text;
+    const char* pointer;
+  };
+
+  const std::vector<Plant> plants {
+      Plant {after(documentWithJitter(),
+                   "\"disclosure\":\"the run's " "disclosure\"",
+                   "\"extra\":true"),
+             "/jitter/extra"},
+      Plant {
+          after(documentWithJitter(), "\"droppedGaps\":30", "\"extra\":true"),
+          "/jitter/stats/0/extra"},
+      Plant {after(documentWithTracer(), "\"hardware\":2", "\"extra\":true"),
+             "/precheck/tracer/cpus/0/extra"},
+      Plant {
+          after(documentWithTracer(), "\"skippedGroups\":[]", "\"extra\":true"),
+          "/precheck/extra"},
+  };
+  for (const Plant& plant : plants) {
+    const auto answer = sg::detail::checkReport(SG_SCHEMA_PATH, plant.text);
+    check(!answer.has_value(),
+          "each closed object refuses a key the schema lists nowhere "
+          "(FR-029, specs/036 FR-006)");
+    if (!answer.has_value()) {
+      check(answer.error().find(plant.pointer) != std::string::npos,
+            "the refusal names the object that holds the unlisted key "
+            "(FR-029, FR-010)");
+    }
+  }
 }
 
 }  // namespace
@@ -697,6 +1006,15 @@ auto main() -> int
   brokenSchemasAreRefused(sg::test::readText("harness_json_schema.json"));
   theOpenShapesOfTheSchemaLanguagePass(
       sg::test::readText("harness_json_schema.json"));
+  // specs/048-hwlat-probe T034: the six moved orders, the two moved enum
+  // lists and the closed objects. The rows stand red until T041 moves the
+  // schema file, so they close the unit.
+  theSixOrdersReadTheWrittenOrder();
+  theRequiredListsHoldNoNewName();
+  theTopLevelOrderStandsUnchanged();
+  theTwoEnumListsTakeTheDetectorWords();
+  theWrittenKeysStandInTheSchema();
+  eachTouchedObjectStaysClosed();
   theSeriesKeysPairAtTheStampedMinor();
   aClosedSeriesItemRefusesAnAddedKey();
   aSeriesKeyOutOfOrderStandsRefused();

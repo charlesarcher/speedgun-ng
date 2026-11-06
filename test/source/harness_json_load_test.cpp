@@ -121,6 +121,9 @@ auto versionRuleGatesTheReader() -> void
   // `source/harness/json_report.cpp`, is the current one for the reader: it
   // loads and answers that text through `schemaVersion` (specs/046 FR-020,
   // FR-023, SC-003).
+  // specs/048-hwlat-probe FR-004, D-5: the stamp moves to 1.15 with the
+  // eleven detector keys, the minor specs/023's schema-file rule states for a
+  // key added inside major 1.
   sg::test::writeText("harness_json_load_nowminor.json",
                       withVersion("\"1.15\""));
   const auto current = sg::loadReport("harness_json_load_nowminor.json");
@@ -1036,6 +1039,8 @@ auto theRootListAndTheWarningKeyAnswerTheirOwnRules(const std::string& text)
 }
 
 constexpr Mutation kMutations[] = {
+    // The needle names the minor `kSchemaVersion` stamps, the way every row
+    // of this unit names it (specs/048-hwlat-probe FR-004, FR-029).
     {"\"schemaVersion\":\"1.15\"", "\"schemaVersion\":1", "/schemaVersion"},
     {"\"name\":\"bmJsonWindow\"", "\"name\":[]", "/benchmarks/0/name"},
     // The two kinds the naming word has no other caller for: a document
@@ -1599,6 +1604,220 @@ auto pinOverheadFloor(std::string text) -> std::string
     at = text.find(kKey, start + 4);
   }
   return text;
+}
+
+// specs/048-hwlat-probe T036: the reader of the detector record. The nine
+// figures read back with equal values, the gap mark stands validated beside
+// the two names it reads with it, and a document written before the keys
+// loads with no complaint (FR-004, FR-026, FR-029, A-7).
+
+constexpr const char* const kDetectorDoc = "harness_json_load_detector.json";
+constexpr const char* const kMarkDoc = "harness_json_load_mark.json";
+
+// The pre-check record of the detector rows: one measured cpu with the three
+// attribution figures, and the tracer record of the detector engine with the
+// three settings and two cpu entries, the second with no detector figure
+// (FR-025, FR-027, E-04).
+auto detectorPrecheck() -> sg::PrecheckRecord
+{
+  sg::PrecheckRecord record;
+  record.windowMs = 10;
+  sg::PrecheckCpuRecord cpu;
+  cpu.cpu = 2;
+  cpu.planned = true;
+  cpu.stats.gapCount = 2;
+  cpu.stats.smiDelta = 1;
+  cpu.stats.nmiDelta = 4;
+  cpu.stats.smiGapCount = 2;
+  record.cpus.push_back(cpu);
+  sg::PrecheckTracerRecord tracer;
+  tracer.engine = "hwlat";
+  tracer.windowUs = 10000;
+  tracer.widthUs = 5000;
+  tracer.thresholdUs = 1000;
+  sg::PrecheckTracerCpuRecord first;
+  first.cpu = 2;
+  first.maxGapNs = 7000;
+  first.gapCount = 3;
+  first.nmiCount = 2;
+  sg::PrecheckTracerCpuRecord second;
+  second.cpu = 5;
+  tracer.cpus = {first, second};
+  record.tracer = tracer;
+  return record;
+}
+
+// The run-level jitter record of the mark rows: the raw-gap gate stands open,
+// so the document carries the gap items the mark rides (FR-026).
+auto detectorJitter() -> sg::detail::JitterReportRecord
+{
+  sg::detail::JitterReportRecord record;
+  record.method = sg::JitterMethod::HWLAT;
+  record.thresholdNs = 200;
+  record.loopPeriodNs = 20;
+  record.cpus = {2};
+  sg::detail::JitterReportCpu line;
+  line.cpu = 2;
+  line.stats.gapCount = 2;
+  line.stats.smiDelta = 1;
+  line.stats.nmiDelta = 4;
+  line.stats.smiGapCount = 1;
+  line.gaps = {sg::detail::GapRecord {100, 210},
+               sg::detail::GapRecord {300, 280}};
+  line.smiChanges = {3, 0};
+  record.stats.push_back(line);
+  record.rawGaps = true;
+  record.disclosure = "the run's disclosure";
+  return record;
+}
+
+// FR-025, FR-027, FR-004: the three attribution figures, the three settings
+// and the three detector figures of each cpu read back with the values the
+// run carried.
+auto theDetectorFiguresReadBackEqual() -> void
+{
+  const auto record = detectorPrecheck();
+  sg::ReportData data;
+  data.precheck = record;
+  check(sg::detail::writeReport(kDetectorDoc, data, {}, std::nullopt, record),
+        "the writer wrote the document of the detector record (FR-001)");
+  const auto loaded = sg::loadReport(kDetectorDoc);
+  check(loaded.has_value(),
+        "the reader read the document of the detector record (FR-004)");
+  if (!loaded.has_value()) {
+    std::printf("  %s\n", loaded.error().c_str());
+    std::remove(kDetectorDoc);
+    return;
+  }
+  check(loaded->precheck.has_value() && loaded->precheck->cpus.size() == 1
+            && loaded->precheck->tracer.has_value(),
+        "the document carries the measured cpu and the tracer record "
+        "(FR-025, FR-027)");
+  if (!loaded->precheck.has_value() || loaded->precheck->cpus.empty()
+      || !loaded->precheck->tracer.has_value())
+  {
+    std::remove(kDetectorDoc);
+    return;
+  }
+  const auto& stats = loaded->precheck->cpus.at(0).stats;
+  check(stats.smiDelta.has_value() && *stats.smiDelta == 1
+            && stats.nmiDelta.has_value() && *stats.nmiDelta == 4
+            && stats.smiGapCount == 2,
+        "the three attribution figures read back equal (FR-025, FR-004)");
+  const auto& tracer = *loaded->precheck->tracer;
+  check(tracer.engine == "hwlat" && tracer.windowUs.has_value()
+            && *tracer.windowUs == 10000 && tracer.widthUs.has_value()
+            && *tracer.widthUs == 5000 && tracer.thresholdUs.has_value()
+            && *tracer.thresholdUs == 1000,
+        "the engine word and the three settings read back equal (FR-027, "
+        "FR-020, FR-004)");
+  check(tracer.cpus.size() == 2 && tracer.cpus.at(0).maxGapNs.has_value()
+            && *tracer.cpus.at(0).maxGapNs == 7000
+            && tracer.cpus.at(0).gapCount.has_value()
+            && *tracer.cpus.at(0).gapCount == 3
+            && tracer.cpus.at(0).nmiCount.has_value()
+            && *tracer.cpus.at(0).nmiCount == 2,
+        "the three detector figures of the cpu that holds lines read back "
+        "equal (FR-027, FR-004)");
+  check(!tracer.cpus.at(1).maxGapNs.has_value()
+            && !tracer.cpus.at(1).gapCount.has_value()
+            && !tracer.cpus.at(1).nmiCount.has_value(),
+        "the cpu whose buffer holds no detector line reads back with no "
+        "figure (FR-027, A-6)");
+  std::remove(kDetectorDoc);
+}
+
+// FR-026, P-6: the mark stands validated beside the two names the gap item
+// already reads: a word outside the two refuses and names the item, and the
+// two words and the `null` load.
+auto aGapMarkOutsideTheTwoWordsRefuses() -> void
+{
+  const auto jitter = detectorJitter();
+  sg::ReportData data;
+  check(sg::detail::writeReport(kDetectorDoc, data, {}, jitter),
+        "the writer wrote the document with the gap items (FR-001)");
+  const std::string text = sg::test::readText(kDetectorDoc);
+  check(text.find("\"gapNs\":210") != std::string::npos,
+        "the document carries the kept gap items (FR-026)");
+  const auto plant = [&text](const std::string& mark)
+  {
+    std::string mutated = text;
+    const auto at = mutated.find("\"gapNs\":210");
+    mutated.insert(at + std::strlen("\"gapNs\":210"), "," + mark);
+    sg::test::writeText(kMarkDoc, mutated);
+    return sg::loadReport(kMarkDoc);
+  };
+  const auto outside = plant("\"smi\":\"MAYBE\"");
+  check(!outside.has_value(),
+        "a mark that carries neither word stands refused (FR-026, A-7)");
+  if (!outside.has_value()) {
+    check(outside.error().find("/jitter/stats/0/gaps/0") != std::string::npos,
+          "the refusal names the gap item that carries the mark (FR-026)");
+    if (outside.error().find("/jitter/stats/0/gaps/0") == std::string::npos) {
+      std::printf("  the refusal read: %s\n", outside.error().c_str());
+    }
+  }
+  check(plant("\"smi\":\"SMI\"").has_value()
+            && plant("\"smi\":\"NOT_SMI\"").has_value(),
+        "the two words of the mark load (FR-026, FR-014)");
+  check(plant("\"smi\":null").has_value(),
+        "a null mark reads as the absent figure (FR-026, FR-015)");
+  const auto kind = plant("\"smi\":7");
+  check(!kind.has_value(),
+        "a mark of another kind stands refused the way the two names beside "
+        "it stand refused (FR-026)");
+  std::remove(kDetectorDoc);
+  std::remove(kMarkDoc);
+}
+
+// FR-029, A-7: a document of the standing minor, which carries none of the
+// eleven keys, loads with no complaint and answers no new figure.
+auto aDocumentOfTheStandingMinorLoadsUnchanged() -> void
+{
+  sg::ReportData data;
+  sg::PrecheckRecord record;
+  record.windowMs = 10;
+  sg::PrecheckCpuRecord cpu;
+  cpu.cpu = 2;
+  cpu.planned = true;
+  cpu.stats.gapCount = 2;
+  record.cpus.push_back(cpu);
+  sg::PrecheckTracerRecord tracer;
+  tracer.engine = "osnoise";
+  sg::PrecheckTracerCpuRecord entry;
+  entry.cpu = 2;
+  entry.hardware = 2;
+  tracer.cpus = {entry};
+  record.tracer = tracer;
+  data.precheck = record;
+  check(sg::detail::writeReport(kDetectorDoc, data, {}, std::nullopt, record),
+        "the writer wrote the document of a standing engine (FR-001)");
+  std::string text = sg::test::readText(kDetectorDoc);
+  const auto start = text.find("\"schemaVersion\":") + 16;
+  text.replace(start, text.find('"', start + 1) + 1 - start, "\"1.14\"");
+  check(text.find("\"smiDelta\"") == std::string::npos
+            && text.find("\"maxGapNs\"") == std::string::npos
+            && text.find("\"limits\"") == std::string::npos,
+        "the document of a standing engine carries none of the new keys "
+        "(FR-029, SC-006)");
+  sg::test::writeText(kMarkDoc, text);
+  const auto loaded = sg::loadReport(kMarkDoc);
+  check(loaded.has_value(),
+        "a document written before the keys loads with no complaint (FR-029, "
+        "A-7)");
+  if (loaded.has_value() && loaded->precheck.has_value()
+      && loaded->precheck->tracer.has_value())
+  {
+    const auto& read = *loaded->precheck;
+    check(!read.cpus.at(0).stats.smiDelta.has_value()
+              && !read.cpus.at(0).stats.nmiDelta.has_value()
+              && read.cpus.at(0).stats.smiGapCount == 0
+              && !read.tracer->windowUs.has_value()
+              && !read.tracer->cpus.at(0).maxGapNs.has_value(),
+          "the figures the document does not carry read as absent (A-7)");
+  }
+  std::remove(kDetectorDoc);
+  std::remove(kMarkDoc);
 }
 
 }  // namespace
@@ -3361,6 +3580,12 @@ auto main() -> int
   everyWrittenPassFormLoads();
   theLimitRecordReadsItsOwnMinor();
   theLimitRecordNamesItsMissingParts();
+  // specs/048-hwlat-probe T036: the reader of the detector record. The rows
+  // stand red until T042 reads the nine figures and validates the mark, so
+  // they close the unit.
+  theDetectorFiguresReadBackEqual();
+  aGapMarkOutsideTheTwoWordsRefuses();
+  aDocumentOfTheStandingMinorLoadsUnchanged();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;

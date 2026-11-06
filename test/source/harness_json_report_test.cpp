@@ -905,6 +905,404 @@ auto theCounterLimitRecordRoundTrips() -> void
   check(none.has_value() && none->empty(),
         "a document without the record answers no entry (FR-052)");
   std::remove("harness_json_nolimits.json");
+// specs/048-hwlat-probe T033: the eleven keys of the detector surfaces.
+// The rows below write one document per carrier, so each search reads the
+// one object its message names. The method word, the three stats figures,
+// the gap mark, the three tracer settings, the three detector figures and
+// the limit text ride the `hwlat` method or the `hwlat` engine alone, so a
+// run of any other method or engine writes the bytes it writes today
+// (FR-025 to FR-027, FR-029, FR-031, D-5, D-13, P-7, P-13).
+
+// The one sentence the console prints and the document carries, the shape
+// `contracts/console-report.md` states for the limits line (FR-030, FR-031).
+constexpr std::string_view kLimitsText = "probe runs with interrupts enabled";
+
+// The probe record of the detector rows: two cpus, the three attribution
+// figures of FR-025 on each fold, and the kept gap records with the change
+// of each span beside them (E-02, E-03, E-05). The first cpu's fold carries
+// both deltas and two changes; the second fold carries neither delta and no
+// change, the shape of a cpu whose SMI source stood unavailable (FR-011,
+// FR-015).
+auto detectorRecord(bool rawGaps) -> sg::detail::JitterReportRecord
+{
+  sg::detail::JitterReportRecord record;
+  record.method = sg::JitterMethod::HWLAT;
+  record.thresholdNs = 200;
+  record.loopPeriodNs = 20;
+  record.cpus = {2, 3};
+  for (std::size_t index = 0; index < record.cpus.size(); ++index) {
+    sg::detail::JitterReportCpu line;
+    line.cpu = record.cpus[index];
+    line.stats.gapCount = 2;
+    line.stats.gapsPerSecond = 1.5;
+    line.stats.minNs = 210;
+    line.stats.maxNs = 280;
+    line.stats.runtimeNs = 52000;
+    line.stats.thresholdNs = 200;
+    line.stats.loopPeriodNs = 20;
+    line.stats.droppedGaps = 1;
+    line.stats.smiGapCount = 2;
+    line.gaps = {sg::detail::GapRecord {100, 210},
+                 sg::detail::GapRecord {300, 280}};
+    if (index == 0) {
+      line.stats.smiDelta = 1;
+      line.stats.nmiDelta = 4;
+      line.smiChanges = {3, 0};
+    }
+    record.stats.push_back(line);
+  }
+  record.droppedGaps = 1;
+  record.rawGaps = rawGaps;
+  record.disclosure = "the run's disclosure";
+  return record;
+}
+
+// The entry of a run that carried the detector method, with the fold of one
+// benchmark's own windows: the count figure answers that fold's kept gaps,
+// and neither delta stands, because the fold holds no window edge (FR-025,
+// E-08).
+auto detectorData() -> sg::ReportData
+{
+  sg::detail::RunOptions options;
+  options.fixedIterations = sg::test::kWindowIterations;
+  const auto run = sg::test::scriptedRun(options);
+  sg::ReportData data;
+  data.results.push_back(run.result);
+  data.rowRaw = run.rowRaw;
+  data.contextRaw = run.contextRaw;
+  sg::JitterEntryFold fold;
+  fold.cpu = 2;
+  fold.stats.gapCount = 2;
+  fold.stats.maxNs = 280;
+  fold.stats.droppedGaps = 0;
+  fold.stats.smiGapCount = 2;
+  data.results.back().jitterFolds.push_back(fold);
+  return data;
+}
+
+// The pre-check record of the tracer rows: one measured cpu, and the tracer
+// record of the engine named, with two cpus ascending. The second cpu
+// carries no figure, the file form of a buffer that holds no detector line
+// (FR-027, E-04, A-6).
+auto tracerRecord(const std::string& engine) -> sg::PrecheckRecord
+{
+  sg::PrecheckRecord record;
+  sg::PrecheckCpuRecord cpu;
+  cpu.cpu = 2;
+  cpu.planned = true;
+  cpu.stats.gapCount = 2;
+  cpu.stats.smiDelta = 1;
+  cpu.stats.nmiDelta = 4;
+  cpu.stats.smiGapCount = 2;
+  record.cpus.push_back(cpu);
+  sg::PrecheckTracerRecord tracer;
+  tracer.engine = engine;
+  sg::PrecheckTracerCpuRecord first;
+  first.cpu = 2;
+  first.hardware = 2;
+  first.maxGapNs = 7000;
+  first.gapCount = 3;
+  first.nmiCount = 2;
+  sg::PrecheckTracerCpuRecord second;
+  second.cpu = 5;
+  second.hardware = 1;
+  tracer.cpus = {first, second};
+  if (engine == "hwlat") {
+    tracer.windowUs = 10000;
+    tracer.widthUs = 5000;
+    tracer.thresholdUs = 1000;
+  }
+  record.tracer = tracer;
+  return record;
+}
+
+// The written text of one hand-built pair of records, read back whole.
+auto writtenText(const char* path,
+                 const sg::ReportData& data,
+                 const std::optional<sg::detail::JitterReportRecord>& jitter,
+                 const std::optional<sg::PrecheckRecord>& precheck)
+    -> std::string
+{
+  check(sg::detail::writeReport(path, data, {}, jitter, precheck),
+        "the writer wrote the document of the detector record (FR-001)");
+  return sg::test::readText(path);
+}
+
+// The three names of FR-025, spelled as the document spells them.
+constexpr std::string_view kStatsKeys[] {
+    "\"smiDelta\":1",
+    "\"nmiDelta\":4",
+    "\"smiGapCount\":2",
+};
+
+// Whether each key of the list stands in `text`, each one after the key
+// before it, from `from` to `limit`.
+auto standsInOrder(const std::string& text,
+                   std::size_t from,
+                   std::size_t limit,
+                   const std::vector<std::string_view>& keys) -> bool
+{
+  auto at = from;
+  for (const auto key : keys) {
+    const auto found = text.find(key, at);
+    if (found == std::string::npos
+        || (limit != std::string::npos && found + key.size() > limit))
+    {
+      return false;
+    }
+    at = found + 1;
+  }
+  return true;
+}
+
+// FR-025, FR-004: the three figures stand in `jitter.stats[]` after
+// `droppedGaps`, in the order the contract states, and the method word
+// stands upper case beside them.
+auto theDetectorStatsStandAfterTheStandingCount() -> void
+{
+  const auto text = writtenText("harness_json_hwlat_stats.json",
+                                sg::ReportData {},
+                                detectorRecord(false),
+                                std::nullopt);
+  check(text.find("\"method\":\"HWLAT\"") != std::string::npos,
+        "the detector method writes its word to the document (FR-002, FR-004)");
+  const auto dropped = text.find("\"droppedGaps\":1");
+  std::vector<std::string_view> order {std::begin(kStatsKeys),
+                                       std::end(kStatsKeys)};
+  check(
+      dropped != std::string::npos && standsInOrder(text, dropped, 0, order),
+      "the detector stats stand after the standing count key (FR-025, FR-004)");
+  std::remove("harness_json_hwlat_stats.json");
+}
+
+// FR-025, D-1: the method keeps the standing gap loop, so it keeps no
+// series. The `series` key stands out of the document the way it stands
+// out of a `tsc` document.
+auto theDetectorMethodWritesNoSeriesKey() -> void
+{
+  const auto text = writtenText("harness_json_hwlat_series.json",
+                                sg::ReportData {},
+                                detectorRecord(false),
+                                std::nullopt);
+  check(text.find("\"series\"") == std::string::npos,
+        "the detector method writes no series key (FR-002, FR-025, D-1)");
+  std::remove("harness_json_hwlat_series.json");
+}
+
+// FR-025: the per-benchmark item answers `null` for both deltas, because its
+// fold covers one benchmark's windows and holds no window edge, and its
+// count figure answers that item's own kept gaps.
+auto thePerEntryStatsReadNullForTheTwoDeltas() -> void
+{
+  const auto text = writtenText("harness_json_hwlat_entry.json",
+                                detectorData(),
+                                detectorRecord(false),
+                                std::nullopt);
+  const auto entry = text.find("\"jitter\":{\"stats\":[{");
+  check(entry != std::string::npos,
+        "the entry of the detector run carries its own stats item (FR-025)");
+  check(text.find("\"smiDelta\":null", entry) != std::string::npos
+            && text.find("\"nmiDelta\":null", entry) != std::string::npos,
+        "the per-entry item answers null for both deltas (FR-025, E-02)");
+  check(text.find("\"smiGapCount\":2", entry) != std::string::npos,
+        "the per-entry item folds the count of its own kept gaps (FR-025)");
+  std::remove("harness_json_hwlat_entry.json");
+}
+
+// FR-025: `precheck.cpus[].stats` carries the three figures after the
+// standing sixteen, the carrier the console pre-check block shares.
+auto thePrecheckStatsCarryTheThreeFigures() -> void
+{
+  const auto record = tracerRecord("hwlat");
+  const auto text = writtenText("harness_json_hwlat_precheck.json",
+                                sg::ReportData {},
+                                detectorRecord(false),
+                                record);
+  const auto stats = text.find("\"stats\":{\"gapCount\"");
+  const auto dropped = text.find("\"droppedGaps\":0", stats);
+  std::vector<std::string_view> order {std::begin(kStatsKeys),
+                                       std::end(kStatsKeys)};
+  check(stats != std::string::npos && dropped != std::string::npos
+            && standsInOrder(text, dropped, 0, order),
+        "the pre-check stats carry the three figures after the standing "
+        "sixteen (FR-025, FR-004)");
+  std::remove("harness_json_hwlat_precheck.json");
+}
+
+// FR-025, FR-029, SC-006: a run of a standing method writes none of the
+// three figures in any of the three carriers, because one writer fills all
+// three.
+auto aStandingMethodWritesNoAttributionFigure() -> void
+{
+  auto record = detectorRecord(false);
+  record.method = sg::JitterMethod::FWQ;
+  const auto text = writtenText("harness_json_fwq_stats.json",
+                                detectorData(),
+                                record,
+                                tracerRecord("osnoise"));
+  check(text.find("\"smiDelta\"") == std::string::npos
+            && text.find("\"nmiDelta\"") == std::string::npos
+            && text.find("\"smiGapCount\"") == std::string::npos,
+        "a run of a standing method writes none of the three figures "
+        "(FR-025, FR-029, SC-006)");
+  std::remove("harness_json_fwq_stats.json");
+}
+
+// FR-026, FR-013: each raw gap carries the mark of its own span change:
+// `SMI` above a change of zero, `NOT_SMI` at a change of zero, and `null`
+// for the cpu whose SMI source stood unavailable.
+auto theSmiMarkStandsBesideEachRawGap() -> void
+{
+  const auto text = writtenText("harness_json_hwlat_gaps.json",
+                                sg::ReportData {},
+                                detectorRecord(true),
+                                std::nullopt);
+  const auto first = text.find("\"stamp\":100");
+  const auto second = text.find("\"stamp\":300");
+  check(first != std::string::npos && second != std::string::npos
+            && text.find("\"smi\":\"SMI\"", first) < second,
+        "the gap whose span carried a change marks SMI after its gap figure "
+        "(FR-026, FR-013, FR-014)");
+  check(text.find("\"smi\":\"NOT_SMI\"", second) != std::string::npos,
+        "the gap whose span carried no change marks NOT_SMI (FR-026, FR-014)");
+  const auto third = text.find("\"cpu\":3");
+  check(third != std::string::npos
+            && text.find("\"smi\":null", third) != std::string::npos,
+        "the cpu whose SMI source stood unavailable marks every gap null "
+        "(FR-026, FR-015)");
+  std::remove("harness_json_hwlat_gaps.json");
+}
+
+// FR-026, FR-029: the mark stands under the standing raw-gaps gate alone, so
+// a run without it keeps the two names of the gap item.
+auto aRunWithoutRawGapsWritesNoMark() -> void
+{
+  const auto text = writtenText("harness_json_hwlat_noraw.json",
+                                sg::ReportData {},
+                                detectorRecord(false),
+                                std::nullopt);
+  check(text.find("\"smi\"") == std::string::npos,
+        "a run without the raw-gaps gate writes no gap mark (FR-026, FR-029)");
+  std::remove("harness_json_hwlat_noraw.json");
+}
+
+// FR-027, FR-004: the three settings stand beside the engine word, in the
+// order the contract states, and the values answer FR-020 in microseconds.
+auto theTracerSettingsStandBesideTheEngineWord() -> void
+{
+  const auto record = tracerRecord("hwlat");
+  const auto text = writtenText("harness_json_hwlat_tracer.json",
+                                sg::ReportData {},
+                                std::nullopt,
+                                record);
+  std::vector<std::string_view> order {
+      "\"engine\":\"hwlat\"",
+      "\"windowUs\":10000",
+      "\"widthUs\":5000",
+      "\"thresholdUs\":1000",
+      "\"cpus\":[",
+  };
+  const auto tracer = text.find("\"tracer\":{");
+  check(tracer != std::string::npos && standsInOrder(text, tracer, 0, order),
+        "the tracer settings stand beside the engine word, ahead of the cpus "
+        "array (FR-027, FR-020, FR-004)");
+  std::remove("harness_json_hwlat_tracer.json");
+}
+
+// FR-027, D-9: the three detector figures stand after the standing
+// `hardware` figure of each tracer cpu, and a cpu whose buffer holds no
+// detector line answers `null` for all three.
+auto theDetectorFiguresStandBesideTheHardwareFigure() -> void
+{
+  const auto record = tracerRecord("hwlat");
+  const auto text = writtenText("harness_json_hwlat_figures.json",
+                                sg::ReportData {},
+                                std::nullopt,
+                                record);
+  const auto first = text.find("\"hardware\":2");
+  const auto second = text.find("\"cpu\":5");
+  std::vector<std::string_view> order {
+      "\"maxGapNs\":7000",
+      "\"gapCount\":3",
+      "\"nmiCount\":2",
+  };
+  check(first != std::string::npos && standsInOrder(text, first, 0, order),
+        "the three detector figures stand after the standing hardware figure "
+        "(FR-027, FR-004)");
+  check(second != std::string::npos
+            && text.find("\"maxGapNs\":null", second) != std::string::npos
+            && text.find("\"gapCount\":null", second) != std::string::npos
+            && text.find("\"nmiCount\":null", second) != std::string::npos,
+        "a cpu whose buffer holds no detector line answers null for the three "
+        "figures (FR-027, A-6)");
+  std::remove("harness_json_hwlat_figures.json");
+}
+
+// FR-027, P-7: the six new tracer names ride the `hwlat` engine alone, so an
+// `osnoise` record that carries the member values writes none of them.
+auto aStandingEngineWritesNoDetectorName() -> void
+{
+  auto record = tracerRecord("hwlat");
+  record.tracer->engine = "timerlat";
+  const auto text = writtenText("harness_json_timerlat_tracer.json",
+                                sg::ReportData {},
+                                std::nullopt,
+                                record);
+  check(text.find("\"windowUs\"") == std::string::npos
+            && text.find("\"widthUs\"") == std::string::npos
+            && text.find("\"thresholdUs\"") == std::string::npos
+            && text.find("\"maxGapNs\"") == std::string::npos
+            && text.find("\"gapCount\":") == std::string::npos
+            && text.find("\"nmiCount\"") == std::string::npos,
+        "a standing engine writes none of the six tracer names (FR-027, P-7)");
+  std::remove("harness_json_timerlat_tracer.json");
+}
+
+// FR-030, FR-031: the limit text stands beside `disclosure` for the detector
+// method, and a run of a standing method writes no such key.
+auto theLimitsKeyStandsBesideTheDisclosure() -> void
+{
+  const auto written = writtenText("harness_json_hwlat_limits.json",
+                                   sg::ReportData {},
+                                   detectorRecord(false),
+                                   std::nullopt);
+  const auto disclosure = written.find("\"disclosure\"");
+  check(disclosure != std::string::npos
+            && written.find("\"limits\"", disclosure) != std::string::npos,
+        "the limit text stands beside the disclosure key (FR-031, FR-004)");
+  check(written.find(std::string("\"limits\":\"") + std::string(kLimitsText)
+                         + "\"")
+                != std::string::npos,
+        "the limit key carries the one sentence the console prints (FR-030, "
+        "FR-031)");
+  auto standing = detectorRecord(false);
+  standing.method = sg::JitterMethod::FTQ;
+  const auto text = writtenText("harness_json_ftq_limits.json",
+                                sg::ReportData {},
+                                standing,
+                                std::nullopt);
+  check(text.find("\"limits\"") == std::string::npos,
+        "a run of a standing method writes no limit key (FR-031, SC-006)");
+  std::remove("harness_json_hwlat_limits.json");
+  std::remove("harness_json_ftq_limits.json");
+}
+
+// FR-029, D-6: the schema carries every key the detector run writes, so the
+// written document passes the checker at the moved minor.
+auto theDetectorDocumentPassesTheSchema() -> void
+{
+  const auto record = tracerRecord("hwlat");
+  const auto text = writtenText("harness_json_hwlat_schema.json",
+                                detectorData(),
+                                detectorRecord(true),
+                                record);
+  const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, text);
+  check(clean.has_value(),
+        "the document of the detector run passes the schema (FR-029, FR-004)");
+  if (!clean.has_value()) {
+    std::printf("  %s\n", clean.error().c_str());
+  }
+  std::remove("harness_json_hwlat_schema.json");
 }
 
 }  // namespace
@@ -929,6 +1327,21 @@ auto main() -> int
   theFoldWithNoSeriesStandsSkipped();
   theCounterLimitRecordRoundTrips();
   theGuardWordStandsPastTheTable();
+  // specs/048-hwlat-probe T033: the eleven keys of the two detector
+  // surfaces. The rows stand red until T040 writes the keys and T041 moves
+  // the schema, so they close the unit.
+  theDetectorStatsStandAfterTheStandingCount();
+  theDetectorMethodWritesNoSeriesKey();
+  thePerEntryStatsReadNullForTheTwoDeltas();
+  thePrecheckStatsCarryTheThreeFigures();
+  aStandingMethodWritesNoAttributionFigure();
+  theSmiMarkStandsBesideEachRawGap();
+  aRunWithoutRawGapsWritesNoMark();
+  theTracerSettingsStandBesideTheEngineWord();
+  theDetectorFiguresStandBesideTheHardwareFigure();
+  aStandingEngineWritesNoDetectorName();
+  theLimitsKeyStandsBesideTheDisclosure();
+  theDetectorDocumentPassesTheSchema();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;

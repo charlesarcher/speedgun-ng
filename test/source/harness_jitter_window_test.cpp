@@ -1166,6 +1166,267 @@ auto seriesWindow(std::uint64_t start,
 
 SG_BENCHMARK(bmGate);
 
+// specs/048-hwlat-probe T037: the detector lines of the probe block and of
+// the pre-check block. The rows hand the two printers the state a detector
+// run leaves behind, so they name no command-line word and start no probe
+// thread (FR-016, FR-030, FR-031).
+
+// One printer call with stdout captured into a string, the way `captureRun`
+// captures a whole batch.
+template<typename Call>
+auto captureLines(const Call& call) -> std::string
+{
+  static int blockIndex = 0;
+  const std::string path =
+      "harness_jitter_window_block_" + std::to_string(++blockIndex) + ".txt";
+  const int saved = dup(STDOUT_FILENO);
+  if (saved < 0 || std::freopen(path.c_str(), "w", stdout) == nullptr) {
+    fail("cannot redirect the printed block");
+  }
+  call();
+  std::fflush(stdout);
+  if (dup2(saved, STDOUT_FILENO) < 0) {
+    fail("cannot restore stdout");
+  }
+  close(saved);
+  std::ifstream file(path);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  std::remove(path.c_str());
+  return buffer.str();
+}
+
+// The number of times one whole line stands in the block.
+auto countLine(const std::string& block, std::string_view line) -> std::size_t
+{
+  std::size_t hits = 0;
+  for (auto at = block.find(line); at != std::string::npos;
+       at = block.find(line, at + line.size()))
+  {
+    ++hits;
+  }
+  return hits;
+}
+
+// One probe cpu's state as a detector run leaves it: two kept gaps with the
+// change ring beside them, and the two counter reads that bound the run span.
+// A run whose counter source answered nothing leaves the pair with no value
+// at both edges and the change ring at zero, the shape FR-011 states (E-02,
+// E-03, FR-012).
+auto fillProbeState(sg::detail::ProbeCpuState& state,
+                    const std::uint32_t cpu,
+                    const sg::JitterMethod method,
+                    const bool sourceStands) -> void
+{
+  state.cpu = cpu;
+  state.method = method;
+  state.buffer = {sg::detail::GapRecord {100, 210},
+                  sg::detail::GapRecord {300, 280}};
+  state.kept = 2;
+  state.changes = sourceStands ? std::vector<std::uint64_t> {3, 0}
+                               : std::vector<std::uint64_t> {0, 0};
+  state.thresholdNs = 200;
+  state.loopPeriodNs = 20;
+  if (sourceStands) {
+    state.edges.smiOpening = 10;
+    state.edges.smiClosing = 11;
+    state.edges.nmiOpening = 5;
+    state.edges.nmiClosing = 9;
+  }
+}
+
+// The probe block of a run over two probe cpus of one method, the pointers
+// the printer takes standing beside the states of those two cpus (E-03).
+auto probeBlockOf(const sg::JitterMethod method,
+                  const bool sourceStands) -> std::string
+{
+  const auto cpus = pickCpus(2);
+  sg::detail::ProbeCpuState first;
+  sg::detail::ProbeCpuState second;
+  fillProbeState(first, cpus.at(0), method, sourceStands);
+  fillProbeState(second, cpus.at(1), method, sourceStands);
+  const std::vector<const sg::detail::ProbeCpuState*> states {&first, &second};
+  return captureLines([&] { sg::detail::printJitterReport(true, states); });
+}
+
+// The pre-check record of two measured cpus: the first carries the three
+// attribution figures of a window whose sources answered, the second carries
+// no delta and a zero count, the shape of a window whose source answered
+// nothing (FR-016, FR-011).
+auto attributionRecord() -> sg::PrecheckRecord
+{
+  const auto cpus = pickCpus(2);
+  sg::PrecheckRecord record;
+  record.windowMs = 10;
+  sg::PrecheckCpuRecord first;
+  first.cpu = cpus.at(0);
+  first.planned = true;
+  first.stats.gapCount = 2;
+  first.stats.smiDelta = 1;
+  first.stats.nmiDelta = 4;
+  first.stats.smiGapCount = 2;
+  first.attribution.interrupts = 5;
+  first.attribution.switches = 1;
+  first.attribution.schedules = 2;
+  sg::PrecheckCpuRecord second;
+  second.cpu = cpus.at(1);
+  second.planned = true;
+  second.stats.gapCount = 1;
+  second.attribution.switches = 0;
+  second.attribution.schedules = 0;
+  record.cpus = {first, second};
+  return record;
+}
+
+// FR-016, SC-006: the three figure lines stand after the standing
+// `droppedGaps:` line, one column per probe cpu in the cpu order, each the
+// change across the probe's own run span.
+auto theThreeProbeFigureLinesStandAfterTheStandingCount() -> void
+{
+  const auto block = probeBlockOf(sg::JitterMethod::HWLAT, true);
+  const auto dropped = block.find("droppedGaps:");
+  const auto smi = block.find("smiDelta:");
+  const auto nmi = block.find("nmiDelta:");
+  const auto gaps = block.find("smiGapCount:");
+  check(dropped != std::string::npos && smi > dropped && nmi > smi
+            && gaps > nmi,
+        "the three figure lines stand after the standing droppedGaps line in "
+        "the order the stats field list states (FR-016)");
+  check(block.find("smiDelta: 1 1\n") != std::string::npos
+            && block.find("nmiDelta: 4 4\n") != std::string::npos
+            && block.find("smiGapCount: 1 1\n") != std::string::npos,
+        "each figure line carries one column per probe cpu: the SMI change, "
+        "the NMI change and the count of marked gaps (FR-016, FR-013)");
+  check(countLine(block, "jitter: SMI count not available") == 0
+            && countLine(block, "jitter: NMI count not available") == 0,
+        "a run whose two sources answered prints no disclosure line (FR-011)");
+}
+
+// FR-011: a source that answers nothing leaves its delta absent and its count
+// zero, prints the standing token in the figure position, and discloses the
+// source once for the run while the run keeps its status.
+auto theTwoCounterDisclosuresPrintOncePerRun() -> void
+{
+  const auto block = probeBlockOf(sg::JitterMethod::HWLAT, false);
+  check(countLine(block, "jitter: SMI count not available\n") == 1
+            && countLine(block, "jitter: NMI count not available\n") == 1,
+        "each source that answered nothing stands disclosed once for the run "
+        "(FR-011)");
+  check(block.find("smiDelta: not available not available\n")
+                != std::string::npos,
+        "the absent delta prints the standing not-available token in the "
+        "figure position (FR-011, FR-015)");
+  check(block.find("smiGapCount: 0 0\n") != std::string::npos,
+        "the marked-gap count of a run whose source answered nothing folds to "
+        "zero (FR-011, FR-013)");
+}
+
+// FR-030, FR-031: the limits line states the one limit of the user-space
+// probe once per run of the detector method, the sentence the document
+// carries under `jitter.limits`.
+auto theLimitsLineStandsOncePerDetectorRun() -> void
+{
+  const auto block = probeBlockOf(sg::JitterMethod::HWLAT, true);
+  check(countLine(block, "jitter: probe runs with interrupts enabled\n") == 1,
+        "the limits line stands once per detector run (FR-030, FR-031)");
+}
+
+// FR-025, SC-006: a run of the standing method prints the bytes it printed
+// before the detector existed, with none of the five new lines.
+auto aStandingMethodPrintsNoDetectorLine() -> void
+{
+  const auto block = probeBlockOf(sg::JitterMethod::TSC, true);
+  check(block.find("smiDelta") == std::string::npos
+            && block.find("nmiDelta") == std::string::npos
+            && block.find("smiGapCount") == std::string::npos
+            && block.find("probe runs with interrupts enabled")
+                    == std::string::npos
+            && block.find("count not available") == std::string::npos,
+        "a tsc run prints no figure line, no limits line and no counter "
+        "disclosure (FR-025, FR-030, SC-006)");
+  check(block.find("droppedGaps:") != std::string::npos
+            && block.find("jitter: split and percentiles use the kept gaps "
+                          "only\n") != std::string::npos,
+        "the standing probe block stands whole over the detector method "
+        "(FR-004, FR-029)");
+}
+
+// FR-016: the pre-check block prints the three attribution lines per measured
+// cpu after the standing switch and schedule line, each naming its source
+// file, and the count naming none.
+auto theThreeAttributionLinesStandPerMeasuredCpu() -> void
+{
+  const auto cpus = pickCpus(2);
+  const auto record = attributionRecord();
+  const auto block = captureLines(
+      [&]
+      {
+        sg::detail::printPrecheckReport(record,
+                                        sg::TracerEngine::NONE,
+                                        sg::kDefaultNoisePercent,
+                                        sg::JitterMethod::HWLAT);
+      });
+  const std::string smiLine = "smi delta: 1 (source: /dev/cpu/"
+      + std::to_string(cpus.at(0)) + "/msr)\n";
+  const std::string absentLine = "smi delta: not available (source: /dev/cpu/"
+      + std::to_string(cpus.at(1)) + "/msr)\n";
+  check(block.find(smiLine) != std::string::npos,
+        "the SMI delta of a measured cpu names the msr file behind it "
+        "(FR-016)");
+  check(block.find("nmi delta: 4 (source: /proc/interrupts)\n")
+                != std::string::npos,
+        "the NMI delta of a measured cpu names the interrupt list behind it "
+        "(FR-016)");
+  check(block.find("smi gaps: 2\n") != std::string::npos,
+        "the marked-gap count of a measured cpu prints the count of its own "
+        "kept gaps (FR-016, FR-013)");
+  check(block.find("nmi delta: not available (source: /proc/interrupts)\n")
+                != std::string::npos,
+        "the cpu whose source answered nothing prints the standing token in "
+        "the figure position (FR-011)");
+  check(countLine(block, "smi gaps: 0\n") == 1
+            && block.find(absentLine) != std::string::npos,
+        "the cpu whose source answered nothing prints no delta and a zero "
+        "count (FR-011)");
+  const auto schedule = block.find("switch delta:");
+  const auto smi = block.find("smi delta:");
+  check(schedule != std::string::npos && smi > schedule,
+        "the three lines stand after the standing switch and schedule line "
+        "(FR-016, FR-030)");
+}
+
+// FR-025, SC-006: a pre-check block of the standing method keeps its former
+// bytes, with none of the three attribution lines.
+auto aStandingMethodPrintsNoAttributionLine() -> void
+{
+  const auto record = attributionRecord();
+  const auto detector = captureLines(
+      [&]
+      {
+        sg::detail::printPrecheckReport(record,
+                                        sg::TracerEngine::NONE,
+                                        sg::kDefaultNoisePercent,
+                                        sg::JitterMethod::HWLAT);
+      });
+  const auto standing = captureLines(
+      [&]
+      {
+        sg::detail::printPrecheckReport(record,
+                                        sg::TracerEngine::NONE,
+                                        sg::kDefaultNoisePercent,
+                                        sg::JitterMethod::TSC);
+      });
+  check(standing.find("smi delta") == std::string::npos
+            && standing.find("nmi delta") == std::string::npos
+            && standing.find("smi gaps") == std::string::npos,
+        "a pre-check block of the standing method prints none of the three "
+        "attribution lines (FR-025, SC-006)");
+  check(standing.find("switch delta:") != std::string::npos
+            && standing.size() < detector.size(),
+        "the standing block stands whole and shorter by the three lines the "
+        "detector method adds (FR-004, FR-029)");
+}
+
 auto main() -> int
 {
   scriptedProvider();
@@ -3127,6 +3388,16 @@ auto main() -> int
       std::remove(tscPath.c_str());
     }
   }
+
+  // specs/048-hwlat-probe T037: the detector lines of the two blocks. The
+  // rows stand red until T043 prints them, so they close the unit. The two
+  // rows of the standing method guard the bytes the standing runs keep.
+  aStandingMethodPrintsNoDetectorLine();
+  theThreeProbeFigureLinesStandAfterTheStandingCount();
+  theTwoCounterDisclosuresPrintOncePerRun();
+  theLimitsLineStandsOncePerDetectorRun();
+  theThreeAttributionLinesStandPerMeasuredCpu();
+  aStandingMethodPrintsNoAttributionLine();
 
   std::puts("harness_jitter_window_test: ok");
   return 0;
