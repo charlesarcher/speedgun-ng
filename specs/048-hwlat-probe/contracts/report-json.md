@@ -6,7 +6,9 @@ object and its `stats` and `gaps` items,
 `specs/034-host-noise-precheck/contracts/report-json.md` for
 `precheck.cpus[].stats`, and
 `specs/036-osnoise-timerlat-tracers/contracts/report-json.md` for the
-`tracer` object. The schema minor moves to `1.15`. The top-level
+`tracer` object. The schema minor moves to `1.16`: this contract named `1.15`
+at its cut, and specs/041-counter-probe landed that minor on master first, so
+the eleven keys take the next free minor. The top-level
 `x-order` stands unchanged, because no top-level key joins (spec
 FR-004, FR-029, D-6, D-13). The standing contracts' key tables stand
 unchanged apart from the rows this file names, and each amendment joins
@@ -24,7 +26,7 @@ its standing file in the commit that lands the writer (spec FR-029).
 
 | Rule | Detail | Requirement |
 | --- | --- | --- |
-| The stamp moves to `1.15` | `kSchemaVersion` stands `"1.14"` at `source/harness/json_report.cpp:49`, and the writer stamps the new value | spec D-5, FR-004 |
+| The stamp moves to `1.16` | `kSchemaVersion` stands `"1.15"` at `source/harness/json_report.cpp:58`, where specs/041-counter-probe left it, and the writer stamps the new value | spec D-5, FR-004 |
 | The top level stands still | `docs/schema/report-v1.json:7` keeps its eight-name `x-order`, because every new key joins an object the document already carries | spec FR-029 |
 | Each touched object moves in the same commit | the six `x-order` lists below move with the writer, the habit specs/036 FR-006 states | spec FR-029 |
 

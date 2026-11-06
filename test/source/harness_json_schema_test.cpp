@@ -201,9 +201,9 @@ auto plantedDisagreementsAreNamedByPointer() -> void
 // The schema's per-entry hunt entry node (specs/040; FR-032, B-9): the
 // node stands closed, so its `x-order` names the three rank keys after
 // `rank` and the area key after `delta`, and the document the writer
-// produces pairs the schema at the minor the writer stamps, `1.15`, the
-// minor since specs/041-counter-probe added the run-level `counterLimits`
-// array.
+// produces pairs the schema at the minor the writer stamps, `1.16`, the
+// minor specs/048-hwlat-probe takes past the 1.15 that carries the run-level
+// `counterLimits` array.
 auto entryHuntKeysPairAtStampedMinor(const std::string& documentText) -> void
 {
   const std::string schemaText = sg::test::readText(SG_SCHEMA_PATH);
@@ -234,8 +234,8 @@ auto entryHuntKeysPairAtStampedMinor(const std::string& documentText) -> void
         "the entry node names the three rank keys after `rank`, and the area "
         "key after `delta`, in its `x-order` (FR-032, B-9)");
 
-  check(documentText.find("\"schemaVersion\":\"1.15\"") != std::string::npos,
-        "the document the writer produces stands at the stamped minor 1.15 "
+  check(documentText.find("\"schemaVersion\":\"1.16\"") != std::string::npos,
+        "the document the writer produces stands at the stamped minor 1.16 "
         "(FR-032, specs/039 FR-032, specs/037 FR-005, specs/043 FR-006, "
         "specs/042-topdown FR-036, specs/046-hunter-topdown FR-020, "
         "specs/041-counter-probe FR-051)");
@@ -245,8 +245,9 @@ auto entryHuntKeysPairAtStampedMinor(const std::string& documentText) -> void
 // The item stands closed, its `x-order` names the 21 keys in the written
 // order, the method word stands in a list of three, and the period item
 // stands closed with its two keys. The document the writer produces pairs
-// the schema at the minor the writer stamps, `1.15`, the minor since
-// specs/041-counter-probe added the run-level `counterLimits` array.
+// the schema at the minor the writer stamps, `1.16`, the minor
+// specs/048-hwlat-probe takes past the 1.15 that carries the run-level
+// `counterLimits` array.
 constexpr std::string_view kSeriesKeys[] = {
     "cpu",
     "workCount",
@@ -380,10 +381,10 @@ auto theSeriesKeysPairAtTheStampedMinor() -> void
   check(paired,
         "theSeriesKeysPairAtTheStampedMinor: the item names the 21 keys in "
         "the written order (FR-006, FR-011)");
-  check(documentText.find("\"schemaVersion\":\"1.15\"") != std::string::npos,
+  check(documentText.find("\"schemaVersion\":\"1.16\"") != std::string::npos,
         "theSeriesKeysPairAtTheStampedMinor: the document the writer produces "
-        "stands at the stamped minor 1.15 (FR-006, R-16, specs/041-counter-"
-        "probe FR-051)");
+        "stands at the stamped minor 1.16 (FR-006, R-16, specs/041-counter-"
+        "probe FR-051, specs/048-hwlat-probe FR-004)");
 }
 
 // FR-006: the item stands closed, so a key the schema lists nowhere refuses

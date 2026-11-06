@@ -543,10 +543,10 @@ auto aValueOutsideTheTableWritesTheGuardWord() -> void
 auto theDocumentStampsTheMinorThisFeatureRequires() -> void
 {
   const std::string text = sg::test::readText("harness_json_report.json");
-  check(text.starts_with("{\"schemaVersion\":\"1.15\""),
-        "the written document stamps schema minor 1.15, the minor "
-        "specs/041-counter-probe takes past the 1.14 of "
-        "specs/046-hunter-topdown (FR-086, FR-043, specs/039 FR-032, specs/037 "
+  check(text.starts_with("{\"schemaVersion\":\"1.16\""),
+        "the written document stamps schema minor 1.16, the minor "
+        "specs/048-hwlat-probe takes past the 1.15 of "
+        "specs/041-counter-probe (FR-086, FR-043, specs/039 FR-032, specs/037 "
         "FR-005, specs/043 FR-006, specs/042-topdown FR-036, "
         "specs/046-hunter-topdown FR-020, specs/041-counter-probe FR-051)");
 }

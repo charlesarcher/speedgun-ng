@@ -41,13 +41,21 @@ using Builder = simdjson::builder::string_builder;
 // `method` key and the `series` array of the `jitter` object, at 1.13
 // since specs/042-topdown added the `topdown` object of the entry record,
 // and at 1.14 since specs/046-hunter-topdown added the `topdownArea` key
-// of the per-event node, and at 1.15 since specs/041-counter-probe added the
-// run-level `counterLimits` array, the move specs/023/contracts/ schema-file.md
-// states for a key added inside major 1 (specs/027 FR-026, specs/028 FR-086,
+// of the per-event node, at 1.15 since specs/041-counter-probe added the
+// run-level `counterLimits` array, and at 1.16 since specs/048-hwlat-probe
+// added the eleven keys of the detector run: the two attribution deltas, the
+// marked-gap count, the `smi` mark of each kept gap, the `limits` text of the
+// `jitter` object, the three settings of the `tracer` record and the three
+// figures of each of its cpu entries. specs/048-hwlat-probe cut its branch
+// while the minor stood at 1.14 and named 1.15 for its own move, which
+// specs/041-counter-probe landed on master first, so the detector keys take
+// the next free minor: the move specs/023/contracts/ schema-file.md states for
+// a key added inside major 1 (specs/027 FR-026, specs/028 FR-086,
 // specs/033 FR-022, specs/040 FR-032, PC-6, specs/039 FR-030, FR-032,
 // specs/037 FR-005, specs/043 FR-006, specs/042-topdown FR-036,
-// specs/046-hunter-topdown FR-020, specs/041-counter-probe FR-051).
-constexpr std::string_view kSchemaVersion = "1.15";
+// specs/046-hunter-topdown FR-020, specs/041-counter-probe FR-051,
+// specs/048-hwlat-probe FR-004, D-5).
+constexpr std::string_view kSchemaVersion = "1.16";
 
 // The `source` word of one disclosed use, spelled as the enum of
 // `docs/schema/report-v1.json` states it (specs/028 E-04, FR-040). The

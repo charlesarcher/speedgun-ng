@@ -41,12 +41,14 @@ shapes the prompt leaves open.
   takes the next free minor, `0.32.0`. The one open pull request (`#80`,
   head `046-report-rows`) changes one file under `specs/` and reserves no
   version (read 2026-11-05).
-- Report schema: master stands at `1.14` (`kSchemaVersion`,
-  `source/harness/json_report.cpp:49`). The top-level `x-order` of
-  `docs/schema/report-v1.json:7` stands unchanged, because the feature
-  adds no top-level key. Every new key joins inside an object the
-  document already carries, so the minor moves to the next free value,
-  `1.15`, and each touched object's `x-order` moves in the same commit
+- Report schema: master stands at `1.15` (`kSchemaVersion`,
+  `source/harness/json_report.cpp:58`). This branch cut at `1.14` and
+  named `1.15` for its own move, which specs/041-counter-probe landed on
+  master first, so the eleven keys take the next minor. The top-level
+  `x-order` of `docs/schema/report-v1.json:7` stands unchanged, because
+  the feature adds no top-level key. Every new key joins inside an object
+  the document already carries, so the minor moves to the next free value,
+  `1.16`, and each touched object's `x-order` moves in the same commit
   (D-6, FR-004, FR-029).
 - Harness `SOVERSION`: master stands at `21` (`CMakeLists.txt:419`). The
   feature moves an exported harness layout: the per-cpu gap figures record
@@ -271,7 +273,8 @@ shapes the prompt leaves open.
   across the family, so the SMI read answers not available there. The
   feature names no counter it cannot cite.
 - **D-5 (Q-5, taken)**: the version takes the next free minor, `0.32.0`,
-  and the schema minor moves to `1.15`.
+  and the schema minor moves to `1.16`, one past the `1.15` that
+  specs/041-counter-probe took while this branch stood.
 - **D-6**: one word, two surfaces. `hwlat` names a method of
   `--jitter-probe` in one grammar and an engine of `--os-noise` in the
   other grammar. The method reads the two counters in user space; the

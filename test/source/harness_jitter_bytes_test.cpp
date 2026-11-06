@@ -476,10 +476,11 @@ auto aTscRunPassesTheSchemaAtTheStampedMinor() -> void
 {
   const std::string document = tscDocument();
   // specs/048-hwlat-probe FR-004, FR-029, D-5: the eleven detector keys move
-  // the stamp to 1.15.
-  check(document.find("\"schemaVersion\":\"1.15\"") != std::string::npos,
+  // the stamp to 1.16, the next free minor, because specs/041-counter-probe
+  // landed 1.15 on master while this branch stood.
+  check(document.find("\"schemaVersion\":\"1.16\"") != std::string::npos,
         "aTscRunPassesTheSchemaAtTheStampedMinor: the writer stamps the minor "
-        "1.15 (FR-004, FR-026, FR-029, R-16, specs/042-topdown FR-036, "
+        "1.16 (FR-004, FR-026, FR-029, R-16, specs/042-topdown FR-036, "
         "specs/046-hunter-topdown FR-020, specs/041-counter-probe FR-051)");
   const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, document);
   check(clean.has_value(),

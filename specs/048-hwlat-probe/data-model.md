@@ -498,7 +498,8 @@ one, and the rule for an unavailable figure. The root objects stand
   the `required` lists of `jitter`, `jitter.stats[]`, the gap item,
   `precheck.cpus[].stats`, `precheck.tracer` and
   `precheck.tracer.cpus[]`; and `kSchemaVersion` at
-  `source/harness/json_report.cpp:49`, which moves `1.14` to `1.15`
+  `source/harness/json_report.cpp:58`, which moves `1.15` to `1.16`, the
+  minor past the one specs/041-counter-probe took while this branch stood
   (spec D-5, spec FR-029). The standing checker reads every written
   document against these rows at
   `source/harness/detail/json_report.hpp:361-376`.

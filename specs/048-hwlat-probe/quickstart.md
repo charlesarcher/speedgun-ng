@@ -118,13 +118,14 @@ FR-003, FR-005).
 python3 -c "import json;d=json.load(open('/tmp/hwlat-detector.json'));print(d['schemaVersion']);print(d['precheck']['tracer'])"
 ```
 
-Expected: `1.15`, and a `tracer` object whose engine reads `hwlat` and
+Expected: `1.16`, and a `tracer` object whose engine reads `hwlat` and
 whose `cpus` entries carry `maxGapNs`, `gapCount` and `nmiCount` beside
 the standing fields. A method run carries `smiDelta`, `nmiDelta` and
 `smiGapCount` in `jitter.stats[]` and in `precheck.cpus[].stats`, and
 `smi` beside each raw gap item. `loadReport` reads the six figures back
-with equal values, and a document of schema `1.14` loads unchanged (spec
-FR-004, FR-025 to FR-029).
+with equal values, and a document of schema `1.15`, the minor that stands
+before this one and carries none of these keys, loads unchanged (spec FR-004,
+FR-025 to FR-029).
 
 ## The comparison names
 
