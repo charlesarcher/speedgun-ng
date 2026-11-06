@@ -33,11 +33,12 @@ delta names join the standing files in the commit that lands the code.
   tracer cpu <n> maxGapNs: <figure>
   tracer cpu <n> gapCount: <figure>
   tracer cpu <n> nmiCount: <figure>
-[the not-available case, unchanged]
-  tracer: not available
+[the not-available case, and the case the kernel already runs the engine]
   tracer: hwlat already stands as the current tracer   [only when the read
                                        `current_tracer` answered `hwlat`
-                                       ahead of the run, once per run]
+                                       ahead of the run, once per run,
+                                       ahead of the standing line below]
+  tracer: not available                                [the standing line]
 [restore defect path, at the restore call site, ahead of the pre-check block]
   tracer: restore failed: <file> = <saved value>     [one line per file whose write failed]
 ```

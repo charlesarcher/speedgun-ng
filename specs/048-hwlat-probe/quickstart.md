@@ -132,7 +132,7 @@ FR-004, FR-025 to FR-029).
 ./build/example/first_benchmark \
   --compare=/tmp/hwlat-method.json,/tmp/hwlat-method-2.json \
   --compare-rule='jitter:run:any:smiGapCount:lower:abs=0' \
-  --compare-rule='hwlat:run:any:maxGapNs:lower:abs=200000'
+  --compare-rule='hwlat:any:maxGapNs:lower:abs=200000'
 ```
 
 The three probe figures ride the standing jitter grammar, whose field
