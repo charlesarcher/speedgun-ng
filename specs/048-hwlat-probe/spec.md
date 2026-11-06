@@ -743,8 +743,11 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   figures: `smiDelta`, `nmiDelta` and `smiGapCount`. The writer SHALL
   write them for a run of the `hwlat` method at every place that record
   stands in the document: the run-level `jitter.stats[]`, the per-entry
-  `jitter.stats[]` items, and `precheck.cpus[].stats`. The writer SHALL
-  write no key of the three for a run of any other method.
+  `jitter.stats[]` items, and `precheck.cpus[].stats`. In a per-entry item
+  the two delta figures SHALL answer `null` and the count figure SHALL
+  answer 0, because that fold covers one benchmark's windows and holds no
+  window edge. The writer SHALL write no key of the three for a run of any
+  other method.
 - **FR-026**: Each kept gap the document writes under the standing
   `--json-raw=gaps` gate SHALL carry, for the `hwlat` method, the mark key
   `smi` with the word `SMI` or `NOT_SMI`, and SHALL carry `null` where the
@@ -768,9 +771,10 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   `hwlat:<cpu|any>:<figure>` with the standing direction and threshold
   suffix, and SHALL read the tracer record of the
   loaded report, the first pre-check figure the comparison reads. A
-  document that carries no figure for one of the six names SHALL answer
-  the standing shape for a name with no value, and SHALL gain no new
-  status. The field-count word of the jitter refusal line and of the
+  figure the record carries as absent SHALL read 0, the standing rule of a
+  fold that carries no value. A report that carries no record at all, or
+  no entry for a cpu a rule names, SHALL answer the standing fault line at
+  exit status 2, and the comparison SHALL gain no new status. The field-count word of the jitter refusal line and of the
   rule-name contract moves with the new rows, and the new head word gains
   its own refusal line and its own contract rows.
 - **FR-029**: The schema file SHALL carry every new key, in the order the
@@ -913,10 +917,12 @@ to `:102`). No key changes its kind, and no key moves.
   exits 0.
 - **SC-004**: Each gate exits 0 on the lane's diff:
   `cmake -P cmake/lint.cmake`, `cmake -P cmake/spell.cmake`,
-  `python3 tools/docs/example_drift.py .`, the prose gate over the lane's
-  range with a base that stands behind HEAD, and the DBC pair gate with
-  the document matrix. A range gate whose base equals HEAD examines no
-  source and states nothing.
+  `python3 tools/docs/example_drift.py .`, `bash test/time_source_gate.sh .`,
+  the prose gate over the lane's range with a base that stands behind
+  HEAD, and the DBC pair gate with the document matrix. A range gate whose
+  base equals HEAD examines no source and states nothing. The release
+  build, the analyzer build, the sanitizer lane, the thread-sanitizer lane
+  and the coverage contract also exit 0, Principle VIII's set.
 - **SC-005**: Two root runs stand recorded on corsairone, one per surface,
   each with its host, kernel, compiler, commands, exit codes, figures,
   and, for the detector run, the value of every written file before and
@@ -1006,4 +1012,8 @@ to `:102`). No key changes its kind, and no key moves.
 - Main-page impact check (IV.1): yes. The feature changes what the
   harness teaches, so the lane carries its README rows, its guide-page
   section and its example region in the same change (FR-006, FR-036,
-  FR-037, SC-009, SC-010).
+  FR-037, SC-009, SC-010). The reading of IV.1 the lane follows stands
+  recorded: the root README carries the two option rows inside its
+  1,004-line cap, and the teaching lands on `docs/pages/harness.md`,
+  because the file stands three lines under that cap today and the guide
+  page is where specs `036` and `043` put the teaching of their surfaces.
