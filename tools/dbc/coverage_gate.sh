@@ -24,7 +24,13 @@ if [[ -z "${LCOV}" ]]; then
   exit 2
 fi
 
-if out=$("${LCOV}" --branch-coverage --summary "${info}" 2>&1); then
+# The read carries the `inconsistent` class the capture and the extract step of
+# `cmake/coverage.cmake` carry, because the same complaint about the lambda of a
+# contract macro returns here when the tool re-reads the trace. The class names
+# that one parsing complaint: every other lcov check stays live, and the gated
+# lines below still come from the report the tool prints.
+if out=$("${LCOV}" --branch-coverage --ignore-errors inconsistent \
+          --summary "${info}" 2>&1); then
   rc=0
 else
   rc=$?
