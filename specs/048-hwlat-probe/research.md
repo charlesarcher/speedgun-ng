@@ -74,7 +74,7 @@ reads `FR-0NN`. A bare `:NNN` continues the file of the cite above it.
 
 - **Decision**: A new reader takes one cpu's column from the `NMI:` row of
   `/proc/interrupts`. The standing `interruptsOfText` keeps its sum over
-  every labelled row, so the new figure stands beside `interrupts` under its
+  every labeled row, so the new figure stands beside `interrupts` under its
   own name.
 - **Rationale**: `interruptsOfText`
   (`source/harness/jitter_probe.cpp:1811-1839`) sums one column over every
