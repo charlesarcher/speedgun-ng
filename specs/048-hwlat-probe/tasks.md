@@ -627,14 +627,14 @@ a time.
   a run that names `method=hwlat` and `--os-noise=hwlat` records each
   surface on its own keys, and no figure of one enters the other
   (FR-004, FR-027, D-6) (depends on T059, T060). Verify: `ctest --test-dir build -R harness_hwlat_tracer_test --output-on-failure` exits 0
-- [ ] T062 [P] Move the version in `CMakeLists.txt`: the project
+- [X] T062 [P] Move the version in `CMakeLists.txt`: the project
   `VERSION` reads `0.32.0`, the harness `SOVERSION` moves from `21` to
   `22` with the comment naming the three layouts that grew and the two
   enums that gained a word, and the archive `SOVERSION` holds at `6`,
   because both readers live on the harness side; move the two readers
   that assert the numbers (FR-004, FR-038, D-5, VIII) (depends on T003,
   T040). Verify: `ctest --test-dir build -R "harness_cli_table_test|views_test" --output-on-failure` exits 0 and `grep -c "^    SOVERSION 22" CMakeLists.txt` counts one line
-- [ ] T063 Run the whole suite at the integrated head in the
+- [X] T063 Run the whole suite at the integrated head in the
   `build` tree (FR-032, FR-038, VIII) (depends on T057 to T062). Verify:
   `ctest --test-dir build --output-on-failure` exits 0
 

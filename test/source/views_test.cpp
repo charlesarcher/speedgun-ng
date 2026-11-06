@@ -304,24 +304,25 @@ auto run() -> int
   // FR-032, D-2; specs/037 R-13; specs/042-topdown FR-047;
   // specs/046-hunter-topdown FR-004, FR-008, FR-028, D-8, D-16;
   // specs/041-counter-probe FR-053, D-3a; specs/050-limit-table-lifecycle
-  // FR-010, FR-012, D-5): the project block reads 0.33.0, the harness target
-  // answers SOVERSION 21, and the archive target answers SOVERSION 8. The
-  // counters surface gains an accessor over a closed enumeration, and then two
-  // members of System leave its private section. No exported layout moves, and
-  // no harness header changes, so the harness number stands. Each read below
-  // names the target whose property line it reads.
+  // FR-010, FR-012, D-5; specs/048-hwlat-probe FR-004, FR-038, D-5): the
+  // project block reads 0.34.0, the harness target answers SOVERSION 22, and
+  // the archive target answers SOVERSION 8. Two members of System leave the
+  // private section of the counters header, and the figures the detector
+  // surfaces add move the harness layouts, so the project and the harness
+  // numbers move while the archive number stands where specs/050 left it.
+  // Each read below names the target whose property line it reads.
   {
     auto const cmake = rootCMakeText();
     check(!cmake.empty(), "pass: the root CMakeLists.txt can be read");
-    check(projectVersion(cmake) == "0.33.0",
-          "pass: the project version reads 0.33.0");
-    check(soVersionOf(cmake, "speedgun-ng_harness") == "21",
-          "pass: the harness property line reads SOVERSION 21");
+    check(projectVersion(cmake) == "0.34.0",
+          "pass: the project version reads 0.34.0");
+    check(soVersionOf(cmake, "speedgun-ng_harness") == "22",
+          "pass: the harness property line reads SOVERSION 22");
     check(soVersionOf(cmake, "speedgun-ng_speedgun-ng") == "8",
           "pass: the counters archive property line reads SOVERSION 8");
-    check(soVersionNumbers(cmake) == "8 21",
+    check(soVersionNumbers(cmake) == "8 22",
           "pass: the two archive SOVERSION lines read 8 for the counters "
-          "archive and 21 for the harness archive, in file order");
+          "archive and 22 for the harness archive, in file order");
   }
 
   // ---- The resolver block (specs/038 T004; FR-004 to FR-006, B-1,
