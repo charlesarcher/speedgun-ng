@@ -458,6 +458,22 @@ auto jitterMethodName(JitterMethod method) -> const char*;
 /// \post the answer names the methods that carry a series
 auto fillsSeriesRing(JitterMethod method) -> bool;
 
+///
+/// @brief specs/048 P-3, E-03, FR-015: the change prefix of one kept set. The
+/// keep step pairs the gap ring and the change ring element for element, so a
+/// state whose change ring stands as long as its kept set answers that prefix
+/// whole. A state built beside the item, the shape a fixture gives a fold,
+/// carries a shorter ring, and the gaps that ring does not reach stand
+/// unmarked, the answer an absent source leaves. The report reads the same
+/// prefix the fold counts its marks from, so the marks of a document pair with
+/// its gaps index for index.
+///
+/// \pre `kept` counts the kept gaps of the state `changes` rode beside
+/// \post the elements of `changes` up to the shorter of `kept` and its own
+///       length, in ring order
+auto changePrefixOf(const std::vector<std::uint64_t>& changes,
+                    std::size_t kept) -> std::span<const std::uint64_t>;
+
 /// @brief specs/043-fwq-ftq FR-017, FR-018, FR-022: the spectrum keys of
 /// one cpu's series record: the transform reads the FTQ count series at
 /// the quantum, or the FWQ unit times resampled to the median unit time,

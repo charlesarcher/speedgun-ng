@@ -95,6 +95,20 @@ struct NoiseTracerSession
 /// \post the answer stands the engine's word
 [[nodiscard]] auto engineWordOf(TracerEngine engine) -> std::string;
 
+/// @brief specs/048 FR-023, P-15: whether the tracer the run asked for
+/// already stands as the kernel's current tracer, the reading the console
+/// names when the setup wrote no file at all. Only the detector engine
+/// leaves a standing tracer alone, so only that engine answers true, and
+/// the answer reads the same text the setup read, because that path wrote
+/// nothing. A standing engine answers false, the rule that its setup writes
+/// the engine word and writes the saved word back when a later write fails.
+///
+/// \pre `engine` names one of the three tracers
+/// \post true only for `TracerEngine::HWLAT` whose `current_tracer` read
+///       answers the engine word, and false for every other case, a file
+///       that answers nothing among them (FR-016)
+[[nodiscard]] auto tracerStandsAsCurrent(TracerEngine engine) -> bool;
+
 /// @brief The session setup (specs/036 FR-007, FR-016, R-02, R-04;
 /// specs/048 FR-018, FR-019, D-9, P-14, P-15, P-16): the session reads
 /// the standing text of every file it saves ahead of its first write.

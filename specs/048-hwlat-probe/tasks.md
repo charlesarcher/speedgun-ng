@@ -285,7 +285,7 @@ path.
   (FR-028, P-11, plan R-7, SC-001).
   Verify: `ctest --test-dir build -R harness_compare_cli_test --output-on-failure` exits non-zero (red observed)
 
-- [ ] T089 [US2] Write the failing standing-tracer rows in
+- [X] T089 [US2] Write the failing standing-tracer rows in
   `test/source/harness_hwlat_tracer_test.cpp`: a tree whose
   `current_tracer` text already reads `hwlat` before the setup leaves the
   session writing no file at all, the tracer block printing the line
@@ -598,7 +598,7 @@ record build, the disclosure print and the version record.
 `source/harness/cli.cpp` and `CMakeLists.txt` stand under one owner at
 a time.
 
-- [ ] T057 Cover the third engine word in the standing
+- [X] T057 Cover the third engine word in the standing
   missing-window refusal in `source/harness/cli.cpp`: a `--os-noise`
   value on a batch with no `--jitter-probe` option and on a mode that
   runs no pre-check window each print one line at status 2 ahead of any
@@ -610,7 +610,7 @@ a time.
   standing path untouched for the three standing methods (FR-001,
   FR-016, FR-025, D-7, P-1) (depends on T019, T043). Verify:
   `g++ -fsyntax-only -std=c++23 -Iinclude -Isource -Isource/harness -Ibuild/export source/harness/cli.cpp` exits 0
-- [ ] T059 Build the record in `source/harness/cli.cpp`:
+- [X] T059 Build the record in `source/harness/cli.cpp`:
   `buildJitterReportRecord` fills `smiChanges` beside `gaps`, the three
   figures ride each cpu's `JitterStats`, and a cpu whose source stands
   absent leaves the list empty so the writer answers `null` for its
@@ -623,7 +623,7 @@ a time.
   disclosure keeps the run at status 0 (FR-003, FR-021, FR-022, FR-023,
   D-12, D-15) (depends on T031, T043; the rows of T022, T024 and T038
   turn green). Verify: `ctest --test-dir build -R "harness_noise_test|harness_noise_report_test" --output-on-failure` exits 0
-- [ ] T061 Keep the two surfaces apart in `source/harness/cli.cpp`:
+- [X] T061 Keep the two surfaces apart in `source/harness/cli.cpp`:
   a run that names `method=hwlat` and `--os-noise=hwlat` records each
   surface on its own keys, and no figure of one enters the other
   (FR-004, FR-027, D-6) (depends on T059, T060). Verify: `ctest --test-dir build -R harness_hwlat_tracer_test --output-on-failure` exits 0

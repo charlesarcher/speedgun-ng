@@ -1543,7 +1543,8 @@ auto printHuntSkips(const sg::hunt::EntryHunt& hunt,
 auto printPrecheckReport(const PrecheckRecord& record,
                          sg::TracerEngine requestedEngine,
                          const std::uint32_t noisePercent,
-                         const sg::JitterMethod method) -> void
+                         const sg::JitterMethod method,
+                         const bool tracerStands) -> void
 {
   const auto figureText =
       [](const std::optional<std::uint64_t>& value) -> std::string
@@ -1699,6 +1700,10 @@ auto printPrecheckReport(const PrecheckRecord& record,
       }
     }
   } else if (requestedEngine != sg::TracerEngine::NONE) {
+    if (tracerStands) {
+      std::printf("tracer: %s already stands as the current tracer\n",
+                  sg::detail::engineWordOf(requestedEngine).c_str());
+    }
     std::printf("tracer: not available\n");
   }
   bool candidatesStand = false;

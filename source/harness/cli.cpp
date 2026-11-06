@@ -566,6 +566,14 @@ auto buildJitterReportRecord(const JitterProbeOptions& probe,
       entry.gaps.assign(
           state->buffer.begin(),
           state->buffer.begin() + static_cast<std::ptrdiff_t>(state->kept));
+      // specs/048 FR-013, FR-026, D-13, P-3: the change prefix rides beside
+      // the gap prefix, index-paired with it, one mark per kept gap. A cpu
+      // whose counter source stood absent carries no mark at all, so its list
+      // stays empty and the writer answers `null` for each of its gaps.
+      if (entry.stats.smiDelta.has_value()) {
+        const auto marks = detail::changePrefixOf(state->changes, state->kept);
+        entry.smiChanges.assign(marks.begin(), marks.end());
+      }
     }
     // specs/043 FR-020, E-23: the series of the whole run rides beside
     // the gaps, and a method that keeps no series carries none (FR-006,
@@ -1248,6 +1256,13 @@ auto speedgunMain(int argc, char** argv) -> int
             detail::noiseTracerSetup(*options.noiseTracer, tracerCpus);
       }
     }
+    // specs/048 FR-023, P-15: a detector run whose setup wrote no file,
+    // because the kernel already runs that tracer, names the tracer it found
+    // ahead of the not-available line. The read answers the text the setup
+    // read, that path having written nothing (FR-016).
+    const bool tracerStands = !tracerSession.has_value()
+        && options.noiseTracer.has_value()
+        && detail::tracerStandsAsCurrent(*options.noiseTracer);
     jitterProbe.emplace(probeOptions);
     jitterProbe->start();
     // specs/036 FR-009, R-04, R-05: the figures stand read and the
@@ -1430,7 +1445,8 @@ auto speedgunMain(int argc, char** argv) -> int
             *precheckRecord,
             options.noiseTracer.value_or(sg::TracerEngine::NONE),
             options.jitterProbe->noisePercent,
-            options.jitterProbe->method);
+            options.jitterProbe->method,
+            tracerStands);
       }
     }
   }
