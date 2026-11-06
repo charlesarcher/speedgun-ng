@@ -573,6 +573,6 @@ an observation for spec `036` without changing it.
 
 | Item | Reading | Source |
 | --- | --- | --- |
-| Branch coverage shortfall | at most 21 uncovered branch rows, with line coverage at 100% and the exclusion-marker count at or under 84 | standing allowance at `tools/dbc/coverage_gate.sh:102`, the ceiling `coverage_gate.sh:45` checks; spec SC-002, FR-038 |
+| Branch coverage shortfall | at most 21 uncovered branch rows, with line coverage at 100% and the exclusion-marker count at or under 84 | the standing allowance at `tools/dbc/coverage_gate.sh:102`, the 100% line rule at `coverage_gate.sh:45`; the marker count is a lane reading under spec SC-002, taken by task T079's grep, since no tool checks it |
 
 No other gate needs an exception.
