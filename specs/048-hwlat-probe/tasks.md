@@ -695,17 +695,17 @@ each in the commit that lands the code it describes.
 **Purpose**: the hard gates of Principle VIII at the feature head, the
 coverage contract, the pinned suite, the gate records and the commits.
 
-- [ ] T070 [P] Run the drift gate over the page, the regions and the
+- [X] T070 [P] Run the drift gate over the page, the regions and the
   option rows (FR-037, FR-038, IV.1). Verify: `python3 tools/docs/example_drift.py .` exits 0
-- [ ] T071 [P] Run the format gate over the lane's sources (V, FR-038).
+- [X] T071 [P] Run the format gate over the lane's sources (V, FR-038).
   Verify: `cmake -P cmake/lint.cmake` exits 0
-- [ ] T072 [P] Run the spell gate (FR-038, FR-039). Verify: `cmake -P cmake/spell.cmake` exits 0
-- [ ] T073 [P] Run the time-source gate over the lane's files (FR-033,
+- [X] T072 [P] Run the spell gate (FR-038, FR-039). Verify: `cmake -P cmake/spell.cmake` exits 0
+- [X] T073 [P] Run the time-source gate over the lane's files (FR-033,
   FR-038). Verify: `bash test/time_source_gate.sh .` exits 0
-- [ ] T074 [P] Run the prose gate in tree mode over the added lines; the
+- [X] T074 [P] Run the prose gate in tree mode over the added lines; the
   range form needs a base that stands behind HEAD (FR-006, FR-038, XI).
   Verify: `python3 tools/prose/prose_gate.py --check prose --mode tree` exits 0
-- [ ] T075 [P] Run the DBC pair gate through the build target; the base
+- [X] T075 [P] Run the DBC pair gate through the build target; the base
   reads 347 interfaces with 0 gaps, and every new interface carries its
   documented kind and its enforced kind (II, FR-038). Verify: `cmake --build build -t dbc-gate` exits 0 and its report names 0 gaps
 - [ ] T076 [P] Run the analyzer build in a fresh tree, because a
@@ -718,16 +718,16 @@ coverage contract, the pinned suite, the gate records and the commits.
   line coverage, the branch shortfall stands at or under 21 rows, the
   tree holds at most 84 exclusion markers, and no marker joins under
   `source/harness` (FR-038, SC-002, VI) (depends on T063). Verify: `bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` exits 0, `grep -rn "LCOV_EXCL" source/harness` reads no match and `grep -rn "LCOV_EXCL" source test example include tools | wc -l` reads at most 84
-- [ ] T080 Run the full suite and read the entry count: three new
+- [X] T080 Run the full suite and read the entry count: three new
   executables and one new shape entry join the 181 entries of record, and
   the 13 tests of the attribution record stand among them (FR-032, SC-001,
   SC-003, VIII)
   (depends on T063). Verify: `ctest --test-dir build --output-on-failure` exits 0, `ctest --test-dir build -N | tail -n 1` reads `Total Tests: 185`, and `grep -hoE 'the[A-Za-z]+Rows' test/source/harness_hwlat_probe_test.cpp test/source/harness_hwlat_tracer_test.cpp test/source/harness_latency_counters_test.cpp | sort -u | wc -l` reads at least 13
 - [ ] T081 Run the pinned suite on corsairone in the `build/prepush`
   tree (FR-032, SC-003, VIII) (depends on T063). Verify: `taskset -c 0,1 ctest --preset prepush-quick -j 2` exits 0
-- [ ] T082 [P] Run the no-sleep and no-clock review over the three new
+- [X] T082 [P] Run the no-sleep and no-clock review over the three new
   test files (FR-032, FR-033). Verify: `grep -rlnE "sleep_for|steady_clock|system_clock|gettimeofday" test/source/harness_latency_counters_test.cpp test/source/harness_hwlat_probe_test.cpp test/source/harness_hwlat_tracer_test.cpp` reads no match
-- [ ] T083 [P] Run the code-discipline review over the lane's sources:
+- [X] T083 [P] Run the code-discipline review over the lane's sources:
   no lambda stands inside an `SG_` macro, the unit of Phase 2 stands the
   only kernel interface reader, and simdjson stands the only JSON reader
   the change uses, and no unit of the lane reaches for a privilege the
