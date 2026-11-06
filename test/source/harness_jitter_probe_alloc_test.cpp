@@ -19,14 +19,21 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <new>
+#include <optional>
+#include <string>
 #include <thread>
 #include <type_traits>
 #include <vector>
 
 #include <sched.h>
+#include <unistd.h>
 
+#include "../../source/detail/proc_root.hpp"
 #include "detail/jitter_probe.hpp"
+#include "detail/latency_counters.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_fake.hpp"
 #include "speedgun-ng/counters_system.hpp"
@@ -194,6 +201,56 @@ auto scriptedProvider() -> sg::counters::FakeProvider&
   }();
   return *provider;
 }
+
+// One file of the fake tree written whole (FR-032).
+auto writeWhole(const std::filesystem::path& path,
+                const std::string& bytes) -> void
+{
+  std::filesystem::create_directories(path.parent_path());
+  std::ofstream file(path, std::ios::binary | std::ios::trunc);
+  file.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+  file.close();
+  check(static_cast<bool>(file), "the fake file stands written (FR-032)");
+}
+
+// The file-root seam of the counter span: a tree that documents the vendor and
+// carries this cpu's node, so the keep step reaches the read itself rather than
+// the absent-source arm (FR-007, FR-010, FR-012, FR-019). The install clears
+// when the span ends.
+class CounterRootGuard
+{
+public:
+  explicit CounterRootGuard(std::uint32_t cpu)
+  {
+    static int sequence = 0;
+    m_root = std::filesystem::path("harness_jitter_probe_alloc_root_")
+        / ("pid" + std::to_string(::getpid()) + "-"
+           + std::to_string(sequence++));
+    std::filesystem::remove_all(m_root);
+    std::filesystem::create_directories(m_root);
+    writeWhole(m_root / "proc/cpuinfo",
+               "processor\t: 0\nvendor_id\t: GenuineIntel\n");
+    std::string node(sg::detail::kSmiCountAddress, '\0');
+    for (std::uint64_t index = 0; index < sg::detail::kSmiCountBytes; ++index) {
+      node.push_back(static_cast<char>(index == 0 ? 7 : 0));
+    }
+    writeWhole(m_root / ("dev/cpu/" + std::to_string(cpu) + "/msr"), node);
+    sg::detail::installTestProcRoot(m_root);
+  }
+
+  ~CounterRootGuard()
+  {
+    sg::detail::installTestProcRoot(std::nullopt);
+    std::error_code removeFailed;
+    std::filesystem::remove_all(m_root, removeFailed);
+  }
+
+  CounterRootGuard(const CounterRootGuard&) = delete;
+  auto operator=(const CounterRootGuard&) -> CounterRootGuard& = delete;
+
+private:
+  std::filesystem::path m_root;
+};
 
 // The measurement pass takes a fixed 1,024 loop reads the loop discards
 // (E-05, R-05): the pass series steps by `step`, so every in-pass delta
@@ -417,6 +474,27 @@ auto main() -> int
     check(kept > 0,
           "the armed span covered the keep step of the gap path (specs/048 "
           "FR-012, FR-013)");
+  }
+
+  // specs/048 FR-012, FR-013, P-2: the gap path with the counter read beside
+  // it. The tree documents the vendor and carries this cpu's node, so every
+  // kept gap reaches the read the unit owns, and the read's buffer stands on
+  // the stack. The armed span covers the passes that keep a gap and take a
+  // read, and the open, the gate and the edge reads stand outside it.
+  {
+    const auto cpus = pickCpus(1);
+    const CounterRootGuard root(cpus.at(0));
+    sg::JitterProbeOptions counterOptions;
+    counterOptions.cpus = cpus;
+    counterOptions.method = sg::JitterMethod::HWLAT;
+    std::uint64_t kept = 0;
+    const auto counted = runGapSpan(counterOptions, 20000, [] {}, kept);
+    check(counted == 0,
+          "the gap path with the counter read beside it takes no allocation "
+          "(specs/048 FR-012, P-2)");
+    check(kept > 0,
+          "the armed span covered the keep step that reads the counter "
+          "(specs/048 FR-012, FR-013, P-2)");
   }
 
   // T016, FR-041, Q-2: the plant on the gap path. One allocation the armed

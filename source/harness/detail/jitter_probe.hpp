@@ -269,8 +269,9 @@ private:
 /// \post `gapCount` counts the kept gaps, and `droppedGaps` counts the
 ///       gaps the buffer dropped (FR-010, D-6)
 /// \post `smiGapCount` counts the kept gaps whose change element stands
-///       above zero, and a change of zero marks its gap not SMI (FR-014,
-///       P-3)
+///       above zero, and a change of zero marks its gap not SMI. A change ring
+///       shorter than the kept set leaves the gaps it does not reach unmarked
+///       (FR-014, FR-015, P-3)
 /// \post `smiDelta` and `nmiDelta` answer the change of the pair of edge
 ///       reads of this cpu's run span, and stand with no value when
 ///       either read of that source stands absent (FR-011, FR-016)
@@ -287,6 +288,11 @@ private:
 /// \post a kept gap folds into every window whose half-open
 ///       `[start, end)` contains its stamp, and the fields carry the
 ///       contracts the run-level fold states (E-06, R-04)
+/// \post `smiGapCount` counts the placed gaps whose change element stands
+///       above zero, and the gaps a change ring shorter than the kept set does
+///       not reach stand unmarked. `smiDelta` and `nmiDelta` stand with no
+///       value, because this fold holds no window edge (FR-015, FR-016, FR-025,
+///       P-3)
 [[nodiscard]] auto gapStatsOf(const ProbeCpuState& state,
                               std::span<const TimedWindow> windows)
     -> JitterStats;
@@ -359,13 +365,13 @@ private:
 /// of a `mode=both` run whose method is `tsc` reads this fold, the
 /// alongside loop running on, and the fold reads no live buffer.
 ///
-/// \pre `gapsKept` equals the length of the copied gap prefix, and the
-///      copied change prefix holds that length too (E-03, P-3)
+/// \pre `gapsKept` equals the length of the copied gap prefix
 /// \post the fold answers the figures of the copied prefix, the
 ///       threshold, the loop period and the drop count carrying the
 ///       snapshot's own (FR-010, D-6)
 /// \post `smiGapCount` counts the copied gaps whose change element stands
-///       above zero (FR-014, P-3)
+///       above zero, and a copied change ring shorter than the copied prefix
+///       leaves the gaps it does not reach unmarked (FR-014, FR-015, P-3)
 /// \post `smiDelta` and `nmiDelta` answer the change of the snapshot's
 ///       pair of edge reads, the two reads of the pre-check window, and
 ///       stand with no value when either read of that source stands
@@ -416,8 +422,9 @@ private:
 /// pre-check window kept a noise fraction at or above the `noise=`
 /// threshold, in the order the planned list names. The gate reads the
 /// method's own figure: a FWQ window and a FTQ window keep no gaps, so
-/// the standing gap rule reads nothing there. A `tsc` window keeps no
-/// series, and a cpu the states do not name stands unjudged. The fold
+/// the standing gap rule reads nothing there. A `tsc` window and a `hwlat`
+/// window keep no series, and a cpu the states do not name stands
+/// unjudged. The fold
 /// reads each cpu's latch-time snapshot, the figures the pre-check
 /// window kept, so the gate stands race-free beside a running
 /// alongside loop (specs/045-merge-fixes FR-008, D-5).

@@ -107,6 +107,7 @@ constexpr std::uint64_t kRiseCount = 8;
 constexpr std::uint64_t kSecondRiseCount = 10;
 constexpr std::uint64_t kClosingCount = 12;
 constexpr std::uint64_t kFlatCount = 9;
+constexpr std::uint64_t kFallingCount = 5;
 constexpr std::uint64_t kNmiOpening = 100;
 constexpr std::uint64_t kNmiRise = 104;
 
@@ -451,6 +452,9 @@ auto spanOptions(const std::vector<std::uint32_t>& cpus,
 {
   sg::JitterProbeOptions options;
   options.cpus = cpus;
+  // D-1: the `hwlat` method carries the two counter reads, so every scenario
+  // that names a read drives that method (FR-012, FR-013).
+  options.method = sg::JitterMethod::HWLAT;
   options.mode = mode;
   options.thresholdNs = kThresholdNs;
   options.gapCount = gapCount;
@@ -1064,6 +1068,245 @@ auto theEdgeRows() -> void
       });
 }
 
+// T019: a run of a method that carries no counter read reads neither source:
+// the marks stand off, the marked count answers 0, and the two changes answer
+// nothing, while every standing figure holds (D-1, FR-012, FR-025, E-02).
+auto theStandingMethodRows() -> void
+{
+  const auto cpus = pickCpus(1);
+  const HwlatRootGuard root;
+  plant(root.root(), "proc/cpuinfo", kIntelText, kNodeRights);
+  plant(root.root(),
+        nodePath(cpus.at(0)),
+        nodeImage(kOpeningCount, sg::detail::kSmiCountBytes),
+        kNodeRights);
+  plant(root.root(),
+        "proc/interrupts",
+        interruptsText(columnCount(cpus), kNmiOpening),
+        kNodeRights);
+  resetScript(root.root(), columnCount(cpus));
+  gapCalls = {kGapOneCall, kGapTwoCall};
+  nodeWrites = {{kGapOneCall, kRiseCount}, {kGapTwoCall, kSecondRiseCount}};
+  auto options = spanOptions(cpus, sg::JitterProbeMode::ALONGSIDE, kGapCount);
+  options.method = sg::JitterMethod::TSC;
+  runSpan(
+      options,
+      1,
+      kGapTwoCall,
+      [] {},
+      [&](const auto& states)
+      {
+        const auto& state = states.at(0);
+        const auto stats = sg::detail::gapStatsOf(state);
+        check(state.kept == 2,
+              "the standing method keeps its gaps, so the row reads a run that "
+              "kept gaps and read no counter (D-1)");
+        checkSourceAbsent(
+            state,
+            stats,
+            "a method that carries no counter read leaves every gap unmarked "
+            "and the marked count at 0 (D-1, FR-012, FR-025)");
+        check(!stats.nmiDelta.has_value(),
+              "a method that carries no counter read leaves the interrupt "
+              "change with no value (D-1, FR-009, FR-025)");
+        check(standingFigures(stats, 2, 0),
+              "a method that carries no counter read keeps every standing "
+              "figure of the run (D-1, A-4, E-03)");
+      });
+}
+
+// T019: a node that answers no figure at the window's opening edge leaves the
+// window's first gap unmarked, and the next gap's span is measured from the
+// first read that answered (FR-011, FR-013, D-7, FR-016).
+auto theLateNodeRows() -> void
+{
+  const auto cpus = pickCpus(1);
+  const HwlatRootGuard root;
+  plant(root.root(), "proc/cpuinfo", kIntelText, kNodeRights);
+  plant(root.root(),
+        nodePath(cpus.at(0)),
+        nodeImage(kOpeningCount, 0),
+        kNodeRights);
+  plant(root.root(),
+        "proc/interrupts",
+        interruptsText(columnCount(cpus), kNmiOpening),
+        kNodeRights);
+  resetScript(root.root(), columnCount(cpus));
+  gapCalls = {kGapOneCall, kGapTwoCall};
+  nodeWrites = {{kGapOneCall, kRiseCount}, {kGapTwoCall, kSecondRiseCount}};
+  runSpan(
+      spanOptions(cpus, sg::JitterProbeMode::ALONGSIDE, kGapCount),
+      1,
+      kGapTwoCall,
+      [] {},
+      [&](const auto& states)
+      {
+        const auto& state = states.at(0);
+        const auto stats = sg::detail::gapStatsOf(state);
+        check(state.kept == 2 && state.changes.at(0) == 0
+                  && state.changes.at(1) == 2 && stats.smiGapCount == 1,
+              "a node that answers nothing at the opening edge leaves the "
+              "first gap unmarked, and the next gap's span answers the two "
+              "reads that did answer (FR-011, FR-013, D-7, FR-014)");
+        check(!stats.smiDelta.has_value(),
+              "an opening edge that answered nothing leaves the window change "
+              "with no value, past the reads that answered (FR-011, FR-016)");
+        check(stats.nmiDelta.has_value(),
+              "the source that answers from its first read keeps its change "
+              "while the node answers short (FR-009, FR-011)");
+      });
+  plant(root.root(),
+        nodePath(cpus.at(0)),
+        nodeImage(kOpeningCount, sg::detail::kSmiCountBytes),
+        kNodeRights);
+  resetScript(root.root(), columnCount(cpus));
+  gapCalls = {kGapOneCall, kGapTwoCall};
+  nodeWrites = {{kGapOneCall, kRiseCount}, {kGapTwoCall, kSecondRiseCount}};
+  runSpan(
+      spanOptions(cpus, sg::JitterProbeMode::ALONGSIDE, kGapCount),
+      1,
+      kGapTwoCall,
+      [] {},
+      [&](const auto& states)
+      {
+        const auto& state = states.at(0);
+        const auto stats = sg::detail::gapStatsOf(state);
+        check(state.changes.at(0) == 1 && state.changes.at(1) == 2
+                  && stats.smiGapCount == 2 && stats.smiDelta.has_value()
+                  && *stats.smiDelta == 3,
+              "a node that answers at the opening edge marks the window's "
+              "first gap too, and the window change answers the edge pair "
+              "(FR-013, FR-014, FR-016)");
+      });
+}
+
+// T019: a counter that stands lower than the read before it marks no gap, and
+// the window change answers the floor the figure carries: zero (FR-013,
+// FR-014, FR-016, E-02).
+auto theFallingNodeRows() -> void
+{
+  const auto cpus = pickCpus(1);
+  const HwlatRootGuard root;
+  plant(root.root(), "proc/cpuinfo", kIntelText, kNodeRights);
+  plant(root.root(),
+        nodePath(cpus.at(0)),
+        nodeImage(kOpeningCount, sg::detail::kSmiCountBytes),
+        kNodeRights);
+  plant(root.root(),
+        "proc/interrupts",
+        interruptsText(columnCount(cpus), kNmiOpening),
+        kNodeRights);
+  resetScript(root.root(), columnCount(cpus));
+  gapCalls = {kGapOneCall, kGapTwoCall};
+  nodeWrites = {{kGapOneCall, kRiseCount}, {kGapTwoCall, kFallingCount}};
+  runSpan(
+      spanOptions(cpus, sg::JitterProbeMode::ALONGSIDE, kGapCount),
+      1,
+      kGapTwoCall,
+      [] {},
+      [&](const auto& states)
+      {
+        const auto& state = states.at(0);
+        const auto stats = sg::detail::gapStatsOf(state);
+        check(state.changes.at(0) == 1 && state.changes.at(1) == 0
+                  && stats.smiGapCount == 1,
+              "a counter that stands lower than the read before it marks its "
+              "gap NOT_SMI, the way a flat span does (FR-013, FR-014)");
+        check(stats.smiDelta.has_value() && *stats.smiDelta == 0,
+              "the window change answers zero when the closing read stands "
+              "below the opening read, the floor the figure carries (FR-016, "
+              "E-02)");
+        check(standingFigures(stats, 2, 0),
+              "a falling counter leaves every standing figure of the run "
+              "(FR-016, E-03)");
+      });
+  plant(root.root(),
+        nodePath(cpus.at(0)),
+        nodeImage(kOpeningCount, sg::detail::kSmiCountBytes),
+        kNodeRights);
+  resetScript(root.root(), columnCount(cpus));
+  gapCalls = {kGapOneCall, kGapTwoCall};
+  nodeWrites = {{kGapOneCall, kRiseCount}, {kGapTwoCall, kClosingCount}};
+  runSpan(
+      spanOptions(cpus, sg::JitterProbeMode::ALONGSIDE, kGapCount),
+      1,
+      kGapTwoCall,
+      [] {},
+      [&](const auto& states)
+      {
+        const auto& state = states.at(0);
+        const auto stats = sg::detail::gapStatsOf(state);
+        check(state.changes.at(0) == 1 && state.changes.at(1) == 4
+                  && stats.smiGapCount == 2 && stats.smiDelta.has_value()
+                  && *stats.smiDelta == 5,
+              "a counter that rises between the reads marks both gaps, and the "
+              "window change answers the difference of the edge pair (FR-013, "
+              "FR-014, FR-016)");
+      });
+}
+
+// T019: the per-entry fold answers the count of the gaps its own windows place
+// and answers no window change, and the counts of the items add to the
+// run-level count (FR-013, FR-016, FR-025, P-3, E-06).
+auto theItemFoldRows() -> void
+{
+  const auto cpus = pickCpus(1);
+  const HwlatRootGuard root;
+  plant(root.root(), "proc/cpuinfo", kIntelText, kNodeRights);
+  plant(root.root(),
+        nodePath(cpus.at(0)),
+        nodeImage(kOpeningCount, sg::detail::kSmiCountBytes),
+        kNodeRights);
+  plant(root.root(),
+        "proc/interrupts",
+        interruptsText(columnCount(cpus), kNmiOpening),
+        kNodeRights);
+  resetScript(root.root(), columnCount(cpus));
+  gapCalls = {kGapOneCall, kGapTwoCall};
+  nodeWrites = {{kGapOneCall, kRiseCount}};
+  runSpan(
+      spanOptions(cpus, sg::JitterProbeMode::ALONGSIDE, kGapCount),
+      1,
+      kGapTwoCall,
+      [] {},
+      [&](const auto& states)
+      {
+        const auto& state = states.at(0);
+        const auto run = sg::detail::gapStatsOf(state);
+        // One window per kept gap, opened on that gap's own stamp, the reading
+        // E-06 gives the split (E-06, R-04).
+        const auto itemOf = [&](const std::size_t index)
+        {
+          const auto stamp = state.buffer.at(index).stamp;
+          const std::vector<sg::detail::TimedWindow> windows {
+              {.start = stamp,
+               .end = stamp + 1,
+               .entry = 0,
+               .repetition = 0,
+               .chunk = 0,
+               .pass = 0},
+          };
+          return sg::detail::gapStatsOf(state, windows);
+        };
+        const auto first = itemOf(0);
+        const auto second = itemOf(1);
+        check(first.gapCount == 1 && second.gapCount == 1
+                  && run.gapCount == 2,
+              "each item folds the one gap its own window places (E-06, E-08, "
+              "FR-025)");
+        check(first.smiGapCount == 1 && second.smiGapCount == 0
+                  && first.smiGapCount + second.smiGapCount == run.smiGapCount,
+              "the per-entry count folds the changes of that item's own kept "
+              "gaps, and the items' counts add to the run-level figure "
+              "(FR-014, FR-025, P-3)");
+        check(!first.smiDelta.has_value() && !first.nmiDelta.has_value()
+                  && run.smiDelta.has_value() && run.nmiDelta.has_value(),
+              "the per-entry record answers no window change, because that fold "
+              "holds no window edge, and the run-level record carries both "
+              "(FR-016, FR-025, P-5)");
+      });
+}
+
 }  // namespace
 
 auto main() -> int
@@ -1079,6 +1322,10 @@ auto main() -> int
   theOncePerSourceRows();
   theBufferRows();
   theEdgeRows();
+  theStandingMethodRows();
+  theLateNodeRows();
+  theFallingNodeRows();
+  theItemFoldRows();
   std::printf(failures == 0 ? "ok\n" : "%d checks failed\n", failures);
   return failures == 0 ? 0 : 1;
 }
