@@ -949,7 +949,8 @@ priority.
   FR-021; `test/source/harness_hwlat_tracer_test.cpp:1257-1287`)
   (done at 4181a0b8 on `fix/048-convergence`, LOW)
 
-- [ ] T109 Justify the detector engine the docs example requests, or record the
+- [X] T109 Justify the detector engine the docs example requests, or record the
   host limit it carries: a host that holds tracefs prints a tracer block
   the recorded block lacks, and specs/036's example carries the same
-  shape (per FR-037, SC-011) (unrequested, LOW)
+  shape (per FR-037, SC-011) (recorded in `results/gates.md`, LOW)
+
