@@ -211,14 +211,21 @@ shapes the prompt leaves open.
   `source/harness/noise_tracer.cpp:48` and names `osnoise` or `timerlat`
   today; the grammar stands at
   `specs/036-osnoise-timerlat-tracers/contracts/cli-options.md:31`.
-- The host facts read on this box on 2026-11-05, as an unprivileged
-  user: `/dev/cpu/0/msr` exists and answers `EACCES`; `/proc/interrupts`
-  carries 83 lines and no `NMI` line, because the kernel withholds the
-  `NMI` and `LOC` rows from an unprivileged reader;
-  `/sys/kernel/tracing` exists, its files answer `EACCES`, and no
-  `hwlat_detector` directory stands under it while the detector stands
-  unloaded. Each state is the ordinary not-available path of this
-  feature, and each one the tests fake.
+- The host facts read on this box as an unprivileged user:
+  `/dev/cpu/0/msr` exists and answers `EACCES` (read 2026-11-05);
+  `/proc/interrupts` carries 83 lines and no `NMI` line, because the
+  kernel withholds the `NMI` and `LOC` rows from an unprivileged reader
+  (read 2026-11-05); `/sys/kernel/tracing` exists as
+  `drwx------ root root` (read 2026-11-07), so a listing answers
+  `EACCES` and names nothing under the mount. The host builds the
+  detector in: `CONFIG_HWLAT_TRACER=y` stands in its kernel
+  configuration, `init_hwlat_tracer` calls `init_tracefs` at
+  `kernel/trace/trace_hwlat.c:883` behind the `late_initcall` at `:887`,
+  and that path creates `hwlat_detector/` at `:774` with `window`
+  (`:778`), `width` (`:785`) and `mode` (`:792`) inside it. The
+  directory stands there from boot and reads only with the rights. Each
+  unprivileged state is the ordinary not-available path of this feature,
+  and each one the tests fake.
 - The docs gates stand at `tools/docs/example_drift.py`
   (`PAGE_LINE_CAP = 1004` at `:256`; `README.md` stands at 1001 lines on
   master), `tools/prose/prose_gate.py`, `tools/dbc/dbc_pair_gate.py`,
@@ -750,7 +757,9 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   `current_tracer` already reads `hwlat` ahead of the run, the tracer
   lines SHALL state `not available`, one disclosure line SHALL name that
   last cause, the user-space figures SHALL stand whole, and the exit
-  status SHALL stand 0.
+  status SHALL stand 0. The lane host builds the detector in, so the
+  absent-detector shape stands a fake-tree case: corsairone never shows
+  it, and the recorded root run cannot demonstrate it.
 - **FR-024**: The feature SHALL gain no setuid helper, no capability
   grant, no daemon, and no write outside the files FR-019 names.
 
@@ -949,7 +958,9 @@ to `:102`). No key changes its kind, and no key moves.
 - **SC-005**: Two root runs stand recorded on corsairone, one per surface,
   each with its host, kernel, compiler, commands, exit codes, figures,
   and, for the detector run, the value of every written file before and
-  after.
+  after. The host builds the detector in, so the absent-detector shape
+  of FR-023 stands outside both records: corsairone never shows it, and
+  no recorded run can demonstrate it.
 - **SC-006**: A run that names neither new word writes a document whose
   bytes match master's document apart from the schema and version values,
   measured by the standing byte test.
