@@ -1,46 +1,3 @@
-# Tasks: Hardware Latency Probe with SMI Attribution
-
-**Input**: Design documents from `/specs/048-hwlat-probe/`
-
-**Prerequisites**: [plan.md](./plan.md) (required), [spec.md](./spec.md)
-(required for user stories), [research.md](./research.md),
-[data-model.md](./data-model.md), [contracts/](./contracts/),
-[quickstart.md](./quickstart.md)
-
-**Tests**: TDD mode (plan.md, Execution mode): the test task of each
-pair stands written and observed failing before the code task that
-turns it green. FR-035 keeps a test and its code in one commit, so each
-implementation task names the ctest run that turns green as its verify.
-
-**Organization**: tasks stand grouped by user story behind the module
-order plan.md fixes (M1 to M10) and its four waves (W1 to W4). Each
-phase names the module it leads and the wave it lands in; a phase that
-spans two waves says so in its title. Workers check each unit with
-`g++ -fsyntax-only -std=c++23 -Iinclude -Isource -Isource/harness -Ibuild/export <file>`
-and add `-DSG_SCHEMA_PATH='"docs/schema/report-v1.json"'` for the
-schema unit. The integrator owns every `cmake --build` and `ctest` run,
-records each red before the green, and returns the failing output to
-the owning worker.
-
-## Format: `[ID] [P?] [Story] Description`
-
-- **[P]**: can run in parallel; no other task of the same wave names a
-  file this task names
-- **[Story]**: the story the task serves (`US1` to `US6`), in the story
-  phases alone
-- Every description names the exact file path, the requirement ids it
-  closes, and the verify command
-
-A file that carries several tasks lists them one owner at a time with
-no `[P]`, the way plan.md names `source/harness/cli.cpp` the
-integrator's file.
-
----
-
-## Phase 1: Setup and Foundational - the public surface and the test executables (module M2)
-
-**Purpose**: the types every story stands on, and the executables the
-later phases reach red in. No module builds before this phase closes.
 
 - [X] T001 Open `harness_latency_counters_test` in `test/CMakeLists.txt`
   beside the standing harness units: the `add_executable` line, the
@@ -732,7 +689,7 @@ coverage contract, the pinned suite, the gate records and the commits.
   only kernel interface reader, and simdjson stands the only JSON reader
   the change uses, and no unit of the lane reaches for a privilege the
   process does not hold (FR-024, FR-038, II, X.2). Verify: `grep -rnE "SG_(REQUIRE|ENSURE|INVARIANT)\(.*\] *\(" source/harness/latency_counters.cpp source/harness/noise_tracer.cpp source/harness/jitter_probe.cpp` reads no match, `grep -rnE "nlohmann|rapidjson" source/harness | wc -l` reads 0 and `grep -rniE "setuid|capset|daemon|modprobe|request_module|insmod" source/harness | wc -l` reads 0
-- [ ] T084 Write the gate record in
+- [X] T084 Write the gate record in
   `specs/048-hwlat-probe/results/gates.md`: each gate with its command
   and its exit code, the coverage reading with its line and branch
   figures, the marker count, the entry count and the pinned suite
@@ -886,3 +843,114 @@ priority.
   it equal against a real run. `tools/docs/report_shape.py` reads no finding on
   this host, and its cpu-fold leaves the figures, the method word and the line
   classes standing.
+
+## Phase 12: Convergence
+
+- [ ] T090 Read the coverage gate to a green exit: raise the instrumented-lane
+  ceilings to the readings of the serial coverage run, re-run the coverage
+  tree's suite with one worker and no entry left unrun, close every line the
+  trace leaves cold, and record the line figure, the branch shortfall as a
+  number beside the allowance of 21 and the marker count (per SC-002, SC-004,
+  Constitution VI and VIII, T079) (missing, CRITICAL)
+
+- [ ] T091 Run the two root-only acceptance passes on the lane host and write
+  `results/user-space.md` and `results/detector.md`, each naming host,
+  kernel, compiler, command, exit code and figures, with the six-file
+  before-and-after table and `tracing_on` at 0 (per SC-005, SC-007,
+  T054-T056) (missing, HIGH, owner action: `/sys/kernel/tracing` stands
+  `0700`)
+
+- [ ] T092 Record the CI reading of the head this lane carries: every job, its
+  answer, the compiler that job builds with, and the coverage figures,
+  in `results/gates.md` (per SC-004, Constitution VIII, T085) (partial,
+  HIGH)
+
+- [X] T093 Measure the pinned two-cpu lane on the lane host, the quick prepush
+  preset over two workers pinned to cpus 0 and 1, and record it, and take the
+  pinned lane out of the reading the CI jobs stand in for (per SC-003, T081)
+  (measured on the lane host, recorded in `results/gates.md`, HIGH)
+
+- [X] T094 Decide the rule the marked-gap count and the counter disclosure answer
+  to one source: a node that answers after the window's opening edge
+  prints `SMI count not available` beside `smi gaps: n`, so either gate
+  the count on the source or state the split in
+  `contracts/console-report.md` and add the report row that reads the
+  pair together (per FR-015, FR-016, T019) (done at 1595ea5e, MEDIUM)
+
+- [X] T095 Restate the three guide lines that call the counter a machine-check
+  interrupt: the figure is the system-management-interrupt count (per
+  FR-006, FR-007, FR-014; `docs/pages/harness.md:1894, :2380, :2382`)
+  (done at 980997a9, MEDIUM)
+
+- [X] T096 Install the file-root seam around the three `method=hwlat` rows of
+  `harness_jitter_cli_test.cpp`, or record the exception beside the
+  standing specs/034 CLI rows (per FR-001;
+  `test/source/harness_jitter_cli_test.cpp:3126, :3204, :3215`)
+  (done at 6af151ba, MEDIUM)
+
+- [X] T097 Stand a row in the probe unit that runs the window with no node in the
+  planted tree and reads the console disclosure once, or restate the
+  FR-011 coverage row to name the two units that hold the claim (per
+  FR-011, US1 AC-3, T014) (done at 3d5daec5, MEDIUM)
+
+- [X] T098 Give `readNullableCount` its own sentence and move the read of
+  `readJitterCpu` back onto `readJitterCpu`: one comment ends
+  mid-sentence and its tail stands three lines away above the wrong
+  function (per Constitution IV; `source/harness/json_load.cpp:454-459,
+  :532`) (done at 4f7e2ec2, MEDIUM)
+
+- [X] T099 Rewrite the contract row that states the per-benchmark count figure
+  "stands 0" to the fold the spec, the task and the code carry (per
+  FR-025; `specs/048-hwlat-probe/contracts/report-json.md:94-97`)
+  (done at 6e218c6b, MEDIUM)
+
+- [X] T100 Stand one named row for `osnoise` or `timerlat` that reads
+  `current_tracer` and `tracing_cpumask` back after a mid-setup write
+  fails, the behaviour the amended specs/036 contract row promises (per
+  FR-021, D-15, P-9;
+  `specs/036-osnoise-timerlat-tracers/contracts/cli-options.md:95`)
+  (done at a2f6e008, MEDIUM)
+
+- [X] T101 Stand one named row that installs a denial after a setup that
+  succeeded and reads the run's exit status, the status clause of the
+  restore-failure requirement (per FR-022, FR-034;
+  `source/harness/cli.cpp:1277-1278`) (done at 3abed7ac, MEDIUM)
+
+- [X] T102 Stand one named row over a tree that carries `sys/kernel/tracing` and
+  no `hwlat_detector/` directory, reading `tracer: not available`, the
+  user-space figures whole and status 0 (per SC-001, FR-023, FR-034;
+  `test/source/harness_hwlat_tracer_test.cpp:1016, :1037`) (done at bd19314b, MEDIUM)
+
+- [ ] T103 Re-take the cheap-gate rows at a head the branch carries, so the
+  record names no head that stands off its own history (per SC-004,
+  T084) (partial, MEDIUM)
+
+- [X] T104 Restate the two latch-fold comments to name both gap methods, the
+  `hwlat` record reads the same fold the `tsc` record names (per FR-016,
+  T017; `source/harness/detail/jitter_probe.hpp:365`,
+  `source/harness/jitter_probe.cpp:1262`) (done at 5d989492 and 1e75af96, LOW)
+
+- [X] T105 Re-anchor the line citations the lane's own commits moved in
+  `contracts/console-report.md`, `contracts/report-json.md` and
+  `contracts/rule-names.md`, or name the token in place of the line (per
+  FR-004, FR-029) (done at 09f20aaa and d53785a8, LOW)
+
+- [X] T106 Add the two-word enum for the gap mark to
+  `docs/schema/report-v1.json`, or drop the "one of" clause from the
+  contract row the schema does not carry (per FR-029;
+  `docs/schema/report-v1.json:245`) (closed by ruling at 93674d3f, LOW)
+
+- [X] T107 Tick the README line count the record states at 1001 to the 1002 the
+  file holds (per T052, FR-037; `specs/048-hwlat-probe/tasks.md:880`)
+  (done at fc330b99, LOW)
+
+- [X] T108 Read the loaded document's interrupt outcome on the interrupted-run
+  row, the clause of US2 scenario 4 the row leaves unasserted (per
+  FR-021; `test/source/harness_hwlat_tracer_test.cpp:1257-1287`)
+  (done at 16f0bf20, LOW)
+
+- [X] T109 Justify the detector engine the docs example requests, or record the
+  host limit it carries: a host that holds tracefs prints a tracer block
+  the recorded block lacks, and specs/036's example carries the same
+  shape (per FR-037, SC-011) (recorded in `results/gates.md`, LOW)
+
