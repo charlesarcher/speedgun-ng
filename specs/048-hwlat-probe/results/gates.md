@@ -194,6 +194,19 @@ as hit while every line inside it stood omitted, and the tool answered with no n
 Four reads of the trace carry the tolerated class now: the capture, the extract, the `--list`
 step of the coverage target, and the `--summary` read of the gate script.
 
+## The pinned lane on the lane host (T093)
+
+`taskset -c 0,1 ctest --test-dir build -L quick -j 2 --output-on-failure` over the tree of
+`fix/048-convergence` at `ef49f14d`, on the lane host: 183 of 183 passed, exit 0,
+`Total Test time (real) = 763.93 sec` and `quick = 1569.51 sec*proc`. Two workers on two cpus
+over the standing quick entry set, so no entry needs a ceiling for the pinned lane, and the
+readings of the CI jobs stand in for nothing here.
+
+One deviation stands on the record. The run used that tree's warm developer build, because the
+`prepush` preset resolves to `build/prepush` and that tree needs a configure and a build pass
+beside the coverage work that was running. The pinning, the worker count and the entry set are
+the preset's, and the compiler and the flags are the developer tree's.
+
 ## Pending
 
 - The docs example of the detector engine requests `.tracerEngine = sg::TracerEngine::HWLAT`,
