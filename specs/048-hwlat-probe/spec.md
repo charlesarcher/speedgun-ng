@@ -321,22 +321,24 @@ shapes the prompt leaves open.
   (`kernel/trace/trace_hwlat.c:67`), so each tracer cpu carries its own
   detector thread and states figures of its own. The kernel default
   `round-robin` moves one thread across the mask, and a mask of many cpus
-  then leaves most of them with no window of their own. The detector reads
-  `tracing_cpumask` and `tracing_thresh` when it starts
-  (`kernel/trace/trace_hwlat.c:434`, `:836`), and its bound compares each
-  width write against the standing window
-  (`kernel/trace/trace_hwlat.c:734`), so the mask, the mode, the two knobs
-  and the threshold stand written before the engine word. The order stands
-  in the requirement (FR-019).
+  then leaves most of them with no window of their own. The per-cpu start
+  this lane rules reads `tracing_cpumask` at
+  `kernel/trace/trace_hwlat.c:585`, and the tracer's init reads
+  `tracing_thresh` at `:836`. The detector's bound compares each width
+  write against the standing window (`kernel/trace/trace_hwlat.c:734`),
+  so the mask, the mode, the two knobs and the threshold stand written
+  before the engine word. The order stands in the requirement (FR-019).
 - **D-10**: the three values the run writes stand named constants, and
   the run states them in the console block and the record. The lane
   prompt names no values. The lane's proposal holds a window of
   10,000 us, a width of 5,000 us and a trigger threshold of 1,000 us:
-  the width stands below the window, the kernel's rule, and the window
-  stands twenty times inside the 200 ms pre-check default, so one default
-  run leaves each tracer cpu about twenty windows of its own under the
-  per-cpu mode of D-9 (Assumptions A-3). The kernel's own defaults and
-  bounds stand cited beside A-3 and FR-019.
+  the width stands below the window, the lane's stricter bound that FR-020
+  states, and the window stands twenty times inside the 200 ms pre-check
+  default, so one default run leaves each tracer cpu about twenty windows
+  of its own under the per-cpu mode of D-9 (Assumptions A-3). The kernel
+  refuses a value below its minimum or above its maximum and accepts a
+  width equal to the window (`kernel/trace/trace.c:6728` to `:6732`). The
+  kernel's own defaults and bounds stand cited beside A-3 and FR-019.
 - **D-11**: the user-space method keeps the standing threshold rule of
   spec `027`: 200 ns, rising to ten times the measured loop period. The
   key `threshold=` stands, and a reader who wants a low threshold types
@@ -991,9 +993,10 @@ to `:102`). No key changes its kind, and no key moves.
   in every line the lane adds, including commit text and records.
 - Requirements: EARS form under constitution III, with the pre- and
   postcondition discipline of constitution II on every new function.
-- The kept gap record keeps its 16 bytes and its two fields
-  (`source/harness/detail/jitter_probe.hpp:47`), so the ring buffer and
-  the probe's hot path keep their standing cost (constitution VII).
+- The kept gap record keeps its 16 bytes
+  (`source/harness/detail/jitter_probe.hpp:47`) and its two fields
+  (`:43-44`), so the ring buffer and the probe's hot path keep their
+  standing cost (constitution VII).
 - The three new readers stand on the harness side and add no dependency
   and no public counters header.
 - The feature reads every kernel source through the standing file-root

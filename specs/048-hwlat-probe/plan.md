@@ -345,10 +345,13 @@ owning worker.
   parse rule takes a line only when `#` stands at column 1 and a digit
   stands at column 2. A test plants a header of the standing shape, so a
   rule that takes legend lines reaches red.
-- **R-3**: the two detector knobs carry the kernel's own bounds, and
-  `width` must stay under `window`. The lane writes width before window,
-  so a write of a width above the standing window cannot fail. A test
-  plants the standing values and asserts the write order.
+- **R-3**: the two detector knobs carry the kernel's own bounds, which
+  refuse a value below the minimum or above the maximum and accept a
+  width equal to the window (`kernel/trace/trace.c:6728` to `:6732`).
+  The lane's own stricter bound stands in spec FR-020: `width` stands
+  under `window`. The lane writes width before window, so a write of a
+  width above the standing window cannot fail. A test plants the standing
+  values and asserts the write order.
 - **R-4**: the kernel saves `tracing_thresh` when the engine word lands,
   so its own reset puts back the run's value and only the session holds
   the host's. The reverse restore order answers that, and a test plants a
