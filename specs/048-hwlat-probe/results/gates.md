@@ -149,7 +149,8 @@ is what ran.
 ## The lanes over the branch that fixes the lanes (T092)
 
 Head `b8204413`, run `42289059046`, and head `602730e6`, run `42297681487`, both on the branch
-`fix/ci-lane-rows` over base `39bd33d0`. The runners answer as root. The Rocky lane builds with
+`fix/ci-lane-rows` over base `39bd33d0`. Those two heads stand on the pull request; the
+lines they landed as on master read `5781aaec`, `48e89812` and `c87ede7a`. The runners answer as root. The Rocky lane builds with
 gcc 14, the two sanitizer lanes build with clang, and the delta between the two heads is two
 `lcov` reads that carry one tolerated error class.
 
@@ -197,7 +198,7 @@ step of the coverage target, and the `--summary` read of the gate script.
 ## The pinned lane on the lane host (T093)
 
 `taskset -c 0,1 ctest --test-dir build -L quick -j 2 --output-on-failure` over the tree of
-`fix/048-convergence` at `ef49f14d`, on the lane host: 183 of 183 passed, exit 0,
+`fix/048-convergence` at `ef49f14d`, which lands on master as `1595ea5e`, on the lane host: 183 of 183 passed, exit 0,
 `Total Test time (real) = 763.93 sec` and `quick = 1569.51 sec*proc`. Two workers on two cpus
 over the standing quick entry set, so no entry needs a ceiling for the pinned lane, and the
 readings of the CI jobs stand in for nothing here.
