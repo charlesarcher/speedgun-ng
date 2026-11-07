@@ -492,7 +492,7 @@ dev/cpu/3/msr                             8-byte little-endian counter at 0x34
 sys/kernel/tracing/current_tracer         nop
 sys/kernel/tracing/tracing_cpumask        ffffffff
 sys/kernel/tracing/tracing_thresh         10000
-sys/kernel/tracing/hwlat_detector/mode    round-robin
+sys/kernel/tracing/hwlat_detector/mode    none [round-robin] per-cpu
 sys/kernel/tracing/hwlat_detector/width   500000
 sys/kernel/tracing/hwlat_detector/window  1000000
 sys/kernel/tracing/per_cpu/cpu3/trace     header plus #1 inner/outer lines
