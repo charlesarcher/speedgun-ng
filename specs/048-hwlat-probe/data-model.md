@@ -570,7 +570,7 @@ the run writes, and the vector the session carries across the window
   values need the low one first, the order spec FR-019 states. The mask, the
   mode, the two knobs and the threshold stand written before the engine
   word, because the detector takes the mask when it starts
-  (`kernel/trace/trace_hwlat.c:434`, `kernel/trace/trace_hwlat.c:585`),
+  (`kernel/trace/trace_hwlat.c:585`),
   creates one thread per masked cpu under the per-cpu mode
   (`kernel/trace/trace_hwlat.c:575-591`), reads the threshold in its init
   (`kernel/trace/trace_hwlat.c:836`) and starts the sampling from the
