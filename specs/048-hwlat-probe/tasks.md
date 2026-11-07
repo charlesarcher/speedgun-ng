@@ -865,10 +865,10 @@ priority.
   in `results/gates.md` (per SC-004, Constitution VIII, T085) (partial,
   HIGH)
 
-- [ ] T093 Measure the pinned two-cpu lane on the lane host, the quick prepush
+- [X] T093 Measure the pinned two-cpu lane on the lane host, the quick prepush
   preset over two workers pinned to cpus 0 and 1, and record it, and take the
   pinned lane out of the reading the CI jobs stand in for (per SC-003, T081)
-  (partial, HIGH)
+  (measured on the lane host, recorded in `results/gates.md`, HIGH)
 
 - [X] T094 Decide the rule the marked-gap count and the counter disclosure answer
   to one source: a node that answers after the window's opening edge
