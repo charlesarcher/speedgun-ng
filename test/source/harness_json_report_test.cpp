@@ -1237,6 +1237,38 @@ auto theDetectorFiguresStandBesideTheHardwareFigure() -> void
   std::remove("harness_json_hwlat_figures.json");
 }
 
+// FR-029, T090: the three detector settings stand together or not at all. A
+// record that carries a window and no width writes none of the three names, and
+// a record that carries the window and the width and no threshold writes none
+// either. The record that carries all three stands beside them as the positive
+// control of both.
+auto aPartialDetectorSettingWritesNoName() -> void
+{
+  for (const int dropped : {1, 2, 0}) {
+    auto record = tracerRecord("hwlat");
+    if (dropped == 1) {
+      record.tracer->widthUs = std::nullopt;
+    }
+    if (dropped == 2) {
+      record.tracer->thresholdUs = std::nullopt;
+    }
+    const char* const path = dropped == 1
+        ? "harness_json_hwlat_nowidth.json"
+        : (dropped == 2 ? "harness_json_hwlat_nothreshold.json"
+                        : "harness_json_hwlat_allthree.json");
+    const auto text =
+        writtenText(path, sg::ReportData {}, std::nullopt, record);
+    const bool window = text.find("\"windowUs\"") != std::string::npos;
+    const bool width = text.find("\"widthUs\"") != std::string::npos;
+    const bool threshold = text.find("\"thresholdUs\"") != std::string::npos;
+    check(dropped == 0 ? (window && width && threshold)
+                       : (!window && !width && !threshold),
+          "the three detector settings are written together or not at all, so "
+          "a " "record missing one of them writes none (FR-029, T090)");
+    std::remove(path);
+  }
+}
+
 // FR-027, P-7: the six new tracer names ride the `hwlat` engine alone, so an
 // `osnoise` record that carries the member values writes none of them.
 auto aStandingEngineWritesNoDetectorName() -> void
@@ -1345,6 +1377,7 @@ auto main() -> int
   theTracerSettingsStandBesideTheEngineWord();
   theDetectorFiguresStandBesideTheHardwareFigure();
   aStandingEngineWritesNoDetectorName();
+  aPartialDetectorSettingWritesNoName();
   theLimitsKeyStandsBesideTheDisclosure();
   theDetectorDocumentPassesTheSchema();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
