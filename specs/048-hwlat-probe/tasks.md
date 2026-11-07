@@ -875,51 +875,51 @@ priority.
   prints `SMI count not available` beside `smi gaps: n`, so either gate
   the count on the source or state the split in
   `contracts/console-report.md` and add the report row that reads the
-  pair together (per FR-015, FR-016, T019) (done at ef49f14d on `fix/048-convergence`, MEDIUM)
+  pair together (per FR-015, FR-016, T019) (done at 1595ea5e, MEDIUM)
 
 - [X] T095 Restate the three guide lines that call the counter a machine-check
   interrupt: the figure is the system-management-interrupt count (per
   FR-006, FR-007, FR-014; `docs/pages/harness.md:1894, :2380, :2382`)
-  (done at 47af675d on `fix/048-convergence`, MEDIUM)
+  (done at 980997a9, MEDIUM)
 
 - [X] T096 Install the file-root seam around the three `method=hwlat` rows of
   `harness_jitter_cli_test.cpp`, or record the exception beside the
   standing specs/034 CLI rows (per FR-001;
   `test/source/harness_jitter_cli_test.cpp:3126, :3204, :3215`)
-  (done at 2fde0811 on `fix/048-convergence`, MEDIUM)
+  (done at 6af151ba, MEDIUM)
 
 - [X] T097 Stand a row in the probe unit that runs the window with no node in the
   planted tree and reads the console disclosure once, or restate the
   FR-011 coverage row to name the two units that hold the claim (per
-  FR-011, US1 AC-3, T014) (done at ec770221 on `fix/048-convergence`, MEDIUM)
+  FR-011, US1 AC-3, T014) (done at 3d5daec5, MEDIUM)
 
 - [X] T098 Give `readNullableCount` its own sentence and move the read of
   `readJitterCpu` back onto `readJitterCpu`: one comment ends
   mid-sentence and its tail stands three lines away above the wrong
   function (per Constitution IV; `source/harness/json_load.cpp:454-459,
-  :532`) (done at c80a9b5a on `fix/048-convergence`, MEDIUM)
+  :532`) (done at 4f7e2ec2, MEDIUM)
 
 - [X] T099 Rewrite the contract row that states the per-benchmark count figure
   "stands 0" to the fold the spec, the task and the code carry (per
   FR-025; `specs/048-hwlat-probe/contracts/report-json.md:94-97`)
-  (done at e1e774c8 on `fix/048-convergence`, MEDIUM)
+  (done at 6e218c6b, MEDIUM)
 
 - [X] T100 Stand one named row for `osnoise` or `timerlat` that reads
   `current_tracer` and `tracing_cpumask` back after a mid-setup write
   fails, the behaviour the amended specs/036 contract row promises (per
   FR-021, D-15, P-9;
   `specs/036-osnoise-timerlat-tracers/contracts/cli-options.md:95`)
-  (done at 12917398 on `fix/048-convergence`, MEDIUM)
+  (done at a2f6e008, MEDIUM)
 
 - [X] T101 Stand one named row that installs a denial after a setup that
   succeeded and reads the run's exit status, the status clause of the
   restore-failure requirement (per FR-022, FR-034;
-  `source/harness/cli.cpp:1277-1278`) (done at 20f0f105 on `fix/048-convergence`, MEDIUM)
+  `source/harness/cli.cpp:1277-1278`) (done at 3abed7ac, MEDIUM)
 
 - [X] T102 Stand one named row over a tree that carries `sys/kernel/tracing` and
   no `hwlat_detector/` directory, reading `tracer: not available`, the
   user-space figures whole and status 0 (per SC-001, FR-023, FR-034;
-  `test/source/harness_hwlat_tracer_test.cpp:1016, :1037`) (done at 2b16602e on `fix/048-convergence`, MEDIUM)
+  `test/source/harness_hwlat_tracer_test.cpp:1016, :1037`) (done at bd19314b, MEDIUM)
 
 - [ ] T103 Re-take the cheap-gate rows at a head the branch carries, so the
   record names no head that stands off its own history (per SC-004,
@@ -928,26 +928,26 @@ priority.
 - [X] T104 Restate the two latch-fold comments to name both gap methods, the
   `hwlat` record reads the same fold the `tsc` record names (per FR-016,
   T017; `source/harness/detail/jitter_probe.hpp:365`,
-  `source/harness/jitter_probe.cpp:1262`) (done at e43cbc04 and 172212ce on `fix/048-convergence`, LOW)
+  `source/harness/jitter_probe.cpp:1262`) (done at 5d989492 and 1e75af96, LOW)
 
 - [X] T105 Re-anchor the line citations the lane's own commits moved in
   `contracts/console-report.md`, `contracts/report-json.md` and
   `contracts/rule-names.md`, or name the token in place of the line (per
-  FR-004, FR-029) (done at 52b7127a and a13e5161 on `fix/048-convergence`, LOW)
+  FR-004, FR-029) (done at 09f20aaa and d53785a8, LOW)
 
 - [X] T106 Add the two-word enum for the gap mark to
   `docs/schema/report-v1.json`, or drop the "one of" clause from the
   contract row the schema does not carry (per FR-029;
-  `docs/schema/report-v1.json:245`) (closed by ruling at f1f15be6 on `fix/048-convergence`, LOW)
+  `docs/schema/report-v1.json:245`) (closed by ruling at 93674d3f, LOW)
 
 - [X] T107 Tick the README line count the record states at 1001 to the 1002 the
   file holds (per T052, FR-037; `specs/048-hwlat-probe/tasks.md:880`)
-  (done at 9d1a9d32 on `fix/048-convergence`, LOW)
+  (done at fc330b99, LOW)
 
 - [X] T108 Read the loaded document's interrupt outcome on the interrupted-run
   row, the clause of US2 scenario 4 the row leaves unasserted (per
   FR-021; `test/source/harness_hwlat_tracer_test.cpp:1257-1287`)
-  (done at 4181a0b8 on `fix/048-convergence`, LOW)
+  (done at 16f0bf20, LOW)
 
 - [X] T109 Justify the detector engine the docs example requests, or record the
   host limit it carries: a host that holds tracefs prints a tracer block
