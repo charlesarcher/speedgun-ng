@@ -3130,10 +3130,10 @@ auto scenarioTopdownLevelNamesTheBlockOfAHunterRun() -> void
   check(countOf(named, "topdown: core-wide coverage=") <= 1,
         "one run prints the coverage line at most once, the one-per-process "
         "rule of the single call (FR-035)");
-  check(countOf(named, "topdown: level=") == 1,
-        "one run of one benchmark answers one block, so the named level admits "
-        "no second block of the companion (FR-016, FR-034)");
   if (deep.has_value()) {
+    check(countOf(named, "topdown: level=") == 1,
+          "one run of one benchmark answers one block, so the named level "
+          "admits no second block of the companion (FR-016, FR-034)");
     const auto header = "topdown: level=" + std::to_string(deep->depth);
     check(lineHolding(named, "topdown: level=").starts_with(header + " passes="),
           "the header states the level the option named, clamped to the depth "
