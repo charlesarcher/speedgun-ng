@@ -196,6 +196,13 @@ step of the coverage target, and the `--summary` read of the gate script.
 
 ## Pending
 
+- The docs example of the detector engine requests `.tracerEngine = sg::TracerEngine::HWLAT`,
+  and the recorded block carries no tracer lines: the tree that recorded it holds no usable
+  tracefs, so the run answers `tracer: not available`, keeps its user-space figures and holds
+  status 0. A host that holds tracefs prints the tracer lines the recorded block lacks beside
+  the same figures. specs/036-osnoise-timerlat-tracers carries the same limit for its own
+  example, so the example keeps its shape and this note carries the limit (per FR-037, SC-011,
+  T109).
 - The root-only acceptance of SC-005 and SC-007 (T054, T055, T056) stands unrun: this
   session holds no root, and `/sys/kernel/tracing` stands `0700`. The real-counter
   reading, the planted system-management-interrupt reading, and the reading that every
