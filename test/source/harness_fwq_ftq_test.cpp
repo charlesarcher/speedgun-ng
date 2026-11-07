@@ -1023,6 +1023,36 @@ auto theSpectrumGuardsLeaveTheTransformUnread() -> void
         "theSpectrumGuardsLeaveTheTransformUnread: a FWQ median of 0 leaves "
         "the resample unread (FR-017, FR-018, R-12)");
 
+  // The span below one whole step: three unit times of 100 and 200 ns sum to
+  // 400 ns, which fills no bin of a 1,000 ns step, so the resample answers no
+  // sample and the transform stays unread beside a series that counts its
+  // three samples.
+  sg::detail::ProbeCpuState shortState;
+  shortState.cpu = cpu;
+  shortState.method = sg::JitterMethod::FWQ;
+  shortState.series = {100, 200, 100};
+  shortState.seriesKept = 3;
+  shortState.unitTimeNs = 100;
+  auto shortSpan = sg::detail::seriesStatsOf(shortState);
+  check(shortSpan.sampleCount == 3 && shortSpan.medianValue == 100,
+        "the short span counts three samples at a 100 ns median "
+        "(FR-007, FR-014)");
+  shortSpan.medianValue = 1000;
+  sg::detail::addSpectrumTo(shortState, shortSpan);
+  check(shortSpan.spectrumPoints == 0 && shortSpan.resampleStepNs == 0
+            && shortSpan.periods.empty(),
+        "a FWQ span shorter than one step leaves the resample with no sample "
+        "(FR-017, FR-018, R-12, T090)");
+
+  // The control reads the same series over the median its own units answer,
+  // the step the resample fills, so the row separates the empty resample from
+  // the series that carries samples.
+  auto filledSpan = sg::detail::seriesStatsOf(shortState);
+  sg::detail::addSpectrumTo(shortState, filledSpan);
+  check(filledSpan.spectrumPoints == 4 && filledSpan.resampleStepNs == 100,
+        "the same span over a step it fills reads the transform "
+        "(FR-017, FR-018, R-12)");
+
   sg::detail::ProbeCpuState ftq;
   ftq.cpu = cpu;
   ftq.method = sg::JitterMethod::FTQ;
