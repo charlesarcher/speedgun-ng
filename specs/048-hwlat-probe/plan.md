@@ -43,7 +43,7 @@ units that stand today: the file-root seam
 access: `std::ifstream` for text, `::open` and `::pread` for the model-
 specific register node, and `std::from_chars` for each figure.
 
-**Storage**: none of its own. The run reads two kernel interfaces and
+**Storage**: none of its own. The run reads three kernel interfaces and
 writes seven tracefs files and writes back the six values it saved, the
 `tracing_on` write aside. The one document the feature writes stands the
 report file `--json` names.
@@ -345,10 +345,13 @@ owning worker.
   parse rule takes a line only when `#` stands at column 1 and a digit
   stands at column 2. A test plants a header of the standing shape, so a
   rule that takes legend lines reaches red.
-- **R-3**: the two detector knobs carry the kernel's own bounds, and
-  `width` must stay under `window`. The lane writes width before window,
-  so a write of a width above the standing window cannot fail. A test
-  plants the standing values and asserts the write order.
+- **R-3**: the two detector knobs carry the kernel's own bounds, which
+  refuse a value below the minimum or above the maximum and accept a
+  width equal to the window (`kernel/trace/trace.c:6728` to `:6732`).
+  The lane's own stricter bound stands in spec FR-020: `width` stands
+  under `window`. The lane writes width before window, so a write of a
+  width above the standing window cannot fail. A test plants the standing
+  values and asserts the write order.
 - **R-4**: the kernel saves `tracing_thresh` when the engine word lands,
   so its own reset puts back the run's value and only the session holds
   the host's. The reverse restore order answers that, and a test plants a
@@ -492,7 +495,7 @@ dev/cpu/3/msr                             8-byte little-endian counter at 0x34
 sys/kernel/tracing/current_tracer         nop
 sys/kernel/tracing/tracing_cpumask        ffffffff
 sys/kernel/tracing/tracing_thresh         10000
-sys/kernel/tracing/hwlat_detector/mode    round-robin
+sys/kernel/tracing/hwlat_detector/mode    none [round-robin] per-cpu
 sys/kernel/tracing/hwlat_detector/width   500000
 sys/kernel/tracing/hwlat_detector/window  1000000
 sys/kernel/tracing/per_cpu/cpu3/trace     header plus #1 inner/outer lines
@@ -544,8 +547,11 @@ sys/kernel/tracing/per_cpu/cpu3/trace     header plus #1 inner/outer lines
 
 ### Scenario coverage
 
-- SC-001: `harness_hwlat_probe_test` carries one scenario per attribution
-  case, one per not-available case, and one per signal path.
+- SC-001: `harness_hwlat_probe_test` carries one test per attribution
+  case, one per counter not-available case, and one per gap edge case.
+  `harness_hwlat_tracer_test` carries the tracefs not-available cases
+  and the four restore paths, the split the coverage table gives FR-019
+  to FR-023.
 - SC-002: the coverage run names the line and branch figures, with the
   branch shortfall stated and no new exclusion marker.
 - SC-003: the full suite, then the pinned run

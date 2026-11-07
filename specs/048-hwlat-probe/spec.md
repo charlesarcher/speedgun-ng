@@ -59,8 +59,8 @@ shapes the prompt leaves open.
   `22`, and the commit that writes the fields records the check beside
   the numbers, the shape specs `036` FR-004 and `043` FR-005 state.
 - Archive `SOVERSION`: master stands at `8` (`CMakeLists.txt:173`), the
-  number specs/050-limit-table-lifecycle landed. The two new readers live
-  on the harness side under `source/harness/`, and no header of the
+  number specs/050-limit-table-lifecycle landed. The three new readers
+  live on the harness side under `source/harness/`, and no header of the
   counters library under `include/speedgun-ng/` changes, so the number
   stands. A plan that moves a reader into the counters library moves this
   check with it.
@@ -211,14 +211,21 @@ shapes the prompt leaves open.
   `source/harness/noise_tracer.cpp:48` and names `osnoise` or `timerlat`
   today; the grammar stands at
   `specs/036-osnoise-timerlat-tracers/contracts/cli-options.md:31`.
-- The host facts read on this box on 2026-11-05, as an unprivileged
-  user: `/dev/cpu/0/msr` exists and answers `EACCES`; `/proc/interrupts`
-  carries 83 lines and no `NMI` line, because the kernel withholds the
-  `NMI` and `LOC` rows from an unprivileged reader;
-  `/sys/kernel/tracing` exists, its files answer `EACCES`, and no
-  `hwlat_detector` directory stands under it while the detector stands
-  unloaded. Each state is the ordinary not-available path of this
-  feature, and each one the tests fake.
+- The host facts read on this box as an unprivileged user:
+  `/dev/cpu/0/msr` exists and answers `EACCES` (read 2026-11-05);
+  `/proc/interrupts` carries 83 lines and no `NMI` line, because the
+  kernel withholds the `NMI` and `LOC` rows from an unprivileged reader
+  (read 2026-11-05); `/sys/kernel/tracing` exists as
+  `drwx------ root root` (read 2026-11-07), so a listing answers
+  `EACCES` and names nothing under the mount. The host builds the
+  detector in: `CONFIG_HWLAT_TRACER=y` stands in its kernel
+  configuration, `init_hwlat_tracer` calls `init_tracefs` at
+  `kernel/trace/trace_hwlat.c:883` behind the `late_initcall` at `:887`,
+  and that path creates `hwlat_detector/` at `:774` with `window`
+  (`:778`), `width` (`:785`) and `mode` (`:792`) inside it. The
+  directory stands there from boot and reads only with the rights. Each
+  unprivileged state is the ordinary not-available path of this feature,
+  and each one the tests fake.
 - The docs gates stand at `tools/docs/example_drift.py`
   (`PAGE_LINE_CAP = 1004` at `:256`; `README.md` stands at 1001 lines on
   master), `tools/prose/prose_gate.py`, `tools/dbc/dbc_pair_gate.py`,
@@ -314,22 +321,24 @@ shapes the prompt leaves open.
   (`kernel/trace/trace_hwlat.c:67`), so each tracer cpu carries its own
   detector thread and states figures of its own. The kernel default
   `round-robin` moves one thread across the mask, and a mask of many cpus
-  then leaves most of them with no window of their own. The detector reads
-  `tracing_cpumask` and `tracing_thresh` when it starts
-  (`kernel/trace/trace_hwlat.c:434`, `:836`), and its bound compares each
-  width write against the standing window
-  (`kernel/trace/trace_hwlat.c:734`), so the mask, the mode, the two knobs
-  and the threshold stand written before the engine word. The order stands
-  in the requirement (FR-019).
+  then leaves most of them with no window of their own. The per-cpu start
+  this lane rules reads `tracing_cpumask` at
+  `kernel/trace/trace_hwlat.c:585`, and the tracer's init reads
+  `tracing_thresh` at `:836`. The detector's bound compares each width
+  write against the standing window (`kernel/trace/trace_hwlat.c:734`),
+  so the mask, the mode, the two knobs and the threshold stand written
+  before the engine word. The order stands in the requirement (FR-019).
 - **D-10**: the three values the run writes stand named constants, and
   the run states them in the console block and the record. The lane
   prompt names no values. The lane's proposal holds a window of
   10,000 us, a width of 5,000 us and a trigger threshold of 1,000 us:
-  the width stands below the window, the kernel's rule, and the window
-  stands twenty times inside the 200 ms pre-check default, so one default
-  run leaves each tracer cpu about twenty windows of its own under the
-  per-cpu mode of D-9 (Assumptions A-3). The kernel's own defaults and
-  bounds stand cited beside A-3 and FR-019.
+  the width stands below the window, the lane's stricter bound that FR-020
+  states, and the window stands twenty times inside the 200 ms pre-check
+  default, so one default run leaves each tracer cpu about twenty windows
+  of its own under the per-cpu mode of D-9 (Assumptions A-3). The kernel
+  refuses a value below its minimum or above its maximum and accepts a
+  width equal to the window (`kernel/trace/trace.c:6728` to `:6732`). The
+  kernel's own defaults and bounds stand cited beside A-3 and FR-019.
 - **D-11**: the user-space method keeps the standing threshold rule of
   spec `027`: 200 ns, rising to ten times the measured loop period. The
   key `threshold=` stands, and a reader who wants a low threshold types
@@ -427,9 +436,12 @@ figures. The run needs no kernel change and no root.
 A root user runs the batch with
 `--jitter-probe=idle,mode=precheck --os-noise=hwlat`. The run writes the
 detector's settings, measures across the pre-check window, reads the
-detector's figures, and puts every setting back at the value the run
+detector's figures, and puts each saved file back at the value the run
 read before it. The user sees the gaps the kernel records with its own
-interrupts masked, and the host stands as it stood.
+interrupts masked. After the restore the six saved files hold the
+values the record names, `tracing_on` stands `0`, and the kernel keeps
+the run's threshold as the standing default a later run takes when it
+names none (D-8).
 
 **Why this priority**: the second surface of the request. It carries the
 one figure the user-space probe cannot reach: a gap measured with the
@@ -440,8 +452,9 @@ kernel holding interrupts off.
 `hwlat_detector/width`, `hwlat_detector/window` and `tracing_thresh`,
 writes them with the run's values, folds the three figures from the fake
 per-cpu buffer text, and leaves every saved file at the value the tree
-held before the run on all three exit paths: the normal end, a failed
-write mid-run, and a signal that ends the run.
+held before the run on the three exit paths these scenarios test: the
+normal end, a setup write that fails partway, and a signal that ends
+the run.
 
 **Acceptance Scenarios**:
 
@@ -455,11 +468,13 @@ write mid-run, and a signal that ends the run.
    console and the record carry those three figures for each tracer
    cpu.
 3. **Given** a run whose setup write fails partway, **When** the run
-   ends, **Then** every file the run wrote stands restored and the
-   tracer lines state the failure.
+   ends, **Then** the six saved files stand at the values the tree held
+   before the run, `tracing_on` stands `0`, and the tracer lines state
+   the failure.
 4. **Given** a run that takes `SIGINT` during the window, **When** the
-   run ends, **Then** every file the run wrote stands restored, and the
-   record states the path the run took.
+   run ends, **Then** the six saved files stand at the values the tree
+   held before the run, `tracing_on` stands `0`, and the record states
+   the path the run took.
 5. **Given** a host with no tracefs, no rights, or no detector, **When**
    the run carries `--os-noise=hwlat`, **Then** the tracer lines state
    `not available`, the user-space pre-check stands whole, and the exit
@@ -583,11 +598,15 @@ after readings of every file the run wrote.
 - No tracefs mount, no rights for the writes, or no detector in the
   kernel: the tracer lines state `not available` and status 0, the
   standing rule of spec `036`.
+- A `hwlat_detector/mode` read form that carries brackets, the form the
+  kernel prints on every read: the saved value stands the bracketed word,
+  and the restore writes that word back (FR-019, P-16).
 - A write that fails after an earlier write stood: the run restores the
   files it wrote, states the failure on the tracer lines, and keeps
   status 0.
-- A `SIGINT` inside the window: the flag path reaches the restore, each
-  written file stands restored, and the record states the path it took.
+- A `SIGINT` inside the window: the flag path reaches the restore, the
+  six saved files stand at the values the record names, `tracing_on`
+  stands `0`, and the record states the path it took.
 - A stop the process cannot control, `SIGKILL` among them: no handler
   runs, the settings stand changed, and the record carries the file list
   and the saved values an operator needs to undo them (D-15).
@@ -611,10 +630,10 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
 
 ### The lane's six (FR-001 to FR-006)
 
-- **FR-001**: When a path names a root-only source (`/dev/cpu/<cpu>/msr`,
-  `/proc/interrupts`, or tracefs), the feature SHALL resolve it under the
-  injectable file root that specs `034` and `036` use. Every test SHALL
-  use fake files.
+- **FR-001**: When a path names a kernel source (`/dev/cpu/<cpu>/msr`,
+  `/proc/interrupts`, `/proc/cpuinfo`, or tracefs), the feature SHALL
+  resolve it under the injectable file root that specs `034` and `036`
+  use, root-only or not. Every test SHALL use fake files.
 - **FR-002**: The user-space mode SHALL stand as one key of
   `--jitter-probe`: the word `hwlat` of the `method=` key, beside `tsc`,
   `fwq` and `ftq`. The method keeps the gap loop of `tsc`, so the sample
@@ -706,7 +725,12 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   `sys/kernel/tracing/per_cpu/cpu<id>/trace` under the same file root and
   SHALL take its three figures from the detector's own lines (A-6).
 - **FR-019**: When the detector engine starts, the feature SHALL read the
-  standing value of each file it saves. Before the first write the session
+  standing value of each file it saves. The read form of
+  `hwlat_detector/mode` lists the three words and marks the active one
+  inside brackets (`kernel/trace/trace_hwlat.c:629-632`, `:642`), and the
+  write handler compares one stripped word (`:692`, `:694`, `:706-711`),
+  so the value the run saves, states and writes back for that file SHALL
+  stand the bracketed word alone (P-16). Before the first write the session
   reads `current_tracer`, and when that text already reads `hwlat` the
   session writes nothing and answers the shape FR-023 names: the kernel
   returns success without initializing a tracer that already stands
@@ -741,7 +765,9 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   `current_tracer` already reads `hwlat` ahead of the run, the tracer
   lines SHALL state `not available`, one disclosure line SHALL name that
   last cause, the user-space figures SHALL stand whole, and the exit
-  status SHALL stand 0.
+  status SHALL stand 0. The lane host builds the detector in, so the
+  absent-detector shape stands a fake-tree case: corsairone never shows
+  it, and the recorded root run cannot demonstrate it.
 - **FR-024**: The feature SHALL gain no setuid helper, no capability
   grant, no daemon, and no write outside the files FR-019 names.
 
@@ -914,9 +940,13 @@ to `:102`). No key changes its kind, and no key moves.
   change, a gap without one, a host whose SMI count stands
   unavailable), one test covers each not-available case (no `msr` node,
   an unreadable node, no `NMI` line, a part with no documented counter,
-  no tracefs, no rights, no detector), and one test covers each restore
-  path (normal, failed write, signal), all on fake files. The count
-  stands 13 tests or more, and each passes.
+  no tracefs, no rights, no detector, and `current_tracer` already
+  reading `hwlat`), one test covers each restore path (the normal end,
+  a write that fails inside the setup, a read or write that fails
+  inside the window, and `SIGINT`), and one test covers each gap of the
+  two edge cases (the gap whose read stands past the window end, and
+  the gap the probe's own read opens), all on fake files. The count
+  stands 17 tests or more, and each passes.
 - **SC-002**: The lane's coverage stands 100% line coverage, with a
   branch shortfall of 21 or less stated as a number, no new exclusion
   marker of any kind, and a marker count of 84 or less in the tree.
@@ -936,7 +966,9 @@ to `:102`). No key changes its kind, and no key moves.
 - **SC-005**: Two root runs stand recorded on corsairone, one per surface,
   each with its host, kernel, compiler, commands, exit codes, figures,
   and, for the detector run, the value of every written file before and
-  after.
+  after. The host builds the detector in, so the absent-detector shape
+  of FR-023 stands outside both records: corsairone never shows it, and
+  no recorded run can demonstrate it.
 - **SC-006**: A run that names neither new word writes a document whose
   bytes match master's document apart from the schema and version values,
   measured by the standing byte test.
@@ -961,13 +993,14 @@ to `:102`). No key changes its kind, and no key moves.
   in every line the lane adds, including commit text and records.
 - Requirements: EARS form under constitution III, with the pre- and
   postcondition discipline of constitution II on every new function.
-- The kept gap record keeps its 16 bytes and its two fields
-  (`source/harness/detail/jitter_probe.hpp:47`), so the ring buffer and
-  the probe's hot path keep their standing cost (constitution VII).
-- The two new readers stand on the harness side and add no dependency and
-  no public counters header.
-- The feature reads root-only sources through the standing file-root seam
-  alone, the way specs `034` and `036` do.
+- The kept gap record keeps its 16 bytes
+  (`source/harness/detail/jitter_probe.hpp:47`) and its two fields
+  (`:43-44`), so the ring buffer and the probe's hot path keep their
+  standing cost (constitution VII).
+- The three new readers stand on the harness side and add no dependency
+  and no public counters header.
+- The feature reads every kernel source through the standing file-root
+  seam alone, root-only or not, the way specs `034` and `036` do.
 - The run changes no kernel setting without the engine word, and no path
   leaves a setting changed without a named disclosure.
 - Linux only. No CI change. No new option row, option value or short

@@ -720,7 +720,7 @@ coverage contract, the pinned suite, the gate records and the commits.
   `source/harness` (FR-038, SC-002, VI) (depends on T063). Verify: `bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` exits 0, `grep -rn "LCOV_EXCL" source/harness` reads no match and `grep -rn "LCOV_EXCL" source test example include tools | wc -l` reads at most 84
 - [X] T080 Run the full suite and read the entry count: three new
   executables and one new shape entry join the 186 entries of record, and
-  the 13 tests of the attribution record stand among them (FR-032, SC-001,
+  the 17 tests of the attribution record stand among them (FR-032, SC-001,
   SC-003, VIII)
   (depends on T063). Verify: `ctest --test-dir build --output-on-failure` exits 0, `ctest --test-dir build -N | tail -n 1` reads `Total Tests: 190`, and `grep -hoE 'the[A-Za-z]+Rows' test/source/harness_hwlat_probe_test.cpp test/source/harness_hwlat_tracer_test.cpp test/source/harness_latency_counters_test.cpp | sort -u | wc -l` reads at least 13
 - [ ] T081 Run the pinned suite on corsairone in the `build/prepush`

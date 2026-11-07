@@ -134,7 +134,7 @@ shape the `refuse` builder at `source/harness/options.cpp:1540` to
 | A part states no documented SMI counter, an AMD part among them | the same disclosure, and the feature names no substitute counter | 0 |
 | `/proc/interrupts` holds no `NMI` row, which is what an unprivileged reader gets | the console states `NMI count not available` once, and the SMI figures stand on their own | 0 |
 | No tracefs stands at `sys/kernel/tracing`, the writes answer `EACCES`, or the kernel holds no detector | `printPrecheckReport` prints the standing `tracer: not available` line at `source/harness/report.cpp:1586`, the user-space figures stand whole | 0 |
-| A setup write fails after an earlier write stood | every file the run wrote stands restored, the tracer lines state the failure | 0 |
+| A setup write fails after an earlier write stood | each saved file holds the value the record names, `tracing_on` stands `0`, and the tracer lines state the failure | 0 |
 | `current_tracer` already reads `hwlat` ahead of the run | the session writes no file, one line names that cause beside the tracer block, and the standing `tracer: not available` line answers for the figures (spec FR-023, plan P-15) | 0 |
 
 The feature owns no root refusal: it states no line that asks for root,
