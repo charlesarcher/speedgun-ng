@@ -43,7 +43,7 @@ units that stand today: the file-root seam
 access: `std::ifstream` for text, `::open` and `::pread` for the model-
 specific register node, and `std::from_chars` for each figure.
 
-**Storage**: none of its own. The run reads two kernel interfaces and
+**Storage**: none of its own. The run reads three kernel interfaces and
 writes seven tracefs files and writes back the six values it saved, the
 `tracing_on` write aside. The one document the feature writes stands the
 report file `--json` names.

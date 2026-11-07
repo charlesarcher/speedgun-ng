@@ -59,8 +59,8 @@ shapes the prompt leaves open.
   `22`, and the commit that writes the fields records the check beside
   the numbers, the shape specs `036` FR-004 and `043` FR-005 state.
 - Archive `SOVERSION`: master stands at `8` (`CMakeLists.txt:173`), the
-  number specs/050-limit-table-lifecycle landed. The two new readers live
-  on the harness side under `source/harness/`, and no header of the
+  number specs/050-limit-table-lifecycle landed. The three new readers
+  live on the harness side under `source/harness/`, and no header of the
   counters library under `include/speedgun-ng/` changes, so the number
   stands. A plan that moves a reader into the counters library moves this
   check with it.
@@ -615,10 +615,10 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
 
 ### The lane's six (FR-001 to FR-006)
 
-- **FR-001**: When a path names a root-only source (`/dev/cpu/<cpu>/msr`,
-  `/proc/interrupts`, or tracefs), the feature SHALL resolve it under the
-  injectable file root that specs `034` and `036` use. Every test SHALL
-  use fake files.
+- **FR-001**: When a path names a kernel source (`/dev/cpu/<cpu>/msr`,
+  `/proc/interrupts`, `/proc/cpuinfo`, or tracefs), the feature SHALL
+  resolve it under the injectable file root that specs `034` and `036`
+  use, root-only or not. Every test SHALL use fake files.
 - **FR-002**: The user-space mode SHALL stand as one key of
   `--jitter-probe`: the word `hwlat` of the `method=` key, beside `tsc`,
   `fwq` and `ftq`. The method keeps the gap loop of `tsc`, so the sample
@@ -977,10 +977,10 @@ to `:102`). No key changes its kind, and no key moves.
 - The kept gap record keeps its 16 bytes and its two fields
   (`source/harness/detail/jitter_probe.hpp:47`), so the ring buffer and
   the probe's hot path keep their standing cost (constitution VII).
-- The two new readers stand on the harness side and add no dependency and
-  no public counters header.
-- The feature reads root-only sources through the standing file-root seam
-  alone, the way specs `034` and `036` do.
+- The three new readers stand on the harness side and add no dependency
+  and no public counters header.
+- The feature reads every kernel source through the standing file-root
+  seam alone, root-only or not, the way specs `034` and `036` do.
 - The run changes no kernel setting without the engine word, and no path
   leaves a setting changed without a named disclosure.
 - Linux only. No CI change. No new option row, option value or short
