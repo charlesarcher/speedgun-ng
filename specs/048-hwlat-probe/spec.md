@@ -440,8 +440,9 @@ kernel holding interrupts off.
 `hwlat_detector/width`, `hwlat_detector/window` and `tracing_thresh`,
 writes them with the run's values, folds the three figures from the fake
 per-cpu buffer text, and leaves every saved file at the value the tree
-held before the run on all three exit paths: the normal end, a failed
-write mid-run, and a signal that ends the run.
+held before the run on the three exit paths these scenarios test: the
+normal end, a setup write that fails partway, and a signal that ends
+the run.
 
 **Acceptance Scenarios**:
 
@@ -922,9 +923,13 @@ to `:102`). No key changes its kind, and no key moves.
   change, a gap without one, a host whose SMI count stands
   unavailable), one test covers each not-available case (no `msr` node,
   an unreadable node, no `NMI` line, a part with no documented counter,
-  no tracefs, no rights, no detector), and one test covers each restore
-  path (normal, failed write, signal), all on fake files. The count
-  stands 13 tests or more, and each passes.
+  no tracefs, no rights, no detector, and `current_tracer` already
+  reading `hwlat`), one test covers each restore path (the normal end,
+  a write that fails inside the setup, a read or write that fails
+  inside the window, and `SIGINT`), and one test covers each gap of the
+  two edge cases (the gap whose read stands past the window end, and
+  the gap the probe's own read opens), all on fake files. The count
+  stands 17 tests or more, and each passes.
 - **SC-002**: The lane's coverage stands 100% line coverage, with a
   branch shortfall of 21 or less stated as a number, no new exclusion
   marker of any kind, and a marker count of 84 or less in the tree.

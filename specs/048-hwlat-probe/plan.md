@@ -544,8 +544,11 @@ sys/kernel/tracing/per_cpu/cpu3/trace     header plus #1 inner/outer lines
 
 ### Scenario coverage
 
-- SC-001: `harness_hwlat_probe_test` carries one scenario per attribution
-  case, one per not-available case, and one per signal path.
+- SC-001: `harness_hwlat_probe_test` carries one test per attribution
+  case, one per counter not-available case, and one per gap edge case.
+  `harness_hwlat_tracer_test` carries the tracefs not-available cases
+  and the four restore paths, the split the coverage table gives FR-019
+  to FR-023.
 - SC-002: the coverage run names the line and branch figures, with the
   branch shortfall stated and no new exclusion marker.
 - SC-003: the full suite, then the pinned run
