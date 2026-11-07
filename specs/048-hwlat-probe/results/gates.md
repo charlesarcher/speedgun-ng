@@ -208,6 +208,18 @@ One deviation stands on the record. The run used that tree's warm developer buil
 beside the coverage work that was running. The pinning, the worker count and the entry set are
 the preset's, and the compiler and the flags are the developer tree's.
 
+## The quick ceiling a slow host crosses
+
+`test/CMakeLists.txt:2495` to `:2497` hands every entry that names no `TIMEOUT` the `quick`
+label and a ceiling of 300 seconds, and `ctest` takes the lesser of that property and its own
+`--timeout`, so a larger `--timeout` cannot lift it. `harness_jitter_cli_test` names only
+`RUN_SERIAL`, so every lane, the coverage job among them, gives it 300 seconds. Run outside
+`ctest` under the coverage flags the same binary prints `harness_jitter_cli_test: ok` in about
+500 seconds on the lane host. The entry has no headroom on a host slower than the runner, and a
+lane that stops at that ceiling reports no records for the source that entry drives, which the
+union then reads as dark. The runner clears the ceiling today, and the coverage job of pull
+request #89 ran every entry it started.
+
 ## Pending
 
 - The docs example of the detector engine requests `.tracerEngine = sg::TracerEngine::HWLAT`,
