@@ -3173,6 +3173,30 @@ auto theThreeDetectorNamesResolve() -> void
               "a written aggregate on a detector name faults (FR-028, D-21)");
 }
 
+// T090, FR-028, FR-030: the three shapes a detector name carries apart from
+// its grammar. A cpu part that stands empty faults on the empty token, the
+// word with nothing behind it reaches no detector grammar at all, and the word
+// behind one blank reaches the standing suffix read. The row of the names that
+// resolve stands above this one as its control.
+auto theDetectorNameWithoutItsPartsFaults() -> void
+{
+  faultTextIs("hwlat::maxGapNs:lower:abs=5",
+              "the value name of the rule 'hwlat::maxGapNs:lower:abs=5' is "
+              "not readable: '' is neither an index nor 'any'",
+              "the fault of an empty cpu token names the token it found "
+              "(T090, FR-028, FR-030)");
+  faultTextIs("hwlat",
+              "the value name of the rule 'hwlat' is not readable: 'hwlat' is "
+              "not a value the report carries",
+              "the word with nothing behind it faults on the missing "
+              "comparison (T090, FR-004, FR-028)");
+  faultTextIs("hwlat lower:abs=5",
+              "the value name of the rule 'hwlat lower:abs=5' is not readable: "
+              "'hwlat lower' is not a value the report carries",
+              "the word behind one blank faults on the standing suffix read "
+              "(T090, FR-004, FR-028)");
+}
+
 // specs/048 FR-028: the detector name reads the tracer record of the
 // pre-check. `any` answers the largest figure of the tracer cpus, and a
 // named cpu answers its own figure.
@@ -3240,6 +3264,16 @@ auto aDetectorNameTheTracerRecordLacksFaults() -> void
                           "contender report carries no tracer record"),
         "a report that carries no tracer record faults with the rule and the "
         "report (FR-028, FR-032)");
+  auto stripped = makeReport({measured("bmGate", 100.0)});
+  stripped.precheck = sg::PrecheckRecord {};
+  const auto noTracer = compared(
+      baseline, stripped, rulesOf({"hwlat:any:maxGapNs:lower:abs=1"}), false);
+  check(!noTracer.has_value()
+            && faultNames(noTracer.error(),
+                          "hwlat:any:maxGapNs:lower:abs=1",
+                          "contender report carries no tracer record"),
+        "a pre-check record that carries no tracer record faults the same way "
+        "(T090, FR-028, FR-032)");
 }
 
 // specs/048 FR-027, FR-028, contracts/rule-names.md: a tracer cpu whose
@@ -3465,6 +3499,7 @@ auto main() -> int
   theThreeDetectorNamesResolve();
   theDetectorRuleReadsTheTracerRecord();
   aDetectorNameTheTracerRecordLacksFaults();
+  theDetectorNameWithoutItsPartsFaults();
   anAbsentDetectorFigureReadsZero();
   theDetectorRuleReadsTheInterceptCount();
   theWorstCpuOfARecordThatCarriesNoTracerCpuFaults();
