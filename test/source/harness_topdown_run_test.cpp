@@ -19,11 +19,13 @@
 // the scripted objects this file lays beside the pass fixture's own, so a run
 // of this unit reads no real counter and no vendored table.
 //
-// The identity the runner reads belongs to the cpu it runs on, and this build
-// vendors no table for a vendor outside Intel and AMD. A host of another vendor
-// answers no tree for that reason alone, so every scenario of this unit states
-// that reason and exits 2, the skip code the two counters units of this feature
-// reserve.
+// The identity the runner reads belongs to the cpu it runs on unless the
+// scenario plants one at `RunOptions::topdownIdentity`, and this build vendors
+// no table for a vendor outside Intel and AMD. A host of another vendor answers
+// no tree for that reason alone, so a scenario that leaves the identity to the
+// host states that reason and exits 2, the skip code the two counters units of
+// this feature reserve. A scenario that plants both the identity and the table
+// reads no cpu and stands outside that guard.
 //
 // Each scenario scripts its own provider, and the counters system takes one
 // provider per object path per process, so each scenario runs in its own
@@ -3403,13 +3405,84 @@ auto scenarioARowOfNoSlotForItsColumnAnswersNoFigure() -> int
   return 0;
 }
 
+// The identity of the part the fixture's Intel directory stands for: the key
+// its own mapping row carries. A scenario that plants this identity beside that
+// directory's table reads no cpu of the host it runs on (FR-033, FR-034).
+[[nodiscard]] auto plantedIntelIdentity() -> CpuIdentity
+{
+  CpuIdentity identity;
+  identity.vendor = std::string {kIntelVendor};
+  identity.family = 6;
+  identity.model = 0x55;
+  identity.stepping = 4;
+  return identity;
+}
+
+// The companion of a planted pair: the bit asks one level-1 pass over the
+// planted identity and the planted table, and the carrier answers the record of
+// that pass. The provider stands scripted and both the identity and the table
+// stand planted, so the pass runs on a host this build vendors no table for and
+// reads no top-down table of the host (specs/046-hunter-topdown FR-033, FR-035,
+// FR-017, FR-036; T090).
+auto scenarioTheCompanionOfAPlantedPairRunsItsPass() -> int
+{
+  registerFixture(kNarrowCoreLimit);
+  bareBenchmark("bmTopdownCompanionPass");
+  sg::detail::expandRegistry();
+  sg::Instance& subject = *needInstance("bmTopdownCompanionPass");
+
+  sg::detail::RunOptions options =
+      askedTable(plantedTable(kIntelDirectory, sg::test::topdownIntelRows()),
+                 kLevelOne,
+                 kRunRepetitions);
+  options.topdownIdentity = plantedIntelIdentity();
+
+  std::optional<sg::detail::TopdownCompanion> clear;
+  const std::uint64_t readsOfTheClearAsk = fake->readActions();
+  static_cast<void>(captureStreams(
+      [&] { clear = sg::detail::topdownCompanionRecord(options, subject); }));
+  check(!clear.has_value(),
+        "a run whose companion bit stands clear asks no pass and collects no "
+        "record (FR-035)");
+  check(fake->readActions() == readsOfTheClearAsk,
+        "the clear bit costs the run no sampling action of its own (FR-035, "
+        "FR-009)");
+
+  options.topdownCompanion = true;
+  std::optional<sg::detail::TopdownCompanion> companion;
+  static_cast<void>(captureStreams(
+      [&]
+      { companion = sg::detail::topdownCompanionRecord(options, subject); }));
+  check(companion.has_value(),
+        "the planted pair answers a tree, so the companion runs its one pass "
+        "and carries its record back (FR-035, FR-017)");
+  if (!companion.has_value()) {
+    return 1;
+  }
+  check(companion->passCount == kLevelOnePassCount,
+        "the companion prices the four level-1 columns of the planted table "
+        "and " "carries no pass of the run it follows (FR-035, FR-036)");
+  check(companion->record.supported
+            && companion->record.level
+                   == sg::detail::kTopdownCompanionLevel
+            && companion->record.nodes.size() == kLevelOneNodeColumns,
+        "the carrier carries the record of the level-1 ask, which holds the "
+        "four figures of the planted table (FR-033, FR-017)");
+  check(companion->record.directory == kIntelDirectory,
+        "the pass read the planted table, the one table the area ask of the "
+        "same " "run read (FR-033)");
+
+  std::puts("the-companion-of-a-planted-pair-runs-its-pass: ok");
+  return 0;
+}
+
 struct Scenario
 {
   const char* name;
   int (*run)();
 };
 
-constexpr std::array<Scenario, 28> kScenarios {{
+constexpr std::array<Scenario, 29> kScenarios {{
     Scenario {"nodes-share-one-plan-with-the-metric-columns",
               &scenarioNodesShareOnePlanWithTheMetricColumns},
     Scenario {"the-metric-columns-keep-their-bytes",
@@ -3466,6 +3539,8 @@ constexpr std::array<Scenario, 28> kScenarios {{
               &scenarioARowOfNoSlotForItsColumnAnswersNoFigure},
     Scenario {"a-threaded-run-strips-its-context-views",
               &scenarioAThreadedRunStripsItsContextViews},
+    Scenario {"the-companion-of-a-planted-pair-runs-its-pass",
+              &scenarioTheCompanionOfAPlantedPairRunsItsPass},
 }};
 
 }  // namespace
