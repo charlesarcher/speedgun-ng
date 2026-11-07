@@ -434,9 +434,12 @@ figures. The run needs no kernel change and no root.
 A root user runs the batch with
 `--jitter-probe=idle,mode=precheck --os-noise=hwlat`. The run writes the
 detector's settings, measures across the pre-check window, reads the
-detector's figures, and puts every setting back at the value the run
+detector's figures, and puts each saved file back at the value the run
 read before it. The user sees the gaps the kernel records with its own
-interrupts masked, and the host stands as it stood.
+interrupts masked. After the restore the six saved files hold the
+values the record names, `tracing_on` stands `0`, and the kernel keeps
+the run's threshold as the standing default a later run takes when it
+names none (D-8).
 
 **Why this priority**: the second surface of the request. It carries the
 one figure the user-space probe cannot reach: a gap measured with the
@@ -463,11 +466,13 @@ the run.
    console and the record carry those three figures for each tracer
    cpu.
 3. **Given** a run whose setup write fails partway, **When** the run
-   ends, **Then** every file the run wrote stands restored and the
-   tracer lines state the failure.
+   ends, **Then** the six saved files stand at the values the tree held
+   before the run, `tracing_on` stands `0`, and the tracer lines state
+   the failure.
 4. **Given** a run that takes `SIGINT` during the window, **When** the
-   run ends, **Then** every file the run wrote stands restored, and the
-   record states the path the run took.
+   run ends, **Then** the six saved files stand at the values the tree
+   held before the run, `tracing_on` stands `0`, and the record states
+   the path the run took.
 5. **Given** a host with no tracefs, no rights, or no detector, **When**
    the run carries `--os-noise=hwlat`, **Then** the tracer lines state
    `not available`, the user-space pre-check stands whole, and the exit
@@ -597,8 +602,9 @@ after readings of every file the run wrote.
 - A write that fails after an earlier write stood: the run restores the
   files it wrote, states the failure on the tracer lines, and keeps
   status 0.
-- A `SIGINT` inside the window: the flag path reaches the restore, each
-  written file stands restored, and the record states the path it took.
+- A `SIGINT` inside the window: the flag path reaches the restore, the
+  six saved files stand at the values the record names, `tracing_on`
+  stands `0`, and the record states the path it took.
 - A stop the process cannot control, `SIGKILL` among them: no handler
   runs, the settings stand changed, and the record carries the file list
   and the saved values an operator needs to undo them (D-15).
