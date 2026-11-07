@@ -451,6 +451,20 @@ auto theNmiRows() -> void
                                                              "FR-011)");
 }
 
+// T090, FR-009, FR-011: one token that carries digits beside text stands no
+// figure, the shape a kernel column answers when a count stands with a unit.
+// The column of digits alone beside it stands the figure the reader takes.
+auto theNmiFigureBesideItsDigits() -> void
+{
+  const std::string mixed = "NMI:  12x  4\n";
+  check(!sg::detail::nmiCountOfText(mixed, kFirstCpu).has_value(),
+        "an NMI column whose digits stand beside text answers no count "
+        "(T090, FR-011)");
+  const auto second = sg::detail::nmiCountOfText(mixed, kSecondCpu);
+  check(second.has_value() && *second == 4,
+        "the same row answers the column of digits alone (T090, FR-009)");
+}
+
 // T005, FR-009, D-4: the new figure stands named apart, and the standing
 // `interrupts` figure keeps its sum over every labeled row of the column.
 auto theStandingInterruptsRows() -> void
@@ -483,6 +497,7 @@ auto main() -> int
   theReadOnlyRows();
   theVendorGateRows();
   theNmiRows();
+  theNmiFigureBesideItsDigits();
   theStandingInterruptsRows();
   std::printf(failures == 0 ? "ok\n" : "%d checks failed\n", failures);
   return failures == 0 ? 0 : 1;

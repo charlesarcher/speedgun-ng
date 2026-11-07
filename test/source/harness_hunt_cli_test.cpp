@@ -3407,6 +3407,11 @@ auto scenarioTheCoverageLineReadsTheSiblingList() -> void
 // tree.
 constexpr const char* kAreaChildMode = "area-identity";
 
+// The same child beside the words of a vendor whose table this build carries:
+// the row below reads the identity these words decode, and neither half of the
+// pair opens a file of the host.
+constexpr const char* kVendoredAreaChildMode = "area-vendored-identity";
+
 // The area of every ranked record answers `unmapped` where the ask hands no
 // tree, and the run prints the one refusal line the library owns (FR-009,
 // FR-017, FR-040). No option word plants an identity on a command line, so the
@@ -3440,6 +3445,54 @@ auto scenarioAnIdentityNoTableCarriesAnswersNoArea() -> void
         "the companion of the same ask runs no pass, so the run prints no "
         "block (FR-016, FR-017)");
   std::printf("an-identity-no-table-carries-answers-no-area: ok\n");
+}
+
+// The other half of the pair. The words the ident decodes answer the vendor and
+// the key of a table this build carries, so the ask answers a tree, the stamp
+// runs, and the companion of the hunter run prints its block. The identity is
+// the data these words decode: no cpu of the host, no mapping path and no
+// counter stand in the run (FR-001, FR-016, FR-034).
+auto scenarioAVendoredIdentityAnswersTheBlockOfAHunterRun() -> void
+{
+  constexpr std::string_view kVendoredDirectory {"arch/x86/skylakex/"};
+  const std::string hunt = "--hunt=" + address(0) + "," + address(1);
+  std::vector<std::string> arguments {kScriptFull};
+  for (const auto& argument : withFilter({hunt})) {
+    arguments.push_back(argument);
+  }
+  std::string output;
+  const int status =
+      childRun(selfPath, kVendoredAreaChildMode, arguments, output);
+  check(WIFEXITED(status) && WEXITSTATUS(status) == 0,
+        "the hunt under an identity a vendored table carries keeps the status "
+        "of the same run (FR-017)");
+  check(output.find("BENCHMARK_RAN") != std::string::npos,
+        "that run reached its benchmark, so the rows below name a rule and not "
+        "an empty run");
+  check(countOf(output, "no vendored table carries this vendor") == 0,
+        "the ask answers a tree, so the run prints no refusal line (FR-005, "
+        "FR-040)");
+  check(countOf(output, "topdown: level=") == 1,
+        "the companion of the same ask runs its pass, so the run prints one "
+        "block where the refusal prints none (FR-016, FR-017)");
+  check(lineHolding(output, "topdown: level=").starts_with(
+            "topdown: level=1 passes="),
+        "the block states the level the companion asks, the level D-9 names "
+        "(FR-016, FR-033)");
+  check(output.find("table=" + std::string {kVendoredDirectory})
+            != std::string::npos,
+        "the block names the directory the key of the planted words selects "
+        "(FR-015, FR-034)");
+
+  const auto rows = huntLines(output, "rank ");
+  check(rows.size() == 2, "the run ranks the two events of the selection");
+  for (const std::string& row : rows) {
+    check(row.find("area=unmapped") != std::string::npos,
+          "the two scripted leaves answer an unmapped area beside a standing "
+          "tree, because that tree names no node for an address of the scripted "
+          "host (FR-009, FR-010)");
+  }
+  std::printf("a-vendored-identity-answers-the-block-of-a-hunter-run: ok\n");
 }
 
 [[nodiscard]] auto scenarios() -> const std::vector<Scenario>&
@@ -3540,6 +3593,8 @@ auto scenarioAnIdentityNoTableCarriesAnswersNoArea() -> void
                 &scenarioTheCoverageLineReadsTheSiblingList},
       Scenario {"an-identity-no-table-carries-answers-no-area",
                 &scenarioAnIdentityNoTableCarriesAnswersNoArea},
+      Scenario {"a-vendored-identity-answers-the-block-of-a-hunter-run",
+                &scenarioAVendoredIdentityAnswersTheBlockOfAHunterRun},
   };
   return kList;
 }
@@ -3598,21 +3653,44 @@ auto runCoverageChild(const std::string& root,
           .leaf1Eax = 0x30650U};  // family 6, model 5
 }
 
+// The words of the part this build vendors a table for: leaf 0 spells the
+// vendor of the mapping file's model-55 row and leaf 1 states family 6, model
+// 0x55 and stepping 4, the key of that row. The words are data the ident
+// decodes on each call, so a run of these words asks that vendor's table on a
+// cpu of any vendor (FR-001, FR-034).
+[[nodiscard]] auto vendoredTableWords() -> sg::counters::detail::CpuidWords
+{
+  return {.leaf0Eax = 0x16U,
+          .leaf0Ebx = 0x756E6547U,  // "Genu"
+          .leaf0Edx = 0x49656E69U,  // "ineI"
+          .leaf0Ecx = 0x6C65746EU,  // "ntel"
+          .leaf1Answered = true,
+          .leaf1Eax = 0x50654U};  // family 6, model 0x55, stepping 4
+}
+
 // The child of the area row: the real call set stands copied and only the
 // words the ident decodes change, so every kernel call of the run stays the
 // call the code issues. The install keeps no copy, so the set lives in a static
 // for the life of the child (R-02).
 auto runAreaChild(const std::string& script,
                   const std::vector<std::string>& arguments,
-                  char** argv) -> int
+                  char** argv,
+                  const bool vendored) -> int
 {
-  static const sg::counters::detail::KernelCalls kScriptedCalls = []
+  static const sg::counters::detail::KernelCalls kNoTableCalls = []
   {
     auto calls = sg::counters::detail::kernelCalls();
     calls.cpuidWords = &noTableWords;
     return calls;
   }();
-  sg::counters::detail::installKernelCalls(&kScriptedCalls);
+  static const sg::counters::detail::KernelCalls kVendoredCalls = []
+  {
+    auto calls = sg::counters::detail::kernelCalls();
+    calls.cpuidWords = &vendoredTableWords;
+    return calls;
+  }();
+  sg::counters::detail::installKernelCalls(vendored ? &kVendoredCalls
+                                                    : &kNoTableCalls);
   return runChild(script, arguments, argv);
 }
 
@@ -3639,7 +3717,11 @@ auto main(const int argc, char** argv) -> int
   }
   if (mode == kAreaChildMode && argc > 2 && argv[2] != nullptr) {
     const std::vector<std::string> arguments(argv + 3, argv + argc);
-    return runAreaChild(argv[2], arguments, argv);
+    return runAreaChild(argv[2], arguments, argv, false);
+  }
+  if (mode == kVendoredAreaChildMode && argc > 2 && argv[2] != nullptr) {
+    const std::vector<std::string> arguments(argv + 3, argv + argc);
+    return runAreaChild(argv[2], arguments, argv, true);
   }
 
   const auto& list = scenarios();

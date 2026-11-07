@@ -39,6 +39,11 @@
 //   probedRunDisclosesOnce        a probed pair prints the line once, names the
 //                                 device, the figure and `probe`, and the run's
 //                                 own row and header keep their bytes (FR-050)
+//   scriptedRunDisclosesOnce      a scripted device publishes the figure and
+//   the
+//                                 run seats `probe`, so the same line stands on
+//                                 a host whose registers answer nothing
+//                                 (FR-050)
 //   probedRunRecordsItsSource     the document names the device, its figure and
 //                                 the seated finder, and the figure matches the
 //                                 printed one (FR-051)
@@ -75,6 +80,7 @@
 #include "detail/gcov_flush.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_clock.hpp"
+#include "speedgun-ng/counters_fake.hpp"
 #include "speedgun-ng/counters_metrics.hpp"
 #include "speedgun-ng/counters_pmu.hpp"
 #include "speedgun-ng/counters_system.hpp"
@@ -122,6 +128,10 @@ auto checkText(const std::string& answer,
 constexpr std::string_view kDevice {"cpu"};
 constexpr std::string_view kFirstEvent {"disc_a"};
 constexpr std::string_view kSecondEvent {"disc_b"};
+
+// The limit the scripted provider publishes for that device, the figure a run
+// names without one register of the host behind it.
+constexpr std::size_t kScriptedLimit = 4;
 
 // The scripted kernel's state: the count the search grants, the record of the
 // opens, and the two fixture paths the seam answers.
@@ -264,6 +274,11 @@ auto seatOf(const std::string& mode) -> std::optional<LimitSource>
   if (mode == "probed") {
     return LimitSource::PROBE;
   }
+  if (mode == "scripted") {
+    // The scripted device carries the same finder, seated beside the figure the
+    // script published.
+    return LimitSource::PROBE;
+  }
   if (mode == "decoded") {
     return LimitSource::DECODE;
   }
@@ -338,6 +353,26 @@ auto sumLeaves() -> sg::counters::Expression<sg::counters::Dim<0, 1>>
   return sg::counters::Expression<sg::counters::Dim<0, 1>>(*first) + *second;
 }
 
+// The device the host stands outside: a scripted provider publishes the figure
+// and the run seats the finder by hand, so the pair the disclosure reads stands
+// on every lane, including one whose kernel answers no figure at all (FR-040a,
+// FR-050). The object takes the host device name, so the entry point stands its
+// own provider refused for the run.
+auto registerScriptedDevice() -> bool
+{
+  auto provider = std::make_unique<sg::counters::FakeProvider>();
+  auto& script = *provider;
+  script.addObject(kDevice, "pmu", "the disclosure script");
+  script.setProgrammableCounters(kDevice, kScriptedLimit);
+  script.addCounter(kDevice, kFirstEvent, "none", "scripted leaf");
+  script.addCounter(kDevice, kSecondEvent, "none", "scripted leaf");
+  script.setPoints(kDevice, kFirstEvent, {0}, 1);
+  script.setPoints(kDevice, kSecondEvent, {0}, 1);
+  return sg::counters::System::local()
+      .registerProvider(std::move(provider))
+      .has_value();
+}
+
 // One child run, scripted from the first call to the last line it printed.
 auto runChild(int argc, char** argv, const std::string& mode) -> int
 {
@@ -349,6 +384,26 @@ auto runChild(int argc, char** argv, const std::string& mode) -> int
   if (mode == "plain") {
     auto handle = sg::registerBenchmark(&bmPlain, "bmPlain");
     handle.iterations(1);
+  } else if (mode == "scripted") {
+    // The clock provider stands first, the way the entry point stands it
+    // (source/harness/cli.cpp:679), so the run reaches a time source behind a
+    // scripted device that publishes none.
+    const auto clock = sg::counters::System::local().registerProvider(
+        std::make_unique<sg::counters::ClockProvider>());
+    check(clock.has_value(), "the clock provider registers for the script");
+    check(registerScriptedDevice(), "the scripted device registers");
+    const auto object = sg::counters::System::local().object(kDevice);
+    check(object.has_value(), "the scripted device resolves");
+    if (!object.has_value()) {
+      return 1;
+    }
+    reportEarned(Earned {
+        .finder = std::string(wordOf(sg::counters::objectLimitSource(kDevice))),
+        .figure = figureWord(object->programmableCounters())});
+    recordLimitSource(kDevice, LimitSource::PROBE);
+    auto handle = sg::registerBenchmark(&bmDisclosure, "bmDisclosure");
+    handle.iterations(1);
+    handle.addMetric(sumLeaves(), "pair");
   } else {
     // The child states the pair its host answered before the run prints a
     // byte of its own, so the pair the parent weighs stands in the same text.
@@ -536,13 +591,16 @@ auto checkPlainRun(const std::string& output, const std::string& path) -> void
 
 auto scenariosAreChecked(const std::string& self) -> void
 {
-  // The three modes that need the scripted device: `probed` and `decoded` seat
-  // the finder they are about where the host published a figure, and `silent`
+  // The four modes that need the scripted device: `probed` and `decoded` seat
+  // the finder they are about where the host published a figure, `scripted`
+  // seats `probe` beside the figure its own provider published, and `silent`
   // seats nothing and states the host whose registers answer nothing and whose
   // kernel refuses a group. Each mode runs the one scripted shape, so a host
-  // that answers no figure leaves every mode to the pair rule in `checkRun`.
-  constexpr std::array<std::string_view, 3> kDeviceModes {
+  // that answers no figure leaves every mode but `scripted` to the pair rule in
+  // `checkRun`.
+  constexpr std::array<std::string_view, 4> kDeviceModes {
       "probed",
+      "scripted",
       "decoded",
       "silent",
   };
@@ -574,8 +632,8 @@ auto main(int argc, char** argv) -> int
 {
   sg::test::flushCountersOnAbort();
   const std::string mode = argc > 1 ? argv[1] : "";
-  if (mode == "probed" || mode == "decoded" || mode == "silent"
-      || mode == "plain")
+  if (mode == "probed" || mode == "scripted" || mode == "decoded"
+      || mode == "silent" || mode == "plain")
   {
     return runChild(argc, argv, mode);
   }

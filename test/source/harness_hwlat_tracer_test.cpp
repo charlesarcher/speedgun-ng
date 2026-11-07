@@ -1958,6 +1958,185 @@ auto aBufferLineThatNamesNoPairCountsAsNoGap() -> void
   sg::detail::noiseTracerRestore(*session);
 }
 
+// T090, FR-019, P-16: a mode line whose two brackets stand unmatched leaves
+// the read no pair to take, so its whole trimmed first line stands the saved
+// value. The kernel prints the list with the chosen word inside one matched
+// pair, so each shape below stands a text no kernel prints, and the bracketed
+// line beside them stands the shape it does print.
+auto anUnbalancedModeBracketSavesItsWholeLine() -> void
+{
+  const auto cpus = pickCpus(1);
+  if (cpus.empty()) {
+    return;
+  }
+  constexpr const char* kModePath = "sys/kernel/tracing/hwlat_detector/mode";
+  {
+    TracingRootGuard guard;
+    installDetectorTree(guard.root());
+    const auto session =
+        sg::detail::noiseTracerSetup(sg::TracerEngine::HWLAT, cpus);
+    check(session.has_value(),
+          "the setup of the bracketed mode line answers a session (T090, "
+          "FR-019)");
+    if (session.has_value()) {
+      sg::detail::noiseTracerRestore(*session);
+      check(readStream(guard.root() / kModePath) == "round-robin\n",
+            "the bracketed line saves the word between the brackets (T090, "
+            "FR-019, P-16)");
+    }
+  }
+  for (const auto& text : {std::string {"none [round-robin per-cpu"},
+                           std::string {"none ]round-robin[ per-cpu"}})
+  {
+    TracingRootGuard guard;
+    installDetectorTree(guard.root());
+    writeTracingFile(guard.root(), kModePath, text + "\n");
+    const auto session =
+        sg::detail::noiseTracerSetup(sg::TracerEngine::HWLAT, cpus);
+    check(session.has_value(),
+          "the setup of a mode line with one bracket answers a session (T090, "
+          "FR-019)");
+    if (!session.has_value()) {
+      continue;
+    }
+    sg::detail::noiseTracerRestore(*session);
+    check(readStream(guard.root() / kModePath) == text + "\n",
+          "the line with an unmatched bracket saves its whole first line "
+          "(T090, FR-019, P-16)");
+  }
+}
+
+// The four shapes the buffer walk meets at the end of a line, beside the
+// standing detection line: a pair that ends the line with no field after it,
+// a pair whose outer side reads no count, an `nmi-count` field with a field
+// after it, and a task line that carries no `#` in column 1 (FR-018, FR-027,
+// A-6, P-10).
+constexpr const char* kPairEndsTheLine = "#1 inner/outer(us): 100/200\n";
+constexpr const char* kOuterSideNoCount =
+    "#2 inner/outer(us): 300/wide ts:0000000000000000 count:1\n";
+constexpr const char* kNmiWithFieldAfter =
+    "#3 inner/outer(us): 400/500 ts:0000000000000000 count:1 nmi-count:6 "
+    "sampled:1\n";
+constexpr const char* kNoHashInColumnOne =
+    "  4 inner/outer(us): 700/800 ts:0000000000000000 count:1\n";
+
+// T090, FR-018, FR-027, A-6, P-10: the walk counts the two lines whose pair
+// reads, skips the line whose outer side reads no count, and skips the line
+// that carries no `#` in column 1. The widest figure of the three counted
+// lines stands 500 microseconds, because the skipped line beside it carries
+// 800: a walk that took the task line would stand 800 instead.
+auto theBufferWalkReadsTheShapesAtTheEndOfALine() -> void
+{
+  const auto cpus = pickCpus(1);
+  if (cpus.empty()) {
+    return;
+  }
+  TracingRootGuard guard;
+  installDetectorTree(guard.root());
+  writeTracingFile(guard.root(),
+                   bufferPath(cpus.at(0)),
+                   std::string(kLegend) + kPairEndsTheLine + kOuterSideNoCount
+                       + kNmiWithFieldAfter + kNoHashInColumnOne
+                       + detectionLine(9, 1, 2, 0));
+  const auto session =
+      sg::detail::noiseTracerSetup(sg::TracerEngine::HWLAT, cpus);
+  check(session.has_value(),
+        "the setup of the five-shape buffer answers a session (T090, FR-019)");
+  if (!session.has_value()) {
+    return;
+  }
+  const auto folded = sg::detail::noiseTracerFigures(*session);
+  checkWith(folded.size() == 1 && folded.at(0).gapCount.has_value()
+                && *folded.at(0).gapCount == 3
+                && folded.at(0).maxGapNs.has_value()
+                && *folded.at(0).maxGapNs == 500000ULL
+                && folded.at(0).nmiCount.has_value()
+                && *folded.at(0).nmiCount == 6,
+            "the two lines whose pair reads stand three gaps, the widest "
+            "figure of 500 microseconds, and the sum of the one field (T090, "
+            "FR-018, FR-027, A-6, P-10)",
+            "entries=" + std::to_string(folded.size()));
+  sg::detail::noiseTracerRestore(*session);
+}
+
+// T090, FR-023, P-15: the standing check reads `current_tracer` and compares
+// its word with the word of the engine it was handed. The three readings of
+// that file answer it: the detector word, a word that names another tracer,
+// and a file no read reaches.
+auto theStandingCheckReadsTheCurrentTracerWord() -> void
+{
+  constexpr const char* kCurrentPath = "sys/kernel/tracing/current_tracer";
+  {
+    TracingRootGuard guard;
+    installDetectorTree(guard.root());
+    writeTracingFile(guard.root(), kCurrentPath, "hwlat\n");
+    check(sg::detail::tracerStandsAsCurrent(sg::TracerEngine::HWLAT),
+          "the file that carries the detector word stands the detector as the "
+          "current tracer (T090, FR-023, P-15)");
+  }
+  {
+    TracingRootGuard guard;
+    installDetectorTree(guard.root());
+    writeTracingFile(guard.root(), kCurrentPath, "function\n");
+    check(!sg::detail::tracerStandsAsCurrent(sg::TracerEngine::HWLAT),
+          "the file that carries another tracer's word stands no detector "
+          "(T090, FR-023, P-15)");
+  }
+  {
+    TracingRootGuard guard;
+    installDetectorTree(guard.root());
+    check(denyTracingPath(guard.root(), kCurrentPath),
+          "the row replaces the current-tracer file with a directory (T090, "
+          "FR-017, P-15)");
+    check(!sg::detail::tracerStandsAsCurrent(sg::TracerEngine::HWLAT),
+          "the current-tracer file no read reaches stands no detector (T090, "
+          "FR-023, P-15)");
+  }
+}
+
+// T090, FR-019, D-8: the detector's setup reads four files more than the two
+// ahead of its first write, and a read that answers nothing stands the whole
+// setup refused with no write. The row denies one of the four at a time,
+// beside the tree that answers a session.
+auto theSetupWithoutOneOfItsFourDetectorReadsWritesNothing() -> void
+{
+  const auto cpus = pickCpus(1);
+  if (cpus.empty()) {
+    return;
+  }
+  {
+    TracingRootGuard guard;
+    installDetectorTree(guard.root());
+    const auto session =
+        sg::detail::noiseTracerSetup(sg::TracerEngine::HWLAT, cpus);
+    check(session.has_value(),
+          "the tree that answers the four detector reads answers a session "
+          "(T090, FR-019, D-8)");
+    if (session.has_value()) {
+      sg::detail::noiseTracerRestore(*session);
+    }
+  }
+  for (const auto* path : {"sys/kernel/tracing/hwlat_detector/mode",
+                           "sys/kernel/tracing/hwlat_detector/width",
+                           "sys/kernel/tracing/hwlat_detector/window",
+                           "sys/kernel/tracing/tracing_thresh"})
+  {
+    TracingRootGuard guard;
+    installDetectorTree(guard.root());
+    check(denyTracingPath(guard.root(), path),
+          "the row replaces one detector read with a directory (T090, FR-017)");
+    const auto session =
+        sg::detail::noiseTracerSetup(sg::TracerEngine::HWLAT, cpus);
+    checkWith(!session.has_value(),
+              "the setup that reads no knob of the saved set answers nothing "
+              "(T090, FR-019, D-8)",
+              std::string("denied=") + path);
+    check(readStream(guard.root() / "sys/kernel/tracing/current_tracer")
+              == "nop\n",
+          "the refused setup wrote no file of the tree (T090, FR-019, D-8)");
+  }
+}
+
 }  // namespace
 
 SG_BENCHMARK(bmQuiet);
@@ -1991,6 +2170,10 @@ auto main() -> int
   theAbsentSourceMarksNoKeptGap();
   aModeTextWithNoBracketsSavesItsWholeWord();
   aBufferLineThatNamesNoPairCountsAsNoGap();
+  anUnbalancedModeBracketSavesItsWholeLine();
+  theBufferWalkReadsTheShapesAtTheEndOfALine();
+  theStandingCheckReadsTheCurrentTracerWord();
+  theSetupWithoutOneOfItsFourDetectorReadsWritesNothing();
   std::printf(failures == 0 ? "ok\n" : "%d checks failed\n", failures);
   return failures == 0 ? 0 : 1;
 }

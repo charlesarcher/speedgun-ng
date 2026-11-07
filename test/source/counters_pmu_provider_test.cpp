@@ -445,6 +445,46 @@ auto deviceDiscoveryScenario() -> void
   resetFixture();
 }
 
+// FR-021, T090: the cpu-targeted probe refused while the per-task probe stands.
+// A device whose scope names no class of its own settles on the count the
+// per-task probe gave it, so the refusal of the cpu-targeted kind decides
+// nothing beside that count. The same tree under a granting script stands the
+// same availability, so the row reads the refusal and its control together.
+auto refusedCpuProbeKeepsTheSettledCount() -> void
+{
+  auto calls = scriptedCalls();
+  resetFixture();
+  const auto root = freshRoot();
+  writeCoreDevice(root);
+  gDevicesRoot = root;
+  writeParanoid("2\n");
+  gRefuseCpuTarget = true;
+  installKernelCalls(&calls);
+  const auto refused = enumerate();
+  const auto* const settled = findEntry(refused, "cpu", "cache-misses");
+  check(settled != nullptr,
+        "a core device whose cpu-targeted probe stands refused still seeds "
+        "its alias (FR-021, FR-039)");
+  check(settled != nullptr && settled->avail == Availability::COUNTABLE,
+        "the count the per-task probe settled stands while the cpu-targeted "
+        "probe is refused (FR-021, T090)");
+  resetFixture();
+
+  auto grantedCalls = scriptedCalls();
+  resetFixture();
+  gDevicesRoot = root;
+  writeParanoid("2\n");
+  installKernelCalls(&grantedCalls);
+  const auto granted = enumerate();
+  const auto* const control = findEntry(granted, "cpu", "cache-misses");
+  check(control != nullptr && settled != nullptr
+            && control->avail == settled->avail,
+        "the granting script settles the same availability, so the refusal "
+        "changes no count for a device that names no scope of its own "
+        "(FR-021)");
+  resetFixture();
+}
+
 // ---- P3: the catalog parse ------------------------------------------------
 
 /// The kernel alias wins a name conflict with the vendored table, and
@@ -684,6 +724,7 @@ auto main() -> int
 {
   paranoidReadScenario();
   deviceDiscoveryScenario();
+  refusedCpuProbeKeepsTheSettledCount();
   kernelAliasWinsScenario();
   noRowIdentityScenario();
   fixedCounterRowScenario();
