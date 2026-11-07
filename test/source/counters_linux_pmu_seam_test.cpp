@@ -855,11 +855,23 @@ auto multiplexWindowScenario() -> void
         "own two values, with no computed delta (FR-007)");
   page->time_running = 250'000;
 
-  // The read over a differing pair ran the recipe through the real
-  // context, and the recipe samples the cycle counter with the
-  // instruction there, a host fact the seam-driven tests give up
-  // (FR-013). The recipe's own assertions stand below over the pure
-  // seam, over fields a fixture controls.
+  // The read over a differing pair stands the same gate the header states:
+  // the page's own two counts differ, so the header samples the cycle
+  // counter with the instruction and the recipe adds a delta that carries
+  // the page offset. The instruction reads a host fact. The direction the
+  // pair moves is fixed: the delta stands at least at the offset the page
+  // publishes, so both figures land above the values the page states. The
+  // pure seam below measures the arithmetic itself over fields a fixture
+  // controls (FR-007, FR-008, FR-009, T090).
+  std::uint64_t movedEnabled = 0;
+  std::uint64_t movedRunning = 0;
+  check(sg::counters::detail::fastContextTimePair(
+            context, movedEnabled, movedRunning),
+        "a page whose enabled and running counts differ discloses a pair");
+  check(movedEnabled >= page->time_enabled + kOffset
+            && movedRunning >= page->time_running + kOffset,
+        "a differing pair takes the recipe, and the delta carries at least "
+        "the page offset into both figures (FR-007, FR-009)");
 
   // A page publishing no time capability keeps the raw pair. The recipe is
   // gated on the capability bit the kernel publishes, so a page with no
@@ -3391,6 +3403,82 @@ auto fastBranchScenario() -> void
   }
 }
 
+// The fast window read the way the compiled plan reads it: through the slot
+// its constructor installed. The scripted kernel grants every open and maps
+// one page that publishes no fields at all, so the capability gate the page
+// states ends the read ahead of the instruction, the point carries no count,
+// and the disclosure column names the gap beside it. The slot reaches the same
+// read the virtual entry reaches, on every host, because the page and the
+// grant are the fixture's own (FR-022, FR-026, FR-041, R-004, T090).
+auto fastSlotReadScenario() -> void
+{
+  PmuState state = syntheticState();
+  const Target where {};
+  KernelCalls calls {};
+  calls.openEvent = [](void*, int, int, int, unsigned long) -> long
+  {
+    static int nextFd = 71;
+    return nextFd++;
+  };
+  calls.mapPage = [](void*, std::size_t, int, int, int, long long) -> void*
+  {
+    static std::array<std::uint64_t, 512> page {};
+    return page.data();
+  };
+  calls.unmapPage = [](void*, std::size_t) -> int { return 0; };
+  calls.readGroup = [](int, void*, std::size_t) -> long { return -1; };
+  calls.ioctlEvent = [](int, unsigned long, unsigned long) -> int { return 0; };
+  calls.closeFd = [](int) -> int { return 0; };
+  calls.devicesRoot = []() -> std::filesystem::path { return {}; };
+  calls.paranoidPath = []() -> std::filesystem::path { return {}; };
+  calls.cpuidWords = []() -> CpuidWords { return {}; };
+  const InstalledCalls installed {std::move(calls)};
+
+  const auto fast = sg::counters::detail::pmuOpenFastWindow(
+      state, disclosingLeafSetOf({"cpu/fast"}, 1), where);
+  check(fast != nullptr,
+        "a scripted grant opens a fast window over a leaf set that names a "
+        "disclosure column (FR-040)");
+  if (fast != nullptr) {
+    // Two reads of one page: one through the slot the compiled plan holds,
+    // one through the virtual entry. The member column carries no count and
+    // the disclosure column names the gap in both, so the slot is the read
+    // the window performs and not a second path (FR-002, FR-003, FR-022).
+    constexpr std::uint64_t kUnwritten = ~std::uint64_t {0};
+    std::array<std::uint64_t, 2> viaSlot {kUnwritten, kUnwritten};
+    std::array<std::uint64_t, 2> viaEntry {kUnwritten, kUnwritten};
+    PointSink slotted(viaSlot.data(), 1, 2, 1, 0);
+    (*fast->resolveThunk())(*fast, slotted);
+    slotted.checkAction();
+    PointSink entered(viaEntry.data(), 1, 2, 1, 0);
+    fast->readPoints(entered);
+    entered.checkAction();
+    check(viaSlot[0] == 0 && viaEntry[0] == 0,
+          "a page that states no capability publishes no count through the "
+          "slot and through the virtual entry (FR-002, FR-003)");
+    check(viaSlot[1] == static_cast<std::uint64_t>(Availability::GAP)
+              && viaEntry[1] == viaSlot[1],
+          "the read marks the gap beside the point it could not count, in the "
+          "column the leaf set names (FR-003, FR-007, FR-041)");
+    // The slot the fast window carries is its own read: a group window over a
+    // syscall-mode leaf set installs a different function there, so the read
+    // below is the mapped-page read and not the group read under another name
+    // (FR-022, FR-023).
+    const auto group = sg::counters::detail::pmuOpenWindow(
+        state, leafSetOf({"cpu/work"}), where);
+    check(group != nullptr
+              && group->resolveThunk() != fast->resolveThunk(),
+          "the fast window installed a slot the group window does not carry "
+          "(FR-022, FR-023)");
+    std::printf("seam: the fast slot published member %llu and disclosure "
+                "%llu, the entry member %llu and disclosure %llu\n",
+                static_cast<unsigned long long>(viaSlot[0]),
+                static_cast<unsigned long long>(viaSlot[1]),
+                static_cast<unsigned long long>(viaEntry[0]),
+                static_cast<unsigned long long>(viaEntry[1]));
+  }
+}
+
 // The verdicts' own journey: `probeDevice` runs the per-kind probes, the
 // kinds they settled ride on the catalog entry, the provider records them
 // under the address the system gives a seeded leaf, and the mask the
@@ -4662,6 +4750,7 @@ auto main() -> int
   windowRefusalScenario();
   groupOpenScenario();
   fastBranchScenario();
+  fastSlotReadScenario();
   probeVerdictScenario();
   offcoreEventCodeScenario();
   hybridDeviceScopeScenario();
