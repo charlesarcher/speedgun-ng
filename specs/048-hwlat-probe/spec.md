@@ -583,6 +583,9 @@ after readings of every file the run wrote.
 - No tracefs mount, no rights for the writes, or no detector in the
   kernel: the tracer lines state `not available` and status 0, the
   standing rule of spec `036`.
+- A `hwlat_detector/mode` read form that carries brackets, the form the
+  kernel prints on every read: the saved value stands the bracketed word,
+  and the restore writes that word back (FR-019, P-16).
 - A write that fails after an earlier write stood: the run restores the
   files it wrote, states the failure on the tracer lines, and keeps
   status 0.
@@ -706,7 +709,12 @@ numbers unchanged. FR-007 onward state the rules those six depend on.
   `sys/kernel/tracing/per_cpu/cpu<id>/trace` under the same file root and
   SHALL take its three figures from the detector's own lines (A-6).
 - **FR-019**: When the detector engine starts, the feature SHALL read the
-  standing value of each file it saves. Before the first write the session
+  standing value of each file it saves. The read form of
+  `hwlat_detector/mode` lists the three words and marks the active one
+  inside brackets (`kernel/trace/trace_hwlat.c:629-632`, `:642`), and the
+  write handler compares one stripped word (`:692`, `:694`, `:706-711`),
+  so the value the run saves, states and writes back for that file SHALL
+  stand the bracketed word alone (P-16). Before the first write the session
   reads `current_tracer`, and when that text already reads `hwlat` the
   session writes nothing and answers the shape FR-023 names: the kernel
   returns success without initializing a tracer that already stands

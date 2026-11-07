@@ -53,12 +53,16 @@ status stands 0 (spec FR-001, FR-011, FR-016).
 The setup writes need the rights a root shell carries. The feature never
 asks for them, and it never refuses a host that lacks them. Record each
 value the run saves before the run, so the same command proves the
-restore afterwards (spec SC-007):
+restore afterwards (spec SC-007). The mode file reads back a list with
+the active word inside brackets, and the run saves that word alone, so
+the helper prints the bracketed word for `hwlat_detector/mode`:
 
 ```sh
 snap() { for f in current_tracer tracing_cpumask tracing_thresh \
            hwlat_detector/mode hwlat_detector/width hwlat_detector/window; do
-           printf '%s\t%s\n' "$f" "$(cat /sys/kernel/tracing/$f)"; done; }
+           printf '%s\t%s\n' "$f" \
+             "$(sed -e 's/.*\[\([^]]*\)\].*/\1/' /sys/kernel/tracing/$f)"
+         done; }
 snap > /tmp/tracing-before.txt
 ```
 
@@ -71,10 +75,12 @@ snap > /tmp/tracing-after.txt
 diff /tmp/tracing-before.txt /tmp/tracing-after.txt && echo restored
 ```
 
-Expected: during the window `current_tracer` holds `hwlat`,
-`hwlat_detector/mode` holds `per-cpu`, and the width, the window and the
-threshold hold the run's constants. After the run the diff names no
-file, and `tracing_on` stands `0`, the shape the standing restore writes.
+Expected: during the window `current_tracer` holds `hwlat`, and the mode
+file reads back with `per-cpu` inside brackets, the form the kernel
+prints. The record names `per-cpu` as the saved value of that file. The
+width, the window and the threshold hold the run's constants. After the
+run the diff names no file: each snapshot line carries one saved value,
+and `tracing_on` stands `0`, the shape the standing restore writes.
 The tracer block states the window, the width and the threshold once, and
 one figure line per tracer cpu with the longest gap, the gap count and
 the NMI count (spec FR-019 to FR-021, FR-027).
