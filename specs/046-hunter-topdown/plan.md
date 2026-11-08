@@ -163,3 +163,29 @@ No constitution gate needs a justification to pass, so this table stays empty. T
 items a reader may mistake for a violation are recorded above: the D-16 scope
 amendment, the docs-page home that avoids a cap change, and the level-1 block that
 stands outside every recorded region, which is why the shape tool gains no rule.
+
+
+---
+
+## Acceptance plan: Intel final acceptance (2026-11-07) - the hunter part
+
+The shared plan, the command table and the risk list stand in
+`specs/048-hwlat-probe/plan.md`. This part runs two commands, three times each, on a
+tree built at the measured head, and writes one record.
+
+- **Commands**: `./build/example/memory_walk --hunt --hunt-budget 120s` and
+  `./build/example/first_benchmark --hunt --hunt-budget 120s`, the pair that
+  `results/acceptance-hunt.md` records. No `--timeout`, and no method word in the
+  normal runs.
+- **What each run leaves**: the console text, the exit code, the `events=` summary
+  line, the plan line with its method word, every `area=` cell, the `topdown:` block
+  with its `level=1` line and its file lines, and the count of lines the run printed.
+- **What the record may say**: the three counts over the printed rows with their
+  arithmetic, the distinct cell texts with a count each, the table the block names with
+  the digests it prints, and the mapping of each figure to SC-007, SC-010 and AP-9.
+- **What it may not say**: that the run read a level no line prints, that a rank order
+  holds across runs, that an AMD, Arm or hybrid figure stands for an Intel reading, or
+  that a base re-run happened. A base build stands out of scope and the record names it
+  as not run.
+- **Failure route**: where the normal method fails, the record carries the failure with
+  its exit code before any separately labeled alternative.

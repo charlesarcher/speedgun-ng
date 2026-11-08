@@ -438,3 +438,35 @@ optional: M3's exported symbol moves the archive number whether or not the docs 
 6. Stop and report on any of three readings: a branch shortfall above 21, a marker
    count above 84, or a `README.md` above 1004 lines. Each one is a gate the lane owns,
    and none is fixed by a marker.
+
+
+---
+
+## Phase 7: Intel final acceptance (2026-11-07) - the counter-count part
+
+**Goal**: the Intel non-hybrid row of SC-010 carries figures, or names the right it
+lacks. Depends on: a tree built at the measured head.
+
+- [x] IA41-001.1 [read] Record the device list, the device `type` file, the
+  `branch-instructions` event file, `perf_event_paranoid`, `nmi_watchdog` and the file
+  modes. Verify: each fact names the path it came from and no raw config value stands
+  printed.
+- [x] IA41-001.2 [bench] Run `./build/example/docs_counter_probe` and keep the console,
+  the exit code and the device line. Verify: the row gives the example's own `probe=`
+  figure beside the published limit with its source word, states that the library pays no
+  open on this host, cites the `.expected` file as another host's reading, and claims no
+  match or failure of a byte compare.
+- [x] IA41-001.3 [read] State the watchdog rule as the library applies it, exactly once,
+  on the decoded figure only. Verify: the record names the no-op and adds no hand
+  subtraction.
+- [x] IA41-001.4 [read] Cite `specs/041-counter-probe/tools/group_probe.c` and
+  `tools/probe_window.c` as the standing shape, and name `group_probe` not run because its
+  first argument is a raw config word and its output prints one. Verify: the record runs
+  no tool that takes a type word and prints no raw config value.
+- [x] IA41-002.1 [read] Mark the parity row blocked: give this host's
+  `perf_event_paranoid` reading, the device modes and the root status in the same row, and
+  name the raising of that value as needing root. Verify: the row names the missing right,
+  carries no figure, and words no `-1` reading as the equal of the standing `2` reading.
+- [x] IA41-002.2 [read] Re-state the Arm, Intel hybrid and Zen 4 rows as pending, and
+  name any completed row this host contradicts, or none. Verify: no pending row gained a
+  status.

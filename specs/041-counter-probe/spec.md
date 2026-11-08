@@ -947,3 +947,26 @@ and closed. Two readings this lane does not settle, and states:
 - Principle XI: ASD-STE100 Simplified Technical English throughout, and the
   commit template of Pull Request Quality with `Refs: specs/041-counter-probe
   N6-P` and `Approved-by:` as the last two lines.
+
+
+---
+
+## Acceptance extension: Intel final acceptance (2026-11-07)
+
+`specs/048-hwlat-probe` carries the identity, the changed-file list, the shared
+constraints and the clarification rounds for this phase. This section adds the
+counter-count part and nothing else.
+
+### Requirements - the counter-count part (IA41-001 to IA41-002)
+
+- **IA41-001**: The lane SHALL follow the acceptance commands, the tools and the
+  `counter_probe` example of this spec. The lane SHALL measure the Intel
+  non-hybrid core-device check on the Intel host: the probe limit beside the
+  decoded usable limit, with the watchdog rule applied exactly once. The record
+  SHALL give the pmu and event selection, `kernel.nmi_watchdog`, the permissions,
+  the open and read results, and the source of the published count.
+- **IA41-002**: A permission refusal or an unavailable pmu SHALL stand as blocked
+  hardware acceptance and never as success. The lane SHALL add no command-line
+  option and SHALL expose no raw event code. The Arm, Intel hybrid and Zen 4 rows
+  SHALL stay pending. A completed row SHALL NOT reopen unless new evidence
+  contradicts it.
