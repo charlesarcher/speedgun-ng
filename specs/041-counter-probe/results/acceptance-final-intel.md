@@ -72,3 +72,27 @@ figure. The device modes and the root status stand in the row above.
 The Arm row, the Intel hybrid row and the Zen 4 row stay pending. This host is a
 non-hybrid Intel part with `pmu_name` `skylake`, so it can answer neither. No completed
 row this host measured contradicts them.
+
+
+## Rerun at head `87d745d6c7e62d4da80198c689ddc7078f08ff3d` (2026-11-08)
+
+| Item | Reading | Command |
+|---|---|---|
+| PMU name | `skylake` | `cat /sys/devices/cpu/caps/pmu_name` |
+| Device `type` | `4` | `cat /sys/devices/cpu/type` |
+| `nmi_watchdog` | `0` | `cat /proc/sys/kernel/nmi_watchdog` |
+| `perf_event_paranoid` | `-1` | `cat /proc/sys/kernel/perf_event_paranoid` |
+| Devices | one `cpu` device among `breakpoint`, `cpu`, `msr`, `power`, `software`, `tracepoint`, uncore units, `intel_pt`, `kprobe`, `uprobe`, cstate units | `ls /sys/bus/event_source/devices/` |
+
+Two runs of `./build/example/docs_counter_probe`, each alone with its load witness at its
+start, each exit 0, both printing the same limit line:
+
+| Run | Exit | Limit line | Benchmark line |
+|---|---|---|---|
+| 1 | 0 | `counter limit: cpu limit=4 source=decode probe=4` | `bmProbeTick iterations=1573739252 real time/iter (ns)= 0.445` |
+| 2 | 0 | `counter limit: cpu limit=4 source=decode probe=4` | `bmProbeTick iterations=1573733351 real time/iter (ns)= 0.445` |
+
+`cpu limit=4` from `source=decode` reproduces on this head, and `probe=4` agrees with it.
+The parity row stays blocked for the same reason as above: this session holds no right over
+`/dev/cpu/*/msr`, which reads `crw------- root root 202, 0`. The Arm, Intel hybrid and
+Zen 4 rows stay pending. No raw event configuration value stands in this record.

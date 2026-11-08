@@ -1230,3 +1230,10 @@ Depends on: a tree built at the measured head, and a machine with nothing else r
   point AP-9 beside the figures AP-9 measured, and name the base re-run as not run.
   Verify: no row stands complete without the output behind it, and no row carries a
   completion mark that names an audit point as a success criterion.
+
+
+### Rerun at master `87d745d6` (2026-11-08)
+
+- [x] IA46-003 [bench] Re-run the six hunts at master `87d745d6`, whose repair edits the
+  mapper source. Verify: the record gives the split, the depths, the group totals, the
+  digests and the rank movement for that head.
