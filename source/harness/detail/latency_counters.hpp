@@ -94,6 +94,29 @@ auto closeMsrNode(int descriptor) -> void;
 [[nodiscard]] auto nmiCountOfText(const std::string& text, std::uint32_t cpu)
     -> std::optional<std::uint64_t>;
 
+/// @brief The vendor gate's own test, kept apart so a test can ask it both
+/// answers (FR-010, D-4): a supported answer stands a cpuinfo text that
+/// names the vendor key beside the vendor word the counter stands
+/// documented behind.
+///
+/// \pre none
+/// \post a true answer stands `text` holding a text that names the vendor
+///       key beside the vendor word, and a false answer stands the empty
+///       optional, a text naming the key alone, or a text naming the word
+///       alone
+[[nodiscard]] auto namesVendorText(const std::optional<std::string>& text)
+    -> bool;
+
+/// @brief The row gate's own test, kept apart so a test can ask it both
+/// answers (FR-009): an answered figure stands among the tokens of the row
+/// the reader read.
+///
+/// \pre none
+/// \post a true answer stands no figure, or a figure whose digits appear
+///       in `row`, and a false answer stands a figure absent from `row`
+[[nodiscard]] auto rowNamesFigure(const std::string& row,
+                                  std::optional<std::uint64_t> figure) -> bool;
+
 }  // namespace sg::detail
 
 #endif  // SG_HARNESS_LATENCY_COUNTERS_HPP

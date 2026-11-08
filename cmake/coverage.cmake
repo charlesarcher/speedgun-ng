@@ -44,23 +44,19 @@ endif()
 # as a negative taken count and lcov aborts the capture. The class is
 # narrowed for the same reason as `mismatch`: it names one parsing complaint,
 # and every other lcov check stays live.
-# `inconsistent` is the third class, and the capture needs it for one shape
-# alone. `SG_BENCHMARK_F` and its siblings end with the header of the method
-# the site then defines, so gcov records that method and the registration
-# closures at the one macro invocation line, and lcov reads two functions at
-# one line with different end lines as a contradiction and aborts the capture.
-# Measured at the specs/045 phase 13 base on thrawn: seven such records, in
-# `test/source/harness_callback_test.cpp`, `test/source/harness_fixture_test.cpp`
-# and `example/docs/fixtures.cpp`. The extract roots below keep none of those
-# files, so the class moves no figure the gate reads. specs/016 recorded the
-# shape and `0eed39c2` carried the class for it.
-#
-# The other `inconsistent` cause, a contract closure recorded as a hit function
-# with no hit contained line, stands repaired at its source, and the class is
-# gone from the extract, list and summary reads (specs/045-merge-fixes phase
-# 13, ruling G-25). The capture keeps this class until an owner rules on the
-# fixture macro shape, because the repair of that shape reaches the public
-# macro family in `include/speedgun-ng/benchmark.hpp`.
+# The third class, `inconsistent`, stands gone from every read here. Two
+# shapes produced it. A contract closure written inside an `SG_*` predicate
+# was recorded as a hit function with no hit contained line, and each such
+# closure body now stands in a named helper outside the macro.
+# `SG_BENCHMARK_F` and its siblings registered the case callable and the
+# fixture factory with two lambdas written at the macro invocation line,
+# which is also the line of the header of the method the site then defines,
+# so lcov read two functions at one line with two different end lines and
+# aborted the capture; the macros now pass the named entry functions
+# `::sg::detail::fixtureCaseEntry` and `::sg::detail::fixtureFactoryEntry`,
+# and each record keeps its own line. specs/016 recorded the second shape
+# and `0eed39c2` carried the class for it; this phase removed the shape and
+# the class together (specs/045-merge-fixes phase 13, ruling G-25).
 #
 # The count arm of `topology.cpp` that filled the cpu set by index from
 # the count when the /sys online line read empty is gone: the
@@ -74,7 +70,7 @@ set(
     "${LCOV_EXECUTABLE}" -c -q
     --branch-coverage
     --no-external
-    --ignore-errors mismatch,negative,inconsistent
+    --ignore-errors mismatch,negative
     --base-directory "${PROJECT_SOURCE_DIR}"
     --rc geninfo_unexecuted_blocks=1
     -o "${PROJECT_BINARY_DIR}/coverage.raw.info"

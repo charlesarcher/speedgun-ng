@@ -21,15 +21,22 @@
 // count of steps whose sum it checks, so the gap stands fixed and every
 // release stays an arrival.
 //
-// The wait-mode proof reads the per-thread counters the kernel keeps at
-// /proc/self/task/<id>/status: `voluntary_ctxt_switches` moves exactly when a
-// thread gives up the cpu by blocking, and never while it spins. The reads are
-// observer-side only: a measured participant never opens its own status file,
-// because an in-thread probe read was measured on this host (Linux
-// 7.2.9-2-cachyos) to cost the reader one voluntary switch of its own, which
-// would poison the count it takes. The observer also holds a released
-// participant on a permit flag, so the participant stays alive until its
-// counter has been read a last time.
+// The wait-mode proof reads `voluntary_ctxt_switches`, the counter the kernel
+// keeps for each task: it moves exactly when a thread gives up the cpu by
+// blocking, and never while it spins. The participant reads its own count at
+// the two ends of the barrier call, so the bracket covers the barrier call and
+// nothing else. An earlier revision read the count from the observer side, on
+// the belief that an in-thread read of the status file costs the reader one
+// voluntary switch of its own. That belief was measured again on this host
+// (Linux 7.3.0-5-cachyos) and did not survive: 2000 consecutive reads of
+// `/proc/self/task/<id>/status` from the calling thread cost zero voluntary
+// switches, plain and under the thread sanitizer, and 2000 reads from a thread
+// that never blocks answer 1276 bytes each. The observer-side read cannot
+// bracket the call in any case: it costs tens of microseconds, and a
+// participant that blocks is asleep before it lands. The status file stays an
+// observer-side read as well, and carries the task state, the mark the BLOCK
+// arm needs. The observer also holds a released participant on a permit flag,
+// so the participant stays alive until its count has been read a last time.
 //
 // Scenario map:
 //   round               one round releases every participant (FR-014): four
@@ -226,16 +233,6 @@ auto statusCount(std::string_view text, std::string_view key) -> long long
   return -1;
 }
 
-auto voluntarySwitchesOf(int tid) -> long long
-{
-  char path[64];
-  taskStatusPath(tid, path, sizeof(path));
-  std::array<char, kStatusCapacity> buffer {};
-  const std::size_t filled = readStatus(path, buffer);
-  return statusCount(std::string_view(buffer.data(), filled),
-                     "voluntary_ctxt_switches:");
-}
-
 auto stateCharOf(int tid) -> char
 {
   char path[64];
@@ -261,10 +258,11 @@ auto selfThreadId() -> int
 
 // ---------------------------------------------------------------------------
 // The shape of every measured wait. The participant publishes its thread id,
-// waits for the go signal so the observer can read the counter before the
-// wait begins, records that it entered, arrives, and on return holds on a
-// permit so the observer reads the counter once more while the thread is
-// still alive. It touches no status file itself.
+// waits for the go signal so it stands outside the round while the observer
+// gets ready, records that it entered, reads its own counter, arrives, and on
+// return reads the counter once more and holds on a permit so the observer
+// takes the pair while the thread is still alive. It touches no status file
+// itself.
 // ---------------------------------------------------------------------------
 
 // Watches a completion flag with no bound: the store that sets it is the whole
@@ -273,6 +271,21 @@ auto watch(const std::atomic<bool>& flag) -> void
 {
   while (!flag.load(std::memory_order_acquire)) {
   }
+}
+
+// The participant's own read of the counter the kernel keeps for its task. The
+// read names the calling thread, allocates nothing beyond the fixed buffer and
+// waits on nothing, and the measurement above gives it no switch of its own. A
+// negative answer is a failed read, and the scenario that takes the pair
+// reports it.
+auto selfVoluntarySwitches() -> long long
+{
+  char path[64];
+  taskStatusPath(selfThreadId(), path, sizeof(path));
+  std::array<char, kStatusCapacity> buffer {};
+  const std::size_t filled = readStatus(path, buffer);
+  return statusCount(std::string_view(buffer.data(), filled),
+                     "voluntary_ctxt_switches:");
 }
 
 struct Observer
@@ -284,8 +297,8 @@ struct Observer
   std::atomic<bool> departed {false};
   std::atomic<bool> permit {false};
   std::atomic<bool> sawContext {false};
-  long long switchesBefore {0};
-  long long switchesAfter {0};
+  std::atomic<long long> waitBefore {0};
+  std::atomic<long long> waitAfter {0};
 };
 
 struct Bracket
@@ -304,25 +317,49 @@ auto participantDrive(Observer& observer,
   observer.ready.store(true, std::memory_order_release);
   watch(observer.go);
   observer.entered.store(true, std::memory_order_release);
+  observer.waitBefore.store(selfVoluntarySwitches(), std::memory_order_relaxed);
   barrier.arriveAndWait();
+  observer.waitAfter.store(selfVoluntarySwitches(), std::memory_order_relaxed);
   observer.departed.store(true, std::memory_order_release);
   watch(observer.permit);
 }
 
-// Releases the round from the observer side and brackets the participant's
-// wait with the two counter reads. With `expectPark` set the release waits
-// until the participant stands asleep in the kernel, which is only reachable
-// from a blocking wait: the BLOCK mark. No release ever precedes the watch.
+// The steps of the gap the observer holds between the participant's entry and
+// its own arrival, and the sum that count must reach: 0 + 1 + ... + N - 1.
+constexpr unsigned long long kEntryWork = 20'000ULL;
+constexpr unsigned long long kEntrySum = kEntryWork * (kEntryWork - 1) / 2;
+
+// A fixed count of cpu steps, checked against its own sum, the clock-free way
+// this suite holds a round open.
+auto burnEntryGap() -> void
+{
+  volatile unsigned long long sink = 0;
+  for (unsigned long long step = 0; step < kEntryWork; ++step) {
+    sink += step;
+  }
+  check(sink == kEntrySum,
+        "the entry gap held its whole count of steps " "(FR-004, FR-014)");
+}
+
+// Releases the round from the observer side and collects the pair of counter
+// reads the participant took around its own call, which the release store on
+// the departed flag carries. With `expectPark` set the release waits until the
+// participant stands asleep in the kernel, which is only reachable from a
+// blocking wait: the BLOCK mark. No release ever precedes the watch.
 auto releaseAndBracket(Observer& observer,
                        sg::ContextBarrier& barrier,
                        const bool expectPark) -> Bracket
 {
   watch(observer.ready);
   const int tid = observer.tid.load(std::memory_order_acquire);
-  Bracket bracket;
-  bracket.before = voluntarySwitchesOf(tid);
   observer.go.store(true, std::memory_order_release);
   watch(observer.entered);
+  Bracket bracket;
+  // The observer holds the round open with a fixed count of steps, the shape
+  // `scenarioNoClockNoTimeout` uses, so the participant's arrival always
+  // precedes this one and the participant always waits in the mode its own
+  // policy names (FR-004). No clock and no sleep stands in the gap.
+  burnEntryGap();
   if (expectPark) {
     while (!observer.departed.load(std::memory_order_acquire)) {
       if (stateCharOf(tid) == 'S') {
@@ -337,7 +374,8 @@ auto releaseAndBracket(Observer& observer,
                                                                      "014)");
   barrier.arriveAndWait();
   watch(observer.departed);
-  bracket.after = voluntarySwitchesOf(tid);
+  bracket.before = observer.waitBefore.load(std::memory_order_acquire);
+  bracket.after = observer.waitAfter.load(std::memory_order_acquire);
   observer.permit.store(true, std::memory_order_release);
   return bracket;
 }
