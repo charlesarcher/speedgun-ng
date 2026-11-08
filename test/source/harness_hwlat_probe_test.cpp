@@ -119,6 +119,10 @@ constexpr const char* kIntelText =
 constexpr const char* kOtherVendorText =
     "processor\t: 0\nvendor_id\t: AuthenticAMD\nmodel name\t: y\n";
 
+// The `proc/interrupts` text of a kernel that names no `NMI` row: the labeled
+// row of another kind stands, and the detector figure stands absent (FR-011).
+constexpr const char* kNoNmiRowText = "  8:  10   IO-APIC  8-edge  timer\n";
+
 // The cpu indexes the scenarios pin probe threads to, taken from the process
 // affinity mask, so no cpu number stands fixed in this file (FR-040).
 auto pickCpus(std::size_t count) -> std::vector<std::uint32_t>
@@ -288,18 +292,24 @@ auto writeNodeWhole(const std::filesystem::path& root,
   check(static_cast<bool>(file), "the rewritten node stands written (T012)");
 }
 
-// One whole `proc/interrupts` of one cpu set, written whole (FR-009). The
-// scripted path reads the answer itself, so no check stands on the probe
-// thread: a failed write reaches the flag beside the reader.
+// One whole `proc/interrupts` carrying the text a row names. The scripted
+// path reads the answer itself, so no check stands on the probe thread: a
+// failed write reaches the flag beside the reader (FR-009, FR-011).
+auto writeInterruptsText(const std::filesystem::path& root,
+                         const std::string& text) -> bool
+{
+  std::ofstream file(root / "proc/interrupts", std::ios::binary);
+  file.write(text.data(), static_cast<std::streamsize>(text.size()));
+  file.close();
+  return static_cast<bool>(file);
+}
+
+// One whole `proc/interrupts` of one cpu set, written whole (FR-009).
 auto writeInterruptsWhole(const std::filesystem::path& root,
                           std::size_t columns,
                           std::uint64_t figure) -> bool
 {
-  std::ofstream file(root / "proc/interrupts", std::ios::binary);
-  const std::string text = interruptsText(columns, figure);
-  file.write(text.data(), static_cast<std::streamsize>(text.size()));
-  file.close();
-  return static_cast<bool>(file);
+  return writeInterruptsText(root, interruptsText(columns, figure));
 }
 
 // The script of the running scenario: the calls whose stamp jumps, the calls
@@ -310,6 +320,9 @@ auto writeInterruptsWhole(const std::filesystem::path& root,
 std::vector<std::uint64_t> gapCalls;
 std::vector<std::pair<std::uint64_t, std::uint64_t>> nodeWrites;
 std::vector<std::pair<std::uint64_t, std::uint64_t>> interruptsWrites;
+// The calls that replace the interrupt text whole: the shape that leaves one
+// source with no row to read at a later edge (FR-011).
+std::vector<std::pair<std::uint64_t, std::string>> interruptsTexts;
 // The calls at which one cpu's node figure appears in the tree, with the bytes
 // the node then answers. The item opens its node once at its start, so the path
 // has to stand for the figure to reach the reads of the window: the list writes
@@ -407,6 +420,14 @@ auto applyScriptWrites(std::uint64_t call) noexcept -> void
       scriptWriteFailed.store(true, std::memory_order_relaxed);
     }
   }
+  for (const auto& [at, text] : interruptsTexts) {
+    if (at != call) {
+      continue;
+    }
+    if (!writeInterruptsText(scriptRoot, text)) {
+      scriptWriteFailed.store(true, std::memory_order_relaxed);
+    }
+  }
 }
 
 // The scripted series reader: one per-thread stamp series that steps by the
@@ -443,6 +464,7 @@ auto resetScript(const std::filesystem::path& root, std::size_t columns) -> void
   gapCalls.clear();
   nodeWrites.clear();
   interruptsWrites.clear();
+  interruptsTexts.clear();
   nodeAppears.clear();
   scriptCreateFailed.store(false, std::memory_order_relaxed);
   scriptRoot = root;
@@ -721,6 +743,51 @@ auto theNmiRows() -> void
         check(state.changes.at(1) == 0 && stats.smiGapCount == 1,
                   "a rising NMI figure marks no gap, because the mark answers "
                   "the SMI counter alone (FR-014, FR-017, D-14)");
+      });
+}
+
+// T013: one source loses its row between the two edges of the window. The
+// opening edge reads the planted figure, the closing edge reads a text that
+// names no `NMI` row, and the delta of that source answers nothing while the
+// pair of the counter source stands whole (FR-011, FR-016, FR-017).
+auto theNmiRowGoneAtTheClosingEdge() -> void
+{
+  const auto cpus = pickCpus(1);
+  const HwlatRootGuard root;
+  plant(root.root(), "proc/cpuinfo", kIntelText, kNodeRights);
+  plant(root.root(),
+        nodePath(cpus.at(0)),
+        nodeImage(kOpeningCount, sg::detail::kSmiCountBytes),
+        kNodeRights);
+  plant(root.root(),
+        "proc/interrupts",
+        interruptsText(columnCount(cpus), kNmiOpening),
+        kNodeRights);
+  resetScript(root.root(), columnCount(cpus));
+  gapCalls = {kGapOneCall, kGapTwoCall};
+  nodeWrites = {{kGapOneCall, kRiseCount}};
+  interruptsTexts = {{kGapTwoCall, kNoNmiRowText}};
+  runSpan(
+      spanOptions(cpus, sg::JitterProbeMode::ALONGSIDE, kGapCount),
+      1,
+      kGapTwoCall,
+      [] {},
+      [&](const auto& states)
+      {
+        const auto& state = states.at(0);
+        const auto stats = sg::detail::gapStatsOf(state);
+        check(state.edges.nmiOpening.has_value()
+                  && *state.edges.nmiOpening == kNmiOpening
+                  && !state.edges.nmiClosing.has_value(),
+              "the window carries the opening figure of the source and leaves "
+              "its closing edge unread (T013, FR-016)");
+        check(!stats.nmiDelta.has_value(),
+              "the delta of a source whose closing edge reads no row answers "
+              "nothing (T013, FR-011, FR-017)");
+        check(state.edges.smiClosing.has_value() && stats.smiDelta.has_value()
+                  && *stats.smiDelta == 1,
+              "the pair of the source that keeps its row answers its own "
+              "change (T013, FR-016)");
       });
 }
 
@@ -1690,6 +1757,7 @@ auto main() -> int
   theRiseRows();
   theWindowRows();
   theNmiRows();
+  theNmiRowGoneAtTheClosingEdge();
   theAbsentNodeRows();
   theNoRightsRows();
   theShortNodeRows();

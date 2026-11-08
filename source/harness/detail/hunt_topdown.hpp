@@ -61,6 +61,27 @@ inline constexpr int kTopdownAreaLevel {6};
     -> std::optional<std::size_t>;
 
 /**
+ * @brief specs/046 FR-001, FR-003, D-4: whether every node of `tree` that
+ * names `address` stands at a level at or below the level of the node at
+ * `answer`.
+ *
+ * A node that names no such address takes no part in the answer. The assertion
+ * of `topdownDeepestNode` reads this answer over the whole list, which is how
+ * it settles that the node it chose stands deepest.
+ *
+ * \pre `answer` names an element of `tree.nodes`
+ * \post the answer reads true when every node whose `events` holds `address`
+ * as an equal text carries a level at or below the level of the node at
+ * `answer`, and it reads false as soon as one such node stands deeper
+ * \invariant the answer reads `tree.nodes` and `address` alone: no clock, no
+ *            counter and no kernel interface enters it (D-7)
+ */
+[[nodiscard]] auto nodesNamingAddressStandAtOrBelow(
+    const sg::counters::TopdownTree& tree,
+    std::size_t answer,
+    std::string_view address) -> bool;
+
+/**
  * @brief The path of one node: the names the `parent` links reach above it,
  * root first, joined by " > " (FR-007, D-10).
  *

@@ -44,15 +44,23 @@ endif()
 # as a negative taken count and lcov aborts the capture. The class is
 # narrowed for the same reason as `mismatch`: it names one parsing complaint,
 # and every other lcov check stays live.
-# `inconsistent` is the third class, and the fixture macros of feature 016
-# need it. `SG_BENCHMARK_F` and its six siblings generate a case function
-# whose body spans several source lines while gcov records the generated
-# function at the macro invocation line, so lcov 2.3 reads the recorded end
-# line and the last line of the body as a pair that disagrees, and aborts the
-# capture. The class names that parsing complaint. Narrowing it keeps every
-# other lcov check, and gcov's own diagnostics, live, and it changes no
-# number the gate reads: the lines of the body carry their own line and
-# branch counters either way.
+# `inconsistent` is the third class, and the capture needs it for one shape
+# alone. `SG_BENCHMARK_F` and its siblings end with the header of the method
+# the site then defines, so gcov records that method and the registration
+# closures at the one macro invocation line, and lcov reads two functions at
+# one line with different end lines as a contradiction and aborts the capture.
+# Measured at the specs/045 phase 13 base on thrawn: seven such records, in
+# `test/source/harness_callback_test.cpp`, `test/source/harness_fixture_test.cpp`
+# and `example/docs/fixtures.cpp`. The extract roots below keep none of those
+# files, so the class moves no figure the gate reads. specs/016 recorded the
+# shape and `0eed39c2` carried the class for it.
+#
+# The other `inconsistent` cause, a contract closure recorded as a hit function
+# with no hit contained line, stands repaired at its source, and the class is
+# gone from the extract, list and summary reads (specs/045-merge-fixes phase
+# 13, ruling G-25). The capture keeps this class until an owner rules on the
+# fixture macro shape, because the repair of that shape reaches the public
+# macro family in `include/speedgun-ng/benchmark.hpp`.
 #
 # The count arm of `topology.cpp` that filled the cpu set by index from
 # the count when the /sys online line read empty is gone: the
@@ -85,19 +93,15 @@ set(
 # caller, so no code runs at the brace). The source returns its local
 # plainly and this filter removes the false record; no copy is built in
 # source to move a coverage count.
-# The extract step carries the `inconsistent` class the capture carries, because
-# the filter pass re-reads the captured data and repeats the complaint the
-# capture was told to tolerate. The continuous integration lane of pull request
-# #86 and of pull request #87 both stopped here:
-# `lcov: ERROR: (inconsistent) "source/harness/runner.cpp":708: function
-# '_ZZN2sg6detail19stripTopdownColumnsE..._clEm' is hit but no contained lines
-# are hit`. The named function is the lambda of the `SG_REQUIRE` pair of that
-# line, whose own body lines the `--omit-lines` pattern above removes from the
-# trace, so the filter reads the record and the omission as a contradiction and
-# ends the step. The class names that one parsing complaint, every other lcov
-# check and gcov's own diagnostics stay live, and no figure the gate reads
-# changes: the lines outside the contract span carry their own line and branch
-# counters either way (specs/042 T035, specs/048 T079).
+# The extract step ignores no error class. The record that once stopped it
+# named a contract closure: gcov records a closure written inside an `SG_*`
+# predicate at the macro invocation line, the `--omit-lines` pattern below
+# removes that line's data, and the written trace then held a hit function
+# with no hit contained line. `lcov --list` and `lcov --summary` refused that
+# trace, which is where the continuous integration lanes of pull requests #86
+# and #87 stopped. The closures stand in named helpers outside the macro now,
+# so the pattern removes no line a function record still points at
+# (specs/045-merge-fixes phase 13, ruling G-25).
 #
 # `tools/hostcheck/*` joins the two application roots, because specs/031 puts
 # the mapfile matcher and the chooser builder there, outside the library on
@@ -111,7 +115,6 @@ set(
 set(
     COVERAGE_EXTRACT_COMMAND
     "${LCOV_EXECUTABLE}" --branch-coverage
-    --ignore-errors inconsistent
     --filter exception,branch,brace
     --omit-lines "SG_(REQUIRE|ENSURE|INVARIANT|ASSERT)(_ALWAYS)?"
     --omit-lines "if \\(cpus\\.empty\\(\\)\\) \\{"
@@ -152,7 +155,7 @@ add_custom_target(
     coverage
     COMMAND ${COVERAGE_TRACE_COMMAND}
     COMMAND ${COVERAGE_EXTRACT_COMMAND}
-    COMMAND ${LCOV_EXECUTABLE} --branch-coverage --ignore-errors inconsistent
+    COMMAND ${LCOV_EXECUTABLE} --branch-coverage
             --list "${PROJECT_BINARY_DIR}/coverage.info"
     COMMAND ${COVERAGE_SUMMARY_COMMAND}
     COMMAND ${COVERAGE_HTML_COMMAND}

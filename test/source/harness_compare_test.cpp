@@ -3173,11 +3173,13 @@ auto theThreeDetectorNamesResolve() -> void
               "a written aggregate on a detector name faults (FR-028, D-21)");
 }
 
-// T090, FR-028, FR-030: the three shapes a detector name carries apart from
+// T090, FR-028, FR-030: the four shapes a detector name carries apart from
 // its grammar. A cpu part that stands empty faults on the empty token, the
-// word with nothing behind it reaches no detector grammar at all, and the word
-// behind one blank reaches the standing suffix read. The row of the names that
-// resolve stands above this one as its control.
+// word with nothing behind it reaches no detector grammar at all, the word
+// behind one blank reaches the standing suffix read, and the word behind an
+// aggregate marker reaches it the same way, because the name read ends at the
+// marker. The row of the names that resolve stands above this one as its
+// control.
 auto theDetectorNameWithoutItsPartsFaults() -> void
 {
   faultTextIs("hwlat::maxGapNs:lower:abs=5",
@@ -3194,6 +3196,11 @@ auto theDetectorNameWithoutItsPartsFaults() -> void
               "the value name of the rule 'hwlat lower:abs=5' is not readable: "
               "'hwlat lower' is not a value the report carries",
               "the word behind one blank faults on the standing suffix read "
+              "(T090, FR-004, FR-028)");
+  faultTextIs("hwlat@median:lower:abs=5",
+              "the value name of the rule 'hwlat@median:lower:abs=5' is not "
+              "readable: 'hwlat' is not a value the report carries",
+              "the word behind an aggregate marker faults on the same name read "
               "(T090, FR-004, FR-028)");
 }
 

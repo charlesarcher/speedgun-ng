@@ -50,8 +50,10 @@ Part B (jitter probe, PR #72, N13c and its follow-up N13c-F) covers
 
 Both parts own `specs/045-merge-fixes/`.
 
-Out of scope: `.github/`, `tools/dbc/`, `tools/ci/`, `cmake/`, the
-coverage gate configuration, any version number, any CI change.
+Out of scope for parts A and B: `.github/`, `tools/ci/`, the coverage
+gate configuration, any version number, any CI change. `tools/dbc/` and
+`cmake/` carry no change in parts A and B; phase 13 names the two files
+of those directories it edits.
 
 Part A and part B land in separate commits. Each commit carries one
 topic and the tests of that topic. "Passes the gates alone" means the
@@ -401,8 +403,9 @@ and `tools/dbc/dbc_pair_gate.py` pass.
   run within its 10-second bound.
 - **SC-007**: Every spec 043 Phase 10 row is ticked with its gate
   result, or left open with the reason.
-- **SC-008**: `.github/`, `tools/dbc/`, `tools/ci/`, `cmake/`, the
-  version, the schema and the SOVERSION carry no change.
+- **SC-008**: `.github/`, `tools/ci/`, the version, the schema and the
+  SOVERSION carry no change. `tools/dbc/` and `cmake/` carry no change
+  in phases 0 to 12; phase 13 names the two files there that it edits.
 
 ## Local acceptance (G-20)
 
@@ -449,9 +452,13 @@ the thrawn-side counts stand for the whole acceptance.
 trailers. Part A commits: `Refs: G-19 G-21 T-LCOV-3`. Part B commits: `Refs: specs/043-fwq-ftq N13c-F`; the commit that ticks the
 spec 043 Phase 10 rows rides in the Part B commit whose work it records.
 Spec-file commits, meaning commits that touch `specs/045-merge-fixes/` only,
-carry `Refs: specs/045-merge-fixes`. No mixed commit arises: the `specs/045-merge-fixes/` files land only
-in spec-file commits, and the Part A and Part B commits touch only their code
-and tests, one topic per commit. Then `Approved-by: OmO`.
+carry `Refs: specs/045-merge-fixes`. No mixed commit arises in parts A and
+B: the `specs/045-merge-fixes/` files land only in spec-file commits, and
+the Part A and Part B commits touch only their code and tests, one topic
+per commit. Then `Approved-by: OmO`. Phase 13 replaces that rule for
+itself: its one squashed commit carries its code, its tests and its
+`specs/045-merge-fixes/` records together, and its footer is the phase 13
+form.
 - History: rebase only, no merge commits, no CI change, no rewrite of
   master history.
 - First push: `git push -u origin 045-merge-fixes`. Each later push:
@@ -665,3 +672,443 @@ spec records no ruling for them.
   already documents the jitter record the fix restores, and no
   feature lands.
 
+
+## Phase 13: Repair the coverage-data fault (owner ruling G-25, 2026-11-07)
+
+**Input**: Owner ruling G-25 of 2026-11-07. Remove
+`--ignore-errors inconsistent` from the repository coverage commands
+and fix the coverage-data fault behind it. The evidence of this phase
+keeps the class on one read, the capture, and O-4 carries that
+exception for the owner. The ruling names pull
+request #89 as the change that added the class to the extract, list
+and summary reads, and records that the same complaint already stands
+in the capture. The evidence of record is the fault itself:
+`lcov: ERROR: (inconsistent) "source/harness/runner.cpp":708: function
+'_ZZN2sg6detail19stripTopdownColumnsE..._clEm' is hit but no contained
+lines are hit`, read on the continuous integration coverage job of
+pull requests #86, #87 and #89, and the partial coverage union of
+specs/048-hwlat-probe.
+
+This phase reuses spec 045. It adds no numbered spec and replaces no
+earlier requirement, task row, ruling or record of this file, except
+that it narrows the two lines that freeze `cmake/` and `tools/dbc/` to
+the phases those lines bound. The
+description's FR-001 to FR-007 are this phase's FR-016 to FR-022; its
+US-1 and US-2 are this spec's US-6 and US-7. The task rows carry the
+IDs COV-001 to COV-007 in `tasks.md`.
+
+### Run-time binding (phase 13)
+
+- Base: `origin/master` at `615c0964547e4e9768b8e2f2d79991033a0eb5bd`
+  (version 0.34.0, report schema 1.16, harness SOVERSION 22, archive
+  SOVERSION 8, `git grep -c LCOV_EXCL -- source include` at 84, README
+  1002 lines against the cap of 1004). No open pull request stood at
+  the live check of 2026-11-07. The implement phase rechecks the base
+  at branch time and records the reading.
+- Branch: `fix/coverage-data-repair`, cut from the latest
+  `origin/master`. `615c0964` shall be an ancestor of `origin/master`
+  at cut time. The branch stood absent on the remote at the live
+  check; when it exists, the work inspects its head, reports, and
+  does not overwrite or reuse it. Old merged branches stay
+  unresumed. The base SHA stands in the record.
+- One branch, one squashed commit, one pull request. The work never
+  merges, closes an issue, or claims a new ruling.
+- Version, schema, harness SOVERSION and archive SOVERSION shall not
+  change. No public API change is planned. When a repair must move a
+  public layout, the work stops and reports.
+- Target host: thrawn, AMD Zen 5 Threadripper 9960X, 24 cores, 48
+  threads. Acceptance is local (G-20). CI results are diagnostics.
+- Line numbers below name the state at `615c0964`. The implement phase
+  finds each item by its symbol when a line moves.
+
+### Scope (phase 13)
+
+In scope:
+
+- `specs/045-merge-fixes/`, its `results/` records, and its quickstart.
+- The four reads that carry the `inconsistent` class at the base: the
+  capture list, the extract command and the `--list` step of
+  `cmake/coverage.cmake`, and the `--summary` read of
+  `tools/dbc/coverage_gate.sh`. The phase removes the class from the
+  three reads of the written trace and keeps it on the capture under
+  O-4. The `genhtml` step of the same target carries no class at the
+  base and proves the repair.
+- The contract predicate sites the evidence names: every contract
+  predicate in the extract roots whose predicate builds a closure, the
+  source files that hold one, and the regression tests of those files
+  under `test/`.
+- The cold rows of the FR-022 ledger, the source files that hold them,
+  and the tests that hand those files their legitimate input.
+
+Out of scope:
+
+- The records and task rows of `specs/041-counter-probe/`,
+  `specs/046-hunter-topdown/` and `specs/048-hwlat-probe/`.
+- Trace-line parsing (G-28, approved and standing), raw codes (G-31)
+  and automatic ranks (G-32), lifecycle follow-ons, and name cleanup
+  (T-NAMES). G-28 stays approved work of its own lane; this repair
+  does not start it, and G-31 and G-32 stay future features.
+- Any gate, filter, allowance, marker or CI setting beyond the four
+  reads named above. A change to an unrelated gate or CI setting stops
+  the work for owner approval.
+
+### User scenarios (phase 13)
+
+#### US-6 A maintainer reads a consistent trace (Priority: P1)
+
+A maintainer runs the coverage target on a fresh instrumented tree and
+reads one consistent full trace. No read of the route ignores an
+inconsistent record, so the figures the gate prints are the figures of
+a trace the tool accepted line by line.
+
+**Why this priority**: the coverage gate is a hard gate (VI). A figure
+read from a trace the tool rejected carries no evidence.
+
+**Independent test**: `cmake --preset=ci-coverage`, the suite in
+`build/coverage`, then `cmake --build build/coverage -t coverage`:
+every step exits 0, and no step prints an `(inconsistent)` line.
+
+**Acceptance scenarios**:
+
+1. **Given** a fresh instrumented tree at the phase head, **When** the
+   capture, the extract, the list and the summary read run with no
+   `inconsistent` class anywhere in the route, **Then** each step
+   exits 0 and prints its figures.
+2. **Given** the same run, **When** the reader greps the log for
+   `(inconsistent)`, **Then** the grep prints no line that names a
+   contract function record. Every other `(inconsistent)` line stands
+   in the record with its file, its line and its count.
+
+#### US-7 A maintainer sees every cold line and its real input (Priority: P2)
+
+A maintainer reads the cold rows of the trace and finds, for each one,
+the file, the line, the arms and the input that would take them. No
+row stands closed by a waiver, an omitted path or a widened allowance.
+
+**Why this priority**: the owner's ruling of 2026-11-05 sets the rule
+for the cold rows: they stand closed by real work, and the allowance of
+21 (D-14 of `specs/030-ci-speedup`) does not move.
+
+**Independent test**: the cold-row ledger in
+`results/coverage-data-repair.md` names every remaining row with its
+arms and its class, and the gate reading matches the ledger.
+
+**Acceptance scenarios**:
+
+1. **Given** the phase head, **When** the gate reads its shortfall,
+   **Then** the record gives the taken count, the total count and the
+   shortfall from the `branches` line of the summary read, and the
+   ledger lists the cold rows of `build/coverage/coverage.info` with
+   their own row count beside that shortfall. The shortfall stands at
+   21 or fewer.
+2. **Given** a cold row no legitimate input reaches, **When** the
+   reader looks it up in the ledger, **Then** the row names its exact
+   file, line and arms beside the evidence, and stands open.
+
+### Edge cases (phase 13)
+
+- The first `(inconsistent)` line names one location. The route holds
+  three contract predicates whose predicate builds a closure at the
+  base: `source/harness/runner.cpp:708`, `source/harness/runner.cpp:821`
+  and `source/harness/hunt_topdown.cpp:155`, and the record lists one
+  `(inconsistent)` read record for each. The second of the three captures
+  by value, so a search that looks only for `[&` misses it.
+- A repair that moves a lambda out of a contract span also moves its
+  line and branch records back into the denominator. The phase keeps
+  the totals inside the standing gates and covers the new records with
+  real tests.
+- A host-local lcov configuration can relax the data-consistency
+  check. `~/.lcovrc` on thrawn carries `check_data_consistency = 0`
+  from 2026-11-03. The acceptance run keeps the check live and states
+  how it did so; a local config bypass is not acceptance.
+- A test entry that stops at its wall bound leaves the source that
+  entry drives dark, and the lane that stops there reads no records for
+  it. The record carries the ceiling, the entry, the step that runs the
+  entry to its end, and the two readings. An incomplete capture is
+  never called accepted.
+- A contract predicate that reads false ends the process. A test that
+  drives such an arm calls the helper directly and asserts the answer,
+  so the helper stands declared in the internal header that declares
+  the enclosing function; the test does not raise a contract violation.
+
+### Requirements (phase 13)
+
+- **FR-016**: When the phase starts, the work shall reproduce the
+  fault from a fresh local instrumented build and classify it. The
+  record shall preserve the raw gcov and lcov diagnostics, the tool
+  versions and the exact commands. The record shall read the affected
+  function records and the interaction between the contract macros
+  and the `--omit-lines` filter, and shall separate stale build data,
+  instrumentation defects and source shape. The reproduction reads the
+  whole instrumented tree, because a capture of one translation unit
+  reports `(inconsistent)` records that the merged trace of the full
+  suite does not carry.
+- **FR-017**: When the phase lands, no repository read of the written
+  trace shall suppress the `inconsistent` class. The capture stands as
+  the one read that keeps the class, under O-4. The removal covers the
+  extract command, the `--list` step and the `--summary` read of
+  `tools/dbc/coverage_gate.sh`. Every other existing class stays as it
+  stands; the phase adds no class and broadens none. This is the narrow
+  G-25 removal, and it carries no permission to change a gate or a
+  filter. The capture list carries a second `inconsistent` cause, the
+  end-line record of the function that `SG_BENCHMARK_F` generates,
+  which `0eed39c2` recorded for specs/016. FR-016 shall classify it.
+  When its repair reaches the public macro family, the work stops and
+  reports under the run-time binding, and the capture list stands
+  unchanged with the reason in the record.
+- **FR-018**: When the cause stands known, the repair shall remove it
+  without changing the contract or the run behavior. A named semantic
+  helper outside an `SG_` macro is a candidate only when the evidence
+  shows a contract lambda and filter mismatch. The repair shall not
+  move code merely to lose counters, add a dummy path or remove a
+  check. Expression evaluation, side effects, Release behavior, and the
+  violation record's kind, message, file and line stand preserved. The
+  predicate text in that record names the call that carries the
+  constraint, and the record quotes that text before and after the
+  repair. When the evidence names a different cause,
+  the phase documents that cause before the repair.
+- **FR-019**: When the phase head is measured, a full clean capture,
+  extraction, listing and summary shall complete with no inconsistent
+  data ignored at the extract, list and summary reads and at the
+  `genhtml` step. The capture list keeps the class under O-4, and the
+  record gives its end-line records with their files, lines and count. Clean means a `build/coverage` tree with no `*.gcda`,
+  no `coverage.raw.info` and no `coverage.info`, configured with both
+  compiler launchers empty, built, and run through the whole suite. The extract roots, the filters, the accepted R-1, R-2
+  and W-1 patterns and the allowance of 21 stand unchanged. The pull
+  request #89 diff stands audited on its own: the record enumerates
+  which edits are ignored-error plumbing, which are comments, and
+  whether any unrelated gate change stands in the range. A change to
+  an unrelated gate or CI setting stops the work for owner approval.
+- **FR-020**: When the phase measures coverage, it shall cover the
+  remaining legitimate inputs with real tests. The partial union of
+  specs/048-hwlat-probe, which its record reports as 46 cold branch
+  records and a branch shortfall 25 over the allowance, with the jitter
+  command-line trace absent, stands as a lead and never as the
+  acceptance baseline. The phase runs the full suite and computes
+  fresh totals. An incomplete capture is never called accepted.
+- **FR-021**: When the phase lands, the tree shall keep only the two
+  already-approved closed-enumeration `BR` markers on
+  `switch (slot.source)` in `source/counters/linux_pmu/group_io.cpp`
+  under G-29, beside the separately accepted existing exceptions. No
+  new `LCOV_EXCL` marker, omit pattern, remove pattern or ignore-error
+  setting joins the tree. A retry marker, an unstable-pair marker or
+  the ledger's claim of a prior approval gives no new exception. The
+  phase runs no blanket marker purge; a disputed class is reported for
+  investigation.
+- **FR-022**: When a required cold branch position is not reachable
+  through the legitimate input contract, the record shall list the
+  exact file, line and arms with its evidence, and the row shall stay
+  open inside the allowance of 21. A cold line stops the work and is
+  reported, as the ruling on FR-011 states. The phase shall not change
+  the allowance and shall not invent an exception.
+
+### Success criteria (phase 13)
+
+- **SC-009**: On a fresh instrumented tree at the measured head, the
+  capture, extract, list and summary steps each exit 0, and no step
+  prints an `(inconsistent)` line that names a contract function
+  record. Line coverage reads 100 percent; the branch shortfall reads
+  21 or fewer on thrawn, taken from the `branches` line that
+  `tools/dbc/coverage_gate.sh` reads at the measured head, with the
+  same reading given at the base. The record gives the numerator, the
+  denominator, the cold rows with their count and the gate exit.
+- **SC-010**: `git grep -c LCOV_EXCL -- source include` summed over its
+  files reads 84 or fewer, and the two `switch (slot.source)` `BR`
+  markers stand as the only markers this phase touches.
+- **SC-011**: The full `ctest`, the full `ctest` under `taskset -c 0,1`,
+  the run on four real allowed cpus, the address and undefined-behavior
+  sanitizer tree and the thread sanitizer tree report their passed figure, their failed figure and
+  their `did not run` block with its `(Skipped)` and `(Disabled)`
+  rows, each given separately. Every `***Timeout` row stands named
+  with the ceiling it crossed and the seconds that entry needs outside
+  `ctest`. A base failure is identified and left open.
+- **SC-012**: The cheap gates pass at the head: the `ci-rocky` release
+  developer build, format, spell, prose range and tree with the unit
+  count it examined, example drift, time-source, DBC doc and pair gates,
+  the analyzer build, and the downstream consumer build. README stays at
+  or below 1004 lines. The remaining page-drift items, `snippet_compile`,
+  `report_shape` and the two fixture suites, run as entries of the
+  `ctest` of SC-011. The DBC doc gate reads the public headers alone and
+  the pair gate carries no row for a `detail` declaration, so the
+  contract text of an internal helper stands checked by review.
+- **SC-013**: The record `results/coverage-data-repair.md` names the
+  host, the CPU, the kernel, the GCC, clang, gcov and lcov versions,
+  the base SHA, the measured squashed SHA, the commands, the counts,
+  the coverage figures and every failure. The quickstart carries a
+  reproducible command example of this repair.
+- **SC-014**: The pull request body names the measured squashed SHA,
+  and `git ls-remote origin refs/heads/fix/coverage-data-repair`
+  equals `git rev-parse HEAD` after every push. A machine without the
+  `gh` credential delivers the branch, the push proof and the body text,
+  as the assumptions state.
+
+### Local acceptance (phase 13)
+
+Acceptance is local (G-20) on thrawn. The corsairone-first order of the
+Local acceptance section above binds phases 0 to 12 and does not bind
+this phase; corsairone stands unrequired here. Before any pinned run the work
+inspects `sched_getaffinity` and the online cpu list and records both.
+A test chooses a real allowed cpu, never an invented id. The required
+lane is `taskset -c 0,1`; when cpus 0 and 1 stand outside the allowed
+set, that lane is recorded as blocked, and a run on another allowed
+pair is extra evidence and never a substitute pass. A run on four
+real allowed cpus also stands required.
+
+No test of this phase uses a sleep, a wall-clock read or a racing page
+rewrite. The phase uses the deterministic seams the repository already
+carries. A production time API is never a fake test.
+
+The data-consistency check stands live in every read of the route,
+the FR-016 reproduction among them: the run keeps the host-local
+`~/.lcovrc` of 2026-11-03 out of lcov's reach and records the form it
+used. No repository command gains a setting that hides the file.
+
+### Commit and record rules (phase 13)
+
+- History, authors and footers of earlier work stand as they are
+  (G-26, G-27). New commits carry author and committer `OmO`. No
+  person name and no user home path stands in a tracked record; the
+  LICENSE exemption stands.
+- One squashed commit carries the repair. Title: `<Section>: <one-line
+  imperative>` at 50 characters or fewer. Body lines: 72 columns or
+  fewer. Footer, as real trailers in order:
+  `Refs: specs/045-merge-fixes G-25` then `Approved-by: OmO`. That order
+  follows the landed history of this repository and stands ahead of the
+  template paragraph order of the constitution, which the governance
+  section resolves in favor of the written record here. The commit
+  carries no `Fixes #n`: no tracking issue stands for the coverage fault,
+  and the body says so. The `Approved-by:` footer records the owner's
+  ruling G-25; the owner's approval at merge time stands as the approval
+  of the landing commit.
+- Rebase, never merge. The master history stands unrewritten.
+- First push: `git push -u origin fix/coverage-data-repair`. Each
+  later push saves the expected full remote SHA first, requires it to
+  equal the last observed SHA, and uses
+  `git push --force-with-lease=fix/coverage-data-repair:<expected-full-sha>`.
+  A failed lease is reported and never refreshed and retried. After
+  each push `git ls-remote origin refs/heads/fix/coverage-data-repair`
+  shall equal `git rev-parse HEAD`.
+- Measurement names the final squashed SHA. A commit never embeds its
+  own SHA. When a records-only amend follows a measured head, the
+  record discloses both SHAs and the exact diff, and the acceptance
+  runs again at the final head with those counts in the pull request
+  body.
+- No new CI change stands in this phase.
+
+### Decisions (phase 13)
+
+- **D-10 (reuse)**: the phase rides spec 045 as the owner directed. A
+  new numbered spec would split the coverage history of this lane
+  across two features.
+- **D-11 (cause first)**: the reproduction of FR-016 precedes the
+  removal of FR-017 and the repair of FR-018 in the same branch, so
+  the record shows the fault, then the repair, then the clean reading.
+- **D-12 (narrow tooling)**: the tooling diff removes one class from
+  the three reads of the written trace; the capture list keeps it under
+  O-4. The `mismatch` and `negative` classes, the extract
+  roots, the `--filter` set, the two `--omit-lines` patterns and the
+  allowance of 21 stand untouched, because FR-019 fixes them.
+- **D-13 (helper candidate)**: the named semantic helper is chosen only
+  from the evidence of FR-016. The candidate shape keeps the `SG_*`
+  macro, its message and its evaluation order at the call site, and
+  moves the predicate body into a function that returns its answer and
+  carries no contract of its own, so a test can call it with a false
+  predicate and keep its process. The coverage tree builds with
+  `speedgun-ng_CONTRACTS:STRING=enforce`, and `enforce` reaches
+  `std::abort()` at `include/speedgun-ng/dbc.hpp:213`.
+
+### Clarifications (phase 13)
+
+#### Round 2, 2026-11-07
+
+The acceptance lens re-read the phase against the tooling and the recorded
+lane practice, and the phase then states the measurement it binds.
+
+- Q: Does SC-009's "no step prints an `(inconsistent)` line" bind both
+  emissions of the class? (SC-009, US-6) → A: it binds the contract
+  record this phase repairs. The capture's end-line emission stands in
+  the record with its file, its line and its count. Measured at
+  `615c0964`: seven end-line records, in `test/source/harness_callback_test.cpp:278`,
+  `test/source/harness_fixture_test.cpp:226`, `:249`, `:291` twice, and
+  `example/docs/fixtures.cpp:30` twice, and the extract roots keep
+  neither `test/` nor `example/`.
+- Q: What verdict does SC-011 give an entry stopped at its ceiling, and
+  which ctest lines give the four counts? (SC-011) → A: the record
+  gives the passed figure, the failed figure, and the `did not run`
+  block with its `(Skipped)` and `(Disabled)` rows, and every
+  `***Timeout` row stands named with the ceiling it crossed and the
+  seconds that entry needs outside `ctest`. Measured: `99% tests
+  passed, 1 tests failed out of 185`, `harness_jitter_cli_test
+  ***Timeout 300.11 sec`, `183 - harness_topdown_run_test (Skipped)`,
+  `CTEST_EXIT=8`.
+- Q: Which host's reading does SC-009 bind? (SC-009) → A: the thrawn
+  reading the gate computes from the `branches` line of the summary
+  read at the measured head, with the same reading given at the base.
+  The CI reading stands as a diagnostic. Measured at `615c0964`:
+  `branches....: 99.7% (9223 of 9249 branches)`, a shortfall of 26
+  against the allowance of 21.
+- Q: What keeps the check live, and does the FR-016 reproduction sit
+  inside that rule? (local acceptance, FR-016) → A: every read of the
+  route, the reproduction among them, runs with the host file out of
+  lcov's reach, and the record names the form used. Measured: with the
+  host rc the named complaint never appears; with it out of reach the
+  read answers `ERROR: (corrupt) ... (inconsistent) ...` and the gate
+  answers exit 3. The gate exits: 2 usage, 3 tool failure, 1
+  shortfall, 0 clean.
+- Q: What makes a build "fresh" and a capture "clean"? (FR-016, FR-019)
+  → A: a `build/coverage` tree with no `*.gcda`, no `coverage.raw.info`
+  and no `coverage.info`, configured with both compiler launchers
+  empty, built, and run through the whole suite. The launcher rule
+  stands because a ccache hit for an instrumented translation unit
+  leaves a `.gcda` whose stamp disagrees with its `.gcno`: measured
+  `jitter_cli_test.cpp.gcda:stamp mismatch with notes file`, then
+  `lcov: ERROR: (gcov) GCOV failed`, `CAPTURE_EXIT=1`, no trace
+  written. The two launchers and the counter removal stand as the
+  host-local measures of `results/acceptance-thrawn.md` and
+  `results/close-rows.md`; the repository command stands unchanged.
+- Q: Which count does the cold-row ledger match? (US-7, SC-009) → A:
+  the shortfall comes from the `branches` line of the summary read, and
+  the ledger lists the cold rows of `build/coverage/coverage.info` with
+  their own row count beside it. The two counts differ: the gate reads
+  the `branches` figure at `tools/dbc/coverage_gate.sh:109`, computes
+  the shortfall at `:117-119`, and prints `<file> line <N> branch <M>`
+  rows taken from the `BRDA` records at `:130-136`, sorted and unique,
+  only on the failure path. The record gives the taken count, the total count, the
+  shortfall and the row count.
+
+### Assumptions (phase 13)
+
+- thrawn is the host of record and the machine this lane runs on: 48
+  online cpus, all 48 in the affinity mask, kernel 7.3.0-5-cachyos,
+  GCC and gcov 16.2.1, clang 23.1.3, lcov 2.6-0, cmake and ctest
+  4.4.4 at the live check of 2026-11-07.
+- The roadmap rulings G-20, G-25, G-29, G-31 and G-32 sit outside this
+  repository; the description of 2026-11-07 carries their operative
+  content, and this phase cites them from it.
+- The `gh` credentials of this machine stand absent at the live check,
+  so the pull request opens through the owner's credentials when the
+  branch and its record are ready. The branch, the push proof and the
+  body text stand delivered either way.
+
+### Open, owner (phase 13)
+
+- **O-3 (disputed marker class)**: FR-021 forbids a blanket marker
+  purge in this phase. A marker class the phase disputes stands
+  reported for investigation and stays open for the owner. The
+  `group_io.cpp` retry and unstable-pair blocks carry nine markers
+  whose ledger reason `marker-ledger.md` gives as T140, while FR-021
+  states that a retry or unstable-pair marker gives no new exception.
+  The phase reports the conflict and changes nothing.
+- **O-4 (the capture list)**: the capture's `inconsistent` complaint is
+  the end-line record of the function `SG_BENCHMARK_F` generates, read
+  seven times at the base in `test/` and `example/`. Three routes
+  stand open for the owner: keep the class for that shape, narrow the
+  capture scope so `test/` and `example/` leave the raw trace, or
+  change the public macro family. The phase takes none of them, keeps
+  the capture list as it stands, and removes the class from the three
+  reads of the written trace. The capture's end-line emission stands
+  outside the data-consistency check: `lcovutil.pm:7624` raises it while
+  `define_function` runs, and the check lives at `:10716`, so the capture
+  ends without the class even on a host whose lcov configuration relaxes
+  that check.
+- O-1 and O-2 of this spec stand unchanged by this phase.
