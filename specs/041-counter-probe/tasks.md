@@ -470,3 +470,9 @@ lacks. Depends on: a tree built at the measured head.
 - [x] IA41-002.2 [read] Re-state the Arm, Intel hybrid and Zen 4 rows as pending, and
   name any completed row this host contradicts, or none. Verify: no pending row gained a
   status.
+
+
+### Rerun at master `87d745d6` (2026-11-08)
+
+- [x] IA41-003 [bench] Re-run the counter-count pair at master `87d745d6`. Verify: the
+  record gives the limit line twice, the device facts, and the parity row as blocked.

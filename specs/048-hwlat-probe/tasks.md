@@ -1170,3 +1170,20 @@ their rows beside the rows below.
 - Before any timed step, read the load and say what it shows. After any red name, re-run
   that name alone in the same tree and print the load of both runs, so a reader can tell a
   load artifact from a defect.
+
+
+### Rerun at master `87d745d6` (2026-11-08)
+
+- [x] IA48-007 [bench] Re-measure the unprivileged surface at master `87d745d6`, one run per
+  row, each with its load witness. Verify: the record names the same three refusals at exit
+  2, the same three jitter figures and the same head.
+- [x] IA48-008 [bench] Re-run the coverage chain, both sanitizer lanes, the three suite
+  lanes and every gate step at that head. Verify: the record gives each exit, the entry
+  counts, and the branch shortfall as rows against the allowance.
+- [x] IA48-009 [read] Diagnose every sanitizer red with its ceiling, its plain-tree time and
+  its length in the instrumented tree. Verify: the record names the ceiling, both times and
+  the ratio for each red name, names the bound that binds the sample entry, and keeps
+  hosted readings out of the acceptance rows.
+- [x] IA48-010 [write] Correct the guide sentence that says two root runs stand recorded.
+  Verify: the guide says no root session stood available, and the record carries the
+  operator sequence for the seven reads.

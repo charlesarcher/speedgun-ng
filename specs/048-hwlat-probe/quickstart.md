@@ -166,8 +166,11 @@ testable (spec FR-034).
 
 ## The acceptance runs on corsairone
 
-Two root runs stand recorded, one per surface, from the built tree at the
-lane head:
+Two root runs belong to this host, one per surface. No root session
+stood available in either acceptance pass, so the record names the
+missing right and carries no figure for the rows that need one. The
+commands stand below, and the record carries the seven tracefs reads
+that belong before and after each run:
 
 ```sh
 sudo ./build/example/benchmark_example --filter=bmTouch --threads=2 --placement=compact \

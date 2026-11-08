@@ -386,3 +386,200 @@ archive symbol check found no `sg::dbc::check` symbol in `build/consumer-release
   branch and the pull request carry the head sha, and every measurement above ran at a
   tree whose code matches `615c0964547e4e9768b8e2f2d79991033a0eb5bd`, which the pull
   request states as the base.
+
+
+## Rerun at head `87d745d6c7e62d4da80198c689ddc7078f08ff3d` (2026-11-08)
+
+**Base and measured head for this section**: `87d745d6c7e62d4da80198c689ddc7078f08ff3d`
+(`origin/master`). The sections above stand as written for `615c0964…`. This head adds
+`d7e86254 Harness: Repair the contract-closure data fault`, the repair that the standing
+record named as pending under ruling G-25. That commit edits `cmake/coverage.cmake`,
+`tools/dbc/coverage_gate.sh`, four harness sources and four test sources, so every lane
+stands measured again. Host `CorsairOne`, cpu i9-9920X with `pmu_name` `skylake`, kernel
+Linux 7.3.0-4-cachyos, GCC 16.2.1, clang 23.1.3, `perf_event_paranoid` -1,
+`nmi_watchdog` 0, and no root session: `sudo -n -l` answers `a password is required` and
+`pkexec --disable-internal-agent id` answers `No authentication agent found` at exit 127.
+
+### The unprivileged surface (IA48-002)
+
+Every row of the first pass reproduces on this head. Each run stood alone with its load
+witness.
+
+| Run | Exit | Reading |
+|---|---|---|
+| Method, run 1 | 0 | `smiDelta: not available`, `nmiDelta: 0`, `smiGapCount: 0`, `jitter: SMI count not available` |
+| Method, run 2 | 0 | the same three values |
+| Engine without rights | 0 | `tracer: not available`, and the document carries no `precheck.tracer` key |
+| `docs_hwlat_probe` | 0 | `smi delta: not available (source: /dev/cpu/0/msr)`, then the same for cpus 12 and 1, and `tracer: not available` |
+| Refusal a, `method=smi` | 2 | refusal text |
+| Refusal b, `os-noise=hwlat-detect` | 2 | `--os-noise: the batch carries no pre-check window for the tracer` |
+| Refusal c, `method=hwlat` with `--os-noise` | 2 | refusal text |
+| Round trip, `jitter:run:any:smiGapCount:lower:abs=0` | 0 | `bmTouch/threads:2 … 0.000 0.000 n/a +0.000 OK` |
+| Rule over `hwlat:any:maxGapNs` | 2 | `error: the rule … names a detector figure and the baseline report carries no tracer record` |
+
+A zero `nmiDelta` and a zero `smiGapCount` stay measured figures. Neither is proof about
+live SMIs, and the planted-SMI claim stands on the fixture tests.
+
+### The root rows, still blocked (IA48-004, IA48-005)
+
+No route to a root session opened between the two passes. The facts: `sudo -n -l` answers
+`sudo: a password is required`; `pkexec --disable-internal-agent id` answers
+`No authentication agent found` at exit 127; `/sys/kernel/tracing` and `/sys/kernel/debug`
+read `drwx------ root:root`; `/dev/cpu/0/msr` reads `crw------- root root 202, 0`; the
+group database holds no `tracing` group and this session carries no supplementary group
+that reaches either file.
+
+The six names, `tracing_on` beside them, and the controlled-interruption variant carry no
+figure. The operator action that closes them runs in one privileged shell at the built tree:
+
+```sh
+T=/sys/kernel/tracing
+for f in current_tracer tracing_cpumask tracing_thresh hwlat_detector/mode \
+         hwlat_detector/width hwlat_detector/window; do
+  printf 'before %s %s\n' "$f" "$(cat $T/$f)"
+done
+printf 'before tracing_on %s\n' "$(cat $T/tracing_on)"
+./build/example/benchmark_example --filter=bmTouch --threads=2 --placement=compact \
+  --jitter-probe=idle,mode=precheck --os-noise=hwlat --json=/tmp/hwlat-detector.json
+for f in current_tracer tracing_cpumask tracing_thresh hwlat_detector/mode \
+         hwlat_detector/width hwlat_detector/window; do
+  printf 'after %s %s\n' "$f" "$(cat $T/$f)"
+done
+printf 'after tracing_on %s\n' "$(cat $T/tracing_on)"
+```
+
+Then the same seven reads again around a run ended by `kill -INT` on the run's own process
+id, with the shell status of that run printed beside it. Six before-and-after rows belong
+to each variant, and `tracing_on` belongs beside them as a reading of its own. The restore
+never writes a prior value back, and `tracing_thresh` keeps the run threshold as the
+kernel's remembered default, which is documentary (D-8, plan R-4).
+
+### The coverage lane (IA-END-001.1)
+
+| Step | Exit | Reading |
+|---|---|---|
+| `cmake --preset=ci-coverage` | 0 | tree at `build/coverage` |
+| `cmake --build build/coverage -j "$(nproc)"` | 0 | 185 entries |
+| `lcov --zerocounters -d build/coverage` | 0 | a local step, named as an addition |
+| `ctest -j 1 --output-on-failure --no-tests=error` | 8 | 181 of 185 passed in 3,976.71 s |
+| Four cut entries, by hand, no ceiling | 0 each | 285 s, 508 s, 571 s, 776 s |
+| `cmake --build build/coverage -t coverage` | 2 | make's exit; the chain stops at the branch check |
+| `bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` | 1 | `branch shortfall 24 rows exceeds the  D-14 recorded allowance of 21` |
+
+One capture stands taken on this head, and it stands taken after the four hand runs, so
+this section carries no serial-suite-alone reading for this head. The reading above for the
+earlier head, 99.2 percent of 18,621 lines, stands where it stands.
+
+| Capture | Lines | Functions | Branches |
+|---|---|---|---|
+| After the four hand runs | 100.0% (18,657 of 18,657) | 99.0% (1,936 of 1,956) | 99.7% (9,249 of 9,273) |
+
+The repair reached the two shapes it named. Cold functions fell from 32 to 20, the lambda
+of `stripTopdownColumns` no longer stands in the cold list, and the stricter gate read,
+which now ignores no lcov error class, printed `no messages were reported`. The
+data-consistency complaint is gone from the read. The branch shortfall stands at 24 against
+the allowance of 21, three rows over. The hosted coverage job fails too. At this pull
+request's head it reads `lines 100.0% (18676 of 18676)`, `functions 98.7% (1953 of 1978)`
+and `branches 99.8% (9800 of 9823)`, and the gate line reads:
+`branch shortfall 23 rows exceeds the D-14 recorded allowance of 21`. The run at the base
+commit of the same source read 27 rows there. The shortfall therefore sits near its allowance
+on both hosts, and the hosted count moves between two runs of identical source. The line rule
+passes on both. No marker, allowance or suppression changed here, and G-25 stands landed.
+
+### The suite lanes (IA-END-001.2 to IA-END-001.6)
+
+| Lane | Exit | Entries | Result |
+|---|---|---|---|
+| Plain, CI form | 0 | 190 | 100% passed, 337.81 s |
+| `taskset -c 0,1` with `-j 2` | 0 | 190 | 100% passed, 1,464.29 s |
+| `taskset -c 0,1,2,3` with `-j 4` | 0 | 190 | 100% passed, 742.87 s |
+| Address and undefined sanitizer | 8 | 185 | 183 of 185 in 516.31 s |
+| Thread sanitizer | 8 | 186 | 182 of 186 in 659.14 s |
+
+### The sanitizer diagnosis (IA-END-001.8)
+
+The two instrumented lanes answer red on four names between them, and no name fails on its
+data. The table carries a fifth, `harness_hunt_cli_test`, because that name crosses its
+ceiling alone and at the hosted shape while it passed inside the 24-job lanes. Each name
+ran again alone, on a machine with nothing else running, from the working directory ctest
+gives that entry, so the ceiling stood as the only bound:
+
+| Name | Ceiling | Plain tree | Address and undefined, alone | Thread, alone | Factor |
+|---|---|---|---|---|---|
+| `base_cli_matrix` | 120 s | 75.26 s | 139 s | 134 s | 1.8 / 1.8 |
+| `harness_jitter_cli_test` | 300 s | 125.62 s | 180 s | 590 s | 1.4 / 4.7 |
+| `harness_hunt_cli_test` | 300 s | 256.15 s | 345 s | 335 s | 1.3 / 1.3 |
+| `example_run` | 300 s | 189.10 s | 361 s | 400 s | 1.9 / 2.1 |
+| `report_shape_fwq_ftq_sample` | 120 s | 32.57 s | 37 s | 79 s | 1.1 / 2.4 |
+
+Alone on an idle machine, three names cross their ceiling in the address and undefined lane
+(`base_cli_matrix` 139 s against 120 s, `harness_hunt_cli_test` 345 s against 300 s,
+`example_run` 361 s against 300 s) and four cross it in the thread lane (`base_cli_matrix`
+134 s, `harness_jitter_cli_test` 590 s, `harness_hunt_cli_test` 335 s, `example_run` 400 s).
+A ceiling that the uninstrumented build already fills most of leaves a sanitizer no room,
+and a factor between 1.1 and 4.7 then decides the row.
+
+One name reads differently by shape, and both readings stand here. `harness_hunt_cli_test`
+passed inside the 24-job lanes at 289.30 s and at 281.75 s, took 345 s and 335 s alone, and
+timed out at 300 s when the lane ran the hosted shape of four cores and four jobs. The
+spread between 281 s and 345 s stands unexplained by this record. A name that moves that
+much between shapes holds no headroom against a fixed ceiling, and it sits nearest its
+bound of the five.
+
+The hosted shape reproduces the gap. With the machine masked to `0,1,2,3` and `-j 4`, the
+thread lane timed out `base_cli_matrix`, `harness_jitter_cli_test` and `example_run`, and
+the address lane timed out `base_cli_matrix`, `harness_hunt_cli_test` and `example_run`.
+The sample passed there at 91.98 s and at 47.48 s. Four-way concurrency is therefore not
+what separates this host from the hosted lane.
+
+`report_shape_fwq_ftq_sample` differs in kind. Its 120 s ceiling is not the bound that binds
+it. `tools/docs/report_shape.py` grants the example it drives 110 s of its own, and inside
+the thread lane the example reached that grant at 110.26 s, with the message
+`docs_fwq_ftq: the run failed: Command […] timed out after 110 seconds`. The same example
+alone in the same tree takes 80 s under the thread sanitizer, 36 s under the address
+sanitizer and 33 s uninstrumented, so the concurrency of a 24-job lane carries it over the
+grant while the sanitizer alone does not.
+
+The hosted job at this head reads the same entries far shorter, which is where the ceilings
+came from: 21.72 s for `base_cli_matrix` against its plain reading here, 31.66 s for
+`harness_jitter_cli_test`, 42.35 s for `example_run`, 39.10 s for the sample, and 2.31 s for
+`harness_hunt_cli_test`. The last gap is not speed. That entry walks the plan the host
+offers, a runner without a PMU offers none, and this host offers 497 events, so the entry
+does two hundred times the work here. Those hosted readings stand in this section as the
+frame of a diagnosis, and no acceptance row above rests on them.
+
+Three follow-ups belong to a later change, and this records branch performs none of them:
+give the instrumented lanes a ceiling of their own, raise the 110 s grant in
+`tools/docs/report_shape.py` above the longest instrumented example, and bound
+`harness_hunt_cli_test` on a host whose PMU is live.
+
+### The gates (IA-END-002)
+
+Forty-seven steps ran in the order of the plan and every one answered exit 0 except
+`cmake --build build --target dbc-gate`, which answers exit 2 with
+`dbc gates require PyYAML (install python3-yaml): No module named 'yaml'` from
+`/home/archerc/.local/bin/python3.11`, a host fact the first pass recorded too.
+
+| Gate | Reading |
+|---|---|
+| Format, spell, drift twice, time source | exit 0 each |
+| Prose, tree form | 1,087 sources, 211,204 units, 0 findings |
+| DBC document gate and pair gate, by hand | `349 interfaces, 0 gaps` each |
+| Analyzer | library 146 translation units, 3,920 findings, 0 on the gate checks; tests 134, 18,998, 0; examples 43, 667, 0; 0 owned units |
+| pmu tables, host records | exit 0 each |
+| README and markers | 1,002 lines against 1,004; 84 markers over 13 files against 84 |
+| Release build, install, twelve dependency audits, link-manifest audit | exit 0 each |
+| Consumer-release job | cache reads `Release`, `DEVELOPER_MODE OFF`, `CONTRACTS ignore`; no gated check symbol in the archive; `dbc_trap_fixture` exits 134; nine counter modes read 0; overrun exits 134; `dbc_test` exits 1 with `DBC TEST FAIL: pre: violation delivered to the observer` |
+
+124 is a kill and never a pass, and no row above reads one.
+
+### What this rerun does not claim
+
+- No acceptance row rests on a hosted result. The hosted numbers appear only where a
+  diagnosis needs a second machine in the frame, and each carries its job.
+- The four root rows carry no figure.
+- The record reports the branch shortfall and accepts nothing by it. The allowance
+  stands at 21.
+- `harness_hunt_topdown_test` and `prose_gate_fixtures` stand red on the hosted Rocky job at
+  this head and stand green in every local lane above; no local row explains that gap, and
+  this record states it as an open difference between the two runners.

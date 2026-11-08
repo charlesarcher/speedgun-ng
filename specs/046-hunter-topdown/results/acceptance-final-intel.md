@@ -160,3 +160,53 @@ rank instability. This record makes no claim beyond the printed lines:
   and Zen 4 rows of SC-010 stay pending, and no row this host measured contradicts them.
 - No base re-run happened. A base build stands out of scope here and is named not run.
 - No row carries a completion mark without the output behind it.
+
+
+## Rerun at head `87d745d6c7e62d4da80198c689ddc7078f08ff3d` (2026-11-08)
+
+**Base and measured head**: `87d745d6c7e62d4da80198c689ddc7078f08ff3d` (`origin/master`). That
+head carries `d7e86254 Harness: Repair the contract-closure data fault`, which edits
+`source/harness/hunt_topdown.cpp`, `source/harness/runner.cpp` and two headers, so the
+hunter rows stand measured again on a tree that carries those edits. Host, cpu, kernel,
+library and root state stand as in the identity block above.
+
+Six runs, the same two commands three times each, each run alone with its load witness
+printed at its start, each console captured by redirection under `/tmp/ia2/clean/hunt`.
+
+| Run | Exit | Lines | Plan line |
+|---|---|---|---|
+| `memory_walk` 1 | 0 | 524 | `hunt: plan events=497 passes=249 method=PASSES estimate=927027ns` |
+| `memory_walk` 2 | 0 | 524 | `hunt: plan events=497 passes=249 method=PASSES estimate=952176ns` |
+| `memory_walk` 3 | 0 | 524 | `hunt: plan events=497 passes=249 method=PASSES estimate=925782ns` |
+| `first_benchmark` 1 | 0 | 524 | `hunt: plan events=497 passes=249 method=PASSES estimate=426537ns` |
+| `first_benchmark` 2 | 0 | 524 | `hunt: plan events=497 passes=249 method=PASSES estimate=1579407ns` |
+| `first_benchmark` 3 | 0 | 524 | `hunt: plan events=497 passes=249 method=PASSES estimate=1648380ns` |
+
+| Measure | Reading, same in all six runs |
+|---|---|
+| `area=` cells | 497 |
+| Node cells | 58 |
+| List-group cells | 412 |
+| `unmapped` cells | 27 |
+| Distinct cell texts | 39 |
+| Node depths, in levels | 2 levels 5 cells, 3 levels 21, 4 levels 25, 5 levels 7 |
+| Group split | `cache` 145, `memory` 113, `pipeline` 74, `frontend` 37, `virtual-memory` 25, `floating-point` 12, `other` 6 |
+| Table block | `topdown: level=1 passes=4`, `topdown: reference=linux-7.2.4`, 13 file digests, identical across the six runs |
+| Summary line | `hunt: plan summary events=493/497 passes=249 budget=120s` |
+| Unranked rows with `mark=unrepeated` | 437 of 477 |
+
+SC-007 holds at `58 / 412 / 27` on this head. The repair changed nothing about the counts,
+the depths, the group split, the digests or the summary line.
+
+The instabilities stand too. The 20 ranked rows split node, list-group and unmapped as
+`0 / 11 / 9`, `0 / 12 / 8`, `0 / 12 / 8`, `1 / 10 / 9`, `2 / 9 / 9` and `1 / 11 / 8`, so no
+ranked split is a cross-run reading. Rank 1 differs between the two binaries on this head:
+the three walk runs rank `cpu/topdown-fetch-bubbles` first and the three benchmark runs
+rank `cpu/topdown-slots-issued` first, and the walk's rank 1 moved between heads, so rank 1
+is not a stable reading either. The 40 unranked rows that stand outside `unrepeated` divide
+between `beyond-top` and `noisy` as `24 / 16`, `21 / 19`, `22 / 18`, `29 / 11`, `26 / 14`
+and `24 / 16`.
+
+The claim set stands where it stood: SC-007 carries the counts and the node paths, SC-010
+carries the device identity the companion record reads, AP-9 carries the deepest level and
+the rank instability, and the Arm, Intel hybrid and Zen 4 rows of SC-010 stay pending.
