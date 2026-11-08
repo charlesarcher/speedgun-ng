@@ -56,6 +56,24 @@
 //                            one quoted line naming the rule, the value, the
 //                            benchmark and the report (FR-030, FR-038, FR-039,
 //                            FR-050)
+//   metricPositionsNameColumnsAnswersEachArm
+//                            the positions of a run's collected nodes answer
+//                            true for a column of the run and false past its
+//                            last label (FR-023, E-17)
+//   rowsHoldOneEntryPerLabelAnswersEachArm
+//                            each metric field of a row answers its empty arm,
+//                            its equal arm and its unequal arm, and the walk
+//                            over rows stops at the row that fails (FR-032,
+//                            specs/021 FR-010, FR-023)
+//   rawColumnsHoldGridWidthAnswersEachArm
+//                            one retained chunk ledger answers true empty,
+//                            true at the grid width and false at another count
+//                            (specs/023 E-02)
+//   contextColumnsHoldGridWidthAnswersEachArm
+//                            the ledgers of the contexts of a threaded run
+//                            answer the same three arms, and the walk over
+//                            contexts stops at the context that fails
+//                            (specs/023 E-02, FR-025)
 // ============================================================================
 
 #include <array>
@@ -75,6 +93,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "detail/internal.hpp"
 #include "detail/json_fixture.hpp"
 #include "detail/json_report.hpp"
 #include "speedgun-ng/benchmark.hpp"
@@ -1244,6 +1263,117 @@ auto aNonFiniteNodeFigureWritesNoFigure() -> void
   }
 }
 
+// The two labels of the run a strip predicate reads, and the width a percentile
+// grid of that run holds: the two time slots beside those labels
+// (specs/021 FR-010).
+constexpr std::size_t kStripLabels = 2;
+constexpr std::size_t kStripGridWidth = 4;
+
+// One row of a run, with the three metric fields at the counts the scenario
+// names. A field at zero count stands empty, the way a run that reported no
+// percentile leaves it empty (specs/021 FR-023).
+[[nodiscard]] auto rowAtWidths(const std::size_t metrics,
+                               const std::size_t stats,
+                               const std::size_t grids) -> sg::ResultRow
+{
+  auto row = sg::ResultRow {};
+  row.metrics = std::vector<sg::MetricValue>(metrics);
+  row.metricStats = std::vector<sg::Statistics>(stats);
+  row.percentiles = std::vector<std::vector<sg::PercentileValue>>(grids);
+  return row;
+}
+
+// One retained chunk ledger, at the column count the scenario names.
+[[nodiscard]] auto rawAtWidth(const std::size_t columns) -> sg::RowRaw
+{
+  return sg::RowRaw {.columns = std::vector<std::vector<double>>(columns)};
+}
+
+// The first bound of the strip reads its answer through
+// `metricPositionsNameColumns`: the position of every collected node stands as
+// an index of the run's metric labels (FR-023, E-17).
+auto metricPositionsNameColumnsAnswersEachArm() -> void
+{
+  auto result = makeResult("bmStripPositions");
+  result.metricLabels = {"cycles", "instructions"};
+
+  check(sg::detail::metricPositionsNameColumns({0, 1}, result),
+        "two positions naming the two labels of the run answer true");
+  check(!sg::detail::metricPositionsNameColumns({0, 2}, result),
+        "a position standing past the last label of the run answers false"
+        " (E-17)");
+}
+
+// The second bound reads its answer through `rowsHoldOneEntryPerLabel`. Each of
+// the three fields of a row carries an empty arm and a count arm, and each
+// count arm answers twice (FR-032, specs/021 FR-010, FR-023).
+auto rowsHoldOneEntryPerLabelAnswersEachArm() -> void
+{
+  check(sg::detail::rowsHoldOneEntryPerLabel({rowAtWidths(0, 0, 0)},
+                                             kStripLabels,
+                                             kStripGridWidth),
+        "a row that carries no metric value, no statistic and no grid answers"
+        " true (specs/021 FR-023)");
+  check(sg::detail::rowsHoldOneEntryPerLabel(
+            {rowAtWidths(kStripLabels, kStripLabels, kStripGridWidth)},
+            kStripLabels,
+            kStripGridWidth),
+        "a row at the two labels and at the grid width of the two time slots"
+        " answers true");
+  check(!sg::detail::rowsHoldOneEntryPerLabel(
+            {rowAtWidths(kStripLabels + 1, kStripLabels, kStripGridWidth)},
+            kStripLabels,
+            kStripGridWidth),
+        "a metric field of another count answers false");
+  check(!sg::detail::rowsHoldOneEntryPerLabel(
+            {rowAtWidths(kStripLabels, kStripLabels + 1, kStripGridWidth)},
+            kStripLabels,
+            kStripGridWidth),
+        "a statistic field of another count answers false");
+  check(!sg::detail::rowsHoldOneEntryPerLabel(
+            {rowAtWidths(kStripLabels, kStripLabels, kStripGridWidth + 1)},
+            kStripLabels,
+            kStripGridWidth),
+        "a percentile grid of another count answers false");
+  check(!sg::detail::rowsHoldOneEntryPerLabel(
+             {rowAtWidths(kStripLabels, kStripLabels, kStripGridWidth),
+              rowAtWidths(0, 0, 0),
+              rowAtWidths(0, kStripLabels + 1, 0)},
+             kStripLabels,
+             kStripGridWidth),
+        "the walk over the rows of a run stops at the row whose statistic"
+        " field stands at another count");
+}
+
+// The retained chunk ledgers of a run answer through `rawColumnsHoldGridWidth`
+// (specs/023 E-02).
+auto rawColumnsHoldGridWidthAnswersEachArm() -> void
+{
+  check(sg::detail::rawColumnsHoldGridWidth({rawAtWidth(0)}, kStripGridWidth),
+        "a chunk ledger that stands empty answers true");
+  check(sg::detail::rawColumnsHoldGridWidth({rawAtWidth(kStripGridWidth)},
+                                            kStripGridWidth),
+        "a chunk ledger at the width of the grid answers true");
+  check(!sg::detail::rawColumnsHoldGridWidth({rawAtWidth(1)}, kStripGridWidth),
+        "a chunk ledger of another count answers false");
+}
+
+// The ledgers of the contexts of a threaded run answer through
+// `contextColumnsHoldGridWidth` (specs/023 E-02, FR-025).
+auto contextColumnsHoldGridWidthAnswersEachArm() -> void
+{
+  check(sg::detail::contextColumnsHoldGridWidth({}, kStripGridWidth),
+        "a run with no threaded context answers true over no ledger");
+  check(sg::detail::contextColumnsHoldGridWidth(
+            {{rawAtWidth(0), rawAtWidth(kStripGridWidth)}}, kStripGridWidth),
+        "the empty ledger and the ledger at the grid width of one context"
+        " answer true");
+  check(!sg::detail::contextColumnsHoldGridWidth(
+             {{rawAtWidth(kStripGridWidth)}, {rawAtWidth(1)}}, kStripGridWidth),
+        "the walk over the contexts of a run stops at the context whose ledger"
+        " stands at another count");
+}
+
 struct Scenario
 {
   const char* name;
@@ -1295,6 +1425,14 @@ auto main() -> int
        aGateRuleWithNoNodeToReadAnswersOneLine},
       {"aNonFiniteNodeFigureWritesNoFigure",
        aNonFiniteNodeFigureWritesNoFigure},
+      {"metricPositionsNameColumnsAnswersEachArm",
+       metricPositionsNameColumnsAnswersEachArm},
+      {"rowsHoldOneEntryPerLabelAnswersEachArm",
+       rowsHoldOneEntryPerLabelAnswersEachArm},
+      {"rawColumnsHoldGridWidthAnswersEachArm",
+       rawColumnsHoldGridWidthAnswersEachArm},
+      {"contextColumnsHoldGridWidthAnswersEachArm",
+       contextColumnsHoldGridWidthAnswersEachArm},
   };
   std::size_t failedScenarios = 0;
   for (const auto& scenario : scenarios) {

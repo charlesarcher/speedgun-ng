@@ -136,6 +136,27 @@ using GroupIndex = std::map<std::string_view, std::string_view>;
 
 }  // namespace
 
+// specs/046 FR-001, FR-003, D-4: the answer the assertion of
+// `topdownDeepestNode` reads over the whole list. The declaration stands in
+// detail/hunt_topdown.hpp, where the hunt report test drives every arm of the
+// answer. A closure written inside an `SG_*` predicate gains a coverage record
+// whose only line the standing extract filter of `cmake/coverage.cmake`
+// removes, and lcov refuses a trace that holds a hit function carrying no hit
+// line.
+[[nodiscard]] auto nodesNamingAddressStandAtOrBelow(
+    const sg::counters::TopdownTree& tree,
+    const std::size_t answer,
+    const std::string_view address) -> bool
+{
+  return std::ranges::all_of(tree.nodes,
+                             [&](const sg::counters::TopdownNode& other) -> bool
+                             {
+                               return !namesAddress(other.events, address)
+                                   || other.level
+                                   <= tree.nodes.at(answer).level;
+                             });
+}
+
 auto topdownDeepestNode(const sg::counters::TopdownTree& tree,
                         const std::string_view address)
     -> std::optional<std::size_t>
@@ -154,12 +175,7 @@ auto topdownDeepestNode(const sg::counters::TopdownTree& tree,
   }
   SG_ASSERT(!answer.has_value()
                 || (*answer < tree.nodes.size()
-                    && std::ranges::all_of(
-                           tree.nodes,
-                           [&](const sg::counters::TopdownNode& other) -> bool {
-                             return !namesAddress(other.events, address)
-                                 || other.level <= tree.nodes.at(*answer).level;
-                           })),
+                    && nodesNamingAddressStandAtOrBelow(tree, *answer, address)),
             "an index the answer holds names one node of the list it was "
             "given, and its level stands at or above every node that names the "
             "address (FR-001, FR-003, D-4)");

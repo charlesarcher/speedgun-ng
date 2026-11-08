@@ -1635,6 +1635,72 @@ auto stripTopdownColumns(sg::BenchmarkResult& result,
     -> void;
 
 /**
+ * @brief specs/042-topdown FR-023, E-17: whether every metric position of one
+ * run names a metric column of that run's result.
+ *
+ * The plan of a top-down run assigns one column per collected node, so the
+ * position of every node stands as an index of the run's metric labels.
+ *
+ * \pre none
+ * \post the answer reads true when every entry of `positions` stands below the
+ *       count of `result.metricLabels`, and false as soon as one entry stands
+ *       at or past that count
+ * \invariant the answer reads `positions` and `result.metricLabels` alone
+ */
+[[nodiscard]] auto metricPositionsNameColumns(
+    const std::vector<std::size_t>& positions,
+    const sg::BenchmarkResult& result) -> bool;
+
+/**
+ * @brief specs/042-topdown FR-032, specs/021 FR-010, FR-023: whether every row
+ * of one run holds one metric view per remaining label.
+ *
+ * A row that carries no metric value, no statistic and no percentile grid
+ * carries no entry for the labels either, so an empty field stands for a run
+ * that reported none. A percentile grid counts the two time slots beside the
+ * labels, and `gridWidth` carries that width.
+ *
+ * \pre none
+ * \post the answer reads true when every row of `rows` holds either no metric
+ * value or one per `labels`, either no statistic or one per `labels`, and
+ * either no percentile grid or one grid per `gridWidth`, and it reads false as
+ * soon as one field of one row holds another count
+ * \invariant the answer reads `rows`, `labels` and `gridWidth` alone
+ */
+[[nodiscard]] auto rowsHoldOneEntryPerLabel(
+    const std::vector<sg::ResultRow>& rows,
+    std::size_t labels,
+    std::size_t gridWidth) -> bool;
+
+/**
+ * @brief specs/023 E-02, specs/021 FR-010: whether every retained chunk ledger
+ * of one run holds one column per remaining label beside the two time slots.
+ *
+ * \pre none
+ * \post the answer reads true when every row of `rowRaw` holds either no column
+ * or one column per `gridWidth`, and it reads false as soon as one row holds
+ * another count
+ * \invariant the answer reads `rowRaw` and `gridWidth` alone
+ */
+[[nodiscard]] auto rawColumnsHoldGridWidth(
+    const std::vector<sg::RowRaw>& rowRaw, std::size_t gridWidth) -> bool;
+
+/**
+ * @brief specs/023 E-02, FR-025: whether every retained chunk ledger of every
+ * context of one run holds one column per remaining label beside the two time
+ * slots.
+ *
+ * \pre none
+ * \post the answer reads true when every row of every context of `contextRaw`
+ * holds either no column or one column per `gridWidth`, and it reads false as
+ * soon as one row of one context holds another count
+ * \invariant the answer reads `contextRaw` and `gridWidth` alone
+ */
+[[nodiscard]] auto contextColumnsHoldGridWidth(
+    const std::vector<std::vector<sg::RowRaw>>& contextRaw,
+    std::size_t gridWidth) -> bool;
+
+/**
  * @brief specs/042-topdown FR-040, spec D-14: the one line one refusal answers
  * for the console.
  *

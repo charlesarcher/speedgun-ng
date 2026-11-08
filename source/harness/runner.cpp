@@ -687,6 +687,65 @@ namespace sg::detail
   return resolved;
 }
 
+// specs/042-topdown FR-023, FR-030, FR-032, E-17: the four answers the two
+// bounds of `stripTopdownColumns` read. The declarations stand in
+// detail/internal.hpp, where the report test drives every arm of every answer.
+// A closure written inside an `SG_*` predicate gains a coverage record whose
+// only line the standing extract filter of `cmake/coverage.cmake` removes, and
+// lcov refuses a trace that holds a hit function carrying no hit line.
+[[nodiscard]] auto metricPositionsNameColumns(
+    const std::vector<std::size_t>& positions,
+    const sg::BenchmarkResult& result) -> bool
+{
+  return std::all_of(positions.begin(),
+                     positions.end(),
+                     [&result](const std::size_t position)
+                     { return position < result.metricLabels.size(); });
+}
+
+[[nodiscard]] auto rowsHoldOneEntryPerLabel(
+    const std::vector<sg::ResultRow>& rows,
+    const std::size_t labels,
+    const std::size_t gridWidth) -> bool
+{
+  return std::all_of(
+      rows.begin(),
+      rows.end(),
+      [labels, gridWidth](const sg::ResultRow& row)
+      {
+        return (row.metrics.empty() || row.metrics.size() == labels)
+            && (row.metricStats.empty() || row.metricStats.size() == labels)
+            && (row.percentiles.empty() || row.percentiles.size() == gridWidth);
+      });
+}
+
+[[nodiscard]] auto rawColumnsHoldGridWidth(
+    const std::vector<sg::RowRaw>& rowRaw, const std::size_t gridWidth) -> bool
+{
+  return std::all_of(
+      rowRaw.begin(),
+      rowRaw.end(),
+      [gridWidth](const sg::RowRaw& raw)
+      { return raw.columns.empty() || raw.columns.size() == gridWidth; });
+}
+
+[[nodiscard]] auto contextColumnsHoldGridWidth(
+    const std::vector<std::vector<sg::RowRaw>>& contextRaw,
+    const std::size_t gridWidth) -> bool
+{
+  return std::all_of(
+      contextRaw.begin(),
+      contextRaw.end(),
+      [gridWidth](const std::vector<sg::RowRaw>& contexts)
+      {
+        return std::all_of(
+            contexts.begin(),
+            contexts.end(),
+            [gridWidth](const sg::RowRaw& raw)
+            { return raw.columns.empty() || raw.columns.size() == gridWidth; });
+      });
+}
+
 // specs/042-topdown FR-023, FR-030, FR-032, E-17: the record of one top-down
 // run, and its metric views with the node positions gone. A node figure is the
 // statistic the run published for its column where an aggregate row stands, and
@@ -706,11 +765,7 @@ auto stripTopdownColumns(sg::BenchmarkResult& result,
     -> void
 {
   SG_REQUIRE(positions.size() == tree.nodes.size()
-                 && std::all_of(positions.begin(),
-                                positions.end(),
-                                [&result](const std::size_t position) {
-                                  return position < result.metricLabels.size();
-                                }),
+                 && metricPositionsNameColumns(positions, result),
              "stripTopdownColumns: one metric position per collected node, "
              "each " "naming a column of the result");
 
@@ -818,36 +873,9 @@ auto stripTopdownColumns(sg::BenchmarkResult& result,
 
   [[maybe_unused]] const std::size_t labels = result.metricLabels.size();
   [[maybe_unused]] const std::size_t gridWidth = kTimeSlots + labels;
-  SG_REQUIRE(std::all_of(result.rows.begin(),
-                         result.rows.end(),
-                         [labels, gridWidth](const sg::ResultRow& row)
-                         {
-                           return (row.metrics.empty()
-                                   || row.metrics.size() == labels)
-                               && (row.metricStats.empty()
-                                   || row.metricStats.size() == labels)
-                               && (row.percentiles.empty()
-                                   || row.percentiles.size() == gridWidth);
-                         })
-                 && std::all_of(rowRaw.begin(),
-                                rowRaw.end(),
-                                [gridWidth](const sg::RowRaw& raw) {
-                                  return raw.columns.empty()
-                                      || raw.columns.size() == gridWidth;
-                                })
-                 && std::all_of(
-                     contextRaw.begin(),
-                     contextRaw.end(),
-                     [gridWidth](const std::vector<sg::RowRaw>& contexts)
-                     {
-                       return std::all_of(contexts.begin(),
-                                          contexts.end(),
-                                          [gridWidth](const sg::RowRaw& raw) {
-                                            return raw.columns.empty()
-                                                || raw.columns.size()
-                                                == gridWidth;
-                                          });
-                     }),
+  SG_REQUIRE(rowsHoldOneEntryPerLabel(result.rows, labels, gridWidth)
+                 && rawColumnsHoldGridWidth(rowRaw, gridWidth)
+                 && contextColumnsHoldGridWidth(contextRaw, gridWidth),
              "stripTopdownColumns: every metric view of the run holds one "
              "entry " "per remaining label beside the two time slots");
 }

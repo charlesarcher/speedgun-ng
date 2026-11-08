@@ -88,3 +88,47 @@ by file reads 84 at the Part A head (SC-002, SC-003, FR-005).
 Write the per-host counts into `specs/045-merge-fixes/results/` and
 mirror them in the PR body, in the order the spec's acceptance
 section states: corsairone first, then thrawn.
+
+## Phase 13: the coverage-data repair, one reproducible route
+
+The fault: a closure written inside an `SG_*` contract predicate gains a
+gcov function record whose only line the extract step's
+`--omit-lines "SG_(REQUIRE|ENSURE|INVARIANT|ASSERT)(_ALWAYS)?"` pattern
+removes, so the written trace holds a hit function with no hit line
+inside it, and `lcov --list`, `lcov --summary` and `genhtml` refuse the
+trace. The repair moved each such closure into a named helper outside
+the macro, and the class left the three reads of the written trace.
+
+Run the lane on Linux with lcov 2.4 or newer. Keep any host lcov
+configuration out of the route, because `check_data_consistency = 0` in
+a host file hides the fault:
+
+```sh
+test -f ~/.lcovrc && mv ~/.lcovrc ~/scratch/coverage-data-repair/lcovrc.host-local
+rm -rf build/coverage
+cmake --preset=ci-coverage -DCMAKE_C_COMPILER_LAUNCHER= -DCMAKE_CXX_COMPILER_LAUNCHER=
+cmake --build build/coverage -j 24
+ctest --test-dir build/coverage --output-on-failure --no-tests=error -j 24
+cmake --build build/coverage --target coverage
+```
+
+Expected: the capture prints seven `(inconsistent)` end-line records for
+the fixture macros and exits 0; the extract step prints nothing; the
+`--list` step prints the table; the gate reads
+`lines.......: 100.0%` and names its branch shortfall. The `genhtml`
+step exits 0. No read prints
+`is hit but no contained lines are hit`.
+
+Two habits the lane needs. An instrumented configure with the compiler
+launchers empty, because a ccache hit for an instrumented translation
+unit leaves a `.gcda` whose stamp disagrees with its `.gcno` and the
+capture stops with `lcov: ERROR: (gcov) GCOV failed`. And a run of
+`harness_jitter_cli_test` that reaches its end: the entry needs about
+285 s on thrawn against the 300 s `ctest` ceiling, and a capture that
+cuts it leaves 33 dark lines in `source/harness/jitter_probe.cpp`.
+
+Restore the host file afterwards:
+
+```sh
+mv ~/scratch/coverage-data-repair/lcovrc.host-local ~/.lcovrc
+```

@@ -651,3 +651,146 @@ closed by real work. No `LCOV_EXCL` marker, no `--omit-lines`, no
       unchanged. Record the reading, the rows this phase closed and the reason for
       every row that still stands in
       `specs/045-merge-fixes/results/close-rows.md`.
+
+## Phase 13: Repair the coverage-data fault (owner ruling G-25, 2026-11-07)
+
+**Base**: `origin/master` at `615c0964547e4e9768b8e2f2d79991033a0eb5bd`
+(version 0.34.0, schema 1.16, harness SOVERSION 22, archive SOVERSION 8,
+markers 84, README 1002 lines against the cap of 1004). The branch is
+`fix/coverage-data-repair`, cut from `origin/master` at branch time.
+One squashed commit, one pull request, no merge. No version, schema or
+SOVERSION change. No new `LCOV_EXCL` marker, `--omit-lines` pattern,
+`--remove` pattern, `--filter` entry, allowance or CI change. The
+capture list keeps its class and stands reported.
+
+- [x] COV-001 Reproduce the fault from a fresh local instrumented build
+      and classify it (FR-016).
+  - a. Fresh tree: `rm -rf build/coverage`, then
+    `cmake --preset=ci-coverage -DCMAKE_C_COMPILER_LAUNCHER= -DCMAKE_CXX_COMPILER_LAUNCHER=`,
+    then `cmake --build build/coverage -j 24`, then
+    `ctest --test-dir build/coverage --output-on-failure --no-tests=error -j 24`,
+    every read with the host `~/.lcovrc` out of reach.
+    Verify: the build exits 0 and the suite log gives the passed
+    figure, the failed figure and the `did not run` block.
+  - b. Capture with the class tolerated, then the same capture without
+    it. Verify: the first exits 0 and prints the end-line records; the
+    second exits 1 and writes no trace.
+  - c. Extract, `--list` and `--summary` with and without the class.
+    Verify: the extract exits 0 both ways on lcov 2.6; the list and the
+    summary exit 1 naming a contract function record; each command,
+    exit and quoted line stands in the record.
+  - d. Read the function records of the three closure sites in the raw
+    and the extracted trace. Verify: the record gives the `FNL` and
+    `FNA` pair, the hit count and the `DA` line the filter removes for
+    each site.
+  - e. Classify the three causes. Verify: the record carries one line
+    per cause with the command and the exit that shows it; stale build
+    data names the `.gcda` stamp mismatch and the configure that clears
+    it; the instrumentation shape names the seven end-line records and
+    their three files; the source shape names the three predicates and
+    the six emptied function records.
+- [x] COV-002 Audit the pull request #89 range and remove the
+      suppression as FR-017 and FR-019 state (COV-001 first).
+  - a. Audit `48e89812` and `c87ede7a` hunk by hunk. Verify: the record
+    carries one line per hunk of `git diff 48e89812^..c87ede7a`, the row
+    count equals the hunk count that diff prints, each row ends with
+    exactly one of `plumbing`, `comment` or `unrelated change`, and the
+    count of `unrelated change` rows reads 0.
+  - b. Remove `--ignore-errors inconsistent` from the extract step, the
+    `--list` step and the `--summary` read of `tools/dbc/coverage_gate.sh`.
+    Verify: `grep -rn 'ignore-errors' cmake tools` names the class at
+    the capture list only, and `mismatch` and `negative` stand there.
+  - c. Rewrite the two rationale comments so each names the repaired
+    cause and the cause that stands. Verify: the prose gate in tree mode
+    reports 0 findings and names the unit count it examined, and the
+    spell gate passes from the repository root. The range form examines
+    nothing before a commit exists, so COV-006 runs it after the squash
+    with its unit count.
+- [x] COV-003 Repair the data cause with semantic regression tests
+      (FR-018, after COV-001 and COV-002).
+  - a. Name a helper for each of the `stripTopdownColumns` closures at
+    `runner.cpp:711`, `:823`, `:834`, `:841` and `:845`, and declare them
+    in `source/harness/detail/internal.hpp` with their contracts. Four
+    helpers carry the five closures: the nested context-row closure
+    stands covered by the context helper.
+  - b. Name the helper of `topdownDeepestNode` and declare it in
+    `source/harness/detail/hunt_topdown.hpp` with its contract.
+  - c. Move each closure body into its helper; keep each conjunction,
+    each evaluation order and each message.
+  - d. Drive every arm of every helper from a test that calls it
+    directly, in `test/source/harness_topdown_report_test.cpp` and
+    `test/source/harness_hunt_report_test.cpp`. Those two entries run on
+    the acceptance host; `harness_topdown_run_test` stands `Skipped`
+    there, so a test placed in it adds no trace. Verify: the two entries
+    pass, and the head trace shows each helper's arms taken both ways.
+  - e. Quote the violation predicate text before and after in the
+    record.
+    Verify: `lcov --branch-coverage --config-file /dev/null --list` and
+    `--summary` exit 0 with no class on the tree of this commit, and no
+    `(inconsistent)` line names a contract function record.
+- [x] COV-004 Complete the coverage with legitimate input tests
+      (FR-020, FR-021, FR-022; parallel with COV-003).
+  - a. Run `harness_jitter_cli_test` to its end outside `ctest` in the
+    instrumented tree. Verify: the binary prints
+    `harness_jitter_cli_test: ok`, and the record gives the 300 s
+    ceiling, the seconds the entry needs, and the two trace readings.
+  - b. Close the rows a legitimate input reaches:
+    `source/harness/compare.cpp:602`,
+    `source/harness/latency_counters.cpp:183`, `:184`, `:193`,
+    `source/harness/jitter_probe.cpp:197`, and
+    `source/harness/noise_tracer.cpp:486` where the repository carries
+    a seam for the tracer file. Each row lands with its test.
+  - c. List every row that stays open with its file, line, arms and
+    evidence, and keep the two `switch (slot.source)` `BR` markers at
+    `source/counters/linux_pmu/group_io.cpp:306` and `:426`.
+    Verify: the gate reads `lines.......: 100.0%` and a shortfall of 21
+    or fewer, and `git grep -c LCOV_EXCL -- source include` summed over
+    its files reads 84 or fewer.
+- [x] COV-005 Run the full, pinned, sanitizer and cheap gates and
+      record every count (SC-011, SC-012; after COV-003 and COV-004).
+  - a. `sched_getaffinity` and the online cpu list, recorded first.
+  - b. Full `ctest`; `taskset -c 0,1 ctest`; a four-cpu run on real
+    allowed cpus; `ci-sanitize`; `ci-tsan`. Verify: each lane gives its
+    passed, failed, `did not run` and timeout figures, and no
+    sanitizer or race line stands in any log.
+  - c. The `ci-rocky` release developer build, `ci-ubuntu` with the
+    analyzers, `format-check`, `spell-check`,
+    `prose_gate.py` over the range and the tree, `example_drift.py`,
+    `example_run`, `time_source_gate.sh`, the DBC doc and pair gates,
+    and the downstream consumer build. Verify: each exits 0 and the
+    README stands at or below 1004 lines.
+- [ ] COV-006 Squash the branch to one commit and measure that exact
+      head again (SC-009, SC-013; COV-005 first). Author and committer `OmO`; title at
+    50 characters or fewer; body at 72 columns; footer
+    `Refs: specs/045-merge-fixes G-25` then `Approved-by: OmO`.
+    Verify: the coverage lane, the pinned lane and the sanitizer lanes
+    are re-run at the squashed SHA and the record names that SHA.
+- [ ] COV-007 Push, open one pull request, and record the proof
+      (SC-013, SC-014; COV-006 first).
+    Verify: `git push -u origin fix/coverage-data-repair` then, for
+    every later push, `--force-with-lease` against the expected full
+    SHA; `git ls-remote origin refs/heads/fix/coverage-data-repair`
+    equals `git rev-parse HEAD`; the body names the measured squashed
+    SHA, the counts, the cold-row ledger and the blocked capture item.
+
+### Dependencies and parallel order
+
+- COV-001 stands first: it fixes the base reading every later row
+  compares against.
+- COV-002 follows COV-001 and precedes COV-003, so the record shows
+  the refusal, then the removal, then the repair that answers it.
+- COV-003 and COV-004 run in parallel: COV-003 owns
+  `source/harness/runner.cpp`, `source/harness/hunt_topdown.cpp`, the
+  two internal headers and the two report tests; COV-004 owns the
+  input tests of `compare.cpp`, `latency_counters.cpp`,
+  `jitter_probe.cpp` and `noise_tracer.cpp` and their test files. No
+  file stands in both sets.
+- COV-005, COV-006 and COV-007 run alone, in that order.
+
+### Completion rule for phase 13
+
+A row closes only with its verify reading in
+`specs/045-merge-fixes/results/coverage-data-repair.md`: the command,
+the exit, the host, the tool versions and the figure. A row that stops
+for an owner ruling stays open with the reason, and the pull request
+body carries it.

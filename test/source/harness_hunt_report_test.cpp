@@ -72,11 +72,13 @@
 #include <unistd.h>
 
 #include "detail/hunt_fixture.hpp"
+#include "detail/hunt_topdown.hpp"
 #include "detail/internal.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters.hpp"
 #include "speedgun-ng/counters_fake.hpp"
 #include "speedgun-ng/counters_system.hpp"
+#include "speedgun-ng/counters_topdown.hpp"
 #include "speedgun-ng/hunt.hpp"
 
 // `detail/internal.hpp` declares the plan printer, where the test lane reads
@@ -1709,6 +1711,42 @@ auto scenarioEntryRunFiguresStandEqual() -> void
   std::printf("entry-run-figures-stand-equal-between-base-and-head: ok\n");
 }
 
+// The assertion of `topdownDeepestNode` reads its answer over the whole list
+// through `nodesNamingAddressStandAtOrBelow`. The node that names another
+// address answers the first arm of that answer, and the two levels of the nodes
+// that name one address answer the other two (FR-001, FR-002, FR-003, D-4).
+auto scenarioDeepestNodeAssertAnswersEachArm() -> void
+{
+  const auto nodeOf = [](const char* name,
+                         const int level,
+                         const char* event) -> sg::counters::TopdownNode
+  {
+    auto node = sg::counters::TopdownNode {};
+    node.name = name;
+    node.level = level;
+    node.events = {std::string {event}};
+    return node;
+  };
+  auto tree = sg::counters::TopdownTree {};
+  tree.depth = 3;
+  tree.nodes = {
+      nodeOf("topdown.frontend_bound", 3, "cpu/other_leaf"),
+      nodeOf("topdown.backend_bound", 1, "cpu/deep_leaf"),
+      nodeOf("topdown.backend_bound.core_bound", 2, "cpu/deep_leaf"),
+  };
+
+  check(sg::detail::nodesNamingAddressStandAtOrBelow(tree, 2, "cpu/deep_leaf"),
+        "the level-2 node stands at its own level and at or above the level-1"
+        " node that names the same address (FR-003, D-4)");
+  check(!sg::detail::nodesNamingAddressStandAtOrBelow(tree, 1, "cpu/deep_leaf"),
+        "a node that names the same address stands deeper than the level-1 node"
+        " the answer holds, so the answer reads false (FR-003, D-4)");
+  check(sg::detail::nodesNamingAddressStandAtOrBelow(tree, 0, "cpu/absent"),
+        "an address no node of the tree names takes no part, so the answer"
+        " reads true over the whole list (FR-002)");
+  std::printf("deepest-node-assert-answers-each-arm: ok\n");
+}
+
 // The scenarios of this file: what CTest runs with no argument, and what
 // `argv[1]` selects from. One entry per shape of data-model E-07.
 [[nodiscard]] auto scenarios() -> const std::vector<Scenario>&
@@ -1750,6 +1788,8 @@ auto scenarioEntryRunFiguresStandEqual() -> void
                 &scenarioANodeOfNoCountableStatePrintsNoFigure},
       Scenario {"entry-run-figures-stand-equal-between-base-and-head",
                 &scenarioEntryRunFiguresStandEqual},
+      Scenario {"deepest-node-assert-answers-each-arm",
+                &scenarioDeepestNodeAssertAnswersEachArm},
   };
   return kList;
 }
