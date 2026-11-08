@@ -484,7 +484,8 @@ and `branches 99.8% (9800 of 9823)`, and the gate line reads:
 `branch shortfall 23 rows exceeds the D-14 recorded allowance of 21`. The run at the base
 commit of the same source read 27 rows there. The shortfall therefore sits near its allowance
 on both hosts, and the hosted count moves between two runs of identical source. The line rule
-passes on both. No marker, allowance or suppression changed here, and G-25 stands landed.
+passes on both. No marker, allowance or suppression changed here, and G-25 stands landed. A
+later head closes that shortfall, and the section on `2d4d8c57` carries the reading.
 
 ### The suite lanes (IA-END-001.2 to IA-END-001.6)
 
@@ -521,8 +522,11 @@ and a factor between 1.1 and 4.7 then decides the row.
 
 One name reads differently by shape, and both readings stand here. `harness_hunt_cli_test`
 passed inside the 24-job lanes at 289.30 s and at 281.75 s, took 345 s and 335 s alone, and
-timed out at 300 s when the lane ran the hosted shape of four cores and four jobs. The
-spread between 281 s and 345 s stands unexplained by this record. A name that moves that
+timed out at 300 s when the lane ran the hosted shape of four cores and four jobs. A second
+24-job thread lane at `2d4d8c57`, measured by the closeout pass on this host and cited here, cut
+that entry at 300.06 s where this lane passed it at 281.75 s, so the flip sits between two runs of
+one shape. The spread between 281 s and 345 s stands unexplained by this record, and a name that
+flips pass to cut inside one shape holds no headroom against its ceiling. A name that moves that
 much between shapes holds no headroom against a fixed ceiling, and it sits nearest its
 bound of the five.
 
@@ -581,5 +585,56 @@ Forty-seven steps ran in the order of the plan and every one answered exit 0 exc
 - The record reports the branch shortfall and accepts nothing by it. The allowance
   stands at 21.
 - `harness_hunt_topdown_test` and `prose_gate_fixtures` stand red on the hosted Rocky job at
-  this head and stand green in every local lane above; no local row explains that gap, and
-  this record states it as an open difference between the two runners.
+  run `42487329495`, head `b90711fb`, and they stand green in every local lane above; no local
+  row explains that gap, and this record states it as an open difference between the two
+  runners. The next head carries a repository-metadata fault in their place, named in the
+  section on the merged head.
+
+## Coverage at the merged head `2d4d8c57` (2026-11-08)
+
+The rerun above stands measured at `87d745d6`. Master moved below the squash of that
+measurement: `e2f6a50f Harness: Clear the capture suppression` landed between the two, and it
+changes the shape the coverage gate reads. The fixture macros now pass the named functions
+`::sg::detail::fixtureCaseEntry` and `::sg::detail::fixtureFactoryEntry`, so gcov emits one
+record per function, `--ignore-errors inconsistent` stands gone from every repository
+coverage command, and that commit reports 20 rows against the same allowance on the owner's
+host. The chain ran again here at `2d4d8c57`, on the same machine and the same toolchain.
+
+| Step | Exit | Reading |
+|---|---|---|
+| `cmake --preset=ci-coverage` | 0 | tree at `build/coverage` |
+| `cmake --build build/coverage -j "$(nproc)"` | 0 | 185 entries |
+| `lcov --zerocounters -d build/coverage` | 0 | a local step, named as an addition |
+| `ctest -j 1 --output-on-failure --no-tests=error` | 8 | 181 of 185 in 3,978.64 s, four timeouts |
+| Four cut entries, by hand, no ceiling | 0 each | 285 s, 509 s, 571 s, 775 s |
+| `bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` | 0 | `branch shortfall 20 rows, within the  D-14 recorded allowance of 21 (accepted classes)` |
+| `cmake --build build/coverage -t coverage` | 2 | `ERROR: required module GD.pm not found on this system` from the html step, a host fact about perl-GD |
+
+| Capture | Lines | Functions | Branches |
+|---|---|---|---|
+| After the four hand runs | 100.0% (18,664 of 18,664) | 99.0% (1,958 of 1,978) | 99.8% (9,253 of 9,273) |
+
+`no messages were reported` stands in the geninfo read and in the lcov read, so the capture
+needs no error class ignored. The branch rule closes here at 20 rows against the allowance of
+21, four rows under the reading at `87d745d6`, and the reduction arrives with the macro
+change. No marker, allowance or suppression moved for this reading. The four hand re-runs
+repeat the previous head within one second, so the ceiling arithmetic of those entries stands
+unchanged, and the coverage target's exit 2 has a new cause here: the branch check passes, and
+the html step needs perl-GD, which this host lacks.
+
+### The hosted Rocky readings, head by head
+
+The line that names `harness_hunt_topdown_test` and `prose_gate_fixtures` as red on the hosted
+Rocky job belongs to run `42487329495`, at head `b90711fb`. Run `42495085606`, at head
+`ab1102e5`, reached no test: the Rocky container answered `Error: Failed to download metadata
+for repo 'epel'` after mirror 404 answers, and the job exited 1 at 15:32:16Z. Both heads carry
+the same coverage red, `branch shortfall 23 rows exceeds the  D-14 recorded allowance of 21`,
+and twelve jobs pass at each. The hosted coverage job at this pull request's head answers
+red, run `42520411116`, job
+`128852626791`, at head `5fe3d244`, reads `lines 100.0% (18675 of 18675)`, `functions 98.7%
+(1953 of 1978)` and `branches 99.8% (9800 of 9823)`, the gate line reads `branch shortfall 23
+rows exceeds the  D-14 recorded allowance of 21`, and `gmake: *** [Makefile:252: coverage] Error
+2` stands behind it. The branch rule therefore closes on this host and stays open on the runner at
+one head. The denominators differ too, 9,273 branch positions here against 9,823 there, which is
+the tool-version difference named at the earlier head, so the two counts read as two readings of one
+rule, each named by the host that produced it.

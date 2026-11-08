@@ -1187,3 +1187,6 @@ their rows beside the rows below.
 - [x] IA48-010 [write] Correct the guide sentence that says two root runs stand recorded.
   Verify: the guide says no root session stood available, and the record carries the
   operator sequence for the seven reads.
+- [x] IA48-011 [bench] Re-run the coverage chain at the merged head `2d4d8c57` and name the
+  head each branch reading belongs to. Verify: the record gives the gate exit, the row count,
+  the capture, and the two hosted head readings with their run ids.
