@@ -176,14 +176,14 @@ sudo ./build/example/benchmark_example --filter=bmTouch --threads=2 --placement=
   --jitter-probe=idle,mode=precheck --os-noise=hwlat --json=/tmp/hwlat-detector.json
 ```
 
-One record per run stands under [results/](./results/):
-[results/user-space.md](./results/user-space.md) and
-[results/detector.md](./results/detector.md). Each carries the command,
-the exit code, the figures the console printed, and the document keys the
-run wrote. The detector record carries the before-and-after table of the
-six saved files beside the `tracing_on` value, the kernel's own
-`dmesg` lines for the detector if any, and the note that the kernel keeps
-the run's threshold as its remembered default (spec SC-005, SC-007). The
+One record covers both runs of this host:
+[results/acceptance-final-intel.md](./results/acceptance-final-intel.md).
+It carries the command, the exit code, the figures the console printed, and
+the document keys each run wrote. It holds the six saved tracefs files as
+rows with `tracing_on` read beside them, and it names the missing right
+where no root session stood available; those rows carry no figure. The
+kernel keeps the run's threshold as its remembered default, and the record
+names that residue as documentary (spec SC-005, SC-007). The
 gate record stands at [results/gates.md](./results/gates.md): the drift,
 lint, spell, time-source and prose gates, the `dbc-gate` target, the
 coverage reading with its line and branch figures, the release build, the

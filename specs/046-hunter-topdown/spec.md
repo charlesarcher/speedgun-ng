@@ -1233,3 +1233,41 @@ AMD host rows) are recorded as such.
   record takes `none` on all three tags, as the records beside it do.
 - Anti-slop (X): the decisions above record each reading a requirement admits,
   and the Scope section names what this feature will not build.
+
+
+---
+
+## Acceptance extension: Intel final acceptance (2026-11-07)
+
+`specs/048-hwlat-probe` carries the identity, the changed-file list, the shared
+constraints and the clarification rounds for this phase. This section adds the
+hunter part and nothing else.
+
+### User Story 2 - A reader can verify the Intel mapping on real hardware (Priority: P1)
+
+A reader wants to see the Intel top-down mapping and the probe and decode
+equality on an Intel part, and wants the record to say which claims come from a
+run and which come from a fixture.
+
+**Why this priority**: the standing record reads from an AMD host and from
+synthetic tables, and the Intel rows of SC-010 stayed pending.
+
+**Independent Test**: the record names the hunt commands, the ranked counts, the
+area paths, the level-1 block and the table the mapping came from, and maps each
+reading to an acceptance criterion of this spec.
+
+### Requirements - the hunter part (IA46-001 to IA46-002)
+
+- **IA46-001**: The lane SHALL run the commands of
+  `specs/046-hunter-topdown/results/acceptance-hunt.md` at the measured head,
+  three times each as the acceptance extension of
+  `specs/048-hwlat-probe/spec.md` rules, and SHALL NOT build an older head. The lane SHALL keep the normal method, and where
+  it fails the lane SHALL record the failure before it tries an alternative that
+  stands labeled apart.
+- **IA46-002**: The record SHALL give the ranked events, the mapped and unmapped
+  counts, the Intel area paths, the level-1 companion block, its source and the
+  pass-method disclosure. The lane SHALL compare each figure with the vendored
+  Skylake-X table, SHALL require no level that table does not carry, and SHALL
+  report no AMD, Arm or hybrid hardware result as an Intel result. The lane SHALL
+  map each reading to an existing acceptance criterion. No row stands complete
+  without output.

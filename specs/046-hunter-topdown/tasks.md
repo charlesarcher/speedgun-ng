@@ -1194,3 +1194,39 @@ change. No CI or gate change.
   `tools/prose/prose_gate.py --base origin/master`, and
   `tools/dbc/dbc_pair_gate.py`. The pull request body gives the host, the kernel,
   the counts and the head sha (ruling G-20), and the lane merges nothing.
+
+
+---
+
+## Phase 10: Intel final acceptance (2026-11-07) - the hunter part
+
+**Goal**: one Intel record stands with the hunt output behind every figure.
+Depends on: a tree built at the measured head, and a machine with nothing else running.
+
+- [x] IA46-001.1 [bench] Run `./build/example/memory_walk --hunt --hunt-budget 120s`
+  three times and keep each console, exit code and line count. Verify: three captures
+  stand outside the repository and each names its head.
+- [x] IA46-001.2 [bench] Run `./build/example/first_benchmark --hunt --hunt-budget 120s`
+  three times, the same way. Verify: three captures stand outside the repository and
+  each names the head it ran at.
+- [x] IA46-001.3 [read] Compare the captures and state where they differ. Verify: the
+  record names the run-to-run spread and claims no rank order.
+- [x] IA46-002.1 [read] Give the three counts over the printed rows with the arithmetic
+  and the `events=` summary line. Verify: the counts and the denominator stand in the
+  same row.
+- [x] IA46-002.2 [read] Give the distinct `area=` cell texts with a count each, and where
+  the run prints a multi-name path quote at least one. Where every cell holds a single
+  name, state that as a finding. Verify: the row quotes each cell text in full.
+- [x] IA46-002.3 [read] Quote the level-1 block, its `level=1` line, its file lines and
+  their digests, and the plan line with its method word. Verify: each quote carries the
+  run that printed it, the row states that no method word stood in the command, and it
+  states that a hunter run prints no companion pass-method line and no coverage line.
+- [x] IA46-002.4 [read] Compare the figures with the vendored table the block names, name
+  `skx-metrics.json` as the carrier of the top-down tree, and take the deepest level the
+  mapper reaches from the standing audit point AP-9. Verify: the only level quoted as
+  printed is the block's own `level=1` line, and no row asks a level the table does not
+  carry.
+- [x] IA46-002.5 [read] Map every figure to SC-007 or SC-010, cite the standing audit
+  point AP-9 beside the figures AP-9 measured, and name the base re-run as not run.
+  Verify: no row stands complete without the output behind it, and no row carries a
+  completion mark that names an audit point as a success criterion.

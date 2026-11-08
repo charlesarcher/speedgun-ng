@@ -1060,3 +1060,417 @@ to `:102`). No key changes its kind, and no key moves.
   1,004-line cap, and the teaching lands on `docs/pages/harness.md`,
   because the file stands three lines under that cap today and the guide
   page is where specs `036` and `043` put the teaching of their surfaces.
+
+
+---
+
+## Acceptance extension: Intel final acceptance (2026-11-07)
+
+### Identity and binding
+
+This section extends this spec, `specs/046-hunter-topdown` and
+`specs/041-counter-probe` with one records-only acceptance phase. It adds no
+feature, and it opens no new spec number. It gathers local evidence on the
+Intel host. No reader has to read a spec line or a CI job as proof. A record that
+runs "stand recorded" proves nothing until a run stands behind it.
+
+| Line | Value at the check on 2026-11-07 |
+|---|---|
+| Base head | `615c0964547e4e9768b8e2f2d79991033a0eb5bd`, and `origin/master` at the same head |
+| Branch | `docs/intel-final-acceptance`, from the latest `origin/master`; the branch stood absent on the remote |
+| Host | corsairone, Intel Core i9-9920X (Skylake-X), one socket, 24 cpus online 0-23 |
+| Version | 0.34.0, schema `1.16`, harness SOVERSION 22, archive SOVERSION 8 |
+| Page and marker caps | README 1,002 lines against the cap of 1,004; 84 `LCOV_EXCL` markers against the cap of 84 |
+| Open pull requests | none at the check |
+| Root rights | absent for this session: `sudo` asks for a password, `/sys/kernel/tracing` stands `drwx------ root`, `/dev/cpu/*/msr` stands `crw------- root` |
+
+The recheck of every line above stands at branch time in the record.
+
+### Changed files
+
+The branch changes only files under the three spec directories named above. It
+adds no source, test, build, schema, version, CI, gate or tool change, and it
+does not touch `.specify/feature.json`. The changed and added files are the three
+new records, the nine artifact files of the acceptance phase in the same three
+directories, `specs/048-hwlat-probe/quickstart.md` and
+`specs/048-hwlat-probe/checklists/intel-final-acceptance.md`. Nothing outside the
+three spec directories enters the commit, and the prompt file at the repository
+root stays out of it. New records:
+
+- `specs/048-hwlat-probe/results/acceptance-final-intel.md`
+- `specs/046-hunter-topdown/results/acceptance-final-intel.md`
+- `specs/041-counter-probe/results/acceptance-final-intel.md`
+
+### User Story 1 - A reader can tell a measured root run from a denied path (Priority: P1)
+
+A reader opens the hwlat record and sees which runs this host measured, which
+runs it could not measure, and which kernel state the run put back. The reader
+never has to guess whether a blocked row is a pass.
+
+**Why this priority**: the record is the only evidence a later lane reads, and
+this host withheld root rights from the lane that wrote the standing claim.
+
+**Independent Test**: the record names a command, an exit code and an output for
+every row it calls measured, and names the missing right for every row it calls
+blocked.
+
+**Acceptance Scenarios**:
+
+1. **Given** a host that refuses tracefs to an unprivileged reader, **When** the
+   acceptance runs, **Then** the record states the available source and the
+   unavailable source from a real run, and states the blocked root rows.
+2. **Given** a root session an operator approves, **When** the detector run
+   finishes, **Then** the record compares the six saved values one by one and
+   states the value `tracing_on` holds after the run.
+
+### Requirements - the hwlat part (IA48-001 to IA48-006)
+
+- **IA48-001**: The lane SHALL read SC-005, SC-007, FR-019 to FR-024 and the
+  current quickstart before it runs anything. The lane SHALL then record the
+  facts of the host: the cpu identity, the access to the `msr` node, the tracefs
+  mount, the presence of the detector, the kernel configuration and the active
+  tracer. Each inspection SHALL be a read, and no inspection SHALL change the
+  state it reads.
+- **IA48-002**: The lane SHALL run the unprivileged surfaces first, and SHALL
+  record for each the source disclosure, the exit status and the round trip of
+  the report. The lane SHALL build and run the existing hwlat example and SHALL
+  record the output the host answered. The lane SHALL run the three
+  refusal commands the quickstart names, each with its quoted line and its exit
+  status.
+- **IA48-003**: The lane SHALL run the two root surfaces of SC-005 only inside a
+  privileged session an operator approves: the `method=hwlat` surface, and the
+  explicit pre-check surface with `--os-noise=hwlat`. The lane SHALL use the
+  commands of the current quickstart, a benchmark name the build validates, and
+  cpus taken from the affinity the host allows. The lane SHALL NOT escalate on
+  its own, collect a password, edit a sudoers file, load a module or weaken a
+  permission. Where root stands absent, the lane SHALL name the operator action
+  it needs and SHALL mark both rows blocked, while the unprivileged acceptance
+  continues. A blocked row SHALL NOT be recorded as a pass.
+- **IA48-004**: Before the first privileged write, the lane SHALL confirm that no
+  unrelated tracer session stands active, and SHALL stop the row where one
+  stands active. The lane SHALL snapshot the six files D-8 names -
+  `current_tracer`, `tracing_cpumask`, `tracing_thresh`, `hwlat_detector/mode`,
+  `hwlat_detector/width` and `hwlat_detector/window` - SHALL read `tracing_on`
+  beside them and keep it as a reading of its own, outside the six, and SHALL
+  state the mode as the active word the quickstart helper prints, with no
+  brackets. The lane SHALL save the console
+  text, the document, the exit code and the state the run left behind.
+- **IA48-005**: The lane SHALL compare the six saved values of SC-007 one by one,
+  once after a normal end and once after the controlled interruption. The
+  contract leaves `tracing_on` at 0, so the record SHALL state that reading and
+  SHALL NOT claim that the whole machine stands restored. The record SHALL check
+  the threshold-default side effect the corrected artifacts describe. Any state
+  change the contract does not name SHALL stand as a failed row, and the lane
+  SHALL NOT edit the code or the contract to clear it.
+- **IA48-006**: A real SMI may not happen. The lane SHALL record a zero SMI count
+  as a measured figure and SHALL NOT present it as proof of live SMI
+  attribution. Where the `msr` node refuses the read, the lane records no count
+  and names the refusal in place of the zero. The planted-SMI claim SHALL rest on the recorded fixture tests.
+  The lane SHALL NOT induce a firmware fault or invent a hardware event, and
+  SHALL keep hardware evidence apart from fixture evidence.
+
+### Part D - combined local acceptance and records (IA-END-001 to IA-END-003)
+
+- **IA-END-001**: The lane SHALL run the full suite, the full suite under
+  `taskset -c 0,1`, the address and undefined-behavior lane, the thread
+  sanitizer lane, and the full coverage and gate commands. The record SHALL give
+  the pass, fail, skip and not-run counts, the line, function and branch
+  figures, the cold rows, the shortfall and each exit code. The thresholds stand
+  100 percent lines and branches under the accepted exceptions of
+  `specs/045-merge-fixes` FR-015, its R-1, R-2 and W-1, with the tree-wide
+  branch allowance at 21. No CI result stands as acceptance,
+  and no base failure stands relabeled as green. The lane SHALL inspect the
+  affinity and the online cpus first and SHALL NOT invent a cpu id. Where cpus 0
+  and 1 stand unpallowed, the record SHALL mark that lane blocked, and a run on
+  two other cpus stands as extra evidence and not as a substitute. The lane SHALL
+  also run on four allowed cpus. No unit test sleeps or reads a wall clock, and
+  hardware acceptance stands apart from unit testing. Where a full coverage run
+  cannot finish, the record SHALL name the test, the command, the elapsed time
+  and the missing trace, and SHALL accept no partial union and raise no unit
+  timeout in silence. Where the standing suppression hides inconsistent data,
+  the record SHALL state that the G-25 repair stands pending.
+- **IA-END-002**: The lane SHALL run the format, spell, prose, drift, time-source,
+  DBC document and DBC pair gates, the analyzer build and the consumer-release
+  build, the install audits of the CI test job, the pmu-events integrity check and
+  the committed-record check. The record SHALL name the compiler and the python dependencies instead
+  of disabling a check. README SHALL stay at or under 1,004 lines and the marker
+  count SHALL stay at or under 84.
+- **IA-END-003**: Each record and the pull request body SHALL give the host, the
+  cpu model, the kernel, the compiler, gcov and lcov versions, the source base
+  sha, the measured squashed-head sha, the commands, the counts, whether a root
+  session stood available and which rows stand blocked. Paths SHALL stand
+  build-relative or `$HOME`-relative, and no path SHALL name a user's home
+  directory. The lane SHALL tick only rows that carry evidence.
+
+### Success Criteria - this extension
+
+- **SC-IA-1**: Every row of the three records carries a command with its exit
+  code and its output, or names itself blocked with the right it lacks. A row
+  without output carries no completion mark.
+- **SC-IA-2**: The hwlat record separates three states that a single word would
+  blur: a measured root run, a denied unprivileged path, and a blocked row that
+  no session on this host could run.
+- **SC-IA-3**: The six saved tracefs values of SC-007 appear as six separate
+  rows, each with the value before the run and the value after it, with
+  `tracing_on` stated at 0 where a root run measured it. Where a row stands
+  blocked, `tracing_on` is named as the contract value of FR-021 and not as a
+  reading, and the row carries no figure.
+- **SC-IA-4**: The hunter record maps every reading to an existing acceptance
+  criterion of specs/046 and names the vendored table the mapping came from.
+- **SC-IA-5**: The probe record gives the probe limit and the decoded usable
+  limit for the Intel non-hybrid core device, with the watchdog rule applied
+  exactly once and the source of the published count named.
+- **SC-IA-6**: The counts of Part D come from runs on this host at the measured
+  head, and the record states each exit code.
+
+### Constraints - this extension
+
+- G-25: the removal of inconsistent suppression and fix data stands required.
+  This branch reports it and changes no gate.
+- G-29: only the two `group_io` closed-enum switch branch markers stand
+  approved. No broader exclusion, no new omit, ignore or `LCOV_EXCL` marker and
+  no coverage allowance change.
+- G-26 and G-27: old footers, authors and history stay. The new commit carries
+  OmO as author and as committer. No person name enters tracked prose outside
+  `LICENSE`, and unrelated old records stay as they are.
+- G-23: the branch squashes to one commit before the final measurement, rebases
+  and never merges. Where a records-only amend follows, the record discloses the
+  original and final shas with the exact diff, reruns at the final head and puts
+  the final counts in the pull request body. No commit carries its own sha, and
+  no pre-squash reading stands called final acceptance.
+- The title stands at or under 50 characters, body lines at or under 72, in
+  ASD-STE100 Simplified Technical English. The footer block carries, in order,
+  `Refs: specs/048-hwlat-probe`, `Refs: specs/046-hunter-topdown`,
+  `Refs: specs/041-counter-probe` and `Approved-by: OmO`.
+- The first push stands `git push -u origin docs/intel-final-acceptance`. A
+  later push saves and verifies the last observed full remote sha, then uses
+  `git push --force-with-lease=docs/intel-final-acceptance:<expected-full-sha>`.
+  A failed lease stops the lane, and the lane never refreshes it and retries.
+  After each push the lane compares `git ls-remote origin
+  refs/heads/docs/intel-final-acceptance` with `git rev-parse HEAD` and stops on
+  a difference.
+- The branch opens one pull request and never merges it and never closes an
+  issue.
+- G-28 trace-line parsing, G-31 raw codes and G-32 automatic ranks stand future
+  work outside this branch. The current catalog-only and explicit-rank behavior
+  stays unchanged.
+- A later master can supply the coverage-data repair. The lane closes that row
+  only by fetching and rebasing onto a master that carries the G-25 removal and
+  the fault repair, then rerunning the local commands on that head. A file name
+  or a CI pass alone proves nothing, and no lane waits on a named host.
+
+### Assumptions - this extension
+
+- One session on this host owns the working tree for the length of the lane, so
+  no sibling lane edits the three spec directories at the same time.
+- The build trees `build`, `build/coverage`, `build/sanitize`, `build/tsan`,
+  `build/analyzer`, `build/consumer-release` and `build/consumer-release-dev`
+  belong to this lane for the length of the runs, and each instrumented run
+  stands alone without a parallel writer.
+- A blocked row names the missing right and the operator action in plain words, and it
+  offers no figure.
+- The quickstart stays the source of the two root commands, and the record
+  quotes that command and writes no new command.
+
+
+### Clarifications
+
+#### Session 2026-11-07, round 1
+
+Three readers read this section against the tree, the CI workflow and the code, and
+each named the points two careful executors could read apart. The owner ruled on all
+of them here. The readers' reports stood outside the repository, so each ruling
+carries the evidence a later reader needs.
+
+**The hwlat part.**
+
+1. **Root absent.** With no privileged session, both root rows stand blocked with no
+   figure, and SC-005 and SC-007 stand named as unmet by this lane. No row inherits a
+   value from a fixture or from another head. The six-row table still appears, with
+   its six names and its value cells empty.
+2. **Six rows, and one statement.** The record gives six before-and-after rows, and
+   states beside them that `tracing_on` stands 0 after the run and that the restore
+   never writes its prior value back. The saved mode value carries no brackets, in the
+   snapshot and in the record alike.
+3. **The quickstart commands.** The record quotes the quickstart commands without the
+   `sudo` prefix and names the operator action it needs. It adds no `cpus=` key. The
+   tracer cpu set comes from the header line the run printed, because the default rule
+   already reads the affinity.
+4. **The engine without rights.** The `--os-noise=hwlat` run without root is in scope
+   as the denied path: `not available`, one disclosure line, whole user-space figures,
+   exit 0. It carries no tracer figure, is never called a detector run, and its exit 0
+   is never a pass of the engine.
+5. **The controlled interruption.** A root session that exists gets its own interrupted
+   run, its own signal command, its own exit status and its own six rows. With no root
+   session the row is blocked like the others. The forked-child test closes the code
+   path only, and never the host.
+6. **The two missing records.** `quickstart.md` names `results/user-space.md` and
+   `results/detector.md`, and neither file exists. The branch corrects that sentence in
+   the same pass, because it stands under this spec directory.
+7. **The threshold residue.** The row is documentary. It names the residue, quotes
+   D-8, plan R-4 and the guide page, and states that no user-space read reaches it.
+   The residue is named by the contract, so it stands outside the failed-row clause.
+8. **The tracer check.** The lane reads `current_tracer` and `tracing_on`. The row
+   stops where `current_tracer` reads a word other than `nop`, or where `tracing_on`
+   reads 1. A stopped row names the file, the value and the fact that no run executed;
+   it carries no console shape and no status.
+9. **Which example, and what a round trip is.** The lane runs both artifacts and labels
+   each with the target or command it used: the `docs_hwlat_probe` example, and the
+   quickstart's `benchmark_example` command. The round trip closes with a
+   `--compare=<a>,<b>` run, which loads both documents through `loadReport`. A python
+   key print is a parser read and is recorded as that. The committed `.expected` block
+   belongs to another host, so no row claims it reproduces here.
+10. **The final sha.** The record labels each reading with the head it ran at. After the
+    squash it discloses the original and final shas with the exact diff, reruns at the
+    final head, and states the rerun per row. A row that cannot rerun says so.
+
+**The hunter part.**
+
+11. **The denominator.** The three counts cover the printed rows, and the record states
+    the arithmetic and the `events=` summary line beside them. The 20-row split of AP-9
+    is a different measurement and never merges into that figure.
+12. **The area cells.** The record prints the `area=` cell texts it saw, with a count
+    each, and at least one multi-name path where the run prints one. Where every cell
+    holds one name, the record states that as a finding.
+13. **The table named.** The record names the selected directory as the block spells
+    it, the 13 contributing files with the digests the block prints, and the note that
+    the top-down tree arrives through `skx-metrics.json` while the event rows come from
+    the other files.
+14. **The level.** The record quotes the block's own `level=1` line, names the mapper's
+    ask level as a cited constant, and gives the deepest level of the vendored table
+    from the table. No row claims the run read a level no line prints.
+15. **The base.** The lane runs both hunt commands of the standing record, three times
+    each, at the measured head, and builds no old head. The commands keep
+    `--hunt-budget 120s`, and the record names the base re-run as not run.
+16. **The pass-method disclosure.** The record quotes the plan line with its exit code,
+    states whether any method word stood in the command, and states that a hunter run
+    prints no companion pass-method line and no coverage line.
+
+**The counter-count part.**
+
+17. **The probe figure.** The `probe=` figure of the `counter_probe` example is the
+    lane's probe reading: it is the example's own search in the shipped attribute shape.
+    The library pays no open on this host, because its decode answers, and the record
+    says so. No row calls a library-published `source=probe` figure, because none can
+    exist here.
+18. **The watchdog rule.** The lane reports the two printed figures and
+    `kernel.nmi_watchdog`, and names the deduction a no-op on this part. It subtracts
+    nothing by hand and writes no sysctl. It calls neither equality nor inequality a
+    rule of the spec.
+19. **No raw code.** The lane runs no tool that takes a type word and a config word, and
+    publishes no raw config value. It names the device, the `type` file and the event
+    file it read, and points at the standing record where a word would be needed.
+20. **The golden.** The lane reports the device line as this host read it and cites the
+    `.expected` file as another host's reading. It claims neither a match nor a failure
+    of a byte compare.
+21. **The permission row.** The record gives this host's `perf_event_paranoid` value,
+    the device modes and the root status in the same row, and does not word a -1 reading
+    as the equal of the standing 2 reading. Raising the value stands blocked, because it
+    needs root.
+
+**Part D.**
+
+22. **The coverage chain.** The lane runs the CI coverage chain in order and records five
+    exits: configure, build, the `-j 1` suite, the `coverage` target and
+    `bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` run by hand. The
+    target exit is make's, and the gate exit is the verdict. Only 0 is green: 1 is a
+    measured shortfall, 2 is a usage fault and 3 is a tool fault. The lane zeroes the
+    counters before the suite, and names that step as a local addition.
+23. **The threshold clause.** R-1, R-2 and W-1 resolve to the tracked set: the three lcov
+    classes and the filter of `cmake/coverage.cmake`, the class the gate itself carries,
+    the two `--omit-lines` patterns and the allowance of 21. The record says the three
+    labels carry no definition of their own. It states four branch numbers, the host
+    shortfall, the allowance, the base shortfall, and the claim that this branch adds no
+    new shortfall. It claims no green from a host run against the union allowance, and
+    it marks the function figure ungated.
+24. **The plain suite.** The plain-suite rows use the CI `test` job form in `build`, a
+    `ci-rocky` tree that carries the same cache variables as `ci-ubuntu-test`. Each row
+    keeps `--no-tests=error`, prints the entry count from `ctest -N`, and names its
+    parallelism, because parallelism decides verdicts on this host. The two-cpu row uses
+    the full entry set under `taskset -c 0,1`, and the four-cpu row uses four allowed
+    cpus and stands as extra evidence. The `prepush-quick` form drops entries and belongs
+    to another tree, so it is not this row. No row adds `--timeout`.
+25. **The sanitizer lanes.** Both lanes use CI's compiler, `CXX=clang++` at configure,
+    and copy the sanitizer option strings out of the workflow. A run on the host default
+    compiler is not the CI lane, and this branch reports none as one.
+26. **A run that cannot finish.** The lane re-runs each cut entry alone in the same tree,
+    names each extra command with its exit and elapsed time, and only then marks the row.
+    No row widens a ceiling from the command line, and no row folds a per-file capture
+    into the tree figure.
+27. **A base failure.** A row may call a name a base failure when a tracked record names
+    the same host, the same command form and the same entry. Any other red name gets a
+    base run in a second tree, with the base sha, the tree, the command and the exit
+    beside it.
+28. **The analyzer.** A fresh tree carries the analyzer build, because a reconfigure of a
+    built tree recompiles nothing and an empty finding list then proves nothing. The proof
+    is three counts out of the log: translation units per scope, a non-zero count for
+    every file the branch owns, and zero hits on the gate checks. The verdict follows CI's
+    arithmetic, and the delta against a base reading decides whether a finding is new.
+29. **The consumer-release rows.** The lane runs the whole consumer-release job: the two
+    configures, the cache asserts, the archive symbol check, the ignore developer tree and
+    the trap fixtures. The non-zero exits of the fixtures are the pass condition and stand
+    inside the row.
+30. **The DBC gates.** The lane copies the `dbc-gate` target's own exit and message, then
+    runs that target's two commands verbatim with an interpreter that carries yaml, and
+    names both interpreters and both yaml states. It keeps the argument list whole and
+    prints the interface count the gates report.
+31. **The prose gate.** The lane runs the tree form before the commit and the range form
+    after it, and names the base sha of the range. A form that examined nothing gets no
+    completion mark.
+32. **A citation defect.** `results/gates.md` and `tasks.md` cite `SC-011`, and this
+    spec's list ends at SC-010. No new record repeats that id.
+
+
+#### Session 2026-11-07, round 2
+
+One reader checked the 32 rulings against the tree, the workflow and the code, and
+answered 27 confirmed, 4 that left a gap and 1 that was wrong. The owner ruled on the
+five here, and on four readings the check brought up beside them. The round closed after
+this pass: no item of round 1 stayed open, and no new item reached the bar.
+
+33. **IA48-004 saves six values.** The requirement now names the six files of D-8 and
+    makes `tracing_on` a reading of its own outside the saved set, and it asks for the
+    mode as the word the quickstart helper prints, without brackets. Round 1 said
+    "snapshot seven" and "normalize to the bracketed word", and both read against FR-019,
+    D-8 and the helper at `quickstart.md:61-65`.
+34. **The prose tree form carries its check word.** The tree form runs with
+    `PROSE_CHECK=prose`; the default of the cmake wrapper is `all`, which also runs the
+    commit check and prints a degenerate-range note while the head equals the base. The
+    mark follows the prose unit count the gate prints, and a range that resolves to
+    nothing gets no mark.
+35. **The three labels have a home.** The exceptions stand in `specs/045-merge-fixes`
+    FR-015, and the requirement now cites it. This spec's own plan uses R-1, R-2 and R-4
+    for research findings, so the bare labels read two ways.
+36. **The consumer-release exits are mixed.** `dbc_trap_fixture` answers non-zero,
+    `dbc_test` answers 1, the `overrun` mode of `counters_trap_fixture` answers non-zero,
+    and the nine other modes of that fixture answer 0. The row carries the exit each step
+    expects, so no reader calls an expected exit a failure. Round 1 said all fixture
+    exits stand non-zero, and that is wrong.
+37. **The 041 tools and the raw word.** The lane runs the `counter_probe` example alone.
+    It cites `specs/041-counter-probe/tools/group_probe.c` and `tools/probe_window.c` as
+    the standing shape and names `group_probe` not run, because its first argument is a
+    raw config word and its output prints one. This closes the clash between IA41-001,
+    which points at the tools, and IA41-002, which bars a raw code.
+38. **The deepest level has no field in the table.** The vendored Skylake-X json carries
+    no level field, so the record takes the deepest level the mapper reaches from the
+    standing audit point AP-9, which measured it with one ask per level, and quotes the
+    block's own `level=1` line as the only level a run printed.
+39. **The round trip names its inputs.** It closes with
+    `./build/example/first_benchmark --compare=<a>,<b>` over the two method documents of
+    this run and the `jitter:` rule, which loads both through `loadReport`. The record
+    also carries the answer of a `hwlat:` rule over those documents, which is the status
+    FR-028 names for a figure the record does not carry.
+40. **The standing task rows stay.** `tasks.md` T054, T055 and T056 name the two records
+    that do not exist. They stay as they stand, and the new record names them unrun.
+41. **The `prepush-quick` reading is not run.** SC-003 asks for
+    `taskset -c 0,1 ctest --preset prepush-quick -j 2`, and ruling 24 keeps that form out
+    of Part D. The record names it not run rather than calling the masked full-suite row
+    its equal.
+42. **The analyzer file set stands empty.** The branch owns three record files and no
+    translation unit, so the per-file proof of ruling 28 has an empty set here. The row
+    carries the translation-unit count per scope and the gate-check hits, and says the
+    owned-file set is empty.
+43. **One host fact of the standing artifacts is stale.** `/proc/interrupts` answers its
+    `NMI` row to an unprivileged reader on this host today, so the note that an
+    unprivileged reader loses that row no longer holds at this check. The unprivileged
+    method row still prints the SMI disclosure, because the `msr` node stays root-only.

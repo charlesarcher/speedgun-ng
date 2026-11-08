@@ -954,3 +954,219 @@ priority.
   the recorded block lacks, and specs/036's example carries the same
   shape (per FR-037, SC-011) (recorded in `results/gates.md`, LOW)
 
+
+
+---
+
+## Phase 13: Intel final acceptance (2026-11-07) - records only
+
+**Goal**: three records stand with a command, an exit code and an output behind every
+row they call measured, and with the right named behind every row they call blocked.
+**Depends on**: the branch, and a tree built at the measured head.
+**Tags**: `[read]` is a read or a parse and never waits. `[bench]` needs the machine to
+itself. `[blocked]` runs only inside a privileged session. `[write]` writes a repository
+file and never runs while a ctest sweep reads the tree.
+
+### Part A - the hwlat surface (IA48-001 to IA48-006)
+
+Part B stands in `specs/046-hunter-topdown/tasks.md` Phase 10 and Part C in
+`specs/041-counter-probe/tasks.md` Phase 7. The order at the end of this phase names
+their rows beside the rows below.
+
+- [x] IA48-001 [read] Before anything runs, read SC-005, SC-007, FR-019 to FR-024 and
+  the current quickstart, then record the host facts the run reads: cpu model and family,
+  kernel, `msr` node mode, tracefs mount and mode, detector presence read with the path
+  tried and the refusal met, kernel config lines read with `zcat /proc/config.gz`, the
+  `current_tracer` read attempt, and today's answer of the `NMI` line of
+  `/proc/interrupts` beside the standing artifact's note. Verify: the record names the
+  sections it read and each fact with the command that read it and the output it printed,
+  and no command writes.
+- [x] IA48-002.1 [bench] Run the method surface without rights twice, the second run to
+  a second document path, and keep the console, the exit code and each document. Verify:
+  the record quotes the source disclosure for `smi` and `nmi`, the exit code each run
+  answered, and the two document paths the round trip later reads.
+- [x] IA48-002.2 [bench] Run the engine surface without rights and keep the same three
+  things. Verify: the record calls the row a denied path, quotes `not available`, and
+  carries no tracer figure and no `precheck.tracer` key.
+- [x] IA48-002.3 [bench] Run the `docs_hwlat_probe` example and keep its output. Verify:
+  the record names the target and states that the committed `.expected` block belongs to
+  another host.
+- [x] IA48-002.4 [read] Run the three refusal commands. Verify: the record gives exit 2
+  for each with the quoted line.
+- [x] IA48-002.5.1 [read] Close the round trip with a `--compare` run over the two method
+  documents of this run, and carry the answer of a `jitter:` rule and of a `hwlat:` rule
+  over those same documents. Verify: the row names both document paths and both rule
+  answers.
+- [x] IA48-002.5.2 [read] Print the parser key read beside the round trip. Verify: the
+  row marks it a parser read and not the round trip, and where no root session stands
+  available it carries the `schemaVersion` answer alone and names the `precheck.tracer`
+  key as blocked.
+- [x] IA48-002.6 [bench] Run the quickstart's method command of the root-runs block
+  unprivileged and label the row with that command. Verify: the row quotes that command
+  from `quickstart.md` without its `sudo` prefix, adds no `cpus=` key, and carries the
+  output it printed.
+- [x] IA48-003 [read] Ask for the operator action the two root surfaces need, and mark
+  both rows blocked while no session stands available. Verify: the record names the
+  missing right and quotes both quickstart root commands, the `method=hwlat` run and the
+  `--os-noise=hwlat` run, without their `sudo` prefixes.
+- [ ] IA48-004.1 [blocked] Preflight the privileged row: read `current_tracer` and
+  `tracing_on`, and apply the stop rule. Verify: the row names both files and both
+  readings, and where `current_tracer` reads other than `nop` or `tracing_on` reads 1 it
+  names the file, the value and the fact that no run executed, with no console shape and
+  no status.
+- [ ] IA48-004.2 [blocked] Snapshot the six files D-8 names - `current_tracer`,
+  `tracing_cpumask`, `tracing_thresh`, `hwlat_detector/mode`, `hwlat_detector/width`,
+  `hwlat_detector/window` - read `tracing_on` beside them as a reading of its own outside
+  the six, state the mode as the word the quickstart helper prints with no brackets, and
+  save the console text, the document, the exit code and the end state. Verify: the row
+  names the values only when a root session answered them and carries none when it did
+  not.
+- [ ] IA48-005.1 [blocked] Compare the six saved values one by one after a normal end,
+  and state that the restore never writes a prior value back. Verify: six rows with
+  before and after when a root run stands behind them, else the six names with empty
+  value cells and no figure anywhere.
+- [ ] IA48-005.2 [blocked] Run the controlled interruption with its own signal command
+  and its own exit status, and give it its own six before-and-after rows and its own
+  `tracing_on` statement at 0. Verify: the interrupted rows name their own run, and with
+  no root session the row names the missing right and carries no figure.
+- [x] IA48-005.3 [read] State the threshold residue as documentary: name it, quote D-8,
+  plan R-4 and the guide page, and state that no user-space read reaches it. Verify: the
+  row quotes the three sources and carries no figure.
+- [x] IA48-006 [read] State that a zero SMI count is a measured figure and that the
+  planted-SMI claim stands on the fixture tests. Verify: the record keeps hardware
+  evidence and fixture evidence in separate rows.
+
+### Part D - combined local acceptance (IA-END-001 to IA-END-003)
+
+- [x] IA-END-001.1 [bench] Run the coverage chain in order: `cmake --preset=ci-coverage`,
+  `cmake --build build/coverage -j "$(nproc)"`, `lcov --zerocounters -d build/coverage`
+  named as a local addition, the `-j 1` suite in `build/coverage`,
+  `cmake --build build/coverage -t coverage`, then
+  `bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` by hand. Verify: five
+  exits stand in the record, the gate exit carries the verdict, and only 0 reads green;
+  where an entry cannot finish, the row names each single-entry re-run with its exit and
+  elapsed time and the missing trace, and those re-runs stand before the target step.
+- [x] IA-END-001.2 [bench] Rebuild `build/sanitize` with `CXX=clang++` and run it with
+  CI's `ASAN_OPTIONS` and `UBSAN_OPTIONS`. Verify: the record gives pass, fail, skip and
+  not-run counts, the exit, and each red name with its base evidence.
+- [x] IA-END-001.3 [bench] Rebuild `build/tsan` with `CXX=clang++` and run it with CI's
+  `TSAN_OPTIONS`. Verify: the same counts, the exit, and each red name with its base
+  evidence.
+- [x] IA-END-001.4 [bench] Run the plain suite in the CI form in `build`: `ctest --test-dir build --output-on-failure --no-tests=error -C Release -j "$(nproc)"`
+  and print the entry count from `ctest -N`. Verify: the record gives pass, fail, skip and
+  not-run counts from the output, the entry count and the parallelism, and names the
+  `prepush-quick` reading not run.
+- [x] IA-END-001.5 [bench] Run the same form under `taskset -c 0,1` with `-j 2`. Verify:
+  the record prints the affinity and online reads first, and marks the row blocked if
+  those cpus stand unpallowed.
+- [x] IA-END-001.6 [bench] Run the same form on four allowed cpus with `-j 4`. Verify:
+  the row states it is extra evidence and not a substitute.
+- [x] IA-END-001.8 [bench] Where a red name stands outside every tracked record, build
+  the base in a second tree after the last timed step and run that name there. Verify:
+  the row carries the base sha, the tree, the command, the exit and the output (rule 27),
+  and no base row is quoted before the head row it answers.
+- [x] IA-END-001.7 [read] Read the line, function and branch figures, the cold rows, the
+  host shortfall and the allowance of 21 from `build/coverage/coverage.info`, each with
+  the command that counted it and the output it printed; take the base shortfall and the
+  base cold rows from the standing coverage record or from a named base tracefile and say
+  which; state that R-1, R-2 and W-1 resolve to `specs/045-merge-fixes` FR-015 and carry
+  no definition of their own, that a host run claims no green against the union allowance,
+  and that the G-25 repair stands pending where the standing suppression hides
+  inconsistent data. Verify: four branch numbers stand in the row, the function figure is
+  marked ungated, and the row claims this branch adds no new shortfall on the set of cold
+  rows and not on two totals.
+- [x] IA-END-002.1.1 [read] Run the format gate `cmake -D FORMAT_COMMAND=clang-format -P
+  cmake/lint.cmake` and the spell gate `cmake -P cmake/spell.cmake`. Verify: both commands
+  stand with their exits and the output they printed, and the row names the tools it
+  used.
+- [x] IA-END-002.1.2 [read] Run the drift gate `python3 tools/docs/example_drift.py .` in
+  plain and four-flag form, and the time-source gate `bash test/time_source_gate.sh .`.
+  Verify: the three commands stand with their exits and the output each printed.
+- [x] IA-END-002.1.3 [bench] Configure and build the release tree that SC-004 names, with
+  the command the standing gate record uses. Verify: the configure exit and the build exit
+  stand in the row beside the lines each step printed.
+- [x] IA-END-002.2.0 [read] After the last record write, re-run `cmake -P
+  cmake/spell.cmake`, because the spell gate reads the prose this lane writes and its
+  first run stood before those files existed. Verify: the row gives both exits and the
+  output of the second run.
+- [x] IA-END-002.2.1 [read] After every record write and before the squash, run the prose
+  gate in tree form, `cmake -D PROSE_MODE=tree -D PROSE_CHECK=prose -P
+  cmake/prose-lint.cmake`, with the new records visible to `git ls-files`. Verify: the row
+  names the command with both words and prints the prose unit count the gate reports, and
+  a form that examined nothing gets no completion mark.
+- [x] IA-END-002.2.2 [read] After the squash, run the range form, `cmake -D PROSE_MODE=range
+  -D PROSE_BASE=<base-sha> -D PROSE_HEAD=<squashed-head-sha> -P cmake/prose-lint.cmake`.
+  Verify: the range row names both shas and the prose unit count, and a range that resolves
+  to nothing gets no mark.
+- [x] IA-END-002.3 [read] Run the DBC document gate and the DBC pair gate, first through
+  the `dbc-gate` target and then by hand with the interpreter that carries yaml. Verify:
+  four exits stand in the row - the target, the doxygen pass, the document gate and the
+  pair gate - each naming its interpreter and whether that interpreter carries yaml, with
+  the interface count, the argument list whole and the output each command printed.
+- [x] IA-END-002.4 [bench] Build the analyzer in a fresh tree with `cmake --preset=ci-ubuntu -B build/analyzer`
+  and the compiler launcher cleared, over the three CI scopes, and
+  apply CI's two extractors and its gate-check loop. Verify: the row carries the
+  translation-unit count per scope, zero hits on the gate checks, the statement that the
+  branch owns no translation unit, and the delta against the base reading for any finding.
+- [x] IA-END-002.5 [bench] Run the whole consumer-release job in both trees. Verify: the
+  row carries each step's expected exit - non-zero for `dbc_trap_fixture`, 1 for
+  `dbc_test`, non-zero for the `overrun` mode of `counters_trap_fixture` and 0 for its
+  nine other modes - beside the cache asserts and the archive symbol check, and names exit
+  124 as a timeout and never as a pass.
+- [x] IA-END-002.6 [read] Count the README lines and the `LCOV_EXCL` markers. Verify:
+  1,004 and 84 are the caps and both counts stand at or under them, each with the command
+  that counted it.
+- [x] IA-END-002.7 [bench] Install the plain tree with `cmake --install build --config Release --prefix prefix`
+  and run the twelve install audits and the standalone example link-manifest audit. Verify: each audit stands with its own exit and none of them reads a
+  timeout kill as a pass.
+- [x] IA-END-002.8 [read] Run `python3 tools/pmu_events/update_pmu_events.py --check` and
+  `bash tools/ci/host_record_gate.sh build/test/host_record_check . validation`. Verify:
+  both commands stand with their exits and the output each printed, and the entry count of
+  the suite comes from `ctest -N` and not from a hand count.
+- [x] IA-END-003.1 [write] Write `specs/048-hwlat-probe/results/acceptance-final-intel.md`.
+  Verify: the record names the host, cpu model, kernel, both compilers, the gcov and lcov
+  versions, the source base sha and the measured head sha, and whether a root session
+  stood available; every path stands build-relative or `$HOME`-relative; no row carries a
+  completion mark without output; no row repeats `SC-011`; the record names T054 to T056
+  unrun.
+- [x] IA-END-003.2 [write] Write the matching records under specs/046 and specs/041.
+  Verify: both records carry the same identity fields as the hwlat record, every hunter
+  row names the run behind its figure, no counter row prints a raw config word, and
+  neither record repeats `SC-011`.
+- [x] IA-END-003.3 [write] Correct the quickstart sentence that names two records that do
+  not exist, and state in the record that the two standing `SC-011` citations at
+  `specs/048-hwlat-probe/results/gates.md` and `specs/048-hwlat-probe/tasks.md` stay as
+  historical text. Verify: after the correction, `grep -n "results/"
+  specs/048-hwlat-probe/quickstart.md` names only files that exist in that directory.
+- [x] IA-END-003.4.1 [write] Squash to one commit, push with `git push -u origin
+  docs/intel-final-acceptance`, and check the remote sha. Verify: `git ls-remote origin
+  refs/heads/docs/intel-final-acceptance` equals `git rev-parse HEAD`.
+- [x] IA-END-003.4.2 [write] Open one pull request with the G-20 body. Verify: the title
+  stands at or under 50 characters, body lines at or under 72, and the footer block stands
+  in order: `Refs: specs/048-hwlat-probe`, `Refs: specs/046-hunter-topdown`, `Refs:
+  specs/041-counter-probe`, `Approved-by: OmO`.
+- [x] IA-END-003.5 [write] After any records-only amend, disclose both shas and the exact
+  diff, re-run the rows that can run, put the final counts in the body, and carry the
+  squashed head sha in each record's identity block as the trailing amendment of that
+  records-only amend. Verify: the body names the measured head and no row quotes a sha as
+  evidence of its own commit.
+
+
+### Order and concurrency
+
+- Runs together, even beside a sweep, because they are seconds of cpu with no write and
+  no timing claim: IA48-001, IA48-002.4, IA48-002.5.1, IA48-002.5.2, IA48-003, IA48-006,
+  IA41-001.1, IA41-001.3, IA41-001.4, IA41-002.1, IA41-002.2, IA46-001.3, IA46-002.1 to
+  IA46-002.5, IA-END-001.7 once the tracefile exists, IA-END-002.1.1, IA-END-002.1.2,
+  IA-END-002.3, IA-END-002.6, IA-END-002.8.
+- Stand alone, one at a time, and never beside another sweep or another build:
+  IA48-002.1, IA48-002.2, IA48-002.3, IA48-002.6, IA41-001.2, IA46-001.1, IA46-001.2,
+  IA-END-001.1 to .6, IA-END-002.1.3, IA-END-002.4, IA-END-002.5, IA-END-002.7.
+  IA-END-001.8 stands after the last timed step of every lane.
+- Wait for every sweep to exit, and run in this order: IA-END-003.1 to .3, then
+  IA-END-002.2.0, then IA-END-002.2.1, then IA-END-003.4.1, then IA-END-002.2.2, then
+  IA-END-003.4.2, then IA-END-003.5. A `git add` or a commit is a write the prose fixture can read, so the
+  tree-form run stands after the last record write and before the squash.
+- Before any timed step, read the load and say what it shows. After any red name, re-run
+  that name alone in the same tree and print the load of both runs, so a reader can tell a
+  load artifact from a defect.

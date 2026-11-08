@@ -585,3 +585,252 @@ an observation for spec `036` without changing it.
 | Branch coverage shortfall | at most 21 uncovered branch rows, with line coverage at 100% and the exclusion-marker count at or under 84 | the standing allowance at `tools/dbc/coverage_gate.sh:102`, the 100% line rule at `coverage_gate.sh:45`; the marker count is a lane reading under spec SC-002, taken by task T079's grep, since no tool checks it |
 
 No other gate needs an exception.
+
+
+---
+
+## Acceptance plan: Intel final acceptance (2026-11-07)
+
+**Branch**: `docs/intel-final-acceptance` | **Date**: 2026-11-07 |
+**Spec**: [spec.md](./spec.md), section `Acceptance extension: Intel final
+acceptance (2026-11-07)`
+
+### Summary
+
+The branch measures, then writes. It runs the standing acceptance commands on this
+Intel host, keeps every raw capture outside the repository, and writes three records
+that carry the command, the exit code and the output behind each claim. A row with no
+output names the right it lacks and carries no figure.
+
+### Technical context
+
+- **Host**: corsairone, Intel Core i9-9920X (Skylake-X), one socket, 24 cpus, affinity
+  and online set 0-23, `perf_event_paranoid` -1, `nmi_watchdog` 0.
+- **Toolchain**: gcc 16.2.1, clang 23.1.3, gcov 16.2.1, lcov 2.5.0-beta,
+  clang-tidy, cppcheck, doxygen, `/usr/bin/python3` with PyYAML, ccache.
+- **Trees**: `build` (ci-rocky, the plain suite and the install rows),
+  `build/coverage` (ci-coverage), `build/sanitize` and `build/tsan` (CI compiler
+  `clang++`), `build/consumer-release` and `build/consumer-release-dev`
+  (ci-linux-ignore), and `build/analyzer` for the static-analysis scopes. Every build
+  directory stays under `build`, so no lane adds a path the tracked set can see.
+- **Rights**: no root. `sudo` asks for a password, tracefs stands `0700 root` and the
+  `msr` nodes stand `0600 root`. No escalation, no password, no sudoers change, no
+  module load, no permission change.
+- **Quiet checkout**: from the first `ctest` start of a sweep to its last `ctest` exit,
+  the checkout that sweep's fixtures read holds no new change to a tracked file and no
+  index change, beside the nine acceptance-artifact modifications this lane owns and
+  states in the record. `prose_gate_fixtures` compares a gate subprocess scan
+  with its own `git ls-files` walk of the same checkout, so `git add`, `git stash`,
+  `git checkout` and a commit disturb it as much as a file write.
+
+### Order of work
+
+1. Part A: the standing reads and the host facts (IA48-001), then the unprivileged
+   hwlat surfaces, each alone (IA48-002).
+2. Part A root rows, each inside a session an operator approves and blocked in place of
+   one: the two quickstart root commands, the six-value snapshot with `tracing_on` read
+   beside it, and the controlled interruption with its own signal command
+   (IA48-003 to IA48-005).
+3. Part B: the two hunt commands at the measured head, three runs each, alone
+   (IA46-001, IA46-002).
+4. Part C: the counter-count pair on the Intel core device, alone, and the watchdog and
+   device reads beside it (IA41-001, IA41-002).
+5. The coverage chain in `build/coverage` (IA-END-001.1), in this order: configure,
+   build, zero the counters, the `-j 1` suite, the single-entry re-run of any entry the
+   suite cut, the `coverage` target, then the gate by hand. The re-run stands before the
+   target so the trace holds it.
+6. The instrumented lanes, one at a time (IA-END-001.2 to .6): the address and undefined
+   lane, the thread sanitizer lane, the plain suite in the CI form, the two-cpu lane, the
+   four-cpu lane. Each prints its `ctest -N` entry count and its load witness before it
+   starts.
+7. The static-analysis scopes and the remaining gates (IA-END-002.1 to .8): the
+   `build/analyzer` scopes, the release build, the install rows and their audits, format,
+   spell, drift in both forms, time source, the DBC gates, the pmu and host-record
+   checks, the two counts, and the whole consumer-release job.
+8. The records and the quickstart correction, after the last sweep exits
+   (IA-END-003.1 to .3), then the spell gate again over the written prose, then the prose
+   gate in tree form with the records visible to `git ls-files`, then one commit, then
+   the squash, then the first push.
+9. After the squash: the prose gate in range form from the base sha to the squashed
+   head, then the pull request, then the base-tree run for any red name no tracked
+   record carries (IA-END-001.8).
+
+Windows. Steps 1 to 4 hold no other step: no second `ctest`, no build, and no hand
+re-run runs inside a sweep window, and part B and part C hold no process that opens a
+counter group, because the suite itself holds counter groups. A step that starts a
+compiler in step 7 begins only after the last `ctest` of step 6 exits. The text gates -
+format, spell, both drift forms, time source, the two counts, and the hand gate on a
+finished tracefile - carry no window of their own, because none of them reads a duration
+or starts a process.
+
+Names that decide the windows: `counters_clock_raw_test` reserves all 24 processor
+slots, and `base_cli_matrix`, `harness_hunt_cli_test`, `harness_jitter_cli_test` and
+`example_run` are the entries a shared host pushes past its ceiling. ctest runs an entry
+whose slot demand exceeds `-j` alone rather than skipping it, so a small `-j` does not
+protect anything.
+
+Load witness and stops. Before each timed step the lane prints `cat /proc/loadavg`,
+the cpu affinity and a count of other `ctest` and compiler processes. A timed step that
+starts on a host carrying another sweep's load is marked not run with that reading, not
+run and recorded red. Two further stops bind: the privileged row stops where
+`current_tracer` reads other than `nop` or `tracing_on` reads 1, and an analyzer scope
+whose translation-unit count is zero is void and re-runs in a fresh tree.
+
+Before any red enters a record, the lane re-runs that name alone in the same tree and
+prints, for both readings: the ceiling as ctest states it, from `ctest --test-dir <tree> --show-only=json-v1`
+on its own line, the elapsed time, the `-j`, the cpu mask and `cat /proc/loadavg`.
+Only a line ctest prints as a timeout counts as a load candidate. A single-entry re-run
+runs through ctest or from inside its own build directory, never from the repository
+root, because several entries write by relative path. The base run in a second tree
+stands after the last timed step, and only for a red name no tracked record carries.
+
+### Command table
+
+Each row is the string the lane runs, copied out of the tracked file named beside it.
+Rows whose string is too long for a cell stand in the fenced blocks below the table.
+
+| Row | Command | Source | Exit that decides |
+|---|---|---|---|
+| Release build | `cmake --preset=ci-rocky` then `cmake --build build --config Release -j "$(nproc)"` | ci.yml ci-rocky pair | each |
+| Entry count | `ctest --test-dir build -N` | rule 24 | ctest |
+| Plain suite | `ctest --test-dir build --output-on-failure --no-tests=error -C Release -j "$(nproc)"` | ci.yml test job, with `--test-dir` for its working directory | ctest |
+| Two-cpu lane | `taskset -c 0,1 ctest --test-dir build --output-on-failure --no-tests=error -C Release -j 2` | the row above, masked | ctest |
+| Four-cpu lane | `taskset -c 0,1,2,3 ctest --test-dir build --output-on-failure --no-tests=error -C Release -j 4` | the row above, masked | ctest |
+| Install and audits | block A | ci.yml install steps | each audit |
+| Coverage build | `cmake --preset=ci-coverage` then `cmake --build build/coverage -j "$(nproc)"` | ci.yml coverage job | each |
+| Coverage zero | `lcov --zerocounters -d build/coverage`, a local step CI does not need | rule 22 | lcov |
+| Coverage suite | `ctest -j 1 --output-on-failure --no-tests=error` in `build/coverage` | ci.yml coverage job | ctest |
+| Coverage target | `cmake --build build/coverage -t coverage` | ci.yml coverage job | make |
+| Coverage gate | `bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` | coverage_gate.sh; cmake/coverage.cmake | the gate |
+| Address and undefined | block B | ci.yml sanitizer job | ctest |
+| Thread sanitizer | block C | ci.yml tsan job | ctest |
+| Format | `cmake -D FORMAT_COMMAND=clang-format -P cmake/lint.cmake` | ci.yml lint job | cmake |
+| Spell | `cmake -P cmake/spell.cmake` | ci.yml lint job | cmake |
+| Drift | `python3 tools/docs/example_drift.py .` then `python3 tools/docs/example_drift.py --sections --names --options --forbidden .` | ci.yml lint job; 046 quickstart | script |
+| Time source | `bash test/time_source_gate.sh .` | ci.yml lint job | script |
+| Prose, tree | `cmake -D PROSE_MODE=tree -D PROSE_CHECK=prose -P cmake/prose-lint.cmake` | prose-lint.cmake defaults | script |
+| Prose, range | `cmake -D PROSE_MODE=range -D PROSE_BASE=<base-sha> -D PROSE_HEAD=<head-sha> -P cmake/prose-lint.cmake` | ci.yml prose job | script |
+| DBC | block D | ci.yml dbc job; dbc-gate.cmake | four exits |
+| Analyzer | block E | ci.yml analyzer job | the finding count |
+| Consumer release | block F | ci.yml consumer-release job | the asserts |
+| pmu events | `python3 tools/pmu_events/update_pmu_events.py --check` | ci.yml test job | script |
+| Host records | `bash tools/ci/host_record_gate.sh build/test/host_record_check . validation` | ci.yml test job | script |
+| README and markers | `wc -l README.md`, then `git grep -c LCOV_EXCL -- source include \| awk -F: '{s+=$NF} END {print s}'` | 045 close-rows record | the two counts |
+| Hunt, walk | `./build/example/memory_walk --hunt --hunt-budget 120s`, console captured by redirection to a file outside the repository | 046 acceptance record | the binary |
+| Hunt, benchmark | `./build/example/first_benchmark --hunt --hunt-budget 120s`, console captured by redirection | 046 acceptance record | the binary |
+| Counter count | `./build/example/docs_counter_probe` | 041 tasks row; 041 acceptance record | the binary |
+| Hwlat method | `./build/example/benchmark_example --filter=bmTouch --threads=2 --placement=compact --jitter-probe=idle,method=hwlat --json=<capture>` | 048 quickstart, without its `sudo` prefix | the binary |
+| Hwlat engine, unprivileged | `./build/example/benchmark_example --filter=bmTouch --threads=2 --placement=compact --jitter-probe=idle,mode=precheck --os-noise=hwlat --json=<capture>` | 048 quickstart, without its `sudo` prefix | the binary |
+| Hwlat example | `./build/example/docs_hwlat_probe` | 048 example target | the binary |
+| Hwlat root runs | the two `quickstart.md` runs of lines 173 and 175, inside a root session or blocked | 048 quickstart | the operator |
+| Round trip | `./build/example/first_benchmark --compare=<a>,<b> --compare-rule="jitter:run:any:smiGapCount:lower:abs=0"` and the same pair with `--compare-rule="hwlat:any:maxGapNs:lower:abs=200000"` | rule 9; 048 quickstart | the binary |
+
+### Block A - install and the thirteen audits
+
+```
+cmake --install build --config Release --prefix prefix
+```
+
+then the twelve dependency audits and the standalone example link-manifest audit of the
+CI test job, in the CI order, each with its own exit.
+
+### Block B - address and undefined sanitizer
+
+```
+CXX=clang++ cmake --preset=ci-sanitize
+cmake --build build/sanitize -j "$(nproc)"
+ASAN_OPTIONS="strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_leaks=1:halt_on_error=1" UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1" ctest --test-dir build/sanitize --output-on-failure --no-tests=error -j "$(nproc)"
+```
+
+CI runs its ctest step with `working-directory: build/sanitize`; `--test-dir` carries the
+same directory here, and the option strings copy byte for byte.
+
+### Block C - thread sanitizer
+
+```
+CXX=clang++ cmake --preset=ci-tsan
+cmake --build build/tsan -j "$(nproc)"
+TSAN_OPTIONS="halt_on_error=1:second_deadlock_stack=1" ctest --test-dir build/tsan --output-on-failure --no-tests=error -j "$(nproc)"
+```
+
+The same `--test-dir` reading as block B, and the same byte-for-byte option copy.
+
+### Block D - the DBC gates
+
+```
+cmake --build build --target dbc-gate
+doxygen build/dbc-gate/Doxyfile
+/usr/bin/python3 tools/dbc/dbc_doc_gate.py --xml build/dbc-gate/xml --registry tools/dbc/macros.yaml --out /tmp/dbc-doc.json
+/usr/bin/python3 tools/dbc/dbc_pair_gate.py --src include/speedgun-ng --src2 source tools --registry tools/dbc/macros.yaml --doc-matrix /tmp/dbc-doc.json --out /tmp/dbc-pair.json
+```
+
+The `--src2` word takes both `source` and `tools`; a copy that drops one narrows the
+scan and still exits 0. The target runs in the plain tree at the measured head, where CI
+uses `build/dev`, and the record names that difference.
+
+### Block E - the static-analysis scopes
+
+```
+cmake --preset=ci-ubuntu -B build/analyzer -DCMAKE_C_COMPILER_LAUNCHER= -DCMAKE_CXX_COMPILER_LAUNCHER=
+cmake --build build/analyzer --target speedgun-ng_speedgun-ng speedgun-ng_harness -j "$(nproc)"
+cmake --build build/analyzer/test -j "$(nproc)"
+cmake --build build/analyzer/example -j "$(nproc)"
+```
+
+Each build is captured to a log, then CI's own steps run over it unchanged: the
+translation-unit count, the two finding extractors, the `LC_ALL=C sort -u`, and the loop
+that reads `WarningsAsErrors` out of `.clang-tidy` and counts hits on each check name.
+
+### Block F - the consumer-release job
+
+The job runs as `.github/workflows/ci.yml` writes it, step by step, in both trees: the
+two configures, the one cache-assert step with its three greps, the library build, the
+archive symbol check, the four-target trap and `dbc_test` build, the trap runs under
+`ulimit -c 0` and `timeout 30`, the checked-test build, its `ctest -R counters_trap` run,
+and the `dbc_test` run.
+
+### Gate notes
+
+- The `coverage` target chains five commands, so its exit is make's. The gate run by
+  hand carries the verdict, and only 0 is green: 1 a measured shortfall, 2 a usage
+  fault, 3 a tool fault.
+- The allowance of 21 counts the CI union. The record quotes the gate's own line for the
+  host and for the base, labels every derived difference, and lists the cold rows of
+  head and base, because the claim that this branch adds no new shortfall stands on the
+  set of cold rows and not on two totals.
+- The analyzer needs a fresh tree: a reconfigure of a built tree recompiles nothing, and
+  an empty finding list then proves nothing. CI needs no launcher clear because its ccache
+  stands cold; the host clears both launchers so a cache hit cannot stand in for an
+  analyzer pass. The proof is the translation-unit count per
+  scope, zero hits on the gate checks, and the statement that this branch owns no
+  translation unit, so the expected count for owned files is zero by that fact alone.
+- The trap fixtures carry mixed exits and CI also requires both trap exits to stand
+  clear of 124: non-zero and not 124 for `dbc_trap_fixture`, 1 for `dbc_test`, non-zero
+  and not 124 for the `overrun` mode, and 0 for the nine other modes of
+  `counters_trap_fixture`. 124 is a kill, never a pass. Each expected exit stands inside
+  the row as the pass condition.
+- The DBC row carries four exits and the interface count: the target, the doxygen pass,
+  the document gate and the pair gate, each naming its interpreter and whether that
+  interpreter carries yaml. A target that fails for a missing module is a host fact, not
+  a gate gap.
+- `dbc_gate_fixtures` and `prose_gate_fixtures` start a bare `python3`, so the record
+  names the `python3` of the suite run beside the suite's counts.
+- ctest reads the lesser of an entry's `TIMEOUT` property and its own `--timeout`, so a
+  larger `--timeout` cannot lift a ceiling and a smaller one binds; the record quotes the
+  ceiling from `--show-only=json-v1` instead of restating a count of timed rows.
+- The marker count is read over `source include` and summed, and decides against the 84
+  the standing records carry for that set. The row names the directories it counts.
+- The lane names the interpreter and the compiler for each gate. It disables no check.
+
+### Risks
+
+| Risk | Effect | Action |
+|---|---|---|
+| No root session | The two root rows and the interruption row stay blocked, and SC-005 and SC-007 stay unmet | Name the operator action, keep the rows blocked, continue the rest |
+| A machine load crosses a ceiling | A suite entry times out and a false red enters the record | Load witness before each timed step, one sweep per window, re-run each red name alone and print both readings |
+| A coverage sweep cannot finish | The union stands short | Re-run each cut entry alone before the target, name the entry, the command, the elapsed time and the missing trace, and claim no partial union |
+| A tracked write or a staged index lands inside a sweep window | A prose fixture red that means nothing | No record write, no `git add` and no commit from the first `ctest` start to the last `ctest` exit, then re-run the fixture alone |
+| A tree-form prose run sees no record | A clean mark over files the gate never read | Run the tree form after the record writes, with the records visible to `git ls-files`, and print the unit count |
+| A timeout kill reads as an expected failure | A pass that never happened | Copy CI's not-124 condition into each trap row |
+| A records-only amend moves the head | A pre-squash reading could read as final | Disclose both shas and the diff, re-run the decisive lanes at the final head, and re-run the range prose form |
+| A red name stands outside every tracked record | No base evidence for it | Run the base tree after the last timed step, and put the base sha, the tree, the command and the exit beside it |

@@ -277,3 +277,26 @@ leaf 0x23 answered, and AMD Zen 4.
 No gate needs an exception. Two numbers move for one reason each (the version, and the
 archive `SOVERSION` for one exported symbol), and the spec, this plan, the commit body
 and the pull request body each state that reason.
+
+
+---
+
+## Acceptance plan: Intel final acceptance (2026-11-07) - the counter-count part
+
+The shared plan and the command table stand in `specs/048-hwlat-probe/plan.md`. This
+part reads one Intel core device and one example, and writes one record.
+
+- **Reads**: `/sys/devices/cpu/caps/pmu_name`, `<device>/type`,
+  `<device>/events/branch-instructions`, the device list under
+  `/sys/bus/event_source/devices`, `kernel.perf_event_paranoid`, `kernel.nmi_watchdog`
+  and the file modes of the paths the run touches.
+- **Run**: `./build/example/docs_counter_probe`, the example of this spec, on a tree
+  built at the measured head.
+- **What the record gives**: the device line as this host read it, the published limit
+  with its source word, the example's own `probe=` figure, the watchdog value, and the
+  statement that the deduction is a no-op on a part with a fixed cycles counter.
+- **What it may not give**: a hand subtraction, a raw config word, a typed probe tool,
+  a sysctl write, a byte-match claim against another host's `.expected` file, or a
+  status for the Arm, Intel hybrid and Zen 4 rows, which stay pending.
+- **Refusal route**: a refused open or an absent core device marks the hardware row
+  blocked and carries no figure.
