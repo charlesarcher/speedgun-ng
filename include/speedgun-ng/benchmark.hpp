@@ -3546,6 +3546,47 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
 // context reads it after that edge; the fixture pair of the run stands
 // once, on context 0, outside both barriers (FR-023, D-07).
 
+namespace detail
+{
+
+/**
+ * @brief Run `sgBenchmarkCase` on the fixture object of the run in
+ *      progress for the derived class `Derived` (FR-016, R-09).
+ *
+ * The fixture macros hand this function to `registerFixtureBenchmark`
+ * in place of a lambda written at the macro site. A lambda written
+ * there stands on the same line as the method definition the same
+ * macro starts, so the coverage record holds two functions at one line
+ * with two different end lines, and the coverage tool stops on that
+ * record (G-25). A named function keeps each record on its own line.
+ *
+ * \pre `Derived::sgCurrentCase` names the fixture object the run owns
+ *      (R-09, D-07)
+ * \post `sgBenchmarkCase` has run on that object (FR-016)
+ */
+template<typename Derived>
+auto fixtureCaseEntry(::sg::State& state) -> void
+{
+  Derived::sgCurrentCase->sgBenchmarkCase(state);
+}
+
+/**
+ * @brief Build the fixture object of the derived class `Derived` and
+ *      name it as the object of the run in progress (FR-016, R-09).
+ *
+ * \post the caller owns the object, and `Derived::sgCurrentCase` names
+ *       it for the duration of the run (R-09)
+ */
+template<typename Derived>
+auto fixtureFactoryEntry() -> std::unique_ptr<::sg::Fixture>
+{
+  auto object = std::make_unique<Derived>();
+  Derived::sgCurrentCase = object.get();
+  return object;
+}
+
+}  // namespace detail
+
 #define SG_BENCHMARK_FIXTURE_DECLARE(FixtureClass, Method) \
   class SgBenchmarkFixture_##FixtureClass##_##Method : public FixtureClass \
   { \
@@ -3561,15 +3602,9 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
   [[maybe_unused]] static const ::sg::BenchmarkHandle \
       sgBenchmarkRegistrar_##FixtureClass##_##Method = \
           ::sg::registerFixtureBenchmark( \
-              [](::sg::State& state) \
-              { DerivedClass::sgCurrentCase->sgBenchmarkCase(state); }, \
+              &::sg::detail::fixtureCaseEntry<DerivedClass>, \
               DerivedClass::sgFixtureName, \
-              []() -> std::unique_ptr<::sg::Fixture> \
-              { \
-                auto object = std::make_unique<DerivedClass>(); \
-                DerivedClass::sgCurrentCase = object.get(); \
-                return object; \
-              })
+              &::sg::detail::fixtureFactoryEntry<DerivedClass>)
 
 /**
  * @brief Define and register the fixture method as the instance
@@ -3714,21 +3749,12 @@ SPEEDGUN_NG_EXPORT auto speedgunMain(int argc, char** argv) -> int;
   [[maybe_unused]] static const ::sg::BenchmarkHandle \
       sgBenchmarkRegistrar_##FixtureClass##_##Method##_##id = \
           ::sg::registerFixtureBenchmark( \
-              [](::sg::State& state) \
-              { \
-                SgBenchmarkFixtureTemplate_##FixtureClass##_##Method< \
-                    __VA_ARGS__>::sgCurrentCase->sgBenchmarkCase(state); \
-              }, \
+              &::sg::detail::fixtureCaseEntry< \
+                  SgBenchmarkFixtureInstance_##FixtureClass##_##Method##_##id>, \
               SgBenchmarkFixtureInstance_##FixtureClass##_##Method##_##id:: \
                   sgFixtureName, \
-              []() -> std::unique_ptr<::sg::Fixture> \
-              { \
-                auto object = std::make_unique< \
-                    SgBenchmarkFixtureInstance_##FixtureClass##_##Method##_##id>(); \
-                SgBenchmarkFixtureTemplate_##FixtureClass##_##Method< \
-                    __VA_ARGS__>::sgCurrentCase = object.get(); \
-                return object; \
-              })
+              &::sg::detail::fixtureFactoryEntry< \
+                  SgBenchmarkFixtureInstance_##FixtureClass##_##Method##_##id>)
 
 #define SG_BENCHMARK_TEMPLATE_INSTANTIATE_EXPAND( \
     FixtureClass, Method, id, ...) \

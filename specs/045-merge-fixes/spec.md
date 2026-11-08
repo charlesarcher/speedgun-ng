@@ -1112,3 +1112,66 @@ lane practice, and the phase then states the measurement it binds.
   ends without the class even on a host whose lcov configuration relaxes
   that check.
 - O-1 and O-2 of this spec stand unchanged by this phase.
+
+### Phase 13 follow-up (owner ruling G-26, 2026-11-08)
+
+**Input**: Owner order of 2026-11-08, on thrawn: remove the remaining
+capture suppression, fix the coverage-data fault behind it, bring the
+uncovered-branch shortfall to at most the recorded allowance of 21 rows,
+resolve the thread-sanitizer failure and the per-lane entry-count
+differences, and put up the pull request. The order lifts the two
+freezes that kept O-4 open: the capture class must go, and the repair of
+the fixture macro shape is in scope.
+
+This follow-up closes O-4 and replaces no earlier requirement, ruling or
+record of this file. It adds FR-023 to FR-026, SC-015 to SC-018, D-14 and
+D-15, and the task rows COV-008 to COV-011 in `tasks.md`.
+
+- **FR-023**: No repository coverage command carries the `inconsistent`
+  class, the capture list included. The `mismatch` and `negative` classes
+  of the capture stand unchanged.
+- **FR-024**: The branch shortfall of the measured head stands at or below
+  the recorded allowance of 21 rows, with no new marker, no widened
+  allowance and no invented exception.
+- **FR-025**: `harness_context_barrier_test` answers the same way in every
+  run of the thread-sanitizer tree. A fix that hides the assertion, adds a
+  sleep or widens a timeout fails this requirement.
+- **FR-026**: The record states the entry count of every lane, the entries
+  one lane does not register, and the build condition that removes each
+  one.
+- **SC-015**: `grep -rn 'ignore-errors' cmake tools` names the `mismatch`
+  and `negative` classes of the capture and nothing else, and a whole-tree
+  capture at the measured head prints no `(inconsistent)` line.
+- **SC-016**: The gate exits 0 on the extracted trace of the measured head.
+- **SC-017**: Eight runs of the entry in the thread-sanitizer tree answer
+  the same way, and the same entry keeps passing in every other lane.
+- **SC-018**: The record carries one count line per lane, with the missing
+  entries named and their condition cited.
+- **D-14 (named entry functions)**: `SG_BENCHMARK_FIXTURE_REGISTER` hands
+  `registerFixtureBenchmark` the two named functions
+  `::sg::detail::fixtureCaseEntry` and `::sg::detail::fixtureFactoryEntry`
+  in place of the two lambdas it wrote at the macro line. gcov attributes
+  every line of a macro expansion to the macro invocation line, so the
+  generated method and both lambdas shared one start line with two
+  different end lines, and lcov read that as a contradiction. The call
+  syntax at a macro site does not change, the two functions stand in
+  `sg::detail`, and each carries no contract of its own, the shape D-13
+  set.
+- **D-15 (the two `hwlat` gates)**: `namesVendorText` and `rowNamesFigure`
+  move from the anonymous namespace of `source/harness/latency_counters.cpp`
+  into `source/harness/detail/latency_counters.hpp`, with their expressions
+  unchanged, so a scenario can ask each of them a refused answer. The call
+  sites keep the same postcondition. This is the same shape D-13 set, and
+  it closes four rows of the FR-022 ledger by measurement.
+- **O-4 closed**: the capture's end-line shape stands repaired at its
+  source by D-14, so the capture list carries no class and the three routes
+  O-4 left open stand unneeded.
+
+The per-lane entry counts stand recorded under FR-026. They differ by
+build condition, not by accident: the five `dbc_matrix_*` entries register
+only where the preset sets `SPEEDGUN_DBC_MATRIX` (`test/CMakeLists.txt:158`,
+030 FR-019, D-5, P-01), and four entries that replace the global `operator
+new` and `operator delete` in their own translation unit stand unregistered
+in the thread-sanitizer tree, because that runtime defines the same
+operators and the two definitions cannot link
+(`test/CMakeLists.txt:330` and the comments beside the other three).

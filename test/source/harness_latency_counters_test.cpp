@@ -485,6 +485,38 @@ auto theStandingInterruptsRows() -> void
         "figure (FR-009, D-4)");
 }
 
+// G-25, FR-010, D-4, FR-009: the two gates of the counter answer both ways
+// once a test asks them on their own, so every arm of each gate stands
+// measured. The call sites in the reader see only the accepted answer,
+// because a refused answer stops the run there.
+auto theGatePredicatesAnswerEachArm() -> void
+{
+  check(!sg::detail::namesVendorText(std::nullopt),
+        "no cpuinfo text at all answers an unsupported gate (FR-010, D-4)");
+  check(!sg::detail::namesVendorText(std::string("model name : x\n")),
+        "a cpuinfo text naming neither the vendor key nor the vendor word "
+        "answers an unsupported gate (FR-010, D-4)");
+  check(!sg::detail::namesVendorText(std::string("vendor_id : OtherVendor\n")),
+        "a cpuinfo text naming the vendor key alone answers an unsupported "
+        "gate (FR-010, D-4)");
+  check(!sg::detail::namesVendorText(std::string("cpu : GenuineIntel\n")),
+        "a cpuinfo text naming the vendor word alone answers an unsupported "
+        "gate (FR-010, D-4)");
+  check(sg::detail::namesVendorText(
+            std::string("vendor_id : GenuineIntel\nmodel name : x\n")),
+        "a cpuinfo text naming the vendor key beside the vendor word answers "
+        "a supported gate (FR-010, D-4)");
+  check(sg::detail::rowNamesFigure("NMI:  7  9\n", std::nullopt),
+        "no figure answers a row the gate accepts (FR-009)");
+  check(sg::detail::rowNamesFigure("NMI:  7  9\n", std::uint64_t{9}),
+        "a figure that stands in the row answers a row the gate accepts "
+        "(FR-009)");
+  check(
+      !sg::detail::rowNamesFigure("NMI:  7  9\n", std::uint64_t {11}),
+      "a figure absent from the row answers a row the gate refuses " "(FR-"
+                                                                     "009)");
+}
+
 }  // namespace
 
 auto main() -> int
@@ -499,6 +531,7 @@ auto main() -> int
   theNmiRows();
   theNmiFigureBesideItsDigits();
   theStandingInterruptsRows();
+  theGatePredicatesAnswerEachArm();
   std::printf(failures == 0 ? "ok\n" : "%d checks failed\n", failures);
   return failures == 0 ? 0 : 1;
 }

@@ -759,19 +759,43 @@ capture list keeps its class and stands reported.
     `example_run`, `time_source_gate.sh`, the DBC doc and pair gates,
     and the downstream consumer build. Verify: each exits 0 and the
     README stands at or below 1004 lines.
-- [ ] COV-006 Squash the branch to one commit and measure that exact
+- [x] COV-006 Squash the branch to one commit and measure that exact
       head again (SC-009, SC-013; COV-005 first). Author and committer `OmO`; title at
     50 characters or fewer; body at 72 columns; footer
     `Refs: specs/045-merge-fixes G-25` then `Approved-by: OmO`.
     Verify: the coverage lane, the pinned lane and the sanitizer lanes
     are re-run at the squashed SHA and the record names that SHA.
-- [ ] COV-007 Push, open one pull request, and record the proof
+- [x] COV-007 Push, open one pull request, and record the proof
       (SC-013, SC-014; COV-006 first).
     Verify: `git push -u origin fix/coverage-data-repair` then, for
     every later push, `--force-with-lease` against the expected full
     SHA; `git ls-remote origin refs/heads/fix/coverage-data-repair`
     equals `git rev-parse HEAD`; the body names the measured squashed
     SHA, the counts, the cold-row ledger and the blocked capture item.
+
+- [x] COV-008 Remove the `inconsistent` class from the capture list and
+      repair the fixture-macro record behind it (FR-023, SC-015, D-14;
+      COV-002 first).
+    Verify: `grep -rn 'ignore-errors' cmake tools` names the capture's
+    `mismatch,negative` and nothing else; a whole-tree capture at the
+    measured head prints no `(inconsistent)` line; the raw trace holds no
+    function record that carries two names over two different end lines.
+- [x] COV-009 Bring the branch shortfall to at most 21 rows by
+      measurement, with no new marker and no widened allowance (FR-024,
+      SC-016, D-15; COV-008 first).
+    Verify: the gate exits 0 on the extracted trace of the measured head;
+    the ledger names every row that stays open with its file, line, arm
+    and evidence; the marker count stands at or below 84.
+- [x] COV-010 Make `harness_context_barrier_test` answer the same way in
+      every run of the thread-sanitizer tree (FR-025, SC-017; COV-005
+      first).
+    Verify: eight runs of the entry in that tree answer the same way; the
+    entry passes in `ci-rocky`, in both pinned lanes and in `ci-sanitize`;
+    no ThreadSanitizer line stands in any log.
+- [x] COV-011 Record the entry count of every lane and the condition that
+      moves it (FR-026, SC-018; COV-005 first).
+    Verify: the record carries one count line per lane, names the entries
+    a lane does not register, and cites the build condition of each.
 
 ### Dependencies and parallel order
 
@@ -786,6 +810,13 @@ capture list keeps its class and stands reported.
   `jitter_probe.cpp` and `noise_tracer.cpp` and their test files. No
   file stands in both sets.
 - COV-005, COV-006 and COV-007 run alone, in that order.
+- COV-008 follows COV-002, and COV-009 follows COV-008: the capture class
+  goes only once the shape behind it stands repaired. COV-010 runs in its
+  own tree, away from the coverage tree, and COV-011 reads the lane logs
+  COV-005 wrote.
+- COV-006 and COV-007 run again at the head that carries COV-008 to
+  COV-011, so the measured SHA, the pushed ref and the pull request all
+  name that head.
 
 ### Completion rule for phase 13
 

@@ -482,3 +482,323 @@ the library installed from `ci-linux-audit` in Release, and the consumer
 configured, built and ran against those prefixes. Each step exited 0,
 and the consumer printed its benchmark row and
 `consumer: pmu catalog entries 457`.
+
+
+## The follow-up order (owner ruling G-26, 2026-11-08)
+
+The owner order of 2026-11-08 set four items on thrawn: remove the
+remaining capture suppression, fix the coverage-data fault behind it,
+bring the uncovered-branch shortfall to at most the recorded allowance of
+21 rows, and resolve the thread-sanitizer failure and the per-lane entry
+counts. The order lifts the two freezes that kept O-4 open. The IDs stand
+in `spec.md` as FR-023 to FR-026, SC-015 to SC-018, D-14 and D-15, and the
+rows stand in `tasks.md` as COV-008 to COV-011.
+
+### The capture-side shape, reproduced
+
+The capture's complaint is a different shape from the contract-closure
+fault. `SG_BENCHMARK_F` and its siblings registered the case callable and
+the fixture factory with two lambdas written at the macro invocation line,
+which is also the line of the header of the method the same macro starts.
+gcov attributes every line of a macro expansion to that one line, so the
+generated method and the two lambdas share a start line with two different
+end lines. lcov 2.6 then groups them under one function record and reports
+the disagreement:
+
+```
+lcov: WARNING: (inconsistent) mismatched end line for
+  _ZN12_GLOBAL__N_135SgBenchmarkFixture_OrderFixture_run15sgBenchmarkCaseERN2sg5StateE
+  at test/source/harness_callback_test.cpp:278: 278 -> 285
+```
+
+The written trace carries the collision directly. One range record serves
+three names:
+
+```
+FNL:18,278,285
+FNA:18,2,...SgBenchmarkFixture_OrderFixture_run::sgBenchmarkCase...
+FNA:18,2,...sgBenchmarkRegistrar_OrderFixture_run lambda taking State&...
+FNA:18,2,...sgBenchmarkRegistrar_OrderFixture_run lambda taking none...
+```
+
+A two-shape probe on this host, `~/scratch/coverage-data-repair/macroprobe/probe.cpp`,
+compiles the current registration and a named-function registration in one
+translation unit, runs both, and captures with `lcov -c`. The lambda shape
+emits `FNL:4,108,113` with two names and the warning
+`mismatched end line ... 113 -> 108`. The named shape emits one record per
+function, `FNL:2,67,70`, `FNL:3,73,78` and `FNL:5,115,120`, and no warning.
+
+### The repair: named entry functions (D-14)
+
+`SG_BENCHMARK_FIXTURE_REGISTER` and
+`SG_BENCHMARK_TEMPLATE_INSTANTIATE_REGISTRAR` now pass
+`::sg::detail::fixtureCaseEntry<Derived>` and
+`::sg::detail::fixtureFactoryEntry<Derived>` to `registerFixtureBenchmark`.
+The two templates stand in `include/speedgun-ng/benchmark.hpp` in
+`namespace detail`, each with a doxygen contract block and no `SG_*` of its
+own. The call syntax at a macro site does not change, and the six fixture
+macros keep their names, their generated classes and their instance names.
+
+At the measured head the raw capture holds 365 records that carry more than
+one name, all of them same-range aliases in vendored headers and inline
+library code, and none of them a fixture-macro record. The capture, the
+extract, the `--list` step, the gate's `--summary` read and `genhtml` print
+no `(inconsistent)` line, and `grep -rn 'ignore-errors' cmake tools` names
+one line: the capture's `mismatch,negative`.
+
+### The two `hwlat` gates (D-15)
+
+`namesVendorText` and `rowNamesFigure` stood in the anonymous namespace of
+`source/harness/latency_counters.cpp`, marked `[[maybe_unused]]`, and
+reached a caller only inside a postcondition. A refused answer stops the run
+at the contract, so no test input could take the false arm of either gate,
+and four branch arms stood cold. Both now stand declared in
+`source/harness/detail/latency_counters.hpp` with their expressions
+unchanged, and the scenario `theGatePredicatesAnswerEachArm` in
+`test/source/harness_latency_counters_test.cpp` asks each of them the empty
+text, the text naming the vendor key alone, the text naming the vendor word
+alone, the text naming both, no figure, a figure present in the row and a
+figure absent from the row.
+
+### The thread-sanitizer entry: mechanism and fix
+
+`harness_context_barrier_test` failed about one run in eight in the
+thread-sanitizer tree. The failure is the scenario's own assertion. No
+`WARNING: ThreadSanitizer` line stands anywhere in the logs.
+
+The bracket was the observer's. It read the participant's
+`voluntary_ctxt_switches` before the observer released the round, so the
+window covered the participant's spin on the go flag, the barrier call, and
+the participant's spin on the permit flag. The participant was bracketed a
+second time from inside itself with five reads of its own counter, and in
+every failing run the switch landed between the ready store and the entered
+store, inside the spin on the go flag, before `arriveAndWait` was entered.
+The bracket across `arriveAndWait` itself stayed flat in all 60 instrumented
+rounds. The participant's minor fault count stood flat across each switch,
+so the switch is not a page fault. The same shape without `-fsanitize=thread`
+gives no switch. Under libtsan every memory access runs through the
+sanitizer runtime, and that runtime can put an instrumented thread to sleep;
+a sleep is a voluntary switch. The assertion was reading the sanitizer's
+bookkeeping around the test's own handshake and calling it a sleep inside
+the barrier.
+
+The fix moves the bracket to the participant, at the two ends of the barrier
+call, and holds the round open with a fixed count of steps whose sum the
+observer checks, the shape `scenarioNoClockNoTimeout` already uses. The
+observer-side reader of the counter is gone; the status file stays for the
+task state, which is the BLOCK arm's mark. The participant reads its own
+count through `/proc/self/task/<id>/status`. The `getrusage` route stands
+closed: the time-source gate of D-6 bans `getrusage` and names one
+allowance, and no spec, plan, override or suppression comment creates
+another. The file's
+earlier comment, that an in-thread read of the status file costs the reader
+one voluntary switch of its own, was measured again on this host and did not
+survive: 2000 consecutive reads from the calling thread cost zero voluntary
+switches, plain and under the thread sanitizer, and each read answers 1276
+bytes.
+
+Counts on thrawn, thread-sanitizer tree, eight in flight, which is the shape
+ctest uses:
+
+| Reading | yieldWait | spinWait | insideOutside |
+| --- | --- | --- | --- |
+| The branch's own binary, 480 runs | 62 failed | in the same sample | 0 failed |
+| The fixed binary, 240 runs | 0 failed | 0 failed | 0 failed |
+| The fixed binary, 960 runs | 1 failed | 0 failed | 0 failed |
+
+The idle protocol shows nothing, because the fault is rare on an idle
+machine: the branch's own binary read 1 failure in 60 idle runs and 1 in 200
+idle runs.
+
+The assertion still fails for a real product fault. With the YIELD arm
+replaced by the standard atomic wait, the scenario fails 11 runs in 20. With
+a millisecond of sleep added to the YIELD arm, or to the SPIN arm, it fails
+20 in 20. The BLOCK arm still proves its mark the other way: its count must
+move and the task state must read `S` before the release.
+
+Two facts this pass adds that the earlier report did not carry. The SPIN arm
+is flaky at the same rate as the YIELD arm, at about 13 percent at eight in
+flight. And at the head before the fix, only 12 of 20 rounds took the wait
+arm at all; the fixed entry holds the round open long enough that 20 of 20
+rounds take it, so the scenario now measures the wait it claims to measure.
+
+### The entry count of every lane (FR-026)
+
+| Lane | Entries | Passed | Did not run | Entries the lane does not register |
+| --- | --- | --- | --- | --- |
+| `ci-coverage` | 185 | 184 | 1 | the five `dbc_matrix_*` entries |
+| `ci-rocky` | 190 | 189 | 1 | none |
+| `ci-sanitize` | 185 | 184 | 1 | the five `dbc_matrix_*` entries |
+| `ci-tsan` | 186 | 185 | 1 | the four allocation-counting proofs |
+
+The five `dbc_matrix_*` entries register only where the preset sets
+`SPEEDGUN_DBC_MATRIX`, because each cell configures and builds a tree of its
+own (`test/CMakeLists.txt:158`, 030 FR-019, D-5, P-01). The four entries
+`counters_noalloc_test`, `harness_argument_test`, `harness_capture_test` and
+`harness_jitter_probe_alloc_test` replace the global `operator new` and
+`operator delete` in their own translation unit, and the thread-sanitizer
+runtime defines the same operators, so the two definitions cannot link
+(`test/CMakeLists.txt:330` and the comments beside the other three).
+
+One entry skips in every lane on this host: `harness_topdown_run_test` exits
+with the skip code its registration carries and prints `HARNESS TOPDOWN RUN
+TEST SKIP: the identity of this host names a directory beside the fixture's`.
+The host cpu identity matches no vendored topdown table directory, so the
+scenario states its reason and leaves.
+
+### The coverage reading at the follow-up head
+
+Host thrawn, kernel `7.3.0-5-cachyos`, GCC and gcov 16.2.1, clang 23.1.3,
+lcov and genhtml 2.6-0, cmake and ctest 4.4.4, 48 cpus online and all 48 in
+`sched_getaffinity`. The host `~/.lcovrc`, which carries
+`check_data_consistency = 0`, stands moved to
+`~/scratch/coverage-data-repair/lcovrc.host-local` for the whole lane, so
+the repository commands run unchanged with the lcov data-consistency check
+live. Restore with
+`mv ~/scratch/coverage-data-repair/lcovrc.host-local ~/.lcovrc`.
+
+Fresh instrumented tree at `99d73a5a9f0a0ccc32e95df31d17ac7da2d6f6cb`,
+configured with empty compiler launchers, built whole, run whole, in an
+isolated worktree at `~/scratch/cov2/wt` with the host otherwise idle:
+
+| Step | Exit | Reading |
+| --- | --- | --- |
+| `ctest -j 24` | 0 | `100% tests passed out of 185`, 1 skipped, 441.42 s |
+| capture | 0 | no `(inconsistent)` line, no other message |
+| extract | 0 | no complaint |
+| `--list` | 0 | table printed |
+| gate `--summary` | 0 | `branch shortfall 20 rows, within the D-14 recorded allowance of 21` |
+| `genhtml` | 0 | no message |
+| the whole `coverage` target | 0 | all five steps above |
+
+```
+lines.......: 100.0% (18663 of 18663 lines)
+functions...: 99.0% (1958 of 1978 functions)
+branches....: 99.8% (9253 of 9273 branches)
+```
+
+Markers: 84. README: 1002 lines against the cap of 1004.
+
+### The cold-row ledger at the follow-up head: 20 rows
+
+The gate counts the difference between the branch positions the extracted
+trace holds and the positions it reports taken: 9273 minus 9253, twenty
+rows. Each row below is a branch position whose taken field reads zero in
+`build/coverage/coverage.info` at the measured head, with the block id the
+trace gives. The rows inside an `eU0` block stand in the exception-unwind
+class the extract step's `--filter exception` drops before the rate, and
+they are listed because they are the same source position.
+
+Class A, the unwind tail of a full expression: 16 rows.
+
+| File | Line | Arms | Block | Evidence |
+| --- | --- | --- | --- | --- |
+| `source/harness/cli.cpp` | 280 | `29 -> 30`, `29 -> 31`, `32 -> 33`, `32 -> 34` | `f0`, `0` | the block stands entered by an unwind alone |
+| `source/harness/runner.cpp` | 838 | `95 -> 96`, `95 -> 97`, `98 -> 99`, `98 -> 100` | `f0`, `0` | the same shape behind the report grid |
+| `source/harness/host_record_check.cpp` | 266 | `21 -> 22`, `21 -> 23` | `f0`, `0` | the `EvidenceRow` construction, D-14 row two |
+| `source/harness/options.cpp` | 1541 | `13 -> 14`, `13 -> 15` | `f0`, `0` | the schema read tail |
+| `source/harness/topdown_select.cpp` | 128 | `24 -> 25`, `24 -> 26` | `f0`, `0` | the group-name tail |
+| `source/harness/noise_tracer.cpp` | 486 | `18 -> 19`, `18 -> 20` | `f0`, `0` | the cleanup landing pad; no value arm stands there |
+
+Class B, a guard the shape of the data closes: 4 rows.
+
+| File | Line | Arm | Block | Evidence |
+| --- | --- | --- | --- | --- |
+| `source/harness/report.cpp` | 815 | `81 -> 82` | `f0` | the column guard the grid width closes |
+| `source/harness/statistics.cpp` | 84 | `8 -> 11` | `0` | the spread guard a sample set of one closes |
+| `source/harness/topdown_select.cpp` | 492 | `3 -> 19` | `0` | the leaf guard the published table closes |
+| `source/harness/hunt_ranks.cpp` | 127 | `13 -> 23` | `0` | Spearman needs a non-zero rank spread and the least-squares slope needs zero x-variance, which contradict |
+
+Rows this follow-up closed by measurement: 4. `latency_counters.cpp:183`
+(one arm), `:184` (two arms) and `:193` (one arm) stand taken at this head,
+after D-15 moved the two gates where a scenario can ask them a refused
+answer. The two rows the first pass closed on real input,
+`compare.cpp:602` and `jitter_probe.cpp:197`, stay closed.
+
+The shortfall stands at 20 against the recorded allowance of 21, so the
+gate exits 0 and no marker, widened allowance or invented exception stands
+in this change.
+
+### The lanes other than coverage at the follow-up head
+
+Same host, same tree, the release trees built fresh from
+`99d73a5a9f0a0ccc32e95df31d17ac7da2d6f6cb` in the isolated worktree.
+
+| Lane | Exit | Passed | Failed | Did not run | Wall |
+| --- | --- | --- | --- | --- | --- |
+| `ctest -j 24`, `ci-rocky` | 0 | 189 of 190 | 0 | 1 (`harness_topdown_run_test (Skipped)`) | 82.18 s |
+| `taskset -c 0,1 ctest`, serial | 0 on the repeat run | 189 of 190 | 0 | 1 (same) | 278.10 s |
+| `taskset -c 0,1 ctest`, first run | 8 | 188 of 190 | 1 | 1 (same) | 283.05 s |
+| `taskset -c 0,1,2,3 ctest -j 4` | 0 | 189 of 190 | 0 | 1 (same) | 134.28 s |
+| `ci-sanitize` | 0 | 184 of 185 | 0 | 1 (same) | 140.48 s |
+| `ci-tsan` | 0 | 185 of 186 | 0 | 1 (same) | 293.90 s |
+
+No AddressSanitizer, UndefinedBehaviorSanitizer or LeakSanitizer finding
+stands in the sanitizer log: zero lines. No `WARNING: ThreadSanitizer` line
+stands in the thread-sanitizer log: zero lines, and the suite passes whole,
+which it did not at the base.
+
+The barrier entry, run directly:
+
+| Tree | Protocol | Result |
+| --- | --- | --- |
+| `ci-tsan` | 8 runs in a row | 8 passed |
+| `ci-tsan` | 240 runs, 8 in flight | 240 passed |
+| `ci-rocky` | 240 runs, 8 in flight | 240 passed |
+
+The one failed entry in the first pinned run is `report_shape_fwq_ftq_sample`,
+which runs `tools/docs/report_shape.py` over the `docs_fwq_ftq` example and
+compares the report shape with `docs/pages/harness.md`. It passed on the
+repeat pinned run, and it passed four times in a row when run alone under
+the same two-cpu pinning (14.29, 12.44, 14.23 and 21.20 seconds). The
+example registers with `SG_BENCHMARK` and reaches no fixture macro, so this
+change reaches none of the code that entry exercises. It stands recorded as
+an observed intermittent entry, unconnected to this change.
+
+### The cheap gates and the analyzers at the follow-up head
+
+| Gate | Exit | Reading |
+| --- | --- | --- |
+| `ci-ubuntu` configure and build, clang-tidy and cppcheck | 0 | build clean of errors |
+| `dbc-gate`, documentation half | 0 | `doc-gate: 349 interfaces, 0 gaps` |
+| `dbc-gate`, pairing half | 0 | `pair-gate: 349 interfaces, 0 gaps` |
+| `cmake -P cmake/lint.cmake` | 0 | no badly formatted file |
+| `cmake -P cmake/spell.cmake` | 0 | no unknown word |
+| `prose_gate.py --mode tree` | 0 | `1083 sources, 209879 units examined, 0 findings` |
+| `tools/docs/example_drift.py .` | 0 | README at 1002 lines against the cap of 1004 |
+| `test/time_source_gate.sh .` | 0 | clean |
+| `LCOV_EXCL` markers | 0 | 84, at the cap |
+
+The analyzer tree carries `Checks: "*"` minus a short exclusion list, and
+`WarningsAsErrors` names one check, `readability-identifier-naming`. No
+finding of that check stands in the tree, and the build exits 0. The
+error-severity clang-tidy findings stand in three files this change does not
+touch: `test/source/dbc_test.cpp`,
+`test/source/harness_jitter_probe_alloc_test.cpp` and
+`test/source/harness_topdown_run_test.cpp`. cppcheck 2.22 ran with
+`--inline-suppr` and answered nothing.
+
+### The shared-symbol audit and the downstream consumer at the follow-up head
+
+Reproduced locally at the head tree, because the audit runs in continuous
+integration and the owner ruling of 2026-11-07 keeps acceptance on this
+host. Build trees stand under `~/scratch`, not in the repository tree.
+
+A `BUILD_SHARED_LIBS=ON` install of the library answers clean on every
+vendored-symbol test: no hwloc, simdjson, HdrHistogram, zlib or yaml-cpp
+definition stands in the dynamic symbol table, no `4YAML` marker stands in
+it, and `ldd` names none of those four as a runtime dependency. The quill
+test admits the two helpers the allowlist carries,
+`quill::v1::detail::get_thread_id` and `quill::v1::detail::get_thread_name`,
+and nothing else: two symbols, no quill runtime dependency and no
+`8fmtquill` marker. The two entry functions this change adds,
+`sg::detail::fixtureCaseEntry` and `sg::detail::fixtureFactoryEntry`, stand
+absent from the dynamic symbol table, so the header addition exports nothing.
+The object exports 250 symbols in total.
+
+The downstream consumer premise was reproduced the same way as at the base:
+system copies of `hdrhistogram_c`, `yaml-cpp` and `quill` installed into a
+scratch prefix, the library installed beside them, then `test/consumer`
+configured against those prefixes with no vendored copy in its own path.
+Configure, build and run each exit 0, and the run prints the benchmark line
+and `consumer: pmu catalog entries 457`.

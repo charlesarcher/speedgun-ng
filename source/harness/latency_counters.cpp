@@ -175,25 +175,20 @@ auto figureOfBytes(const std::array<std::byte, kSmiCountBytes>& bytes)
   return figure;
 }
 
-// A contract-only helper: a supported answer stands a cpuinfo text that
-// names both the vendor key and the vendor word (FR-010, D-4).
-[[maybe_unused]] auto namesVendorText(const std::optional<std::string>& text)
-    -> bool
+}  // namespace
+
+auto namesVendorText(const std::optional<std::string>& text) -> bool
 {
   return text.has_value() && text->find(kVendorKey) != std::string::npos
       && text->find(kSmiVendorId) != std::string::npos;
 }
 
-// A contract-only helper: an answered figure stands among the tokens of
-// the row the reader read (FR-009).
-[[maybe_unused]] auto rowNamesFigure(
-    const std::string& row, std::optional<std::uint64_t> figure) -> bool
+auto rowNamesFigure(const std::string& row,
+                    std::optional<std::uint64_t> figure) -> bool
 {
   return !figure.has_value()
       || row.find(std::to_string(*figure)) != std::string::npos;
 }
-
-}  // namespace
 
 auto smiSourceSupported() -> bool
 {
