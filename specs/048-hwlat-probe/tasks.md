@@ -1190,3 +1190,946 @@ their rows beside the rows below.
 - [x] IA48-011 [bench] Re-run the coverage chain at the merged head `2d4d8c57` and name the
   head each branch reading belongs to. Verify: the record gives the gate exit, the row count,
   the capture, and the two hosted head readings with their run ids.
+
+
+## Acceptance closeout: measured Intel evidence (2026-11-08)
+
+Branch `fix/intel-acceptance-closeout` at base `2d4d8c57975a86db6c77536f7090aba2bdaf6417`.
+The order follows the plan phase of the same date. A row ticks only when its
+verify line answers from a run at the head the row names.
+
+- [x] IA48-012 [bench] Print the identity of the base head, then run the
+  address-and-undefined lane and the thread lane at that head, each in its own
+  clean tree, each alone on an idle host with its load witness printed, and keep
+  the original failing run before any isolated diagnostic. IC-001's identity
+  fields stand in the first section IA48-016 writes, from this row's log. Verify: the record gives each tree, the option strings, the entry
+  count from `ctest -N`, the pass count, the total time, the exit and every red
+  name with its printed status.
+- [x] IA48-013 [read] Give every red name three runs: the suite run, one isolated
+  run in the same tree with the same compiler, options and ceiling, and one run
+  bounded to `taskset -c 0,1,2,3` with `-j 4`. Verify: each name carries three
+  runs with the child command, the work or event count where the entry prints
+  one, the exit, the reason, the grant inside the driving script and the ceiling
+  `ctest` applies, and no retry that passes reads as a fix. IC-004 closes here and
+  at IA48-015: no defect stands demonstrated inside the owned scope, so this
+  closeout lands no code change and no new regression test.
+- [x] IA48-014 [read] Price the per-launch device walk with the tracked binaries
+  on an idle host, and state the child count of each instrumented entry beside
+  the price. Verify: the log gives the exit and the seconds of each timed launch,
+  and the counts come from the tracked data and script lines they name.
+- [ ] IA48-015 [read] Settle the catalog claim: run the scenario
+  `bare-hunt-whole-catalog` of the built test binary and
+  `./build/example/first_benchmark --hunt --dry-run`, and print the plan line the
+  second answers. Verify: the record quotes the scenario's answer line and the
+  plan line with their exits, beside the claim that stands in the
+  `The sanitizer diagnosis (IA-END-001.8)` section of
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md`, the sentence that
+  reads `this host offers 497 events`. That file names the range `:543-548` for
+  the five hosted entry times, and no claim of this row sits there.
+- [ ] IA48-016 [write] Write the dated record sections: the two instrumented
+  lanes, the diagnosis table, the coverage before-and-after pair, the corrections
+  table and the root-surface rows. Verify: every row names its head, its command,
+  its tree and its exit, and every figure comes from a log under `/tmp/ic`.
+- [ ] IA48-017 [write] Correct the standing 048 record: the restore sentence at
+  `:454`, the residue sentence at `:192`, the three refusal rows at `:414-416`,
+  the three home paths at `:218`, `:340` and `:561`, the absent citation at `:54`,
+  the operator block at `:437-448`, and the missing six before-and-after rows
+  beside `:179-182`. Verify: one grep per correction answers the old text absent
+  from the new rows and the replacement present, and no new row prints `/home`.
+- [ ] IA48-018 [read] Run the DBC gate route in `build/dev` with the supported
+  interpreter, run the unchanged target and the manual gate commands side by side,
+  and run `dbc_gate_fixtures` in that tree. Verify: the target, the document gate,
+  the pair gate and the fixture entry agree at exit 0, the interface count prints,
+  and the row names the interpreter it used.
+- [ ] IA48-019 [bench] Run the closeout set at the head the squash produced, in
+  clean trees in the plan order: coverage with its hand re-runs before the
+  capture, then the two instrumented lanes, then the release lane with its two
+  bounded cpu runs, then the gate commands, then the hardware rows, then the three
+  static-analysis shards. Verify: every log sits outside the repository, and each
+  row names that head and its own witness.
+- [ ] IA48-020 [read] Fill the measured figures into the dated rows at that head
+  and compare every figure with the run that answered it. Verify: the comparison
+  prints no difference, or names the rows that moved.
+- [ ] IA48-021 [write] On a difference, amend once, squash, and re-run the whole
+  set at the new head. Verify: the second pass answers every row, and a second
+  difference stops the lane with both shas and both readings in the report.
+- [ ] IA48-022 [read] Run both prose forms, the spell gate, the drift and format
+  gates, and the two counts. Verify: the tree form prints its unit count with the
+  records staged, the range form covers the commit, and the counts read 1002
+  against 1004 and 84 against 84.
+- [ ] IA48-023 [write] Land one commit with OmO as author and committer, the title
+  `Acceptance: Intel closeout records and matrix rows`, a body wrapped at 72
+  columns, and the footer `Refs:` lines for 048, 046 and 041 in that order, then
+  `Approved-by: OmO`. Verify: `git log -1` answers the title length, the body
+  width, the four trailers and the two names, and `.specify/feature.json` stands
+  outside the commit.
+- [ ] IA48-024 [read] Push the branch and open one pull request. Verify:
+  `git ls-remote origin refs/heads/fix/intel-acceptance-closeout` equals
+  `git rev-parse HEAD`, and the body carries the base sha, the final head, the
+  count of every lane, the root status, the hardware results, each deferred fix
+  with the file that holds it, and every open blocker.
+
+## Intel acceptance closeout at the merged head (2026-11-08)
+
+Branch `fix/intel-acceptance-closeout` on base `a55728af`, the head
+`Intel acceptance closeout at the merged head (2026-11-08)` of
+`specs/048-hwlat-probe/spec.md` names. `The final-head set` and
+`Files this phase may change` of that file bound these rows. Ruling 29 of this
+phase's ruling list, `Rulings - this phase (29 to 42)`, splits the work into two
+passes: IA48-025 to IA48-038 and IA48-045 to IA48-057 answer Pass 1 at the Pass 1
+head, IA48-040 squashes those writes into the candidate head, IA48-041 re-runs
+that set there and names both that sha and the final sha the squash after those
+record writes produces and the pull request carries, and ruling 35 of that list
+keeps every figure on the head whose run printed it. Commands copy from the `Lane Table` of
+`specs/048-hwlat-probe/plan.md` and its command blocks, and a load witness
+beside a timed step answers ruling 30 of this phase's list. No row changes a file
+outside `Files this phase may change`, and no row adds a timeout, a grant, a
+suppression or an exclusion. A row that needs a figure names the run that must
+answer it. Tags: `[bench]` runs a lane, `[read]` settles a reading, `[write]`
+writes records, `[operator]` needs a right this session lacks.
+
+- [ ] IA48-025 [read] The identity reading, the `Identity` row of the
+  `Lane Table`, read through block 7 of the command blocks of
+  `specs/048-hwlat-probe/plan.md`. IC-001 owns the fields. Run it from the
+  checkout root before the first suite, and read the cache loop again after
+  each tree configures, because one `CMakeCache.txt` holds the entries of its
+  own tree. File: the identity section of
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md`, with every log
+  under the run's directory outside the repository. Verify: the record prints
+  the source sha, the cpu affinity the host allowed, the compiler and the
+  launcher of each tree, the interpreter each tree configured, the two kernel
+  controls, and the reach of the `msr` node and of tracefs, each beside the
+  exit this step answered beside that sha. Runs: alone, before the first
+  suite; every other row of this section waits for it.
+  ```
+  git rev-parse HEAD
+  taskset -pc $$
+  cat /sys/devices/system/cpu/online
+  cat /proc/sys/kernel/perf_event_paranoid
+  cat /proc/sys/kernel/nmi_watchdog
+  stat -c '%A %a %U:%G %n' /dev/cpu/0/msr /sys/kernel/tracing
+  for t in build build/coverage build/sanitize build/tsan build/dev build/analyzer; do
+    printf '%s\n' "$t"
+    grep -E '^(CMAKE_CXX_COMPILER|CMAKE_CXX_COMPILER_LAUNCHER|Python3_EXECUTABLE):' "$t/CMakeCache.txt"
+  done
+  ```
+
+- [ ] IA48-026 [bench] Lane 1 of `The final-head set`, the `Coverage chain`
+  row, up to its serial suite. IC-001 and IC-002 own it. Wipe the tree that row's
+  block names, configure it, build it, zero the counters, and run the suite in
+  the serial shape the block writes. The count line copies the form the
+  `Entry count` row of the `Lane Table` prints, aimed at this tree, and that
+  count answers the coverage suite for the whole phase: the `Release build` row
+  wipes `build`, which holds `build/coverage`, so no later row reads this tree.
+  Verify: the record names the tree, the entry count `-N` prints for it, the
+  pass count, the exit, the elapsed time and the name of every entry that
+  crossed its ceiling, each beside its load witness; the count lands in the
+  `Coverage: two shapes, two denominators` section of
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md`, the record row that
+  holds this lane's figures, and IA48-045 names this row for it.
+  Runs: waits for IA48-025, then runs alone with no other build, suite, capture
+  or trace running.
+  ```
+  rm -rf build/coverage
+  cmake --preset=ci-coverage
+  cmake --build build/coverage -j "$(nproc)"
+  ctest --test-dir build/coverage -N
+  lcov --zerocounters -d build/coverage
+  ctest --test-dir build/coverage -j 1 --output-on-failure --no-tests=error
+  ```
+
+- [ ] IA48-027 [bench] The hand re-runs of the names IA48-026 recorded as cut,
+  before any capture step. IC-002 owns them, and the shape cell of the
+  `Coverage chain` row puts them between the serial suite and the target, so
+  the trace holds them. Ruling 34 of this phase's list gives each cut entry
+  its two shapes in one tree at one head: the entry at its own ceiling, then
+  the registration run that
+  `ctest --test-dir build/coverage --show-only=json-v1 -R '^<name>$'` prints,
+  typed with the program, the arguments and the working directory it prints,
+  where no CTest limit reaches. The reading lands in the
+  `Coverage: two shapes, two denominators` section of
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md`. Verify: every cut
+  name carries both shapes with its two exits, its two times and the two
+  counts ruling 34 of this phase's list prints, and the record keeps the
+  clause that a grant an entry enforces inside its driver still binds, the
+  clause that ruling writes beside `tools/docs/report_shape.py:368`. Runs:
+  waits for IA48-026, runs alone, and IA48-028 waits for it.
+
+- [ ] IA48-028 [bench] The coverage target and the coverage gate as two
+  verdicts. IC-002 owns the pair, ruling 3 of the 2026-11-08 closeout list keeps
+  the two exits apart, and ruling 32 of this phase's list keeps the picture step
+  outside the gate. Run both commands unchanged, then the copy line that ends
+  block 1, then the two summary reads the `Coverage denominators` row and the
+  `Coverage, cold rows` row name. The rows land in the
+  `Coverage: two shapes, two denominators` section and the
+  `The coverage target, blocked at its HTML step` section of
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md`. Verify: the record prints the target's exit and
+  the gate's exit as two rows; the picture step reads BLOCKED with the operator
+  action `pacman -S perl-gd gd` and the gate row keeps its own verdict from its
+  own run; the numerator, the denominator and the shortfall stand beside the
+  denominator that capture prints, which answers `SC-IC-8` for the run that
+  printed it, the reading ruling 35 of this phase's list sets; every cold row
+  carries what `build/coverage/coverage.raw.info`
+  holds and what `build/coverage/coverage.info` holds, the file the gate reads;
+  and neither command gained a flag, an ignore, an omit, a remove, an exclusion or
+  an allowance; the same four readings at the base head stand beside the
+  final-head pair, each named by the run that answered it, because this branch
+  changes no compiled file: the file list `git diff --name-only a55728af HEAD`
+  prints between those two heads holds markdown lines alone, a markdown line moves
+  no compiled file and no test registration, and the record prints that list beside
+  the pair, so the candidate head measures the base's code. Runs: waits
+  for IA48-027, runs alone, and stands before IA48-032, whose wipe deletes this
+  tree.
+  ```
+  cmake --build build/coverage -t coverage
+  bash tools/dbc/coverage_gate.sh build/coverage/coverage.info
+  cp -a build/coverage/coverage.info /tmp/ic/final/coverage.info
+  ```
+
+- [ ] IA48-029 [bench] Lane 2 of `The final-head set`, the
+  `Address and undefined` row. IC-001 owns the sweep. Wipe that block's tree,
+  configure it, build it, and run the suite alone with the two option strings
+  exactly as block 2 writes them. The row lands in the
+  `The two instrumented lanes` section of
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md`. Verify: the
+  record names the tree, the compiler, the entry count `-N` prints for it, the
+  pass count, the exit and every red name with its printed status, and this
+  run stands before any isolated diagnostic, as IC-001 asks. Runs: waits for
+  IA48-028, because the coverage chain runs first of the four suites, and runs
+  alone.
+  ```
+  rm -rf build/sanitize
+  CXX=clang++ cmake --preset=ci-sanitize
+  cmake --build build/sanitize -j "$(nproc)"
+  ASAN_OPTIONS="strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_leaks=1:halt_on_error=1" UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1" ctest --test-dir build/sanitize --output-on-failure --no-tests=error -j "$(nproc)"
+  ```
+
+- [ ] IA48-030 [bench] Lane 3 of `The final-head set`, the `Thread` row.
+  IC-001 owns the sweep. Wipe that block's tree, configure it, build it, and run
+  the suite alone with the option string exactly as block 3 writes it. The row
+  lands in the same `The two instrumented lanes` section. Verify: the record names
+  the tree, the compiler, the entry count `-N` prints for it, the pass count, the
+  exit and every red name with its printed status, from this run alone. Runs:
+  waits for IA48-029, because a suite runs alone, and IA48-032 waits for it,
+  because the release wipe deletes this tree.
+  ```
+  rm -rf build/tsan
+  CXX=clang++ cmake --preset=ci-tsan
+  cmake --build build/tsan -j "$(nproc)"
+  TSAN_OPTIONS="halt_on_error=1:second_deadlock_stack=1" ctest --test-dir build/tsan --output-on-failure --no-tests=error -j "$(nproc)"
+  ```
+
+- [ ] IA48-031 [read] The six shapes of the `Address and undefined` row and the
+  `Thread` row, and the five red names `IC-004` names with the file that owns
+  each. IC-003, IC-004, `SC-IC-9` and `SC-IC-10` own this row. In each tree, in
+  that shape order: the suite alone, then each red name alone at its ceiling with
+  the same compiler and the same options in the same tree, then that name's
+  registration run with no ceiling in its own working directory, then the suite
+  under `taskset -c 0,1` with `-j 2`, then the suite under `taskset -c 0,1,2,3`
+  with `-j 4`, then the suite a second time in the same tree at the same head.
+  The readings land as dated rows beside the standing table of the
+  `Three shapes per red name` section and the standing table of the
+  `The two instrumented lanes` section of
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md`, the record rows the
+  `Address and undefined` row and the `Thread` row of the `Lane Table` name, and
+  those standing tables keep their text and their headings. A correction stands
+  only inside `Files this phase may change`, carries a
+  regression case that reads red before it and green after it, and keeps the
+  behavior that entry tested; a cause that lands outside that list keeps its exact
+  reproduction, names its file and stays open, as ruling 36 of this phase's list
+  states. Verify: both exits and both elapsed times print for the two suite runs
+  of each tree and the two runs report the same set of red names, which answers
+  `SC-IC-9`; each of the five names carries the three runs of IC-003 with the six
+  fields each; `harness_jitter_cli_test` names
+  `test/source/harness_jitter_cli_test.cpp` as closable here; `base_cli_matrix`
+  names its runner `test/base_cli/run_matrix.py` and carries its reproduction,
+  because `IC-004` puts its cause outside; `harness_hunt_cli_test`, `example_run`
+  and `report_shape_fwq_ftq_sample` name the file outside that list that holds
+  their deferred change, which answers `SC-IC-10`. No row drops an assertion, skips a
+  test, masks a failure, raises a timeout or adds a retry, and a run that passes
+  on a retry reads as a diagnostic under ruling 33 of this phase's list. Runs: the
+  address shapes wait for IA48-029, the thread shapes wait for IA48-030, and each
+  shape runs alone.
+
+- [ ] IA48-032 [bench] Lane 4 of `The final-head set`, the `Release build` row
+  and the `Release suite` row: the plain shape. IC-001 owns the tree and the
+  suite. The wipe the `Release build` row names deletes every tree under
+  `build`, so the copy line of IA48-028 stands done first. Then the configure,
+  the build and the suite in the forms those two rows print. The row lands as a
+  dated row beside the `Plain, CI form` row of the `The suite lanes` table of
+  `Part D - the instrumented lanes and the gates`, and that standing row keeps
+  its text and its heading. Verify: the record names
+  the compiler and the launcher the identity loop printed for this tree, the
+  entry count `-N` prints for it, the pass count, the exit and every red name,
+  each beside its load witness. Runs: waits for IA48-029, IA48-030, IA48-031
+  and the instrumented leg of IA48-035, because ruling 2 of the 2026-11-08
+  closeout list puts the release lane last of the four suites, and runs alone.
+  ```
+  rm -rf build
+  cmake --preset=ci-rocky
+  cmake --build build --config Release -j "$(nproc)"
+  ctest --test-dir build --output-on-failure --no-tests=error -C Release -j "$(nproc)"
+  ```
+
+- [ ] IA48-033 [bench] Lane 5 of `The final-head set`, the `Two-cpu release`
+  row: the narrow shape, IC-003's narrow reading of the same tree. The row lands
+  as a dated row beside the `Two cpus` row of the `The suite lanes` table, and
+  that standing row keeps its text and its heading. Verify: the exit, the pass
+  count and every red name print beside the plain reading of IA48-032, and the row
+  states whether the mask moved a ceiling crossing; no ceiling moves and no grant
+  enters. Runs: waits for IA48-032, because this shape reuses that tree, and runs
+  alone.
+  ```
+  taskset -c 0,1 ctest --test-dir build --output-on-failure --no-tests=error -C Release -j 2
+  ```
+
+- [ ] IA48-034 [bench] Lane 6 of `The final-head set`, the `Four-cpu release`
+  row: the bounded shape, the width a hosted run answers. IC-003 asks the lane to
+  print the width the workflow asks for, and `.github/workflows/ci.yml` holds that
+  width. The row lands as a dated row beside the `Four cpus` row of the `The
+  suite lanes` table, and that standing row keeps its text and its heading.
+  Verify: the exit, the pass count and every red name print beside both release
+  readings, and the row names the width it read from that workflow file. Runs:
+  waits for IA48-033, because this shape reuses the same tree, and runs alone.
+  ```
+  taskset -c 0,1,2,3 ctest --test-dir build --output-on-failure --no-tests=error -C Release -j 4
+  ```
+
+- [ ] IA48-035 [bench] Lane 7 of `The final-head set`, the `Walk price` row,
+  both legs. IC-004 owns the price. The instrumented leg runs inside the block 2
+  lane before the release wipe, and the release leg runs in the release lane, each
+  leg alone on an idle host with its load witness printed. The reading lands in the
+  walk-price paragraph of the `Three shapes per red name` section of
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md`. Verify: the record
+  prints the exit and the seconds of each of the three runs per command the row
+  names, beside its witness, prints the child
+  count of each instrumented entry counted from the tracked lines that hold its
+  launches, and states what that count spends against the ceiling that entry cuts,
+  a figure this run answers. Runs: the instrumented leg waits for IA48-029 and
+  stands before IA48-032, the release leg waits for IA48-032, and the two legs
+  never run together.
+  ```
+  ./build/example/docs_labels --list
+  ./build/example/docs_labels --help
+  ./build/sanitize/example/docs_labels --list
+  ./build/sanitize/example/docs_labels --help
+  ./build/sanitize/example/docs_labels --version
+  ```
+
+- [ ] IA48-036 [bench] Lane 8 of `The final-head set`, the gate tree: the
+  `DBC gates` row, the `Prose, tree` row and the `Prose, range` row. IC-005
+  owns the contract target and ruling 22 of the 2026-11-08 closeout list owns
+  the interpreter route, which installs nothing and puts no personal path in a
+  tracked file. Run block 4 unchanged: the configure, the `dbc-gate` target,
+  the document gate, the pair gate and the fixture entry, all in one tree.
+  Then both text gates. The readings land as dated rows beside the `DBC
+  target`, `DBC doxygen`, `DBC document gate`, `DBC pair gate`, `Prose, tree`
+  and `Prose, range` rows of the `The gates` table of
+  `Part D - the instrumented lanes and the gates`, and each standing row keeps
+  its text and its heading.
+  `specs/048-hwlat-probe/results/gates.md` keeps its contract-gate rows
+  untouched, cited by reference. Verify: the target, the two manual gates and
+  the fixture entry agree at exit 0, the interface count prints, and the row
+  names the interpreter the tree configured; the tree form prints its unit
+  count with the records visible; the range form covers the commit from the
+  base the row names to the head it reads at run time. Runs: the configure
+  waits for IA48-032, because this tree stands under `build`; the `dbc-gate`
+  target, the two manual gates and the fixture entry run before IA48-039, and
+  their exits are figures IA48-039 writes; the tree form waits for that write,
+  which is the last record write of Pass 1, so this row stands outside the set
+  IA48-039 waits for and its unit count is a figure IA48-041 writes at the
+  candidate head, read as the count of the tree that form scanned; the range
+  form waits for the final squash inside IA48-041, so its right edge is the
+  final sha, because a commit is a write the prose fixture reads; each gate
+  runs alone.
+  ```
+  cmake -S . -B build/dev --preset=ci-ubuntu -D Python3_EXECUTABLE=/usr/bin/python3
+  cmake --build build/dev -t dbc-gate -j "$(nproc)"
+  doxygen build/dev/dbc-gate/Doxyfile
+  /usr/bin/python3 tools/dbc/dbc_doc_gate.py --xml build/dev/dbc-gate/xml --registry tools/dbc/macros.yaml --out build/dev/dbc-gate/doc-matrix.json
+  /usr/bin/python3 tools/dbc/dbc_pair_gate.py --src include/speedgun-ng --src2 source tools --registry tools/dbc/macros.yaml --doc-matrix build/dev/dbc-gate/doc-matrix.json --out build/dev/dbc-gate/pair-matrix.json
+  ctest --test-dir build/dev -R dbc_gate_fixtures --output-on-failure --no-tests=error -j "$(nproc)"
+
+  cmake -D PROSE_MODE=tree -P cmake/prose-lint.cmake
+  cmake -D PROSE_MODE=range -D PROSE_BASE=a55728af -D PROSE_HEAD="$(git rev-parse HEAD)" -P cmake/prose-lint.cmake
+  ```
+
+- [ ] IA48-037 [bench] Lane 9 of `The final-head set`, the hardware consoles:
+  `Hunt, one scenario and one plan line`, `Hunt, walk`, `Hunt, benchmark`,
+  `Counter count` and `Counter device`. IH-001, IH-002, IP-001 and IP-002 own the
+  readings, and ruling 12 of the 2026-11-08 closeout list asks three normal-method
+  consoles per command, each alone with its load witness. The scenario pair settles
+  the catalog claim ruling 9 of that list asks about, and it runs in the order that
+  row prints. The readings land in the `The ranked rows` and `The level-1 block`
+  sections of `specs/046-hunter-topdown/results/acceptance-hunt.md`, in the six
+  rows of `Rows the final head must answer` of `specs/046-hunter-topdown/spec.md`,
+  and in the `The example, twice` table and the `The two device type files` table
+  of `specs/041-counter-probe/results/acceptance-final-intel.md`. Verify: three
+  consoles per command each carry their own log path, exit and witness; the level
+  line, the reference line and the digest lines print as the binary prints them, at
+  the count that run prints, the reading ruling 41 of this phase's list sets; rank
+  movement reads among the ranked rows and across every printed row, and the line
+  that compares the two binaries carries its own label; the pmu name line and the
+  device `type` line print beside the two kernel controls. Runs: waits for
+  IA48-032, because these binaries come from that tree, and one console runs at a
+  time, alone, as ruling 17 of the 2026-11-08 closeout list asks.
+  ```
+  ./build/test/harness_hunt_cli_test bare-hunt-whole-catalog
+  ./build/example/first_benchmark --hunt --dry-run
+  ./build/example/memory_walk --hunt --hunt-budget 120s
+  ./build/example/first_benchmark --hunt --hunt-budget 120s
+  ./build/example/docs_counter_probe
+  cat /sys/devices/cpu/caps/pmu_name
+  cat /sys/bus/event_source/devices/cpu/type
+  ```
+
+- [ ] IA48-038 [bench] Lane 10 of `The final-head set`, the `Static analysis`
+  row, in a fresh tree of its own, the tree the `Assumptions` section of
+  `specs/048-hwlat-probe/spec.md` allows. IC-001 owns the build and the
+  `Risk and Rollback` section of `specs/048-hwlat-probe/plan.md` owns the
+  guard: a scope that builds no translation unit reads void, and its empty
+  finding list answers nothing. Verify: the translation-unit count prints for
+  each of the three scopes, and both readings land as dated rows beside the
+  three `Analyzer` rows of the `The gates` table, and those standing rows keep
+  their text and their heading. Runs: waits for IA48-032, because this tree
+  stands under `build`, and runs alone.
+  ```
+  cmake --preset=ci-ubuntu -B build/analyzer -DCMAKE_C_COMPILER_LAUNCHER= -DCMAKE_CXX_COMPILER_LAUNCHER=
+  cmake --build build/analyzer --target speedgun-ng_speedgun-ng speedgun-ng_harness -j "$(nproc)"
+  cmake --build build/analyzer/test -j "$(nproc)"
+  cmake --build build/analyzer/example -j "$(nproc)"
+  ```
+
+- [ ] IA48-039 [write] Pass 1 of ruling 29 of this phase's list closes: the
+  figures the Pass 1 lanes answered, IA48-025 to IA48-038 and IA48-045 to
+  IA48-049 and IA48-051 to IA48-057, land in the three records. The two prose
+  forms of IA48-036 stand outside that set, and IA48-041 writes their readings,
+  because each form reads lines a record write produces. The records are:
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md`,
+  `specs/046-hunter-topdown/results/acceptance-hunt.md` and
+  `specs/041-counter-probe/results/acceptance-final-intel.md`, each under its
+  own dated heading. IC-006 owns the shape: an older line keeps its text and
+  its heading while a dated row names the line it replaces, every path prints
+  `$HOME`-relative or build-relative, and a log path prints as the run printed
+  it, the reading ruling 27 of the 2026-11-08 closeout list sets. These writes
+  are a tracked change, so ruling 29 reads them at the squash IA48-040 runs,
+  and each figure here stands as a Pass 1 reading until IA48-041 replaces it.
+  Verify: each figure names the sha `git rev-parse HEAD` answered for its run,
+  the reading ruling 35 of this phase's list asks, no figure here reads as a
+  final-head figure, and a search for a home path over the new sections
+  answers none. Runs: waits for IA48-025 to IA48-035, IA48-037, IA48-038, the
+  `dbc-gate` leg of IA48-036 that runs before its prose forms, IA48-045 to
+  IA48-049 and IA48-051 to IA48-057. It waits for neither prose form of
+  IA48-036: the tree form reads the lines this row writes, and the range form
+  reads the squash IA48-040 lands. The two rows no longer wait on each other.
+  This row writes no file beyond the three records named here.
+
+- [ ] IA48-040 [write] The amend and the squash between the two passes, the
+  lines IC-006 owns. Compare every figure the three records state with the run
+  that answered it, the reading phase 9, `Close the fixed point`, of
+  `Phases and Implementation Ordering` of `specs/048-hwlat-probe/plan.md` asks
+  for. One difference amends the row, then the squash runs, because any
+  tracked change after Pass 1 forces a new squash and a fresh Pass 2 under
+  ruling 29 of this phase's list, and that squash produces the candidate head
+  IA48-041 runs at. A second difference stops the lane, and the report names
+  both shas and both readings. The commit keeps ruling 26 of the 2026-11-08
+  closeout list. IA48-058 owns `.specify/feature.json`, the local pointer of
+  the spec-driven tooling that stands outside `Files this phase may change`,
+  and it is the one row of this phase that touches that file. That row
+  restores the value the base head carries before this row commits, so this
+  row's commit holds no line for it. Verify: IA48-058's
+  `git status --porcelain .specify/feature.json` prints empty,
+  `git log --oneline a55728af..HEAD` answers one commit, no tracked file
+  outside `Files this phase may change` stands in it, and that commit's sha is
+  the candidate sha every Pass 2 row prints. Runs: waits for IA48-039, for
+  IA48-036's tree form and for IA48-058, and nothing runs beside it.
+  ```
+  git status --porcelain .specify/feature.json
+  git log --oneline a55728af..HEAD
+  ```
+
+- [ ] IA48-041 [bench] Pass 2 of ruling 29 of this phase's list: the same set
+  at the candidate head IA48-040 produced, the reading IC-007 asks for. Re-run
+  IA48-025 to IA48-038 and IA48-045 to IA48-057 there, in clean trees, in the
+  order ruling 2 of the 2026-11-08 closeout list sets, and re-take every
+  figure there, because no row of this set may quote a Pass 1 run. Then write
+  those figures into the record rows and squash again: that squash produces
+  the final head, the head the pull request carries. Every row that carries a
+  figure then names both shas, the candidate sha as the head the run stood on
+  and the final sha as the head the pull request carries, and prints one proof
+  clause, the file list `git diff --name-only <candidate-sha> <final-sha>`
+  answers, with the sentence that the list holds markdown lines alone, so a
+  markdown line moves no compiled file and no test registration and touches no
+  ceiling and no grant. A row that prints a code anchor re-reads that anchor
+  in the tree its run used, and the same clause carries that reading, because
+  a markdown delta cannot move a code line. Verify: `SC-IC-7` answers from
+  this set, so each lane carries a command, an exit and a count a reader can
+  rerun at the candidate sha, or reads BLOCKED with the right it lacks;
+  `SC-IC-8` answers from the gate run here; `SC-IC-9` answers from the two
+  suite runs of each instrumented tree here; `git rev-parse HEAD` equals the
+  candidate sha the new rows print and the final sha stands beside it in every
+  row that carries a figure; that proof clause answers a markdown-only list
+  for each such row; the `Prose, range` form of IA48-036 runs after that
+  squash with its right edge at the final sha; and
+  `git log --oneline a55728af..HEAD` answers one commit still. Runs: waits for
+  IA48-040, each lane inside it runs alone in that order, and the writes and
+  the closing squash stand after the last lane.
+
+- [ ] IA48-042 [write] The push, the remote reading and the pull request body.
+  IC-007 owns them, ruling 38 of this phase's list owns the lease, ruling 39
+  owns the body and ruling 40 owns the one sha. Ruling 38 states that no
+  remote branch of this name exists, and the `Branch` row of
+  `Identity and binding` of the 2026-11-08 closeout section recorded the
+  branch absent on the remote, so the push is a first push and runs the first
+  line below. A later push carries the lease of ruling 38, the second line
+  below with the full sha that push last observed, and a failed lease stops
+  the lane with no retry and no refreshed lease. The third line below reads
+  after every push, and IA48-041 names the final sha it must equal. The body
+  appends to `specs/046-hunter-topdown/results/pr-body.md` under its own dated
+  heading, and the standing body keeps its text and its heading. Verify: the
+  remote reading equals the final sha IA48-041 wrote and equals
+  `git rev-parse HEAD`, and those two readings answer `SC-IC-11`; the body
+  names the final head sha, the candidate sha the figures ran at, the
+  markdown-only proof clause of IA48-041, the count per lane, the root status
+  and every deferred cause, each line no wider than ruling 39 of this phase's
+  list sets; and record, body and remote branch name that one final sha, which
+  closes ruling 40. Runs: waits for IA48-041. One pull request opens, nothing
+  merges and no issue closes.
+  ```
+  git push -u origin fix/intel-acceptance-closeout
+  git push --force-with-lease=fix/intel-acceptance-closeout:<expected-full-sha>
+  git ls-remote origin refs/heads/fix/intel-acceptance-closeout
+  git rev-parse HEAD
+  ```
+
+- [ ] IA48-043 [operator] The root surfaces, the `Root surfaces` row: block 6
+  of `specs/048-hwlat-probe/plan.md`, typed in full in a session an operator
+  opens. IC-006 owns the rows and ruling 37 of this phase's list keeps them BLOCKED
+  without a privilege. The row stops where `current_tracer` reads other than the
+  idle tracer, where `tracing_on` reads on, or where a value reads unreadable, the
+  void list of `Risk and Rollback` of that plan. Reason this session cannot type
+  it: no privileged session stands in reach, so tracefs and the `msr` node stay out
+  of reach, and the phase collects no password and automates no elevation. Restore:
+  the probe's own path puts back every setting it saved, the after loop below prints
+  the six values again after a normal end and again after the `kill -INT` run, and
+  the operator names the before value for any file that still differs. Verify: six
+  before-and-after rows beside a seventh row that carries no figure land in the
+  `Root-surface rows` section of
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md`, the reading ruling 24
+  of the 2026-11-08 closeout list sets, and every root row either carries both
+  values of each file from one privileged run or reads BLOCKED beside this block,
+  with the value the host answered cited from the identity section IA48-025 wrote,
+  as ruling 42 of this phase's list asks. Runs: one operator session, alone, with
+  no other lane running.
+  ```
+  T=/sys/kernel/tracing
+  cat $T/current_tracer; cat $T/tracing_on
+  for f in current_tracer tracing_cpumask tracing_thresh \
+           hwlat_detector/mode hwlat_detector/width hwlat_detector/window; do
+    printf 'before %s %s\n' "$f" \
+      "$(sed -e 's/.*\[\([^]]*\)\].*/\1/' $T/$f)"
+  done
+  ./build/example/benchmark_example --filter=bmTouch --threads=2 --placement=compact \
+    --jitter-probe=idle,mode=precheck --os-noise=hwlat --json=$HOME/hwlat-detector.json
+  for f in current_tracer tracing_cpumask tracing_thresh \
+           hwlat_detector/mode hwlat_detector/width hwlat_detector/window; do
+    printf 'after %s %s\n' "$f" \
+      "$(sed -e 's/.*\[\([^]]*\)\].*/\1/' $T/$f)"
+  done
+  ```
+
+- [ ] IA48-044 [operator] The restricted parity reading, the
+  `Parity at paranoid 2` row. IP-002 of `specs/041-counter-probe/spec.md` owns
+  it, ruling 11 of the 2026-11-08 closeout list gives parity its two rows, and
+  ruling 42 of this phase's list bars a figure here. Operator line: the first
+  line below. Read between: the counter example, the `Counter count` command,
+  at that control. Restore line: the second line below, the value IP-002 names
+  for this host, and the control itself stands at
+  `/proc/sys/kernel/perf_event_paranoid`. Reason this session cannot type
+  either line: no elevation route stands here, so the row reads BLOCKED and
+  cites the identity section IA48-025 wrote for the value the host answered
+  before the change, which the operator reads first. Verify: the parity
+  reading of `specs/041-counter-probe/results/acceptance-final-intel.md`
+  answers the claim `SC-010` owns with the pair of lines below and the
+  example's answer at that control, the measured parity row at that host's
+  standing value keeps its own figure, and the blocked row carries no figure.
+  Runs: an operator session, alone, with no lane running, and the control
+  reads back before the next lane starts.
+  ```
+  sysctl -w kernel.perf_event_paranoid=2
+  sysctl -w kernel.perf_event_paranoid=-1
+  ./build/example/docs_counter_probe
+  ```
+
+### The standing lanes the `Lane Table` names beside the ten
+
+Ruling 20 of the 2026-11-08 closeout list widens the set a closeout repeats to
+"every gate command the workflow carries, including the `dbc-gate` target", so
+the rows below answer the lane rows the ten lanes above leave out. IC-007 owns
+each run and `SC-IC-7` of `Success criteria - this phase` owns each shape,
+because every row below answers the Pass 2 set of ruling 29 at the final
+head.
+Each row takes its command from the lane row it names and prints the record
+row or section that holds its exits, and a row that needs a right or a package
+this host lacks reads BLOCKED with the operator action and no figure.
+
+- [ ] IA48-045 [read] The `Entry count` row: the count `IC-001` asks of each
+  suite, read from the two trees this row can reach, the reading `SC-IC-7`
+  shapes. Run the command of that row against each tree it names. Verify: the
+  record prints one count per tree beside the exit that tree answered, names
+  `build` as the release suite and `build/dev` as the fixture entry, and each
+  count comes from this run. The two counts land as dated rows beside the
+  `Plain, CI form` row of the `The suite lanes` table and beside the `DBC
+  target` row of the `The gates` table of
+  `Part D - the instrumented lanes and the gates`, and those standing rows keep
+  their text and their heading. The coverage-suite count stands in IA48-026,
+  because the `rm -rf build` line of IA48-032 deletes `build/coverage`, so this
+  row reads no coverage tree. Runs: waits for IA48-032 and IA48-036, because a
+  tree answers only once it configures, stands before IA48-039 and before
+  IA48-056, which re-configures `build` out of its release shape, and runs
+  alone, the shape that row states.
+  ```
+  ctest --test-dir build -N
+  ctest --test-dir build/dev -N
+  ```
+
+- [ ] IA48-046 [bench] The `Lint` row, first command of block 5: the drift
+  gate in the bare form the workflow runs, the reading the block 5 note of
+  `specs/048-hwlat-probe/plan.md` names. IC-007 owns the run and `SC-IC-7`
+  owns the shape. Verify: the reading lands as a dated row beside the `Drift`
+  row of the `The gates` table, and that standing row keeps its text and its
+  heading; the dated row carries this exit and the reading the gate printed.
+  The page cap of the gate stands cited at
+  `tools/docs/example_drift.py:256`, the section cap at
+  `tools/docs/example_drift.py:257`. Runs: waits for IA48-025 only, stands
+  before IA48-039, and runs alone.
+  ```
+  python3 tools/docs/example_drift.py .
+  ```
+
+- [ ] IA48-047 [bench] The `Lint` row, second command of block 5: the same
+  drift gate in its four-flag form, the standing step the block 5 note cites
+  by its record row. IC-007 owns the run and `SC-IC-7` owns the shape. Verify:
+  the reading lands as a dated row beside the `Drift, four flags` row of the
+  `The gates` table, and that standing row keeps its text and its heading; the
+  dated row carries this exit, and the four tables the flags name, sections,
+  names, options and forbidden words, each report under their own heading.
+  Runs: waits for IA48-046,
+  because one gate reads the same pages, stands before IA48-039, and runs
+  alone.
+  ```
+  python3 tools/docs/example_drift.py --sections --names --options --forbidden .
+  ```
+
+- [ ] IA48-048 [bench] The `Lint` row, third command of block 5: the formatter
+  gate. IC-007 owns the run and `SC-IC-7` owns the shape. Verify: the reading
+  lands as a dated row beside the `Format` row of the `The gates` table, and
+  that standing row keeps its text and its heading; the dated row carries this
+  exit and the formatter version the run printed, and no file left the gate
+  unscanned. Where the pinned formatter
+  stands absent this row reads BLOCKED, names the version the tool-setup line at
+  `.github/workflows/ci.yml:34` pins, prints that line below as the operator
+  action, names the refusal `IC-005` records for this host's two interpreters,
+  and carries no figure. Runs: waits for IA48-025, stands before IA48-039, and
+  runs alone.
+  ```
+  cmake -D FORMAT_COMMAND=clang-format -P cmake/lint.cmake
+  # operator line, ci.yml:34
+  pip3 install codespell 'clang-format==18.1.8'
+  ```
+
+- [ ] IA48-049 [bench] The `Lint` row, fourth command of block 5: the
+  time-source gate. IC-007 owns the run and `SC-IC-7` owns the shape. Verify:
+  the reading lands as a dated row beside the `Time source` row of the `The
+  gates` table, and that standing row keeps its text and its heading; the
+  dated row carries this exit and the finding list the script printed, empty
+  or not. Runs: waits for IA48-025,
+  stands before IA48-039, and runs alone.
+  ```
+  bash test/time_source_gate.sh .
+  ```
+
+- [ ] IA48-050 [bench] The `Lint` row, fifth command of block 5: the spell
+  gate over the written prose, the step phase 10,
+  `Run the prose gates and land the commit (XI, VIII)`, of
+  `Phases and Implementation Ordering` puts after the record writes. IC-007
+  owns the run and `SC-IC-7` owns the shape. Verify: the reading lands as a
+  dated row beside the `Spell` row of the `The gates` table, and that standing
+  row keeps its text and its heading; the dated row carries this exit and the
+  checker version the run printed, and the run stands after the prose this
+  phase wrote. Runs: waits for
+  IA48-039, runs again inside IA48-041 at the candidate head, and runs alone.
+  ```
+  cmake -P cmake/spell.cmake
+  ```
+
+- [ ] IA48-051 [bench] The `Install and audits` row: block A of the acceptance
+  plan of `specs/048-hwlat-probe/plan.md`, the heading
+  `Block A - install and the thirteen audits`. IC-007 owns the run and
+  `SC-IC-7` owns the shape. Run the install, then the twelve dependency audits
+  and the standalone example link-manifest audit in the CI order, each with
+  its own exit, the order `.github/workflows/ci.yml:513-540` and `:546-558`
+  carries. The writes land in `prefix/`, which `.gitignore` holds, so no
+  tracked file changes. Verify: the readings land as dated rows beside the
+  `Install` row and beside the `Install audits` row of the `The gates` table,
+  and those standing rows keep their text and their heading; the dated rows
+  carry the install exit and one exit per audit, and no audit shares an exit
+  with another. Runs: waits for IA48-032, because the
+  tree it installs stands there, stands before IA48-039 and before IA48-056,
+  which re-configures `build`, and runs alone.
+  ```
+  cmake --install build --config Release --prefix prefix
+  ```
+
+- [ ] IA48-052 [bench] The `Host records` row: the host-record gate of the
+  test job. IC-007 owns the run and `SC-IC-7` owns the shape. Run the command
+  that row prints. Verify: the reading lands as a dated row beside the `Host
+  records` row of the `The gates` table, and that standing row keeps its text
+  and its heading; the dated row carries this exit and the reading the script
+  answered about the standing records. Runs: waits for IA48-032, because the
+  binary the command names
+  comes from that tree, stands before IA48-039 and before IA48-056, and runs
+  alone.
+  ```
+  bash tools/ci/host_record_gate.sh build/test/host_record_check . validation
+  ```
+
+- [ ] IA48-053 [bench] The `pmu tables` row: the vendor table check over the
+  vendored tables. IC-007 owns the run and `SC-IC-7` owns the shape. Run the
+  command that row prints. Verify: the reading lands as a dated row beside the
+  `pmu events` row of the `The gates` table, and that standing row keeps its
+  text and its heading; the dated row carries this exit and the state the check
+  answered for the tables. Runs: waits for IA48-025, stands before IA48-039,
+  and runs alone.
+  ```
+  python3 tools/pmu_events/update_pmu_events.py --check
+  ```
+
+- [ ] IA48-054 [read] The `Two counts` row: the page count and the marker
+  count. IC-007 owns the run and `SC-IC-7` owns the shape. Run
+  `wc -l README.md`, then the `LCOV_EXCL` sum over `source include` that row
+  names, the form its record row prints. Verify: the two counts land as dated
+  rows beside the `README` row and beside the `Markers` row of the `The gates`
+  table, and those standing rows keep their text and their heading; each dated
+  row carries its count at this head, the page cap stands cited at
+  `tools/docs/example_drift.py:256`, both caps stand
+  beside the `Page and marker caps` row of the `Identity and binding` table of
+  `Acceptance closeout: measured Intel evidence (2026-11-08)` of
+  `specs/048-hwlat-probe/spec.md`, each standing figure keeps the head whose
+  record printed it, and a figure no record names a head for reads `no figure`.
+  Runs: waits for IA48-025, stands before IA48-039, and runs alone.
+  ```
+  wc -l README.md
+  git grep -c LCOV_EXCL -- source include
+  ```
+
+- [ ] IA48-055 [bench] The `Downstream jobs` row, the shared-audit shape: the
+  `shared-audit job` block of `/tmp/ic/w5-gates.md` section 6. IC-007 owns the
+  run and `SC-IC-7` owns the shape. Run the audit configure, the build and the
+  install into the prefix that block names, then the symbol and dependency
+  greps the same block carries,
+  `.github/workflows/ci.yml:713-792` among them, each with its own
+  exit. Verify: the record prints one exit per grep beside the artifact it
+  read, and a copy that drops one grep reads void, the reading the block 4
+  note of `specs/048-hwlat-probe/plan.md` sets for a narrowed scan. The exits
+  land as a dated row beside the `Install audits` row of the `The gates` table
+  of `Part D - the instrumented lanes and the gates`, the standing row that
+  holds the purity readings, and that row keeps its text and its heading.
+  Runs:
+  waits for IA48-038, because the compiler work stays serial, stands before
+  IA48-039, and runs alone.
+  ```
+  cmake --preset=ci-linux-audit -B build-shared -D BUILD_SHARED_LIBS=ON -D CMAKE_BUILD_TYPE=Release   # ci.yml:704
+  cmake --build build-shared -j "$(nproc)"                         # ci.yml:708
+  cmake --install build-shared --prefix prefix-shared              # ci.yml:712
+  ! nm -D --defined-only prefix-shared/lib/libspeedgun-ng.so | grep -i hwloc          # ci.yml:714
+  ! ldd prefix-shared/lib/libspeedgun-ng.so | grep -i hwloc                            # ci.yml:716
+  ! nm -D --defined-only prefix-shared/lib/libspeedgun-ng.so | grep -i simdjson        # ci.yml:718
+  ! ldd prefix-shared/lib/libspeedgun-ng.so | grep -i simdjson                         # ci.yml:720
+  ! nm -D --defined-only prefix-shared/lib/libspeedgun-ng.so | grep -i hdr             # ci.yml:722
+  ! nm -D --defined-only prefix-shared/lib/libspeedgun-ng.so | grep -iE 'zlib|libz|(z_)?(inflate|deflate|compress|uncompress|crc32)'   # ci.yml:727-728
+  ! nm -D --defined-only prefix-shared/lib/libspeedgun-ng.so | grep '4YAML'            # ci.yml:734
+  ! nm -D --defined-only prefix-shared/lib/libspeedgun-ng.so | grep '8fmtquill'        # ci.yml:790
+  ```
+
+- [ ] IA48-056 [bench] The `Downstream jobs` row, the downstream-consumer
+  shape: the `downstream-consumer job` block of `/tmp/ic/w5-gates.md` section
+  6. IC-007 owns the run and `SC-IC-7` owns the shape. Run the audit configure
+  of the tree the lane row names, the consumer configure and build, then the
+  six purity greps and the catalog comparison block
+  `.github/workflows/ci.yml:915-977` and `:979-989` carry. That job assumes
+  the host carries a system copy of hwloc, simdjson, HdrHistogram_c, yaml-cpp
+  and quill, the three build-and-install steps of
+  `.github/workflows/ci.yml:850-880` among them. Where this host lacks one of
+  the five, this row reads BLOCKED, names that package, prints the matching
+  install line below as the operator action, states that no session here types
+  a `sudo` line, and carries no figure; a system install reaches `/usr/local`,
+  and this phase holds no restore line for it, so the row names that prefix
+  for the operator to check. Verify: each grep carries its own exit beside the
+  log pair it read, both logs stand outside the repository, and a BLOCKED
+  reading names the package it lacks. The exits land as a dated row beside the
+  `Step` table of the `The consumer-release job` section of
+  `Part D - the instrumented lanes and the gates`, the record row that holds
+  the consumer readings, and that table keeps its text and its heading. Runs:
+  waits for IA48-051, because the consumer reads that prefix, and for
+  IA48-032, IA48-033, IA48-034, IA48-035, IA48-037, IA48-045, IA48-052 and
+  IA48-055, because this shape re-configures `build` with the audit preset and
+  holds the compiler slot. This re-configure is the last thing this phase does
+  to `build`: every row that reads that tree in its release shape stands
+  before it, and IA48-061 writes into the record that the release tree does
+  not survive it. This row stands before IA48-039 and runs alone.
+  ```
+  cmake --preset=ci-linux-audit -B build -D CMAKE_BUILD_TYPE=Release   # ci.yml:884
+  cmake -S test/consumer -B build-consumer -D CMAKE_PREFIX_PATH=$PWD/prefix -D CMAKE_BUILD_TYPE=Release | tee consumer-configure.log   # ci.yml:891-894
+  cmake --build build-consumer -v | tee consumer-build.log        # ci.yml:898
+  test -z "$(grep -i hwloc consumer-configure.log consumer-build.log)"        # ci.yml:979
+  test -z "$(grep -i simdjson consumer-configure.log consumer-build.log)"     # ci.yml:981
+  test -z "$(grep -i hdr consumer-configure.log consumer-build.log)"          # ci.yml:983
+  test -z "$(grep -iE 'zlib|libz' consumer-configure.log consumer-build.log)" # ci.yml:985
+  test -z "$(grep -riE 'yaml[-_]?cpp' consumer-configure.log consumer-build.log)"   # ci.yml:987
+  test -z "$(grep -riE 'quill' consumer-configure.log consumer-build.log)"    # ci.yml:989
+
+  # operator lines, one per package this host lacks
+  sudo cmake --install sys-hdr --prefix /usr/local    # ci.yml:855
+  sudo cmake --install sys-yaml --prefix /usr/local   # ci.yml:865
+  sudo cmake --install sys-quill --prefix /usr/local  # ci.yml:880
+  ```
+
+- [ ] IA48-057 [bench] The `Downstream jobs` row, the consumer-release shape:
+  the `consumer-release job` block of `/tmp/ic/w5-gates.md` section 6. IC-007
+  owns the run and `SC-IC-7` owns the shape. Configure and build both trees
+  that block names, read the three cache asserts, then run the
+  ignore-semantics assertions the same block lists: the `check_` symbol scan
+  at `.github/workflows/ci.yml:1071-1081`, `dbc_trap_fixture` at `:1099-1117`,
+  `counters_trap_fixture` at `:1122-1198`, the `counters_trap` selection at
+  `:1204-1205` and `dbc_test` at `:1207-1225`. Verify: the record gives each
+  assert its own exit as a dated row beside the `Step` table of the
+  `The consumer-release job` section of
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md`, and that table
+  keeps its text and its heading. The run reads a kill at exit `124` as void, the reading G-20 of `Constraints - this extension` and
+  the void list of `Risk and Rollback` of `specs/048-hwlat-probe/plan.md` set,
+  and no ceiling moved. Runs: waits for IA48-056, which holds the compiler
+  slot before it, stands before IA48-039, and runs alone.
+  ```
+  cmake --preset=ci-linux-ignore -B build/consumer-release -D CMAKE_BUILD_TYPE=Release -D speedgun-ng_DEVELOPER_MODE=OFF   # ci.yml:1048-1052
+  grep -F 'CMAKE_BUILD_TYPE:STRING=Release' build/consumer-release/CMakeCache.txt          # ci.yml:1055-1056
+  grep -F 'speedgun-ng_DEVELOPER_MODE:BOOL=OFF' build/consumer-release/CMakeCache.txt      # ci.yml:1057-1058
+  grep -F 'speedgun-ng_CONTRACTS:STRING=ignore' build/consumer-release/CMakeCache.txt      # ci.yml:1059-1060
+  cmake --build build/consumer-release -j "$(nproc)"              # ci.yml:1066
+  cmake --preset=ci-linux-ignore -B build/consumer-release-dev -D CMAKE_BUILD_TYPE=Release -D speedgun-ng_DEVELOPER_MODE=ON   # ci.yml:1083-1087
+  cmake --build build/consumer-release-dev -j "$(nproc)"          # ci.yml:1092
+  ```
+
+### The carriers the 2026-11-09 rulings name (IA48-058 to IA48-063)
+
+`specs/048-hwlat-probe/spec.md` names three of these ids: `IA48-058` under the
+`.specify/feature.json` assumption of `Assumptions`, `IA48-059` under the
+four-figure table of `Success criteria - this phase (SC-IC-7 to SC-IC-11)`, and
+`IA48-061` under rule 2, `One directory per configuration`, of
+`Constraints - this extension`. `IA48-060` carries Row 1 of
+`Corrections at the merged base (2026-11-09)` of
+`specs/048-hwlat-probe/results/acceptance-final-intel.md`, the operator command
+cell, and `IA48-059` carries Row 2, the two figures that carry no head label, so
+that section holds two correction rows and each one carries an id. `IA48-062`
+stands reserved for the spec line that names it, and `IA48-063` stands
+unassigned. Row 3 of the 046 block, the stale page anchor beside the 046 spec
+clarification, stays outside this phase under ruling 36 of this phase's list,
+with its reproduction printed in that record, because both files stand outside
+`Files this phase may change`. No `specs/048-hwlat-probe/results/pr-body.md`
+stands written: one pull request carries one body, and that body is
+`specs/046-hunter-topdown/results/pr-body.md`.
+
+- [ ] IA48-058 [write] The local pointer `.specify/feature.json`, the one
+  tracked file of this phase outside `Files this phase may change`, the file the
+  `.specify/feature.json` assumption under `Assumptions` of
+  `specs/048-hwlat-probe/spec.md` names, and the reading `IC-006` shapes. Read
+  the pointer, read the value the base head carries, and restore that value.
+  Verify: `git status --porcelain .specify/feature.json` prints empty before
+  each commit, `git show a55728af:.specify/feature.json` names
+  `specs/045-merge-fixes` while the working file reads `specs/048-hwlat-probe`,
+  and one dated line under `Corrections at the merged base (2026-11-09)` of
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md` records that
+  standing modification with its cause: the tooling holds the feature directory
+  in use, and this phase works in `specs/048-hwlat-probe`. Runs: waits for
+  IA48-039, stands before the commit inside IA48-040, starts no build and no
+  suite, and reads no tree, so it runs beside any lane.
+  ```
+  git status --porcelain .specify/feature.json
+  git show a55728af:.specify/feature.json
+  git restore --source=a55728af --staged --worktree -- .specify/feature.json
+  ```
+
+- [ ] IA48-059 [read] The head labels of every figure row, the duty `SC-IC-7` of
+  `Success criteria - this phase (SC-IC-7 to SC-IC-11)` and ruling 29 of
+  `Rulings - this phase (29 to 42)` of `specs/048-hwlat-probe/spec.md` state,
+  and the reading `IC-007` owns. Read each figure row of the three records
+  against the two heads ruling 29 names: the head Pass 2 ran at, and the head
+  the pull request carries. Verify: each figure row names both heads and prints
+  the markdown-only proof clause of that ruling, that clause runs the diff line
+  below and answers files under `specs/` alone, so a delta of markdown files
+  moves no figure; the four hand re-runs of the table under the
+  `Coverage: two shapes, two denominators` section of
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md`, and the five red
+  names under the `Three shapes per red name` section of the same record, each
+  carry the head that printed them; a figure with no head beside it reads
+  `no figure`. Runs: waits for IA48-041, because the head the pull request
+  carries stands after that squash, and reads logs and records alone with no
+  lane running beside it.
+  ```
+  git rev-parse HEAD
+  git diff --name-only <head Pass 2 ran at> <head the pull request carries>
+  ```
+
+- [ ] IA48-060 [write] The operator command cell of the parity row, the one
+  correction row of `Corrections at the merged base (2026-11-09)` of
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md`. `IC-006` shapes
+  the row, `IP-002` of `specs/041-counter-probe/spec.md` owns the parity claim,
+  ruling 11 of the 2026-11-08 closeout list gives parity its two rows, and
+  ruling 42 of this phase's list bars a figure here. The pair comes from the
+  operator block of the `Parity at paranoid 2` row of the `Lane Table` of
+  `specs/048-hwlat-probe/plan.md`, the pair IA48-044 prints and IA41-011 lands
+  in the 041 record. Verify: the row that opens `The parity row of` under the
+  `Root-surface rows` table of
+  `Part D - the instrumented lanes and the gates` carries
+  `sysctl -w kernel.perf_event_paranoid=2` as its command cell with
+  `sysctl -w kernel.perf_event_paranoid=-1` beside it as the way back, its
+  figure cell keeps `none`, the rest of that row keeps its text, and the
+  correction row keeps its text under its own heading. Runs: an operator line
+  stands unread in this session, so this row starts no process; one writer holds
+  the record at a time, so it shares a sitting with IA48-044 and stands before
+  IA48-039.
+  ```
+  sysctl -w kernel.perf_event_paranoid=2
+  sysctl -w kernel.perf_event_paranoid=-1
+  ```
+
+- [ ] IA48-061 [write] The record line that the release tree does not survive
+  the audit re-configure of `build`, the line rule 2,
+  `One directory per configuration`, of `Constraints - this extension` of
+  `specs/048-hwlat-probe/spec.md` asks for and IA48-056 runs. Read the cache and
+  the entry count of `build` after that re-configure, in the form the
+  `Entry count` row of the `Lane Table` of `specs/048-hwlat-probe/plan.md`
+  prints. Verify: one dated line stands beside the `Release build` row of the
+  `The gates` table of
+  `Part D - the instrumented lanes and the gates`, and that standing row keeps
+  its text and its heading; the line names IA48-056 as the step that ends the
+  release tree, names the settings the cache answers after it, states that the
+  release suite answers no further reading from `build` inside this phase, and
+  follows every figure that needs the release configuration. Runs: waits for
+  IA48-056, lands its Pass 1 line before IA48-039, lands its Pass 2 line inside
+  the write of IA48-041, which re-runs both rows at the candidate head, and
+  starts no build and no suite of its own.
+  ```
+  grep -E '^(CMAKE_BUILD_TYPE|CMAKE_CXX_FLAGS|CMAKE_EXE_LINKER_FLAGS):' build/CMakeCache.txt
+  ctest --test-dir build -N
+  ```
+
+### The id collisions the closeout leaves standing (2026-11-09)
+
+`T049`, `T051`, `T052` and `T053` each answer two rows of this file: the row
+under `Phase 7: User Story 5 - the docs teach both surfaces (Priority: P3)
+(module M9, wave W4)`, and the row under `Notes on placement` of
+`Implementation Strategy`. The base head `a55728af` carries all eight rows, so
+this phase rewrites none of them, and no row this closeout writes takes a `T0`
+id. Every closeout row carries an `IA48-`, `IA46-`, `IA41-` or `IA-END-` id, and
+a reader who meets a `T0` id reads the phase heading beside it.

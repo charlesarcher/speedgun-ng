@@ -970,3 +970,206 @@ counter-count part and nothing else.
   option and SHALL expose no raw event code. The Arm, Intel hybrid and Zen 4 rows
   SHALL stay pending. A completed row SHALL NOT reopen unless new evidence
   contradicts it.
+
+
+## Acceptance closeout: counter-count evidence (2026-11-08)
+
+`specs/048-hwlat-probe` carries the identity, the changed-file list, the shared
+constraints and the clarification rounds for this phase. This section adds the
+counter-count part and nothing else. It keeps IA41-001 and IA41-002 as they
+stands.
+
+### Requirements - the counter-count closeout (IP-001 to IP-002)
+
+- **IP-001**: The lane SHALL repeat the counter example run and the decode
+  against probe parity measurement at the measured head, with the tooling and the
+  event selection the spec already approves. The record SHALL give the pmu name
+  and type, `kernel.nmi_watchdog`, the published limit with the source the code
+  reads, the number of opens and reads, and the comparison of the two limits at
+  the permissions this host answers now. The lane SHALL apply the watchdog rule
+  once, and a second application SHALL NOT stand as a correction.
+- **IP-002**: The lane SHALL keep two statements apart: the two limits agree at
+  the `perf_event_paranoid` value this host carries, and any parity a historical
+  environment requires stands a separate claim. Where a parity row needs a kernel
+  control changed, the row SHALL read BLOCKED with the control and the value an
+  operator would set, and the lane SHALL weaken no control. This section reads
+  G-31 as a boundary on new application support, so it bars no existing hardware
+  test tool. The lane SHALL add no raw-code path to the application and SHALL
+  publish no raw configuration word that a row does not need.
+
+---
+
+## Counter work in the merged-head closeout (2026-11-08)
+
+`specs/048-hwlat-probe` carries the identity, the changed-file list, the shared
+constraints and the clarification rounds for this phase. This section adds the
+counter-count work at the merged base and nothing else. `IP-001` and `IP-002` keep
+the text they carry above, and this section states what each one asks of a run on
+the new base.
+
+`specs/048-hwlat-probe/spec.md` holds three numbered ruling lists: the
+2026-11-07 list, numbers 1 to 43, the 2026-11-08 closeout list, numbers 1 to 28,
+and this phase's list, numbers 29 to 42, whose heading reads `Rulings - this
+phase (29 to 42)`. One bare ruling number lands in more than one of them, so
+every ruling cite names that file, its number, and the list that holds it. Every
+citation in this section names its file, then the thing it points at: a
+requirement id, a criterion id, a ruling number with its list, a heading, or the
+first cell of a lane-table row of `specs/048-hwlat-probe/plan.md`. A numeric line
+range is the last choice, and it stands only for source code and for a row of a
+record, which carries no id. A record row range is re-read where that record now
+stands before a row writes it.
+
+One cite in the base text of this file needs a handle, and this section states it.
+`D-3 Source of the limit (Q-3)` under `Decisions` cites
+`specs/046-hunter-topdown/spec.md` with a numeric line range for the move that
+raised the counters archive `SOVERSION` from 5 to 6. That range sits in text the
+base head carries, so it keeps its text, and the handle that governs it reads
+`D-8 Public surface` under `Decisions` of `specs/046-hunter-topdown/spec.md`, the
+decision that names the accessor `D-16` and that `SOVERSION` rise.
+
+### The base this work reads
+
+| Line | Value at the check on 2026-11-08 |
+|---|---|
+| Base head | `a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a`, the master head that carries pull request #100 and pull request #99 |
+| Earlier closeout base | `2d4d8c57975a86db6c77536f7090aba2bdaf6417`. The `Identity and binding` table of `Acceptance closeout: measured Intel evidence (2026-11-08)` of `specs/048-hwlat-probe/spec.md` carries it as that table's `Base head` row, and `Intel acceptance closeout at the merged head (2026-11-08)` of that file calls it the measured head of the earlier pass. `specs/041-counter-probe/results/acceptance-final-intel.md` names no such base anywhere: the only shas in that record are `615c0964547e4e9768b8e2f2d79991033a0eb5bd` at `:16` and `:17`, and `87d745d6c7e62d4da80198c689ddc7078f08ff3d` at `:77` |
+| Branch | `fix/intel-acceptance-closeout`, rebased onto the base head |
+| Host | corsairone, Intel Core i9-9920X (Skylake-X), non-hybrid, one socket |
+| Tool surface | `counter_probe`, the example of this spec, built as `docs_counter_probe` (`example/CMakeLists.txt:93`) |
+| Final head | two heads, and ruling 29 of this phase's list names each. The squash after the Pass 1 writes produces the head Pass 2 runs at and every figure names. The squash after the Pass 2 writes produces the head the pull request carries. No sha stands for either at this writing, because neither squash has run. `git rev-parse HEAD` in a tree built from the head Pass 2 runs at prints it, the record prints that short sha beside every console it ran, and each record names the head the pull request carries beside it. The tip of `fix/intel-acceptance-closeout` reads as the head that branch holds at run time, and a tip an earlier squash replaced answers no row here |
+
+The text above this section asks for the run at "the measured head" in `IP-001`,
+and it prints no sha beside that phrase. Three shas stand beside that label in the
+tracked files:
+`615c0964547e4e9768b8e2f2d79991033a0eb5bd` as the `Measured head` row of
+`specs/041-counter-probe/results/acceptance-final-intel.md:17`,
+`87d745d6c7e62d4da80198c689ddc7078f08ff3d` as the rerun heading of
+`specs/041-counter-probe/results/acceptance-final-intel.md:77`, and
+`2d4d8c57975a86db6c77536f7090aba2bdaf6417` as the `Base head` row of the
+`Identity and binding` table of `Acceptance closeout: measured Intel evidence
+(2026-11-08)` of `specs/048-hwlat-probe/spec.md`. This section asks for no run at
+those three heads. Every figure it prints names the head whose run printed it, and
+every
+figure no run printed reads `no figure`.
+
+### What repeats at the final head
+
+- The example run repeats. Three consoles of `./build/example/docs_counter_probe`
+  run at the final head, in a tree built from that head, each alone on an idle host
+  with its load witness beside it, each printing its own limit line (IP-001;
+  rulings 12, 13 and 17 of the 2026-11-08 closeout list of
+  `specs/048-hwlat-probe/spec.md`). A figure from those consoles stands only where
+  its witness line reports no other compiler, test, capture or trace process and a
+  one-minute load average below 2.0, the test ruling 30 of this phase's ruling
+  list of that file sets. Otherwise that figure is void, and the lane re-takes it
+  alone.
+- The decode against probe parity reading repeats from those same consoles, with
+  the tooling and the event selection this spec already approves. The surface stays
+  `counter_probe`. `probe_window` takes no raw event word and answers no row here
+  (ruling 14 of the 2026-11-08 closeout list of `specs/048-hwlat-probe/spec.md`).
+- The watchdog rule applies once. `source/counters/linux_pmu/limit_fill.cpp:93`
+  holds that one application, on the decoded figure. The search arm at
+  `source/counters/linux_pmu/limit_fill.cpp:96-110` holds two calls,
+  `probeEventNameForDevice` at `:103` and `searchedLimit` at `:104`, and it holds
+  no watchdog deduction, because the figure a whole group answers already carries
+  the counter the watchdog holds. A second application SHALL NOT stand written as a
+  correction (IP-001).
+
+### Requirements restated for the merged base (IP-001 to IP-002)
+
+- **IP-001**: The lane SHALL repeat the counter example run and the decode against
+  probe parity reading at the final head, with the tooling and the event selection
+  this spec already approves. The record SHALL give the pmu name and the device
+  `type` that head reads, `kernel.nmi_watchdog`, `kernel.perf_event_paranoid`, the
+  published limit with the source word the code writes, the count of opens and the
+  count of reads each labeled measured or derived, and the comparison of the two
+  limits at the permissions that host answers at that head. The lane SHALL apply the
+  watchdog rule once.
+- **IP-002**: The lane SHALL keep two claims apart, and each claim SHALL name the
+  id that owns it. The first claim reads: the decoded limit and the probed limit
+  agree at the `perf_event_paranoid` value this host answers at the final head.
+  SC-003 owns that claim, and the measured parity row answers it. The second
+  claim reads: any parity a restricted historical environment asks for stands on
+  its own row. `SC-010` owns that claim, as ruling 11 of the 2026-11-08 closeout
+  list of `specs/048-hwlat-probe/spec.md` states, and the row names the two lines
+  that ask for it: the precondition in the `Audit point` list, which reads
+  `kernel.perf_event_paranoid` at 2, and the `Session 2026-11-05, round 1` answer
+  of this spec on the `pid` and `cpu` the group binds to, as ruling 16 of that
+  list asks. Neither row borrows the other figure. Where a row needs an operator
+  to change a kernel control, that row SHALL read BLOCKED, SHALL carry no figure,
+  and SHALL print the exact operator line and the exact restore line. That is the
+  one blocked-row shape ruling 42 of this phase's ruling list of
+  `specs/048-hwlat-probe/spec.md` sets, and it governs the `IP-002` sentence under
+  `Requirements - the counter-count closeout (IP-001 to IP-002)` that asks only for
+  the control and the value an operator would set. The before-value stands read at
+  the identity step of the same run, the step the `Identity` row of the `Lane
+  Table` of `specs/048-hwlat-probe/plan.md` names, and the blocked row cites that
+  step for the value the host answered before the change, which the operator reads
+  before the change. Those two lines name values, and they figure no measurement of
+  the blocked row. Two lines stand in it:
+  `sysctl -w kernel.perf_event_paranoid=2` for the restricted reading, and
+  `sysctl -w kernel.perf_event_paranoid=-1` to restore this host's value.
+  The control stands at `/proc/sys/kernel/perf_event_paranoid`. The standing
+  blocked row of the record,
+  `specs/041-counter-probe/results/acceptance-final-intel.md:146`, gives the
+  control, the action and the missing right, and it prints no command line, so a
+  dated row must add the two lines above. No elevation route stands in a lane run
+  here: `sudo -n -l` answers `sudo: a password is required` at exit 1
+  (`specs/041-counter-probe/results/acceptance-final-intel.md:18` and `:147`), and
+  `pkexec` needs an interactive admin authorization, because
+  `org.freedesktop.policykit.exec` defaults to `auth_admin` at
+  `/usr/share/polkit-1/actions/org.freedesktop.policykit.policy:66-70`. The lane
+  SHALL weaken no control. Raw event code support stays future work: the lane
+  SHALL add no raw-code path to the application and SHALL publish no raw
+  configuration word, and it reads G-31 as the boundary on new application support
+  that leaves existing hardware test tools standing.
+
+### Rows the final head must answer
+
+No console has run at the final head yet, so every figure below reads no figure.
+Each row names its command and the run that must answer it.
+
+| Row | Command | Figure | Run that must answer it |
+|---|---|---|---|
+| Limit line, one per console | `./build/example/docs_counter_probe` | no figure | the three consoles of IP-001 at the final head |
+| Parity of the two limits at the permissions of that head | the same command | no figure | the same three consoles |
+| PMU name and the device `type` line (IP-001) | `cat /sys/devices/cpu/caps/pmu_name`, `cat /sys/bus/event_source/devices/cpu/type` | no figure | the reading line of the same pass |
+| Opens and reads as two numbers, each labeled measured or derived (IP-001, ruling 13 of the 2026-11-08 closeout list of `specs/048-hwlat-probe/spec.md`) | the same command | no figure | the same three consoles, beside the code lines that ruling names |
+| `perf_event_paranoid` at that head | `cat /proc/sys/kernel/perf_event_paranoid` | no figure | the reading line of the same pass |
+| `nmi_watchdog` at that head | `cat /proc/sys/kernel/nmi_watchdog` | no figure | the reading line of the same pass |
+| Parity with the control at the historical value `2` (IP-002; `SC-010`) | BLOCKED row | no figure | no run in scope answers it; the row prints `sysctl -w kernel.perf_event_paranoid=2` and the restore line `sysctl -w kernel.perf_event_paranoid=-1`, and cites the identity reading of the same run for the value this host answered before the change, the shape ruling 42 of this phase's ruling list of `specs/048-hwlat-probe/spec.md` sets |
+
+The standing record answers `-1` for `perf_event_paranoid` and `0` for
+`nmi_watchdog` at
+`specs/041-counter-probe/results/acceptance-final-intel.md:124` and `:125`. Those
+two lines stand inside `Acceptance closeout corrections (2026-11-08)`, which opens
+at `:100` of that record and names no head. Those two readings therefore carry no
+head label, and they answer no row above. Each row above reads `no figure` until
+the run named beside it answers it. The shas that record does print read
+`615c0964` at `:16` and `:17`, and `87d745d6` at `:77`, and a reading taken at
+either keeps that sha as its label.
+
+### The interpreter the contract target runs
+
+No manifest declares an interpreter for this host. Two declarations stand in the
+tree, and both serve the hosted lane. `.github/workflows/ci.yml:1265-1267`
+installs `python3-yaml` for the `dbc-gate` job, and
+`tools/dbc/dbc_gate_common.py:63-70` answers exit 2 with
+`dbc gates require PyYAML (install python3-yaml)` where an interpreter carries no
+yaml module. The `dbc-gate` target runs its two gate scripts with the interpreter
+the tree configured, and `cmake/dbc-gate.cmake:44` and `:49` name that
+interpreter. The record SHALL print the configured interpreter beside the yaml
+version that interpreter answers, and SHALL give the `dbc-gate` target its exit.
+Where the configured interpreter answers no yaml version, the row SHALL read
+BLOCKED with that interpreter named.
+
+### Boundaries this base keeps
+
+The Arm row, the Intel hybrid row and the Zen 4 row stay pending, and this base
+moves none of them. This host is a non-hybrid Intel part, and no Arm host and no
+Zen 4 host stand in reach (IA41-002, IP-002). No completed row this host measured
+contradicts them. The example of this spec answers its own limit line, and the
+application gains no raw event code in this phase. SC-010 owns the pending class,
+and it names a fourth row: the Intel non-hybrid check-mode equality row. The three consoles and
+the parity reading IP-001 asks for at the final head answer that row, and no
+reading stands closed here today.
