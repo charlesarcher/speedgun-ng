@@ -1020,6 +1020,29 @@ auto installTestGraph(std::optional<Graph>) -> void;
 [[nodiscard]] auto bindRefusalOf(const ExecutionContext& context) noexcept
     -> std::optional<std::uint32_t>;
 
+/**
+ * @brief specs/045 BFW-002, D-17: the observer the barrier wait calls at
+ * the head of the arm a waiting participant enters.
+ *
+ * The barrier calls the installed observer once per waiting arrival, with
+ * the mode of the arm its own policy selects, and calls it for nothing
+ * else. The arrival that fills the round stands answered by the branch
+ * above the arms, so it reaches no call (FR-028).
+ *
+ * \pre none
+ * \post the mode the barrier hands names the arm the participant's policy
+ *       selects (FR-014)
+ */
+using WaitArmObserver = void (*)(WaitMode) noexcept;
+
+/// @brief specs/045 FR-028, D-18: install (or clear, with an empty
+/// optional) the observer the barrier wait calls at the head of each arm,
+/// the way `installTestLayout` stands in for the layout read. The install
+/// stands before the participants of a round start, so the start of each
+/// thread orders the read that arrival makes.
+auto installTestWaitArmObserver(std::optional<WaitArmObserver> observer)
+    -> void;
+
 /// @brief The preset one text names: the five names match in full and
 /// nothing else (FR-007, FR-016, FR-017).
 [[nodiscard]] auto parsePreset(std::string_view) -> std::optional<Preset>;

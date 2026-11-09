@@ -38,24 +38,43 @@
 // arm needs. The observer also holds a released participant on a permit flag,
 // so the participant stays alive until its count has been read a last time.
 //
+// The wait-mode claim needs one more edge, and specs/045 FR-028 stands it.
+// A flat voluntary-switch count over a round that never entered a wait arm
+// proves nothing about the mode, so the barrier carries an internal
+// observation seam: `sg::detail::installTestWaitArmObserver` installs a
+// `noexcept` observer the wait calls once per waiting arrival, at the head
+// of the arm its policy names, and an empty optional clears it. This suite
+// installs it before its participants start and clears it once they join, so
+// the thread start and the join order every read the barrier makes. The
+// record the observer publishes names the arm, and the observer thread's own
+// arrival waits on that record, or on the departure of a participant that
+// entered no arm. A build that hands a mode another mode's arm, or removes an
+// arm, fails the scenario of that mode by name. The seam reaches no public
+// header, and the production path keeps one load and one branch per waiting
+// arrival and nothing per spin iteration (FR-028, FR-029, D-17, D-18).
+//
 // Scenario map:
 //   round               one round releases every participant (FR-014): four
 //                       participants enter and the last arrival - the main
 //                       thread, watched for three entries before it arrives -
 //                       releases them; each records that no participant
 //                       returned before every one had arrived, and that the
-//                       full arrival count stood at its own wake
+//                       full arrival count stood at its own wake; the three
+//                       waiting arrivals publish one record each, and the
+//                       arrival that fills the round publishes none (FR-028)
 //   spinWait            a participant running on a SPIN context waits in its
 //                       own mode and never sleeps inside the barrier: its
-//                       voluntary-switch counter stands flat across the round
+//                       voluntary-switch counter stands flat across the round,
+//                       and its record names the SPIN arm (FR-028)
 //                       (D-03, Q-3, the mechanism SC-08 keeps out of a
 //                       measured window; reached from inside running work,
 //                       FR-015)
 //   yieldWait           a participant running on a YIELD context waits in its
 //                       own mode: the policy it reads names YIELD, and its
 //                       voluntary-switch counter stands flat across the round,
-//                       so the wait gives up the cpu without blocking (D-03,
-//                       Q-3, FR-014; the YIELD arm T013 left for T039)
+//                       so the wait gives up the cpu without blocking, and its
+//                       record names the YIELD arm (FR-028) (D-03, Q-3,
+//                       FR-014; the YIELD arm T013 left for T039)
 //   insideOutside       the barrier is legal from inside running work and
 //                       outside it (FR-015): an item on a context and a plain
 //                       thread complete one round, and `currentContext()`
@@ -88,12 +107,14 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <utility>
 
 #include <fcntl.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "detail/internal.hpp"
 #include "speedgun-ng/execution_context.hpp"
 
 // A named namespace stands in for the anonymous one, for the reason the
@@ -301,6 +322,65 @@ struct Observer
   std::atomic<long long> waitAfter {0};
 };
 
+// The record the wait-arm seam publishes for a waiting arrival: the arm
+// that arrival entered. One release store carries the arm word, so a reader
+// that acquires the word acquires the arm with it, and the count answers how
+// many arrivals of this process published a record (FR-028). The word stands
+// zero for no record, and the word of a mode stands one past its underlying
+// value, so `BLOCK` never reads as no record.
+constexpr int kNoRecord = 0;
+
+auto armWordOf(const sg::WaitMode arm) noexcept -> int
+{
+  return static_cast<int>(std::to_underlying(arm)) + 1;
+}
+
+std::atomic<int> entryWord {kNoRecord};
+// The count of records, read only once the participants of the scenario
+// stand joined, so the join carries it and it needs no ordering of its own.
+std::atomic<int> entryRecords {0};
+
+// The observer the seam calls at the head of the arm a participant enters.
+// It stands installed before the participants of a round start and cleared
+// once they join, so the start of each thread and its join order every read
+// the barrier makes against this write (FR-028, D-18).
+auto noteEnteredArm(const sg::WaitMode arm) noexcept -> void
+{
+  entryRecords.fetch_add(1, std::memory_order_relaxed);
+  entryWord.store(armWordOf(arm), std::memory_order_release);
+}
+
+// Stands the observer and opens the record of one scenario; the clear
+// restores the production path, which reads the slot and calls nothing.
+auto installEntryRecord() -> void
+{
+  entryWord.store(kNoRecord, std::memory_order_relaxed);
+  entryRecords.store(0, std::memory_order_relaxed);
+  sg::detail::installTestWaitArmObserver(&noteEnteredArm);
+}
+
+auto clearEntryRecord() -> void
+{
+  sg::detail::installTestWaitArmObserver(
+      std::optional<sg::detail::WaitArmObserver> {});
+}
+
+// The gate FR-029 states: this thread's own arrival waits for the record of
+// the arm entered, or for the departure of a participant that entered no
+// arm. The second arm of the gate is what a build with one arm removed
+// answers with, so the scenario names the missing record in the same run
+// that trips the barrier's own postcondition (FR-028, FR-029).
+auto watchEntryOrDeparture(const Observer& observer) -> int
+{
+  int word = entryWord.load(std::memory_order_acquire);
+  while (word == kNoRecord
+         && !observer.departed.load(std::memory_order_acquire))
+  {
+    word = entryWord.load(std::memory_order_acquire);
+  }
+  return word;
+}
+
 struct Bracket
 {
   long long before {0};
@@ -323,6 +403,12 @@ auto participantDrive(Observer& observer,
   observer.departed.store(true, std::memory_order_release);
   watch(observer.permit);
 }
+
+// The fixed count of status reads the park watch of the BLOCK scenario
+// takes before it answers that no park stood seen. The read that finds the
+// parked task ends the watch at once, so the bound stands reached only by a
+// build whose blocking mode never blocks (FR-014, FR-029).
+constexpr int kParkWatchReads = 200'000;
 
 // The steps of the gap the observer holds between the participant's entry and
 // its own arrival, and the sum that count must reach: 0 + 1 + ... + N - 1.
@@ -348,12 +434,23 @@ auto burnEntryGap() -> void
 // blocking wait: the BLOCK mark. No release ever precedes the watch.
 auto releaseAndBracket(Observer& observer,
                        sg::ContextBarrier& barrier,
-                       const bool expectPark) -> Bracket
+                       const bool expectPark,
+                       const sg::WaitMode expectedArm) -> Bracket
 {
   watch(observer.ready);
   const int tid = observer.tid.load(std::memory_order_acquire);
   observer.go.store(true, std::memory_order_release);
-  watch(observer.entered);
+  // The gate stands on the record the seam publishes from inside the arm,
+  // which is the edge the wait-mode claim needs: the participant entered
+  // the wait before this thread arrived, so this arrival is the release
+  // that ends a wait already begun (FR-028, FR-014, specs/020 FR-049).
+  const int word = watchEntryOrDeparture(observer);
+  check(word != kNoRecord,
+        "the participant published a record of the wait arm it entered "
+        "(FR-028)");
+  check(word == armWordOf(expectedArm),
+        "the record names the wait arm the participant's own policy names "
+        "(FR-028, FR-014)");
   Bracket bracket;
   // The observer holds the round open with a fixed count of steps, the shape
   // `scenarioNoClockNoTimeout` uses, so the participant's arrival always
@@ -361,7 +458,15 @@ auto releaseAndBracket(Observer& observer,
   // policy names (FR-004). No clock and no sleep stands in the gap.
   burnEntryGap();
   if (expectPark) {
-    while (!observer.departed.load(std::memory_order_acquire)) {
+    // The park watch stands bounded by a fixed count of status reads, the
+    // same clock-free shape as the entry gap above: a build whose blocking
+    // mode never parks answers with the named failure below instead of
+    // holding the scenario open. A participant that parks ends the watch at
+    // the first read that shows it.
+    for (int read = 0; read < kParkWatchReads; ++read) {
+      if (observer.departed.load(std::memory_order_acquire)) {
+        break;
+      }
       if (stateCharOf(tid) == 'S') {
         bracket.parkedBeforeRelease = true;
         break;
@@ -396,6 +501,7 @@ constexpr int kRoundParticipants = 4;
 
 auto scenarioRound() -> int
 {
+  installEntryRecord();
   sg::ContextBarrier barrier {kRoundParticipants};
   std::atomic<int> enteredCount {0};
   std::atomic<int> departedCount {0};
@@ -447,6 +553,17 @@ auto scenarioRound() -> int
   check(!sg::currentContext().has_value(),
         "a thread the barrier waits on outside any context reports no context "
         "(FR-002, FR-014)");
+  // FR-029: this round is the no-wait case. Every worker waits in BLOCK, the
+  // mode of a thread that runs on no context, and the arrival that fills the
+  // round waits on nothing, so it publishes no record of its own.
+  check(entryWord.load(std::memory_order_acquire)
+            == armWordOf(sg::WaitMode::BLOCK),
+        "the record of each waiting arrival names the BLOCK arm (FR-028)");
+  clearEntryRecord();
+  check(entryRecords.load(std::memory_order_relaxed)
+            == kRoundParticipants - 1,
+        "the arrivals that waited published one record each, and the arrival "
+        "that filled the round published none (FR-028, FR-014)");
   std::puts("harness_context_barrier_test round: ok");
   return 0;
 }
@@ -468,6 +585,7 @@ struct ArriveItem
 // voluntary-switch count the kernel keeps - stands flat across the round.
 auto scenarioSpinWait() -> int
 {
+  installEntryRecord();
   const sg::ContextPolicy policy {.waitMode = sg::WaitMode::SPIN,
                                   .placement = sg::PlacementSlot::noPin()};
   sg::ExecutionContext context {policy};
@@ -477,7 +595,8 @@ auto scenarioSpinWait() -> int
   sg::WorkNode<ArriveItem> node {item};
   sg::dispatch(context, node);
 
-  const Bracket bracket = releaseAndBracket(observer, barrier, false);
+  const Bracket bracket =
+      releaseAndBracket(observer, barrier, false, sg::WaitMode::SPIN);
   check(bracket.before >= 0 && bracket.after >= 0,
         "the kernel counters were readable around the round");
   check(bracket.after == bracket.before,
@@ -488,8 +607,12 @@ auto scenarioSpinWait() -> int
         "the barrier is legal from inside running work, where currentContext "
         "names a context (FR-002, FR-015)");
   closeContext(context);
+  clearEntryRecord();
   check(node.state() == sg::WorkNodeState::DONE,
         "the item that rode the round completed (FR-009, FR-015)");
+  check(entryRecords.load(std::memory_order_relaxed) == 1,
+        "the one waiting arrival of the round published exactly one record "
+        "(FR-028)");
   std::puts("harness_context_barrier_test spinWait: ok");
   return 0;
 }
@@ -505,6 +628,7 @@ auto scenarioSpinWait() -> int
 // idle cpu a yield may keep the cpu and move nothing.
 auto scenarioYieldWait() -> int
 {
+  installEntryRecord();
   const sg::ContextPolicy policy {.waitMode = sg::WaitMode::YIELD,
                                   .placement = sg::PlacementSlot::noPin()};
   sg::ExecutionContext context {policy};
@@ -517,7 +641,8 @@ auto scenarioYieldWait() -> int
   sg::WorkNode<ArriveItem> node {item};
   sg::dispatch(context, node);
 
-  const Bracket bracket = releaseAndBracket(observer, barrier, false);
+  const Bracket bracket =
+      releaseAndBracket(observer, barrier, false, sg::WaitMode::YIELD);
   check(bracket.before >= 0 && bracket.after >= 0,
         "the kernel counters were readable around the round");
   check(bracket.after == bracket.before,
@@ -528,8 +653,12 @@ auto scenarioYieldWait() -> int
         "the YIELD participant waited from inside running work, where the "
         "policy of its own context names the mode (FR-002, FR-014, FR-015)");
   closeContext(context);
+  clearEntryRecord();
   check(node.state() == sg::WorkNodeState::DONE,
         "the item that rode the round completed (FR-009, FR-015)");
+  check(entryRecords.load(std::memory_order_relaxed) == 1,
+        "the one waiting arrival of the round published exactly one record "
+        "(FR-028)");
   std::puts("harness_context_barrier_test yieldWait: ok");
   return 0;
 }
@@ -557,6 +686,7 @@ auto scenarioInsideOutside() -> int
 {
   // Part one: the item arrives from inside running work; the plain thread
   // watches the item's arrival and answers it as the round's last arrival.
+  installEntryRecord();
   sg::ContextBarrier legalityBarrier {2};
   std::atomic<bool> insideArrived {false};
   std::atomic<bool> insideSawContext {false};
@@ -584,13 +714,15 @@ auto scenarioInsideOutside() -> int
 
   // Part two: a participant that runs on no context waits in BLOCK. The
   // observer sees its task state parked before the release, and its mode's
-  // own counter moves across the round.
+  // own counter moves across the round. The record opens again here, once
+  // part one's threads stand joined.
+  installEntryRecord();
   sg::ContextBarrier blockBarrier {2};
   Observer outsideParticipant;
   std::thread blocker {[&outsideParticipant, &blockBarrier]
                        { participantDrive(outsideParticipant, blockBarrier); }};
-  const Bracket bracket =
-      releaseAndBracket(outsideParticipant, blockBarrier, true);
+  const Bracket bracket = releaseAndBracket(
+      outsideParticipant, blockBarrier, true, sg::WaitMode::BLOCK);
   blocker.join();
 
   check(bracket.parkedBeforeRelease,
@@ -601,6 +733,10 @@ auto scenarioInsideOutside() -> int
         "round, the counter of its own wait mode (FR-014)");
   check(!outsideParticipant.sawContext.load(std::memory_order_relaxed),
         "the BLOCK participant ran on no context (FR-014)");
+  clearEntryRecord();
+  check(entryRecords.load(std::memory_order_relaxed) == 1,
+        "the one waiting arrival of the round published exactly one record "
+        "(FR-028)");
   std::puts("harness_context_barrier_test insideOutside: ok");
   return 0;
 }

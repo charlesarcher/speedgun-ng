@@ -1699,23 +1699,38 @@ auto addSpectrumTo(const ProbeCpuState& state,
     if (stepNs == 0) {
       return;
     }
-    resampled = resampleUnitTimes(kept, stepNs, kSpectrumCap);
-    samples = resampled;
   } else {
     stepNs = series.quantumNs;
     if (stepNs == 0) {
       return;
     }
-    counts.reserve(kept.size());
-    for (const auto count : kept) {
-      counts.push_back(static_cast<double>(count));
+  }
+  // specs/045-merge-fixes BFW-005, D-20: the transform of the kept prefix
+  // runs once per probe cpu. The report record and the console fold each fold
+  // the same state, and the transform over a full ring is the standing cost
+  // of the sample (specs/043 R-6), so the answer of the first fold stands
+  // kept in the state that owns the series and the second fold reads it. The
+  // step stands part of the answer, because the resample below reads it: a
+  // fold at another step reads another series and stands recomputed.
+  if (!state.spectrumAnswer.has_value()
+      || state.spectrumAnswer->stepNs != stepNs)
+  {
+    if (state.method == JitterMethod::FWQ) {
+      resampled = resampleUnitTimes(kept, stepNs, kSpectrumCap);
+      samples = resampled;
+    } else {
+      counts.reserve(kept.size());
+      for (const auto count : kept) {
+        counts.push_back(static_cast<double>(count));
+      }
+      samples = counts;
     }
-    samples = counts;
+    if (samples.empty()) {
+      return;
+    }
+    state.spectrumAnswer = dftPeriods(samples, stepNs);
   }
-  if (samples.empty()) {
-    return;
-  }
-  const auto answer = dftPeriods(samples, stepNs);
+  const SpectrumResult& answer = *state.spectrumAnswer;
   series.spectrumPoints = answer.points;
   if (state.method == JitterMethod::FWQ) {
     series.resampleStepNs = answer.stepNs;

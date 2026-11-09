@@ -349,3 +349,200 @@ moves.
   `hunt_topdown.cpp:155` closure. COV-003 drives every arm of every new
   helper from a direct test, so the shortfall moves only through the rows
   the phase closes.
+
+
+## Phase 14 plan: Prove the barrier wait entry and repair the FWQ sample (2026-11-08)
+
+**Base**: `origin/master` at `2d4d8c57975a86db6c77536f7090aba2bdaf6417`.
+**Branch**: `fix/barrier-entry-fwq`. **Spec**: Phase 14 of [spec.md](./spec.md).
+**Host of record**: thrawn, AMD Zen 5 Threadripper 9960X, 24 cores, 48
+threads, all 48 cpus in the affinity mask, kernel `7.3.0-5-cachyos`,
+GCC and gcov `16.2.1 20260810`, clang `23.1.3`, lcov and genhtml
+`2.6-0`, cmake and ctest `4.4.4`.
+
+### Summary of the phase
+
+Two rows stand open.
+
+The barrier fixture proves a flat voluntary-switch count across a SPIN
+or YIELD round. The only edge it holds before the observer arrives is
+`observer.entered`, stored before `barrier.arriveAndWait()`
+(`test/source/harness_context_barrier_test.cpp:participantDrive`). A run
+exists where the observer, which runs no context, takes the BLOCK arm
+first, the participant arrives second, fills the round, and returns
+through the release branch without entering any wait arm
+(`source/harness/execution_context.cpp:859-871`). Every assertion of
+`spinWait` and `yieldWait` passes on that run. The record of the last
+lane measured the vacuity: 12 of 20 rounds took no wait arm at all
+before the bracket moved into the participant, and 20 of 20 after
+(`results/coverage-data-repair.md:621-623`). The rate rose; the proof
+did not arrive.
+
+The FWQ sample spends its wall in the spectrum transform. The example
+selects three probe cpus, the series ring holds `kDefaultGapCount =
+65536` samples (`include/speedgun-ng/benchmark.hpp:2464`), and the
+transform cap stands at the same 65536
+(`source/harness/detail/spectrum.hpp:26`), so a window that fills the
+ring runs `dftPeriods` at the cap: `N x N/2` is 2.15e9 inner steps
+(`source/harness/spectrum.cpp:147-167`). The pair
+`seriesStatsOf` plus `addSpectrumTo` runs twice per probe cpu, once for
+the report record (`source/harness/cli.cpp:582-583`) and once for the
+console fold (`source/harness/report.cpp:908-909`), so the example pays
+six cap transforms. Measured on this host: 20.5 s standalone in the
+release tree, three runs from 20.55 s to 21.58 s, while the single
+`ctest` reading of the clarification stands at 19.18 s; 24.29 s to
+25.52 s inside a full `-j 24` suite; 50.31 s standalone in the
+instrumented tree, and 55.92 s for that entry inside the full
+instrumented suite against the 58.59 s the same tree's cost entry
+records. The
+ring sweep separates the mechanism from the alternatives: with
+everything else fixed, `gaps=1024` answers 155 ms, `gaps=8192` answers
+454 ms, `gaps=32768` answers 4.89 s and the default answers 17.81 s.
+
+### Design
+
+The barrier half, in order:
+
+1. `ContextBarrier::arriveAndWait` counts the arrival, and the branch
+   at `:859` answers whether this arrival fills the round. A call that
+   reaches the mode chain at `:886` stands proved to be a non-last
+   arrival, so the barrier state requires a wait.
+2. The seam is one installed observer, the shape D-13 and the
+   `installTest*` family carry: `sg::detail::installTestWaitArmObserver`
+   declared in `source/harness/detail/internal.hpp`, defined in
+   `source/harness/execution_context.cpp` over a function-local static
+   slot beside the barrier, the slot shape `placementSlot()` gives at
+   `:128-132`. The observer is a `noexcept` function pointer over
+   `sg::WaitMode`, and an empty optional clears it.
+3. One call stands at the head of each arm, inside the arm's block, and
+   names that arm: `SPIN` in the pause arm, `YIELD` in the yield arm,
+   `BLOCK` in the standard-wait arm. The argument names the arm the path
+   enters, and the mode chain decides which arm runs, so a chain that
+   hands a mode the wrong arm answers with the wrong word.
+4. The test's callback stores the word into a test atomic with release
+   order. The observer's `watch` on that atomic is the acquire load. The
+   observer arrives only after that load, which puts the participant's
+   `fetch_add` ahead of the observer's in the modification order of
+   `m_arrivalCount`: the participant is a waiter, and the observer is
+   the filling arrival. That is the happens-before edge the fixture
+   lacks today.
+5. The fixture gates on `armEntered || departed`. The second half turns
+   a missing record into a named failure, so a removed arm answers with
+   a line, and the barrier's own postcondition at `:897-899` ends the
+   child by `SIGABRT` in the same run.
+6. Cost: one static load and one branch per waiting arrival, nothing
+   per spin iteration. `:873-874` fixes the cost model of the arm, and
+   `specs/020-execution-contexts-core/plan.md:97` names the barrier a
+   P0 path, so a per-iteration hook would be a regression and a
+   per-arrival hook stands below the existing floor.
+7. Coverage: three call sites, one per arm, each reached by one
+   scenario; the installed-or-clear branch reached both ways by the
+   fixture. Net new cold rows: zero, against a ledger at 20 of an
+   allowance of 21.
+8. No public header, no public layout, no exported symbol and no
+   SOVERSION moves. `internal.hpp` stands uninstalled and the harness
+   target is visibility-hidden (`CMakeLists.txt:130`), the reading the
+   last lane took for the two entry functions it added.
+
+The FWQ half, in order:
+
+1. The transform runs once per probe cpu, not twice. `addSpectrumTo`
+   (`source/harness/jitter_probe.cpp`) keeps the answer it computed in
+   the probe state that owns the series, and the second fold reads that
+   answer. The two call sites in `source/harness/cli.cpp` and
+   `source/harness/report.cpp` stand untouched, so the console block,
+   the report record and every figure keep their bytes.
+2. The state's slot is the record of the transform of that state's
+   series. The series stands written only inside the window, ahead of
+   the latch line, and both folds run after the probe stops, so the
+   answer cannot go stale while a fold reads it. Coverage: the
+   reuse-or-compute branch of `addSpectrumTo` stands taken both ways by
+   the SC-028 case, so this half adds no cold row either, and both lanes
+   share one coverage run against a one-row headroom.
+3. The unit proof drives a scripted window, folds the state twice, and
+   reads the slot between the two folds. The proof names the second
+   fold's reading of the stored answer, so a build that recomputes
+   fails the scenario. The slot is a `mutable` member of
+   `ProbeCpuState`, because both fold sites hold a `const` pointer to
+   that state (`source/harness/cli.cpp:583`,
+   `source/harness/report.cpp:909`), so those two files stay out of the
+   change.
+4. The example's own bound, `gapCount` at 4096, measures 17.6x on the
+   instrumented binary (50.31 s to 2.86 s) and 92x in release (19.5 s
+   to 212 ms). It needs one line in `example/docs/fwq_ftq.cpp` and the
+   same line in the block that quotes that region at `README.md:766`,
+   because `tools/docs/example_drift.py` compares the block and the
+   region line for line. `README.md` stands outside this phase's scope,
+   so the bound stands reported as O-7 and the phase takes no example
+   edit.
+5. The failure itself stands unreproduced on this host: three full
+   release suites, one full instrumented suite, 20 pinned runs of the
+   entry at 13.36 s to 18.50 s (`~/scratch/bfw/pinned-fwq-run-1.log` to
+   `pinned-fwq-run-20.log`, section 7 of
+   `~/scratch/bfw/fwq-research.md`), and 8, 24 and 48-way process
+   contention all pass. The row stays open under SC-022 with the next
+   experiment named.
+
+Work added during implementation, recorded so the plan and the code answer
+the same shape: the blocking arm of the chain now re-checks its exit
+condition and waits again inside the loop. The two spinning arms already
+hold their exit condition in their loop, and the blocking arm waited once
+and trusted the wake. A contract check of the barrier caught runs in which
+that wake answered nothing, three full suite runs and one protocol of 480
+copies at 48 in flight beside a running suite. D-22 and BFW-008 carry that
+row, and section 5 of the record carries the counts.
+
+### Test plan
+
+| Case | File | What it asserts |
+| --- | --- | --- |
+| `spinWait`, `yieldWait`, `insideOutside` entry | `test/source/harness_context_barrier_test.cpp` | one record naming the arm the policy names, published before the observer arrives (SC-019) |
+| `round` filling arrival | same file | three worker records, and no record for the arrival that fills the round (SC-019) |
+| the four substitutions | the same scenarios, plus the record of the substitution runs | each fails its scenario in all 240 runs in the release tree (SC-020) |
+| one transform per probe cpu | `test/source/harness_fwq_ftq_test.cpp` | the second fold reads the stored answer over a scripted window (SC-028) |
+| the real example | `report_shape_fwq_ftq_sample` in each lane | the entry exits 0 and the block matches by shape (SC-021) |
+| the seam stays internal | the SC-027 symbol reading | no new `sg::detail` name in `.dynsym`, and the standing count of 250 exports (SC-027) |
+
+The substitution runs stand recorded with the patch, the command, the
+scenario line and the count: the four rows FR-029 names, 240 runs each
+in the release tree, and 240 clean runs of the unmodified head in the
+release tree and in the thread-sanitizer tree.
+
+### Constitution Check
+
+- I: the seam is P2 (an internal observation with a written
+  justification at the site); the arms keep their P0 shape.
+- II: the seam carries no contract of its own, the D-13 condition, so a
+  test can install it without standing a violation.
+- VI: each new arm and branch stands covered by a named scenario, and
+  the bug fix ships with the reproducing case.
+- VII: one load and one branch per waiting arrival; the cost model of
+  the arm at `:873-874` stands unchanged.
+- VIII: no gate, filter, allowance, marker or timeout moves.
+- X.2: the seam serves the one proof this phase states; no general
+  event bus, no per-iteration hook, no new public surface.
+- X.3: the touched files stand inside the phase's scope list; the
+  example and `README.md` stand untouched and reported.
+- XI: the record, the comments and the commit follow ASD-STE100.
+
+### Risks and the open items
+
+- The entry gate turns a scheduling-dependent pass into a hard
+  dependency on the record. A build whose arm never runs hangs nowhere:
+  the `|| departed` half opens the gate and the scenario names the
+  missing record.
+- The thread-sanitizer tree slows every instrumented access. The record
+  rides one release store and one acquire load, and the stress matrix
+  runs 240 runs at 8 in flight in that tree.
+- The FWQ row can end unresolved. The cost mechanism stands proved with
+  the ring sweep; the failure needs a slower lane than this host
+  provides, and the corsairone reading of 110.21 s stands as that
+  host's limit.
+- O-6: an arm-body swap needs a disassembly gate, and that needs a new
+  entry in `test/CMakeLists.txt`.
+- O-7: the example's ring bound needs one line in `README.md`.
+- O-8: the probe's time base reads raw TSC ticks while its fields are
+  named ns (`source/counters/clock_provider.cpp:286`), so every probe
+  duration and threshold on this host runs 4.19x shorter than it names.
+  A fix there lengthens the example, so it stands apart from this
+  phase.

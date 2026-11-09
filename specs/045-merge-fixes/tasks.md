@@ -825,3 +825,255 @@ A row closes only with its verify reading in
 the exit, the host, the tool versions and the figure. A row that stops
 for an owner ruling stays open with the reason, and the pull request
 body carries it.
+
+
+## Phase 14: Prove the barrier wait entry and repair the FWQ sample (owner order, 2026-11-08)
+
+**Base**: `origin/master` at `2d4d8c57975a86db6c77536f7090aba2bdaf6417`
+(version 0.34.0, schema 1.16, harness SOVERSION 22, archive SOVERSION 8,
+markers 84, README 1002 lines against the cap of 1004). The branch is
+`fix/barrier-entry-fwq`. One squashed commit, one pull request, no
+merge. No version, schema or SOVERSION change, no public header change,
+no new marker, filter, allowance, retry or timeout ceiling.
+
+Two lanes run in parallel, with one exception: the wall-time rows of
+BFW-004 and BFW-005 stand taken while no other lane runs, and each row
+records the load average beside it (Principle VII). The barrier lane owns
+`test/source/harness_context_barrier_test.cpp`,
+`source/harness/execution_context.cpp` and
+`source/harness/detail/internal.hpp`. The FWQ lane owns
+`source/harness/jitter_probe.cpp`,
+`source/harness/detail/jitter_probe.hpp` and
+`test/source/harness_fwq_ftq_test.cpp`. No file stands in both sets.
+
+- [x] BFW-001 Reproduce the barrier fixture's behavior and separate the
+      four things it holds together (FR-027, SC-025).
+  - a. Read the affinity mask and the online cpu list, and record both.
+    Verify: the record gives 48 online cpus and the mask the shell holds.
+  - b. Run the entry as it stands: 20 direct runs in the release tree and
+    20 in the thread-sanitizer tree, each scenario named.
+    Verify: the record gives the pass count per tree and every failure
+    line.
+  - c. Write the separation: the handshake (`observer.ready`,
+      `watch(observer.go)`), the entry flag (`observer.entered`), the
+      status-file read (`readStatus`, `stateCharOf`,
+      `selfVoluntarySwitches`) and the barrier's own behavior
+      (`ContextBarrier::arriveAndWait`), each named by symbol.
+      Verify: the record carries one row per thing with its symbol.
+  - d. State the edges a wait-mode claim needs in release and acquire
+    terms, and mark each edge held or lacking at the base.
+    Verify: the record names the `m_generation` release at
+    `source/harness/execution_context.cpp:865` and the three acquire
+    reads at `:889`, `:893` and `:895`, and names `observer.entered` as
+    the only pre-arrival edge, stored before the call.
+  - e. State the run the fixture cannot rule out, in which no wait arm
+    stands entered and every assertion passes.
+    Verify: the record cites the measured 12-of-20 reading of
+    `results/coverage-data-repair.md:621-623` beside the run, and names
+    no fixed loop, wall duration, log timing or repeat count as support
+    for any ordering claim.
+
+- [x] BFW-002 Stand the wait-arm observation seam (FR-028, SC-019,
+      SC-027; BFW-001 first).
+  - a. Declare in `source/harness/detail/internal.hpp`, in `sg::detail`:
+    a `noexcept` function-pointer observer over `sg::WaitMode`, an
+    `installTestWaitArmObserver` taking `std::optional` of it, and the
+    reader of the slot. Give each a contract block in the file's style,
+    and carry no `SG_*` contract in the note helper itself (D-13).
+    Verify: `git diff --name-only` names no file under `include/`, and
+    `git grep -n 'installTestWaitArmObserver'` names the header, the
+    definition and the test.
+  - b. Define the slot in `source/harness/execution_context.cpp` beside
+    `ContextBarrier::arriveAndWait` as a function-local static, the
+    shape `placementSlot()` gives at `:128-132`, and install through an
+    empty-optional clear.
+    Verify: the definition stands in the same translation unit as the
+    barrier, and the install writes the slot once.
+  - c. Call the note once at the head of each of the three arms, inside
+    the arm's block, naming that arm: `SPIN`, `YIELD`, `BLOCK`.
+    Verify: `git diff` shows three call sites, none inside a loop body,
+    and the arrival and release paths at `:851-871` stand unchanged.
+  - d. Justify the cost at the site: one load and one branch per waiting
+    arrival, nothing per spin iteration.
+    Verify: the comment names the cost model of `:873-874`, and
+    `test/time_source_gate.sh .` exits 0.
+
+- [x] BFW-003 Gate the observer's arrival and add the regression cases
+      (FR-029, SC-019, SC-020; BFW-002 first).
+  - a. In `spinWait`, `yieldWait` and the BLOCK half of `insideOutside`:
+    install the observer before the participant exists, publish the arm
+    into a test atomic with release order, and gate the observer's own
+    arrival on `armEntered || departed`.
+    Verify: each scenario prints its arm word, and the arm word equals
+    the policy's `waitMode` in every run.
+  - b. Assert exactly one record per waiting participant, and clear the
+    observer at the end of the scenario.
+    Verify: the count stands asserted, and the clear runs through the
+    empty optional.
+  - c. Keep `round` as the no-wait home: the main thread fills the
+    round, waits on nothing and publishes no record, and the three
+    worker records stand asserted beside it.
+    Verify: the scenario counts the records of the round and finds three.
+  - d. State at the gate that it opens on the record or on the
+    participant's departure, so a removed arm answers with a named
+    failure in the same run that trips the barrier's own postcondition.
+    Verify: the removed-arm substitution ends its child by `SIGABRT` and
+    the scenario line names the missing record.
+  - e. Run the four substitutions of FR-029 in a scratch tree, 240 runs
+    each in the release tree: a SPIN participant given the BLOCK wait, a
+    YIELD participant given the BLOCK wait, a participant that runs on no
+    context given a spinning arm, and one arm removed.
+    Verify: each substitution fails its scenario in all 240 runs, the
+    record carries the patch, the command and the failure line, and the
+    unmodified head passes 240 of 240 in the release tree and in the
+    thread-sanitizer tree.
+
+- [x] BFW-004 Diagnose the FWQ sample in three forms (FR-030, SC-022).
+  - a. Record the time budget of the example: probe cpu set, calibration
+    figures, pre-check window, ring capacity, transform points and the
+    count of transform calls.
+    Verify: the record gives the measured wall per part and cites
+    `source/harness/jitter_probe.cpp`, `source/harness/spectrum.cpp` and
+    `source/harness/detail/spectrum.hpp` by symbol.
+  - b. Run the entry in the full parallel suite form, the pinned form and
+    the instrumented form, and hold the child's stderr, the child's
+    exit, the grant that ended the run, the cpu set, the calibration
+    figures and the concurrency context of each.
+    Verify: each form carries its wall time and its exit, and the record
+    names which grant stands nearer.
+  - c. Run the contention forms: 8, 24 and 48 concurrent copies of the
+    example, and the entry beside a full suite of another tree.
+    Verify: the record gives the wall per copy and the ratio against the
+    idle figure.
+  - d. Separate the four cost candidates of `~/scratch/bfw/fwq-research.md`
+    section 6 with numbers: the serial pre-check, the calibration's work
+    count, the benchmarks' iteration count, and the transform.
+    Verify: the ring sweep row set stands recorded, one row per candidate
+    names the measurement that rules it in or out, and the record names
+    the three alternatives SC-022 lists with the line each prints.
+  - e. State the verdict: the mechanism proved, and the failure
+    reproduced or not on this host.
+    Verify: an unreproduced failure stands written as unresolved with
+    the next precise experiment and its expected reading (D-21).
+
+- [x] BFW-005 Fold the transform once per probe cpu (FR-031, SC-021,
+      SC-022, SC-028; BFW-004 first, parallel with BFW-002 and BFW-003).
+  - a. Keep the transform answer of a probe cpu in a `mutable` member of
+    that cpu's state, and read it on the second fold of the same state.
+    The two fold sites hold a `const` pointer to that state, so the
+    mutability keeps `source/harness/cli.cpp` and
+    `source/harness/report.cpp` out of the change.
+    Verify: `git diff --name-only` names `source/harness/jitter_probe.cpp`
+    and `source/harness/detail/jitter_probe.hpp`, and neither
+    `source/harness/cli.cpp` nor `source/harness/report.cpp`.
+  - b. State at the site why the answer cannot go stale: the series
+    stands written only inside the window, ahead of the latch line, and
+    both folds run after the probe stops.
+    Verify: the comment names the latch line and the two fold sites by
+    symbol.
+  - c. Add the regression case in `test/source/harness_fwq_ftq_test.cpp`:
+    a scripted window, one fold, a sentinel written into the stored
+    answer, a second fold, and the sentinel read back.
+    Verify: the scenario fails on a build that recomputes, and passes on
+    the fixed build, in both the release and the instrumented tree.
+  - d. Measure the example before and after in the release tree and in
+    the instrumented tree.
+    Verify: the record gives the two wall figures and the transform call
+    count per probe cpu before and after.
+  - e. Keep the example, the page block and the recorded run unchanged,
+    and record the ring-bound option as an owner decision with its
+    measured effect.
+    Verify: `python3 tools/docs/example_drift.py .` exits 0, the
+    `report_shape` entries pass, and the record names the owner item.
+
+- [x] BFW-006 Run every required lane at the squashed head (FR-032,
+      SC-021, SC-023, SC-024; BFW-003 and BFW-005 first).
+  - a. Squash the branch to one commit, require a clean tracked tree, and
+    save `git rev-parse HEAD`.
+    Verify: `git status --porcelain` prints nothing tracked, and the
+    record names the head as the measured one.
+  - b. Fresh release tree: configure, build, whole suite.
+    Verify: the passed, failed, did-not-run and timeout figures.
+  - c. `taskset -c 0,1` suite, then a four-cpu suite on real allowed
+    cpus.
+    Verify: each lane gives its four figures, and a refused mask stands
+    recorded as blocked.
+  - d. `ci-sanitize` and `ci-tsan`.
+    Verify: zero `AddressSanitizer`, `runtime error` and
+    `WARNING: ThreadSanitizer` lines, and the four figures per lane.
+  - e. `ci-coverage` through the `coverage` target and the gate, with the
+    host lcovrc out of reach.
+    Verify: 100 percent lines, a branch shortfall at or below 21, at or
+    below 84 markers, and the cold-row ledger with its row count.
+  - f. The stress matrix, the commands the local-acceptance section of
+    the spec states: 240 runs of the barrier entry with 8 in flight in
+    the release tree and in the thread-sanitizer tree, and 20 `ctest`
+    runs of the FWQ entry in the release tree.
+    Verify: every failure stands listed, the scenario readings of SC-019
+    stand reported apart from these counts, and the four substitution
+    counts of SC-020 stand listed with them.
+  - g. The cheap gates: format, spell, prose over the range and the tree,
+    example drift, example run, time-source, the DBC documentation and
+    pairing gates, the analyzer build, the downstream consumer build, and
+    the SC-027 symbol reading: a `BUILD_SHARED_LIBS=ON` install under
+    `$HOME/scratch` and `nm -D --defined-only` over the installed object.
+    Verify: each exits 0 with its reading, no new `sg::detail` name stands
+    in `.dynsym`, and the export count stands at 250.
+
+- [x] BFW-007 Push and open one pull request (FR-033, SC-026; BFW-006
+      first).
+  - a. `git push -u origin fix/barrier-entry-fwq`.
+    Verify: `git ls-remote origin refs/heads/fix/barrier-entry-fwq`
+    equals `git rev-parse HEAD`.
+  - b. Any later push: save the expected full remote SHA, require it to
+    equal the last observed value, and push with
+    `--force-with-lease=fix/barrier-entry-fwq:<expected-full-sha>`.
+    Verify: a failed lease stops the work and stands reported.
+  - c. Open one pull request whose body names the measured head, the
+    evidence, the cold rows and the push proof.
+    Verify: the body names the head, and no tracked file carries that
+    SHA. The work merges nothing and closes no issue.
+    Verify: the pull request stands open against `master` with the
+    measured head as its tip, and the body names that head. The work
+    merges nothing and closes no issue.
+
+- [x] BFW-008 Re-check the exit condition of the blocking arm (D-22;
+      found during BFW-006).
+  - a. Record the violation: three full release suites at this tree, one
+    plain and two pinned, each fail the `round` scenario with
+    `a round that released without advancing the generation`, and 480
+    copies at 48 in flight beside a running suite fail 480 of 480. The
+    same protocol at the base answers 0 of 480.
+    Verify: the record carries both counts and the protocol that produced
+    them.
+  - b. Hold the exit condition of the blocking arm the way the two
+    spinning arms hold theirs: re-check it, and wait again inside the
+    loop.
+    Verify: the arm keeps its mode, its place in the chain, its read of no
+    clock and its absence of any timeout (specs/020 FR-014, D-03).
+  - c. Run the shapes again: 480 at 48 in flight beside a running suite,
+    240 at 8 in flight, 240 at 8 in flight pinned to two cpus, 240 in the
+    thread-sanitizer tree, and three full release suites.
+    Verify: 0 failures in every shape, and 190 of 190 in each suite.
+
+### Dependencies and parallel order for phase 14
+
+- BFW-001 stands first in the barrier lane: it fixes the base reading
+  every later barrier row compares against.
+- BFW-002 follows BFW-001, and BFW-003 follows BFW-002: the seam stands
+  before the fixture can gate on it.
+- BFW-004 stands first in the FWQ lane and runs in parallel with the
+  barrier lane from the start.
+- BFW-005 follows BFW-004 and runs in parallel with BFW-002 and BFW-003.
+  No file stands in both lanes.
+- BFW-006 and BFW-007 run alone, in that order, after both lanes close.
+- A tracked change after BFW-006 produces a new squashed head, and every
+  required lane runs again there.
+
+### Completion rule for phase 14
+
+A row closes only with its verify reading in
+`specs/045-merge-fixes/results/barrier-fwq-closeout.md`: the command,
+the exit, the host, the tool versions and the figure. A row that stops at
+a scope boundary stands open with the file it needs, and the pull request
+body carries it.
