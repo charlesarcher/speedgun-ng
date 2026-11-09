@@ -664,3 +664,58 @@ the three consoles of one command, and it printed no node-mapped, list-group or
 unmapped cell reading over the printed rows beside the `level=1` companion
 block, so the two `Hunt` rows of `Lane Table` of `specs/048-hwlat-probe/plan.md`
 carry those readings at the head Pass 2 runs at.
+
+## Second pass figures at the final head (2026-11-09)
+
+This section reports the second pass. It ran at head
+`208bc520f85a8a6a95253feb80ebaba1cc9d7bef` over base `c9187ba3` on `corsairone`
+with the host idle, at load 1.1 to 1.2 and no other compiler live beside a
+figure. Ruling 30 of `Rulings - this phase (29 to 42)` of
+`specs/048-hwlat-probe/spec.md` governs the witness, and no row below carries a
+void marking. Each row names its step under `/tmp/ic/p2/`.
+
+**The three hunt consoles at `208bc520`.**
+
+- `f6-hunt-scenario` exits 0 in 1.0 s and ends `bare-hunt-whole-catalog: ok`.
+- `f6-hunt-plan` exits 0 in 2.0 s. It prints the rank lines and ends with the
+  gate lines, among them `topdown:  topdown.retiring  tma_retiring  not
+  available  tma_retiring > 0.7 | tma_heavy_operations > 0.1`.
+- `f6-hunt-list` exits 0 in 2.0 s and ends `bmMemoryWalk`.
+
+**The rank movement reading the first pass left untaken.** The plan console
+prints one rank line per counter. The first line of `f6-hunt-plan.log` reads:
+`hunt: rank - cpu/ARITH.DIVIDER_ACTIVE instr=0.000 cv=0.00 correlation=n/a
+slope=n/a delta=n/a area=topdown.backend_bound > topdown.intel.tma_core_bound >
+topdown.intel.tma_divider mark=unrepeated`. The `mark` field answers
+`unrepeated` on every rank line of that console, because a plan run takes no
+samples. The `correlation`, `slope` and `delta` fields read `n/a` for the same
+reason. A reader who wants those three fields filled needs a hunt run with
+samples, and the row for it in `Lane Table` of `specs/048-hwlat-probe/plan.md`
+keeps that reading untaken at this head.
+
+**The walk consoles and the price.** `f6-walk-1`, `f6-walk-2` and `f6-walk-3`
+exit 0 in 4.0, 3.0 and 4.0 s. Each ends with the same retiring gate line the plan
+console ends with, and each lists `topdown.retiring` as `not available`, because
+the walk console reads the tables before the host answers the counters.
+`f4-walk-price` exits 0 and prints the price of each console form, among them
+`release-docs_labels---list#2 exit=0 seconds=1.06` and
+`release-docs_labels---help#3 exit=0 seconds=1.06`.
+
+**The analyzer lane at `208bc520`.** `f7-analyzer-cfg` exits 0 in 3.0 s.
+`f7-analyzer-lib` exits 0 in 230.0 s and ends `[100%] Built target
+speedgun-ng_harness`. `f7-analyzer-test` exits 0 in 263.0 s and ends
+`[100%] Built target harness_topdown_run_test`. `f7-analyzer-example` exits 0 in
+23.0 s and ends `[100%] Built target docs_counter_probe`. `f7-analyzer-findings`
+exits 0 in 2.0 s with the test line `+ test 0 -eq 0`, which is the analyzer
+reporting no finding against the source tree.
+
+**The bounded shapes that carry the hunt entry.** In the `sanitize` tree the
+two-cpu bound `f2-san-cpu01` answers 3 failed out of 185 in 897.9 s, the four-cpu
+bound `f2-san-cpu03` answers 3 failed out of 185 in 891.0 s, and the repeat
+`f2-san-test2` answers 3 failed out of 185 in 505.0 s. In the `tsan` tree the two
+bounds answer 3 failed out of 186 in 1536.0 and 1534.0 s and the repeat
+`f3-tsan-test2` answers 3 failed out of 186 in 668.0 s. Each log names its three entries.
+The hunt entry also carries the ceiling pair in the `coverage` tree, and the
+`Second pass figures at the final head (2026-11-09)` section of
+`specs/048-hwlat-probe/results/acceptance-final-intel.md` prints that pair with
+its cut and direct seconds.

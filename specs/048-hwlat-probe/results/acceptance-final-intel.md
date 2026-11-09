@@ -1616,3 +1616,133 @@ and left the readings below open. Each names the pass that takes it.
   `Downstream jobs`,
   `Parity at paranoid 2`, `Root surfaces` and `Push`. Pass 1 ran none of them,
   and Pass 1 carried no hosted job, no container run and no push of any kind.
+
+## Second pass figures at the final head (2026-11-09)
+
+This section reports the second pass. It ran at head
+`208bc520f85a8a6a95253feb80ebaba1cc9d7bef` over base `c9187ba3` on
+`corsairone`. The host stayed idle, at load 1.1 to 1.2, and no other compiler
+was live beside a figure, so no row below carries a void marking. Ruling 30 of
+`Rulings - this phase (29 to 42)` of `specs/048-hwlat-probe/spec.md` governs the
+witness. Every row names its step under `/tmp/ic/p2/`, so a reader can re-open
+the log behind it.
+
+**Lane figures at `208bc520`.**
+
+- `coverage` tree. The count step `f1-cov-count` answers 185 entries. The suite
+  `f1-cov-test` answers 98% passed, 4 failed out of 185, in 3907.66 s real. The
+  four are `base_cli_matrix`, `example_run`, `harness_hunt_cli_test` and
+  `harness_jitter_cli_test`, and each reports `Timeout`.
+- `sanitize` tree. `f2-san-count` answers 185 entries. `f2-san-test` answers 99%
+  passed, 2 failed out of 185, in 528.80 s real. The two-cpu bound `f2-san-cpu01`
+  and the four-cpu bound `f2-san-cpu03` each answer 3 failed out of 185, in 897.9
+  and 891.0 s. The repeat `f2-san-test2` answers 3 failed out of 185 in 505.0 s.
+- `tsan` tree. `f3-tsan-count` answers 186 entries. `f3-tsan-test` answers 98%
+  passed, 3 failed out of 186, in 687.42 s real. The two bounds answer 3 failed
+  out of 186 in 1536.0 and 1534.0 s, and the repeat answers 3 failed out of 186 in
+  668.0 s. Pass 1 answered 5 failures for this lane, so the lane gained two green
+  entries between the two heads, and the row for it in `Lane Table` of
+  `specs/048-hwlat-probe/plan.md` should read 3 at this head.
+- `release` tree. `f4-rel-count` answers 190 entries. `f4-rel-test` answers 100%
+  passed out of 190 in 288.37 s real. The four-cpu bound `f4-rel-cpu03` answers
+  100% passed out of 190 in 289.0 s, and the two-cpu bound `f4-rel-cpu01` answers
+  1 failed out of 190 in 302.0 s.
+
+**Ceiling controls at `2026-11-09` head `208bc520`.** Each pair runs the entry
+under its ceiling, then runs the same entry with no ceiling.
+
+- `base_cli_matrix` in `coverage`: the bounded run exits 8 at 120.0 s; direct it
+  exits 0 after 285.0 s and ends `26 of 26 with all rows matching`.
+- `example_run` in `coverage`: the bounded run exits 8 at 300.0 s; direct it exits
+  0 after 704.0 s and ends `PASS: docs_user_counters (3 instances)`.
+- `harness_hunt_cli_test` in `coverage`: the bounded run exits 8 at 300.0 s;
+  direct it exits 0 after 572.0 s and ends `harness_hunt_cli_test: ok`.
+- `harness_jitter_cli_test` in `coverage`: the bounded run exits 8 at 301.0 s;
+  direct it exits 0 after 482.0 s and ends `harness_jitter_cli_test: ok`.
+- `base_cli_matrix` in `sanitize`: the bounded run exits 8 at 121.0 s; direct it
+  exits 0 after 138.0 s and ends `26 of 26 with all rows matching`.
+- `example_run` in `sanitize`: the bounded run exits 8 at 300.0 s; direct it exits
+  0 after 332.0 s and ends `PASS: docs_user_counters (3 instances)`.
+- `harness_jitter_cli_test` in `tsan`: the bounded run exits 8 at 301.0 s; direct
+  it exits 0 after 392.0 s and ends `harness_jitter_cli_test: ok`.
+- `base_cli_matrix` in `release`: the bounded run exits 0 at 115.0 s and the
+  direct run exits 0 after 115.0 s, both ending `26 of 26 with all rows
+  matching`. The same entry needs 285.0 s once the coverage instrumentation is on.
+- `example_run` in `release`: the bounded run exits 0 at 269.0 s and the direct
+  run exits 0 after 268.0 s, both ending `PASS: docs_user_counters (3 instances)`.
+
+**Coverage chain at `208bc520`.** The gate step `f1-cov-gate` exits 0 and prints
+exactly: `coverage-gate: branch shortfall 21 rows, within the  D-14 recorded
+allowance of 21 (accepted classes)`. The target step `f1-cov-target` exits 2 at
+its picture step, because that step needs the Perl module `GD`. Operator action:
+`pacman -S perl-GD gd`. The gate reads the text summary, so the gate is not
+blocked by that step. The line reading is 100.0% with 18,683 of 18,683 lines and
+99.8% with 9,263 of 9,283 branches.
+
+**The allowance is now spent (2026-11-09).** The same gate step read 20 rows at
+`af54d3f0` (`f1-cov-gate.log` under `/tmp/ic/p1/`) and 21 rows at `208bc520`
+(`f1-cov-gate.log` under `/tmp/ic/p2/`). The recorded allowance is 21, so the gate
+passes here with nothing left. The denominator moved because the base
+`c9187ba3` added branch positions. The next uncovered branch row anywhere in the
+tree fails this gate. Widening the allowance is a maintainer decision, and this
+row takes none.
+
+**Downstream build defect, deferred under ruling 36 (2026-11-09).** Steps
+`f9-release-build` and `f9-releasedev-build` exit 2 while compiling
+`source/harness/noise_tracer.cpp`. The compiler prints: `source/harness/noise_tracer.cpp` line 499:
+`error: 'bool sg::detail::{anonymous}::activationAnswered(const
+sg::PrecheckTracerCpuRecord&, bool)' defined but not used
+[-Werror=unused-function]`. The two configure steps `f9-release-cfg` and
+`f9-releasedev-cfg` use the `ci-linux-ignore` preset, whose cache reads
+`speedgun-ng_CONTRACTS:STRING=ignore`. At that semantic `SG_CONTRACTS_SEMANTIC`
+is 0, so `SG_ENSURE` expands to `((void)0)` at `include/speedgun-ng/dbc.hpp:463`
+read at `c9187ba3`, and the only call of the helper, at
+`source/harness/noise_tracer.cpp:551` read at `c9187ba3`, disappears. `-Wunused`
+is in the flag set and `cmake/variables.cmake:33` read at `c9187ba3` adds
+`-Werror`. The compiler is `/usr/bin/c++`, which is GCC here. `git log -S
+activationAnswered` places the helper in `c9187ba3`. Reproduction:
+`cmake --preset=ci-linux-ignore -B build/consumer-release -D
+CMAKE_BUILD_TYPE=Release -D speedgun-ng_DEVELOPER_MODE=OFF` then `cmake --build
+build/consumer-release -j "$(nproc)"`. The proof that this is not a fault of this
+branch: `git diff --name-only c9187ba3..HEAD` prints 16 paths and none of them is
+outside `specs/`. Ruling 36 of `Rulings - this phase (29 to 42)` defers the fix,
+because `source/harness/` is outside the files this phase may change. The library
+lanes at the enforcing semantic build clean, so the fault shows only at the
+ignore semantic.
+
+**Standing duties Pass 1 never reached.** Each row is one step and its reading.
+
+- `f8-install` installs to `prefix` and exits 0. The twelve dependency audits
+  `f8-audit-tree-*` and `f8-audit-pkg-*` for hwloc, simdjson, hdr, zlib, yaml and
+  quill all exit 0. `f8-audit-link-manifest` exits 0 and ends `PASS: the manifest
+  names the platform C and C++ runtime alone`.
+- `f8-host-records` exits 0 and ends `validation/GenuineIntel-6-C6-2.json
+  GenuineIntel-6-C6-2  valid`. `f8-pmu-tables` exits 0.
+- The two counts: `f8-count-build` answers 190 with its guard `f8-count-build-guard`
+  reading 190 count lines, and `f8-count-dev` answers 185 with its guard reading
+  185 count lines. `f8-readme-count` reads `1003 README.md`. `f8-marker-count`
+  reads `source/simulation/marker.cpp:2`.
+- The shared-tree job: `f9-shared-cfg`, `f9-shared-build` (122 s, ends `[100%]
+  Built target report_view`) and `f9-shared-install` exit 0, and the eleven audits
+  `f9-audit-so-*` and `f9-audit-ldd-*` exit 0. `f9-audit-interface-quill` ends
+  `PASS: the shared link interface names no quill`, and `f9-audit-so-quill-allowlist`
+  answers 0 with one allow-listed symbol, `W
+  _ZN5quill3v136detail15get_thread_nameB5cxx11Ev`.
+- `f9-catalog-compare` exits 0 and ends `installed and build-tree counts agree:
+  24715`, which answers the count duty the first pass could not take.
+- The semantic checks: `f9-check-symbols` ends `PASS: no sg::dbc::check symbols`,
+  `f9-dbc-trap` and `f9-counters-trap` each print their precondition trap line
+  and exit 0, `f9-counters-trap-checked` exits 0, and `f9-dbc-test` exits 0 with
+  its fixture lines.
+- The closing gates: `f10-prose-tree` ends `prose-lint: 1093 sources, 221426 units
+  examined, 0 findings, 0 skipped`, `f10-prose-range` ends `prose-lint: 17
+  sources, 5438 units examined, 0 findings, 0 skipped`, and `f10-spell` exits 0.
+
+**Rows that still carry no figure at `208bc520`.** The root-surface rows stay
+blocked, because `/sys/kernel/tracing` and `/dev/cpu/*/msr` are root-owned here,
+`sudo` answers that a password is required, and `pkexec
+--disable-internal-agent id` exits 127 with `No authentication agent found.` The
+identity step `f0-identity` exits 1 on the package query, and the elevation steps
+`f0-elevate-sudo` and `f0-elevate-pkexec` answer 1 and 127. Each blocked row keeps
+the operator line, the restore line and that identity reading. The coverage
+picture row stays blocked on the missing Perl module above.

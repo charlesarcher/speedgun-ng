@@ -325,3 +325,49 @@ and `The operator command pair for the restricted reading (2026-11-09)` above
 holds the value the host answered before any change, the line that sets `2` and
 the line that sets it back. Pass 1 read that control at `-1` in its identity
 step `f0-identity.log`, and no step of that pass wrote to it.
+
+## Second pass figures at the final head (2026-11-09)
+
+This section reports the second pass. It ran at head
+`208bc520f85a8a6a95253feb80ebaba1cc9d7bef` over base `c9187ba3` on `corsairone`
+with the host idle. Ruling 30 of `Rulings - this phase (29 to 42)` of
+`specs/048-hwlat-probe/spec.md` governs the witness, and no row below carries a
+void marking. Each row names its step under `/tmp/ic/p2/`.
+
+**The three counter consoles at `208bc520`.** `f6-probe-1`, `f6-probe-2` and
+`f6-probe-3` exit 0 in 4.0, 4.0 and 3.0 s. Each ends with the same line:
+`counter limit: cpu limit=4 source=decode probe=4`. `f6-pmu-name` exits 0 and
+answers `skylake`. `f6-cpu-type` exits 0 and answers `4`.
+
+**The vendor tables, the two counts and the two counts of rows.** `f8-pmu-tables`
+exits 0. The build-tree count `f8-count-build` answers 190, and its guard
+`f8-count-build-guard` reads 190 count lines. The dev-tree count `f8-count-dev`
+answers 185, and its guard `f8-count-dev-guard` reads 185 count lines. These are
+the two standing counts the phase asks for, and the first pass never took them.
+`f8-readme-count` reads `1003 README.md`, and `f8-marker-count` reads
+`source/simulation/marker.cpp:2`.
+
+**The interpreter each build tree names.** Each reading comes from that tree's own
+`CMakeCache.txt`, and the key differs between trees. `build` and `build/coverage`
+carry `_Python3_EXECUTABLE:INTERNAL=/home/archerc/.local/bin/python3.11`.
+`build/dev` carries `Python3_EXECUTABLE:FILEPATH=/usr/bin/python3`. The
+interpreter the `coverage` tree names answers 1 for a YAML import at step
+`f1-cov-py-yaml`, so that tree cannot run a gate that imports YAML. The system
+interpreter answers 0 for the same import at step `f5-dev-py-yaml`, and
+`f5-dev-py-version` prints its version. The driver reads whichever key the cache
+carries, and a step that finds neither key fails with its own message.
+
+**The counter traps.** `f9-counters-trap` exits 0 and prints its precondition
+line `[precondition] hard_stop recorder samples within capacity (FR-027)
+(predicate: head < capa...`. `f9-counters-trap-checked` exits 0 and ends `Total
+Test time (real) =   0.11 sec`. `f9-check-symbols` exits 0 and ends `PASS: no
+sg::dbc::check symbols`.
+
+**The blocked row stays blocked at `208bc520`.** The parity row with
+`perf_event_paranoid` at `2` carries no figure, because this host answers `-1` and
+the phase forbids an unattended write to that control. The operator line is `sudo
+sysctl -w kernel.perf_event_paranoid=2`, the restore line is `sudo sysctl -w
+kernel.perf_event_paranoid=-1`, and the identity reading of the same run is the
+`f0-identity` step, which exits 1 on the package query and prints the control at
+`-1`. Ruling 42 of `Rulings - this phase (29 to 42)` of
+`specs/048-hwlat-probe/spec.md` gives that row its shape.
