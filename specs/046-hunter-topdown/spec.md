@@ -1271,3 +1271,239 @@ reading to an acceptance criterion of this spec.
   report no AMD, Arm or hybrid hardware result as an Intel result. The lane SHALL
   map each reading to an existing acceptance criterion. No row stands complete
   without output.
+
+
+## Acceptance closeout: Intel hardware evidence (2026-11-08)
+
+`specs/048-hwlat-probe` carries the identity, the changed-file list, the shared
+constraints and the clarification rounds for this phase. This section adds the
+hunter part and nothing else. It keeps IA46-001 and IA46-002 as they stand.
+
+### User Story 7 - The Intel mapping stands measured at the current head (Priority: P1)
+
+A reader wants the hunt reading of the current source, run more than once on an
+Intel part, with each figure tied to an acceptance criterion of this spec. The
+reader wants to see the same run three times and to see where the rank order
+moves between them.
+
+**Why this priority**: the standing Intel rows come from `87d745d6`, a head two
+repairs behind, and the hunter surface changed with them.
+
+**Independent Test**: each hunt row names the command, the run number, the exit
+code and the printed line it took its figure from.
+
+**Acceptance Scenarios**:
+
+1. **Given** a hunt command that fails on the first pass, **When** the lane tries
+   another method, **Then** the record keeps the failure of the normal method
+   above the alternative and labels the alternative.
+2. **Given** three runs of one command, **When** the ranked list changes order
+   between them, **Then** the record states the movement and asks for no stable
+   rank the spec never required.
+
+### Requirements - the hunter closeout (IH-001 to IH-002)
+
+- **IH-001**: The lane SHALL run each of the two hunt commands the standing hunt
+  record names three times at the measured head, on a tree built from that head.
+  The lane SHALL keep the normal method first, and where it fails the record
+  SHALL carry that failure before any alternative that stands labeled apart. The
+  record SHALL report an area-cell count only where a run printed it. The record
+  SHALL separate the full event list from the ranked top-20 list, SHALL give the
+  node, group and unmapped cells as the run printed them, SHALL quote the
+  `level=1` companion block with the source line and the file digests it prints,
+  and SHALL state the rank movement it observed between the three runs. The record
+  SHALL invent no table level the vendored table does not carry and SHALL state no
+  stable-ranking requirement this spec never set.
+- **IH-002**: The lane SHALL bind each observed mapping row and each device row to
+  an acceptance criterion that already stands in this spec, and SHALL name the
+  criterion beside the row. Rows for hardware this part does not carry SHALL stay
+  pending with the reason they carry now. The explicit rank-selection behavior
+  SHALL stay as it stands, and the lane SHALL add no automatic rank choice.
+
+---
+
+## Hunter work in the merged-head closeout (2026-11-08)
+
+`specs/048-hwlat-probe` carries the identity, the changed-file list, the shared
+constraints and the clarification rounds for this phase. This section adds the
+hunter work at the merged base and nothing else. `IH-001` and `IH-002` keep the
+text they carry above, and this section states what each one asks of a run on the
+new base.
+
+`specs/048-hwlat-probe/spec.md` holds three numbered ruling lists: the
+2026-11-07 list of 1 to 43 under `Session 2026-11-07, round 1` and `Session
+2026-11-07, round 2`, the 2026-11-08 closeout list of 1 to 28 under `Session
+2026-11-08, round 1` and its two continuations, and this phase's list of 29 to
+42 under `Rulings - this phase (29 to 42)`. One bare ruling number lands in
+more than one of them, so every ruling cite in this section names the ruling and
+the list it stands in, and a list name carries that file with it.
+
+A cite into a spec or a plan from this section names that file, and then the
+requirement id, the ruling number and its list, the heading, or the row name. A
+numeric line range is the last choice, and it stands only for source code and
+for a record row no id names. The ids that start `IC-` and `SC-IC-` belong to
+`specs/048-hwlat-probe/spec.md`.
+
+### The base this work reads
+
+| Line | Value at the check on 2026-11-08 |
+|---|---|
+| Base head | `a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a`, the master head that carries pull request #100 and pull request #99 |
+| Earlier closeout base | `2d4d8c57975a86db6c77536f7090aba2bdaf6417`. `specs/048-hwlat-probe/spec.md` labels it `Base head` in the `Identity and binding` table under `Acceptance closeout: measured Intel evidence (2026-11-08)`, and names it the measured head of the earlier pass under `Intel acceptance closeout at the merged head (2026-11-08)`. No line of this file above this section names it |
+| Branch | `fix/intel-acceptance-closeout`, rebased onto the base head |
+| Host | corsairone, Intel Core i9-9920X (Skylake-X), non-hybrid, one socket |
+| Final head | two heads, and ruling 29 of this phase's list names each. The squash after the Pass 1 writes produces the head Pass 2 runs at and every figure names. The squash after the Pass 2 writes produces the head the pull request carries. No sha stands for either at this writing, because neither squash has run. `git rev-parse HEAD` in a tree built from the head Pass 2 runs at prints it, the record prints that short sha beside every console it ran, and each record names the head the pull request carries beside it. The tip of `fix/intel-acceptance-closeout` reads as the head that branch holds at run time, and a tip an earlier squash replaced answers no row here |
+
+Pull request #100 merged as the base head and moved ten files. The six source and
+test files are `source/harness/detail/internal.hpp`,
+`source/harness/detail/jitter_probe.hpp`, `source/harness/execution_context.cpp`,
+`source/harness/jitter_probe.cpp`, `test/source/harness_context_barrier_test.cpp`
+and `test/source/harness_fwq_ftq_test.cpp`. The four document files are `spec.md`,
+`plan.md`, `tasks.md` and `results/barrier-fwq-closeout.md` under
+`specs/045-merge-fixes`. Two harness changes bear on this phase.
+`source/harness/execution_context.cpp` holds the barrier wait arms, and a run
+reaches them through the contexts the runner builds
+(`source/harness/runner.cpp:1958`). `source/harness/jitter_probe.cpp` holds the
+spectrum answer. `addSpectrumTo` at `source/harness/jitter_probe.cpp:1683` keeps
+that answer in `spectrumAnswer`, the member
+`source/harness/detail/jitter_probe.hpp:226` declares inside `ProbeCpuState`, and
+the fill stands at `source/harness/jitter_probe.cpp:1731`. The report path reads
+the answer at `source/harness/report.cpp:903-909`. Both commands therefore run
+again at the head Pass 2 runs at, the first of the two heads the row above names. A figure measured at the
+earlier base `2d4d8c57` keeps that sha as its label and answers no row here
+(ruling 10 of the 2026-11-08 closeout list of `specs/048-hwlat-probe/spec.md`).
+
+The text above this section asks for three runs at "the measured head" in
+`IH-001` under `Requirements - the hunter closeout (IH-001 to IH-002)`, and it
+prints no sha beside that phrase. Three shas stand beside that label in the
+tracked files:
+`615c0964547e4e9768b8e2f2d79991033a0eb5bd` as the `Measured head` row of the
+`Identity` table of `specs/046-hunter-topdown/results/acceptance-final-intel.md`,
+`87d745d6c7e62d4da80198c689ddc7078f08ff3d` as the rerun heading of that record,
+and `2d4d8c57975a86db6c77536f7090aba2bdaf6417` as the `Base head` row of the
+`Identity and binding` table under `Acceptance closeout: measured Intel
+evidence (2026-11-08)` of `specs/048-hwlat-probe/spec.md`. This section asks for
+no run at those three heads. Every figure it prints names the head whose run
+printed it, and every figure no run printed reads `no figure`.
+
+### The two commands
+
+```sh
+./build/example/memory_walk --hunt --hunt-budget 120s
+./build/example/first_benchmark --hunt --hunt-budget 120s
+```
+
+Both commands stand verbatim at
+`specs/046-hunter-topdown/results/acceptance-hunt.md:15-16`. Line 14 of that file
+opens the fenced block, so the cite names the two command lines and their path
+from the repository root. Each command runs three times at the final head, in a
+tree built from that head (IH-001, ruling 12 of the 2026-11-08 closeout list of
+`specs/048-hwlat-probe/spec.md`).
+
+Each console runs alone on an idle host, and the record prints its load witness
+beside it (ruling 17 of the 2026-11-08 closeout list of
+`specs/048-hwlat-probe/spec.md`). Ruling 30 of this phase's ruling list of that
+file governs the witness. The witness line is `cat /proc/loadavg` read at the
+start of that console beside a count of the other compiler, test, capture and
+trace processes on the host, a figure stands only where that line reports none of
+those four classes live and a one-minute load average below 2.0, and any live
+process of those four classes voids the figure. The `Load witness and stops`
+paragraph of `specs/048-hwlat-probe/plan.md` is text the base head carries, and
+this section leaves it as the base wrote it. That paragraph adds the cpu affinity
+and counts `ctest` and compiler processes, so this part reads the cpu affinity
+from it and takes the process list from ruling 30. Any other witness voids the
+figure, and the lane re-takes that console alone with its witness beside it.
+
+### Requirements restated for the merged base (IH-001 to IH-002)
+
+- **IH-001**: The lane SHALL run each command above three times at the final head,
+  and the normal method SHALL stand first in each set of three. Where the normal
+  method fails, the record SHALL carry that failure with its exit code before any
+  alternative method, and the alternative SHALL stand labeled apart and join no set
+  of three. The record SHALL give two readings of one console: the full list of
+  events the run printed, and the list of events the run printed with a rank. The
+  ranked list holds at most the 20 addresses the `--hunt-top` default names
+  (`include/speedgun-ng/hunt.hpp:135`), and `source/harness/hunt_plan.cpp:371-374`
+  decides which addresses earn one. The `area=` cell stands on the rows that
+  carry it. `source/harness/report.cpp:1471` prints the cell on a ranked row, and
+  `source/harness/report.cpp:1488` prints it on the row that opens with
+  `hunt: rank -` at `source/harness/report.cpp:1478` and closes with the `mark=`
+  cell at `source/harness/report.cpp:1489`. The cell is conditional.
+  `source/harness/report.cpp:1316-1318` prints it only where the record's
+  `topdownArea` member holds a value, and FR-014 states that condition. A row
+  whose member stands empty prints no cell. The two area counts therefore answer
+  two questions, and the record SHALL give each over its own rows, over the rows
+  FR-013 names and the rows FR-014 names. The record SHALL state the rank
+  movement it observed between the three consoles of one command on both
+  denominators: movement among the ranked rows, and movement across every row the
+  run printed (ruling 15 of the 2026-11-08 closeout list of
+  `specs/048-hwlat-probe/spec.md`). A comparison between the two binaries SHALL
+  get its own labeled line. The record
+  SHALL print the `topdown: level=` line with its `passes=` and `table=` fields,
+  the `topdown: reference=` line, and the `topdown: file` digest lines at the
+  length the binary prints them (ruling 18 of the 2026-11-08 closeout list of
+  `specs/048-hwlat-probe/spec.md`, and rulings 13 and 14 of its 2026-11-07
+  list).
+  `source/harness/report.cpp:367-370` prints the level line with the `passes=` and
+  `table=` fields, and `source/harness/report.cpp:378-380` prints the reference
+  line where the record carries one. The count of `topdown: file` lines reads no
+  constant here, because the binary prints one line per contributing file.
+  `source/harness/report.cpp:381-384` prints one line per file the record carries,
+  and `source/counters/linux_pmu/topdown_select.cpp:122-129` admits a
+  file only where that file contributes a row of the table the host loaded. The
+  vendored `external/pmu-events/arch/x86/skylakex/` directory holds 15 json
+  files, and the standing records print 13 digests at `615c0964`, under
+  `The table the block names` of
+  `specs/046-hunter-topdown/results/acceptance-final-intel.md`, and 13 digests
+  at `87d745d6`, at the `Table block` row of that record's rerun section. This
+  section pins no count, and the digest row below reads `no figure`.
+- **IH-002**: The lane SHALL bind each mapping row and each device row these
+  consoles produce to a criterion that already stands in this spec, and SHALL name
+  that criterion in the row. Where no `SC-` id owns the claim, the row SHALL name
+  the audit point or the ruling that owns it (ruling 16 of the 2026-11-08
+  closeout list of `specs/048-hwlat-probe/spec.md`). Rows for hardware this part
+  does not carry SHALL stay pending with the reason they carry now. The explicit
+  rank-selection behavior SHALL stand unchanged, and the lane SHALL add no
+  automatic rank choice. That choice stays future work under `G-32`, which the
+  `Scope (phase 13)` list of `specs/045-merge-fixes/spec.md` names for automatic
+  ranks and `Scope (phase 14)` repeats. `G-31` in those same lists names raw
+  codes, and no row here asks for one.
+
+### Rows the final head must answer
+
+No console has run at the final head yet, so every figure below reads no figure.
+Each row names its command and the run that must answer it. The second command
+answers the same rows on its own three consoles. The eight reading pairs stand
+once, in the table under `The reading pairs the record must print` of
+`specs/046-hunter-topdown/plan.md`. Its rows `1` to `5` and its row `8` answer the
+six rows below, and its rows `6` and `7` carry the two pairs this table leaves to
+the plan: the spread of rank positions, and the `method=` word beside the
+`estimate=` figure of the same plan line.
+
+| Row | Command | Figure | Run that must answer it |
+|---|---|---|---|
+| Exit code, one per console | `./build/example/memory_walk --hunt --hunt-budget 120s` | no figure | the three normal-method consoles of IH-001 at the final head |
+| Printed row count and ranked row count | the same command | no figure | the same three consoles |
+| Area-cell count over printed rows and over ranked rows | the same command | no figure | the same three consoles |
+| `topdown: level=` line with its `passes=` and `table=` fields, the `topdown: reference=` line, and the `topdown: file` digests the run prints, one line per contributing file | the same command | no figure | the same three consoles |
+| Rank movement on both denominators | the same command | no figure | the same three consoles, read pairwise |
+| Node-mapped, list-group and unmapped cells over the printed rows, beside the `level=1` companion block lines (SC-007, IH-001) | the same command | no figure | the same three consoles |
+
+This part names no blocked row, because no hunter row asks an operator to change a
+kernel control. Where such a row stands written here later, it takes the one
+blocked-row shape ruling 42 of this phase's ruling list of
+`specs/048-hwlat-probe/spec.md` sets. The row reads BLOCKED, the value the host
+answered before the change comes from the identity step of the same run, the row
+prints the operator line and the restore line, and the row carries no figure,
+because those two lines name values and figure no measurement. The `Identity` row
+of the `Lane Table` of `specs/048-hwlat-probe/plan.md` names that identity step.
+
+### Pending rows this base keeps
+
+Four hardware rows stay pending, and this base moves none of them. `SC-010` owns
+the class and `IH-002` names the criterion beside each row: Intel parts measured
+through `PERF_METRICS`, because no host on this lane carries the facility; Intel
+hybrid parts, because this part is non-hybrid; Arm parts, because no Arm host
+stands in reach; and AMD Zen 4 parts, because no Zen 4 host stands in reach. Each
+row keeps its synthetic seam rows and carries no hardware figure. Zen 5 stands
+measured under `SC-009` and keeps that reading at the head it ran.

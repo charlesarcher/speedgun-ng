@@ -476,3 +476,234 @@ lacks. Depends on: a tree built at the measured head.
 
 - [x] IA41-003 [bench] Re-run the counter-count pair at master `87d745d6`. Verify: the
   record gives the limit line twice, the device facts, and the parity row as blocked.
+
+
+## Acceptance closeout: measured Intel evidence (2026-11-08)
+
+- [ ] IA41-004 [bench] Run `./build/example/docs_counter_probe` three times at the
+  closeout head, each console alone with its load witness, and print the limit
+  line each answers. Verify: three consoles, three limit lines, and no other
+  hardware tool in the row.
+- [x] IA41-005 [write] Split the parity row of `results/acceptance-final-intel.md`
+  into one measured row at the standing `perf_event_paranoid` value and one row
+  BLOCKED for the `2` reading with its control and value, correct the blocked
+  reason that names `/dev/cpu/*/msr`, and state the opens and reads as one
+  measured and one derived figure. Verify: the blocked row carries no figure, the
+  measured row names its run, and the reason reads as the write to
+  `/proc/sys/kernel/perf_event_paranoid`.
+- [x] IA41-006 [write] Label the history that stands outside this host: the tool
+  copy under `/tmp` at `results/requirement-1-shipped-shape.txt:100`, `:107` and
+  `:123`, and the kernel and paranoid readings at
+  `results/probe-window-trials.txt:1`, `:17-19`. Verify: each line keeps its text
+  under its heading, and every new row names the tracked source and the built
+  binary, and no new row names a path outside the repository.
+
+
+## Intel acceptance closeout: counter rows at the final head (2026-11-09)
+
+**Phase**: the counter-count part of the closeout that
+`specs/048-hwlat-probe/spec.md` records under `Intel acceptance closeout at the
+merged head (2026-11-08)`. IA41-007 to IA41-014 are that part's work list. Every
+one of them writes
+`specs/041-counter-probe/results/acceptance-final-intel.md`, the record the
+`record 041` note under the lane table of `specs/048-hwlat-probe/plan.md` names,
+and that file is the one file these rows change.
+
+**Cites**: two ruling lists live in `specs/048-hwlat-probe/spec.md`: the 2026-11-08
+closeout list, and this phase's list under `Rulings - this phase (29 to 42)`. A
+cite below reads `ruling n of this phase's list` or `ruling n of the closeout
+list`, and each one names that file.
+
+**Head**: every figure comes from a Pass 2 run at the final head, the head ruling
+29 of this phase's list defines. No row below prints a figure, and each row names
+the run that must answer it. A row's lines land under a dated heading in the
+record that names this phase and the head its run measured, each console log
+stands outside the repository, and a printed path reads `$HOME`-relative or
+build-relative (`IC-006` and `IC-007` of `specs/048-hwlat-probe/spec.md`). A log
+path prints as the run printed it, the shape `IC-007` states, so it names the
+label directory the run driver creates under `/tmp/ic` for its label. Block 1 of
+the command blocks of `specs/048-hwlat-probe/plan.md` names a fixed
+`/tmp/ic/final` for the copied coverage trace, and that copy line stands apart
+from the label directory a run prints.
+
+**Limits**: no row adds a timeout, a grant, a suppression or an exclusion
+(`Out of scope for this phase` of `specs/048-hwlat-probe/spec.md`). A row that
+needs a right this session lacks reads as an operator row, and it prints the
+command, the restore command and the right it lacks (ruling 37 of this phase's
+list). Each console runs alone from the checkout root
+`$HOME/code/sg042-closeout`, and a reading that shares that idle window carries
+the same witness line ruling 30 of this phase's list governs: `cat /proc/loadavg`, the cpu affinity from `taskset -pc $$`, and the
+count of other compiler, test, capture and trace processes. Ruling 30 counts
+those four classes, and a live process of any one of them voids the figure it
+shares the window with. The `Load witness and stops` sentences under `Order of
+work` of `specs/048-hwlat-probe/plan.md` count other `ctest` and compiler
+processes for the lanes that paragraph introduces, so those two sentences stand
+as the narrower witness that paragraph wrote, and ruling 30 governs the reading
+here. One writer holds the record at a time, so rows marked parallel share a
+sitting and land their lines one after another.
+
+- [ ] IA41-007 [bench] Console 1 of the counter surface: run
+  `./build/example/docs_counter_probe`, the command of the `Counter count` row of
+  the lane table of `specs/048-hwlat-probe/plan.md`, in the `build` tree, with the
+  witness line beside it. Owner: `IP-001` of `specs/041-counter-probe/spec.md`.
+  Writes: one console row beside the standing table under `The example, twice
+  (IA41-001.2)`, and it answers the duty IA41-004 carries at the final head.
+  Verify: the row prints `git rev-parse HEAD` for that tree, the exit code, the
+  limit line as that binary printed it, the benchmark line and the witness line,
+  and a witness that reports another such process, or a one-minute load average at
+  or above the bound of ruling 30 of this phase's list, voids that console and it
+  is re-taken alone. Runs: waits for the `build` tree the `Release build` row of
+  that lane table builds at the final head, and it runs alone (ruling 17 of the
+  closeout list).
+
+- [ ] IA41-008 [bench] Console 2: the same `./build/example/docs_counter_probe`,
+  the second of the three normal-method consoles ruling 12 of the closeout list
+  asks for. Owner: `IP-001`. Writes: one console row beside the row IA41-007
+  lands. Verify: it prints its own exit code, limit line, benchmark line and
+  witness line, it carries nothing over from console 1, and an alternative console
+  stands used for none of the three (ruling 12 of the closeout list). Runs: waits
+  for IA41-010, which reads in the same idle window.
+
+- [ ] IA41-009 [bench] Console 3: the same `./build/example/docs_counter_probe`,
+  the third console. Owner: `IP-001`. Writes: one console row beside the rows
+  IA41-007 and IA41-008 land. Verify: three console rows stand under the record's
+  dated heading, each with its own exit code, limit line, benchmark line and
+  witness line, and the three limit lines agree or the record prints the
+  difference as three readings of one command. Runs: waits for IA41-008, since one
+  console runs at a time.
+
+- [ ] IA41-010 [read] The reading line of that idle window: the two commands of
+  the `Counter device` row of that lane table,
+  `cat /sys/devices/cpu/caps/pmu_name` then
+  `cat /sys/bus/event_source/devices/cpu/type`, beside the two companion readings
+  that row names, `cat /proc/sys/kernel/perf_event_paranoid` and
+  `cat /proc/sys/kernel/nmi_watchdog`, which block 7 of that plan reads the same
+  way. Owner: `IP-001`. Writes: one reading row beside the standing `The two device
+  type files (IP-001)` table and the standing `The device and the kernel settings
+  (IA41-001.1)` table. Verify: four readings, each beside the command that read it
+  and beside the head sha of the pass, and none carried from a standing row. Runs:
+  waits for IA41-007, and IA41-008 follows it in that window.
+
+- [ ] IA41-011 [write] The parity repeat at the permissions this host answers: one
+  record row that compares the two figures the single limit line of the three
+  consoles carries, the published limit with its source word and the example's own
+  search figure at `example/docs/counter_probe.cpp:384-388`. Owner: `IP-001`, and
+  `SC-003` of `specs/041-counter-probe/spec.md` owns the claim, the way `The parity
+  repeat` of `specs/041-counter-probe/plan.md` states it. Writes: one measured
+  parity row beside the standing `The parity rows (ruling 11, IP-002)` table.
+  Verify: the row names the three consoles and the reading row, names the
+  permissions of that pass, reads agree or reads differ, and takes nothing from
+  IA41-012 (ruling 11 of the closeout list). Runs: waits for IA41-009 and IA41-010;
+  it starts no process, so it is parallel with IA41-013, IA41-012 and IA41-014.
+
+- [ ] IA41-012 [write] The operator row for the restricted reading: one record row
+  that reads BLOCKED, carries no figure, and prints the pair
+  `sysctl -w kernel.perf_event_paranoid=2` and
+  `sysctl -w kernel.perf_event_paranoid=-1`, the two lines `IP-002` of
+  `specs/041-counter-probe/spec.md` names, beside the read-first line
+  `cat /proc/sys/kernel/perf_event_paranoid` and the identity reading of this pass
+  that holds the value the host answered before any change (ruling 42 of this
+  phase's list). Owner: `IP-002`, and `SC-010` of that spec owns the claim. Writes:
+  one BLOCKED row beside the standing `The operator command pair for the restricted
+  reading (2026-11-09)` section, whose pair this row re-answers at the final head.
+  Verify: the row names the control `/proc/sys/kernel/perf_event_paranoid`, the
+  operator line, the restore line, the identity row it cites, and the right this
+  session lacks through the two elevation readings the driver steps
+  `f0-elevate-sudo` and `f0-elevate-pkexec` answer, and it prints no
+  figure. Runs: waits for IA41-010 for that cite; it starts no process, so it is
+  parallel with IA41-011, IA41-013 and IA41-014.
+
+- [ ] IA41-013 [read] The interpreter the contract target runs, read in the gate
+  tree: `grep '^Python3_EXECUTABLE' build/dev/CMakeCache.txt`, then that
+  interpreter with `-V` and with `-c 'import yaml; print(yaml.__version__)'`, then
+  the unchanged `cmake --build build/dev -t dbc-gate -j "$(nproc)"` beside the two
+  manual gate readings of block 4 of `specs/048-hwlat-probe/plan.md`. Owner:
+  `IC-005` of `specs/048-hwlat-probe/spec.md`. Reads: the two declarations `The
+  interpreter the contract target runs` of `specs/041-counter-probe/spec.md` names,
+  the `dbc-gate` install step of `.github/workflows/ci.yml` and the refusal that
+  answers `dbc gates require PyYAML (install python3-yaml)` in
+  `tools/dbc/dbc_gate_common.py`. Writes: one interpreter row under the record's
+  dated heading, and that row lands as a dated row beside the `DBC target` row of
+  the `The gates` table of
+  `Part D - the instrumented lanes and the gates` of
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md`, the record row that
+  holds the interpreter the contract target ran, and that standing row keeps its
+  text and its heading. Verify: the row prints the interpreter as that cache printed it,
+  CMake's own configure line beside it, the version that interpreter answers or no
+  version, and that target's exit; where no version answers, the row reads BLOCKED
+  with that interpreter named, and the contract-gate rows stay inside
+  `specs/048-hwlat-probe/results/gates.md` as a citation this row does not rewrite.
+  Runs: waits for the `DBC gates` row of that lane table to configure `build/dev`
+  at the final head, and it runs after IA41-009, because that target starts a
+  compiler; past that point it is parallel with IA41-011, IA41-012 and IA41-014.
+
+- [ ] IA41-014 [read] The pending hardware rows: restate the four rows `SC-010` of
+  `specs/041-counter-probe/spec.md` names, the Arm `armv8_*` row, the Intel hybrid
+  row with leaf 0x23 answered, the AMD Zen 4 row, and the Intel non-hybrid
+  check-mode equality row. Owner: `SC-010`, and `IA41-002` of that spec bars a
+  pending row from a status it did not measure. That owner stands outside this
+  phase's own ids: `SC-010` belongs to `specs/041-counter-probe/spec.md`, while
+  the ids of this phase run `IC-001` to `IC-007` and `SC-IC-7` to `SC-IC-11` of
+  `specs/048-hwlat-probe/spec.md`, so this row answers a criterion of the feature
+  spec and says so. Reads: `Boundaries this base keeps`
+  of `specs/041-counter-probe/spec.md` and `The pending hardware rows` of
+  `specs/041-counter-probe/plan.md`. Writes: one pending-rows table under the
+  record's dated heading, and that table lands as a dated row beside
+  `The other rows` of `specs/041-counter-probe/results/acceptance-final-intel.md`,
+  the record row that holds the pending readings, and that section keeps its
+  text and its heading. Verify: the three hostless rows keep the word pending and
+  name the host each one needs, the fourth reads no figure and names IA41-007 to
+  IA41-009 and IA41-011 as the runs that answer it, and no row moves on a reading
+  from another host. Runs: parallel, since it starts no process and needs no run.
+
+
+### The carriers of the 2026-11-09 correction rows (IA41-015 and IA41-016)
+
+The two 2026-11-09 blocks of `specs/041-counter-probe/results/acceptance-final-intel.md`
+carry five rows between them, and no row of IA41-007 to IA41-014 names four of
+them. The two rows below carry those four, and each lands a dated line that
+names the record row it answers.
+
+- [ ] IA41-015 [write] The four cite rows of `Corrections at the merged base
+  (2026-11-09)` of `specs/041-counter-probe/results/acceptance-final-intel.md`:
+  the lines at `:113`, `:114`, `:115` and `:116`, which stand under
+  `The parity rows`, `Opens and reads`, `History labels` and the closing
+  reading of that record's 2026-11-08 corrections, and which cite ruling 11,
+  ruling 13, ruling 27 and `SC-IC-5` at ranges that open one line early. Owner:
+  `IC-006` with `SC-IC-5` of `specs/048-hwlat-probe/spec.md`, and ruling 41 of
+  this phase's list states the duty of a cite that names a ruling. Writes: four
+  dated lines under this heading, each naming the record row whose cite it
+  re-points, while every line above that corrections table keeps its text, its
+  heading and its mark. Verify: the command below answers the four sites, each
+  dated line names that file, the 2026-11-08 closeout list and the ruling
+  number, or names `SC-IC-5` as that phase's criterion, each prints the head its
+  target was read at, and no dated line carries a range into
+  `specs/048-hwlat-probe/spec.md`. Runs: it starts no process, so it is parallel
+  with IA41-013 and IA41-014; one writer holds that record at a time, so this row
+  shares a sitting with them, and it stands before the squash ruling 29 of this
+  phase's list asks for.
+  ```
+  grep -n "specs/048-hwlat-probe/spec.md:[0-9]" specs/041-counter-probe/results/acceptance-final-intel.md
+  ```
+
+- [ ] IA41-016 [write] The blocked row the pair section answers: the standing
+  row of `The parity rows` of
+  `specs/041-counter-probe/results/acceptance-final-intel.md` that names the
+  control, the action and the missing right and carries no command line, beside
+  the section `The operator command pair for the restricted reading (2026-11-09)`
+  of the same record. Owner: `IP-002` of `specs/041-counter-probe/spec.md` asks a
+  blocked row for both command lines, and ruling 42 of this phase's list bars a
+  figure here. IA41-012 writes the pair row at the final head, and this row
+  carries the standing row to that pair. Writes: one dated line under this
+  heading beside that standing row, and the standing row keeps its text, its
+  heading and its BLOCKED mark. Verify: the line prints the read-first command
+  below with the value it answers, the line that sets `2`, the line that sets the
+  value back, the right this session lacks through the two elevation readings the
+  driver steps `f0-elevate-sudo` and `f0-elevate-pkexec` answer, and the record
+  row that holds the pair, and it prints no figure. Runs: it starts no process,
+  so it is parallel with IA41-012, IA41-013
+  and IA41-014; one writer holds that record at a time, and it stands before the
+  squash ruling 29 of this phase's list asks for.
+  ```
+  cat /proc/sys/kernel/perf_event_paranoid
+  ```

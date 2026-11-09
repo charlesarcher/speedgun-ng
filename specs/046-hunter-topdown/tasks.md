@@ -1237,3 +1237,292 @@ Depends on: a tree built at the measured head, and a machine with nothing else r
 - [x] IA46-003 [bench] Re-run the six hunts at master `87d745d6`, whose repair edits the
   mapper source. Verify: the record gives the split, the depths, the group totals, the
   digests and the rank movement for that head.
+
+
+## Acceptance closeout: measured Intel evidence (2026-11-08)
+
+- [ ] IA46-004 [bench] Run the two hunt commands of `results/acceptance-hunt.md:14-16`
+  three times each at the closeout head, each console alone on an idle host with
+  its load witness, and print the `topdown: level=` line and the 13
+  `topdown: file` digests at their length from the binary. Verify: six consoles
+  with their capture paths, exits and witnesses, the level line and the digests
+  printed, and rank movement stated on both denominators per command.
+- [x] IA46-005 [write] Correct the hunter record: the "ranked 497 events" claim at
+  `results/acceptance-hunt.md:4-5` and `results/pr-body.md:56-60`, the per-rank
+  claims at `results/acceptance-hunt.md:39-40`, the citation at `:57-58` that
+  names `source/harness/cli.cpp:521`, the described digests at `:45-46`, and the
+  missing Intel `PERF_METRICS` row in `results/acceptance-final-intel.md`.
+  Verify: one grep per correction, and the replacement states 497 printed rows
+  with 20 ranked beside the rank limit at `source/harness/hunt_plan.cpp:371-374`.
+- [ ] IA46-006 [read] Name a criterion id beside every row the closeout writes,
+  and name the audit point or ruling where no `SC-` id owns the claim. Verify: no
+  new row stands without an id, and no row cites an id that does not exist.
+
+## Intel acceptance closeout at the merged head (2026-11-08) - the hunter part
+
+**Phase**: the hunter part of the closeout that `specs/048-hwlat-probe/spec.md`
+records under `Intel acceptance closeout at the merged head (2026-11-08)`, the
+work `specs/046-hunter-topdown/spec.md` states under `Hunter work in the
+merged-head closeout (2026-11-08)` and `specs/046-hunter-topdown/plan.md` plans
+under `Acceptance closeout at the merged head (2026-11-08) - the hunter part`.
+IA46-007 to IA46-014 are that part's work list, and each one carries the owner id
+`IA46-006` asks for. Every one of them writes a markdown artifact of
+`specs/046-hunter-topdown`, the entry of `Files this phase may change` of
+`specs/048-hwlat-probe/spec.md` that names this part, and the console and reading
+rows land in `specs/046-hunter-topdown/results/acceptance-hunt.md`, the record the
+`record 046` note under the `Lane Table` of `specs/048-hwlat-probe/plan.md` names.
+
+**Cites**: three numbered ruling lists live in `specs/048-hwlat-probe/spec.md`:
+the 2026-11-07 list, the 2026-11-08 closeout list, and this phase's list under
+`Rulings - this phase (29 to 42)`. A cite below reads `ruling n of this phase's
+list` or `ruling n of the closeout list`, and each one names that file. A cite into
+a spec or a plan names that file, then the requirement id, the ruling number with
+its list, the heading, or the lane-table row by its first cell.
+
+**Head**: base `a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a` on branch
+`fix/intel-acceptance-closeout`. Every figure comes from a Pass 2 run at the final
+head, the head ruling 29 of this phase's list defines. No row below prints a figure
+of its own, and each row names the run that must answer it. A console row prints
+the short sha of the head its tree was built from beside its capture, and the
+capture path prints as the run printed it (`IC-006` and `IC-007` of
+`specs/048-hwlat-probe/spec.md`). Ruling 35 of this phase's list keeps every
+standing figure on the head whose run printed it, so `The ranked rows`, `The
+level-1 block` and the `Corrections at the merged base (2026-11-09)` sections keep
+their text and their headings.
+
+**Limits**: no row changes a file outside `Files this phase may change` of
+`specs/048-hwlat-probe/spec.md`, and no row adds a timeout, a grant, a suppression
+or an exclusion (`Out of scope for this phase` of that file, and `What this part
+leaves untouched` of `specs/046-hunter-topdown/plan.md`). Each console runs alone
+from the checkout root that holds the release tree `build`, and its witness line
+carries `cat /proc/loadavg`, the cpu affinity from `taskset -pc $$`, and the count
+of other compiler, test, capture and trace processes (ruling 30 of this phase's
+list, ruling 17 of the closeout list, and `The load witness` of
+`specs/046-hunter-topdown/plan.md`). No row here waits on a right this session
+lacks: the two consoles read the pmu unprivileged at the value
+`kernel.perf_event_paranoid` answers on this host, and the four pending rows wait
+on hosts, so this section carries no operator row (ruling 37 of this phase's list).
+One writer holds each file at a time, so rows marked parallel share a sitting and
+land their lines one after another.
+
+- [ ] IA46-007 [bench] The `Hunt, walk` row of the `Lane Table` of
+  `specs/048-hwlat-probe/plan.md`: three consoles of
+  `./build/example/memory_walk --hunt --hunt-budget 120s` in the release tree
+  `build`, the normal method first in the set of three (`IH-001`, and ruling 12 of
+  the closeout list, three consoles per command with the normal method only).
+  Owner: `IH-001` of `specs/046-hunter-topdown/spec.md`, and this row answers the
+  duty `IA46-004` carries at the closeout head at the final head. Writes: three
+  console rows under this part's dated heading in
+  `specs/046-hunter-topdown/results/acceptance-hunt.md`, beside `The ranked rows`
+  and `The level-1 block`, the sections that lane row names. Verify: each console
+  prints its own capture path outside the repository, the short sha of the head its
+  tree was built from, its exit code and the count of lines that console printed,
+  the pair row 8 of `The reading pairs the record must print` of
+  `specs/046-hunter-topdown/plan.md` asks for, each console with its own witness
+  line; a witness that reports another compiler, test, capture or trace process, or
+  a one-minute load average at or above the bound of ruling 30 of this phase's
+  list, voids that console and it is re-taken alone. Runs: waits for the `build`
+  tree the `Release build` row of that lane table builds at the final head, and it
+  runs alone (ruling 17 of the closeout list).
+  ```
+  ./build/example/memory_walk --hunt --hunt-budget 120s
+  ```
+
+- [ ] IA46-008 [bench] The `Hunt, benchmark` row of that lane table: three
+  consoles of `./build/example/first_benchmark --hunt --hunt-budget 120s` in the
+  same tree, the normal method first again (`IH-001`, ruling 12 of the closeout
+  list). Owner: `IH-001`. Writes: three console rows under this part's dated
+  heading in `specs/046-hunter-topdown/results/acceptance-hunt.md`, and those
+  rows land as dated rows beside the `first_benchmark` reading of the
+  `The ranked rows` section of that record, the standing row that holds the
+  second command's counts, and that section keeps its text and its heading. The
+  second command answers the same rows on its own three consoles. Verify: each
+  console prints its own capture path outside the
+  repository, its short head sha, its exit code and the count of lines that console
+  printed, and an alternative console joins none of the three (`IH-001`). Runs:
+  waits for IA46-007, because one console runs at a time on an idle host (ruling 17
+  of the closeout list), and IA46-009 to IA46-012 wait for it.
+  ```
+  ./build/example/first_benchmark --hunt --hunt-budget 120s
+  ```
+
+- [ ] IA46-009 [read] The first two rows of `The reading pairs the record must
+  print` of `specs/046-hunter-topdown/plan.md`, read from the six captures: the
+  count of rows each console printed beside the count of rows that carry a rank,
+  and the `area=` cells counted over each of those two row sets. Owners: `IH-001`,
+  `FR-013` and `FR-014` of `specs/046-hunter-topdown/spec.md`. Writes: two
+  reading rows under this part's dated heading in
+  `specs/046-hunter-topdown/results/acceptance-hunt.md`, and those rows land as
+  dated rows beside the `The ranked rows` table of that record, the standing row
+  that holds the counts of the earlier pass, and that table keeps its text and
+  its heading. Verify: each set of three
+  consoles carries both row counts, the ranked count reads at or below the
+  `--hunt-top` default at `include/speedgun-ng/hunt.hpp:135` with
+  `source/harness/hunt_plan.cpp:371-374` beside it, and each area count stands over
+  its own rows, the count over the rows that carry no rank read beside the body at
+  `source/harness/report.cpp:1316-1318`, which prints the cell only where
+  `topdownArea` holds a value (`FR-014`). Runs: waits for IA46-007 and IA46-008 for
+  the captures; it starts no process, so it is parallel with IA46-010 to IA46-014.
+
+- [ ] IA46-010 [read] The third and the fourth row of that table: the node-mapped,
+  list-group and unmapped counts over the printed rows and over the ranked rows,
+  each quoted beside the `level=1` companion block lines of the same console, and
+  the `topdown: level=` line with its `passes=` and `table=` fields beside the
+  `topdown: reference=` line and the `topdown: file` digest lines that follow it.
+  Owners: `SC-007` with AP-9 for the three counts, `IH-001` and `IA46-002` for the
+  block, ruling 18 of the closeout list and ruling 41 of this phase's list for the
+  digest reading. Writes: two reading rows under this part's dated heading in
+  `specs/046-hunter-topdown/results/acceptance-hunt.md`, and those rows land as
+  dated rows beside the `The level-1 block` table of that record, the standing
+  row that holds the block and its digest lines, and that table keeps its text
+  and its heading. Verify: the three counts
+  over each denominator stand quoted beside the block lines they were read with,
+  the level line prints with both fields, the reference line and the digest lines
+  print as the binary printed them at the length the binary printed them, and no
+  new row pins a digest count, because `source/harness/report.cpp:381-384` prints
+  one line per file the record carries and
+  `source/counters/linux_pmu/topdown_select.cpp:122-129` admits a file only where
+  that file contributes a row of the table the host loaded, so the count reads
+  `no figure` until a console prints it. Runs: waits for IA46-007 and IA46-008; it
+  starts no process, so it is parallel with IA46-009, IA46-011 to IA46-014.
+
+- [ ] IA46-011 [read] The fifth and the sixth row of that table: rank movement
+  among the ranked rows and rank movement across every row the run printed, each
+  read pairwise over the three consoles of one command, and the comparison between
+  the two binaries on its own labeled line beside them. Owners: `IH-001`, and
+  ruling 15 of the closeout list, which asks both denominators per command.
+  Writes: one movement row per command and the between-binary line, under this
+  part's dated heading in `specs/046-hunter-topdown/results/acceptance-hunt.md`.
+  Those rows land as dated rows beside the `The ranked rows` table of that
+  record, the standing row that holds the ranks, and that table keeps its text
+  and its heading. Verify: each command carries two movement readings, each naming the denominator
+  it counted over and the pair of consoles it compared, the between-binary line
+  carries its own label, and no new row states a stable rank, the reading the
+  section `Rank order is not a cross-run reading (IA46-002.5)` of
+  `specs/046-hunter-topdown/results/acceptance-final-intel.md` already holds.
+  Runs: waits for IA46-007 and IA46-008; it starts no process, so it is parallel
+  with IA46-009, IA46-010, IA46-012 to IA46-014.
+
+- [ ] IA46-012 [read] The scenario and the plan line. The `Hunt, one scenario and
+  one plan line` row of the `Lane Table` of `specs/048-hwlat-probe/plan.md` runs
+  `./build/test/harness_hunt_cli_test bare-hunt-whole-catalog`, then
+  `./build/example/first_benchmark --hunt --dry-run`, and `IA48-015` of
+  `specs/048-hwlat-probe/tasks.md` carries that run into the `IC-004` row of
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md`. This part cites that
+  row and rewrites none of it (`What this part leaves untouched` of
+  `specs/046-hunter-topdown/plan.md`, and ruling 9 of the closeout list). Owner:
+  `IH-002` with `IC-004` of `specs/048-hwlat-probe/spec.md`. Reads: that record row
+  beside the `method=` word and the `estimate=` figure of the plan line of each of
+  the six consoles, the seventh row of `The reading pairs the record must print`.
+  Writes: one citing row under this part's dated heading in
+  `specs/046-hunter-topdown/results/acceptance-hunt.md`. Verify: the row names the
+  `IC-004` row it cites and prints no scenario output of its own, and each console
+  plan line carries its `method=` word beside its `estimate=` figure with the head
+  whose run printed it (ruling 16 of the 2026-11-07 list, and ruling 35 of this
+  phase's list). Runs: waits for IA46-007 and IA46-008 for the six plan lines, and
+  waits for that lane row for the scenario line; it starts no process, so it is
+  parallel with IA46-009 to IA46-011, IA46-013 and IA46-014.
+
+- [ ] IA46-013 [read] The four pending hardware rows of `Pending rows this base
+  keeps` of `specs/046-hunter-topdown/spec.md`, in the shape `The pending hardware
+  rows` of `specs/046-hunter-topdown/plan.md` states: Intel parts measured through
+  `PERF_METRICS`, Intel hybrid parts, Arm parts, and AMD Zen 4 parts. Owners:
+  `SC-010` and `IH-002`. Writes: one pending table under this part's dated heading
+  in `specs/046-hunter-topdown/results/acceptance-hunt.md`, and that table lands
+  as a dated row beside row 6 of `Acceptance closeout corrections (2026-11-08)`
+  of the same record, the standing row that holds the pending reading, and that
+  row keeps its text. Verify: each of the
+  four rows keeps the word pending, names the part it waits for and the reason it
+  carries now, names `SC-010` and `IH-002` beside itself, carries no hardware
+  figure, keeps its synthetic seam rows, and leaves the Zen 5 reading measured
+  under `SC-009` with the head label that row carries. Runs: parallel with IA46-009
+  to IA46-014, because it starts no process and needs no console.
+
+- [ ] IA46-014 [write] The dated correction rows the records already name against
+  this file, in the shape `SC-IC-5` of `specs/048-hwlat-probe/spec.md` states: the
+  option name `--timeout 120` of the `T112` row, which `The commands` of
+  `specs/046-hunter-topdown/results/acceptance-hunt.md` corrects to the bound
+  `--hunt-budget 120s`; the digest-count clause of the `IA46-004` row, which row 2
+  of `Corrections at the merged base (2026-11-09)` of
+  `specs/046-hunter-topdown/results/acceptance-final-intel.md` names, the duty
+  ruling 41 of this phase's list states; and the anchor of row 4 of `Corrections at
+  the merged base (2026-11-09)` of
+  `specs/046-hunter-topdown/results/acceptance-hunt.md`, the re-read `The anchor
+  re-read` of `specs/046-hunter-topdown/plan.md` asks for. Owner: `IC-006` with
+  `SC-IC-5` of `specs/048-hwlat-probe/spec.md`. Writes: three dated lines under
+  this heading, each naming the line it replaces, while the standing `T112` row and
+  the standing `IA46-004` row keep their text and their headings. Verify:
+  `grep -n "timeout 120" specs/046-hunter-topdown/tasks.md` answers the `T112` line
+  unchanged, one dated line names that line and prints `--hunt-budget 120s` as the
+  bound both commands carry, one dated line names the `IA46-004` digest clause and
+  reads `no figure` for the head this phase measures, and the anchor line prints the
+  head `git rev-parse HEAD` answered for its tree beside the declaration
+  `grep -n "kTopdownCompanionLevel" source/harness/detail/internal.hpp` answers
+  there. Runs: it starts no process, so it is parallel with IA46-009 to IA46-013;
+  it writes a tracked file, so it stands clear of any window in which a suite of
+  `The final-head set` reads this checkout, because the `prose_gate_fixtures` and
+  `dbc_gate_fixtures` entries of `test/CMakeLists.txt` scan that tree, and it
+  stands before the squash ruling 29 of this phase's list asks for.
+
+
+### The carriers of the 2026-11-09 correction rows (IA46-015 and IA46-016)
+
+`IA46-014` carries the three correction rows that name a line of this file. The
+two rows below carry the rest of the dated correction rows of the two 046
+records, so no dated correction row of this part stands without a task row.
+Both write this file, and a dated line names the record row it lands beside.
+
+- [ ] IA46-015 [write] The four citation rows of
+  `Corrections at the merged base (2026-11-09)` of
+  `specs/046-hunter-topdown/results/acceptance-hunt.md` that IA46-014 leaves:
+  row 1, which lands ruling 16 of the closeout list in place of the range at
+  `:82`; row 2, which lands ruling 10 of that list in place of the range at
+  `:93-94`; row 3, which lands ruling 18 of that list in place of the digest
+  range at `:170`; and row 5, which lands `SC-IC-5` in place of the range at
+  `:78`. The same shifted range opens
+  `Acceptance closeout correction (2026-11-08)` of
+  `specs/046-hunter-topdown/results/pr-body.md`, the line the corrections table
+  of `specs/041-counter-probe/results/acceptance-final-intel.md` names beside
+  row 5, and this row lands that one too. Owner: `IC-006` with `SC-IC-5` of
+  `specs/048-hwlat-probe/spec.md`, and
+  ruling 41 of this phase's list states the duty of a cite that names a ruling by
+  its number and its list. Writes: five dated lines under this heading, each
+  naming the line it replaces and the record row that holds the reading, while
+  every line above those two correction sections keeps its text and its heading.
+  Verify: the command below answers the five sites, each dated line prints the
+  ruling number with the closeout list or the criterion id it lands, each prints
+  the head its target was read at, and no dated line quotes a range of the 048
+  spec for those five claims. Runs: it starts no process, so it is parallel with
+  IA46-009 to IA46-014; it writes a tracked file, so it stands clear of any
+  window in which a suite of `The final-head set` reads this checkout, and it
+  stands before the squash ruling 29 of this phase's list asks for.
+  ```
+  grep -n "specs/048-hwlat-probe/spec.md:[0-9]" specs/046-hunter-topdown/results/acceptance-hunt.md
+  ```
+
+- [ ] IA46-016 [write] The two rows of
+  `Corrections at the merged base (2026-11-09)` of
+  `specs/046-hunter-topdown/results/acceptance-final-intel.md` that IA46-014
+  leaves: row 1, the base this phase measures, and row 3, the open defect in a
+  preserved line. Owner: `IC-006` of `specs/048-hwlat-probe/spec.md`, and ruling
+  10 of the closeout list keeps each figure inside the row that names the head
+  that printed it. Writes: two dated lines under this heading, each naming the
+  record row that holds its reading. The first line lands the sentence row 1
+  gives beside the base declaration under
+  `Closeout at the closeout head (2026-11-08)` of that record, and it keeps the
+  declaration of `2d4d8c57975a86db6c77536f7090aba2bdaf6417` standing with the
+  date that section carries. The second line lands row 3 with the reproduction
+  command below, carries no figure, and names the page line and the
+  clarification line that own the fix, both outside `Files this phase may change`
+  of `specs/048-hwlat-probe/spec.md`. Verify: `git merge-base a55728af HEAD`
+  answers `a55728af`, the first line prints both base shas each with the date of
+  the section that declares it, and the second line prints the answer of the
+  command below beside the claim it corrects. Runs: it starts no process, so it
+  is parallel with IA46-009 to IA46-015; it writes a tracked file, so it stands
+  clear of any window in which a suite of `The final-head set` reads this
+  checkout, and it stands before the squash ruling 29 of this phase's list asks
+  for.
+  ```
+  git merge-base a55728af HEAD
+  sed -n '2439p' docs/pages/harness.md
+  ```
