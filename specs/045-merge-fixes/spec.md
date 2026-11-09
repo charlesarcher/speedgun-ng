@@ -1847,3 +1847,552 @@ called a substitution, and `ci-coverage` names the instrumented tree.
   row stands outside this phase, which changes no time base, and the
   owner owns it.
 - O-1 to O-4 of this spec stand unchanged by this phase.
+
+## Phase 15: Land the approved FWQ example widen and measure the gain (owner order, 2026-11-09)
+
+**Input**: Owner order of 2026-11-09, on thrawn. O-7 of phase 14 names
+the cause and the approved remedy: the example's ring stands at its
+default, the window fills the 65,536-point cap, and the transform over
+that ring dominates the sample's cost. The owner approved changing the
+FWQ example line and the matching `README.md` `sg-example` quote
+together. PR #100 left that widen unlanded, because `README.md` stood
+outside that phase's scope. This phase lands the approved widen and
+measures the gain on this host. Short name: fwq-example-n13e.
+
+This phase rides spec 045 as the owner directed. It adds no numbered
+spec, no option, no feature and no version reservation, and it replaces
+no earlier requirement, task row, ruling or record of this file. It adds
+FR-034 to FR-037, SC-029 to SC-033, D-23 to D-27, and the task rows
+BFW-009 to BFW-012 in `tasks.md`. The N13e trace-line lane rides
+`specs/036-osnoise-timerlat-tracers` as a dated phase of its own, and
+BFW-012 names the one acceptance set both lanes run at one head. In
+this phase "the record" names
+`specs/045-merge-fixes/results/fwq-example-closeout.md`; the
+pull-request body names the measured head. The barrier contract of
+`specs/020-execution-contexts-core` and the probe contract of
+`specs/043-fwq-ftq` stand unchanged apart from the one quoted example
+line.
+
+### Run-time binding (phase 15)
+
+- Base: `origin/master` at `a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a`
+  (the PR #100 merge, which carries PR #99; version 0.34.0, report
+  schema 1.16, harness `SOVERSION` 22, archive `SOVERSION` 8,
+  `git grep -c LCOV_EXCL -- source include` at 84, README 1002 lines
+  against the cap of 1004). No open pull request stood at the live
+  check of 2026-11-09. The base SHA shall stand an ancestor of
+  `origin/master` at cut time, and the implement phase rechecks it.
+- Branch: `fix/fwq-example-n13e`, cut from the latest `origin/master`.
+  The branch stood absent on the remote at the live check. When it
+  exists, the work inspects its head, reports, and stops for scope
+  reconciliation; it overwrites nothing and revives no merged branch.
+  The remote branch `fix/barrier-entry-fwq` stands merged; this phase
+  reads it as history and moves nothing on it.
+- One branch, one squashed commit, one pull request. The work never
+  merges and closes no issue.
+- Version, schema, harness `SOVERSION` and archive `SOVERSION` shall
+  not change. No public header changes. The widen reaches one example
+  region and the one page block that quotes it.
+- Target host: thrawn, AMD Zen 5 Threadripper 9960X, 24 cores, 48
+  threads. Acceptance is local (G-20). Continuous-integration results
+  stand as diagnostics.
+- The wait-arm proof, the BLOCK re-check and the single-fold spectrum
+  cache stand landed at the base, measured at head
+  `854bc721bab64788f6f67e93bb88a4f3b94011c0`. This phase reopens no
+  proof of that set. A regression on this head stands reported before
+  any barrier edit, and no barrier edit stands made without one.
+- Line numbers in the earlier phases of this file name the state at
+  their own base. This phase finds every item by its symbol.
+
+### Scope (phase 15)
+
+In scope:
+
+- `example/docs/fwq_ftq.cpp`: the `fwq-ftq` region alone.
+- `README.md`: the one `sg-example` block that quotes the `fwq-ftq`
+  region, and nothing else on the page.
+- `specs/045-merge-fixes/`, its `results/` records and its quickstart.
+- The shared acceptance rows BFW-012 runs, which the spec 036 phase
+  names N13E-004.
+
+Out of scope:
+
+- Every other `README.md` line, `docs/pages/harness.md`, and
+  `example/docs/fwq_ftq.expected`: the shape gate passes numbers, and
+  the recorded block keeps its line count. A shape finding that the
+  widen produces stops the work and reports the scope it needs.
+- The barrier wait implementation, the barrier fixture and the
+  wait-arm seam: no regression stands proved on this head.
+- O-5 (the two grants), O-6 (the arm-body swap gate), any disassembly
+  gate, any continuous-integration change, any timeout raise, any
+  shared preset or gate change, and Intel acceptance records. No other
+  machine stands named (G-24).
+- Trace raw event codes (G-31) and automatic ranks (G-32): both stand
+  future features.
+- The N13e sources and tests: they stand in the scope of the spec 036
+  phase.
+
+### User scenarios (phase 15)
+
+#### US-11 The example and its page quote stay in sync, and the claimed speedup stands measured (Priority: P1)
+
+A reader opens the Fixed work and time quanta section and finds the
+quoted example carrying the bounded ring, and finds the same line in
+the region it quotes. A reader of the record finds the gain of that
+bound measured on the final squashed head against the pre-change
+example on this host, with the commands, the cpu set and the timings.
+
+**Why this priority**: IV.1 makes the page block and the example
+region one fact with two spellings, and X.4 makes a performance claim
+a measured figure. An unmeasured speedup quoted on the main page is a
+defect at lint parity.
+
+**Independent test**: `python3 tools/docs/example_drift.py .` and the
+four-flag form exit 0, and the record's timing table names the
+baseline runs and the final-head runs with their ratio.
+
+**Acceptance scenarios**:
+
+1. **Given** the final squashed head, **When** the drift gate runs in
+   both forms, **Then** each exits 0, and the changed line stands in
+   the region and in the page block byte-identical.
+2. **Given** the pre-change example at the branch base and the changed
+   example at the final head, **When** the timing protocol runs both
+   on this host with the same cpu set and run count, **Then** the
+   record gives each timing, and the ratio stands a measured figure.
+3. **Given** the changed example, **When** `report_shape_fwq_ftq_sample`
+   runs in the release, pinned and four-cpu lanes, **Then** it exits 0
+   in each, and the calibration group, the series lines and the period
+   lines keep their shape.
+
+#### US-12 A reviewer reads acceptance at the exact final squashed commit (Priority: P1)
+
+A reviewer reads the pull-request body or one artifact beside it and
+finds every required lane measured at the SHA the pull request ships,
+including the spec 036 phase's rows.
+Acceptance measured at `854bc721bab64788f6f67e93bb88a4f3b94011c0`
+stands as the record of PR #100, and answers nothing about this
+branch.
+
+**Why this priority**: G-23 makes the squashed head the measured head,
+and the review of PR #100 named this row as a Low finding.
+
+**Independent test**: the pull-request body or the untracked artifact
+names one SHA, `git rev-parse HEAD` equals it, the tracked tree stands
+clean, and `git ls-remote origin refs/heads/fix/fwq-example-n13e`
+equals it.
+
+**Acceptance scenarios**:
+
+1. **Given** the squashed head, **When** each required lane command
+   runs, **Then** the pull-request body or the untracked artifact names
+   that SHA beside the command, the exit and the counts, and the
+   tracked record names the pre-squash SHA of each interim row.
+2. **Given** any later change to a tracked file, **When** the work
+   commits it, **Then** every required lane runs again at the new
+   head, and the artifact names the new SHA.
+
+### Edge cases (phase 15)
+
+- The bounded ring answers fewer spectrum points. The fold keeps its
+  30 series lines and its five period lines, so the recorded block
+  keeps its line count and the shape gate passes numbers.
+- A window that fills the bounded ring prints a large
+  `droppedSamples` figure. The figure stands a number the shape gate
+  passes, and the record states the ring bound beside it.
+- The README stands at 1002 lines against the cap of 1004. The widen
+  adds one line inside an existing block, and the page keeps its
+  feature-section list.
+- A timing run on a contended host answers nothing (VII). The record
+  names `sched_getaffinity`, the online cpu list and the cpu set each
+  timing run held.
+- The measured ratio carries no bound: the phase sets no threshold, and
+  the record states the figure and its spread. O-7 closes on the
+  measured reading, whatever its size.
+- The example's calibration group, series lines and method word keep
+  their shape, so `example_run` and `snippet_compile` keep their
+  standing readings.
+- The noise-warning lines of the recorded block stand two, and their
+  count depends on which planned cpus cross the example's noise bound.
+  A final-head run whose warning-line count differs from the recorded
+  block stands a shape finding under D-26, reported with both counts.
+- A remote that refuses a push stands the push row blocked with the
+  refusal, the local half (clean tree, `git rev-parse HEAD`) proved
+  either way, and the lease stands never refreshed and retried.
+- `example/docs/fwq_ftq.expected` stands recorded from the pre-widen
+  example. The record carries one dated line naming the ring bound and
+  that provenance; the block is not re-recorded.
+
+### Requirements (phase 15)
+
+- **FR-034** (BFW-009): The phase shall change the `fwq-ftq` region of
+  `example/docs/fwq_ftq.cpp` by the approved widen alone: one
+  designated initializer that bounds the probe ring in the
+  `runJitterProbe` call. The matching `sg-example` block of
+  `README.md` shall carry the same line in the same change. No other
+  `README.md` line, no other example region and no other page block
+  shall move.
+- **FR-035** (BFW-010): The phase shall measure the gain of the widen
+  at the final squashed head against the pre-change example at the
+  branch base, on this host, with the same binary target, the same cpu
+  set and the same run count in each shape. The record shall carry the
+  commands, the cpu set, the per-run timings and the ratio. The record
+  shall cite each earlier figure, the 17.6 estimate, the 92 reading and
+  the ring sweep rows, each with the tree, the bound, the transform
+  count and the invocation form it was taken at, and shall compare the
+  measured ratio to none of them as an equal. No tracked line shall
+  call an ~18 figure a fact.
+- **FR-036** (BFW-011): After the edits, `python3
+  tools/docs/example_drift.py .` and the same command with `--names`,
+  `--options`, `--forbidden` and `--sections` shall exit 0. A drift
+  finding stands fixed only inside the owned example and page-quote
+  pair.
+- **FR-037** (BFW-012): Every required local acceptance command of the
+  local-acceptance section below shall run at the final squashed head,
+  including the N13e rows the spec 036 phase names N13E-004, and the
+  pull-request body, or one untracked artifact beside it, shall name
+  that head beside each reading. The tracked record carries dated rows
+  labeled preliminary with the head each was taken at. A lane that a
+  host refuses stands recorded as blocked with the command and the
+  refusal. A base failure stands identified and open.
+
+### Success criteria (phase 15)
+
+- **SC-029**: The changed line stands in the `fwq-ftq` region and in
+  the `README.md` block that quotes it, byte-identical, and both forms
+  of the drift gate exit 0 at the final head.
+- **SC-030**: The record gives the pre-change baseline timings and the
+  final-head timings with the shared cpu set and run count, states the
+  ratio as a measured figure, and names the 17.6 reading of O-7 as an
+  estimate taken at the phase 14 tree at the 4096 bound on the
+  instrumented binary.
+- **SC-031**: `report_shape_fwq_ftq_sample` exits 0 in the full
+  parallel suite, in the two-cpu pinned suite and in the four-cpu
+  suite at the final head, and the record gives its wall time in each.
+  Each compared wall time stands below the branch-base reading at the
+  same lane shape, the phase 14 "This tree" column (15.84 s release at
+  `-j 48`, 8.93 s pinned at `-j 2`, 13.14 s four-cpu at `-j 4`), which
+  stands the branch-base shape because the base carries that content.
+  The sanitizer, thread-sanitizer and instrumented lanes record the
+  entry wall as a reading with no comparison, because phase 14 names
+  no job count beside the instrumented figure. SC-031 stands a
+  no-regression check; FR-035's alone-entry protocol stands the gain
+  measure.
+- **SC-032**: The coverage reading at the measured head gives its
+  numerator, denominator, branch shortfall and marker count. The
+  shortfall stands at or below 21 with no new marker, filter,
+  allowance or ignore-error class (G-25), and the marker count stands
+  at or below 84.
+- **SC-033**: The pull-request body, or one untracked artifact under
+  `$HOME/scratch/`, names the final squashed SHA beside every required
+  lane reading, and after each push `git ls-remote origin
+  refs/heads/fix/fwq-example-n13e` equals `git rev-parse HEAD`. The
+  tracked record names the pre-squash SHA of each dated interim row.
+  No tracked file carries the SHA of its own commit.
+
+### Local acceptance (phase 15)
+
+Acceptance is local (G-20) on thrawn. Before any pinned run the work
+records `sched_getaffinity` and the online cpu list. A test chooses a
+real allowed cpu. The required lane is `taskset -c 0,1`; when cpus 0
+and 1 stand outside the allowed set, that lane stands recorded as
+blocked with the refusal, and a run on another allowed pair stands as
+extra evidence. A run on four real allowed cpus also stands required.
+
+Required lanes at the measured head, the set phase 14 ran:
+
+1. A fresh full release suite (`ci-rocky` in `build`), configured,
+   built and run whole with `-j 48`.
+2. The same suite under `taskset -c 0,1` with `-j 2`.
+3. The same suite on four real allowed cpus, `taskset -c 0,1,2,3` with
+   `-j 4`.
+4. The `ci-sanitize` tree, `-j 48`.
+5. The `ci-tsan` tree, `-j 48`.
+6. The `ci-coverage` tree, `-j 48`, through the `coverage` target and
+   the gate.
+7. The cheap gates: format, spell, the prose gate over the tree, the
+   prose gate over the range with `--base` naming the branch base, the
+   prose gate fixtures, example drift in both forms, the drift
+   fixtures, the report-shape fixtures, example run and its fixtures,
+   snippet compile, time-source, the DBC documentation and pairing
+   gates, the DBC gate fixtures, and the downstream consumer build.
+8. The analyzer build: `ci-ubuntu` in its own `build-an` directory, so
+   no reconfiguration displaces `build`.
+9. The exported-names audit: a `BUILD_SHARED_LIBS=ON` install and
+   `nm -D --defined-only`, answered against the standing export counts,
+   the reading that carries the no-symbol-change claim.
+
+The FWQ timing protocol stands predeclared here. The shape entry runs
+five times alone in the release tree at the branch base and five times
+alone at the final head, unpinned on the full affinity mask, the shape
+phase 14 took its alone-entry readings at, one `ctest` invocation per
+run:
+
+```
+seq 1 5 | xargs -I{} ctest --test-dir build-base -R '^report_shape_fwq_ftq_sample$'
+seq 1 5 | xargs -I{} ctest --test-dir build -R '^report_shape_fwq_ftq_sample$'
+```
+
+The first batch runs against the baseline tree in `build-base` and
+stands fixed. The second batch runs only after lane 1 has configured
+and built `build` fresh at the measured head.
+
+The record gives each run's wall time and the ratio of the medians.
+The final measurement's baseline stands built from the branch base
+itself in a named second build directory, `build-base`, and interim
+rows may stand taken against the last pre-widen interim commit under
+the same proof: the record carries the `git diff` reading that base and
+that commit hold no difference under `source`, `include`, `example`,
+`test`, `cmake`, `tools`, `docs`, `external`, any `CMakeLists.txt` or
+`CMakePresets.json`. The baseline batch runs first and stands fixed;
+only the final-head side re-runs at a new squashed head, so the ratio's
+denominator never moves. Interim rows stand labeled preliminary with
+their pre-squash SHA. The full-suite wall time of the same entry stands
+recorded in each required suite lane; the release, pinned and
+four-cpu lanes stand compared against the phase 14 "This tree" column,
+and the sanitizer, thread-sanitizer and instrumented lanes record the
+wall as a reading with no comparison.
+
+Coverage stands measured under the rules of phase 13: 100 percent
+lines and branches subject only to the accepted R-1, R-2 and W-1
+exceptions, a tree-wide branch shortfall at or below 21, and at or
+below 84 markers. No new `LCOV_EXCL` marker, ignore-error class, omit
+or remove pattern, widened filter, allowance or host lcovrc bypass
+stands added, and G-25's removal stays gone.
+
+No test of this phase uses a sleep, a wall-clock threshold or a fake
+cpu.
+
+### Commit and record rules (phase 15)
+
+- History, authors and footers of earlier work stand as they are
+  (G-26, G-27). New commits carry author and committer `OmO`, and the
+  prose follows ASD-STE100. No new person name and no user home path
+  stands in a tracked record; the LICENSE exemption stands. Tracked
+  paths name `$HOME` or a build-relative root.
+- One squashed commit carries both lanes. Title: `<Section>: <one-line
+  imperative>` at 50 characters or fewer. Body lines: 72 columns or
+  fewer. Footers, as real trailers in order:
+  `Refs: specs/045-merge-fixes BFW-009 to BFW-012`, then
+  `Refs: specs/036-osnoise-timerlat-tracers N13E-001 to N13E-004`,
+  then `Approved-by: OmO`. The commit carries no `Fixes #n`: no
+  tracking issue stands for either row, and the body says so.
+- During the work, each change pairs with its test, and the record
+  carries reproducible commands and dated interim findings, each
+  labeled preliminary with its pre-squash SHA. The quickstart gains one
+  link row to the new record.
+- The work fetches `origin`, rebases onto the latest `origin/master`,
+  and never merges. It finishes the tracked code, tests, docs and
+  records, squashes the branch into one commit, requires a clean
+  tracked tree, and saves `git rev-parse HEAD` as the measured head.
+  Every required lane then runs at that head, and its readings stand
+  in the pull-request body or an external untracked artifact. No
+  tracked file carries its own SHA. A change to a tracked file after a
+  measurement produces a new squashed head and a fresh run of every
+  required lane.
+- First push: `git push -u origin fix/fwq-example-n13e`. Each later
+  push saves the expected full remote SHA, requires it to equal the
+  last observed value, and uses
+  `git push --force-with-lease=fix/fwq-example-n13e:<expected-full-sha>`.
+  A failed lease stops the work and stands reported; the lease stands
+  never refreshed and retried. After each push `git ls-remote origin
+  refs/heads/fix/fwq-example-n13e` shall equal `git rev-parse HEAD`.
+- The `gh` credential of this machine stands absent at the live check.
+  The branch, the push proof and the pull-request body text stand
+  delivered through one local file for the operator; no token stands
+  invented.
+- `.specify/feature.json` stays a local file and stands out of the
+  pull request.
+- No new continuous-integration change, gate or exclusion approval
+  stands in this phase.
+
+### Decisions (phase 15)
+
+- **D-23 (ride)**: the example step rides spec 045 as the owner
+  directed. O-7 stands a row of this lane, and a new numbered feature
+  would split the record of that row.
+- **D-24 (the widen is the ring bound)**: the approved widen is the
+  ring bound the landed plan names. The `fwq-ftq` region gains one
+  designated initializer that bounds the probe ring at 4096 points,
+  the figure `plan.md` item 4 names as the example's own bound and the
+  bound the 17.6 estimate was measured at. The initializer stands in
+  declaration order after `.mode`. The page's result sentence keeps
+  its shape: the fold still prints the 30 series lines and the five
+  period lines.
+- **D-25 (the gain stands measured)**: FR-035 measures the gain at the
+  final head against the base on this host. The 17.6 reading of O-7
+  stands an estimate taken at the phase 14 tree at the 4096 bound on
+  the instrumented binary, and this phase quotes it as one.
+- **D-26 (the recorded block stands)**: the shape gate passes numbers.
+  `example/docs/fwq_ftq.expected` keeps its bytes, because the widen
+  changes figures and keeps the line count. A shape finding stops the
+  work and reports.
+- **D-27 (the open rows)**: O-5 and O-6 stand as phase 14 wrote them.
+  O-7 closes with this phase. O-8 stands deferred: no narrow
+  disclosure fix fits the owned jitter files while the schema and the
+  two `SOVERSION` numbers stay unmoved, and the record carries that
+  reading.
+
+### Clarifications (phase 15)
+
+#### Round 1, 2026-11-09
+
+The clarification pass read the phase against the example, the page
+block, the recorded block, the gate scripts, the phase 14 record and
+the landed plan.
+
+- Q: Which ring figure does the approved widen carry, the sweep's 1024
+  or the plan's 4096? (D-24) → A: 4096. `plan.md` item 4 names it the
+  example's own bound, and the 17.6 and 92 estimates stand measured
+  there. The 1024 sweep row stands a lower sweep point. The record
+  names the bound beside every cited estimate.
+- Q: Which base reading does SC-031 compare against, when the branch
+  base already carries the fold cache? (SC-031) → A: the phase 14
+  "This tree" column, the branch-base shape at the same lane shape:
+  15.84 s release, 8.93 s pinned, 13.14 s four-cpu. SC-031 stands a
+  no-regression check, and FR-035's alone-entry protocol stands the
+  gain measure.
+- Q: What is the measured ratio comparable to, when the sweep ran at
+  `2d4d8c57` with six transforms, a standalone form and other bounds?
+  (FR-035) → A: to nothing cited as an equal. The record gives the
+  measured ratio and cites each earlier figure with its tree, bound,
+  transform count and invocation form. No threshold stands invented.
+- Q: Where does the pre-change baseline stand built, when `ci-rocky`
+  and `ci-ubuntu` share `build`? (local acceptance) → A: the baseline
+  binary stands built from the last pre-widen branch commit, with the
+  `git diff` proof that base and that commit differ in no code path.
+  The analyzer build stands in its own `build-an`, as phase 14 ran it.
+- Q: Which cpu set and run count does the timing protocol name?
+  (local acceptance) → A: the alone-entry protocol runs unpinned on the
+  full affinity mask, five invocations per side, the shape phase 14's
+  alone-entry readings took. The pinned lane names `taskset -c 0,1`
+  with `-j 2`, and the four-cpu lane names `taskset -c 0,1,2,3` with
+  `-j 4`.
+- Q: Where do the final-head readings live, when no tracked file
+  carries its own SHA? (SC-033, FR-037) → A: the pull-request body or
+  one untracked artifact under `$HOME/scratch/` names the final head
+  beside every required lane. The tracked record names the pre-squash
+  SHA of each interim row.
+- Q: Does the no-~18-as-fact rule reach the phase 14 line that reads
+  "measured at 17.6x"? (FR-035) → A: it binds new lines. The phase 14
+  line stands as the record of what was measured then, and the new
+  record re-labels that figure as an estimate at the 4096 bound on the
+  instrumented binary.
+- Q: Does the shape claim cover the noise-warning lines, whose count
+  depends on the bound? (edge cases) → A: it does. The recorded block
+  carries two warning lines, and a final-head count beside them that
+  differs stands a shape finding reported under D-26.
+- Q: In how many lanes does the entry's in-lane wall stand compared?
+  (SC-031) → A: three stand compared against the branch-base column:
+  release, pinned and four-cpu. The sanitizer, thread-sanitizer and
+  instrumented lanes record the entry's wall as a reading with no
+  comparison, because phase 14 names no base figure there.
+- Q: Does the lane list carry the exported-names audit and the prose
+  range base? (local acceptance) → A: both stand named. The audit
+  stands required, because it carries the no-symbol-change claim, and
+  the prose range command names the branch base.
+- Q: Does the timing protocol re-run at every new squashed head, and
+  how does the record judge a contended host? (FR-035) → A: it
+  re-runs, interim rows stand preliminary at their pre-squash SHA, and
+  the record names the `sched_getaffinity` and online-cpu reads that
+  judged the host.
+- Q: What answers a remote that refuses the push? (SC-033) → A: the
+  push row stands blocked with the refusal, the local half stands
+  proved, and the lease stands never refreshed and retried.
+- Q: Does the recorded block's `sampleCount: 65536` figure stand
+  re-recorded? (edge cases) → A: it stands not. One dated record line
+  names the ring bound and the block's pre-widen provenance.
+- Q: Do the interim rows' SHAs resolve after the squash? (commit
+  rules) → A: they name pre-squash commits, and the rule says so.
+- Q: Who writes the BFW-009 to BFW-012 task rows, and does the
+  quickstart move? (scope) → A: the tasks phase writes the four rows
+  before implement, and the quickstart gains one link row to the new
+  record.
+
+#### Round 2, 2026-11-09
+
+The second pass read the amended phase against the phase 14 record and
+the gate scripts, and superseded one round-1 answer.
+
+- Q: Where does the measured SHA live when US-12 still reads "the
+  record names that SHA"? (US-12, SC-033) → A: the pull-request body
+  or the untracked artifact names the final SHA beside every lane; the
+  tracked record names pre-squash SHAs of interim rows only. The US-12
+  clauses stand amended.
+- Q: How many lanes carry a comparison, when the phase 14 "This tree"
+  column carries an instrumented figure too? (SC-031) → A: superseded
+  by this round: four lanes compare, release, pinned, four-cpu and
+  instrumented against 30.32 s. The sanitizer and thread-sanitizer
+  lanes record readings with no comparison.
+- Q: Which build directory answers the baseline, when lane 1
+  reconfigures `build` at the head? (local acceptance) → A: `build-base`
+  holds the baseline build, the baseline batch runs first and stands
+  fixed, and only the final-head side re-runs at a new squashed head.
+- Q: Which commit is "the branch base" during the work? (FR-035) → A:
+  the final measurement compares against the branch base itself;
+  interim rows may ride the last pre-widen interim commit under the
+  same diff proof.
+- Q: What does the diff proof cover, when six `CMakeLists.txt` files
+  exist and the timed entry reads `docs/pages/harness.md`? (FR-035) →
+  A: `source`, `include`, `example`, `test`, `cmake`, `tools`, `docs`,
+  every `CMakeLists.txt` and `CMakePresets.json`.
+- Q: Which job counts do the unbound lanes carry? (local acceptance) →
+  A: `-j 48` for the release, sanitizer, thread-sanitizer and
+  instrumented lanes, matching the phase 14 readings.
+- Q: Does the lane list carry the prose and DBC fixture rows? (local
+  acceptance) → A: it does now; the list names the prose gate fixtures
+  and the DBC gate fixtures beside the gates they prove.
+- Q: Does D-25 name the bound the estimate was taken at? (D-25) → A:
+  it names 4096 now, as SC-030 does.
+- Q: Does the ratio carry a bound? (FR-035, SC-031) → A: it carries
+  none. The record states the figure and its spread, and O-7 closes on
+  the measured reading, whatever its size.
+
+#### Round 3, 2026-11-09
+
+The third pass read the amended phase against the recorded job counts
+and closed the residue. It superseded one round-2 answer.
+
+- Q: Which build directory answers each side of the protocol? (local
+  acceptance) → A: the block names both: the baseline batch runs
+  against `build-base` and stands fixed, and the final-head batch runs
+  only after lane 1 configures and builds `build` fresh at the measured
+  head.
+- Q: Does the instrumented lane carry a comparison? (SC-031) → A:
+  superseded by this round: it does not. The phase 14 instrumented
+  figure names no job count beside it, so the sanitizer,
+  thread-sanitizer and instrumented lanes record readings with no
+  comparison, and three lanes compare: release, pinned and four-cpu.
+- Q: Where does the diff proof reach? (FR-035) → A: it names `external`
+  beside the other roots, so the vendored gitlinks stand covered.
+- Q: Where does a reviewer read the lane table? (US-12) → A: in the
+  pull-request body or the artifact beside it, the amended independent
+  test and scenarios say, and the opening line now reads the same.
+
+### Assumptions (phase 15)
+
+- thrawn is the host of record: 48 online cpus, all 48 in the affinity
+  mask, kernel 7.3.0-5-cachyos, GCC and gcov 16.2.1, clang 23.1.3,
+  lcov 2.6-0, cmake and ctest 4.4.4 at the live check of 2026-11-09.
+- The owner rulings G-20, G-23, G-24, G-25, G-26, G-27, G-28, G-31 and
+  G-32 sit outside this repository; the order of 2026-11-09 carries
+  their operative content, and this phase cites them from it.
+- The `gh` credential of this machine stands absent at the live check,
+  so the pull request opens through the owner's credential when the
+  branch and its record stand ready. The branch, the push proof and
+  the body text stand delivered either way.
+- The FWQ original failure stands unreproduced on this host (phase 14,
+  D-21). This phase restates that reading and raises no grant.
+
+### Open, owner (phase 15)
+
+- **O-5 (the two grants)**: the 110 s grant inside
+  `tools/docs/report_shape.py` and the 120 s ceiling of
+  `report_shape_fwq_ftq_sample` stand unchanged by this phase.
+- **O-6 (the arm-body swap gate)**: stands as phase 14 wrote it; this
+  phase adds no disassembly gate.
+- **O-7 (the example's ring bound)**: closed by this phase. FR-034
+  lands the approved widen, and FR-035 measures the gain.
+- **O-8 (the probe's time base)**: stands deferred with the
+  disclosure D-27 states.
+- O-1 to O-4 of this spec stand unchanged by this phase.

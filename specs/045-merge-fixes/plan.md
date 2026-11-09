@@ -546,3 +546,326 @@ release tree and in the thread-sanitizer tree.
   duration and threshold on this host runs 4.19x shorter than it names.
   A fix there lengthens the example, so it stands apart from this
   phase.
+
+## Phase 15 plan: Land the approved FWQ example widen and measure the gain (2026-11-09)
+
+**Base**: `origin/master` at `a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a`, the
+PR #100 merge, which carries the single-fold spectrum cache.
+**Branch**: `fix/fwq-example-n13e`, cut from the latest `origin/master`.
+**Spec**: Phase 15 of [spec.md](./spec.md), rows BFW-009 to BFW-012.
+**Host of record**: thrawn, AMD Zen 5 Threadripper 9960X, 24 cores, 48
+threads, all 48 cpus in the affinity mask, kernel `7.3.0-5-cachyos`, GCC and
+gcov `16.2.1 20260810`, clang `23.1.3`, clang-format `18.1.8`, lcov and
+genhtml `2.6-0`, cmake and ctest `4.4.4`.
+
+Line numbers stand taken at the branch base, before the widen lands, the way
+the earlier phases of this file take theirs.
+
+### Summary of the phase
+
+One row stands open. O-7 of phase 14 names the cause of the FWQ sample's
+cost and the approved remedy: the example leaves the probe ring at
+`kDefaultGapCount = 65536` (`include/speedgun-ng/benchmark.hpp:2464`), the
+window fills that ring, `resampleUnitTimes` caps the transform at
+`min(sum(unit times)/stepNs, cap)` (`source/harness/spectrum.cpp:62`) with
+`kSpectrumCap = 65536` (`source/harness/detail/spectrum.hpp:26`), and
+`dftPeriods` then runs `N x N/2` inner steps (`source/harness/spectrum.cpp:147-167`).
+The ring capacity equals the transform cap, so the example pays the cap on
+every run. The owner approved the example line and the `README.md` quote
+together; PR #100 left that widen unlanded because `README.md` stood outside
+that phase's scope.
+
+This phase lands the widen, keeps the page pair in step, and measures the
+gain on this host at the final squashed head. It changes two tracked lines
+and adds one record file. It moves no version, no schema, no `SOVERSION`, no
+public header, no gate, no filter, no allowance and no timeout. The barrier
+contract and the probe contract stand unchanged apart from the one quoted
+example line, and this phase reopens no proof of the wait-arm set that stands
+landed at the base.
+
+### Design
+
+The example half, in order:
+
+1. `example/docs/fwq_ftq.cpp` gains one line in the `fwq-ftq` region. The
+   region markers stand at `:33` and `:46` and its body runs `:34-44`, eleven
+   lines. The new line stands after the `.mode` line at `:37` and before
+   `.precheckMs`:
+
+   ```cpp
+                         .gapCount = 4096,
+   ```
+
+   In the file the line carries 22 leading spaces, the alignment
+   `AlignAfterOpenBracket: Align` gives after the open brace of the
+   braced-init-list, and the fence above adds the list's three. The file sets
+   `ColumnLimit: 80`, and the longest line of the call stands at 60 columns.
+   A candidate carrying that line answers unchanged from
+   `clang-format --style=file` with clang-format `18.1.8`, so the format gate
+   reads clean on the first pass. The region body goes to twelve lines and
+   the file to 47.
+2. The designator stands in declaration order. `JitterProbeOptions` declares
+   `mode` at `include/speedgun-ng/benchmark.hpp:2558`, `gapCount` at `:2559`
+   and `precheckMs` at `:2560`, and a designated initializer list follows
+   declaration order, so `.gapCount` stands between `.mode` and
+   `.precheckMs`. The value 4096 stands inside `kMinGapCount` and
+   `kMaxGapCount` at `:2465-2466`, so the require at
+   `source/harness/cli.cpp:413-415` holds.
+3. The figure 4096 is the one the owner's ruling names (D-24, clarification
+   round 1). Phase 14 item 4 names it the example's own bound, and the 17.6
+   and 92 estimates stand measured there. The 1024 sweep row stands a lower
+   sweep point.
+4. `README.md` carries the same bytes in the block that quotes the region.
+   The marker stands at `:765`, the fence at `:766`, the block body at
+   `:767-777` and the closing fence at `:778`. The new line stands after the
+   `.mode` line at `:770`. `example_drift.py`'s `compare` (`:423-446`)
+   requires the block body and the region lines to be equal, so a one-sided
+   edit fails with `block 'fwq-ftq' at line 766 differs from its region`, and
+   both edits stand in one commit.
+5. The page keeps its budgets. The page stands at 1002 lines and goes to
+   1003 against `PAGE_LINE_CAP = 1004` (`tools/docs/example_drift.py:256`).
+   The section `Fixed work and time quanta` spans `:763-780`, eighteen lines,
+   and goes to nineteen against `SECTION_LINE_CAP = 25` (`:257`). No other
+   page line moves, and the feature-section rows of `--sections` keep their
+   readings.
+6. `docs/pages/harness.md` and `example/docs/fwq_ftq.expected` stand
+   untouched. That page's marker at `:2039` quotes the recorded run, which is
+   a sample block, and no page quotes the `fwq-ftq` region as code.
+
+The shape half, in order:
+
+1. The recorded block keeps its bytes (D-26). `example/docs/fwq_ftq.expected`
+   carries 156 body lines, quoted at `docs/pages/harness.md:2039`.
+   `report_shape.py`'s `mask` folds a digit run to `#` and a whitespace run
+   to one space, so `sampleCount`, `spectrumPoints`, `droppedSamples` and the
+   period figures move as values while every field name, line class and order
+   keeps its bytes. The fold keeps the 30 series lines and the five period
+   lines, because those lines come from the field names of the series block
+   and the ring bound answers figures.
+2. The warning-line count stands the one part of the shape a bound can move.
+   The two `warning: cpu <n> noisePercent <x> maxValue <y>` lines of the
+   recorded block are classified lines (`classify` at `:185-201` answers
+   `noise warning line`) and stand outside `HOST_CONDITION` (`:129-133`), so
+   their count rides the compared shape. They answer for the planned cpus,
+   and the example's bound leaves `noisePercent = 1` far behind on both of
+   them: 8.70 and 16.49 in the release tree at the bound, 88.45 and 72.70 in
+   the instrumented tree. A final-head run whose count differs from the two
+   recorded lines answers with `sample output block holds 156 lines, the run
+   printed <n>` and a per-line finding (`compare`, `:301-322`), stands a
+   shape finding under D-26, stops the work, and stands reported with both
+   counts.
+3. The two grants stand unchanged (O-5): the 110 s subprocess grant at
+   `tools/docs/report_shape.py:368` and the 120 s `ctest` ceiling of
+   `report_shape_fwq_ftq_sample` at `test/CMakeLists.txt:2197`. The widen
+   shortens the run, so neither grant carries a new dependency.
+4. `example_run`, `snippet_compile`, the `docs_fwq_ftq` target and the
+   `example/docs/fwq_ftq.expected` fold keep their standing readings, because
+   the calibration group, the method word and the series lines keep their
+   shape.
+
+The measure half, in order:
+
+1. The host reads stand first: `sched_getaffinity` and the online cpu list,
+   `python3 -c 'import os; print(len(os.sched_getaffinity(0)))'` and
+   `cat /sys/devices/system/cpu/online`. Both stand in the record beside the
+   timing table.
+2. The baseline side stands built from the branch base itself in a named
+   second tree, `build-base`: `cmake --preset=ci-rocky -B build-base`,
+   `cmake --build build-base -j 48`, then the five runs against
+   `--test-dir build-base`. The batch runs first and stands fixed; interim
+   rows may ride the last pre-widen interim commit under the first diff
+   proof below, and every interim SHA stands in the record.
+3. Two diff proofs stand in the record. The first compares the branch base
+   with each pre-widen interim commit:
+   `git diff --name-only a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a <pre-widen-sha> -- source include example test cmake tools docs external CMakeLists.txt CMakePresets.json`
+   answers empty, so an interim baseline binary carries the branch base's
+   code and the phase 14 "This tree" column stands the branch-base shape.
+   The second compares the pre-widen commit with the measured head over
+   `source include test cmake tools docs external` and the CMake files and
+   answers empty save the spec 036 lane's owned files, named in the record:
+   `source/harness/noise_tracer.cpp`, `source/harness/detail/noise_tracer.hpp`,
+   `test/source/harness_noise_test.cpp` and
+   `test/source/harness_noise_report_test.cpp`. Those files stand off the
+   sample's path: the example names no tracer engine, so `noiseTracerFigures`
+   answers no call in the timed run. And `git diff --unified=0 <pre-widen-sha> <head> -- example/ README.md`
+   answers exactly the two added lines, so the two sides of the ratio differ
+   in the example region, the page block and the other lane's tracer read
+   alone.
+4. The protocol is the one the spec predeclares, run once per side, unpinned
+   on the full affinity mask, one `ctest` invocation per run:
+
+   ```sh
+   seq 1 5 | xargs -I{} ctest --test-dir build-base -R '^report_shape_fwq_ftq_sample$'
+   seq 1 5 | xargs -I{} ctest --test-dir build -R '^report_shape_fwq_ftq_sample$'
+   ```
+
+   The first batch runs against the fixed baseline tree. The second batch
+   runs only after lane 1 has configured and built `build` fresh at the
+   measured head. The record gives all ten wall times, the median of each
+   side, and the ratio of the medians as a measured figure at the measured
+   head. Only the final-head side re-runs at a new squashed head, and an
+   interim row names its pre-squash SHA.
+5. A preliminary baseline set stands taken already: 11.35 s, 12.42 s,
+   12.24 s, 11.95 s, 11.84 s, median 11.95 s, at
+   `$HOME/scratch/fwq-example-n13e/baseline-timings.md`. Its commit
+   `9f1daf31` stands unreachable from the branch after the amend, so the
+   record re-runs the five baseline runs against `build-base` at the branch
+   base and carries the earlier set as a preliminary row.
+6. Each earlier figure stands cited with its tree, its bound, its transform
+   count and its invocation form, and none stands compared as an equal:
+   - 17.6x: the instrumented tree at `2d4d8c57`, the standalone binary
+     `build/coverage/example/docs_fwq_ftq` with the CLI key `gaps=4096`, six
+     transforms, 50.31 s to 2.86 s, file `cov-gaps4096.txt`. Phase 14 wrote
+     "measured at 17.6x"; this record re-labels that figure as an estimate at
+     the 4096 bound on the instrumented binary.
+   - 92x: the release tree at `2d4d8c57`, the same standalone CLI form with
+     `precheck=500, gaps=4096`, six transforms, 19.5 s to 212 ms.
+   - The ring sweep: the same tree and form with a non-serial pre-check,
+     `gaps=1024` 155 ms, `gaps=2048` 159 ms, `gaps=4096` 212 ms,
+     `gaps=8192` 454 ms, `gaps=16384` 2.76 s, `gaps=32768` 4.89 s, the
+     default 17.81 s.
+   - The branch-base alone-entry readings: 11.17 s, 11.37 s and 11.40 s
+     (`results/barrier-fwq-closeout.md:174`), the three-transform tree.
+   No tracked line calls an ~18 figure a fact, and no threshold stands
+   invented against the measured ratio.
+7. The full-suite wall of the same entry stands recorded in each required
+   suite lane. Three lanes stand compared with the phase 14 "This tree"
+   column, the branch-base shape at the same lane shape: 15.84 s release at
+   `-j 48`, 8.93 s pinned at `-j 2`, 13.14 s four-cpu at `-j 4`. The
+   sanitizer, thread-sanitizer and instrumented lanes carry the entry's wall
+   as a reading with no comparison, because phase 14 names no base figure
+   there. SC-031 stands a no-regression check beside the alone-entry gain
+   measure.
+
+The lane set, with the rows this phase amends:
+
+| Lane | Command |
+| --- | --- |
+| release suite | `cmake --preset=ci-rocky`, `cmake --build build -j 48`, `ctest --test-dir build --output-on-failure -j 48` |
+| two-cpu pinned | `taskset -c 0,1 ctest --test-dir build --output-on-failure -j 2`; a host that leaves cpus 0 and 1 outside the allowed set records the refusal, and a run on another allowed pair stands extra evidence |
+| four-cpu | `taskset -c 0,1,2,3 ctest --test-dir build --output-on-failure -j 4` |
+| sanitizer | `cmake --preset=ci-sanitize`, `cmake --build build/sanitize`, `ctest --test-dir build/sanitize --output-on-failure -j 48` |
+| thread sanitizer | `cmake --preset=ci-tsan`, `cmake --build build/tsan`, `TSAN_OPTIONS=halt_on_error=1:second_deadlock_stack=1 ctest --test-dir build/tsan --output-on-failure -j 48`, the standing value of `.github/workflows/ci.yml:299` |
+| instrumented | `cmake --preset=ci-coverage`, `cmake --build build/coverage`, `ctest --test-dir build/coverage --output-on-failure -j 48`, then `cmake --build build/coverage --target coverage` |
+| coverage gate | the same run answers its numerator, denominator and branch shortfall; the shortfall stands at or below 21 with no new marker, filter, allowance, omit or ignore-error class, and `git grep -c LCOV_EXCL -- source include` stands at or below 84 |
+| cheap gates | `cmake -D FORMAT_COMMAND=clang-format -P cmake/lint.cmake`, `cmake -P cmake/spell.cmake`, `python3 tools/prose/prose_gate.py --mode tree`, `python3 tools/prose/prose_gate.py --mode range --base a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a`, `python3 test/prose-gate-fixture/run_prose_gate_fixtures.py --check both --out $HOME/scratch/fwq-example-n13e/prose-fixtures test/prose-gate-fixture`, `python3 tools/docs/example_drift.py .`, the same with `--names --options --forbidden --sections`, `python3 test/example-drift-fixture/run_example_drift_fixtures.py .`, `python3 test/example-drift-fixture/run_report_shape_fixtures.py .`, `bash test/example_run.sh build`, `bash test/example-run-fixture/run_example_run_fixtures.sh`, `bash test/snippet-compile/run.sh . clang++`, `bash test/time_source_gate.sh .`, `cmake --build build -t dbc-gate`, `ctest --test-dir build -R dbc_gate_fixtures` |
+| analyzer build | `cmake --preset=ci-ubuntu -B build-an` and a whole build, so no reconfiguration displaces `build`; the base reading comes from a worktree at the branch base under `$HOME/scratch/fwq-example-n13e/base-audit`, configured `ci-ubuntu` into its own build dir, so the comparison of finding counts on the touched files has both sides |
+| exported names | `cmake --preset=ci-linux-audit -B build-shared -D BUILD_SHARED_LIBS=ON`, install into `$HOME/scratch/fwq-example-n13e/prefix-shared`, then `nm -D --defined-only` over the installed objects; the standing counts stand answered, harness 210 and `libspeedgun-ng.so` 250 with no third-party name |
+| consumer build | `cmake -S test/consumer -B build-consumer -D CMAKE_PREFIX_PATH=$HOME/scratch/fwq-example-n13e/prefix-shared`; the spec's lane 7 carries this build beside the cheap gates, and this table lists it apart |
+| shared rows | the N13E-004 acceptance rows the spec 036 phase names, run at the same head in the same lanes |
+
+The analyzer row and the exported-names row stand required here for the
+reasons the clarification names: the audit carries the no-symbol-change
+claim, and the prose range command names the branch base so the range covers
+the whole branch. The analyzer build stands in its own `build-an` directory
+because `ci-rocky` and `ci-ubuntu` share `build`.
+
+### Record plan
+
+The record stands at `specs/045-merge-fixes/results/fwq-example-closeout.md`,
+and the quickstart gains one link row to it. Its sections:
+
+1. Host, base and head: the tool versions, the affinity and online-cpu
+   reads, the base SHA, the branch, and the rule that a tracked file carries
+   no SHA of its own commit while each dated interim row names its pre-squash
+   SHA.
+2. The widen and its page pair (FR-034, SC-029): both diffs, the byte form,
+   the `clang-format` reading, and the drift gate in both forms.
+3. The shape reading (US-11 scenario 3, SC-031, D-26): the entry's exit and
+   wall in the release, pinned and four-cpu lanes beside the phase 14 column,
+   the entry's wall in the sanitizer, thread-sanitizer and
+   instrumented lanes as readings with no
+   comparison, the recorded block's 156 lines against the run's count, and
+   the warning-line count on both sides.
+4. The timing protocol and the measured gain (FR-035, SC-030): the
+   `build-base` baseline at the branch base, the interim SHAs, the two diff
+   proofs, the host reads, the ten wall times, the two medians and the
+   ratio.
+5. The earlier figures with their provenance (FR-035): the 17.6 estimate, the
+   92 reading, the sweep rows and the branch-base alone-entry readings, each
+   with its tree, bound, transform count and invocation form.
+6. The recorded block's provenance (D-26): one dated line naming the ring
+   bound and the fact that `example/docs/fwq_ftq.expected` stands recorded
+   from the pre-widen example. The block stands not re-recorded.
+7. The lanes at the measured head (FR-037, SC-032, SC-033): the lane table
+   above with the head, the exit and the counts beside each command, the
+   coverage figures, the marker count, the export counts, the analyzer counts
+   and the N13E-004 rows.
+8. The push and the pull request (SC-033): the push command, the lease rule,
+   the `git ls-remote` reading, and the path of the untracked body artifact
+   under `$HOME/scratch/fwq-example-n13e/` that names the measured head
+   beside every required lane.
+9. Rows left open (D-27): O-5 and O-6 as phase 14 wrote them, O-7 closed by
+   FR-034 and FR-035, and O-8 deferred with the reading D-27 states.
+
+The task rows BFW-009 to BFW-012 stand written into `tasks.md` by the tasks
+phase before implement. No test of this phase uses a sleep, a wall-clock
+threshold or a fake cpu.
+
+### Test plan
+
+| Case | File or gate | What it asserts |
+| --- | --- | --- |
+| the page pair | `python3 tools/docs/example_drift.py .` and the four-flag form | exit 0, and the changed line byte-identical in the region and in the block at `README.md:766` (FR-036, SC-029) |
+| the block still builds and runs | the `docs_fwq_ftq` target, `bash test/example_run.sh build`, `bash test/snippet-compile/run.sh . clang++` | the region stands in a translation unit the suite builds, and the program exits 0 (IV.1) |
+| the recorded run keeps its shape | `report_shape_fwq_ftq_sample` in the release, pinned and four-cpu lanes | exit 0 in each, the 156 recorded lines against the run's count, the warning pair, and the wall beside the phase 14 column (SC-031, D-26) |
+| the gain | the record's timing table | five alone-entry walls per side at the shared cpu set and run count, the medians, and the ratio as a measured figure (FR-035, SC-030) |
+| no symbol moves | the exported-names audit | harness 210 and `libspeedgun-ng.so` 250 with no third-party name, the lists answering no difference against the base |
+| coverage unchanged | the `ci-coverage` tree and the `coverage` target | 100.0 percent lines, a branch shortfall at or below 21, and at or below 84 markers, with no new exclusion (SC-032) |
+| the measured head | `git rev-parse HEAD`, `git status --porcelain`, `git ls-remote origin refs/heads/fix/fwq-example-n13e` | one SHA beside every required lane, a clean tracked tree, and the remote equal to the local head (FR-037, SC-033) |
+
+### Constitution Check
+
+- IV.1: the region and the page block change in one commit, the block stays a
+  program the `docs_fwq_ftq` target builds and `example_run` runs, and the
+  result sentence at `README.md:779` keeps its claim because the fold keeps
+  the calibration group, the 30 series lines and the five periods.
+- VI: no test moves. The coverage reading at the measured head answers its
+  numerator, denominator, shortfall and marker count, and the phase adds no
+  cold row: the denominator covers `include/speedgun-ng/*`, `source/*` and
+  `tools/hostcheck/*` (`cmake/coverage.cmake:118-120`), and the change stands
+  in an example region.
+- VII: the speedup the page implies stands a measured figure at the measured
+  head, and each earlier figure stands cited with the tree, the bound, the
+  transform count and the form it was taken at.
+- VIII: no gate, filter, allowance, marker, timeout or continuous-integration
+  change moves. The 110 s grant and the 120 s ceiling stand unchanged.
+- X.2: the change is one designator in one call. No option, no helper, no
+  new test scaffolding and no new public surface stands added.
+- X.3: two tracked lines carry the change, in the example region and in the
+  block that quotes it. The probe sources, the barrier files, the recorded
+  block and `docs/pages/harness.md` stand untouched.
+- XI: the record, the comments and the commit follow ASD-STE100, and the
+  prose gate runs over the tree and over the range with `--base` naming the
+  branch base.
+
+### Risks and the open items
+
+- The warning-line count. The pair is a classified line, so a final-head run
+  where a planned cpu stays under `noisePercent = 1` drops a line and fails
+  the fold. Measured readings at the bound keep both lines by a wide margin.
+  The record gives both counts, and a difference stands a shape finding under
+  D-26 that stops the work and reports the scope it needs.
+- The page budgets. The page goes to 1003 lines against a cap of 1004, and
+  the section goes to 19 lines against a cap of 25. A second page line in the
+  same change would need the drift gate's section rows, so the phase adds no
+  other page line.
+- Timing noise on a loaded host. The same release binary measured 20.5 s
+  under a load average of 10 to 14 and 11.4 s on a quieter machine
+  (`$HOME/scratch/bfw/fwq-research.md:52`). The record names the affinity and
+  online-cpu reads beside the ten walls, and a side taken under load answers
+  nothing under VII and stands re-run.
+- The measured head. A tracked change after a measurement produces a new
+  squashed head and a fresh run of every required lane, the widened timing
+  side included. The baseline side stands taken once in `build-base` from the branch
+  base itself, and each interim row stands tied to the base by the first
+  diff proof.
+- The remote. A failed `--force-with-lease` stops the work and stands
+  reported, and the lease stands never refreshed and retried. A remote that
+  refuses the push stands the push row blocked with the refusal, and the
+  local half, a clean tracked tree and `git rev-parse HEAD`, stands proved
+  either way. The `gh` credential of this machine stands absent, so the
+  branch, the push proof and the body text stand delivered through one local
+  file for the operator.
+- O-5, O-6 and O-8 stand as phase 14 wrote them. O-7 closes with FR-034 and
+  FR-035.

@@ -41,6 +41,13 @@ standing file in the commit that lands the code (spec FR-024).
   stand the JSON key names, and a detector figure whose buffer holds
   no line prints the standing `not available` wording (specs/048
   FR-027).
+- The five source figures of the `osnoise` engine stand the sums of the
+  five interference-counter columns of the period lines that cpu's
+  buffer `sys/kernel/tracing/per_cpu/cpu<id>/trace` holds at the read.
+  The `timerlat` engine states the irq and thread figures from its
+  activation lines and prints the standing `not available` wording for
+  the other three (specs/036 FR-027, D-9, D-10). A buffer that holds no
+  parsed line prints the standing wording for every figure of that cpu.
 - A figure the engine states nothing for prints the standing
   `not available` wording in the figure position, for that source
   alone (spec FR-010, the standing rule of specs/034).

@@ -630,3 +630,384 @@ its recorded re-confirmation and its pull-request question path (R-03).
 
 > Empty: no constitution violation stands, so no justification row
 > applies.
+
+## Phase: N13e trace-line parsing plan (2026-11-09)
+
+**Base**: `origin/master` at `a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a`
+(version 0.34.0, report schema 1.16, harness `SOVERSION` 22, archive
+`SOVERSION` 8). **Branch**: `fix/fwq-example-n13e`, the phase 15 branch
+of `specs/045-merge-fixes`; the FWQ example lane and this lane share the
+branch, and no file stands in both. **Spec**: the trace-line phase of
+[spec.md](./spec.md): FR-027 to FR-030, SC-008 to SC-011, D-8 to D-12.
+**Host of record**: thrawn, AMD Zen 5 Threadripper 9960X, 24 cores, 48
+threads, kernel `7.3.0-5-cachyos`. **Tasks**: N13E-001 the read,
+N13E-002 the cases, N13E-003 the record and the contract line, N13E-004
+the shared acceptance set; the four rows land in `tasks.md` in this
+phase's tasks pass.
+
+### Summary of the phase
+
+The figure read of the two standing engines reads a file no reachable
+tree carries. `figuresOfCpu` folds `sys/kernel/tracing/osnoise/cpu<id>`,
+and the 2026-10-29 records found that path absent with either engine set
+(`results/osnoise.md`, `results/timerlat.md`), so the five figures print
+`not available` on the host of record. The phase moves the read to the
+per-cpu trace buffer the two engines already write,
+`sys/kernel/tracing/per_cpu/cpu<id>/trace`, the path the detector read of
+specs/048 already opens, and retires the count-file reader with its
+fixture format and its cases (D-12).
+
+Nothing else moves. The five figures keep their names and their
+optionality, so the record layout, the schema, the version and the two
+`SOVERSION` numbers stand, and no public header changes. The detector
+read, the setup and restore order, the option grammar and the value
+parser stand untouched.
+
+### Design
+
+#### The figure read (N13E-001)
+
+1. **One path, one read, three folds.** `noiseTracerFigures`
+   (`source/harness/noise_tracer.cpp`) reads
+   `sys/kernel/tracing/per_cpu/cpu<id>/trace` once per cpu through
+   `readTracerFile` and hands the text to one fold keyed on the engine:
+   `gapFiguresOfCpu` for `hwlat`, unchanged, and one of the two new
+   folds below for the standing engines. The path expression stands
+   written once in the loop for all three engines, which is D-9: one seam,
+   one path, one read per engine, the line rule keyed on the engine.
+2. **Two folds, one rule each.** `osnoiseFiguresOfCpu(cpu,
+   text)` and `timerlatFiguresOfCpu(cpu, text)` join `gapFiguresOfCpu`
+   in the anonymous namespace of `noise_tracer.cpp`. Each carries one
+   rule and one postcondition. One function with an engine parameter
+   would carry a postcondition that differs per engine and a branch
+   inside the fold: the generality X.2 refuses.
+3. **The shared line parts.** Three helpers stand beside them:
+   `tokensOf(line)` splits a line on blank, tab and carriage return into
+   a `std::vector<std::string_view>`; `standsAnchored(tokens, at)`
+   answers whether the token ahead of position `at` ends with `:`, the
+   timestamp-colon anchor both engines share; `decimalOf(token)` answers
+   digits, one `.`, digits. `countOfToken` keeps its name and answers
+   the digits predicate; its parameter becomes `std::string_view` so a
+   token needs no copy, and the detector's three call sites in its two
+   helpers keep their bytes. Two constants carry the tail widths: `kPeriodColumns` at nine
+   and `kActivationColumns` at six.
+4. **The header rule stands first.** A line whose first character stands
+   `#` stands a header line and answers no period line and no activation
+   line, whatever its tail. A blank line answers no tokens and falls out
+   of the token-count guard.
+5. **The osnoise period rule.** A line stands one period line when it
+   carries at least `kPeriodColumns + 1` tokens, its last nine answer
+   digits, digits, digits-dot-digits and then six groups of digits, and
+   the token ahead of them ends with `:`. The last five of the nine
+   stand the counters, positional, in the order the line prints them:
+   `HW`, `NMI`, `IRQ`, `SIRQ`, `THREAD` into the record's `hardware`,
+   `nmi`, `irq`, `softirq` and `thread` figures. The first four of the
+   nine (runtime, noise, the percent figure, the widest single noise)
+   answer the shape and no figure of their own. A bare integer where the
+   decimal figure stands answers no period line.
+6. **The timerlat activation rule.** A line stands one activation line
+   when it carries at least `kActivationColumns + 1` tokens, its last
+   six answer `#` and digits, `context`, a context word,
+   `timer_latency`, digits and `ns`, and the token ahead of them ends
+   with `:`. Nothing follows `ns`, because the six stand the tail. The
+   word `irq` counts the `irq` figure and the word `thread` counts the
+   `thread` figure; any other word stands no line. The two counts stand
+   independent: no line looks for its pair.
+7. **Sums, counts, zero, absence.** The osnoise fold keeps five
+   `std::uint64_t` accumulators and the timerlat fold keeps two counters,
+   each beside a parsed-line count. Beside a parsed line the fold writes
+   its figures, so a counter column that reads 0 on every line stands a
+   filled 0, the shape `gapFiguresOfCpu` answers for `nmiCount`. Beside
+   no parsed line the entry keeps every figure absent, the answer a
+   missing file and an unreadable file already give through
+   `readTracerFile`. The sums stand the totals of the lines the buffer
+   holds at the read (D-11).
+8. **The detector read stands untouched.** `kGapMarker`, `kNmiField`,
+   `widerGapOf`, `nmiOf` and `gapFiguresOfCpu` keep their bytes. No
+   column table and no line rule stands shared between the detector read
+   and the two new folds, which the out-of-scope line fixes.
+
+#### The contract text (II)
+
+The declaration of `noiseTracerFigures` in
+`source/harness/detail/noise_tracer.hpp` keeps its `\pre` and rewrites
+its body and its `\post` in this shape:
+
+```text
+/// @brief The figure read of the two standing engines and of the
+/// detector (specs/036 FR-010, FR-027, R-07; specs/048 FR-018, FR-027):
+/// one entry per cpu of `session.cpus`, in the session order. All three
+/// engines read the per-cpu buffer text
+/// `sys/kernel/tracing/per_cpu/cpu<id>/trace` through the standing
+/// file-root seam, one read per cpu (D-9). A line whose first character
+/// stands `#` stands a header line and answers no figure. For `osnoise`
+/// the last nine tokens of a period line answer digits, digits,
+/// digits-dot-digits and six groups of digits behind a token that ends
+/// with the timestamp colon, and the last five of them sum into the
+/// hardware, nmi, irq, softirq and thread figures. For `timerlat` the
+/// six tokens after that token stand `#` and digits, `context`, a
+/// context word, `timer_latency`, digits and `ns`; the `irq` and
+/// `thread` words count the two figures, and the other three stand
+/// absent for that engine alone (D-10). A line beside those shapes
+/// stands skipped. A buffer that carries no parsed line, stands
+/// missing, or stands unreadable stands every figure of that cpu
+/// absent, and a counter column that reads 0 on every parsed line
+/// stands a filled 0 (R-07). The read never fails the run (FR-016).
+/// The function stands on the entry-point thread, outside every timed
+/// window (R-05).
+///
+/// \pre `session` stands the setup's answer, the engine naming a
+///       tracer
+/// \post the answer carries one entry per cpu of `session.cpus`, in
+///       the session order
+/// \post the figures of a standing engine stand filled when that cpu's
+///       buffer holds a parsed line and stand absent beside none, and
+///       the three figures the `timerlat` engine states nothing for
+///       stand absent whatever that buffer holds (FR-027, D-10)
+```
+
+In the source each new fold carries a leading comment in the shape
+`gapFiguresOfCpu` carries today and one `SG_ENSURE` at its answer:
+
+```cpp
+  const bool any = periods > 0;
+  SG_ENSURE(any == (record.hardware.has_value() && record.nmi.has_value()
+                    && record.irq.has_value() && record.softirq.has_value()
+                    && record.thread.has_value()),
+            "osnoiseFiguresOfCpu answers five figures beside a period line "
+            "and none beside no line");
+```
+
+```cpp
+  const bool any = counted;
+  SG_ENSURE(any == (record.irq.has_value() && record.thread.has_value())
+                && !record.nmi.has_value() && !record.softirq.has_value()
+                && !record.hardware.has_value(),
+            "timerlatFiguresOfCpu answers two figures beside an activation "
+            "line and keeps the three the engine states nothing for absent");
+```
+
+`noiseTracerFigures` keeps its `SG_ENSURE` on the entry count. The two
+folds stand in the anonymous namespace, the shape `gapFiguresOfCpu`
+carries today, so the DBC documentation and pairing gates read them as
+they read that function now.
+
+#### What the change deletes
+
+- `source/harness/noise_tracer.cpp`: `struct CountSource`,
+  `kCountSources` and `figuresOfCpu`. `countOfToken` stays: the
+  detector's two helpers and the new folds read their digits through it.
+- `test/source/harness_noise_test.cpp`: the fixture helper
+  `cpuCountFile`, the path helper `countPathsOf`, and the four cases
+  that fold the retired format, `theFiguresReadOneEntryPerTracerCpu`,
+  `theMissingSourceWordStandsAbsentForThatSourceAlone`,
+  `theCpuWithNoCountFiguresStandsEveryFigureAbsent` and
+  `theFigureArmRows`.
+- No other code names the retired path. The prose surfaces that still
+  name it stand listed in the record (FR-029).
+
+The per-source absence proof does not go with
+`theMissingSourceWordStandsAbsentForThatSourceAlone`. Under the buffer
+rule a standing engine states all five figures or none, and the
+per-source rule of FR-010 lives in the `timerlat` reading (D-10), which
+`theTimerlatLinesCountTheTwoContexts` carries.
+
+#### What the change re-anchors
+
+The serial-window and `mode=both` rows carry the only observable proof of
+the read-after-the-window and no-reset rules, so they move to buffer text
+through the same seam (FR-028):
+
+- `bufferPath(cpu)` replaces `cpuCountFile(cpu)` and answers
+  `sys/kernel/tracing/per_cpu/cpu<id>/trace`, the name and the spelling
+  the specs/048 fixture already uses in
+  `test/source/harness_hwlat_tracer_test.cpp`. `countPathsOf` becomes
+  `bufferPathsOf`.
+- `TracerWindowReader` takes `bufferPaths` and appends instead of
+  rewriting: its first read opens the buffer with `std::ios::app` and
+  writes the appended period lines, leaving the earlier lines standing. A
+  rewrite would read as the reset the row proves absent.
+- `kPreWindowFigures` and `kPostWindowFigures` become `kPreWindowLines`
+  and `kAppendedLines`: the legend bytes with one period line, and one
+  period line. Their counters stand chosen so the sums over both sets
+  answer the five figures the standing check asserts, which keeps that
+  check's bytes and renames it `checkWindowSums`:
+
+```text
+       osnoise/1-2542397 [001] ....1 1241576.199778: 1000000       1659  99.83410      19      5      3      4      5      6
+       osnoise/1-2542397 [001] ....1 1241577.199779: 1000000       1403  99.85970       8     10      8      8      8      8
+```
+
+  The sums answer nmi 11, irq 12, softirq 13, thread 14 and hardware 15.
+  The record's figures name the sum of both lines, so the row proves the
+  read landed after the append and that nothing cleared the earlier line.
+- The rows that write the fixture stand re-pathed with no change of
+  assertion: `theWindowLifecycleRows` (the serial pair, `mode=both`) and
+  `theTracerCpuRows` (the named list, the absent key, the wholly planned
+  set).
+
+#### The record, the quickstart and the contract line (N13E-003)
+
+- One new file, `specs/036-osnoise-timerlat-tracers/results/trace-line-thrawn.md`:
+  the audit point repeated (the legend bytes, the four verified lines,
+  the `period_us` read, the per-cpu `buffer_size_kb` read); each
+  acceptance command with its exit and its window token; the resolved
+  cpu list and the figures beside the CCD naming the standing records
+  use; the tracing state each run found and the state it left, the saved
+  word, the saved mask and `tracing_on` read before and after; the
+  unrooted suite row apart; the dated rows labeled preliminary with the
+  pre-squash head each stands taken at; and the stale-wording list of
+  FR-029, which carries the public header comment, the spec 034
+  report-json line, this lane's option contract, the data model, the
+  research rows, the quickstart wording and the two standing edge-case
+  rows of `spec.md` that name the count files and the cumulative-totals
+  reading.
+- `quickstart.md`: one link row to that record in the acceptance
+  section. No other quickstart line moves, the count-file wording
+  included.
+- `contracts/console-report.md`: one rule line, in the same change as
+  the code:
+
+```text
+- The five source figures of the `osnoise` engine stand the sums of the
+  five interference-counter columns of the period lines that cpu's
+  buffer `sys/kernel/tracing/per_cpu/cpu<id>/trace` holds at the read.
+  The `timerlat` engine states the irq and thread figures from its
+  activation lines and prints the standing `not available` wording for
+  the other three (specs/036 FR-027, D-9, D-10). A buffer that holds no
+  parsed line prints the standing wording for every figure of that cpu.
+```
+
+#### Acceptance (N13E-004)
+
+The two sudo runs of the local-acceptance block, each with
+`precheck=3000` against the one-second period the audit point names, the
+unrooted `ctest` row apart, and the shared lane set of spec 045 phase 15
+(BFW-012) at the final squashed head. A run whose host refuses the
+tracefs writes stands BLOCKED with the command and the refusal, and the
+suite row answers on the standing tree either way.
+
+### Test plan (N13E-002)
+
+| Case | What it asserts |
+| --- | --- |
+| `theFiguresFoldThePeriodLinesOfEachCpuBuffer` | two cpus in the session order, the five figures the sums of each cpu's verified period lines (SC-008) |
+| `theTimerlatLinesCountTheTwoContexts` | the verified pair counts irq 1 and thread 1, and nmi, softirq and hardware stand absent (SC-008, D-10) |
+| `theMixedBufferAnswersTheSumsOfItsParsedLines` | legend, verified lines, malformed lines, a blank line and a planted `#` line with a period tail: the sums come from the parsed lines alone (SC-008) |
+| `theZeroCounterColumnStandsAFilledZero` | a counter column reading 0 on every period line answers a filled 0 (SC-008) |
+| `theCpuWithNoParsedLineStandsEveryFigureAbsent(0..3)` | an empty buffer, a missing file, a buffer path planted as a directory, and a legend-only buffer each answer every figure absent (SC-008) |
+| `thePeriodShapeRows` | each malformed period shape, as a buffer of that one line, answers the absence rule (SC-008) |
+| `theActivationShapeRows` | each malformed activation shape, as a buffer of that one line, answers the absence rule (SC-008) |
+| `theLegendAndPlantedHashLinesStandNoLine` | the audit point's legend bytes and a planted `#` line that carries a period tail answer the absence rule (the header precedence of Round 2) |
+| `theWindowLifecycleRows`, `theTracerCpuRows` | the re-anchored serial, `mode=both`, named-list, absent-key and wholly-planned rows: the sums cover every held line, the engine stands up before the reads, and the tree stands restored (FR-008, FR-009) |
+| `theTimerlatFiguresPrintTwoFilledAndThreeAbsent` in `harness_noise_report_test.cpp` | a hand-built `timerlat` record prints the two filled figures and the standing wording in the other three positions, and the standing block keeps its bytes (FR-013) |
+
+The two shape tables stand written as shape arrays in the shape of the
+retired `theFigureArmRows`, so each row prints its own shape on failure.
+The period table carries a non-digit in each of the three digit-only
+non-counter columns, a signed figure in a counter column, a bare integer
+and a `99.` in the decimal column, an eight-figure tail, a ten-figure tail that puts
+a bare figure in the anchor position, and a line whose token ahead of the
+nine carries no colon. The activation table carries no `#`, `contexts`
+for `context`, a context word outside the two, `timer_latencies`, a
+non-digit latency, `n` for `ns`, a token after `ns`, five tokens after
+the anchor, and no colon anchor.
+
+No case sleeps, reads a clock or names a fixed cpu: the cpus come from
+`pickCpus`, and the window stays bounded by the scripted reader
+(FR-019).
+
+### Coverage plan (VI)
+
+- The three engine arms of `noiseTracerFigures` stand covered by the
+  osnoise and timerlat cases above and by
+  `theFiguresFoldTheLinesOfEachCpuBuffer` in
+  `test/source/harness_hwlat_tracer_test.cpp`.
+- `tokensOf`: the no-token arm by the blank line of the mixed buffer, the
+  token arm by every verified line.
+- `standsAnchored`: true by the verified lines, false by the no-anchor
+  row of each table and the ten-figure row of the period table.
+- The period shape: each predicate answers false once in
+  `thePeriodShapeRows` and true in
+  `theFiguresFoldThePeriodLinesOfEachCpuBuffer`.
+- The activation shape: each predicate answers false once in
+  `theActivationShapeRows` and true in
+  `theTimerlatLinesCountTheTwoContexts`.
+- The zero-column arm answers true in
+  `theZeroCounterColumnStandsAFilledZero`, where the verified host line
+  already carries HW 0 and NMI 0, and false in the sums rows.
+- The parsed-line-count guard answers false in
+  `theCpuWithNoParsedLineStandsEveryFigureAbsent` and true in the sums
+  rows.
+- `readTracerFile` keeps its two arms: the missing file and the planted
+  directory, both in the absence case, the same denial the specs/048 row
+  plants at the same path.
+- No new `LCOV_EXCL` marker joins anywhere. The retired reader takes its
+  branches with it, so the tree-wide branch shortfall stands at or below
+  the standing 21 and the marker count at or below the standing 84
+  (SC-011, spec 045 SC-032). Net new cold rows: zero.
+
+### Constitution Check
+
+- I: the parser is standard library only: `std::istringstream`,
+  `std::string_view`, `std::from_chars`, `std::array`. No dependency
+  joins and no regular expression.
+- II: the declaration of `noiseTracerFigures` carries the rewritten
+  `\post` pair, and each fold carries one `SG_ENSURE` at its answer, the
+  shape `gapFiguresOfCpu` carries today.
+- VI: every branch of the new parser stands named above with the case
+  that runs it, no exclusion marker joins, and the fault the phase
+  closes ships with the cases that pin the parsed forms.
+- VII: one file read per cpu per run, the count the retired read already
+  paid; the fold stands outside every timed window and touches no timed
+  loop.
+- VIII: no gate, filter, allowance, marker, ignore-error class or
+  timeout moves; the shared acceptance set of spec 045 phase 15 stands
+  the gate for both lanes.
+- X.2: no general trace parser. Two named folds over one buffer text, no
+  column table shared with the detector read, no event-code surface
+  (G-31), no automatic ranks (G-32), no tuning key.
+- X.3: the count-file reader, its source-word table, its fixture helper
+  and its four cases stand removed in the same change that removes their
+  subject; `countOfToken` stays because the detector read still reads
+  through it.
+- XI: the comments, the record, the contract line and the commit follow
+  ASD-STE100.
+
+### Risks and the open items
+
+- Kernel shape variance. A kernel that prints other shapes answers the
+  absence rule, the standing shape of a host the format does not match.
+  The record names the kernel, the read date and the verified bytes, so
+  a reader can tell a parse miss from a host change.
+- Buffer ring truncation. The sums stand the totals of the lines the
+  buffer holds (D-11). At the acceptance window (18,000 ms of the
+  probe's tick time base, 4.3 s of host time) the osnoise buffer holds
+  about four period lines, while the timerlat buffer holds thousands
+  of activation lines against a 1,410 kB ring, so the record carries
+  the per-cpu `buffer_size_kb` read beside the figures and a truncated
+  buffer shows there with its capacity named.
+- Fixture drift from the verified bytes. The verified fixture lines
+  stand copied byte for byte from the audit point, so the suite pins what
+  the host printed on 2026-11-09; the window rows plant their counter
+  columns beside the verified shape. The risk runs the other way: a fixture
+  that keeps passing while no reachable host prints those bytes. The
+  record's audit-point read at the final head answers it.
+- The scripted append stands a scripted stand-in. The fake tree never
+  clears a buffer, so the re-anchored rows prove the run's read order
+  and its absence of a reset write. The kernel's clear-on-set behaviour
+  stands proven by the audit-point host read; the suite carries
+  the scripted stand-in.
+- The report-test rendering row. The standing byte-identity fixtures
+  (`kBlockHead`, `kTracerLines`, `kNotAvailableLine`) keep their bytes,
+  and the new row splices its own lines beside them. A printer change for
+  absent figures fails the new row, and the standing fixture bytes stay
+  unchanged.
+- The acceptance figures depend on the resolved candidate set. On thrawn
+  the compact two-thread plan resolves one candidate cpu, so SC-010
+  reads one cpu at the record's run and grows with the plan; the record
+  names the resolved list beside the figures.
+- The shared branch. The two lanes of `fix/fwq-example-n13e` touch
+  disjoint files. A finding that needs a file outside this lane's scope,
+  a `README.md` line, `test/CMakeLists.txt` or a preset, stands reported
+  before any edit.

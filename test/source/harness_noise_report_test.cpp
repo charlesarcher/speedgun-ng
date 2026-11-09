@@ -274,6 +274,45 @@ auto aTracerFreeRunPrintsNoTracerLine() -> void
         "a run that requests no tracer prints no tracer line (FR-012)");
 }
 
+// N13E-002j, FR-013, D-10: the `timerlat` engine states the irq and thread
+// figures, and the printer keeps the standing `not available` wording in the
+// other three positions of each cpu. The standing block keeps its bytes.
+auto theTimerlatFiguresPrintTwoFilledAndThreeAbsent() -> void
+{
+  auto record = standingRecord();
+  sg::PrecheckTracerRecord tracer;
+  tracer.engine = "timerlat";
+  sg::PrecheckTracerCpuRecord first;
+  first.cpu = 2;
+  first.irq = 3;
+  first.thread = 7;
+  sg::PrecheckTracerCpuRecord second;
+  second.cpu = 5;
+  tracer.cpus = {first, second};
+  record.tracer = tracer;
+  const auto block = capturePrecheck(record, sg::TracerEngine::TIMERLAT);
+  check(block == std::string(kBlockHead)
+              + "tracer: engine timerlat cpus 2,5\n"
+                "tracer cpu 2 nmi: not available\n"
+                "tracer cpu 2 irq: 3\n"
+                "tracer cpu 2 softirq: not available\n"
+                "tracer cpu 2 thread: 7\n"
+                "tracer cpu 2 hardware: not available\n"
+                "tracer cpu 5 nmi: not available\n"
+                "tracer cpu 5 irq: not available\n"
+                "tracer cpu 5 softirq: not available\n"
+                "tracer cpu 5 thread: not available\n"
+                "tracer cpu 5 hardware: not available\n"
+              + std::string(kBlockTail),
+        "theTimerlatFiguresPrintTwoFilledAndThreeAbsent: the two figures the "
+        "engine states stand filled and the other three stand the standing "
+        "wording, byte for byte (FR-013, D-10)");
+  check(block.find("tracer cpu 2 irq: 3\n") != std::string::npos
+            && block.find("tracer cpu 2 thread: 7\n") != std::string::npos,
+        "theTimerlatFiguresPrintTwoFilledAndThreeAbsent: the irq and thread "
+        "figures print their counts (FR-013)");
+}
+
 // T014: the loaded tracer record answers the written record field by
 // field. The shared fixture comparison leaves the optional member out,
 // so the tracer record compares here, beside it.
@@ -700,6 +739,7 @@ auto main() -> int
 {
   theTracerLinesStandBesideTheStandingBlock();
   theNotAvailableRecordPrintsOneDisclosureLine();
+  theTimerlatFiguresPrintTwoFilledAndThreeAbsent();
   aTracerFreeRunPrintsNoTracerLine();
   theTracerRecordRoundTrips();
   aDocumentWrittenBeforeTheKeyReadsTracerLess();

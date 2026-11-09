@@ -89,6 +89,8 @@ Write the per-host counts into `specs/045-merge-fixes/results/` and
 mirror them in the PR body, in the order the spec's acceptance
 section states: corsairone first, then thrawn.
 
+Phase 15 (fwq-example-n13e): [the closeout record](./results/fwq-example-closeout.md).
+
 ## Phase 13: the coverage-data repair, one reproducible route
 
 The fault: a closure written inside an `SG_*` contract predicate gains a
