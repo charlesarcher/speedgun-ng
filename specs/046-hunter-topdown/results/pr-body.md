@@ -158,3 +158,97 @@ system package moved. The coverage rows below rest on that repair.
   `harness_jitter_cli_test`, `harness_hunt_cli_test` and `example_run`.
 - `prose_gate_fixtures` bounds its own whole-tree run at 10 seconds and reads 10.671 s
   under the two-cpu lane here. specs/042 records 16.74 s for the same unit alone.
+
+## Acceptance closeout correction (2026-11-08)
+
+SC-IC-5 of `Success Criteria - this extension` of `specs/048-hwlat-probe/spec.md` (read at `af54d3f0`) owns the shape of this row: the
+paragraph it names keeps its text and its heading, and this row names the line it
+replaces. `## The acceptance record` reads at `:56-60` (read at `a55728af`), and the quoted
+text stands verbatim at `:57-59` inside the sentence that opens at `:56`:
+
+```text
+base run of `example/memory_walk` and `example/first_benchmark` each ranked 497 events
+over 249 passes. The three counts of the ranked rows stand at 58 node-mapped, 412
+list-group and 27 unmapped in every head run, which are the AP-9 figures exactly
+```
+
+This section was written against `af54d3f0`, the head this branch carries. A
+cite into a spec, plan or tasks file reads at `af54d3f0`, and a source or page
+anchor reads at the merged base `a55728af`, where it stands unchanged.
+
+Owner: SC-007 of `Measurable Outcomes` of `specs/046-hunter-topdown/spec.md` (read at `a55728af`). What answers differently: a
+run gives a rank to the first `min(top, ranked)` addresses, and the default `top` stands
+at 20 (`include/speedgun-ng/hunt.hpp:135` (read at `a55728af`), `source/harness/hunt_plan.cpp:371-374` (read at `a55728af`)). The
+run prints every address that carries no rank as a `hunt: rank -` row
+(`source/harness/report.cpp:1478` (read at `a55728af`)), and the `area=` cell stands on both row kinds
+(`source/harness/report.cpp:1471` (read at `a55728af`) and `source/harness/report.cpp:1488` (read at `a55728af`), under FR-013 and
+FR-014 of `The console (C)` of `specs/046-hunter-topdown/spec.md` (read at `a55728af`)). The three counts therefore read
+over the printed rows, and SC-007 words them that way. The figures inside the quoted text
+are the standing text of the lines they come from, and the task row IA46-004
+of `specs/046-hunter-topdown/tasks.md` (read at `af54d3f0`) records the two commands at the closeout
+head. Replacement, for the two sentences at `:56-60`: "Three head runs and one base run of
+`example/memory_walk` and `example/first_benchmark` each printed one `area=` cell per
+printed row, the ranked rows and the `hunt: rank -` rows alike, and 20 addresses carried a
+rank under the limit at `include/speedgun-ng/hunt.hpp:135` (read at `a55728af`). The three counts of the
+printed rows stand beside the `events=` summary line in
+`specs/046-hunter-topdown/results/acceptance-hunt.md` (read at `af54d3f0`), under
+its heading `Acceptance closeout corrections (2026-11-08)` (SC-007)."
+
+## Corrections at the merged base (2026-11-09)
+
+This block was written against `af54d3f0`, the head this branch carries, whose
+base is the merged head `a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a`, the base
+head that the `Base head` row of `The base this work reads` of
+`specs/046-hunter-topdown/spec.md` (read at `af54d3f0`) names.
+The record line and the source lines below were opened at `a55728af`, and they
+stand unchanged at `af54d3f0`, because this branch's delta is markdown-only. A
+cite into `specs/048-hwlat-probe/spec.md` names text this branch wrote and reads
+at `af54d3f0`, because that spec holds no `SC-IC-` id at `a55728af`. A bare `:n` in this block names the artifact the sentence names last,
+and this file when it names none; a line of this file at or below 160 stands
+at `a55728af` too, and a line above reads at `af54d3f0`.
+
+SC-IC-5 of `Success Criteria - this extension` of
+`specs/048-hwlat-probe/spec.md` (read at `af54d3f0`) owns the shape of this
+section. The section above keeps its text and its heading, and
+the row below names the lines it replaces and gives the reading that holds,
+beside the head its target was read at. No row here carries a blocked reading.
+
+- **Row 1. The area-cell claim at `:189-192`.** Owner: SC-007 of
+  `Measurable Outcomes` of `specs/046-hunter-topdown/spec.md` (read at
+  `a55728af`), the criterion that row names.
+  Quoted claim, verbatim from `:189-191`:
+
+  ```text
+  Three head runs and one base run of
+  `example/memory_walk` and `example/first_benchmark` each printed one `area=` cell per
+  printed row, the ranked rows and the `hunt: rank -` rows alike,
+  ```
+
+  Which record the run supports:
+  `specs/046-hunter-topdown/results/acceptance-hunt.md:65-68` (read at `a55728af`) records that the
+  base run at `b1dd7670` printed 505 lines and no top-down block, and it names
+  the area cell as the second new text over that base. A base run with no
+  top-down block and no new area text prints no area cell, so that record holds
+  and the claim at `:189-192` fails for the base run. The three head runs answer
+  the claim.
+
+  When the cell prints: `source/harness/report.cpp:1316-1318` (read at `a55728af`) prints one ` area=`
+  cell where `RankedEvent::topdownArea` holds text, and the call prints nothing
+  where that member stands empty. The cell therefore stands on the rows that
+  carry it, on the ranked rows and on the `hunt: rank -` rows alike
+  (`source/harness/report.cpp:1471` (read at `a55728af`) and `source/harness/report.cpp:1488` (read at `a55728af`)).
+
+  Replacement clause, for the clause that stands at `:189-192`: "Three head runs
+  of `example/memory_walk` and `example/first_benchmark` each printed one `area=`
+  cell on every printed row that carried an area, the ranked rows and the
+  `hunt: rank -` rows alike, and 20 addresses carried a rank under the limit at
+  `include/speedgun-ng/hunt.hpp:135` (read at `a55728af`). The base run printed 505 lines, no top-down
+  block, and no `area=` cell
+  (`specs/046-hunter-topdown/results/acceptance-hunt.md:65-68` (read at `a55728af`))."
+
+- **Row 2. The SC-IC-5 cite at `:164`.** That line opened the section above with
+  a range into `specs/048-hwlat-probe/spec.md` (read at `af54d3f0`), and the lines
+  it opened close SC-IC-4, the criterion that speaks about the `dbc-gate` target.
+  The line now names SC-IC-5 of `Success Criteria - this extension` of
+  `specs/048-hwlat-probe/spec.md` (read at `af54d3f0`), the criterion this section
+  answers, so no line number stands for it in either section.

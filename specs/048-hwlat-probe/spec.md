@@ -1474,3 +1474,801 @@ this pass: no item of round 1 stayed open, and no new item reached the bar.
     `NMI` row to an unprivileged reader on this host today, so the note that an
     unprivileged reader loses that row no longer holds at this check. The unprivileged
     method row still prints the SMI disclosure, because the `msr` node stays root-only.
+
+
+## Acceptance closeout: measured Intel evidence (2026-11-08)
+
+### Identity and binding
+
+This section extends this spec, `specs/046-hunter-topdown` and
+`specs/041-counter-probe` with one closeout phase. It adds no feature, and it
+opens no new spec number. It keeps every id, every ruling and every record of the
+2026-11-07 section above, and it measures again at the current head. Pull request
+#98 measured `87d745d6c7e62d4da80198c689ddc7078f08ff3d`, which stands before the
+fixture-macro data repair, before the capture suppression stood removed, and
+before the direct latency predicate tests landed. Its branch, its cold-branch
+count and its sanitizer counts stand here as leads to repeat. A lead becomes a
+result only when a run on the current source answers it.
+
+| Line | Value at the check on 2026-11-08 |
+|---|---|
+| Base head | `2d4d8c57975a86db6c77536f7090aba2bdaf6417`, and `origin/master` at the same head |
+| Ancestry | `git merge-base --is-ancestor` answers the base an ancestor of `origin/master` |
+| Branch | `fix/intel-acceptance-closeout`, cut from the latest `origin/master`; the branch stood absent on the remote at the check |
+| Host | corsairone, Intel Core i9-9920X (Skylake-X), non-hybrid, one socket, 24 cpus online 0-23 |
+| Version | 0.34.0, schema `1.16`, harness SOVERSION 22, archive SOVERSION 8 |
+| Page and marker caps | README 1,002 lines against the cap of 1,004; 84 `LCOV_EXCL` markers against the cap of 84 |
+| Open pull requests | none at the check |
+| Kernel access | `perf_event_paranoid` -1, `nmi_watchdog` 0, `/sys/kernel/tracing` `drwx------ root`, `/dev/cpu/*/msr` `crw------- root` |
+| Root rights | absent for this session: `sudo -n -l` asks for a password, and `pkexec --disable-internal-agent id` answers that no authentication agent is found |
+
+The phase rechecks every line above at branch time and states each answer in the
+record it writes.
+
+### Changed files
+
+The phase owns two kinds of file. Records and artifacts come first: the three
+`results/acceptance-final-intel.md` files, the three `tasks.md` files, the three
+`spec.md` files, the three `plan.md` files,
+`specs/046-hunter-topdown/results/acceptance-hunt.md`,
+`specs/046-hunter-topdown/results/pr-body.md`, and one new checklist under
+`specs/048-hwlat-probe/checklists/`. No guide file stands in the list: `specs/048-hwlat-probe/quickstart.md` keeps its text, and a row of the record names the wording it diverges from. Test and driver
+corrections come second, and only where a diagnosis names them:
+`test/base_cli/run_matrix.py` with the matrix data and fixtures it reads,
+`test/example_run.sh` with its fixtures, `test/source/harness_hunt_cli_test.cpp`,
+and `test/source/harness_jitter_cli_test.cpp`. Each such change keeps the
+acceptance contract of the entry it touches.
+
+The phase changes nothing else. It edits no `test/CMakeLists.txt`, no timeout, no
+barrier implementation, no barrier test, no FWQ/FTQ production, helper or unit
+file, no `example/docs/fwq_ftq.cpp`, no `tools/docs/report_shape.py`, no fixture
+or guide block of either, no shared coverage or DBC gate, no CMake preset, no CI
+file, no public header, no schema, and no README or version file. Where a
+diagnosis points at a file this list excludes, the phase records the exact
+reproduction, defers that fix, and stops before the edit. A full acceptance row
+that depends on a deferred fix stays open, and the report names it as a
+follow-up.
+
+### User Story 1 - A reviewer reads current Intel measurements (Priority: P1)
+
+A reviewer opens the three records and finds, for the head the branch carries,
+the counts a run answered on this host. The reviewer sees which rows a lead
+supplied and a run later confirmed, and which rows a run refused.
+
+**Why this priority**: the standing Intel record stands measured at a head two
+repairs behind, and a relabeled old count reads as new evidence.
+
+**Independent Test**: each row names the head it ran at, and a reader can rerun
+the command in the row and compare the answer.
+
+**Acceptance Scenarios**:
+
+1. **Given** a record that carries a count from `87d745d6`, **When** the phase
+   measures the same lane at the current head, **Then** the record keeps the old
+   section as history and adds the new reading under its own dated heading.
+2. **Given** a row no run answered, **When** a reader opens it, **Then** the row
+   names the command, the missing right or the deferred cause, and carries no
+   figure.
+
+### User Story 2 - A slow check carries a verified cause (Priority: P1)
+
+A maintainer opens a red instrumented lane and finds one cause per failed name,
+each with the runs that separate it from the alternatives. A test that runs
+because its contract needs the work looks different from a test that runs
+because a fixture selects more work than its contract asks for.
+
+**Why this priority**: four names stand red in the instrumented lanes, and a
+retry that passes hides a defect that a repeat run would show.
+
+**Independent Test**: the record names the original suite run, the isolated run,
+and the bounded-concurrency run for each name, with the exit and the reason for
+each.
+
+**Acceptance Scenarios**:
+
+1. **Given** an entry that times out in a lane, **When** the phase diagnoses it,
+   **Then** the record gives the child command, the work it did, the exit, and
+   both the script grant and the CTest ceiling that bound it.
+2. **Given** a diagnosis that shows a fixture drives exhaustive hardware work
+   inside a command-line contract test, **When** the phase corrects the fixture,
+   **Then** the deterministic tests still prove the command-line contract, and
+   the hardware claim moves to a row labeled as a hardware run.
+
+### User Story 3 - A privileged row states its evidence (Priority: P2)
+
+A reader wants to know whether a root run happened. The record either carries the
+before and after values of each file the run touched, or it names the operator
+action that stands missing.
+
+**Why this priority**: the restore rows of SC-005 and SC-007 stand the part of the
+detector surface no unprivileged session can reach.
+
+**Independent Test**: each root row either carries two values per file from one
+privileged run, or it states BLOCKED with the command an operator runs.
+
+**Acceptance Scenarios**:
+
+1. **Given** an operator-approved privileged session, **When** the run ends,
+   **Then** the record compares each saved contract value one by one, both after
+   a normal end and after the controlled interruption.
+2. **Given** no privileged session, **When** the phase reports, **Then** every
+   root row reads BLOCKED, names the exact operator action, and the unprivileged
+   rows stay complete.
+
+### Requirements - the closeout phase (IC-001 to IC-007)
+
+- **IC-001**: The lane SHALL build the current source in clean, named trees for
+  the release, coverage, address and undefined sanitizer, and thread sanitizer
+  configurations. The record SHALL give the source sha, the cpu affinity the host
+  allowed, the compiler launcher for each tree, the python interpreter each tree
+  configured, the `perf_event_paranoid` and `nmi_watchdog` values, the reach of
+  the `msr` node and of tracefs, and the exact command, exit code and entry count
+  of the required suite. The lane SHALL preserve the original failing run before
+  it runs any isolated diagnostic.
+- **IC-002**: The lane SHALL complete the coverage target and the coverage gate on
+  the measured source, with no inconsistent-data suppression in any command. For
+  each cold branch the lane SHALL report what the raw capture, the captured trace
+  and the extracted trace each hold. The record SHALL give the numerator and the
+  denominator before the change and after it, the cold rows, and the gate exit.
+  The lane SHALL add no ignore, omit, remove, exclusion or allowance, and SHALL
+  call no partial union a pass. A cold-branch count from an earlier head stands
+  recorded as that head's reading, and the lane SHALL NOT carry it forward as this
+  head's answer.
+- **IC-003**: For each sanitizer failure the lane SHALL record three runs: the
+  original suite, one isolated run in the same configuration, and one run with the
+  concurrency bounded to the hosted shape. For each run the record SHALL give the
+  child command, the event or work count where the entry reports one, the exit
+  code, the data or timeout reason, and both the grant inside the driving script
+  and the ceiling CTest applies. A run that passes on a retry stands recorded as a
+  diagnostic. A duration alone SHALL NOT clear a defect, and a hosted job SHALL
+  NOT prove a race or a fault absent.
+- **IC-004**: The lane SHALL correct a demonstrated defect only inside the owned
+  scope, and each correction SHALL carry a regression test that fails before it.
+  The correction SHALL preserve the behavior the entry tested. Where a fixture or
+  a selection drives exhaustive real PMU work that the entry does not need, a
+  narrow workload or selection correction stands allowed on two conditions:
+  deterministic tests keep the command-line contract proved, and the hardware
+  claim moves to a row that names the real hardware run it came from. The lane
+  SHALL drop no assertion, SHALL skip no test, SHALL mask no failure, and SHALL
+  replace no required work with a stand-in. The lane SHALL raise no timeout,
+  SHALL raise no script grant, and SHALL add no retry.
+- **IC-005**: The lane SHALL resolve the DBC gate target dependency through the
+  ordinary setup of the host. The lane SHALL first read the interpreter the tree
+  configured. It SHALL then give that interpreter its declared PyYAML dependency
+  through approved means, or configure the tree with an interpreter the project
+  already supports. The lane SHALL run the unchanged `dbc-gate` target and SHALL
+  run the manual gate commands beside it, and SHALL report both. Where the setup
+  needs a permission no session here holds, the row SHALL read BLOCKED with the
+  exact operator action, and manual commands SHALL stand reported as manual. The
+  lane SHALL bypass no gate, SHALL skip no hook, SHALL edit no CI file, and SHALL
+  hardcode no personal interpreter path into any tracked file.
+- **IC-006**: The lane SHALL correct and append the records under
+  `specs/048-hwlat-probe`, `specs/046-hunter-topdown` and
+  `specs/041-counter-probe`. Every tracked line SHALL give commands and outputs,
+  and SHALL print a path as `$HOME`-relative or build-relative. Every blocked root
+  row SHALL say so in words an operator can act on. The two hwlat refusals SHALL
+  carry the error each one produces, so an invalid engine value reads differently
+  from a window that stands missing. The parity rows SHALL state their reason:
+  the historical requirement measured at `perf_event_paranoid` 2 describes a
+  restricted environment, and an unreadable `msr` node on its own explains no
+  refusal of ordinary perf group access. Old sections stay as they stand, and the
+  record labels them history: a false line keeps its text and its heading, and the dated section carries the row that replaces it.
+- **IC-007**: The lane SHALL run every required local command at the final
+  squashed head, SHALL store the logs outside the repository, and SHALL carry the
+  head sha, the commands, the counts, the root status, the output references and
+  every failure in the pull request body. The phase is complete when the report
+  names the base, the final head, the pull request, the root status, the hardware
+  results, each diagnosed cause with its scoped fix or its deferral, the counts per
+  lane, the record corrections, and the open blockers.
+
+### Success Criteria - this extension
+
+- **SC-IC-1**: Every required lane at the final head carries a command, an exit
+  code and a count that a reader can reproduce, or names itself BLOCKED with the
+  right it lacks.
+- **SC-IC-2**: Each red instrumented name carries one diagnosed cause, the three
+  runs that separate it from the alternatives, and either a scoped fix with its
+  regression test or a deferral that names the excluded file.
+- **SC-IC-3**: The coverage report gives the before and after numerators and
+  denominators on the measured source, the cold rows the gate counts, and the gate
+  exit, with no new suppression anywhere.
+- **SC-IC-4**: The `dbc-gate` target answers exit 0 on the measured tree, or the
+  row reads BLOCKED with the operator action and the manual readings stand
+  labeled manual.
+- **SC-IC-5**: Every row a closeout writes in the three records carries no user
+  home path, no figure in a blocked row, and no verdict a run did not measure. A
+  false line inside an older section keeps its text, keeps its heading, and gains a
+  dated correction row that names the line it replaces.
+- **SC-IC-6**: The pushed remote ref equals the local head, and the pull request
+  body carries the final head sha with its own run counts.
+
+### Constraints - this extension
+
+- G-20: local runs decide acceptance. A hosted run informs a diagnosis, and a
+  hosted pass stands recorded as a hosted pass. A base failure stays red until a
+  fix clears it, and a host characteristic explains nothing on its own.
+- G-25: no inconsistent-data suppression stands allowed in any coverage command,
+  and no host lcovrc relaxation joins a gate.
+- G-29: the two `group_io` closed-enum switch branch approvals stay the only
+  marker approvals. The tree-wide branch allowance stays 21. No new exception,
+  omit, ignore or exclusion enters any command, and the pull request #89 audit
+  grants no gate permission.
+- Thresholds stay as they stand: 100 percent lines and branches under the
+  exceptions of `specs/045-merge-fixes` FR-015 with its R-1, R-2 and W-1, a branch
+  shortfall of 21 rows at most, and at most 84 markers.
+- A ceiling stands fixed. No timeout, no script grant and no concurrency setting
+  moves to clear a required failure.
+- Root rows need an operator-approved privileged session. The lane collects no
+  password, automates no elevation, loads no module, adds no tracing group, edits
+  no sudoers file, and weakens no tracefs, MSR or perf permission. Before an
+  approved write the lane reads the active tracer and `tracing_on`, and stops the
+  row when an unrelated session holds the tracer or a value reads unreadable. The
+  lane normalizes a mode to the active word inside its brackets, and keeps
+  `tracing_on` as a reading of its own.
+- G-26 and G-27: old history, footers and authors stay. The new commit carries OmO
+  as author and as committer. Title lines stand at 50 characters or fewer, body
+  lines at 72 columns or fewer, in ASD-STE100 Simplified Technical English. The
+  footer block carries, in order, `Refs: specs/048-hwlat-probe`,
+  `Refs: specs/046-hunter-topdown`, `Refs: specs/041-counter-probe` and
+  `Approved-by: OmO`, one trailer per line.
+- G-23: the branch rebases onto the latest master, squashes to one commit, and
+  never merges. Any tracked amendment or rebase makes a new head, and the lane
+  squashes again and reruns the required commands on it. Evidence from an older
+  head, or a claim that two heads look equivalent, stands outside final
+  acceptance.
+- G-31: this phase adds no raw event code support and publishes no raw
+  configuration word. It reads G-31 as a boundary on new application support, and
+  it leaves existing hardware test tools standing. N13e trace-line parsing and
+  automatic rank selection stay outside this phase.
+- The first push stands `git push -u origin fix/intel-acceptance-closeout`. A later
+  push saves the full remote sha it last observed and uses
+  `git push --force-with-lease=fix/intel-acceptance-closeout:<expected-full-sha>`.
+  A failed lease stops the lane, and the lane refreshes no lease and retries no
+  push. After each push the lane compares `git ls-remote origin
+  refs/heads/fix/intel-acceptance-closeout` with `git rev-parse HEAD` and stops on
+  a difference.
+- The branch opens one pull request, merges nothing, and closes no issue. The
+  `.specify/feature.json` pointer stays local and stays out of the commit.
+- An unavailable SMI source, a zero count and a marked gap each say what they
+  measured. None of the three proves the absence of live SMIs.
+
+### Assumptions - this extension
+
+- One session owns the working tree and the build trees for the length of the
+  phase, and each instrumented run stands alone with a load witness beside it.
+- Cpus 0 and 1 stand inside the affinity the host allows, so the two-cpu lane
+  stands measurable here. The lane reads the affinity before it runs and marks
+  itself BLOCKED where the answer says otherwise.
+- A hardware benchmark row and a unit test row carry different evidence, and a
+  real benchmark never stands in for a unit test.
+- A root session, if an operator opens one, stands unattended by this phase: the
+  phase reads values, runs one command, and writes nothing outside the contract of
+  the run.
+- The hosted runners keep their own cpu model, so a hosted count stands recorded
+  with the job that answered it.
+
+
+### Clarifications - this extension
+
+#### Session 2026-11-08, round 1
+
+Three readers checked this section against the tree, the workflow and the code.
+Each named points where two careful executors would run different commands. The
+owner ruled on all of them here. The readings a ruling retires stay named, so a
+later reader can see the choice.
+
+1. **A ceiling crossing is not yet a defect.** IC-004 asks for a demonstrated
+   defect. A name that only crosses its ceiling stands recorded with its cause and
+   stays red. A name crosses into the owned scope when a run shows it doing work
+   its own contract does not ask for, and the count of that work stands in the
+   record. Only then does a workload or selection correction stand allowed, and the
+   deterministic tests named in the record keep the command-line contract proved.
+2. **One directory per configuration.** "Clean, named trees" means the directory
+   each preset names: `build`, `build/coverage`, `build/sanitize`, `build/tsan`.
+   A lane wipes its own directory before it configures, and no two configurations
+   share a directory. The release lane runs last of those four suites, because
+   `build` is the parent of the other three, and the coverage trace stands copied
+   to the external artifact directory before that wipe. `build/dev` and
+   `build/analyzer` configure after that wipe, so no gate row reads a tree the
+   release lane deleted. One row re-configures `build` with the audit preset,
+   `IA48-056`, and that re-configure is the last thing the tree does: it runs
+   after every figure that needs the release tree, and the record states that the
+   release tree does not survive it. `IA48-061` carries that record line.
+3. **The target and the gate carry separate exits.** The lane runs
+   `cmake --build build/coverage -t coverage` unchanged and reports its exit. It
+   runs `bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` unchanged and
+   reports that exit beside it. A target that stops at its HTML step names the
+   module and the operator action, and reads BLOCKED for that step. The coverage
+   gate row keeps its own verdict from its own run. No flag enters either command.
+4. **Four words, one meaning each.** A row reads PASS when a run answered it, FAIL
+   when a run answered and the contract did not hold, and BLOCKED when no run in
+   scope could answer because a right, a tool or an operator action stands missing.
+   A row that cannot close because its fix sits in an excluded file reads open with
+   a named follow-up, and it carries its measured figures beside that name. The rule
+   that a blocked row carries no figure reaches only the BLOCKED class.
+5. **Before and after name heads.** The primary pair compares the capture taken at
+   the base head against the capture taken at the final head, both in one shape:
+   the serial suite, then the hand re-runs of every entry a ceiling cut. Where a
+   lane also holds the serial-only capture from before its hand re-runs, the record
+   reports that reading too, because it prices each ceiling. No lane runs twice for
+   a number.
+6. **Three runs per failed name, and one hosted shape.** Every name that fails in
+   either instrumented lane gets the original suite run, one isolated run in the same
+   tree with the same compiler, the same sanitizer options and the same CTest
+   ceiling, and one run bounded to `taskset -c 0,1,2,3` with `-j 4`, the width a
+   hosted runner answers. The record names each shape it ran.
+7. **Suppression means the inconsistent class.** The lane changes no coverage
+   command. It reports the tracked command verbatim, including the error classes the
+   capture step names today. A stripped variant stands only as a labeled diagnostic
+   and never as an acceptance run, so a tool complaint at exit 3 cannot become a
+   pass and cannot become a suppressed pass either.
+8. **Owned means the file list.** A shared fixture header that seven test sources
+   include stands outside the owned scope, because the list names files and that
+   header belongs to more than one entry. Eight registered CTest entries run a
+   binary that includes it: six of the `harness_hunt_*` binaries directly,
+   `harness_hunt_json_test_no_hunt` through the shared json binary
+   (`test/CMakeLists.txt:1869`), and `harness_hunt_rank_trap_test` by running
+   `harness_hunt_rank_trap_fixture` as its child (`test/CMakeLists.txt:1817-1821`). A diagnosis that lands there records the exact
+   reproduction and defers the change.
+9. **The hunt claim about a live catalog needs one run.** The standing sanitizer
+   note blames `harness_hunt_cli_test` on a catalog of 497 live events, while that
+   file and its fixture state a scripted catalog of 200 and no PMU read. One
+   scenario run through the built binary settles it, and the record prints the
+   `hunt: plan events=` line the run answers. A diagnosis inherits no claim from a
+   record.
+10. **The record labels each head it measured, and the reruns are not carries.** A
+    figure from `87d745d6` keeps that head as its label and stands history. A lane
+    that wants a figure at the closeout head runs the lane again. The two never share
+    a row.
+
+#### Session 2026-11-08, round 1 (continued): hardware and records
+
+11. **Parity gets two rows.** One row stands measured at the host's standing
+    `perf_event_paranoid` value of `-1`: `counter limit: cpu limit=4 source=decode
+    probe=4` with exit `0`. One row stands BLOCKED for the paranoid `2` reading that
+    SC-010 asks for, and names the operator action and the value to restore. Neither
+    row borrows the other's figure.
+12. **Three consoles per command, normal method only.** IH-001 asks three runs per
+    command, so a closeout answers with three normal-method consoles per command,
+    each alone on an idle host. A run through an alternative console is supplementary
+    and never counts toward the three, because SC-007 binds its three runs to the
+    normal method.
+13. **Opens and reads: one measured number, one derived number, no new tool.** The
+    library answers the group-size question with no device file open at all, because
+    its decoder answers first. The example's own search opens up to 15 device files
+    and reads up to 5 before it answers. The record prints both numbers and marks
+    which one a run measures and which one the standing proof tool's arithmetic
+    derives. No acceptance row runs a tracer.
+14. **The probe tool surface stays `counter_probe`.** IP-002 bars no existing
+    hardware test tool, and this closeout adds none, so the row names the one tool
+    the standing record runs. `probe_window` takes no raw event word and answers no
+    row here. The record names it and leaves it out.
+15. **Rank movement gets both denominators, per command.** Each command reports
+    movement among the 20 ranked rows and movement across all 497 printed rows, on
+    its own three consoles. A comparison between the two binaries gets its own line
+    and its own label, so no reader mixes a within-binary spread with a cross-binary
+    one.
+16. **A criterion id comes from the spec that owns the claim.** Where an `SC-` id
+    exists, the record cites it. Where a device-class claim has no `SC-` id, the
+    record cites the audit point or ruling that owns it and names that clause in the
+    row, so the row never cites a criterion that does not exist.
+17. **Every measurement lane runs alone.** The duty to run an instrumented suite
+    alone on an idle host reaches the hardware rows too, and the record prints a load
+    witness with each. A figure taken while another lane runs stands void and gets
+    re-taken.
+18. **The digest block prints verbatim.** IH-001 prints the full `table=` digest and
+    the full `reference=` digest for each of the 13 top-down rows, at their length
+    from the binary, with the level line beside them. The standing record's
+    sixteen-hex form stands as history and does not carry.
+
+#### Session 2026-11-08, round 1 (continued): records, closing, and the commit
+
+19. **The closeout claims only what it ran.** IC-007 asks every named command to run
+    at the final head and each row to carry its own verdict. Where a lane stays red,
+    the closeout names the cause, the file that holds it, and the action that would
+    close it, and the pull request says in plain words that the lane stands open. A
+    red lane never closes a phase by silence, and a phase never calls a lane green
+    because the rest passed.
+20. **The final-head set is the whole closeout set, in clean trees.** The commands a
+    closeout repeats at the final head are: the release suite in a clean `build`, the
+    `cpu0,1` and `cpu0-3` release runs, both instrumented suites in their own clean
+    trees, the coverage chain and its gate, and every gate command the workflow
+    carries, including the `dbc-gate` target. A tree built at an earlier head answers
+    no final-head row.
+21. **Before prices the change, and the within-head pair prices a ceiling.** The
+    before figure comes from the base head, the after figure from the final head, and
+    both readings state the head, the command and the tree. Where a lane also holds
+    the capture taken before its own hand re-runs, that pair stands reported as the
+    price of each ceiling, under its own label.
+22. **The `dbc-gate` pass route names the interpreter, and installs nothing.** A
+    package manager refuses both interpreters on this host, so the route a closeout
+    takes is the supported interpreter configuration, with the unchanged target and
+    the unchanged manual commands run side by side. A row that shows the target and
+    the manual commands agreeing at exit `0` closes the criterion.
+23. **A claim a tracked file disproves is not a defect.** A research pass read two
+    matrix rows as broken, on the reading that each side stops at a usage fault and
+    so compares two failures. The tracked data disproves it: the rows stand at
+    `test/data/base_cli_matrix.txt:10` and `test/data/base_cli_matrix.txt:21` with
+    the expected status `2` and the exact fault line each one asks for, and no row of
+    that file names `--interval` or `-r`. Row `case10` stands at
+    `test/data/base_cli_matrix.txt:10` and row `case21` at
+    `test/data/base_cli_matrix.txt:21`. IC-004 therefore names no defect in the
+    matrix. It keeps the shared cause named in ruling 9's family of evidence: a
+    provider walk that every child process pays and the fixture then discards, with
+    its fix sitting in an excluded file, so each affected row stays open with that
+    follow-up instead of closing on a retry or on a ceiling that moved.
+24. **Residue gets six rows and one row without figures.** The record shows six
+    before-and-after rows, one per saved file, and a seventh row for the threshold
+    residue that carries no figure, because a residue has no number to print. The
+    operator block answers with two privileged runs: one that prints the six values
+    as they stand, and one that prints them again after the harness restore path.
+25. **A planted reading closes its own row and no more.** The fixture tests close the
+    planted-value row for the SMI counter. A reading from the real counter on this
+    host needs the root-only device file, stands BLOCKED, and cites the older host's
+    record as history. That history file stays as written.
+26. **The commit carries one section token, three `Refs:` lines and one
+    `Approved-by:` line.** The title reads `Acceptance: Intel closeout records and
+    matrix rows`. OmO stands as both author and committer. The closeout names no
+    issue, so the commit carries no `Fixes:` trailer, and the three `Refs:` lines
+    name the three specs in the order `048`, `046`, `041`.
+27. **History keeps its paths, and a new row does not.** Three home-directory paths
+    and quoted `/tmp` commands stand inside record sections a closeout must not
+    rewrite, so they stay and each one keeps its heading. Every row a closeout writes
+    uses a `$HOME`-relative form, and the corrected sections carry no such path.
+
+28. **A repeat of a count is not a move.** Two hosted runs of identical source at
+    pull request #98 answered 27 uncovered branch rows and then 23 rows over the same
+    9,823 branch positions, so the count of cold rows carries a spread of its own. A
+    closeout count within a couple of rows of the standing figure reads as a normal
+    repeat of it, and the row names its run, its tree and its head. A patch that
+    changes no measured file claims no credit for a count that moved, in either
+    direction.
+
+## Intel acceptance closeout at the merged head (2026-11-08)
+
+`a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a` stands the base of this phase, and
+`origin/master` answers that head at the check on 2026-11-08. The base holds pull
+request #99, whose merge commit
+`6fba993858a2fff97f2e0c617152019bf7fe20fd` records the coverage gate closing at
+the measured head `2d4d8c57975a86db6c77536f7090aba2bdaf6417`. The base also holds
+pull request #100, and its merge commit is the base itself. That change moves ten
+paths: `source/harness/detail/internal.hpp`,
+`source/harness/detail/jitter_probe.hpp`,
+`source/harness/execution_context.cpp`, `source/harness/jitter_probe.cpp`,
+`test/source/harness_context_barrier_test.cpp`,
+`test/source/harness_fwq_ftq_test.cpp`,
+`specs/045-merge-fixes/spec.md`, `specs/045-merge-fixes/plan.md`,
+`specs/045-merge-fixes/tasks.md` and
+`specs/045-merge-fixes/results/barrier-fwq-closeout.md`. `gh pr view 100 --json
+files` answers that list. The wait arms of
+`source/harness/execution_context.cpp` and the spectrum hold of
+`source/harness/detail/jitter_probe.hpp` are the two harness changes that bear on
+this phase. The section above, `Acceptance closeout:
+measured Intel evidence (2026-11-08)`, stays as history with every id, every
+ruling and every record inside it. Its measured head `2d4d8c57` and the branch's
+first closeout commit `92bacc03`, which the rebase onto this base replaced, keep
+their own labels, and no row of this phase moves a figure from either head onto a
+row of its own.
+
+This phase re-measures on that base, and it reopens no barrier or FWQ source file.
+It names three heads. The base head is `a55728af`. The pre-rebase head is
+`92bacc03`, the closeout commit the rebase replaced. The final head is the head
+Pass 2 runs at, and ruling 29 of `Rulings - this phase (29 to 42)` in this file
+sets its shape: the squash after the Pass 1 writes produces that head and every
+figure names it, and the squash after the Pass 2 writes produces the head the
+pull request carries. Both squashes stand unmade at the check, so each reads no
+figure. Every row that
+names either head reads no figure for that sha until a record prints it, and
+each record then prints the sha beside the phrase.
+
+The ids keep the standing text above, and seven readings change: `IC-001` adds
+the compiler and widens the suite to the final-head set, `IC-002` names the two
+traces, `IC-003` leaves the duration bar out, `IC-004` names five reds,
+`IC-005` keeps one interpreter route, `IC-006` leaves the refusal and parity
+out, and `IC-007` leaves the body contents out. Three numbered
+ruling lists live in this file: the 2026-11-07 list under `Clarifications` of
+the `Acceptance extension: Intel final acceptance (2026-11-07)` section, the
+2026-11-08 closeout list under `Clarifications - this extension`, and this
+phase's list under `Rulings - this phase (29 to 42)`. A ruling cite names the
+file, the list name, and the ruling number. That rule governs a cite that
+crosses a file boundary, the place where a bare number becomes ambiguous.
+Inside the file that holds a list, the list name alone settles the cite, and
+each list above lives in one file.
+One base-carried cite needs its handle named once, because an in-place edit
+would rewrite a base line: the `Roadmap position` section of this file quotes
+`specs/027-jitter-probe/spec.md:335` and `:901` for the deferred N13d entry.
+The handle reads: the `Roadmap position` sentence of
+`specs/027-jitter-probe/spec.md` that names N13d, and the `Out of scope`
+sentence under its `Scope` heading that names the same entry. The quoted
+numbers keep their text as the reading of the check that wrote them, and the
+handle is the pointer a run follows.
+
+### Requirements - this phase (IC-001 to IC-007 restated)
+
+- **IC-001**: The lane SHALL build this base in clean, named trees for the
+  release, coverage, address and undefined sanitizer, and thread sanitizer
+  configurations. The record SHALL give the source sha, the cpu affinity the host
+  allowed, the compiler and the compiler launcher of each tree, the python
+  interpreter each tree configured, the `perf_event_paranoid` and `nmi_watchdog`
+  values, the reach of the `msr` node and of tracefs, and the command, exit code
+  and entry count of each suite of the final-head set. The lane SHALL preserve
+  each original failing run before it runs any isolated diagnostic.
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md` holds these rows.
+- **IC-002**: The lane SHALL run the coverage target and the coverage gate on
+  the measured source, and each SHALL answer with its own exit. The capture
+  step and the summary step SHALL complete. The picture step SHALL read BLOCKED
+  with the operator action `pacman -S perl-gd gd`, and the row SHALL state the
+  target exited 2 there beside the gate's own exit. The gate reads that
+  capture's text summary, so the blocked step blocks no gate row. No command
+  SHALL gain inconsistent-data suppression. The build writes two traces,
+  `build/coverage/coverage.raw.info` and `build/coverage/coverage.info`, and
+  the lane SHALL report what each holds for every cold row. The gate's printed
+  list serves a failing run, and the trace is the source for a passing run. The
+  record SHALL give the numerator, the denominator, the cold rows and the gate
+  exit at `a55728af` and at the final head. The lane SHALL add no ignore, omit,
+  remove, exclusion or allowance, and SHALL call no partial union a pass.
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md` holds these rows.
+- **IC-003**: For each sanitizer failure this base shows the lane SHALL record
+  three runs: the original suite, one isolated run in the same tree with the same
+  compiler, the same sanitizer options and the same CTest ceiling, and one run
+  bounded to `taskset -c 0,1,2,3` with `-j 4`. The narrow shape stands beside it:
+  `taskset -c 0,1` with `-j 2`. A hosted suite run uses the width the workflow
+  asks for, and the lane prints that width. For each run the record SHALL give the
+  child command, the event or work count where the entry reports one, the exit
+  code, the data or timeout reason, the grant inside the driving script and the
+  ceiling CTest applies. A run that passes on a retry stands recorded as a
+  diagnostic.
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md` holds these rows.
+- **IC-004**: The lane SHALL change no code unless a run finds a demonstrated
+  defect inside the owned file list. Where such a defect stands found, the
+  correction SHALL carry a regression case that fails before it, passes after
+  it, and preserves the behavior tested, and that regression case lands only
+  then. This ruling states the empty set of code writers as the shape of this
+  phase: a `.cpp`, a header, a script or a data file changes only where such a
+  run answers, and no run has answered one yet. A workload or selection
+  correction stands allowed on the two standing conditions. The record carries
+  the five red names the two instrumented lanes printed at `2d4d8c57`. Two name
+  a file inside the owned list: `harness_jitter_cli_test`, which selects its own
+  work in an owned file, and `base_cli_matrix`, whose runner
+  `test/base_cli/run_matrix.py` stands inside that list while the cause of its
+  ceiling crossing stands outside it, so that row reads open with its
+  reproduction. Three name a file outside it and read open with their
+  third-shape runs and reproduction: `harness_hunt_cli_test` with its shared
+  fixture header, `example_run` with the example programs, and
+  `report_shape_fwq_ftq_sample` with its driver and its registration. The lane
+  SHALL drop no assertion, SHALL skip no test, SHALL mask no failure, SHALL
+  raise no timeout, and SHALL add no retry. Each run stands in
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md`.
+- **IC-005**: The lane SHALL resolve the `dbc-gate` target dependency through the
+  ordinary setup of the host. The lane SHALL read the interpreter the tree
+  configured, SHALL verify that interpreter's declared PyYAML dependency, and
+  SHALL run the unchanged target beside the unchanged manual commands. The package
+  manager here refuses both interpreters, so the lane SHALL configure the tree
+  with an interpreter the project already supports. Where the setup needs a
+  permission no session here holds, the row SHALL read BLOCKED with the exact
+  operator action, and the manual readings stand labeled manual. The lane SHALL
+  bypass no gate, SHALL skip no hook, SHALL edit no CI file, and SHALL hardcode no
+  personal interpreter path in any tracked file.
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md` holds these rows.
+- **IC-006**: The lane SHALL append and correct the records under
+  `specs/048-hwlat-probe`, `specs/046-hunter-topdown` and
+  `specs/041-counter-probe`. Every line the phase writes SHALL print a path as
+  `$HOME`-relative or build-relative, SHALL carry its command and its output, and
+  SHALL leave every blocked root row with the action an operator can take. Every
+  code anchor inside a dated row SHALL be re-read at the measured head, because
+  pull request #100 moved two anchors this branch already cites, in
+  `source/harness/detail/internal.hpp` and `source/harness/jitter_probe.cpp`. The
+  record SHALL keep pull request #99 attributed to the head that run measured, and
+  an older line keeps its text and its heading while a dated row names the line it
+  replaces. The three `results/acceptance-final-intel.md` files hold these rows.
+- **IC-007**: The lane SHALL run the final-head set at the final head in clean
+  trees, SHALL store every log outside the repository, and SHALL print that head
+  sha in each record and in the pull request body. The lane SHALL name both heads
+  of ruling 29 of `Rulings - this phase (29 to 42)` in every figure row, and
+  SHALL print that ruling's markdown-only proof clause there. A delta that
+  changes markdown files only leaves every figure in place, so this requirement
+  holds at either head. The rule that bars a user home path bars a path under the
+  operator's home directory, and a run's external log directory under `/tmp` is
+  not such a path, so a record writes a log path as the run printed it. The
+  closeout body is appended to
+  `specs/046-hunter-topdown/results/pr-body.md` under its own dated heading, and
+  the standing body of that file keeps its text and its heading.
+  `specs/048-hwlat-probe/results/acceptance-final-intel.md` holds the set.
+
+### The final-head set
+
+The set has ten lanes:
+
+- the coverage chain, with its four hand re-runs, its capture and its gate;
+- the address and undefined sanitizer suite in `build/sanitize`;
+- the thread sanitizer suite in `build/tsan`;
+- the release suite in `build`;
+- the release run bounded to cpus 0 and 1;
+- the release run bounded to cpus 0 to 3;
+- the walk pricing;
+- the developer-mode gate tree, its `dbc-gate` contract target and the two prose
+  gates;
+- the hardware consoles;
+- the static-analysis tree in `build/analyzer`.
+
+`specs/048-hwlat-probe/plan.md` carries the command of each lane in its lane table
+and in the command blocks under that table.
+
+### Files this phase may change
+
+The list holds seven entries:
+
+- `test/base_cli/run_matrix.py`, its matrix data and its fixtures;
+- `test/example_run.sh` and its fixtures;
+- `test/source/harness_hunt_cli_test.cpp`;
+- `test/source/harness_jitter_cli_test.cpp`;
+- the markdown artifacts of `specs/048-hwlat-probe`: the specification, the plan, the tasks, the checklists and the results;
+- the markdown artifacts of `specs/046-hunter-topdown`: the specification, the plan, the tasks, the checklists and the results;
+- the markdown artifacts of `specs/041-counter-probe`: the specification, the plan, the tasks, the checklists and the results.
+
+`specs/048-hwlat-probe/results/gates.md` stands outside the list, and this phase
+cites its contract-gate rows by reference and rewrites none of them.
+
+### Success criteria - this phase (SC-IC-7 to SC-IC-11)
+
+- **SC-IC-7**: Every lane of the final-head set carries at the final head a
+  command, an exit code and a count a reader can rerun, or reads BLOCKED with the
+  right it lacks. The Pass 2 set of ruling 29 of `Rulings - this phase (29 to 42)`
+  in this file answers this criterion, and no row quotes a Pass 1 run. Every
+  figure row names both heads of that ruling and prints its markdown-only proof
+  clause, so this criterion holds across a delta that changes markdown files
+  only: the head Pass 2 ran at answers it, and the head the pull request carries
+  answers it beside that clause.
+- **SC-IC-8**: The coverage gate answers within the allowance of 21 rows on the
+  denominator its own capture prints, and the record names that denominator
+  beside the shortfall. The run that answers this criterion is
+  `bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` at the final
+  head.
+- **SC-IC-9**: Each instrumented lane runs its suite twice at one head in one
+  tree and repeats its passed and failed counts. An instrumented lane is the
+  address and undefined sanitizer tree or the thread sanitizer tree. The row
+  prints both exit codes and both times. The criterion passes when the two runs
+  report the same set of red names. A differing set fails the criterion. The
+  second run answers beside the first, and no earlier-head count answers it.
+  The two rules govern different things, ruling 5 of the 2026-11-08 closeout
+  list in this file a number and this criterion a set of red names, so a repeat
+  that prints a set is not a repeat that produces a number.
+- **SC-IC-10**: Each of the five red names `IC-004` names carries its cause
+  inside the owned file list, or a deferred reproduction naming a file outside
+  it. The three runs of `IC-003` answer this criterion at the final head.
+- **SC-IC-11**: The push answer matches the local head. `git ls-remote origin
+  refs/heads/fix/intel-acceptance-closeout`, read after the push, answers this
+  criterion against `git rev-parse HEAD`.
+
+Four figures this phase needs stand unanswered at the check on 2026-11-08. Each
+row gives the command, says no figure, and names the run that must answer it.
+Every figure row of this phase names both heads of ruling 29 of
+`Rulings - this phase (29 to 42)` in this file and prints that ruling's
+markdown-only proof clause. `IA48-059` carries the record rows that do so.
+
+| Reading | Command | Answer at the check |
+|---|---|---|
+| Entries the release tree registers | `ctest --test-dir build -N` | no figure; the lane reads the last line of that answer, and the Pass 2 release tree at the final head answers it |
+| Lines the capture covers | `cmake --build build/coverage -t coverage` | no figure; the Pass 2 coverage chain at the final head answers it |
+| Branch shortfall and its denominator | `bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` | no figure; the Pass 2 gate run at the final head answers it |
+| Cold rows of the extracted trace, and what each trace the build writes holds there: a branch row of `build/coverage/coverage.info` where at least one outcome counts zero | `bash tools/dbc/coverage_gate.sh build/coverage/coverage.info` | no figure; the Pass 2 gate run at the final head answers it with the cold rows it reads there, and the gate prints its own row list only on a failing run, so the trace is the source for a passing run |
+
+### Rulings - this phase (29 to 42)
+
+29. **Two passes, and the second one owns the record.** A row cannot quote a run
+    made before its own head existed. Pass 1 is the whole final-head set run at a
+    candidate head, so that its figures can be written into the records. The
+    squash after those writes produces the head Pass 2 runs at and every figure
+    names. The squash after the Pass 2 writes produces the head the pull request
+    carries. Pass 2 is the same set run at the head Pass 2 runs at, after the
+    Pass 1 records stand committed. Pass 1 may guide edits. Any tracked change
+    after Pass 1 forces a new squash and a fresh Pass 2 at that head. Every
+    figure row names both heads, and each prints the markdown-only proof clause:
+    `git diff --name-only <head Pass 2 ran at> <head the pull request carries>`
+    prints files under `specs/` alone, so the delta between the two heads holds
+    markdown files only and no figure moves. A diff that names any other path voids the
+    figures and forces a fresh Pass 2.
+30. **A figure is void under another sweep's load.** A figure stands only when
+    that lane's own witness line reports no other compiler, test, capture or trace
+    process, and a one-minute load average below 2.0. Otherwise the figure is
+    void, and the lane re-takes it alone with its load witness beside it.
+31. **A matching count pair does not settle a moving count.** The repeat rule and
+    its spread stand in ruling 28 of the 2026-11-08 closeout list in this file,
+    and a count within two rows of the standing figure reads as a repeat of it.
+    The local coverage denominator and the hosted coverage denominator are two
+    different totals, and no row compares them.
+32. **The picture step stands outside the gate.** The coverage target may stop at
+    its HTML step, and the gate keeps reading the text summary of the same
+    capture. That step names its operator action, and the gate row keeps its own
+    verdict.
+33. **An isolated run that passes is a diagnostic.** It records a condition, and
+    it closes no defect. A correction stands only where a run shows work the entry
+    contract does not ask for.
+34. **Two passes per cut entry.** An entry a ceiling cut gets its own command
+    with that ceiling, then its own registration run direct: `ctest --test-dir
+    <tree> --show-only=json-v1 -R '^<name>$'` prints the program, its arguments
+    and its working directory, and running that program there carries no CTest
+    limit. Both runs stand in one tree at one head, and the record prints both
+    counts. A grant an entry enforces inside its driver still binds
+    (`tools/docs/report_shape.py:368`).
+35. **Each figure names the head whose run answered it.** A figure taken at
+    `2d4d8c57` keeps that label, a figure taken at the pre-rebase head `92bacc03`
+    keeps that label, and a final-head row carries a final-head run.
+36. **The owned file list is the only place a code line changes.** A diagnosis
+    that lands outside it records the exact reproduction, names the file, and
+    defers the change.
+37. **Root rows stay BLOCKED without a privilege.** Each blocked root row names the
+    exact operator action and the value to restore. The phase collects no password,
+    automates no elevation, and weakens no kernel control.
+38. **The push carries a lease, and the remote answers.** No remote branch of
+    this name exists yet, so the first push runs
+    `git push -u origin fix/intel-acceptance-closeout`. A later push runs `git
+    push --force-with-lease=fix/intel-acceptance-closeout:<expected-full-sha>`.
+    Every push stands followed by `git ls-remote origin
+    refs/heads/fix/intel-acceptance-closeout`, and the sha of that answer must
+    equal the local head.
+39. **The pull request body carries the set.** The body names the final head sha,
+    the count per lane, the root status, and every deferred cause, in lines of 72
+    columns or fewer.
+40. **One sha closes the phase.** The record, the pull request body and the remote
+    branch must agree on one head sha. Any disagreement reads open, and no part of
+    the set closes the phase alone.
+41. **The digest rule reads as the code holds it.** Ruling 18 of the 2026-11-08
+    closeout list in this file takes the reading the code gives.
+    `source/harness/report.cpp:367-370` prints the level line with its
+    `passes=` count and a `table=` directory path, `:378-380` prints the
+    reference line with the manifest reference where the record carries one,
+    and `:381-384` prints one `topdown: file` digest line per file the record
+    carries. Neither the `table=` field nor the `reference=` field carries a
+    digest. The count of digest lines is a reading of the run, because the
+    binary prints one line per contributing file, so no row pins it. A row that
+    quoted 13 digest lines keeps its text and keeps its heading, and gains a
+    dated correction row in its record naming the line it replaces, the duty
+    `SC-IC-5` of `Success Criteria - this extension` in this file states.
+42. **A blocked row cites the identity reading.** `SC-IC-5` of
+    `Success Criteria - this extension` in this file bars
+    a figure in a blocked row. The value a host answered for a kernel control
+    before an operator changes it belongs to the identity reading of that run,
+    and it figures no blocked measurement. The blocked row SHALL cite the
+    identity section of the same run for that value, SHALL print the operator
+    line and the restore line, and the operator reads the value before the
+    change.
+
+### Out of scope for this phase
+
+- The barrier and FWQ implementation files, their private headers, the barrier
+  fixture and the FWQ unit file, because pull request #100 landed them.
+- `test/CMakeLists.txt`, the shared coverage and DBC gates, every CMake preset and
+  every CI file.
+- The allowance and its ledger in `tools/dbc/coverage_gate.sh`, and the branch
+  position count that `cmake/coverage.cmake:111-125` produces. The hosted
+  shortfall stands deferred with its reproduction and no figure, and one local
+  pass answers nothing about the hosted red.
+- The schema, the version files, and `README.md`.
+- The files of another host and the files of another lane's branch.
+- Raw event code support and any published raw configuration word, which G-31
+  leaves as future work.
+- Any weakening of a kernel control: `perf_event_paranoid`, `nmi_watchdog`, the
+  tracefs mode and the `msr` mode stay as the host holds them.
+- Any timeout, script grant, ceiling, retry, coverage marker, allowance or
+  suppression.
+
+### Assumptions
+
+- The host keeps the rights it holds today, and an operator change to them stands
+  recorded when a run reads it.
+- `perl-GD` stays absent, so the text summary stays the source the coverage gate
+  reads and the picture step stays a named step.
+- The analyzer lane may use a tree of its own, because that tree answers no row of
+  another lane.
+- A hosted failure at master stands disclosed in the record, and this phase
+  repairs nothing inside a container.
+- `.specify/feature.json` is the local pointer of the spec-driven tooling. It is
+  tracked, this phase sets it while it works and restores the value the base head
+  carries before any commit, so it stands outside `Files this phase may change`.
+  `IA48-058` is the one row that owns that file, and its verify line prints
+  `git status --porcelain .specify/feature.json` empty before each commit. The
+  file stands modified at the check on 2026-11-09: the tooling holds the feature
+  directory in use, this phase works in `specs/048-hwlat-probe`, and the base
+  head carries `specs/045-merge-fixes`. That row records the standing
+  modification with that cause.

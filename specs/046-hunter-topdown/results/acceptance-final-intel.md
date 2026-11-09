@@ -210,3 +210,155 @@ and `24 / 16`.
 The claim set stands where it stood: SC-007 carries the counts and the node paths, SC-010
 carries the device identity the companion record reads, AP-9 carries the deepest level and
 the rank instability, and the Arm, Intel hybrid and Zen 4 rows of SC-010 stay pending.
+
+
+## Closeout at the closeout head (2026-11-08)
+
+Branch `fix/intel-acceptance-closeout`, base `2d4d8c57975a86db6c77536f7090aba2bdaf6417`. The
+closeout runs on Intel silicon only. This section states what the pass wrote, what it left
+pending, and what the closeout head still has to answer. It carries no measured figure,
+because the hunter consoles run at the head the squash produced, and that lane follows this
+commit.
+
+This section was written against `af54d3f0`, the head this branch carries. A cite
+into a spec, plan or tasks file reads at `af54d3f0`, and a figure keeps the head
+its own row names.
+
+Corrections stand in `results/acceptance-hunt.md` (read at `af54d3f0`) under
+`Acceptance closeout corrections (2026-11-08)`, seven rows, each naming the standing line, the code or log that answers
+differently, and the replacement sentence. Owners: SC-007 for the ranked count and the area
+cell, SC-008 with AP-10 for the rank claims, IA46-002 with the digest rulings of
+`specs/048-hwlat-probe/spec.md` (read at `af54d3f0`) for the printed digests, FR-033 with D-17 for the two asks,
+SC-010 with IH-002 for the pending row, and IC-006 with SC-IC-5 for the citation inside
+FR-033.
+
+`specs/048-hwlat-probe/spec.md` (read at `af54d3f0`) ruling 19 binds this section: the
+closeout claims only what it ran. IH-001 (`specs/046-hunter-topdown/spec.md`, read at
+`af54d3f0`) owns the consoles below, and IH-002 owns the criterion id beside each row.
+
+| Command | Consoles | What the pass must print |
+|---|---|---|
+| `./build/example/memory_walk --hunt --hunt-budget 120s` | three, each alone on an idle host with its load witness | the `topdown: level=` line, the 13 `topdown: file` digests at the length the binary prints, and rank movement on both denominators |
+| `./build/example/first_benchmark --hunt --hunt-budget 120s` | three, same shape | the same three readings |
+
+The commands stand verbatim at `results/acceptance-hunt.md:14-16` (read at `a55728af`). Rank movement reads on two
+denominators: the ranked count against the `--hunt-top` limit of 20
+(`include/speedgun-ng/hunt.hpp:135` (read at `a55728af`)), and the printed count against the rows the run prints.
+The two asks stand apart in one run: the block prints the level-1 ask of
+`kTopdownCompanionLevel`, and the area cells come from the ask at `kTopdownAreaLevel`, the
+value 6 at `source/harness/detail/hunt_topdown.hpp:42` (read at `a55728af`) (FR-033, D-17).
+
+Pending rows stand where they stood. SC-010 keeps the Arm, the Intel hybrid and the Zen 4
+classes pending, and the Intel parts measured through `PERF_METRICS` join them: no host on
+this lane carries the facility, those parts keep their synthetic seam rows, and this record
+carries no hardware figure for them (SC-010, IH-002).
+
+## Corrections at the merged base (2026-11-09)
+
+This block was written against `af54d3f0`, the head this branch carries, whose
+base is the merged head `a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a`. Each cite
+prints the head it was read at: `read at a55728af` for text the base carries,
+`read at af54d3f0` for text this branch wrote, and `read in this wave's tree`
+for a row this wave wrote in another record and no head carries yet. A bare `:n` in this block names the artifact the sentence names last,
+and this file when it names none; a line of this file at or below 212 stands
+at `a55728af` too, and a line above reads at `af54d3f0`.
+
+SC-IC-5 of `Success Criteria - this extension` of
+`specs/048-hwlat-probe/spec.md` (read at `af54d3f0`) owns the shape of this
+section, and that id stands nowhere at `a55728af`. Every line
+above keeps its text and its heading. Each row below names the line it replaces
+and gives the reading that holds, beside the head its target was read at.
+
+- **Row 1. The base declared at `:217`.** Owner: `IH-001` of the
+  `Requirements restated for the merged base (IH-001 to IH-002)` list of
+  `specs/046-hunter-topdown/spec.md` (read at `af54d3f0`), the requirement that binds this
+  section to a tree built from the head it measures. Quoted claim, verbatim from
+  `:217`:
+
+  ```text
+  Branch `fix/intel-acceptance-closeout`, base `2d4d8c57975a86db6c77536f7090aba2bdaf6417`. The
+  ```
+
+  Both bases stand, each with its date.
+  `2d4d8c57975a86db6c77536f7090aba2bdaf6417` stands the base that the section
+  `Closeout at the closeout head (2026-11-08)` declared on 2026-11-08, and
+  the section `Intel acceptance closeout at the merged head (2026-11-08)`
+  of `specs/048-hwlat-probe/spec.md` (read at `af54d3f0`) labels that head the measured
+  head of the earlier pass. The pass this phase measures runs at
+  `a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a`, the base head named by the
+  `Base head` row of `The base this work reads` of
+  `specs/046-hunter-topdown/spec.md` (read at `af54d3f0`) and by
+  the `Intel acceptance closeout at the merged head (2026-11-08)` section of
+  `specs/048-hwlat-probe/spec.md` (read at `af54d3f0`). Ruling 10 of the
+  2026-11-08 closeout list of that spec (read at `af54d3f0`) keeps each figure inside the row that
+  names the head that printed it, so a reading taken on the older base keeps its
+  own label and stands where it stands.
+
+  Sentence this row adds beside `:217`: "The base of the pass this phase measures
+  stands at `a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a`, the base head of
+  2026-11-08, and the base named above stands as the declaration of 2026-11-08
+  for the earlier pass."
+
+- **Row 2. The digest count at `:241`.** Owner: `IH-001` of the
+  `Requirements restated for the merged base (IH-001 to IH-002)` list of
+  `specs/046-hunter-topdown/spec.md` (read at `af54d3f0`) beside the digest row of
+  `Rows the final head must answer` of that spec (read at `af54d3f0`).
+  Quoted claim,
+  verbatim from `:241`:
+
+  ```text
+  the `topdown: level=` line, the 13 `topdown: file` digests at the length the binary prints,
+  ```
+
+  What that count is: 13 is the number of `topdown: file` lines those runs
+  printed. `:56` prints thirteen digests for the six runs at `615c0964`, and
+  `:194` prints 13 digests for the six runs at `87d745d6`. The binary prints one
+  such line for each contributing file
+  (`source/harness/report.cpp:381-384` (read at `a55728af`)), the selector admits a file only where
+  that file contributes a row of the table the host loaded
+  (`source/counters/linux_pmu/topdown_select.cpp:122-129` (read at `a55728af`)), and the requirement of
+  this phase reads no constant for that count, which the clause of that restated
+  `IH-001` on the `topdown: file` lines states beside the source that prints one
+  line per contributing file. That restated `IH-001` takes the digests from the
+  run, in the clause that prints the `topdown: level=` line, the
+  `topdown: reference=` line and the digests at the length the binary prints them,
+  and it closes by pinning no count and reading `no figure` for the digest row.
+
+  The task row `IA46-004` of `specs/046-hunter-topdown/tasks.md` (read at
+  `af54d3f0`) states the same count, and that row stands in the section
+  `Acceptance closeout: measured Intel evidence (2026-11-08)`, text this branch
+  wrote at `af54d3f0`: the base copy of that tasks file ends at 1239 lines (read
+  at `a55728af`). That row is `IA46-004`'s own, so it belongs to this phase and a
+  dated row can amend it. The rule
+  that keeps the base copy of a file as an exact prefix reaches the 1239 lines
+  the base carries. The count itself stands: 13 digests came from the runs at
+  `615c0964` and `87d745d6`. The list `Files this phase may change` of
+  `specs/048-hwlat-probe/spec.md` (read at `af54d3f0`) widened the same day to
+  the markdown artifacts of the three features, so that file stands inside the
+  list.
+
+  Restatement, for the clause that stands at `:241`: "the `topdown: level=` line,
+  and the `topdown: file` digests that run prints, one line for each contributing
+  file at the length the binary prints them, 13 at `615c0964` and 13 at
+  `87d745d6` (`:56` and `:194`), and `no figure` for the head this phase
+  measures."
+
+- **Row 3. An open defect in a preserved line, with no figure.** Owner: `IC-006`
+  of `specs/048-hwlat-probe/spec.md` (read at `af54d3f0`; that id stands nowhere at
+  `a55728af`). The dry-run clarification under
+  `Session 2026-11-03, round 5` of `specs/046-hunter-topdown/spec.md` (read at
+  `a55728af`) belongs to the clarification text of the earlier round, and `git show a55728af:specs/046-hunter-topdown/spec.md` carries
+  that line, so this phase rewrites none of it. It cites
+  `docs/pages/harness.md:2439` (read at `a55728af`) for the rule that a dry run runs one iteration per
+  pass. That line of the page now holds a row of the type table, and the heading
+  `The noise tracer` stands below it. The rule itself stands at
+  `docs/pages/harness.md:607` (read at `a55728af`), at `:674` and at `:2703`. Reproduction, from the
+  repository root: `sed -n '2439p' docs/pages/harness.md`, read beside the
+  sentence at the cite. The fix belongs to that page and that clarification line,
+  and both stand outside `Files this phase may change` of
+  `specs/048-hwlat-probe/spec.md`, so no task row of this phase carries it. The two
+  reserved ids of this part, `IA46-015` and `IA46-016` of
+  `specs/046-hunter-topdown/tasks.md` (read in this wave's tree), stand assigned to
+  the citation rows of the hunt record and to this row's dated line beside the page
+  reading. The page fix therefore needs an id of its own, or a ruling that keeps it
+  outside this phase.
