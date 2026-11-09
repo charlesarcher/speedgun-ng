@@ -1077,3 +1077,383 @@ A row closes only with its verify reading in
 the exit, the host, the tool versions and the figure. A row that stops at
 a scope boundary stands open with the file it needs, and the pull request
 body carries it.
+
+## Phase 15 tasks: Land the approved FWQ example widen and measure the
+gain (2026-11-09)
+
+**Base**: `origin/master` at `a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a`
+(the PR #100 merge, which carries the single-fold spectrum cache:
+version 0.34.0, report schema 1.16, harness `SOVERSION` 22, archive
+`SOVERSION` 8, `git grep -c LCOV_EXCL -- source include` at 84, README
+1002 lines against the cap of 1004). The branch is
+`fix/fwq-example-n13e`, cut from the latest `origin/master`, and it
+carries the spec 036 trace-line lane (N13E-001 to N13E-004) beside
+these rows; no file stands in both lanes. One squashed commit, one pull
+request, no merge, no issue closed. No version, schema or `SOVERSION`
+value moves, no public header changes, and no gate, filter, allowance,
+marker, omit, ignore-error class, timeout ceiling or
+continuous-integration change joins the branch. The 110 s subprocess
+grant of `tools/docs/report_shape.py:368` and the 120 s `ctest` ceiling
+of `report_shape_fwq_ftq_sample` at `test/CMakeLists.txt:2197` stand
+unchanged (O-5).
+
+**Host of record**: thrawn, AMD Zen 5 Threadripper 9960X, 24 cores, 48
+threads, all 48 cpus in the affinity mask, kernel `7.3.0-5-cachyos`,
+GCC and gcov `16.2.1 20260810`, clang `23.1.3`, clang-format `18.1.8`,
+lcov and genhtml `2.6-0`, cmake and ctest `4.4.4`. Scratch stands under
+`$HOME/scratch/fwq-example-n13e/`.
+
+**Row shape**: each lettered row names one file or one tightly-coupled
+pair, the command that verifies it, and one reading. `[P]` marks a row
+that touches different files from its siblings and runs in parallel once
+the rows its text names stand landed. A row that records a wall time
+runs while no other row runs, and the record names the affinity mask and
+the online cpu list beside it (Principle VII). Line numbers stand taken
+at the branch base, before the widen lands. No test of this phase uses a
+sleep, a wall-clock threshold or a fake cpu.
+
+- [x] BFW-009 Land the approved widen in the example region and in the
+      page block that quotes it (FR-034, SC-029).
+  - a. `example/docs/fwq_ftq.cpp` and `README.md`, one commit pair: add
+    `.gapCount = 4096,` after the `.mode` line at `:37` of the
+    `fwq-ftq` region (markers at `:33` and `:46`, body `:34-:44`), and
+    the same bytes after the `.mode` line at `README.md:770` of the
+    block whose marker stands at `:765` and whose fence stands at `:766`
+    (body `:767-:777`). The line carries 22 leading spaces, the
+    `AlignAfterOpenBracket: Align` reading of the file's style, and the
+    file keeps `ColumnLimit: 80`. The designator stands in declaration
+    order: `mode` at `include/speedgun-ng/benchmark.hpp:2558`,
+    `gapCount` at `:2559`, `precheckMs` at `:2560`. The figure 4096
+    stands inside `kMinGapCount` and `kMaxGapCount` at `:2465-:2466`, so
+    the require at `source/harness/cli.cpp:413-415` holds (D-24). No
+    other `README.md` line, no other example region and no other page
+    block moves; `docs/pages/harness.md` and
+    `example/docs/fwq_ftq.expected` stand untouched.
+    Verify: `python3 tools/docs/example_drift.py .` exits 0, so
+    `compare` (`tools/docs/example_drift.py:423-446`) answers the block
+    body and the region equal; `git diff --unified=0 --
+    example/docs/fwq_ftq.cpp README.md` answers two added lines and no
+    removed line, byte-identical to one another.
+  - b. The format reading of the candidate, no file edit:
+    `clang-format --style=file example/docs/fwq_ftq.cpp` at
+    clang-format `18.1.8`, then
+    `cmake -D FORMAT_COMMAND=clang-format -P cmake/lint.cmake`.
+    Verify: the formatted answer equals the file byte for byte, so the
+    format gate reads clean on the first pass, and the gate exits 0.
+  - c. [P] Create `specs/045-merge-fixes/results/fwq-example-closeout.md`
+    as the record of this phase, with the nine section headings of the
+    plan's record plan and no reading yet: host, base and head; the
+    widen and its page pair; the shape reading; the timing protocol and
+    the measured gain; the earlier figures with their provenance; the
+    recorded block's provenance; the lanes at the measured head; the
+    push and the pull request; rows left open.
+    Verify: the file exists with the nine headings, names no SHA of its
+    own commit, and `python3 tools/prose/prose_gate.py --mode tree`
+    exits 0.
+  - d. [P] `specs/045-merge-fixes/quickstart.md`: one link row to that
+    record. No other quickstart line moves.
+    Verify: `git diff --name-only` for that commit names the quickstart
+    alone, and the link path resolves on disk.
+  - e. The block stays a program the suite builds and runs, no file
+    edit: build the `docs_fwq_ftq` target, then
+    `bash test/example_run.sh build` and
+    `bash test/snippet-compile/run.sh . clang++`.
+    Verify: each exits 0; the region stands in a translation unit the
+    suite builds, and the program exits 0 (IV.1).
+  - f. Record section 2, the widen and its page pair (FR-034, SC-029):
+    both diffs, the byte form of the added line, the `clang-format`
+    reading, and the drift gate in both forms.
+    Verify: the section carries both hunks, the tool version, and the
+    two exits.
+- [x] BFW-010 Measure the gain of the widen against the pre-change
+      example on this host (FR-035, SC-030).
+  - a. The baseline tree, a named second directory:
+    `cmake --preset=ci-rocky -B build-base` and
+    `cmake --build build-base -j 48`.
+    Verify: both exit 0, the tree stands configured from the branch base
+    `a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a`, and no reconfiguration
+    touches `build`.
+  - b. [P] The host reads beside the timing table (record section 1):
+    `python3 -c 'import os; print(len(os.sched_getaffinity(0)))'` and
+    `cat /sys/devices/system/cpu/online`, with the tool versions.
+    Verify: the record names 48 cpus in the mask, the online list, the
+    base SHA, the branch, and the rule that a tracked file carries no
+    SHA of its own commit while each dated interim row names its
+    pre-squash SHA.
+  - c. The baseline batch, run alone on an idle host and then fixed for
+    the phase:
+    `seq 1 5 | xargs -I{} ctest --test-dir build-base -R
+    '^report_shape_fwq_ftq_sample$'`.
+    Verify: five wall times and their median stand in the record with
+    the cpu set; the 2026-11-09 set at `9f1daf31` (11.35 s, 12.42 s,
+    12.24 s, 11.95 s, 11.84 s, median 11.95 s) stands a preliminary row
+    naming that pre-squash SHA, because that commit stands unreachable
+    after the amend.
+  - d. [P] The first diff proof, one row per pre-widen interim SHA in
+    the record:
+    `git diff --name-only a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a
+    <pre-widen-sha> -- source include example test cmake tools docs
+    external CMakeLists.txt CMakePresets.json`.
+    Verify: each reading answers empty, so an interim baseline binary
+    carries the branch base's code and the phase 14 "This tree" column
+    stands the branch-base shape.
+  - e. The second diff proof, taken once the measured head stands saved:
+    `git diff --name-only <pre-widen-sha> <head> -- source include test
+    cmake tools docs external CMakeLists.txt CMakePresets.json`, then
+    `git diff --unified=0 <pre-widen-sha> <head> -- example/ README.md`.
+    The second reading answers exactly the two added lines. The branch
+    is shared, so the first reading answers the spec 036 lane's owned
+    set (`source/harness/noise_tracer.cpp`,
+    `source/harness/detail/noise_tracer.hpp`,
+    `test/source/harness_noise_test.cpp`,
+    `test/source/harness_noise_report_test.cpp`) and nothing else; the
+    row records that set apart as the other lane's difference. Those
+    files stand off the sample's path: the example names no tracer
+    engine, so `noiseTracerFigures` answers no call in the timed run.
+    This lane's two sides then differ in the example region and the
+    page block alone.
+    Verify: both readings stand in the record with the two SHAs, and the
+    code-path set equals the other lane's owned set.
+  - f. The final-head batch, run alone on an idle host, gated behind
+    BFW-012 a (the squash) and BFW-012 b (lane 1, which configures and
+    builds `build` fresh at the measured head):
+    `seq 1 5 | xargs -I{} ctest --test-dir build -R
+    '^report_shape_fwq_ftq_sample$'`.
+    Verify: five wall times at the measured head, the median of each
+    side, and the ratio of the medians as a measured figure; no
+    threshold stands set against the ratio, and the baseline side stands
+    not re-run.
+  - g. Record section 4, the timing protocol and the measured gain: the
+    `build-base` baseline, the interim SHAs, the two diff proofs, the
+    host reads, the ten wall times, the two medians and the ratio.
+    Verify: the section names the two commands of the predeclared
+    protocol, the shared cpu set and the run count of each side.
+  - h. Record section 5, the earlier figures with their provenance: the
+    17.6 figure re-labeled as an estimate at the 4096 bound on the
+    instrumented binary at `2d4d8c57` (50.31 s to 2.86 s, six
+    transforms, `cov-gaps4096.txt`), the 92 reading in the release tree
+    with `precheck=500, gaps=4096` (19.5 s to 212 ms), the ring sweep
+    rows at 1024, 2048, 4096, 8192, 16384, 32768 and the default, and
+    the branch-base alone-entry readings 11.17 s, 11.37 s and 11.40 s at
+    `results/barrier-fwq-closeout.md:174`.
+    Verify: each row names its tree, its bound, its transform count and
+    its invocation form; the measured ratio stands compared to none of
+    them as an equal; no tracked line calls an ~18 figure a fact.
+  - i. Record section 6, the recorded block's provenance (D-26): one
+    dated line naming the ring bound and the fact that
+    `example/docs/fwq_ftq.expected` stands recorded from the pre-widen
+    example. The block stands not re-recorded.
+    Verify: the section carries that line and names the 156 body lines
+    and the quote at `docs/pages/harness.md:2039`.
+- [x] BFW-011 Keep the drift gate clean in both forms after the pair
+      lands (FR-036, SC-029).
+  - a. `python3 tools/docs/example_drift.py .`
+    Verify: exit 0, and a finding stands fixed only inside the owned
+    example and page-quote pair; no other region, block or page line
+    moves to answer it.
+  - b. `python3 tools/docs/example_drift.py . --names --options
+    --forbidden --sections`
+    Verify: exit 0; the page reads 1003 lines against
+    `PAGE_LINE_CAP = 1004` (`tools/docs/example_drift.py:256`) and the
+    `Fixed work and time quanta` section reads 19 lines against
+    `SECTION_LINE_CAP = 25` (`:257`); the feature-section rows of
+    `--sections` keep their readings.
+- [x] BFW-012 Run every required lane at the final squashed head, the
+      set shared with the spec 036 lane (FR-037, SC-031, SC-032,
+      SC-033).
+  - a. `git fetch origin`, rebase onto the latest `origin/master` and
+    never merge, then squash the branch to one commit carrying both
+    lanes: title at 50 characters or fewer, body at 72 columns, then
+    `Refs: specs/045-merge-fixes BFW-009 to BFW-012`, then
+    `Refs: specs/036-osnoise-timerlat-tracers N13E-001 to N13E-004`,
+    then `Approved-by: OmO`, and no `Fixes #n`. Require
+    `git status --porcelain` to print nothing tracked and save
+    `git rev-parse HEAD` as the measured head.
+    Verify: the head, the two `Refs:` footers and the clean tree stand
+    in the record, and no tracked file carries the SHA of its own
+    commit.
+  - b. Lane 1, the fresh release suite, run alone:
+    `cmake --preset=ci-rocky`, `cmake --build build -j 48`,
+    `ctest --test-dir build --output-on-failure -j 48`.
+    Verify: the passed, failed, did-not-run and timeout figures, and the
+    wall of `report_shape_fwq_ftq_sample` in the lane beside the phase
+    14 "This tree" reading of 15.84 s at `-j 48` (SC-031). This row also
+    gates BFW-010 f.
+  - c. Lane 2, the two-cpu pinned suite, run alone:
+    `taskset -c 0,1 ctest --test-dir build --output-on-failure -j 2`.
+    Verify: the four figures and the entry's wall beside 8.93 s; a host
+    that leaves cpus 0 and 1 outside the allowed set records the
+    refusal and the lane stands blocked, and a run on another allowed
+    pair stands extra evidence.
+  - d. Lane 3, the four-cpu suite, run alone:
+    `taskset -c 0,1,2,3 ctest --test-dir build --output-on-failure -j 4`.
+    Verify: the four figures and the entry's wall beside 13.14 s.
+  - e. Lane 4, the sanitizer tree, run alone: `cmake --preset=ci-sanitize`,
+    `cmake --build build/sanitize`,
+    `ctest --test-dir build/sanitize --output-on-failure -j 48`.
+    Verify: zero `AddressSanitizer` and `runtime error` lines, the four
+    figures, and the entry's wall as a reading with no comparison.
+  - f. Lane 5, the thread-sanitizer tree, run alone:
+    `cmake --preset=ci-tsan`, `cmake --build build/tsan`,
+    `TSAN_OPTIONS=halt_on_error=1:second_deadlock_stack=1 ctest
+    --test-dir build/tsan --output-on-failure -j 48`, the standing value
+    of `.github/workflows/ci.yml:299`.
+    Verify: zero `WARNING: ThreadSanitizer` lines, the four figures, and
+    the entry's wall with no comparison.
+  - g. Lane 6, the instrumented tree and the coverage gate, run alone:
+    `cmake --preset=ci-coverage`, `cmake --build build/coverage`,
+    `ctest --test-dir build/coverage --output-on-failure -j 48`, then
+    `cmake --build build/coverage --target coverage`, with the host
+    `~/.lcovrc` out of reach and no stale `.gcda` left in the tree.
+    Verify: 100.0 percent lines with its numerator and denominator, a
+    branch shortfall at or below 21, and
+    `git grep -c LCOV_EXCL -- source include` at or below 84, with no
+    new marker, filter, allowance, omit or ignore-error class (SC-032,
+    G-25); the entry's wall as a reading with no comparison.
+  - h. Lane 7, the cheap gates, one row, with the prose range form
+    amended to name the branch base:
+    `cmake -D FORMAT_COMMAND=clang-format -P cmake/lint.cmake`,
+    `cmake -P cmake/spell.cmake`,
+    `python3 tools/prose/prose_gate.py --mode tree`,
+    `python3 tools/prose/prose_gate.py --mode range --base
+    a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a`,
+    `python3 test/prose-gate-fixture/run_prose_gate_fixtures.py --check
+    both --out $HOME/scratch/fwq-example-n13e/prose-fixtures
+    test/prose-gate-fixture`, `python3 tools/docs/example_drift.py .`,
+    the same with `--names --options --forbidden --sections`,
+    `python3 test/example-drift-fixture/run_example_drift_fixtures.py .`,
+    `python3 test/example-drift-fixture/run_report_shape_fixtures.py .`,
+    `bash test/example_run.sh build`,
+    `bash test/example-run-fixture/run_example_run_fixtures.sh`,
+    `bash test/snippet-compile/run.sh . clang++`,
+    `bash test/time_source_gate.sh .`, `cmake --build build -t dbc-gate`,
+    `ctest --test-dir build -R dbc_gate_fixtures`.
+    Verify: each exits 0 with its reading, and the range form names the
+    branch base so the range covers the whole branch.
+  - i. Lane 8, the analyzer build, amended to its own directory so no
+    reconfiguration displaces `build`:
+    `cmake --preset=ci-ubuntu -B build-an` and a whole build. The base
+    side of the comparison stands produced by a worktree at the branch
+    base, `git worktree add $HOME/scratch/fwq-example-n13e/base-audit
+    a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a`, configured `ci-ubuntu`
+    into its own build dir and built there once.
+    Verify: the finding counts on the touched files answer against that
+    base tree, and no new check stands on a changed line.
+  - j. Lane 9, the exported-names audit, amended to a named install
+    prefix: `cmake --preset=ci-linux-audit -B build-shared -D
+    BUILD_SHARED_LIBS=ON`, install into
+    `$HOME/scratch/fwq-example-n13e/prefix-shared`, then
+    `nm -D --defined-only` over the installed objects.
+    Verify: harness 210 and `libspeedgun-ng.so` 250 with no third-party
+    name, and the sorted lists answer no difference against the base.
+  - k. The consumer build, behind BFW-012 j:
+    `cmake -S test/consumer -B build-consumer -D
+    CMAKE_PREFIX_PATH=$HOME/scratch/fwq-example-n13e/prefix-shared`.
+    Verify: it configures, builds, links and runs.
+  - l. The N13E-004 rows of the spec 036 lane, run once for both lanes
+    at the measured head and alone, because they write tracefs: the two
+    sudo runs with `precheck=3000` against the one-second period, and
+    the unrooted `ctest --test-dir build -R
+    'harness_noise_test|harness_noise_report_test'` row apart.
+    Verify: the stated figures filled for every resolved tracer cpu, the
+    tracing state each run found and left, the per-cpu buffer size read,
+    and a refused tracefs write recorded as blocked with its command and
+    its refusal; the readings stand in
+    `specs/036-osnoise-timerlat-tracers/results/trace-line-thrawn.md`
+    and this record names them.
+  - m. Record section 3, the shape reading (US-11 scenario 3, SC-031,
+    D-26): the entry's exit and wall in the release, pinned and four-cpu
+    lanes beside the phase 14 column, the entry's wall in the sanitizer,
+    thread-sanitizer and instrumented lanes with no comparison, the
+    recorded block's 156 lines against the run's count, and the
+    warning-line count on both sides.
+    Verify: a count that differs from the two recorded warning lines
+    stands a shape finding under D-26 with both counts, and stops the
+    work for the scope it needs.
+  - n. Record section 7, the lanes at the measured head (FR-037,
+    SC-032, SC-033): the lane table with the head, the exit and the
+    counts beside each command, the coverage figures, the marker count,
+    the export counts, the analyzer counts and the N13E-004 rows.
+    Verify: every required lane names one SHA, and each dated interim
+    row names its pre-squash SHA.
+  - o. The push, the artifact and record section 8 (SC-033):
+    `git push -u origin fix/fwq-example-n13e`; each later push saves the
+    expected full remote SHA, requires it to equal the last observed
+    value, and uses `git push
+    --force-with-lease=fix/fwq-example-n13e:<expected-full-sha>`; the
+    lease stands never refreshed and retried, and a failed lease stops
+    the work and stands reported. Write the pull-request body once under
+    `$HOME/scratch/fwq-example-n13e/`, untracked, naming the measured
+    head beside every required lane.
+    Verify: after each push `git ls-remote origin
+    refs/heads/fix/fwq-example-n13e` equals `git rev-parse HEAD`; the
+    local half, a clean tracked tree and `git rev-parse HEAD`, stands
+    proved even when the remote refuses; the record names the artifact
+    path. The `gh` credential of this machine stands absent, so the
+    branch, the push proof and the body text stand delivered through
+    that one file for the operator.
+  - p. Record section 9, rows left open (D-27): O-5 and O-6 as phase 14
+    wrote them, O-7 closed by FR-034 and FR-035, and O-8 deferred with
+    the reading D-27 states.
+    Verify: the section carries one row per item with its state.
+### Dependencies and execution order for phase 15
+
+- BFW-009 a stands first: the pair lands in one commit, because
+  `example_drift.py`'s `compare` fails a one-sided edit with
+  `block 'fwq-ftq' at line 766 differs from its region`.
+- Block 1, parallel: BFW-009 a, BFW-009 c and BFW-009 d. The record
+  skeleton and the quickstart link touch different files from the pair.
+- Block 2, parallel once BFW-009 a lands: BFW-009 b, BFW-009 e,
+  BFW-009 f, BFW-011 a, BFW-011 b, BFW-010 a, BFW-010 b and BFW-010 d.
+  None of these makes a timing claim, and each owns a different file,
+  tree or read.
+- Block 3, alone on an idle host: BFW-010 c. The baseline batch runs
+  after BFW-010 a and stands fixed for the phase; nothing else runs
+  while it runs, and a side taken under load answers nothing under VII
+  and stands re-run.
+- Block 4, alone: BFW-012 a. The squash saves the measured head, and a
+  tracked change after a measurement produces a new head and a fresh run
+  of every required lane, the widened timing side included.
+- Block 5, one lane at a time and never two at once, because each row
+  records a wall: BFW-012 b, c, d, e, f and g. BFW-012 b gates BFW-010 f.
+- Block 6, alone on an idle host, after BFW-012 a and BFW-012 b:
+  BFW-010 f, then BFW-010 e and BFW-010 g.
+- Block 7, parallel, each in its own directory and none with a wall
+  claim: BFW-012 h and BFW-012 i and BFW-012 j; BFW-012 k follows
+  BFW-012 j, which writes the prefix it reads.
+- Block 8, alone: BFW-012 l, because the two sudo runs write tracefs and
+  no other suite may hold a tracer.
+- Block 9, last: BFW-012 m, n, o and p. The record closes only once
+  every lane names the measured head.
+- BFW-010 h and BFW-010 i write the same record file as BFW-009 f, so
+  the three record rows stand one at a time in any order after the
+  skeleton of BFW-009 c lands.
+
+### Rows shared with the spec 036 trace-line lane
+
+- BFW-012 b to BFW-012 l stand the shared acceptance set that
+  N13E-004 names: each lane runs once at the measured head, and both
+  lanes read that one run. Neither lane repeats a lane run; each lane's
+  record carries its own copy of the reading, this file in
+  `specs/045-merge-fixes/results/fwq-example-closeout.md` and that lane
+  in `specs/036-osnoise-timerlat-tracers/results/trace-line-thrawn.md`.
+- BFW-012 l stands owned by the spec 036 lane and read by this lane:
+  FR-037 requires the N13E-004 rows at the same head, and the readings
+  land in that lane's record.
+- BFW-010 a, c, e and f stand owned by this lane alone. The spec 036
+  lane runs no timing batch, and the baseline side of the ratio stands
+  taken once at the branch base.
+- BFW-009 and BFW-011 stand owned by this lane: the widen pair, the
+  format reading and the drift gate name no file of the other lane. No
+  file stands in both lanes.
+
+### Completion rule for phase 15
+
+A row closes only with its verify reading in
+`specs/045-merge-fixes/results/fwq-example-closeout.md`: the command,
+the exit, the host, the tool versions and the figure, with the measured
+head beside every final-head reading and the pre-squash SHA beside every
+interim row. A lane a host refuses stands open as blocked with its
+command and its refusal, and the pull-request artifact carries it. A
+shape finding from the widen stops the work and reports the scope it
+needs (D-26).

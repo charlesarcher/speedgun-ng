@@ -35,6 +35,7 @@ auto main(int argc, char** argv) -> int
 {
   sg::runJitterProbe({.thresholdNs = 1000000000,
                       .mode = sg::JitterProbeMode::PRECHECK,
+                      .gapCount = 4096,
                       .precheckMs = 500,
                       .precheckSerial = true,
                       .method = sg::JitterMethod::FWQ,

@@ -147,36 +147,36 @@ struct NoiseTracerSession
                                     const std::vector<std::uint32_t>& cpus)
     -> std::optional<NoiseTracerSession>;
 
-/// @brief The figure read of the pinned count-file format (specs/036
-/// FR-010, R-03, R-07): one entry per cpu of `session.cpus`, in the
-/// session order, each entry carrying the five figures the per-cpu
-/// count file `osnoise/cpu<id>` states, one line per source the
-/// engine reports in the form `<source-word>: <count>`, the source
-/// words standing in the order `nmi`, `irq`, `softirq`, `thread`,
-/// `hw`, and `hw` mapping to the record's `hardware` figure. A source
-/// word the file omits stands that figure absent for that source
-/// alone. A file that stands missing, unreadable, empty, or that
-/// carries one malformed line stands every figure of that cpu absent
-/// (R-07). The read never fails the run (FR-016). The function stands
-/// on the entry-point thread, outside every timed window (R-05).
-///
-/// The detector engine names no such count file, so its read takes the
-/// three figures of the buffer text
-/// `sys/kernel/tracing/per_cpu/cpu<id>/trace` instead (FR-018, FR-027,
-/// A-6): a line counts as one detected gap when `#` stands at column 1
-/// and a digit at column 2, which leaves each header legend line
-/// outside the count. `gapCount` counts those lines, `maxGapNs` takes
-/// the larger of one line's two microsecond figures and scales it to
-/// nanoseconds, and `nmiCount` sums the `nmi-count` fields of the cpu,
-/// answering 0 where lines stand and none carries one. A text that
-/// counts no gap, stands missing, or stands unreadable answers all
-/// three figures absent (P-10). The read keeps no buffer of the run's
-/// own: it folds the text into the entry and answers (FR-018).
+/// @brief The figure read of the two standing engines and of the
+/// detector (specs/036 FR-010, FR-027, R-07; specs/048 FR-018, FR-027):
+/// one entry per cpu of `session.cpus`, in the session order. All three
+/// engines read the per-cpu buffer text
+/// `sys/kernel/tracing/per_cpu/cpu<id>/trace` through the standing
+/// file-root seam, one read per cpu (D-9). A line whose first character
+/// stands `#` stands a header line and answers no figure. For `osnoise`
+/// the last nine tokens of a period line answer digits, digits,
+/// digits-dot-digits and six groups of digits behind a token that ends
+/// with the timestamp colon, and the last five of them sum into the
+/// hardware, nmi, irq, softirq and thread figures. For `timerlat` the
+/// six tokens after that token stand `#` and digits, `context`, a
+/// context word, `timer_latency`, digits and `ns`; the `irq` and
+/// `thread` words count the two figures, and the other three stand
+/// absent for that engine alone (D-10). A line beside those shapes
+/// stands skipped. A buffer that carries no parsed line, stands
+/// missing, or stands unreadable stands every figure of that cpu
+/// absent, and a counter column that reads 0 on every parsed line
+/// stands a filled 0 (R-07). The read never fails the run (FR-016).
+/// The function stands on the entry-point thread, outside every timed
+/// window (R-05).
 ///
 /// \pre `session` stands the setup's answer, the engine naming a
 ///       tracer
 /// \post the answer carries one entry per cpu of `session.cpus`, in
 ///       the session order
+/// \post the figures of a standing engine stand filled when that cpu's
+///       buffer holds a parsed line and stand absent beside none, and
+///       the three figures the `timerlat` engine states nothing for
+///       stand absent whatever that buffer holds (FR-027, D-10)
 [[nodiscard]] auto noiseTracerFigures(const NoiseTracerSession& session)
     -> std::vector<PrecheckTracerCpuRecord>;
 

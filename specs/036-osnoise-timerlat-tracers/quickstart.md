@@ -149,6 +149,7 @@ tables, and the count-file re-confirmation the runs stood beside
 the figures (spec SC-006). The pushed-head CI read stands recorded
 beside them ([results/ci-run.md](./results/ci-run.md), the run
 `40912750824` of head `c6ae33e3`). No CI gate stands on the records.
+Trace-line record: [results/trace-line-thrawn.md](./results/trace-line-thrawn.md).
 
 ## Out of scope for the gates
 

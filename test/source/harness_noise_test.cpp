@@ -793,10 +793,42 @@ auto denyTracingPath(const std::filesystem::path& root,
       && std::filesystem::create_directory(path);
 }
 
-// The per-cpu count file of one cpu, the path R-03 pins (T009).
-auto cpuCountFile(std::uint32_t cpu) -> std::string
+// The per-cpu trace buffer of one cpu, the path FR-027 pins, the spelling
+// the specs/048 fixture carries (T009).
+auto bufferPath(std::uint32_t cpu) -> std::string
 {
-  return "sys/kernel/tracing/osnoise/cpu" + std::to_string(cpu);
+  return "sys/kernel/tracing/per_cpu/cpu" + std::to_string(cpu) + "/trace";
+}
+
+// The audit point's bytes, copied byte for byte from the host read of
+// 2026-11-09 on thrawn, kernel 7.3.0-5-cachyos: the header legend, the two
+// osnoise period lines and the timerlat activation pair (FR-028, the
+// verified line forms of spec.md).
+constexpr std::string_view kLegendLine = "#           TASK-PID      CPU# ||||| "
+    "  TIMESTAMP    RUNTIME      NOISE  AVAILABLE  IN US     HW    NMI    IRQ  "
+    " SIRQ THREAD";
+constexpr std::string_view kPeriodLineOne = "       osnoise/1-2542397 [001]"
+    " ....1 1241576.199778: 1000000       1659  99.83410      19      0      0 "
+    "  1006    176      4";
+constexpr std::string_view kPeriodLineTwo = "       osnoise/1-2542397 [001]"
+    " ....1 1241577.199779: 1000000       1403  99.85970       8      0      0 "
+    "  1000    147      0";
+constexpr std::string_view kActivationIrqLine = "          <idle>-0       [001]"
+    " d.h1. 1241586.794794: #1     context    irq timer_latency       334 ns";
+constexpr std::string_view kActivationThreadLine = "      timerlat/1-2542785"
+    " [001] ....1 1241586.794797: #1     context thread timer_latency      3448"
+    " ns";
+
+// One buffer text of the lines the row names, each standing on its own
+// line (FR-028).
+auto bufferTextOf(const std::vector<std::string_view>& lines) -> std::string
+{
+  std::string text;
+  for (const auto line : lines) {
+    text += line;
+    text += '\n';
+  }
+  return text;
 }
 
 // The mask text of one cpu set at `width` hex digits per word,
@@ -904,20 +936,19 @@ auto theMaskRenderTakesTheWidthTheStandingTextCarried() -> void
   sg::detail::noiseTracerRestore(*session);
 }
 
-// T009, FR-010, FR-017, R-07: one entry per tracer cpu in session
-// order, the five figures read from the per-cpu count files, the
-// source word `hw` mapping to the hardware figure.
-auto theFiguresReadOneEntryPerTracerCpu() -> void
+// N13E-002a, FR-027, FR-028, FR-010, SC-008: two cpus in the session order,
+// each buffer carrying the verified period lines, and the five figures
+// answering the sums of the five counter columns.
+auto theFiguresFoldThePeriodLinesOfEachCpuBuffer() -> void
 {
   const auto cpus = pickCpus(2);
   TracingRootGuard guard;
   installStandingTree(guard.root(), "ffffffff");
-  writeTracingFile(guard.root(),
-                   cpuCountFile(cpus.at(0)),
-                   "nmi: 1\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n");
-  writeTracingFile(guard.root(),
-                   cpuCountFile(cpus.at(1)),
-                   "nmi: 6\nirq: 7\nsoftirq: 8\nthread: 9\nhw: 10\n");
+  const std::string buffer =
+      bufferTextOf({kLegendLine, kPeriodLineOne, kPeriodLineTwo});
+  for (const auto cpu : cpus) {
+    writeTracingFile(guard.root(), bufferPath(cpu), buffer);
+  }
   // The reversed list binds the session order: the read answers the
   // cpus as the session carries them (T009, R-07).
   const std::vector<std::uint32_t> sessionCpus {cpus.at(1), cpus.at(0)};
@@ -935,95 +966,311 @@ auto theFiguresReadOneEntryPerTracerCpu() -> void
   }
   check(figures.at(0).cpu == cpus.at(1) && figures.at(1).cpu == cpus.at(0),
         "the entries stand in the session order (T009, R-07)");
-  check(figures.at(0).nmi == 6 && figures.at(0).irq == 7
-            && figures.at(0).softirq == 8 && figures.at(0).thread == 9
-            && figures.at(0).hardware == 10,
-        "the figures read the count file of the first session cpu "
-        "(T009, FR-010)");
-  check(figures.at(1).nmi == 1 && figures.at(1).irq == 2
-            && figures.at(1).softirq == 3 && figures.at(1).thread == 4
-            && figures.at(1).hardware == 5,
-        "the figures read the count file of the second session cpu, "
-        "hw mapping to hardware (T009, FR-010)");
+  check(figures.at(0).hardware == 0 && figures.at(0).nmi == 0
+            && figures.at(0).irq == 2006 && figures.at(0).softirq == 323
+            && figures.at(0).thread == 4,
+        "theFiguresFoldThePeriodLinesOfEachCpuBuffer: the five figures sum "
+        "the counter columns of the first session cpu's buffer (FR-027, "
+        "SC-008)");
+  check(figures.at(1).hardware == 0 && figures.at(1).nmi == 0
+            && figures.at(1).irq == 2006 && figures.at(1).softirq == 323
+            && figures.at(1).thread == 4,
+        "theFiguresFoldThePeriodLinesOfEachCpuBuffer: the five figures sum "
+        "the counter columns of the second session cpu's buffer (FR-027, "
+        "SC-008)");
 }
 
-// T009, FR-010, R-07: a source the count file states no figure for
-// stands absent for that source alone.
-auto theMissingSourceWordStandsAbsentForThatSourceAlone() -> void
-{
-  const auto cpus = pickCpus(2);
-  TracingRootGuard guard;
-  installStandingTree(guard.root(), "ffffffff");
-  writeTracingFile(guard.root(),
-                   cpuCountFile(cpus.at(0)),
-                   "nmi: 1\nirq: 2\nthread: 4\nhw: 5\n");
-  writeTracingFile(guard.root(),
-                   cpuCountFile(cpus.at(1)),
-                   "nmi: 6\nirq: 7\nsoftirq: 8\nthread: 9\n");
-  const auto session =
-      sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, cpus);
-  check(session.has_value(), "the setup answers the session (T009)");
-  if (!session.has_value()) {
-    return;
-  }
-  const auto figures = sg::detail::noiseTracerFigures(*session);
-  check(figures.size() == 2,
-        "the read answers one entry per tracer cpu (T009, FR-010)");
-  if (figures.size() != 2) {
-    return;
-  }
-  check(figures.at(0).nmi.has_value() && figures.at(0).irq.has_value()
-            && !figures.at(0).softirq.has_value()
-            && figures.at(0).thread.has_value()
-            && figures.at(0).hardware.has_value(),
-        "the omitted softirq word stands absent for that source alone "
-        "(T009, FR-010)");
-  check(figures.at(1).nmi.has_value() && figures.at(1).irq.has_value()
-            && figures.at(1).softirq.has_value()
-            && figures.at(1).thread.has_value()
-            && !figures.at(1).hardware.has_value(),
-        "the omitted hw word stands absent for that source alone "
-        "(T009, FR-010)");
-}
-
-// T009, R-07: a cpu whose count file states nothing at read time
-// stands every figure absent: the empty file, the missing file and the
-// malformed line each stand the whole entry absent, and no exception
-// reaches the run (FR-016).
-auto theCpuWithNoCountFiguresStandsEveryFigureAbsent(std::size_t which) -> void
+// N13E-002b, FR-028, FR-010, D-10, SC-008: the verified activation pair
+// counts the two contexts of the timerlat engine, and the three sources that
+// engine states nothing for stand absent.
+auto theTimerlatLinesCountTheTwoContexts() -> void
 {
   const auto cpus = pickCpus(1);
-  const auto cpu = cpus.at(0);
-  const std::string tag =
-      "empty file, missing file or malformed line " "case "
-      + std::to_string(which);
   TracingRootGuard guard;
   installStandingTree(guard.root(), "ffffffff");
-  if (which == 0) {
-    writeTracingFile(guard.root(), cpuCountFile(cpu), "");
-  } else if (which == 1) {
-    // No count file stands written for the cpu (T009, R-07).
-  } else {
-    writeTracingFile(
-        guard.root(), cpuCountFile(cpu), "nmi: 1\nirq broken\nsoftirq: 3\n");
-  }
+  // The blank line stands the fold's empty-line arm beside the pair
+  // (FR-027).
+  writeTracingFile(
+      guard.root(),
+      bufferPath(cpus.at(0)),
+      bufferTextOf({kActivationIrqLine, "", kActivationThreadLine}));
   const auto session =
-      sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, cpus);
-  check(session.has_value(), "the setup answers the session (T009)");
+      sg::detail::noiseTracerSetup(sg::TracerEngine::TIMERLAT, cpus);
+  check(session.has_value(), "the setup answers the session (FR-028)");
   if (!session.has_value()) {
     return;
   }
   const auto figures = sg::detail::noiseTracerFigures(*session);
   check(figures.size() == 1,
-        "the read answers one entry per tracer cpu (T009, FR-010)");
+        "the read answers one entry per tracer cpu (FR-010)");
   if (figures.size() != 1) {
     return;
   }
-  check(!figures.at(0).nmi.has_value() && !figures.at(0).irq.has_value()
-            && !figures.at(0).softirq.has_value()
-            && !figures.at(0).thread.has_value()
+  check(figures.at(0).irq == 1 && figures.at(0).thread == 1,
+        "theTimerlatLinesCountTheTwoContexts: the verified pair counts the "
+        "irq figure at 1 and the thread figure at 1 (FR-028, SC-008)");
+  check(!figures.at(0).nmi.has_value() && !figures.at(0).softirq.has_value()
             && !figures.at(0).hardware.has_value(),
-        ("the cpu stands every figure absent (T009, R-07): " + tag).c_str());
+        "theTimerlatLinesCountTheTwoContexts: nmi, softirq and hardware "
+        "stand absent for the timerlat engine alone (FR-010, D-10)");
+}
+
+// N13E-002c, FR-028, SC-008: one buffer of the legend line, the verified
+// lines, malformed lines, a blank line and a planted header line that
+// carries a period tail answers the sums of its parsed lines alone.
+auto theMixedBufferAnswersTheSumsOfItsParsedLines() -> void
+{
+  const auto cpus = pickCpus(1);
+  TracingRootGuard guard;
+  installStandingTree(guard.root(), "ffffffff");
+  // The planted line outlives the view: the vector holds views, so the
+  // concatenation stands a named string.
+  const std::string planted = "#" + std::string(kPeriodLineOne);
+  const std::vector<std::string_view> lines {
+      kLegendLine,
+      kPeriodLineOne,
+      kPeriodLineTwo,
+      // The short line carries no nine figures, and the blank line carries
+      // no token at all (FR-027).
+      "       osnoise/1-2542397 [001] ....1 1241578.199780: 1000000 1659",
+      "",
+      // The planted line carries a period tail behind the leading `#`, the
+      // header precedence of FR-027.
+      planted,
+  };
+  const std::string buffer = bufferTextOf(lines);
+  writeTracingFile(guard.root(), bufferPath(cpus.at(0)), buffer);
+  const auto session =
+      sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, cpus);
+  check(session.has_value(), "the setup answers the session (FR-028)");
+  if (!session.has_value()) {
+    return;
+  }
+  const auto figures = sg::detail::noiseTracerFigures(*session);
+  check(figures.size() == 1,
+        "the read answers one entry per tracer cpu (FR-010)");
+  if (figures.size() != 1) {
+    return;
+  }
+  check(figures.at(0).hardware == 0 && figures.at(0).nmi == 0
+            && figures.at(0).irq == 2006 && figures.at(0).softirq == 323
+            && figures.at(0).thread == 4,
+        "theMixedBufferAnswersTheSumsOfItsParsedLines: the sums stand the "
+        "parsed lines of the buffer alone (FR-028, SC-008)");
+}
+
+// N13E-002d, FR-028, SC-008: a counter column reading 0 on every period line
+// answers a filled 0, the shape the detector read answers for its nmi count.
+// The verified host lines carry HW 0 and NMI 0.
+auto theZeroCounterColumnStandsAFilledZero() -> void
+{
+  const auto cpus = pickCpus(1);
+  TracingRootGuard guard;
+  installStandingTree(guard.root(), "ffffffff");
+  writeTracingFile(guard.root(),
+                   bufferPath(cpus.at(0)),
+                   bufferTextOf({kPeriodLineOne, kPeriodLineTwo}));
+  const auto session =
+      sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, cpus);
+  check(session.has_value(), "the setup answers the session (FR-028)");
+  if (!session.has_value()) {
+    return;
+  }
+  const auto figures = sg::detail::noiseTracerFigures(*session);
+  check(figures.size() == 1,
+        "the read answers one entry per tracer cpu (FR-010)");
+  if (figures.size() != 1) {
+    return;
+  }
+  const auto& entry = figures.at(0);
+  check(entry.hardware.has_value() && entry.hardware.value() == 0
+            && entry.nmi.has_value() && entry.nmi.value() == 0,
+        "theZeroCounterColumnStandsAFilledZero: a counter column reading 0 "
+        "on every period line answers a filled 0 (FR-028, SC-008)");
+}
+
+// Whether one entry carries no figure at all (FR-028, R-07).
+auto everyFigureAbsent(const sg::PrecheckTracerCpuRecord& entry) -> bool
+{
+  return !entry.nmi.has_value() && !entry.irq.has_value()
+      && !entry.softirq.has_value() && !entry.thread.has_value()
+      && !entry.hardware.has_value();
+}
+
+// The one entry the figure read answers for one cpu, and the empty answer
+// when the run shape broke before it (FR-028).
+auto oneFigureOf(const sg::detail::NoiseTracerSession& session)
+    -> std::optional<sg::PrecheckTracerCpuRecord>
+{
+  const auto figures = sg::detail::noiseTracerFigures(session);
+  if (figures.size() != 1) {
+    fail("the read answers one entry per tracer cpu (FR-010)");
+    return std::nullopt;
+  }
+  return figures.front();
+}
+
+// The bytes of one verified line ahead of its figures: the task, cpu, flag
+// and timestamp columns up to the timestamp colon (FR-027).
+auto anchorOf(std::string_view line) -> std::string
+{
+  return std::string(line.substr(0, line.find(": ") + 1));
+}
+
+// N13E-002e, FR-028, SC-008, SC-011: a buffer that holds no parsed line
+// stands every figure of that cpu absent: the empty buffer, the missing
+// file, the buffer path planted as a directory and the legend-only buffer
+// each answer the standing absence rule.
+auto theCpuWithNoParsedLineStandsEveryFigureAbsent(std::size_t which) -> void
+{
+  const std::string what =
+      "the cpu stands every figure absent (FR-028, SC-008): case "
+      + std::to_string(which);
+  const auto cpus = pickCpus(1);
+  TracingRootGuard guard;
+  installStandingTree(guard.root(), "ffffffff");
+  if (which == 0) {
+    writeTracingFile(guard.root(), bufferPath(cpus.at(0)), "");
+  } else if (which == 1 || which == 4) {
+    // No buffer file stands written for the cpu; case 4 stands the
+    // `timerlat` fold's missing-file arm (FR-028, R-07).
+  } else if (which == 2) {
+    writeTracingFile(guard.root(), bufferPath(cpus.at(0)), "");
+    check(denyTracingPath(guard.root(), bufferPath(cpus.at(0))),
+          "the buffer path stands a directory (FR-028, SC-011)");
+  } else {
+    writeTracingFile(
+        guard.root(), bufferPath(cpus.at(0)), std::string(kLegendLine) + "\n");
+  }
+  const auto engine =
+      which == 4 ? sg::TracerEngine::TIMERLAT : sg::TracerEngine::OSNOISE;
+  const auto session = sg::detail::noiseTracerSetup(engine, cpus);
+  check(session.has_value(), "the setup answers the session (FR-028)");
+  if (!session.has_value()) {
+    return;
+  }
+  const auto entry = oneFigureOf(*session);
+  if (!entry.has_value()) {
+    return;
+  }
+  check(everyFigureAbsent(*entry), what.c_str());
+}
+
+// The figure read over one buffer of one line, answering whether every
+// figure stands absent (FR-028, SC-008).
+auto everyFigureAbsentForBuffer(std::uint32_t cpu,
+                                const std::string& buffer,
+                                sg::TracerEngine engine) -> bool
+{
+  TracingRootGuard guard;
+  installStandingTree(guard.root(), "ffffffff");
+  writeTracingFile(guard.root(), bufferPath(cpu), buffer);
+  const auto session = sg::detail::noiseTracerSetup(engine, {cpu});
+  if (!session.has_value()) {
+    fail("the setup answers the session (FR-028)");
+    return false;
+  }
+  const auto entry = oneFigureOf(*session);
+  return entry.has_value() && everyFigureAbsent(*entry);
+}
+
+// N13E-002f, FR-028, SC-008: each malformed period shape, as a buffer of
+// that one line, answers the absence rule.
+auto thePeriodShapeRows() -> void
+{
+  const auto cpus = pickCpus(1);
+  const auto cpu = cpus.at(0);
+  const std::string anchor = anchorOf(kPeriodLineOne);
+  // The nine figures of the verified line, one shape each: a non-digit in
+  // each of the three digit-only non-counter columns, a non-digit in each
+  // of the five counter columns, a bare integer, a `99.` and junk ahead of
+  // the dot in the decimal column, an eight-figure tail, a ten-figure tail
+  // that puts a bare figure in the anchor position, a line whose token
+  // ahead of the nine carries no colon, and a tail that ends in blanks,
+  // the tokenizer's exit edge (FR-027).
+  const std::vector<std::string> shapes {
+      anchor + " runt 1659 99.83410 19 0 0 1006 176 4",
+      anchor + " 1000000 nois 99.83410 19 0 0 1006 176 4",
+      anchor + " 1000000 1659 99.83410 inus 0 0 1006 176 4",
+      anchor + " 1000000 1659 99.83410 19 -1 0 1006 176 4",
+      anchor + " 1000000 1659 99.83410 19 0 x 1006 176 4",
+      anchor + " 1000000 1659 99.83410 19 0 0 x 176 4",
+      anchor + " 1000000 1659 99.83410 19 0 0 1006 x 4",
+      anchor + " 1000000 1659 99.83410 19 0 0 1006 176 x",
+      anchor + " 1000000 1659 x.83410 19 0 0 1006 176 4",
+      anchor + " 1000000 1659 99.83410 19   	",
+      anchor + " 1000000 1659 99 19 0 0 1006 176 4",
+      anchor + " 1000000 1659 99. 19 0 0 1006 176 4",
+      anchor + " 1659 99.83410 19 0 0 1006 176 4",
+      anchor + " 1000000 1659 99.83410 19 0 0 1006 176 4 5",
+      anchor.substr(0, anchor.size() - 1) + " 1000000 1659 99.83410 19 0 0"
+                                           " 1006 176 4",
+  };
+  for (const auto& shape : shapes) {
+    const std::string what =
+        "the period shape stands no line (FR-028, SC-008): the shape " + shape;
+    check(everyFigureAbsentForBuffer(
+              cpu, shape + "\n", sg::TracerEngine::OSNOISE),
+          what.c_str());
+  }
+}
+
+// N13E-002g, FR-028, SC-008: each malformed activation shape, as a buffer of
+// that one line, answers the absence rule.
+auto theActivationShapeRows() -> void
+{
+  const auto cpus = pickCpus(1);
+  const auto cpu = cpus.at(0);
+  const std::string anchor = anchorOf(kActivationIrqLine);
+  // The six tokens after the timestamp colon of the verified line, one
+  // shape each: the header line with a valid tail, a line beside the seven
+  // token floor, no `#`, `contexts` for `context`, a context word outside
+  // the two, `timer_latencies`, a non-digit latency, `n` for `ns`, a token
+  // after `ns`, five tokens after the anchor, and no colon anchor (FR-027).
+  const std::vector<std::string> shapes {
+      "#" + std::string(kActivationIrqLine),
+      "d.h1. 1241586.794794:",
+      anchor + " 1     context    irq timer_latency       334 ns",
+      anchor + " #x     context    irq timer_latency       334 ns",
+      anchor + " #1     contexts    irq timer_latency       334 ns",
+      anchor + " #1     context softirq timer_latency       334 ns",
+      anchor + " #1     context    irq timer_latencies       334 ns",
+      anchor + " #1     context    irq timer_latency       xxx ns",
+      anchor + " #1     context    irq timer_latency       334 n",
+      anchor + " #1     context    irq timer_latency       334 ns x",
+      anchor + " #1     context    irq timer_latency       334",
+      anchor.substr(0, anchor.size() - 1) + " #1     context    irq"
+                                           " timer_latency       334 ns",
+  };
+  for (const auto& shape : shapes) {
+    const std::string what =
+        "the activation shape stands no line (FR-028, SC-008): the shape "
+        + shape;
+    check(everyFigureAbsentForBuffer(
+              cpu, shape + "\n", sg::TracerEngine::TIMERLAT),
+          what.c_str());
+  }
+}
+
+// N13E-002h, FR-028, FR-027, SC-008: the audit point's legend bytes and a
+// planted `#` line that carries a period tail each answer the absence rule,
+// the header precedence FR-027 fixes.
+auto theLegendAndPlantedHashLinesStandNoLine() -> void
+{
+  const auto cpus = pickCpus(1);
+  const auto cpu = cpus.at(0);
+  const std::vector<std::string> shapes {
+      std::string(kLegendLine),
+      "#" + std::string(kPeriodLineOne),
+  };
+  for (const auto& shape : shapes) {
+    const std::string what =
+        "the header line stands no period line (FR-027, SC-008): the shape "
+        + shape;
+    check(everyFigureAbsentForBuffer(
+              cpu, shape + "\n", sg::TracerEngine::OSNOISE),
+          what.c_str());
+  }
 }
 
 // T010, FR-016, FR-017, D-5, R-02: a scratch root without the tracing
@@ -1282,14 +1529,14 @@ auto lineCountOf(const std::string& text) -> std::size_t
   return count;
 }
 
-// The fake count file paths of one tracer cpu list (R-03).
-auto countPathsOf(const std::filesystem::path& root,
-                  const std::vector<std::uint32_t>& cpus)
+// The fake buffer paths of one tracer cpu list (FR-027, R-03).
+auto bufferPathsOf(const std::filesystem::path& root,
+                   const std::vector<std::uint32_t>& cpus)
     -> std::vector<std::filesystem::path>
 {
   std::vector<std::filesystem::path> paths;
   for (const auto cpu : cpus) {
-    paths.push_back(root / cpuCountFile(cpu));
+    paths.push_back(root / bufferPath(cpu));
   }
   return paths;
 }
@@ -1310,23 +1557,24 @@ struct TracerTally
 // The scripted reader of the integration rows (the standing
 // reader-install seam): the stamp steps by one tick, so the probe
 // keeps no gap, and every 1024th read checks the fake tree's control
-// files. The first read rewrites the tracer cpus' count files with the
-// post-window figures, so the record's figures pin the figure read
-// that stands behind the window (FR-009, R-05). The window stays
-// bounded by the reader's stamp series, the timing bound the
-// scripted reader carries (FR-011).
+// files. The first read appends period lines to the tracer cpus'
+// buffers, leaving the earlier lines standing, so the record's figures
+// pin the figure read that stands behind the window and no rewrite
+// reads as the reset the row proves absent (FR-009, FR-028, R-05). The
+// window stays bounded by the reader's stamp series, the timing bound
+// the scripted reader carries (FR-011).
 class TracerWindowReader final : public sg::counters::WindowReader
 {
 public:
   TracerWindowReader(std::filesystem::path root,
-                     std::vector<std::filesystem::path> countPaths,
-                     std::string postFigures,
+                     std::vector<std::filesystem::path> bufferPaths,
+                     std::string appendedLines,
                      std::string expectedWord,
                      std::uint64_t stampStep,
                      std::filesystem::path tallyPath)
       : m_root(std::move(root))
-      , m_countPaths(std::move(countPaths))
-      , m_postFigures(std::move(postFigures))
+      , m_bufferPaths(std::move(bufferPaths))
+      , m_appendedLines(std::move(appendedLines))
       , m_expectedWord(std::move(expectedWord))
       , m_stampStep(stampStep)
       , m_tallyPath(std::move(tallyPath))
@@ -1350,9 +1598,9 @@ public:
     static thread_local std::uint64_t stamp = 0;
     const auto index = m_reads.fetch_add(1, std::memory_order_relaxed);
     if (index == 0) {
-      for (const auto& path : m_countPaths) {
-        std::ofstream file(path);
-        file << m_postFigures;
+      for (const auto& path : m_bufferPaths) {
+        std::ofstream file(path, std::ios::app);
+        file << m_appendedLines;
       }
     }
     if (index % 1024 == 0) {
@@ -1377,8 +1625,8 @@ public:
 
 private:
   std::filesystem::path m_root;
-  std::vector<std::filesystem::path> m_countPaths;
-  std::string m_postFigures;
+  std::vector<std::filesystem::path> m_bufferPaths;
+  std::string m_appendedLines;
   std::string m_expectedWord;
   std::uint64_t m_stampStep = 1;
   std::filesystem::path m_tallyPath;
@@ -1440,18 +1688,28 @@ auto captureRun(const std::vector<std::string>& arguments) -> std::string
   return console;
 }
 
-// The figures the count files carry before the run, and the figures the
-// reader's first read writes in their place: the record must name the
-// post-window ones (FR-009, R-05).
-inline const std::string kPreWindowFigures =
-    "nmi: 1\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n";
-inline const std::string kPostWindowFigures =
-    "nmi: 11\nirq: 12\nsoftirq: 13\nthread: 14\nhw: 15\n";
+// The two period lines of the window fixture, the verified bytes with the
+// five counter columns planted so the sums over both lines answer the five
+// figures the standing check names (FR-009, FR-028).
+constexpr std::string_view kWindowPeriodLineOne = "       osnoise/1-2542397"
+    " [001] ....1 1241576.199778: 1000000       1659  99.83410      19      5  "
+    "    3      4      5      6";
+constexpr std::string_view kWindowPeriodLineTwo = "       osnoise/1-2542397"
+    " [001] ....1 1241577.199779: 1000000       1403  99.85970       8     10  "
+    "    8      8      8      8";
 
-// The five post-window figures, in the NMI, IRQ, softirq, thread and
+// The lines the fixture writes before the run, the legend bytes with one
+// period line, and the one period line the scripted reader appends behind
+// them: the record must name the sums over both lines, so the read lands
+// after the append and no reset clears the earlier line (FR-009, FR-028).
+inline const std::string kPreWindowLines =
+    bufferTextOf({kLegendLine, kWindowPeriodLineOne});
+inline const std::string kAppendedLines = bufferTextOf({kWindowPeriodLineTwo});
+
+// The five window sums, in the NMI, IRQ, softirq, thread and
 // hardware order the record carries (FR-010).
-auto checkPostWindowFigures(const sg::PrecheckTracerCpuRecord& entry,
-                            const char* what) -> void
+auto checkWindowSums(const sg::PrecheckTracerCpuRecord& entry,
+                     const char* what) -> void
 {
   check(entry.nmi.has_value() && *entry.nmi == 11 && entry.irq.has_value()
             && *entry.irq == 12 && entry.softirq.has_value()
@@ -1478,11 +1736,11 @@ auto theWindowLifecycleRows(const std::vector<std::uint32_t>& planned,
     TracingRootGuard guard;
     const std::uint32_t tracerCpu = candidates.at(0);
     installStandingTree(guard.root(), "ffffffff");
-    writeTracingFile(guard.root(), cpuCountFile(tracerCpu), kPreWindowFigures);
+    writeTracingFile(guard.root(), bufferPath(tracerCpu), kPreWindowLines);
     sg::detail::installTestReader(std::make_unique<TracerWindowReader>(
         guard.root(),
-        countPathsOf(guard.root(), {tracerCpu}),
-        kPostWindowFigures,
+        bufferPathsOf(guard.root(), {tracerCpu}),
+        kAppendedLines,
         "osnoise",
         1000,
         "harness_noise_window_serial_tally.txt"));
@@ -1514,7 +1772,7 @@ auto theWindowLifecycleRows(const std::vector<std::uint32_t>& planned,
               tracer->cpus.size() == 1 && tracer->cpus.front().cpu == tracerCpu,
               "the record names the cpus the carrier named (FR-008)");
           if (tracer->cpus.size() == 1) {
-            checkPostWindowFigures(
+            checkWindowSums(
                 tracer->cpus.front(),
                 "the figures read the post-window content (FR-009, R-05)");
           }
@@ -1553,12 +1811,12 @@ auto theWindowLifecycleRows(const std::vector<std::uint32_t>& planned,
     TracingRootGuard guard;
     installStandingTree(guard.root(), "ffffffff");
     for (const auto cpu : candidates) {
-      writeTracingFile(guard.root(), cpuCountFile(cpu), kPreWindowFigures);
+      writeTracingFile(guard.root(), bufferPath(cpu), kPreWindowLines);
     }
     sg::detail::installTestReader(std::make_unique<TracerWindowReader>(
         guard.root(),
-        countPathsOf(guard.root(), candidates),
-        kPostWindowFigures,
+        bufferPathsOf(guard.root(), candidates),
+        kAppendedLines,
         "osnoise",
         1,
         "harness_noise_window_both_tally.txt"));
@@ -1593,7 +1851,7 @@ auto theWindowLifecycleRows(const std::vector<std::uint32_t>& planned,
                 "the planned cpus stand free of the default tracer load "
                 "(FR-009, R-09)");
           for (const auto& entry : tracer->cpus) {
-            checkPostWindowFigures(
+            checkWindowSums(
                 entry,
                 "the figures read the post-window content (FR-009, R-05)");
           }
@@ -1628,12 +1886,12 @@ auto theTracerCpuRows(const std::vector<std::uint32_t>& planned,
                                                  candidates.at(0)};
     installStandingTree(guard.root(), "ffffffff");
     for (const auto cpu : tracerCpus) {
-      writeTracingFile(guard.root(), cpuCountFile(cpu), kPreWindowFigures);
+      writeTracingFile(guard.root(), bufferPath(cpu), kPreWindowLines);
     }
     sg::detail::installTestReader(std::make_unique<TracerWindowReader>(
         guard.root(),
-        countPathsOf(guard.root(), tracerCpus),
-        kPostWindowFigures,
+        bufferPathsOf(guard.root(), tracerCpus),
+        kAppendedLines,
         "osnoise",
         1,
         "harness_noise_cpus_named_tally.txt"));
@@ -1689,12 +1947,12 @@ auto theTracerCpuRows(const std::vector<std::uint32_t>& planned,
     TracingRootGuard guard;
     installStandingTree(guard.root(), "ffffffff");
     for (const auto cpu : candidates) {
-      writeTracingFile(guard.root(), cpuCountFile(cpu), kPreWindowFigures);
+      writeTracingFile(guard.root(), bufferPath(cpu), kPreWindowLines);
     }
     sg::detail::installTestReader(std::make_unique<TracerWindowReader>(
         guard.root(),
-        countPathsOf(guard.root(), candidates),
-        kPostWindowFigures,
+        bufferPathsOf(guard.root(), candidates),
+        kAppendedLines,
         "osnoise",
         1,
         "harness_noise_cpus_default_tally.txt"));
@@ -1746,14 +2004,14 @@ auto theTracerCpuRows(const std::vector<std::uint32_t>& planned,
     TracingRootGuard guard;
     installStandingTree(guard.root(), "ffffffff");
     for (const auto cpu : planned) {
-      writeTracingFile(guard.root(), cpuCountFile(cpu), kPreWindowFigures);
+      writeTracingFile(guard.root(), bufferPath(cpu), kPreWindowLines);
     }
     auto spread = sg::registerBenchmark(&bmPinnedNoise, "bmNodeNoise");
     spread.threads(4).placement("compact");
     sg::detail::installTestReader(std::make_unique<TracerWindowReader>(
         guard.root(),
-        countPathsOf(guard.root(), planned),
-        kPostWindowFigures,
+        bufferPathsOf(guard.root(), planned),
+        kAppendedLines,
         "osnoise",
         1,
         "harness_noise_cpus_planned_tally.txt"));
@@ -2142,54 +2400,6 @@ auto theSessionArmRows() -> void
   }
 }
 
-// The figure-read arms of the pinned format: the blank line the file
-// carries between two sources stands the figures around it, and the
-// malformed line shapes stand every figure of the cpu absent (R-07).
-auto theFigureArmRows() -> void
-{
-  const auto cpus = pickCpus(1);
-  const auto cpu = cpus.at(0);
-  const std::string_view shapes[] {
-      "nmi: 1\n\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
-      "nmi: abc\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
-      "nmi: 1x\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
-      "nmi: 1\nnmi: 2\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
-      "foo: 1\nnmi: 1\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
-      "nmi 1\nirq: 2\nsoftirq: 3\nthread: 4\nhw: 5\n",
-      "irq: 2\nsoftirq: 3\nthread: 4\nhw: 5\nnmi:\n"};
-  for (const auto& shape : shapes) {
-    TracingRootGuard guard;
-    installStandingTree(guard.root(), "ffffffff");
-    writeTracingFile(guard.root(), cpuCountFile(cpu), std::string(shape));
-    const auto session =
-        sg::detail::noiseTracerSetup(sg::TracerEngine::OSNOISE, cpus);
-    check(session.has_value(), "the setup answers the session (R-07)");
-    if (!session.has_value()) {
-      continue;
-    }
-    const auto figures = sg::detail::noiseTracerFigures(*session);
-    check(figures.size() == 1,
-          "the read answers one entry per tracer cpu (R-07)");
-    if (figures.size() != 1) {
-      continue;
-    }
-    const bool everyAbsent = !figures.at(0).nmi.has_value()
-        && !figures.at(0).irq.has_value() && !figures.at(0).softirq.has_value()
-        && !figures.at(0).thread.has_value()
-        && !figures.at(0).hardware.has_value();
-    const bool blankLine =
-        shape.front() == 'n' && shape.find("\n\n") != std::string::npos;
-    check(
-        everyAbsent != blankLine,
-        ("the malformed line stands every figure absent and the blank " "line" " " "stands" " the " "figure" "s " "around" " it " "(R-07)" ": the " "shape "
-         + std::string(shape))
-            .c_str());
-    if (everyAbsent == blankLine) {
-      std::printf("the shape: %s\n", std::string(shape).c_str());
-    }
-  }
-}
-
 // The affinity list that states no item: the reader's per-item loop
 // answers the condition once and the entry stands the cpu with the
 // empty list (specs/034 FR-018).
@@ -2243,14 +2453,20 @@ auto main() -> int
   theOptionFileFaultNamesThePathTheLineAndTheToken();
   theSetupWritesTheEngineTheMaskAndTheStart();
   theMaskRenderTakesTheWidthTheStandingTextCarried();
-  theFiguresReadOneEntryPerTracerCpu();
-  theMissingSourceWordStandsAbsentForThatSourceAlone();
-  theCpuWithNoCountFiguresStandsEveryFigureAbsent(0);
-  theCpuWithNoCountFiguresStandsEveryFigureAbsent(1);
-  theCpuWithNoCountFiguresStandsEveryFigureAbsent(2);
+  theFiguresFoldThePeriodLinesOfEachCpuBuffer();
+  theTimerlatLinesCountTheTwoContexts();
+  theMixedBufferAnswersTheSumsOfItsParsedLines();
+  theZeroCounterColumnStandsAFilledZero();
+  theCpuWithNoParsedLineStandsEveryFigureAbsent(0);
+  theCpuWithNoParsedLineStandsEveryFigureAbsent(1);
+  theCpuWithNoParsedLineStandsEveryFigureAbsent(2);
+  theCpuWithNoParsedLineStandsEveryFigureAbsent(3);
+  theCpuWithNoParsedLineStandsEveryFigureAbsent(4);
+  thePeriodShapeRows();
+  theActivationShapeRows();
+  theLegendAndPlantedHashLinesStandNoLine();
   theParserArmRows();
   theSessionArmRows();
-  theFigureArmRows();
   theEmptyAffinityListLoadsTheEntry();
   theMissingTracingRootAnswersTheEmptySession();
   theUnwritableTracerWordAnswersTheEmptySession();

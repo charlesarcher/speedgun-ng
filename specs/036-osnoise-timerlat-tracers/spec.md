@@ -667,3 +667,492 @@ compiles.
   window the standing grammar owns.
 - Prose (XI): every generated line clears the prose gate; the code
   spans stand on one line.
+
+## Phase: N13e trace-line parsing (owner ruling G-28, 2026-11-09)
+
+**Input**: Owner order of 2026-11-09, on thrawn. The acceptance records
+of this lane (`results/osnoise.md`, `results/timerlat.md`) found the
+pinned count-file format one reading short of any reachable tree: the
+host tree carries no `osnoise/cpu<id>` file with either engine set, and
+the five figures stand `not available` on the host of record. The
+records left one question: re-anchor the parser to a tree that carries
+the files, or take the trace-line surface the spec held out of scope.
+Owner ruling G-28 approves the trace-line parsing as standing work of
+this lane. This phase incorporates verified osnoise and timerlat
+trace-line parsing into the figure read, and retires the count-file
+read. Task ids: N13E-001 to N13E-004. Short name: fwq-example-n13e.
+
+This phase adds no numbered spec, no option, no version reservation and
+no record-layout change, and it replaces no earlier requirement, task
+row, ruling or record of this file. It adds FR-027 to FR-030, SC-008 to
+SC-011, D-8 to D-12, and the task rows N13E-001 to N13E-004 in
+`tasks.md` in this phase's tasks pass. It rides the branch
+`fix/fwq-example-n13e` of
+`specs/045-merge-fixes` phase 15: one branch, one squashed commit, one
+pull request, and one acceptance set at one head (BFW-012, N13E-004).
+In this phase "the record" names
+`specs/036-osnoise-timerlat-tracers/results/trace-line-thrawn.md`.
+
+### Run-time binding (trace-line phase)
+
+- Base: `origin/master` at `a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a`
+  (version 0.34.0, report schema 1.16, harness `SOVERSION` 22, archive
+  `SOVERSION` 8). The record layout stands: the five source figures
+  keep their names and their optionality, so the schema, the version
+  and the two `SOVERSION` numbers do not move. No public header
+  changes.
+- Branch: `fix/fwq-example-n13e`, the phase 15 branch of spec 045. The
+  two lanes share one branch by the owner's order; no file stands in
+  both lanes.
+- Target host: thrawn, AMD Zen 5 Threadripper 9960X, 24 cores, 48
+  threads, kernel 7.3.0-5-cachyos. Acceptance is local (G-20). The
+  acceptance runs need the rights a root shell carries for the tracefs
+  writes, and the record names that need beside each run; a run
+  without the rights stands BLOCKED with the refusal. The suite needs
+  neither root nor a kernel tracer (FR-017 stands).
+- Line numbers in the earlier sections of this file name the state at
+  their own base. This phase finds every item by its symbol.
+
+### The verified line forms (audit point)
+
+The host of record, kernel 7.3.0-5-cachyos, read on 2026-11-09 with
+each engine set, the tracer mask on one cpu, and tracing on. Both
+engines write the per-cpu buffer
+`sys/kernel/tracing/per_cpu/cpu<id>/trace`, the path the detector read
+of specs/048 already reads.
+
+The `osnoise` buffer carries one line per period, once per
+`period_us`, the default 1,000,000 us standing read on the host of
+record. The header legend names the nine figures after the timestamp:
+RUNTIME IN US, NOISE IN US, percent OF CPU AVAILABLE, MAX SINGLE NOISE
+IN US, then the interference counters HW, NMI, IRQ, SIRQ and THREAD.
+The reading is positional: the five counters stand the last five
+figures of a period line, and the legend labels stand as the kernel
+printed them. The legend bytes stand beside the lines:
+
+```text
+#           TASK-PID      CPU# |||||   TIMESTAMP    RUNTIME      NOISE  AVAILABLE  IN US     HW    NMI    IRQ   SIRQ THREAD
+       osnoise/1-2542397 [001] ....1 1241576.199778: 1000000       1659  99.83410      19      0      0   1006    176      4
+       osnoise/1-2542397 [001] ....1 1241577.199779: 1000000       1403  99.85970       8      0      0   1000    147      0
+```
+
+The `timerlat` buffer carries one pair of activation lines per
+activation, one per context:
+
+```text
+          <idle>-0       [001] d.h1. 1241586.794794: #1     context    irq timer_latency       334 ns
+      timerlat/1-2542785 [001] ....1 1241586.794797: #1     context thread timer_latency      3448 ns
+```
+
+The re-confirmation of the count-file row stands repeated at this
+read: `osnoise/per_cpu/cpu<id>/` carries `timerlat_fd` alone, and no
+`osnoise/cpu<id>` file stands with either engine set. Setting
+`current_tracer` clears the buffer, so the lines of a buffer stand the
+run's own.
+
+### Scope (trace-line phase)
+
+In scope:
+
+- `source/harness/noise_tracer.cpp` and
+  `source/harness/detail/noise_tracer.hpp`: the figure read of the two
+  standing engines.
+- `test/source/harness_noise_test.cpp` and
+  `test/source/harness_noise_report_test.cpp`: the fixture formats and
+  the parsed-form cases.
+- `specs/036-osnoise-timerlat-tracers/contracts/console-report.md`:
+  the one amendment line naming the trace buffer as the source of the
+  standing engines' figures.
+- `specs/036-osnoise-timerlat-tracers/`: this `spec.md` phase section,
+  the new `results/` record, the quickstart link row, `plan.md` and
+  `tasks.md`. The standing records, data model, research rows and
+  option contract keep their text as records.
+
+Out of scope:
+
+- The detector read of specs/048: the gap-line rule, the three
+  detector figures and the settings line stand unchanged.
+- The setup and restore order, the option grammar, the value parser,
+  the record layout, the schema and version files, and every public
+  header.
+- Trace raw event codes (G-31) and automatic ranks (G-32): both stand
+  future features.
+- A tracer tuning key: the grammar still carries the engine and the
+  cpu list alone.
+
+### User scenarios (trace-line phase)
+
+#### US-6 The tracer figures land filled on the host of record (Priority: P1)
+
+An operator runs the pre-check with `--os-noise=osnoise` behind the
+rights the writes need, and the tracer lines print the counts the
+buffer carries. The same run with `timerlat` prints the two figures
+that engine states and keeps the other three absent.
+
+**Why this priority**: the lane shipped with every figure `not
+available` on the host of record, and the question it left stands the
+reason G-28 exists.
+
+**Independent test**: the thrawn acceptance runs of FR-030 at the final
+squashed head, and the fixture cases of FR-028.
+
+**Acceptance scenarios**:
+
+1. **Given** the final squashed head and the rights the writes need,
+   **When** the osnoise acceptance run completes, **Then** the five
+   source figures stand filled for every tracer cpu the run resolves,
+   and the host tracing state stands restored.
+2. **Given** the same shape with `timerlat`, **When** the run
+   completes, **Then** the irq and thread figures stand filled, the
+   other three stand the standing per-source wording, and the host
+   state stands restored.
+
+#### US-7 A maintainer pins the parsed forms without root (Priority: P1)
+
+A maintainer runs the suite on a host with no root and no kernel
+tracer, and the parsed forms stand proven through injected tracefs
+text. No test sleeps, reads a clock or names a fixed cpu.
+
+**Why this priority**: FR-017 and FR-019 are standing contracts of
+this lane, and the coverage gate of VI runs this suite in every lane.
+
+**Independent test**: `ctest --test-dir build -R 'harness_noise_test|harness_noise_report_test'` passes unrooted, and the coverage gate reads 100.0% lines at the final head.
+
+**Acceptance scenarios**:
+
+1. **Given** injected buffer text in the verified shapes, **When** the
+   figure read folds it, **Then** the osnoise sums and the timerlat
+   counts answer as the fixtures pin.
+2. **Given** a buffer of header lines only, a buffer of malformed
+   lines only, an empty buffer and a missing file, **When** the figure
+   read folds them, **Then** no figure stands a guess, and the absence
+   rule answers. A mixed buffer answers the sums of its parsed lines
+   alone.
+
+### Edge cases (trace-line phase)
+
+- A buffer that carries header lines and no period line stands every
+  figure of that cpu absent, the standing shape of a missing file.
+- A period line whose nine figures answer no shape counts as no line,
+  the standing rule that no figure stands a guess (R-07).
+- A percent figure stands read as part of the line shape and answers
+  no figure of its own.
+- A `timerlat` buffer carries no nmi, softirq or hardware source, and
+  those three figures stand absent for that engine alone.
+- A serial pre-check writes no engine reset between windows (FR-009).
+  The buffer stands cleared when the tracer is set, so the sums stand
+  the totals of the lines the buffer holds at the read.
+- A window shorter than the osnoise period holds no period line, and
+  every figure stands absent the way a missing file answers. The
+  acceptance rows name a window longer than the period for that
+  reason.
+- A host without the rights for the setup writes keeps the standing
+  `not available` disclosure (FR-016), and the acceptance rows of
+  FR-030 stand BLOCKED with the refusal.
+
+### Requirements (trace-line phase)
+
+- **FR-027** (N13E-001): The figure read of the two standing engines
+  SHALL read the per-cpu trace buffer text at
+  `sys/kernel/tracing/per_cpu/cpu<id>/trace`, resolved under the
+  standing file-root seam, the path the detector read already reads,
+  after the pre-check window ends and before the restore writes, the
+  order the standing run keeps. A line whose first character stands
+  `#` SHALL stand a header line and SHALL stand no period line and no
+  activation line. For `osnoise`, a line SHALL stand one period line
+  when its last nine whitespace-separated tokens answer the verified
+  shape, digits, digits, digits-dot-digits, then six groups of digits,
+  and the token ahead of them ends with the timestamp colon; a bare
+  integer where the decimal figure stands answers no period line. The
+  five interference-counter figures of the period lines SHALL sum into
+  the record's hardware, nmi, irq, softirq and thread figures. For
+  `timerlat`, a line SHALL stand one activation line when the tokens
+  after the timestamp colon are exactly the six verified tokens
+  `#<digits> context <word> timer_latency <digits> ns`, with nothing
+  following; an `irq` word SHALL count the irq figure, a `thread` word
+  SHALL count the thread figure, and any other word stands no line.
+  The two counts stand independent: the lines answer no pairing rule. A line
+  beside those shapes counts as no line, skipped, the standing rule
+  that no figure stands a guess (R-07). A counter column that answers
+  0 on every period line stands a filled 0, the shape the detector read
+  answers for `nmiCount`. A buffer that carries no parsed line, stands
+  missing, or stands unreadable stands every figure of that cpu
+  absent. The sums stand the totals of the lines the buffer holds at
+  the read. This reading narrows the cumulative-totals clause of
+  FR-009 for the two standing engines: the figures answer the lines the
+  buffer holds at the read. FR-009's clause stands the record of the
+  retired read and keeps its text. The count-file read of
+  `osnoise/cpu<id>` stands retired by
+  this phase: its format never stood observed on a reachable tree, and
+  the trace buffer stands the surface the host of record carries.
+- **FR-028** (N13E-002): The parsed-form cases SHALL stand in
+  `test/source/harness_noise_test.cpp` through injected tracefs text:
+  the verified osnoise period line and timerlat activation line shapes
+  byte for byte from the host read, header legend lines, malformed
+  lines, a mixed buffer of parsed and malformed lines whose sums come
+  from the parsed lines alone, a buffer with lines and no parsed line,
+  an empty buffer, a missing file, a zero counter column, and the
+  per-source absence of the three `timerlat` sources. The standing
+  serial-window, `mode=both` and tracer-cpu-list rows,
+  `theWindowLifecycleRows` and `theTracerCpuRows`, SHALL stand
+  re-anchored from the
+  retired count-file fixture to buffer text through the same seam, so
+  the read-once-after-the-window and no-reset-between-windows proofs
+  stay observable. Those rows SHALL append period lines to the buffer
+  between reads and SHALL leave the earlier lines standing, so the sums
+  cover every line the buffer holds and no reset can hide inside a
+  rewrite. `test/source/harness_noise_report_test.cpp` builds
+  its records by hand, so it SHALL gain one rendering row for the
+  `timerlat` shape of two filled figures and three absent ones. No
+  test SHALL sleep, read a clock or name a fixed cpu (FR-019). The
+  root and tracefs needs of the acceptance runs SHALL stand explicit in
+  the record, and a run without the rights SHALL stand BLOCKED with the
+  command and the refusal.
+- **FR-029** (N13E-003): One new record,
+  `results/trace-line-thrawn.md`, SHALL carry both final-head runs of
+  this phase: each acceptance command with its exit and its window,
+  the figures the parse filled beside the CCD naming of the standing
+  plan, the host tracing state each run found and the state it left,
+  and the dated rows labeled preliminary with their pre-squash heads
+  until the final head lands. The quickstart SHALL gain one link row
+  to that record. The standing 2026-10-29 records keep their text as
+  the record of what was decided then. The console contract SHALL carry
+  the amendment that names the buffer path and the per-engine line
+  reading in the same change as the code. The surfaces that keep
+  naming the retired count files, the public header comment, the spec
+  034 report-json line, this lane's option contract, this lane's
+  report-json contract rows, the data model,
+  the research rows and the quickstart wording, the specs/048 rows
+  naming the retired path and symbol, listed as that lane's stale
+  record, and the two standing
+  edge-case rows of this file that name the count files and the
+  cumulative-totals reading, stand listed in the record as stale
+  wording this phase settles by ruling G-28; only the console contract
+  and the quickstart link row move. The record SHALL repeat the audit
+  point: the legend bytes, the verified lines, the `period_us` read and
+  the per-cpu `buffer_size_kb` read, so the fixture bytes carry their
+  host provenance. The record carries the per-cpu
+  buffer size read beside each run's figures. No schema, version or
+  `SOVERSION` value moves.
+- **FR-030** (N13E-004): The shared acceptance set of spec 045 phase
+  15 (BFW-012) SHALL run for this phase at the final squashed head,
+  and the N13e rows SHALL join it: the osnoise and timerlat acceptance
+  runs on thrawn behind the rights the writes need, each with a
+  pre-check window that spans the one-second period the audit point
+  names at least twice in host time, the window token named beside the
+  host's time-stamp counter rate in the record: the probe's window
+  counts raw counter ticks, so the standing 3,000 ms token spans 0.72 s
+  on thrawn and holds no period line, the stated figures
+  filled for every tracer cpu the run resolves, the host tracing state restored
+  after each run to the saved word, the saved mask and `tracing_on` 0
+  with the found reads named beside them, and the unrooted suite pass
+  recorded apart from them.
+
+### Success criteria (trace-line phase)
+
+- **SC-008**: With an injected tracefs root, the verified osnoise
+  fixture text answers the five figures as the sums of the counter
+  columns over its period lines, and the verified timerlat fixture
+  text answers the irq and thread counts with the other three figures
+  absent. A mixed buffer answers the sums of its parsed lines alone.
+  A zero counter column answers a filled 0. A buffer of header lines
+  only, a buffer of malformed lines only, an empty buffer and a missing
+  file answer the absence rule.
+- **SC-009**: The suite passes with no root and no kernel tracer, and
+  no test sleeps, reads a clock or names a fixed cpu.
+- **SC-010**: The thrawn acceptance run of each standing engine fills
+  its stated figures for every tracer cpu the run resolves, at the
+  final squashed head with the window FR-030 names: every figure of the
+  filled set of every tracer cpu reads filled. The record names the
+  resolved cpu list and the per-cpu buffer size read, and the state
+  each run found and the state it left: the saved word, the saved mask
+  and `tracing_on` 0, beside the figures and the CCD.
+- **SC-011**: The coverage gate at the final head reads 100.0% lines
+  with the standing branch allowance, at or below 84 markers and no
+  new marker, and the retired count-file reader leaves no cold row.
+
+### Local acceptance (trace-line phase)
+
+The shared lane set stands in spec 045 phase 15. The N13e rows stand
+here, run at the final squashed head on thrawn:
+
+```
+sudo ./build/example/benchmark_example --filter=bmTouch --threads=2 --placement=compact \
+  --jitter-probe=idle,mode=precheck,precheck=3000 --os-noise=osnoise --json=$HOME/scratch/fwq-example-n13e/osnoise.json
+sudo ./build/example/benchmark_example --filter=bmTouch --threads=2 --placement=compact \
+  --jitter-probe=idle,mode=precheck,precheck=3000 --os-noise=timerlat --json=$HOME/scratch/fwq-example-n13e/timerlat.json
+ctest --test-dir build -R 'harness_noise_test|harness_noise_report_test'
+```
+
+The window key stands required: the osnoise period line arrives once
+per period, one second on the host of record, and the standing default
+window of 200 ms would hold no period line at all. Each sudo run names
+the tracing state the run found and the state it left, the same three
+reads the standing records carry. The unrooted suite row stands apart,
+and it answers on the standing tree.
+
+### Commit and record rules (trace-line phase)
+
+The rules of spec 045 phase 15 govern the branch: one squashed commit,
+the two `Refs:` trailers naming both lanes, author and committer `OmO`,
+the push protocol with the lease, and the measured head named in the
+pull-request body. The interim rows stand in this lane's record file.
+
+### Decisions (trace-line phase)
+
+- **D-8 (the trace-line surface)**: G-28 chose the surface the R-3
+  alternatives carried. The count-file format stands pinned from
+  documentation and never stood read on a reachable tree, and the
+  per-cpu buffer stands the surface the host of record carries.
+- **D-9 (one buffer path)**: the two standing engines read the same
+  per-cpu trace path the detector read reads. One seam, one path, one
+  read per engine, with the line rule keyed on the engine.
+- **D-10 (timerlat states two sources)**: the activation lines name
+  the irq and thread contexts. The engine states nothing for nmi,
+  softirq and hardware, and those three figures stand absent for that
+  engine alone, the per-source rule of FR-010.
+- **D-11 (totals of the held lines)**: setting `current_tracer` clears
+  the buffer, a read of the host of record, so the sum of the period
+  lines stands the total since the tracer's start for the lines the
+  fixed-size buffer still holds at the read. The record names the
+  3,000 ms acceptance window and the per-cpu buffer size read beside the
+  figures, so a reader can see the held lines cover the window.
+- **D-12 (the count-file reader retires)**: X.3 removes orphans a
+  change creates. The buffer read answers every host the lane can
+  reach, so the count-file reader, its fixture format and its cases
+  stand retired in this change. The standing records of the 2026-10-29
+  runs keep their text as the record of what was decided then.
+
+### Clarifications (trace-line phase)
+
+#### Round 1, 2026-11-09
+
+The clarification pass read the phase against the standing reader, the
+fixture homes, the standing records and the audit point.
+
+- Q: Can the acceptance commands as written fill the osnoise figures?
+  (FR-030, local acceptance) → A: they could not. The standing default
+  window is 200 ms and the osnoise period line arrives once per second
+  on the host of record, so the buffer would hold no period line. The
+  commands carry `precheck=3000`, and the record names the window.
+- Q: Does a malformed line poison the cpu or stand skipped? (FR-027,
+  SC-008) → A: skipped. The buffer carries heterogeneous lines, and
+  the standing detector read already skips lines beside its shape. The
+  absence rule answers only a buffer with no parsed line, a missing
+  file and an unreadable file. A mixed-buffer fixture stands required,
+  so the sums prove the skip.
+- Q: What exactly pins a period line and a header line? (FR-027) → A:
+  a header line stands `#` at column 1, the mirror of the detector's
+  column rule. A period line answers the nine-token verified shape at
+  the line tail, integer, integer, decimal, then six integers, with
+  the token ahead ending at the timestamp colon. No task-name or cpu
+  field check stands added.
+- Q: Does a counter column reading 0 on every line stand filled or
+  absent? (FR-027) → A: filled 0, the shape the detector read answers
+  for `nmiCount`. The verified host line carries HW 0 and NMI 0.
+- Q: Where does the read land against the restore? (FR-027) → A: after
+  the window ends and before the restore writes, the standing order of
+  FR-009, now pinned in the requirement. The re-anchored serial rows
+  observe it.
+- Q: What happens to the serial-window and `mode=both` rows that rode
+  the retired count-file fixture? (FR-028) → A: they stand re-anchored
+  to buffer text through the same seam. They carry the only observable
+  proof of the read-once-after-the-window and no-reset rules.
+- Q: Do the sums stand cumulative totals forever? (D-11) → A: they
+  stand the totals of the lines the fixed-size buffer holds at the
+  read. The record names the window, and the standing window keeps the
+  buffer whole.
+- Q: What does the contract amendment carry, and what stale wording
+  stays? (FR-029) → A: the console contract carries the buffer path
+  and the per-engine reading. The public header comment, the spec 034
+  report-json line, the option contract, the data model, the research
+  rows and the quickstart wording keep their text, stand listed in the
+  record as stale wording, and only the console contract and one
+  quickstart link row move.
+- Q: What pins the timerlat activation line? (FR-027) → A: the strict
+  token order after the timestamp colon, `#<digits> context <word>
+  timer_latency <digits> ns`. Any other context word stands no line.
+  The two counts stand independent; the observed pairing stands no
+  rule.
+- Q: Which record carries the phase, and do the task rows exist?
+  (FR-029) → A: one new record, `results/trace-line-thrawn.md`, carries
+  both final-head runs, and the quickstart gains one link. The four
+  N13E rows land in `tasks.md` in the tasks phase.
+- Q: Which test file carries the parsed forms? (FR-028) → A:
+  `harness_noise_test.cpp` alone, the file with the seam and the
+  fixtures. The report test builds records by hand, so it gains one
+  rendering row for the two-filled, three-absent `timerlat` shape.
+- Q: What does "restored" name? (FR-030, SC-010) → A: the saved word,
+  the saved mask and `tracing_on` 0, with the found reads named beside
+  them, the shape the standing records carry.
+
+#### Round 2, 2026-11-09
+
+The second pass walked the amended token rules against the audit-point
+lines byte for byte and closed ten wording rows. The rules accept all
+four verified lines: the osnoise line splits to thirteen tokens, the
+last nine answer the pinned shape behind the timestamp-colon anchor,
+and the five counters read into the five record figures.
+
+- Q: Does a malformed line poison or skip? (SC-008, US-7) → A: skip.
+  The absence rule stands a property of buffers: header-only,
+  malformed-only, empty and missing buffers answer absence, and a mixed
+  buffer answers the sums of its parsed lines alone.
+- Q: Can a planted line that starts with `#` read as a period line?
+  (FR-027) → A: it cannot: the header rule takes precedence, a `#`
+  line stands no period line and no activation line. The audit point
+  carries the legend bytes the host printed.
+- Q: Where does the acceptance window get its bound? (FR-030) → A: the
+  audit point names the one-second period, and FR-030 names the
+  3,000 ms window against it.
+- Q: Can a serial row's rewrite be mistaken for the reset it proves
+  absent? (FR-028) → A: it cannot: the rows append period lines between
+  reads and answer sums over every held line.
+- Q: What keeps the ring from truncating the window? (D-11, SC-010) →
+  A: the record names the window and the per-cpu buffer size read
+  beside the figures.
+- Q: Which stale rows of this file stand listed? (FR-029) → A: the two
+  standing edge-case rows that name the count files and the
+  cumulative-totals reading join the stale-wording list.
+- Q: What is a decimal figure? (FR-027) → A: digits-dot-digits. A bare
+  integer where the percent figure stands answers no period line.
+- Q: May fields follow `ns`? (FR-027) → A: they may not: exactly the
+  six verified tokens follow the timestamp colon.
+- Q: Do the N13E task rows exist yet? (FR-029) → A: the tasks phase
+  writes them into `tasks.md` before implement, as the round-1 answer
+  states.
+- Q: Which cpus do SC-010 and US-6 name? (SC-010) → A: every tracer
+  cpu the run resolves; the record names the resolved list.
+
+#### Round 3, 2026-11-09
+
+The third pass checked the amended rows against the round-2 answers and
+found that five answers had not landed in the rows they name. They
+stand landed now: SC-008 and US-7 name buffers for the absence rule and
+US-7 carries the mixed-buffer reading; SC-010 names every tracer cpu,
+the resolved list and the buffer size read; D-11 names the 3,000 ms
+window and the capacity read; FR-029 lists the two standing edge rows
+and the capacity read; FR-030 names the 3,000 ms window. The audit
+point adds that the reading is positional, the five counters standing
+the last five figures of a period line while the legend labels stand as
+printed. The pass re-verified the token rules against the four
+audit-point lines byte for byte, and the phase stands converged.
+
+### Assumptions (trace-line phase)
+
+- thrawn is the host of record with the tool versions spec 045 phase
+  15 records, and a root shell stands reachable for the acceptance
+  writes at the live check of 2026-11-09.
+- The verified line forms stand read on the host of record on
+  2026-11-09, and a kernel that prints other shapes answers the
+  absence rule, the standing shape of a host the format does not
+  match.
+- The owner rulings G-20, G-24, G-25 and G-28 sit outside this
+  repository; the order of 2026-11-09 carries their operative content.
+
+### Open, owner (trace-line phase)
+
+- G-31 (raw event codes) and G-32 (automatic ranks) stand future
+  features, unchanged.
+- The count-file question the 2026-10-29 records left stands closed by
+  G-28 and this phase.

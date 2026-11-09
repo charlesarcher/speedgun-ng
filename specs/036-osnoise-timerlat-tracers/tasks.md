@@ -595,3 +595,321 @@ through the M-A surface.
   its green task in Phase 5 beside the `cli.cpp` wiring; the covering
   test task T023 stands with it
 - Stop at any checkpoint to validate the stories independently
+
+## Phase: N13e trace-line parsing tasks (2026-11-09)
+
+**Base**: `origin/master` at `a55728af17ec02ea4fbe5e5ff7f8a537ddaa224a`
+(version 0.34.0, report schema 1.16, harness `SOVERSION` 22, archive
+`SOVERSION` 8, 84 `LCOV_EXCL` markers, a branch shortfall of 21
+allowed). **Branch**: `fix/fwq-example-n13e`, phase 15 of
+[specs/045-merge-fixes](../045-merge-fixes/tasks.md): one branch, one
+squashed commit, one pull request, one acceptance set at one head
+(BFW-012). The FWQ example lane and this lane share the branch, and no
+file stands in both. No version, schema or `SOVERSION` move, no public
+header change, and no new marker, filter, allowance, ignore-error
+class or timeout ceiling.
+
+**Design contract**: [plan.md](./plan.md), section "Phase: N13e
+trace-line parsing plan (2026-11-09)". **Requirements**: FR-027 to
+FR-030, SC-008 to SC-011 and D-8 to D-12 of the trace-line phase of
+[spec.md](./spec.md). **Host of record**: thrawn, kernel
+`7.3.0-5-cachyos`.
+
+**Rows**: the four task ids stand fixed by the spec. Each carries
+lettered rows, and each row stands one file or one tightly-coupled
+pair with one verify of its own. A row marked [P] runs in parallel
+with the other [P] rows of its block: a different file, or a disjoint
+scenario block of one file, the standing rule of this file. TDD mode
+stands: each test row that gates new behaviour lands and stands
+observed failing before the code row that turns it green, and the
+guard rows named under N13E-002 answer green before and after the
+code row, pinning the rules the change keeps.
+
+---
+
+- [x] N13E-001 Move the figure read of the two standing engines onto
+      the per-cpu trace buffer and retire the count-file read (FR-027,
+      D-8, D-9, D-10, D-12; the N13E-002 test rows land first).
+  - a. Delete the retired read and its fixture: `struct CountSource`,
+    `kCountSources` and `figuresOfCpu` out of
+    `source/harness/noise_tracer.cpp`, and `cpuCountFile`,
+    `countPathsOf` and the four cases that fold the retired format,
+    `theFiguresReadOneEntryPerTracerCpu`,
+    `theMissingSourceWordStandsAbsentForThatSourceAlone`,
+    `theCpuWithNoCountFiguresStandsEveryFigureAbsent` and
+    `theFigureArmRows`, out of `test/source/harness_noise_test.cpp`
+    with their `main()` call rows (X.3, D-12). `countOfToken` stays:
+    the detector's two helpers and the two new folds read their digits
+    through it. This row lands in the same change as N13E-001b, once
+    N13E-002i has moved the window rows off the retired paths.
+    Verify: `git grep -nE 'osnoise/cpu|kCountSources|figuresOfCpu|cpuCountFile|countPathsOf' -- source test`
+    reads no match, and `git grep -nE 'countOfToken' -- source/harness/noise_tracer.cpp`
+    names the definition, the three detector call sites and the two new
+    folds' uses.
+  - b. Land the buffer read in `source/harness/noise_tracer.cpp` and
+    its contract in `source/harness/detail/noise_tracer.hpp`: the
+    anonymous-namespace helpers `tokensOf`, `standsAnchored` and
+    `decimalOf`; the two constants `kPeriodColumns` at nine and
+    `kActivationColumns` at six; the two folds `osnoiseFiguresOfCpu`
+    and `timerlatFiguresOfCpu`, each with one rule, one postcondition
+    and one `SG_ENSURE` at its answer; `countOfToken` taking
+    `std::string_view` so a token needs no copy; and the loop of
+    `noiseTracerFigures` reading
+    `sys/kernel/tracing/per_cpu/cpu<id>/trace` once per cpu for all
+    three engines, the path expression written once (D-9). The header
+    keeps its `\pre` and rewrites its body and its `\post` pair in the
+    shape plan.md quotes. `kGapMarker`, `kNmiField`, `widerGapOf`,
+    `nmiOf` and `gapFiguresOfCpu` keep their bytes, and no column
+    table or line rule stands shared with the detector read.
+    Verify: `cmake --build build` exits 0, `ctest --test-dir build -R harness_noise_test --output-on-failure`
+    exits 0 with the N13E-002 rows green, `cmake --build build --target
+    dbc-gate` exits 0 with the two new `SG_ENSURE` answers paired, and
+    `git diff` names no change inside the five detector symbols above.
+
+- [x] N13E-002 Stand the parsed-form cases on injected buffer text and
+      re-anchor the lifecycle rows to it (FR-028, FR-008, FR-009,
+      FR-013, SC-008, SC-009). Rows a to i stand in
+      `test/source/harness_noise_test.cpp` behind disjoint scenario
+      blocks; row j stands in `test/source/harness_noise_report_test.cpp`.
+      Each row pairs with the code row it gates: N13E-001b turns rows
+      a, b, c, d and i green, and each of those five stands observed
+      failing first. Rows e, f, g, h and j stand guard rows: they
+      answer green on the standing read, and they pin the absence rule
+      and the rendering the change keeps. No row sleeps, reads a clock
+      or names a fixed cpu: the cpus come from `pickCpus` (FR-019).
+  - a. Land the fixture helpers and the verified bytes, and write the
+    first sums case: `bufferPath(cpu)` answering
+    `sys/kernel/tracing/per_cpu/cpu<id>/trace`, the spelling the
+    specs/048 fixture already carries in
+    `test/source/harness_hwlat_tracer_test.cpp`; the audit-point
+    constants byte for byte, the legend line, the two osnoise period
+    lines and the timerlat `irq` and `thread` pair; and
+    `theFiguresFoldThePeriodLinesOfEachCpuBuffer`, two cpus from
+    `pickCpus(2)` in the session order, each buffer carrying that
+    cpu's verified period lines, the five figures answering the sums of
+    the five counter columns (SC-008).
+    Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits non-zero with the new check failing (red observed)
+  - b. [P] `theTimerlatLinesCountTheTwoContexts`: the verified pair
+    counts the `irq` figure at 1 and the `thread` figure at 1, and
+    nmi, softirq and hardware stand absent for that engine (SC-008,
+    D-10). This row carries the per-source rule of FR-010 that the
+    retired per-source case held.
+    Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits non-zero with that check failing (red observed)
+  - c. [P] `theMixedBufferAnswersTheSumsOfItsParsedLines`: one buffer
+    of the legend line, the verified lines, malformed lines, a blank
+    line and a planted `#` line that carries a period tail; the sums
+    come from the parsed lines alone, the skip rule of Round 1 and
+    Round 2 (SC-008).
+    Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits non-zero with that check failing (red observed)
+  - d. [P] `theZeroCounterColumnStandsAFilledZero`: a counter column
+    reading 0 on every period line answers a filled 0, the shape the
+    detector read answers for `nmiCount`; the verified host line
+    already carries HW 0 and NMI 0 (SC-008).
+    Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits non-zero with that check failing (red observed)
+  - e. [P] `theCpuWithNoParsedLineStandsEveryFigureAbsent(0..3)`: an
+    empty buffer, a missing file, a buffer path planted as a directory
+    through `denyTracingPath`, and a legend-only buffer each answer
+    every figure absent: the two `readTracerFile` arms, the same
+    directory denial
+    `theInWindowFailureStillRestoresTheTree` plants at that path in
+    the specs/048 fixture (SC-008, SC-011).
+    Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits 0 once the
+    row lands, and the row answers green on the standing read and goes
+    red beside a read that guesses a figure
+  - f. [P] `thePeriodShapeRows`: a shape array in the shape of the
+    retired `theFigureArmRows`, so each row prints its own shape on
+    failure, one buffer of that one line each, every shape answering
+    the absence rule. The table carries a non-digit in each of the
+    three digit-only non-counter columns, a signed figure in a counter
+    column, a bare integer and a `99.` in the decimal column, an
+    eight-figure tail, a ten-figure tail that puts a bare figure in the
+    anchor position, and a line whose token ahead of the nine carries
+    no colon (SC-008).
+    Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits 0 once the
+    row lands, and the row answers green on the standing read and goes
+    red beside a read that guesses a figure
+  - g. [P] `theActivationShapeRows`: the second shape array, one
+    buffer of that one line each, every shape answering the absence
+    rule. The table carries no `#`, `contexts` for `context`, a
+    context word outside the two, `timer_latencies`, a non-digit
+    latency, `n` for `ns`, a token after `ns`, five tokens after the
+    anchor, and no colon anchor (SC-008).
+    Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits 0 once the
+    row lands, and the row answers green on the standing read and goes
+    red beside a read that guesses a figure
+  - h. [P] `theLegendAndPlantedHashLinesStandNoLine`: the audit point's
+    legend bytes and a planted `#` line that carries a period tail each
+    answer the absence rule, the header precedence FR-027 fixes (the
+    first character `#` stands a header line whatever the tail).
+    Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits 0 once the
+    row lands, and the row answers green on the standing read and goes
+    red beside a read that guesses a figure
+  - i. [P] Re-anchor the serial-window, `mode=both` and cpu-list rows to
+    buffer text through the same seam (FR-028, FR-008, FR-009, D-11, Round 2):
+    `countPathsOf` becomes `bufferPathsOf`; `TracerWindowReader` takes
+    buffer paths and appends, its first read opening the buffer with
+    `std::ios::app` and writing the appended period lines, so the
+    earlier lines stand and no rewrite reads as the reset the row
+    proves absent; `kPreWindowFigures` and `kPostWindowFigures` become
+    `kPreWindowLines`, the legend bytes with one period line, and
+    `kAppendedLines`, one period line, their counters planted so the
+    sums over both lines answer nmi 11, irq 12, softirq 13, thread 14
+    and hardware 15; `checkPostWindowFigures` keeps its bytes under the
+    name `checkWindowSums`; `theWindowLifecycleRows` (the serial pair,
+    `mode=both`) and `theTracerCpuRows` (the named list, the absent
+    key, the wholly planned set) stand re-pathed with no change of
+    assertion, so the sums cover every line the buffer holds, the
+    engine stands up before the reads, and the tree stands restored.
+    Verify: `ctest --test-dir build -R harness_noise_test --output-on-failure` exits non-zero with the two row families failing on the sums (red observed), and `git grep -nE 'kPreWindowFigures|kPostWindowFigures|countPathsOf' -- test` reads no match
+  - j. [P] `theTimerlatFiguresPrintTwoFilledAndThreeAbsent` in
+    `test/source/harness_noise_report_test.cpp`: a hand-built
+    `timerlat` record prints the two filled figure lines and the
+    standing `not available` wording in the other three positions, and
+    the standing byte-identity fixtures `kBlockHead`, `kTracerLines`
+    and `kNotAvailableLine` keep their bytes (FR-013, D-10).
+    Verify: `ctest --test-dir build -R harness_noise_report_test --output-on-failure`
+    exits 0 once the row lands, the row answers green on the standing
+    printer and goes red beside a printer change for absent figures,
+    and `git diff` names no change to the three standing fixture
+    constants
+
+- [x] N13E-003 Land the record, the quickstart link and the console
+      contract line (FR-029, SC-010).
+  - a. [P] Amend `specs/036-osnoise-timerlat-tracers/contracts/console-report.md`
+    with the one rule block plan.md quotes, naming the buffer path, the
+    per-engine line reading and the standing wording for a buffer that
+    holds no parsed line. The amendment rides the change that lands
+    N13E-001b (FR-024, FR-029). No other rule of that file moves.
+    Verify: `grep -c "per_cpu/cpu<id>/trace" specs/036-osnoise-timerlat-tracers/contracts/console-report.md` reads at least one line, `git diff` names no other rule of that file, and `python3 tools/prose/prose_gate.py --mode tree --check prose` exits 0
+  - b. [P] Write `specs/036-osnoise-timerlat-tracers/results/trace-line-thrawn.md`
+    (FR-029, D-11):
+    the audit point repeated, the legend bytes, the four verified
+    lines, the `period_us` read and the per-cpu `buffer_size_kb` read;
+    each acceptance command with its exit and its window token; the
+    resolved cpu list and the figures beside the CCD naming the
+    standing records use; the tracing state each run found and the
+    state it left, the saved word, the saved mask and `tracing_on`
+    read before and after; the unrooted suite row apart; the dated
+    rows labeled preliminary with the pre-squash head each stands
+    taken at; and the stale-wording list of FR-029, carrying the
+    public header comment, the spec 034 report-json line, this lane's
+    option contract, the data model, the research rows, the quickstart
+    wording and the two standing edge-case rows of `spec.md` that name
+    the count files and the cumulative-totals reading. The standing
+    2026-10-29 records keep their text (D-12).
+    Verify: `test -f specs/036-osnoise-timerlat-tracers/results/trace-line-thrawn.md`, `grep -c "buffer_size_kb" specs/036-osnoise-timerlat-tracers/results/trace-line-thrawn.md` reads at least one line per run, and the record names each item above with its command and exit
+  - c. Add one link row to that record in the acceptance section of
+    `specs/036-osnoise-timerlat-tracers/quickstart.md` (FR-029). No
+    other quickstart line moves, the count-file wording included.
+    Verify: `grep -c "results/trace-line-thrawn.md" specs/036-osnoise-timerlat-tracers/quickstart.md` reads one link row, and `git diff --stat` names one changed line in that file
+
+- [x] N13E-004 Run the acceptance set at the final squashed head
+      (FR-030, SC-009, SC-010, SC-011; BFW-012 names the one head both
+      lanes measure). Each row stands a final-head row: it opens only
+      at the squashed head of `fix/fwq-example-n13e`, on thrawn, and
+      its reading lands in the record of N13E-003b. A run whose host
+      refuses the tracefs writes stands BLOCKED with the command and
+      the refusal.
+  - a. The osnoise acceptance run behind the rights the writes need:
+    `sudo ./build/example/benchmark_example` with
+    `--filter=bmTouch`, `--threads=2`, `--placement=compact`,
+    `--jitter-probe=idle,mode=precheck,precheck=18000`,
+    `--os-noise=osnoise` and `--json=$HOME/scratch/fwq-example-n13e/osnoise.json`.
+    The window token stands at 18,000 ms of the probe's tick time base:
+    the host counter runs near 4.2 GHz, so the standing 3,000 token
+    spans 0.72 s of host time and holds no period line.
+    Verify: the run exits 0; the five source figures stand filled for
+    every tracer cpu the run resolves; the record names the resolved
+    cpu list, the per-cpu `buffer_size_kb` read and the figures beside
+    the CCD naming the standing records use; and the state stands
+    restored to the saved word, the saved mask and `tracing_on` 0 with
+    the found reads named beside them (FR-030, SC-010).
+  - b. The timerlat acceptance run, the same shape with
+    `--os-noise=timerlat` and `--json=$HOME/scratch/fwq-example-n13e/timerlat.json`.
+    Verify: the run exits 0; the irq and thread figures stand filled
+    for every tracer cpu the run resolves; the other three print the
+    standing per-source wording; the record carries the same reads as
+    row a (FR-030, D-10, SC-010).
+  - c. The unrooted suite row, recorded apart from the two runs and
+    answered on the standing tree:
+    `ctest --test-dir build -R 'harness_noise_test|harness_noise_report_test'`.
+    Verify: it exits 0 with no root and no kernel tracer, and the
+    coverage lane of the shared set reads 100.0% lines with the branch
+    shortfall at or below 21, the marker count at or below 84, no new
+    marker, and no cold row where the retired reader stood (SC-009,
+    SC-011, spec 045 SC-032).
+
+**Checkpoint**: the two standing engines read the buffer the host
+carries, the parsed forms stand pinned without root, the contract and
+the record name the new surface, and the acceptance figures stand
+filled at one head.
+
+---
+
+### Dependencies & Execution Order (N13e trace-line phase)
+
+**Row dependencies**
+
+- **N13E-002a stands first**: it lands `bufferPath` and the verified
+  bytes every other test row reads, and it carries the first sums case.
+- **N13E-001b follows the test rows**: the folds, the path-once loop
+  and the rewritten header contract turn the red rows green, the
+  standing TDD order of this file.
+- **N13E-001a lands in the same change as N13E-001b**, and after
+  N13E-002i has moved the window rows off `cpuCountFile` and
+  `countPathsOf`: the retired reader, its source-word table, its
+  fixture helper and its four cases go with their subject in one
+  change (X.3, D-12).
+- **N13E-003a rides N13E-001b**: the contract line names the surface
+  the code lands (FR-024).
+- **N13E-003c follows N13E-003b**: the link names a record that stands.
+- **N13E-004 follows the shared squash**, named below.
+
+**Parallel blocks**
+
+- **Block one, after N13E-002a**: N13E-002b, N13E-002c, N13E-002d,
+  N13E-002e, N13E-002f, N13E-002g, N13E-002h and N13E-002i, disjoint
+  scenario blocks of `test/source/harness_noise_test.cpp`; N13E-002j in
+  `test/source/harness_noise_report_test.cpp`; N13E-003a in the console
+  contract; N13E-003b in the record file. No file stands twice in the
+  block.
+- **Block two, alone**: N13E-001b with N13E-001a and N13E-003a in one
+  change, one file pair for the read and one contract file.
+- **Block three**: N13E-003c, one line in one file.
+- **Alone and in series**: N13E-004a and N13E-004b. Both write
+  `current_tracer`, `tracing_cpumask` and `tracing_on`, one tracefs
+  carries one engine at a time, and no other work runs on the host
+  during them. N13E-004c runs apart from both and answers on the
+  standing tree.
+
+**Gated behind the shared squash**
+
+The branch carries two lanes and one squashed commit, so these rows
+close at one head and stand gated behind it:
+
+- N13E-004a, N13E-004b and N13E-004c, and the final-head rows of the
+  record: the two runs' figures, the found and left tracing state, the
+  resolved cpu list and the `buffer_size_kb` read.
+- The SC-010 figure reading and the SC-011 coverage reading, the
+  latter taken in the shared set's coverage lane, which also answers
+  that the retired reader leaves no cold row.
+- The pull-request body naming the measured head beside every reading,
+  and the record's dated rows losing their preliminary labels only at
+  that head.
+- The FWQ example rows BFW-009 to BFW-011 of spec 045 phase 15: BFW-012
+  names one acceptance set for both lanes, so this lane waits for that
+  lane's tracked change before the squash, and no N13E-004 row runs
+  before it. A tracked change after the squash moves the head, and
+  every row of N13E-004 runs again there.
+
+**Completion rule for the N13e phase**
+
+A row closes only with its verify reading in
+`specs/036-osnoise-timerlat-tracers/results/trace-line-thrawn.md`: the
+command, the exit, the host, the tool versions and the figure. An
+interim row stands dated and labeled preliminary with the pre-squash
+head it stands taken at. A row that stops at a scope boundary stands
+open with the file it needs, and the pull-request body carries it. A
+finding that needs a file outside this lane's scope, a `README.md`
+line, `test/CMakeLists.txt` or a preset, stands reported before any
+edit.

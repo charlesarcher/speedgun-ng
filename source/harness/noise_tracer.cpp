@@ -276,25 +276,9 @@ auto writeSavedBack(const std::vector<TracerSetting>& saved,
   }
 }
 
-// The five source words of the pinned count-file format, and the
-// record figure each one feeds (R-03).
-struct CountSource
-{
-  const char* word;
-  std::optional<std::uint64_t> PrecheckTracerCpuRecord::*figure;
-};
-
-constexpr std::array<CountSource, 5> kCountSources {{
-    {"nmi", &PrecheckTracerCpuRecord::nmi},
-    {"irq", &PrecheckTracerCpuRecord::irq},
-    {"softirq", &PrecheckTracerCpuRecord::softirq},
-    {"thread", &PrecheckTracerCpuRecord::thread},
-    {"hw", &PrecheckTracerCpuRecord::hardware},
-}};
-
 // One unsigned figure off one token; a token that parses as no number
 // answers nothing (R-07).
-auto countOfToken(const std::string& token) -> std::optional<std::uint64_t>
+auto countOfToken(std::string_view token) -> std::optional<std::uint64_t>
 {
   std::uint64_t figure = 0;
   const auto* begin = token.data();
@@ -306,11 +290,143 @@ auto countOfToken(const std::string& token) -> std::optional<std::uint64_t>
   return figure;
 }
 
-// The figures the count file of one cpu carries (R-07): the five
-// figures of the pinned format, `hw` mapping to `hardware`; a file
-// that states nothing stands every figure absent, and one malformed
-// line stands the whole file unparsable, every figure absent.
-auto figuresOfCpu(std::uint32_t cpu, const std::optional<std::string>& text)
+// The blank-separated tokens of one buffer line (FR-027): a blank line
+// answers no token, and no token stands empty.
+auto tokensOf(std::string_view line) -> std::vector<std::string_view>
+{
+  std::vector<std::string_view> tokens;
+  for (std::size_t at = 0; at < line.size();) {
+    const auto begin = line.find_first_not_of(" \t\r", at);
+    if (begin == std::string::npos) {
+      break;
+    }
+    const auto end = line.find_first_of(" \t\r", begin);
+    tokens.push_back(end == std::string::npos
+                         ? line.substr(begin)
+                         : line.substr(begin, end - begin));
+    at = end == std::string::npos ? line.size() : end + 1;
+  }
+  return tokens;
+}
+
+// Whether the token ahead of position `first` ends with the timestamp colon
+// both engines print ahead of their figures (FR-027). The caller stands a
+// token ahead of `first`.
+auto standsAnchored(const std::vector<std::string_view>& tokens,
+                    std::size_t first) -> bool
+{
+  return tokens.at(first - 1).back() == ':';
+}
+
+// Whether one token answers digits, one `.` and digits (FR-027): the shape
+// of the percent figure of an osnoise period line.
+auto decimalOf(std::string_view token) -> bool
+{
+  const auto dot = token.find('.');
+  if (dot == std::string_view::npos) {
+    return false;
+  }
+  return countOfToken(token.substr(0, dot)).has_value()
+      && countOfToken(token.substr(dot + 1)).has_value();
+}
+
+// The tail widths of the two line shapes: the nine figures of an osnoise
+// period line, and the six tokens of a timerlat activation line (FR-027).
+constexpr std::size_t kPeriodColumns = 9;
+constexpr std::size_t kActivationColumns = 6;
+
+// The counter columns stand the last five of the nine period figures,
+// positional in the order the line prints them (FR-027).
+constexpr std::size_t kCounterColumns = 5;
+constexpr std::size_t kShapeColumns = kPeriodColumns - kCounterColumns;
+
+// Whether the tokens from `first` answer the four shape figures of a
+// period line ahead of the counter columns: digits, digits,
+// digits-dot-digits and digits, behind a token that ends with the
+// timestamp colon (FR-027).
+auto periodShaped(const std::vector<std::string_view>& tokens,
+                  std::size_t first) -> bool
+{
+  if (!standsAnchored(tokens, first)) {
+    return false;
+  }
+  if (!countOfToken(tokens.at(first)).has_value()) {
+    return false;
+  }
+  if (!countOfToken(tokens.at(first + 1)).has_value()) {
+    return false;
+  }
+  if (!decimalOf(tokens.at(first + 2))) {
+    return false;
+  }
+  return countOfToken(tokens.at(first + 3)).has_value();
+}
+
+// The five counter figures of one period line's tail, in print order:
+// hardware, nmi, irq, softirq and thread. A tail token that answers no
+// figure answers nothing for the whole line (R-07).
+auto countersOfTail(const std::vector<std::string_view>& tokens,
+                    std::size_t first)
+    -> std::optional<std::array<std::uint64_t, kCounterColumns>>
+{
+  std::array<std::uint64_t, kCounterColumns> counters {};
+  for (std::size_t column = kShapeColumns; column < kPeriodColumns; ++column) {
+    const auto figure = countOfToken(tokens.at(first + column));
+    if (!figure.has_value()) {
+      return std::nullopt;
+    }
+    counters.at(column - kShapeColumns) = figure.value();
+  }
+  return counters;
+}
+
+// The context word of one timerlat activation line's tail: the six tail
+// tokens answer `#` and digits, `context`, `irq` or `thread`,
+// `timer_latency`, digits and `ns` with nothing following (FR-027). A tail
+// beside that shape answers nothing (R-07).
+auto activationContextOf(const std::vector<std::string_view>& tokens,
+                         std::size_t first) -> std::optional<std::string_view>
+{
+  const auto& sequence = tokens.at(first);
+  if (sequence.front() != '#') {
+    return std::nullopt;
+  }
+  if (!countOfToken(sequence.substr(1)).has_value()) {
+    return std::nullopt;
+  }
+  if (tokens.at(first + 1) != "context") {
+    return std::nullopt;
+  }
+  const auto& context = tokens.at(first + 2);
+  if (context != "irq" && context != "thread") {
+    return std::nullopt;
+  }
+  if (tokens.at(first + 3) != "timer_latency") {
+    return std::nullopt;
+  }
+  if (!countOfToken(tokens.at(first + 4)).has_value()) {
+    return std::nullopt;
+  }
+  if (tokens.back() != "ns") {
+    return std::nullopt;
+  }
+  return context;
+}
+
+// The figures the period lines of one cpu's buffer carry (FR-027, D-9,
+// D-11): a line stands one period line when it carries nine tokens behind a
+// token that ends with the timestamp colon, those nine answering digits,
+// digits, digits-dot-digits and six groups of digits, and a line whose first
+// character stands `#` stands a header line whatever its tail. The last five
+// of the nine stand the interference counters, positional in the order the
+// line prints them, and they sum into the hardware, nmi, irq, softirq and
+// thread figures, so a counter column that reads 0 on every parsed line
+// stands a filled 0. The first four stand the shape and answer no figure of
+// their own. A line beside that shape stands skipped, the standing rule that
+// no figure stands a guess (R-07). A buffer that carries no parsed line,
+// stands missing, or stands unreadable answers all five figures absent.
+auto osnoiseFiguresOfCpu(std::uint32_t cpu,
+                         const std::optional<std::string>& text)
     -> PrecheckTracerCpuRecord
 {
   PrecheckTracerCpuRecord record;
@@ -318,39 +434,123 @@ auto figuresOfCpu(std::uint32_t cpu, const std::optional<std::string>& text)
   if (!text.has_value()) {
     return record;
   }
-  std::array<bool, kCountSources.size()> seen {};
-  std::array<std::optional<std::uint64_t>, kCountSources.size()> counts;
+  std::uint64_t hardwareSum = 0;
+  std::uint64_t nmiSum = 0;
+  std::uint64_t irqSum = 0;
+  std::uint64_t softirqSum = 0;
+  std::uint64_t threadSum = 0;
+  std::uint64_t periods = 0;
   std::istringstream stream(*text);
   std::string line;
   while (std::getline(stream, line)) {
-    if (trimmedWordOf(line).empty()) {
+    if (!line.empty() && line.front() == '#') {
       continue;
     }
-    const auto colon = line.find(':');
-    if (colon == std::string::npos) {
-      return record;
+    const auto tokens = tokensOf(line);
+    if (tokens.size() < kPeriodColumns + 1) {
+      continue;
     }
-    const auto word = trimmedWordOf(line.substr(0, colon));
-    const auto count = countOfToken(trimmedWordOf(line.substr(colon + 1)));
-    bool matched = false;
-    for (std::size_t at = 0; at < kCountSources.size(); ++at) {
-      if (word == kCountSources[at].word) {
-        if (seen[at] || !count.has_value()) {
-          return record;
-        }
-        seen[at] = true;
-        counts.at(at) = count;
-        matched = true;
-        break;
-      }
+    const std::size_t first = tokens.size() - kPeriodColumns;
+    if (!periodShaped(tokens, first)) {
+      continue;
     }
-    if (!matched) {
-      return record;
+    const auto counters = countersOfTail(tokens, first);
+    if (!counters.has_value()) {
+      continue;
     }
+    hardwareSum += counters.value().at(0);
+    nmiSum += counters.value().at(1);
+    irqSum += counters.value().at(2);
+    softirqSum += counters.value().at(3);
+    threadSum += counters.value().at(4);
+    ++periods;
   }
-  for (std::size_t at = 0; at < kCountSources.size(); ++at) {
-    record.*kCountSources[at].figure = counts.at(at);
+  const bool any = periods > 0;
+  if (any) {
+    record.hardware = hardwareSum;
+    record.nmi = nmiSum;
+    record.irq = irqSum;
+    record.softirq = softirqSum;
+    record.thread = threadSum;
   }
+  SG_ENSURE(any == (record.hardware.has_value() && record.nmi.has_value()
+                    && record.irq.has_value() && record.softirq.has_value()
+                    && record.thread.has_value()),
+            "osnoiseFiguresOfCpu answers five figures beside a period line "
+            "and none beside no line");
+  return record;
+}
+
+// The figures the activation lines of one cpu's buffer carry (FR-027, D-10):
+// a line stands one activation line when it carries six tokens behind a
+// token that ends with the timestamp colon, those six answering `#` and
+// digits, `context`, a context word, `timer_latency`, digits and `ns` with
+// nothing following `ns`, and a line whose first character stands `#` stands
+// a header line whatever its tail. The `irq` word counts the irq figure and
+// the `thread` word counts the thread figure, the two counts standing
+// independent: no line looks for its pair. The engine states nothing for the
+// other three sources, so those figures stand absent whatever the buffer
+// holds (D-10). A line beside that shape stands skipped, the standing rule
+// that no figure stands a guess (R-07). A buffer that carries no parsed
+// line, stands missing, or stands unreadable answers the two counts absent.
+// Whether one timerlat record answers exactly the two counts beside a
+// parsed activation line and nothing beside none, the three figures the
+// engine states nothing for standing absent (FR-028, D-10).
+auto activationAnswered(const PrecheckTracerCpuRecord& record, bool any) -> bool
+{
+  const std::size_t present = static_cast<std::size_t>(record.irq.has_value())
+      + static_cast<std::size_t>(record.thread.has_value())
+      + static_cast<std::size_t>(record.nmi.has_value())
+      + static_cast<std::size_t>(record.softirq.has_value())
+      + static_cast<std::size_t>(record.hardware.has_value());
+  return present == (any ? 2U : 0U);
+}
+
+auto timerlatFiguresOfCpu(std::uint32_t cpu,
+                          const std::optional<std::string>& text)
+    -> PrecheckTracerCpuRecord
+{
+  PrecheckTracerCpuRecord record;
+  record.cpu = cpu;
+  if (!text.has_value()) {
+    return record;
+  }
+  std::uint64_t irqs = 0;
+  std::uint64_t threads = 0;
+  std::uint64_t counted = 0;
+  std::istringstream stream(*text);
+  std::string line;
+  while (std::getline(stream, line)) {
+    if (!line.empty() && line.front() == '#') {
+      continue;
+    }
+    const auto tokens = tokensOf(line);
+    if (tokens.size() < kActivationColumns + 1) {
+      continue;
+    }
+    const std::size_t first = tokens.size() - kActivationColumns;
+    if (!standsAnchored(tokens, first)) {
+      continue;
+    }
+    const auto context = activationContextOf(tokens, first);
+    if (!context.has_value()) {
+      continue;
+    }
+    if (context.value() == "irq") {
+      ++irqs;
+    } else {
+      ++threads;
+    }
+    ++counted;
+  }
+  const bool any = counted > 0;
+  if (any) {
+    record.irq = irqs;
+    record.thread = threads;
+  }
+  SG_ENSURE(activationAnswered(record, any),
+            "timerlatFiguresOfCpu answers two figures beside an activation "
+            "line and keeps the three the engine states nothing for absent");
   return record;
 }
 
@@ -592,21 +792,22 @@ auto noiseTracerFigures(const NoiseTracerSession& session)
   std::vector<PrecheckTracerCpuRecord> figures;
   figures.reserve(session.cpus.size());
   for (const auto cpu : session.cpus) {
+    // All three engines read the per-cpu buffer text the kernel carries,
+    // one read per cpu for the run (FR-027, D-9). The read keeps no buffer
+    // of its own: it folds the text into the entry and answers (FR-018).
+    const auto text = readTracerFile("sys/kernel/tracing/per_cpu/cpu"
+                                     + std::to_string(cpu) + "/trace");
     if (session.engine == TracerEngine::HWLAT) {
-      // The detector names no count file, so the three figures come off
-      // the buffer text the detector wrote (FR-018, FR-027, A-6). The read
-      // keeps no buffer of the run's own: it folds the text into the entry
-      // and answers (FR-018).
-      figures.push_back(
-          gapFiguresOfCpu(cpu,
-                          readTracerFile("sys/kernel/tracing/per_cpu/cpu"
-                                         + std::to_string(cpu) + "/trace")));
+      // The detector's three figures come off the buffer text the detector
+      // wrote (FR-018, FR-027, A-6).
+      figures.push_back(gapFiguresOfCpu(cpu, text));
       continue;
     }
-    figures.push_back(
-        figuresOfCpu(cpu,
-                     readTracerFile("sys/kernel/tracing/osnoise/cpu"
-                                    + std::to_string(cpu))));
+    if (session.engine == TracerEngine::OSNOISE) {
+      figures.push_back(osnoiseFiguresOfCpu(cpu, text));
+      continue;
+    }
+    figures.push_back(timerlatFiguresOfCpu(cpu, text));
   }
   SG_ENSURE(figures.size() == session.cpus.size(),
             "noiseTracerFigures answers one entry per session cpu");
