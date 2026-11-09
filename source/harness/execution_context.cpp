@@ -814,6 +814,53 @@ auto WorkContext::stopToken() const noexcept -> const StopToken&
   return kToken;
 }
 
+namespace
+{
+
+// specs/045 BFW-002, D-18: the one wait-arm observer. A function-local
+// static carries it, the shape `placementSlot` gives the placement
+// function in this same archive, and the install stands before the
+// participants of a round start, so the thread start orders the read each
+// arrival makes and no arrival reads the slot while it stands written.
+auto waitArmObserverSlot() -> std::optional<detail::WaitArmObserver>&
+{
+  static std::optional<detail::WaitArmObserver> slot;
+  return slot;
+}
+
+// specs/045 FR-028, D-17: the one call the barrier makes for a waiting
+// arrival, at the head of the arm that arrival enters and after the
+// branch that answers a filling arrival. The observer names the arm, so
+// the record cannot come from a flag set before the mode chain, and no
+// call stands inside a spin loop: the cost of the production path stays
+// one load and one branch per waiting arrival, and nothing per iteration
+// (Principle VII, specs/020 plan.md:97).
+//
+// \pre none
+// \post the installed observer, when one stands, has been called with
+//       `arm`; the production path answers the call with nothing
+auto noteWaitArm(const WaitMode arm) -> void
+{
+  const detail::WaitArmObserver observer =
+      waitArmObserverSlot().value_or(nullptr);
+  if (observer != nullptr) {
+    observer(arm);
+  }
+}
+
+}  // namespace
+
+namespace detail
+{
+
+// specs/045 FR-028: install (or clear) the observer. The empty optional
+// restores the production path, which reads the slot and calls nothing.
+auto installTestWaitArmObserver(std::optional<WaitArmObserver> observer) -> void
+{
+  waitArmObserverSlot() = observer;
+}
+}  // namespace detail
+
 // E-04, FR-014: the participant count of the rounds stands fixed at the
 // construction call. A count of zero is refused there, because a round of
 // no participant can never stand full, so every later arrival would wait
@@ -881,18 +928,35 @@ auto ContextBarrier::arriveAndWait() -> void
   // entry, the parked mode at once, because the standard wait returns at once
   // on a value that has left the round it was given, and the spinning modes
   // after one hint. A `std::barrier` backs itself with the same standard wait
-  // as its fallback (Q-3).
+  // as its fallback (Q-3). Each arm opens with one `detail::noteWaitArm` call,
+  // which names that arm to the installed observer and answers nothing when no
+  // observer stands installed (specs/045 FR-028, D-17). The call names the arm
+  // of its own site and not `mode`, so a chain that routes a mode into another
+  // mode's arm shows in the record: the record answers the arm entered, which
+  // is the thing the wait-mode claim needs.
   const WaitMode mode = participantWaitMode();
   if (mode == WaitMode::SPIN) {
+    noteWaitArm(WaitMode::SPIN);
     do {
       pauseHint();
     } while (m_generation.load(std::memory_order_acquire) == enteredRound);
   } else if (mode == WaitMode::YIELD) {
+    noteWaitArm(WaitMode::YIELD);
     do {
       std::this_thread::yield();
     } while (m_generation.load(std::memory_order_acquire) == enteredRound);
   } else {
-    m_generation.wait(enteredRound);
+    noteWaitArm(WaitMode::BLOCK);
+    // The standard lets this wait return although the value it was given
+    // still stands. The two spinning arms answer that in their own exit
+    // condition, so this arm re-checks the same condition: a wake that
+    // answers nothing cannot end the wait while the round stands held
+    // (FR-014). The contract check below caught one such wake in three
+    // suite runs on this host on 2026-11-08, under load, and never on a
+    // build with this re-check.
+    while (m_generation.load(std::memory_order_acquire) == enteredRound) {
+      m_generation.wait(enteredRound);
+    }
   }
   SG_ENSURE(
       m_generation.load(std::memory_order_acquire) != enteredRound,

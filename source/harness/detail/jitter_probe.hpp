@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "spectrum.hpp"
 #include "speedgun-ng/benchmark.hpp"
 #include "speedgun-ng/counters_provider.hpp"
 
@@ -212,6 +213,17 @@ struct ProbeCpuState
   // flag below owns.
   JitterLatchSnapshot latch;
   std::atomic<bool> latchPublished {false};
+  // specs/045-merge-fixes BFW-005, D-20: the transform answer of this
+  // state's series, kept the first time a fold asks for it and read again by
+  // every later fold of the same series at the same step. The series fills
+  // by index inside the window and drops what exceeds the ring, so the kept
+  // prefix stands written and never written again, and both fold sites of a
+  // run read it after the probe stops: the answer cannot go stale under a
+  // fold. The step stands carried with the answer, because the resample that
+  // feeds the transform reads it, so a fold at another step recomputes.
+  // `mutable` keeps the two fold sites, which hold this state through a
+  // `const` pointer, as they stand.
+  mutable std::optional<SpectrumResult> spectrumAnswer;
   alignas(kCacheLineBytes) std::atomic<bool> stop {false};
 };
 

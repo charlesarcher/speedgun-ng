@@ -936,6 +936,56 @@ auto fwqResampleReachesThePeriodList() -> void
       });
 }
 
+// specs/045-merge-fixes BFW-005, SC-028: the transform of one probe cpu's
+// series runs once. The report record and the console fold each fold the same
+// state over the same kept prefix, and the transform over a full ring is the
+// standing cost of the sample (specs/043 R-6), so the answer of the first fold
+// stands kept in the state that owns the series. The row folds a scripted
+// series, plants a sentinel in the stored answer, folds again, and reads the
+// sentinel back: a build that computes the transform twice overwrites it with
+// the transform's own point count. A fold at another step reads another
+// resample and stands recomputed.
+auto theSpectrumAnswerFoldsOncePerProbeCpu() -> void
+{
+  const auto cpu = pickCpus(1).at(0);
+  sg::detail::ProbeCpuState state;
+  state.cpu = cpu;
+  state.method = sg::JitterMethod::FWQ;
+  state.series = {100, 200, 100, 200, 100};
+  state.seriesKept = state.series.size();
+  state.unitTimeNs = 100;
+
+  auto first = sg::detail::seriesStatsOf(state);
+  sg::detail::addSpectrumTo(state, first);
+  check(first.spectrumPoints != 0,
+        "theSpectrumAnswerFoldsOncePerProbeCpu: the first fold reads the "
+        "transform (FR-017, FR-018)");
+  check(state.spectrumAnswer.has_value()
+            && state.spectrumAnswer->stepNs == first.medianValue,
+        "theSpectrumAnswerFoldsOncePerProbeCpu: the answer of the first fold "
+        "stands kept beside the series it came from (BFW-005)");
+
+  constexpr std::uint64_t kSentinel = 987'654ULL;
+  state.spectrumAnswer->points = kSentinel;
+
+  auto second = sg::detail::seriesStatsOf(state);
+  sg::detail::addSpectrumTo(state, second);
+  check(second.spectrumPoints == kSentinel,
+        "theSpectrumAnswerFoldsOncePerProbeCpu: the second fold reads the "
+        "stored answer; a build that computes the transform twice loses the "
+        "sentinel (BFW-005, SC-028)");
+  check(second.periods.size() == state.spectrumAnswer->periods.size(),
+        "theSpectrumAnswerFoldsOncePerProbeCpu: the second fold keeps the "
+        "period list of the stored answer (BFW-005)");
+
+  auto otherStep = sg::detail::seriesStatsOf(state);
+  otherStep.medianValue = 50;
+  sg::detail::addSpectrumTo(state, otherStep);
+  check(otherStep.spectrumPoints != kSentinel,
+        "theSpectrumAnswerFoldsOncePerProbeCpu: a fold at another step reads "
+        "another resample and stands recomputed (BFW-005)");
+}
+
 // FR-017, FR-018, FR-025: the spectrum figures of a FWQ series above the
 // transform cap. 100,000 units of 1,000 ns stand above the 65,536-point
 // cap, so the resample fills the cap's bins. The row plants a 1 ms sine
@@ -1540,6 +1590,7 @@ auto main() -> int
   oneSampleSeriesReadsThatSample();
   fwqResampleReachesThePeriodList();
   fwqSpectrumReadsTheSeriesAboveTheCap();
+  theSpectrumAnswerFoldsOncePerProbeCpu();
   theSpectrumGuardsLeaveTheTransformUnread();
   precheckModeRunsTheSelectedMethod();
 

@@ -1175,3 +1175,675 @@ new` and `operator delete` in their own translation unit stand unregistered
 in the thread-sanitizer tree, because that runtime defines the same
 operators and the two definitions cannot link
 (`test/CMakeLists.txt:330` and the comments beside the other three).
+
+
+## Phase 14: Prove the barrier wait entry and repair the FWQ sample (owner order, 2026-11-08)
+
+**Input**: Owner order of 2026-11-08, on thrawn. Two rows stand open in
+this lane. `test/source/harness_context_barrier_test.cpp` proves a flat
+voluntary-switch count across a SPIN or YIELD round, and no reading in
+that fixture shows the participant reached its wait arm before the
+observer became the round's last arrival; a scheduled order can satisfy
+the assertion with no wait at all. `report_shape_fwq_ftq_sample` fails
+inside a full suite run and passes standalone, and no record names its
+cause. Short name: barrier-entry-fwq.
+
+This phase rides spec 045 as the owner directed. It adds no numbered
+spec, no option, no feature and no version reservation, and it replaces
+no earlier requirement, task row, ruling or record of this file. It adds
+FR-027 to FR-033, SC-019 to SC-028, D-16 to D-22, and the task rows
+BFW-001 to BFW-008 in `tasks.md`. In this phase "the record" names
+`specs/045-merge-fixes/results/barrier-fwq-closeout.md`; the pull-request
+body names the measured head. The barrier contract of
+`specs/020-execution-contexts-core` and the probe contract of
+`specs/043-fwq-ftq` stand unchanged.
+
+### Run-time binding (phase 14)
+
+- Base: `origin/master` at `2d4d8c57975a86db6c77536f7090aba2bdaf6417`
+  (version 0.34.0, report schema 1.16, harness SOVERSION 22, archive
+  SOVERSION 8, `git grep -c LCOV_EXCL -- source include` at 84, README
+  1002 lines against the cap of 1004). No open pull request stood at the
+  live check of 2026-11-08. The base SHA shall stand an ancestor of
+  `origin/master` at cut time, and the implement phase rechecks it.
+- Branch: `fix/barrier-entry-fwq`, cut from the latest `origin/master`.
+  The branch stood absent on the remote at the live check. When it
+  exists, the work inspects its head, reports, and stops for scope
+  reconciliation; it overwrites nothing and revives no merged branch.
+- One branch, one squashed commit, one pull request. The work never
+  merges and closes no issue.
+- Version, schema, harness SOVERSION and archive SOVERSION shall not
+  change. No public header changes. The wait-entry proof reaches no
+  public signature, no public layout and no exported symbol. When a
+  proof needs a public change, the work stops and reports.
+- Target host: thrawn, AMD Zen 5 Threadripper 9960X, 24 cores, 48
+  threads. Acceptance is local (G-20). Continuous-integration results
+  stand as diagnostics.
+- Line numbers in the earlier phases of this file name the state at
+  their own base. This phase finds every item by its symbol.
+
+### Scope (phase 14)
+
+In scope:
+
+- `test/source/harness_context_barrier_test.cpp`: the fixture, its
+  scenarios, its regression cases and its substitution evidence.
+- `source/harness/execution_context.cpp` and, when the proof needs one,
+  `source/harness/detail/internal.hpp`: the wait-arm observation seam,
+  the shape D-13 set and the `installTest*` family already carries.
+- `example/docs/fwq_ftq.cpp`, `test/source/harness_fwq_ftq_test.cpp` and
+  `test/source/harness_jitter_window_test.cpp`: the work the FWQ sample
+  runs and the unit proofs of the cause.
+- `source/harness/jitter_probe.cpp` and
+  `source/harness/detail/jitter_probe.hpp`: narrow edits only where a
+  proved FWQ cause stands there.
+- `tools/docs/report_shape.py`, its fixture tests, and the FWQ/FTQ block
+  of `docs/pages/harness.md`: only for a proved parser, shape or work
+  cause, and the example/page pair stays in sync.
+- `specs/045-merge-fixes/`, its `results/` records and its quickstart.
+
+Out of scope:
+
+- `test/CMakeLists.txt`, the coverage and DBC gate scripts, the CMake
+  presets, the continuous-integration configuration, `README.md`, the
+  shared schema and version files, and every public header. A cause that
+  reaches one of these stops the work and reports the needed scope.
+- `specs/041-counter-probe/`, `specs/046-hunter-topdown/` and
+  `specs/048-hwlat-probe` records;
+  `test/source/harness_hunt_cli_test.cpp`,
+  `test/source/harness_jitter_cli_test.cpp`, `test/example_run.sh`, its
+  fixtures, and the base-CLI matrix driver, data and fixtures.
+- Trace-line parsing (G-28, approved and standing), raw event codes
+  (G-31) and automatic ranks (G-32). This phase implements none of them.
+- Any timeout ceiling, retry, allowance, marker, filter or gate setting.
+  The 110 s grant in `tools/docs/report_shape.py` and the 120 s ceiling
+  of `report_shape_fwq_ftq_sample` stand as they are.
+
+### User scenarios (phase 14)
+
+#### US-8 A maintainer reads a wait-arm entry, and a last arrival (Priority: P1)
+
+A maintainer reads the barrier fixture and finds, for every SPIN, YIELD
+and BLOCK round, a record that the participant entered the wait arm its
+own policy names, taken after the participant's arrival made it a
+non-last arrival and before the observer arrived. The arrival that
+fills the round publishes no record.
+
+**Why this priority**: the flat voluntary-switch count is the evidence
+that a wait mode costs no sleep. A flat count over a round that never
+waited proves nothing about the mode, so the mode claim of specs/020
+D-03 and Q-3 stands unproven until the entry stands shown.
+
+**Independent test**: the `spinWait`, `yieldWait` and `insideOutside`
+scenarios of `harness_context_barrier_test` each publish one entry
+record, and each of the four substitutions FR-029 names fails its
+scenario in all 240 runs of the stress matrix.
+
+**Acceptance scenarios**:
+
+1. **Given** a SPIN participant and an observer that has not yet
+   arrived, **When** the participant's arrival stands counted and its
+   wait arm stands entered, **Then** the observer sees the entry record
+   before it arrives, and the round's release follows that arrival.
+2. **Given** the same fixture, **When** a reader removes the wait arm a
+   mode names, **Then** that mode's scenario fails on every run, and the
+   failure names the missing record.
+3. **Given** a round whose last arrival fills it, **When** the reader
+   counts the entry records of that round, **Then** the filling arrival
+   stands with no record, and the scenario that holds this case stays
+   separate from the three wait-mode scenarios.
+
+#### US-9 A user runs the docs FWQ example through the shape gate (Priority: P1)
+
+A user runs `report_shape_fwq_ftq_sample` inside a full suite run, in a
+two-cpu pinned run and in a four-cpu run, and the entry answers the same
+way it answers standalone: the example exits 0 and the recorded block
+matches the run by shape. No repeat and no larger wall allowance stands
+needed.
+
+**Why this priority**: the page-drift gate is a hard gate (VIII), and a
+page that quotes an example the suite cannot run carries no evidence.
+
+**Independent test**: the release tree runs
+`ctest --test-dir build -R report_shape_fwq_ftq_sample`, and the same
+entry runs inside each acceptance lane of the local-acceptance section
+below.
+
+**Acceptance scenarios**:
+
+1. **Given** the measured head, **When** the entry runs inside a full
+   parallel suite, inside the two-cpu pinned suite and inside the
+   four-cpu suite, **Then** it exits 0 in each lane, and the record
+   gives its wall time per lane.
+2. **Given** the cause the record names, **When** a reader asks for the
+   time budget, **Then** the record gives the calibration figures, the
+   probe cpu list, the pre-check window, the child exit, the timeout
+   source and the concurrency context of the run that failed.
+3. **Given** the fix, **When** the reader compares the example region
+   with the page block, **Then** `tools/docs/example_drift.py` exits 0,
+   and the method word, the calibration group and the series lines keep
+   their shape.
+
+#### US-10 A reviewer reads acceptance at the shipped commit (Priority: P2)
+
+A reviewer reads one record and finds every required lane measured at
+the SHA the pull request ships, with its counts, its cold rows and its
+push proof. No row stands called final at an earlier SHA.
+
+**Why this priority**: G-23 makes the squashed head the measured head,
+and a record that names an earlier head carries no acceptance.
+
+**Independent test**: the record names one SHA, `git rev-parse HEAD`
+equals it, the tracked tree stands clean, and
+`git ls-remote origin refs/heads/fix/barrier-entry-fwq` equals it.
+
+**Acceptance scenarios**:
+
+1. **Given** the squashed head, **When** each required lane command
+   runs, **Then** the record names that SHA beside the command, the
+   exit and the counts.
+2. **Given** any later change to a tracked file, **When** the work
+   commits it, **Then** every required lane runs again at the new head,
+   and the record names the new SHA.
+
+### Edge cases (phase 14)
+
+- The observer's own arrival is the round's last arrival in every
+  measured scenario. The arrival that fills a round waits on nothing,
+  so it enters no arm and publishes no entry record. A proof that reads
+  one arm record for every arrival is wrong.
+- A participant that stands preempted between its arrival and its wait
+  arm can reach the arm behind the release. The gate holds the
+  observer's arrival until the record or the participant's departure
+  stands published, so the release cannot precede the entry.
+- A build that removes an arm answers twice in the same run: the gate
+  opens on the departure and the scenario names the missing record, and
+  the barrier's own postcondition at
+  `source/harness/execution_context.cpp:897-899` ends the child by
+  `SIGABRT`, because the contract semantic stands `enforce` in every
+  required tree.
+- A hook that runs before the call, a read of the participant's `entered`
+  flag, and a hook that runs before the mode chain decides an arm each
+  fail this requirement: none of the three shows the arm the participant
+  entered.
+- A wrong-arm substitution that fails on some runs and passes on others
+  is inadequate. The regression cases gate the observer's arrival on the
+  entry record, so the substituted arm answers the same way every run.
+- The legitimate no-wait case stands separate: a delayed participant
+  that arrives last fills the round and waits on nothing. It keeps its
+  own scenario and its own expectation.
+- No scenario adds a sleep, a wall-time threshold, a time-source read or
+  a fake cpu. The gap that holds a round open stays a fixed count of
+  steps checked against its own sum.
+- The thread-sanitizer tree slows every instrumented access. The entry
+  record rides an atomic, so the sanitizer sees one release and one
+  acquire, and the stress matrix of the local-acceptance section reports
+  the entry's runs in that tree.
+- The FWQ sample carries two grants: the 110 s the script gives the
+  child and the 120 s `ctest` gives the entry. A record that names one
+  of them names which. A child killed by the script grant exits through
+  the script's failure line, and an entry killed by the `ctest` ceiling
+  prints `***Timeout`; the two readings differ.
+- A standalone pass establishes no root cause. The diagnosis reads the
+  suite form, the pinned form and the instrumented form, and keeps the
+  child's stderr, the cpu set and the calibration figures of each.
+- The example region stands quoted in `README.md` and its recorded run
+  stands in `docs/pages/harness.md`. An example edit that changes a
+  quoted line needs the `README.md` block in the same change, and
+  `README.md` stands out of this phase's scope. Such an edit stops the
+  work and reports the scope it needs; O-7 carries the one such edit the
+  diagnosis found.
+
+### Requirements (phase 14)
+
+- **FR-027** (BFW-001): When the phase starts, the work shall reproduce
+  the barrier fixture's behavior on the base and separate four things
+  the fixture now holds together: the test handshake, the entry flag,
+  the status-file read, and the barrier's real behavior. The
+  record shall state the happens-before edges a wait-mode claim needs,
+  in terms of the release and acquire operations that carry them, and
+  shall show which of those edges the fixture at the base holds and
+  which it lacks. No ordering claim shall rest on a fixed loop, a wall
+  duration, a log timing or a count of successful repeats.
+- **FR-028** (BFW-002): The wait-entry proof shall observe the wait arm
+  the participant enters, at a point inside that arm and after
+  the barrier state requires a wait. The call site shall stand once per
+  waiting arrival, at the head of the arm, after the branch that answers
+  a filling arrival, and no call shall stand inside a spin loop. The
+  observation shall reach the observer through a release store and an
+  acquire load. The seam shall
+  stand internal: no public header, no public signature, no public
+  layout and no exported symbol shall change, and the installed
+  observer shall stand clearable. The seam shall follow the shape D-13
+  and the `installTest*` family carry: declared in an internal header,
+  defined beside the barrier, installed by a test and cleared with an
+  empty optional. The phase shall keep the SPIN, YIELD and BLOCK arms,
+  their release and acquire edges, and the last-arrival release
+  semantics as specs/020 states them.
+- **FR-029** (BFW-003): The fixture shall carry the entry proof in four
+  named scenarios: `spinWait`, `yieldWait`, `insideOutside` and `round`.
+  The first three shall gate the observer's arrival on the entry record
+  of the arm their own policy names. `round` shall carry the case of the
+  arrival that fills the round: it waits on nothing and publishes no
+  record. The entry gate holds the round open across the fixed step gap,
+  so a delayed observer needs no scenario of its own. Four substitutions
+  stand required, each a build of the phase head with one arm changed: a
+  SPIN participant given the BLOCK wait, a YIELD participant given the
+  BLOCK wait, a participant that runs on no context given a spinning arm,
+  and one arm removed. Each substitution shall fail its scenario in every
+  run of the 240-run matrix in the release tree, and the record shall
+  carry the patch, the command and the failure line. An arm-body swap
+  stands outside the set, and O-6 carries it with the tool that would
+  close it. No case shall add a sleep, a time-source read, a CPU-time
+  threshold or a fake cpu.
+- **FR-030** (BFW-004): The work shall run the FWQ sample on the current
+  code in three forms, the full parallel suite, the two-cpu pinned suite,
+  and the `ci-coverage` tree, and shall record what each form shows: the
+  child's stderr, the child's exit, which grant ended the run, the cpu
+  set the run held, the calibration figures and work count, the pre-check
+  window, and the resource and concurrency context. The record shall
+  distinguish the 110 s grant of `tools/docs/report_shape.py` from the
+  120 s ceiling of `ctest`. A form that passes stands recorded as a
+  comparison, and a pass answers no cause. The symptom of record stands
+  the corsairone `ci-coverage` reading: 110.21 s with the child timed out
+  by the script grant.
+- **FR-031** (BFW-005): The fix shall address the cause FR-030 proves,
+  with bounded and meaningful work in the test or the example, or with a
+  production correction where the proof names a production cause. The
+  fix shall keep the FWQ and FTQ calibration, the console and schema
+  shape, and the method disclosure intact. A unit proof shall drive the
+  cause through scripted time and legitimate internal inputs, and a real
+  example run shall stand identified as a separate check. The fix shall
+  not remove the tested method, skip the comparison, ignore a failure,
+  add a retry, or raise either timeout. The fix shall carry a regression
+  case, and an example change shall keep the example and the page block
+  in sync.
+- **FR-032** (BFW-006): Every required local acceptance command shall
+  run at the final squashed head, and the pull-request body, or one
+  untracked artifact beside it, shall name that head beside each
+  reading. The tracked record carries dated rows labeled preliminary
+  with the head each was taken at. The lanes, the stress matrix and the coverage
+  reading stand in the local-acceptance section below. A lane that a
+  host refuses stands recorded as blocked with the command and the
+  refusal; an equivalent mask is no substitute. A base failure stands
+  identified and open.
+- **FR-033** (BFW-007): The phase shall open one pull request whose body
+  names the measured SHA, the evidence, the cold rows and the push
+  proof. After every push, `git ls-remote origin
+  refs/heads/fix/barrier-entry-fwq` shall equal `git rev-parse HEAD`.
+  The work shall not merge the pull request and shall close no issue.
+
+### Success criteria (phase 14)
+
+- **SC-019**: Each of `spinWait`, `yieldWait` and `insideOutside`
+  publishes one entry record naming the wait arm its own policy names,
+  and the arrival that fills the round publishes none. Each record
+  stands published before the observer's arrival in every run of the
+  stress matrix.
+- **SC-020**: Each of the four substitutions FR-029 names, applied to a
+  build of the phase head, fails its scenario in all 240 runs of the
+  matrix in the release tree, and the record carries the patch, the
+  command and the failure line. The unmodified head passes the same 240
+  runs with zero failures in the release tree and in the
+  thread-sanitizer tree.
+- **SC-021**: `report_shape_fwq_ftq_sample` exits 0 in the full parallel
+  suite, in the two-cpu pinned suite and in the four-cpu suite at the
+  measured head, and the record gives its wall time in each. The entry
+  also exits 0 in the sanitizer, thread-sanitizer and instrumented lanes
+  on thrawn, where the base already passes inside the grant. The
+  example's calibration group, series lines and method word keep their
+  shape, and `tools/docs/example_drift.py` exits 0.
+- **SC-022**: The record names the FWQ cause with the measurements that
+  separate it from the three alternatives: the 110 s grant of
+  `tools/docs/report_shape.py`, which answers `the run failed` and exit 1
+  from the script; the 120 s `ctest` ceiling of `test/CMakeLists.txt`,
+  which answers `***Timeout`; and a shape finding, the recorded reading
+  `sample output block holds 156 lines, the run printed 125`. Or it names
+  the row unresolved with the next precise experiment and its expected
+  reading. An unreproduced failure stands unresolved, and no claim of a
+  fix stands made for it.
+- **SC-023**: The coverage reading at the measured head gives its
+  numerator, denominator, branch shortfall and marker count, and the
+  shortfall stands at or below 21 with no new marker, filter, allowance
+  or ignore-error class. Every cold row stands listed with its file,
+  line, arms and evidence.
+- **SC-024**: The record gives one count line per lane with its passed,
+  failed, did-not-run and timeout figures, the cheap-gate exits, the
+  host and tool versions, the commands and the exit codes. The stress
+  matrix rows stand listed with their failures, and the deterministic
+  proof stands separate from the stress readings.
+- **SC-025**: The record separates the four things FR-027 names, each by
+  its symbol, and states which happens-before edges the fixture at the
+  base holds and which it lacks. The statement names no fixed loop, wall
+  duration, log timing or repeat count as support.
+- **SC-026**: The pull-request body names the measured head, the
+  evidence, the cold rows and the push proof, and after each push
+  `git ls-remote origin refs/heads/fix/barrier-entry-fwq` equals
+  `git rev-parse HEAD`. No tracked file carries the SHA of its own
+  commit.
+- **SC-027**: The seam stands internal and clearable: the diff names no
+  file under `include/`, an empty optional clears the slot, and a
+  `BUILD_SHARED_LIBS=ON` install read of `.dynsym` shows no new
+  `sg::detail` name against the standing export count of 250. The call
+  stands once per waiting arrival at the head of an arm, and no call
+  stands inside a spin loop.
+- **SC-028**: The FWQ fix carries a unit case that drives a scripted
+  window, folds one probe cpu twice, and reads the stored transform
+  answer between the two folds. The case fails a build that computes the
+  transform twice, and it passes at the phase head in the release tree
+  and in the `ci-coverage` tree.
+
+### Local acceptance (phase 14)
+
+Acceptance is local (G-20) on thrawn. Before any pinned run the work
+records `sched_getaffinity` and the online cpu list. A test chooses a
+real allowed cpu. The required lane is `taskset -c 0,1`; when cpus 0 and
+1 stand outside the allowed set, that lane stands recorded as blocked
+with the refusal, and a run on another allowed pair stands as extra
+evidence. A run on four real allowed cpus also stands required.
+
+Required lanes at the measured head:
+
+1. A fresh full release suite (`ci-rocky`), configured, built and run
+   whole.
+2. The same suite under `taskset -c 0,1`.
+3. The same suite on four real allowed cpus.
+4. The `ci-sanitize` tree.
+5. The `ci-tsan` tree.
+6. The `ci-coverage` tree through the `coverage` target and the gate.
+7. The cheap gates: format, spell, the prose gate over the range and
+   over the tree, example drift, example run, time-source, the DBC
+   documentation and pairing gates, the analyzer build, and the
+   downstream consumer build.
+
+The stress matrix stands predeclared here. The barrier entry runs 240
+times with 8 in flight in the release tree and in the
+thread-sanitizer tree, the protocol phase 13 ran:
+
+```
+seq 1 240 | xargs -P 8 -I{} build/test/harness_context_barrier_test
+seq 1 240 | xargs -P 8 -I{} build/tsan/test/harness_context_barrier_test
+```
+
+The direct-binary form with 8 in flight is the shape the phase 13
+counts stand taken at: 62 failures in 480 runs of the branch's own
+binary, 0 in 240 and 1 in 960 of the fixed binary, and 12 of 20 rounds
+taking a wait arm before the fix.
+
+The FWQ entry runs 20 times in the release tree, one `ctest`
+invocation per run:
+
+```
+seq 1 20 | xargs -I{} ctest --test-dir build -R '^report_shape_fwq_ftq_sample$'
+```
+
+The record lists every failure of the matrix. The scenario readings of
+SC-019 stand reported apart from these counts, and the four substitution
+counts of SC-020 stand listed with them.
+
+Coverage stands measured under the rules of phase 13: 100 percent lines
+and branches subject only to the accepted R-1, R-2 and W-1 exceptions, a
+tree-wide branch shortfall at or below 21, and at or below 84 markers.
+The two approved closed-enum `BR` markers on `switch (slot.source)` in
+`source/counters/linux_pmu/group_io.cpp` stay narrow. No new
+`LCOV_EXCL` marker, ignore-error class, omit or remove pattern, widened
+filter, allowance or host lcovrc bypass stands added, and G-25's removal
+stays gone.
+
+No test of this phase uses a sleep, a wall-clock threshold or a fake
+cpu. The phase uses the deterministic seams the repository already
+carries, plus the one seam FR-028 allows.
+
+### Commit and record rules (phase 14)
+
+- History, authors and footers of earlier work stand as they are
+  (G-26, G-27). New commits carry author and committer `OmO`, and the
+  prose follows ASD-STE100. No new person name and no user home path
+  stands in a tracked record; the LICENSE exemption stands. Tracked
+  paths name `$HOME` or a build-relative root.
+- One squashed commit carries the phase. Title: `<Section>: <one-line
+  imperative>` at 50 characters or fewer. Body lines: 72 columns or
+  fewer. Footer, as real trailers in order:
+  `Refs: specs/045-merge-fixes BFW-001 to BFW-007` then
+  `Approved-by: OmO`.
+  The two lanes stand in that one commit: both answer the two open rows
+  of one spec, no file stands in both, and reverting that one commit
+  returns both rows together. The order follows the landed history of this
+  repository, as phase 13 recorded. The commit carries no `Fixes #n`:
+  no tracking issue stands for either row, and the body says so.
+- During the work, each change pairs with its test, and the record
+  `results/barrier-fwq-closeout.md` carries reproducible commands and
+  dated interim findings, each labeled preliminary with its SHA.
+- The work fetches `origin`, rebases onto the latest `origin/master`,
+  and never merges. It finishes the tracked code, tests, docs and
+  records, squashes the branch into one commit, requires a clean tracked
+  tree, and saves `git rev-parse HEAD` as the measured head. Every
+  required lane then runs at that head, and its readings stand in the
+  pull-request body or an external untracked artifact. No tracked file
+  carries its own SHA. A change to a tracked file after a measurement
+  produces a new squashed head and a fresh run of every required lane.
+- First push: `git push -u origin fix/barrier-entry-fwq`. Each later
+  push saves the expected full remote SHA, requires it to equal the last
+  observed value, and uses
+  `git push --force-with-lease=fix/barrier-entry-fwq:<expected-full-sha>`.
+  A failed lease stops the work and stands reported; the lease stands
+  never refreshed and retried. After each push `git ls-remote origin
+  refs/heads/fix/barrier-entry-fwq` shall equal `git rev-parse HEAD`.
+- `.specify/feature.json` stays a local file and stands out of the pull
+  request.
+- No new continuous-integration change, gate or exclusion approval stands
+  in this phase.
+
+### Decisions (phase 14)
+
+- **D-16 (reuse)**: the phase rides spec 045 as the owner directed. Both
+  rows stand in the lane this spec already carries, and a new numbered
+  spec would split the record of that lane.
+- **D-17 (the arm entered)**: the proof reads the wait arm entered.
+  An arrival count, a flag set before the call, and a hook before the
+  mode chain each stand short of the claim, so the seam stands inside
+  the arm the participant takes.
+- **D-18 (seam shape)**: the seam follows D-13 and the `installTest*`
+  family: an internal declaration, a definition beside the barrier, an
+  installed observer, and an empty optional that clears it. The
+  production path keeps its arms, its ordering and its cost shape, and
+  the observer stands reachable only from a test translation unit.
+- **D-19 (cause before fix)**: FR-027 and FR-030 precede FR-028, FR-029
+  and FR-031 in the same branch, so the record shows the gap and the
+  failure first, then the proof and the fix, then the clean reading.
+- **D-20 (bounded work)**: the FWQ fix bounds the work the unit proofs
+  carry, or the production path the proof names. A timeout ceiling, a
+  retry and a widened allowance stand outside the fix, because they hide
+  the row and answer no cause. An example edit that changes a quoted line
+  needs the `README.md` block in the same change, and `README.md` stands
+  out of this phase's scope, so such an edit stops the work and reports
+  the scope it needs.
+- **D-21 (unresolved is a result)**: when the FWQ failure does not
+  reproduce, the row stands unresolved with the next precise experiment.
+  A pass in one lane stands recorded as a pass in that lane, and no
+  claim of a fixed failure stands made from it.
+- **D-22 (a caught violation is a finding)**: when a contract check fires
+  on the production path during this phase's own runs, the branch fixes
+  the path and records what was seen, the runs that show it and the runs
+  that do not. A test that fails in some loaded suite runs stands outside
+  acceptance, and a skip, a retry and a widened allowance stand outside
+  the fix.
+
+### Clarifications (phase 14)
+
+#### Round 1, 2026-11-08
+
+The clarification pass read the phase against the fixture, the barrier,
+the gate configuration and the recorded lane readings at `2d4d8c57`.
+
+- Q: Which artifact names the measured head, when a tracked file carries
+  no SHA of its own commit? (FR-032, SC-024, SC-026, US-10) → A: the
+  pull-request body, or one untracked artifact under `$HOME/scratch/bfw/`,
+  carries the measured head with its readings. The tracked record carries
+  the commands and the dated interim findings, each labeled preliminary
+  with its SHA. The records-only amend route phase 13 took stands closed
+  to this phase.
+- Q: In which lanes does the stress matrix run, and which command gives
+  240 runs with 8 in flight? (local acceptance) → A: the release tree and
+  the thread-sanitizer tree, the direct-binary form phase 13 ran:
+  `seq 1 240 | xargs -P 8 -I{} build/test/harness_context_barrier_test`
+  and the same over `build/tsan`. `ctest --repeat` knows only
+  `until-fail`, `until-pass` and `after-timeout`, so no `ctest` form of
+  this count exists.
+- Q: How many substitutions does SC-020 name, and does an arm-body swap
+  stand inside the set? (FR-029, SC-020) → A: four arm-level rows: one
+  row per mode that hands that mode another mode's arm, and one row that
+  removes an arm. An arm-body swap stands outside the set, and O-6
+  carries it with the tool that would close it.
+- Q: Do the delayed participant and the delayed observer each need their
+  own scenario? (FR-029, US-8) → A: superseded by round 2, which settled
+  four named scenarios. The delayed participant stands carried by the
+  filling arrival of `round`, and the entry gate holds the round open
+  across the fixed step gap, so a delayed observer needs no scenario of
+  its own. The three wait-mode cases already hold the
+  delayed-observer shape, because the observer gates its own arrival on
+  the entry record. `scenarioRound` is the home of the last-arrival case.
+- Q: Must the FWQ failure reproduce in all three forms? (FR-030) → A: no.
+  Each form runs and each stands recorded. Measured at the base on
+  thrawn: 19.18 s standalone in the release tree, 17.80 s standalone
+  under `taskset -c 0,1`, 24.29 s to 25.52 s inside a full `-j 24`
+  release suite, and 50.31 s standalone in the instrumented tree against
+  58.59 s inside that lane. SC-022 and D-21 keep an unreproduced row
+  unresolved.
+- Q: Does the phase owe a pass for the FWQ entry in the sanitizer,
+  thread-sanitizer and instrumented lanes? (SC-021) → A: yes on thrawn,
+  where the base passes inside the grant at 24.58 s, 49.07 s and 58.59 s.
+  The 110.21 s reading on corsairone stands as that host's limit and
+  answers nothing here.
+- Q: Who checks that no exported symbol changes, when no required lane
+  runs a symbol audit? (FR-028) → A: hidden visibility
+  (`CMakeLists.txt:130`) and the local audit phase 13 reproduced: the new
+  `sg::detail` names stand absent from `.dynsym`, and the export count
+  stands at 250. No new lane runs.
+- Q: Where does the seam call stand inside an arm shaped as a loop, and
+  does one extra load per arrival break the cost shape? (FR-028, D-18) →
+  A: one call per waiting arrival at the head of the arm, after the
+  branch that answers a filling arrival
+  (`source/harness/execution_context.cpp:859-896`). A call per spin
+  iteration would be a regression: `:873` fixes the cost model, and
+  `specs/020-execution-contexts-core/plan.md:97` names the barrier a P0
+  path.
+- Q: Does the installed-or-clear branch cost a cold row against a ledger
+  at 20 of an allowance of 21? (SC-023) → A: it counts, and the fixture
+  takes both arms, install and clear, so the net new cold rows read
+  zero. The headroom stands at one row.
+- Q: Does the filling arrival publish a record that names no arm?
+  (SC-019) → A: it publishes no record. The seam call stands after the
+  branch that answers a filling arrival, and the separate scenario
+  asserts the absence, with exactly one record per waiting participant.
+- Q: Does FR-027 ask for a fixture split, and does it bar the fixed step
+  gap? (FR-027) → A: it asks for a written separation. The record names
+  each of the four things by its symbol: `observer.ready` with
+  `watch(observer.go)`, `observer.entered`, `readStatus` with
+  `stateCharOf`, and `barrier.arriveAndWait`. The fixed step gap stays,
+  and the ordering claim rests on the entry gate.
+- Q: Which alternatives does SC-022 name? (SC-022, FR-030) → A: three.
+  The 110 s grant of `tools/docs/report_shape.py:368`, the 120 s `ctest`
+  ceiling of `test/CMakeLists.txt:2197`, and a shape finding such as a
+  block count that disagrees with the printed lines
+  (`results/acceptance-corsairone-cov.md:133-135`); that third class
+  reaches a page whose run prints one noise warning per noisy planned
+  cpu (`source/harness/report.cpp:1736-1752`) while the fold's host
+  condition list carries no mask for the line.
+
+#### Round 2, 2026-11-08
+
+The second pass read the phase against the code at `2d4d8c57` and
+against the round-1 answers, and the phase then rewrote the passages
+that contradicted an answer.
+
+- Q: Does the arrival that fills the round publish a record that names
+  no arm? (SC-019, US-8) → A: it publishes no record. The seam call
+  stands after the branch at `source/harness/execution_context.cpp:859`,
+  so a reader counts the records of a round and finds none for that
+  arrival.
+- Q: Which artifact names the measured head? (FR-032, US-10, SC-026) →
+  A: the pull-request body, or one untracked artifact beside it. The
+  tracked record carries dated rows labeled preliminary with the head
+  each was taken at.
+- Q: Does FR-030 require a reproduction? (FR-030, SC-022) → A: it
+  requires the three forms to run and each to stand recorded. Measured
+  at the base on thrawn: the release suite answers 24.29 s, 25.14 s and
+  25.52 s in three runs; the two-cpu pinned suite answers 17.54 s with
+  190 of 190 passed; 20 pinned runs of the entry answer 13.36 s to
+  18.50 s; the `ci-coverage` tree answers 50.31 s standalone and 55.92 s
+  inside its lane. The failure stands unreproduced on this host, and the
+  corsairone reading of 110.21 s, the child timed out by the script
+  grant, stands as the symptom of record.
+- Q: What does a missing record answer with, and can the gate wait
+  forever? (edge cases) → A: the gate opens on the record or on the
+  participant's departure, so no scenario waits on a record that cannot
+  arrive. A removed arm also trips the postcondition at
+  `source/harness/execution_context.cpp:897-899`, and the contract
+  semantic stands `enforce` in every required tree
+  (`cmake/dbc.cmake:24`).
+- Q: How many scenarios carry the proof, and what are they named?
+  (FR-029) → A: four, named as the fixture names them: `spinWait`,
+  `yieldWait`, `insideOutside` and `round`. The entry gate holds the
+  round open across the fixed step gap, so a delayed observer needs no
+  scenario of its own.
+- Q: How many substitutions, in which trees, at what count? (FR-029,
+  SC-020) → A: four rows, 240 runs each in the release tree. The
+  unmodified head owes 240 clean runs in the release tree and in the
+  thread-sanitizer tree. The arm-body swap stands outside the set, and
+  O-6 carries it.
+- Q: Who reads the exported-symbol clause of FR-028? (FR-028, SC-027) →
+  A: one reading, not a lane: a `BUILD_SHARED_LIBS=ON` install under
+  `$HOME/scratch`, then `nm -D --defined-only` over the installed
+  object, expecting no new `sg::detail` name against the standing 250
+  exports.
+- Q: Which alternatives does SC-022 separate? (SC-022) → A: the script
+  grant, the `ctest` ceiling, and a shape finding, each named with the
+  line it prints.
+
+The pass also settled three terms. The fixture's `entered` flag stands
+called the entry flag, the act of changing one arm in a build stands
+called a substitution, and `ci-coverage` names the instrumented tree.
+
+### Assumptions (phase 14)
+
+- thrawn is the host of record: 48 online cpus, all 48 in the affinity
+  mask, kernel 7.3.0-5-cachyos, GCC and gcov 16.2.1, clang 23.1.3, lcov
+  2.6-0, cmake and ctest 4.4.4 at the live check of 2026-11-08.
+- The owner rulings G-20, G-23, G-25, G-26, G-27, G-28, G-29, G-31 and
+  G-32 sit outside this repository; the order of 2026-11-08 carries
+  their operative content, and this phase cites them from it.
+- The `gh` credential of this machine stands absent at the live check, so
+  the pull request opens through the owner's credential when the branch
+  and its record stand ready. The branch, the push proof and the body
+  text stand delivered either way.
+
+### Open, owner (phase 14)
+
+- **O-5 (the two grants)**: the 110 s grant inside
+  `tools/docs/report_shape.py` and the 120 s `ctest` ceiling of
+  `report_shape_fwq_ftq_sample` stand unchanged by this phase. A change
+  to either stands outside the scope FR-031 allows, and the owner owns
+  that decision.
+- **O-6 (the arm-body swap gate)**: the fixture's entry record names the
+  arm the code path enters, so it answers a substituted arm and a removed
+  arm. It cannot separate two arms whose bodies stand swapped: the record
+  still names the arm, and both spinning bodies keep the voluntary-switch
+  count flat. The only deterministic tool for that class is a disassembly
+  gate over `ContextBarrier::arriveAndWait` with a planted-swap liveness
+  probe, the shape `test/loop_shape.sh` and `test/barrier_shape.sh`
+  carry. That tool needs a new script and a new entry in
+  `test/CMakeLists.txt`, and this phase edits neither. The class stands
+  open for the owner.
+- **O-7 (the example's ring bound)**: the diagnosis found the sample's
+  cost dominated by the transform over a ring the example sets to its
+  default. Bounding that ring in `example/docs/fwq_ftq.cpp` answers the
+  cost, and the region stands quoted byte for byte in `README.md`, so the
+  edit needs one line there. `README.md` stands out of this phase's
+  scope, so the bound stands reported here and the owner owns it.
+- **O-8 (the probe's time base)**: the probe's per-cpu figures carry
+  names in nanoseconds while the read that fills them answers raw
+  counter ticks. On this host the two differ by a factor of 4.19. The
+  row stands outside this phase, which changes no time base, and the
+  owner owns it.
+- O-1 to O-4 of this spec stand unchanged by this phase.
