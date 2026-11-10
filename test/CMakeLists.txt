@@ -220,6 +220,26 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/simulation_mark_shape.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}
   )
 
+  # Ignore-semantic compile gate (052 T005; FR-002, FR-003, FR-005, FR-006):
+  # a helper whose only call stands inside a postcondition is a used name at
+  # the enforce semantic and an unused one at the ignore semantic, so a
+  # release consumer's build is the only place that reads the difference. The
+  # script compiles source/harness/noise_tracer.cpp and
+  # example/docs/hunt_ranks.cpp itself for each compiler on PATH that targets
+  # x86-64, once per contract semantic, under -Werror on the unused-function
+  # and unused-variable warnings, and each file compiles in its own step so a
+  # failing first step cannot hide the reading of the second. A planted probe
+  # names a scratch copy whose name feeds only a postcondition: that copy
+  # fails the semantic-0 compile and passes the semantic-2 compile, so a clean
+  # run cannot come from a scan that inspects nothing. Same pure-script
+  # registration pattern as the two neighbors; the script exits 0 clean, 1
+  # naming the count, and 0 with a skip line where no compiler on PATH targets
+  # x86-64.
+  add_test(
+    NAME ignore_contracts_shape
+    COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/ignore_contracts_shape.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}
+  )
+
   # Tier and budget audit of the registration (030 T010; FR-026, FR-031,
   # FR-047, FR-048): the tier label and the time budget are set by the two
   # blocks at the end of the file, where no compiler reads them, so this
