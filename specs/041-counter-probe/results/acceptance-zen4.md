@@ -101,9 +101,10 @@ or compiler processes: 0`, so no window stands void and no run needs a re-take
 The load average carries no numeric bound: `chilly` is a workstation with a
 standing desktop load, and that character is the reading beside every witness
 in this record (`Z4-041-001`).
-The witness line counts build and test process names. The trace tools the plan
-names (`perf`, `strace`, `bpftrace`, `trace-cmd`) stand absent on this host, so
-the count covers the classes this host can host.
+The witness line of `$HOME/z4/p1/driver.sh` counts the build and test class by
+name (`ctest`, `cc1plus`, `cc1`, `gcc`, `g++`, `as`, `ninja`, `make`). The
+trace class the plan names (`perf`, `strace`, `bpftrace`, `trace-cmd`) is not
+installed on this host, and no trace process ran in any measured window here.
 
 The three consoles print one limit line, so the limit figure repeats across the
 three-run group. The iteration counts read 1823728121, 1792858378 and
@@ -155,11 +156,11 @@ No tracer ran, so both figures stand derived. The walk is the example's own.
 The size-`7` step has two readings that follow from the same lines, and this
 record states which one it prints. A size pays one open call per copy, and only
 a refusal stops the copies of that size
-(`example/docs/counter_probe.cpp:293-296`), so the `28` opens stand for both
-readings. The 7th read stands where all seven opens of size `7` landed and the
-leader read answered a multiplexed pair, the pair the fit test reads at
-`:308-309`; a refusal inside size `7` answers the same `probe=6` with `28`
-opens and `6` reads. This record prints `28` and `7`, because the standing AMD
+(`example/docs/counter_probe.cpp:293-296`). A refusal inside size `7` pays at
+most 7 opens there, a total between 22 and 27 opens, and 6 reads. The pair
+`28` opens and `7` reads stands on the no-refusal reading, where all seven
+opens of size `7` land and the leader read answers the pair the fit test reads
+at `:308-309`. This record prints `28` and `7`, because the standing AMD
 proof record measures the no-refusal condition on this vendor at
 `results/requirement-1-zen5-paranoid2.txt:53` ("No refusal up to k = 96. Every
 group open answered 0."), and `results/requirement-1-zen5-paranoid2.txt:58`
@@ -226,14 +227,17 @@ only (ruling G-20).
 The final-head rows of `Z4-001` stand in the pull-request body and not in this
 record. `Z4-000.7` of `tasks.md` places the `Z4-001` re-run rows in the body of
 `Z4-001.3` and keeps them out of every record file. The final sweep stands at
-`$HOME/z4/p3/` on head `24e379266e6fa49119972ef1000db23effa5d8c5`, its host-fact
-re-read in `$HOME/z4/p3/facts-reread.log`, and its rows answer in the
-pull-request body. The suite counts repeat between the two passes of `Z4-001`
+`$HOME/z4/p6/`, the sweep at the head named in the pull-request body; its
+host-fact re-read prints that head in `$HOME/z4/p6/facts-reread.log`, and its
+rows answer in the pull-request body. The suite counts repeat between the two passes of `Z4-001`
 (190 entries, 189 passed, 0 failed, 1 skipped); durations do not repeat, each
 row carries its witness loadavg triple, and the standing fleet model service
-`/opt/strata/engine/strata --serve` runs beside the suite windows as this host's
-baseline; the entry-alone discriminator for the noise-sensitive shape test
-stands in `$HOME/z4/p3/shape-alone.log`. The two rows above stand on their own
+`/opt/strata/engine/strata --serve` runs beside the suite windows as this
+host's baseline; the service and load averages read in each capture's witness
+lines, `$HOME/z4/p1/suite-full.log` and `$HOME/z4/p1/suite-pinned.log` carry
+them for the rows above, and `$HOME/z4/p3/strata-witness.log` names the
+service. The entry-alone discriminator for the noise-sensitive shape test
+stands in `$HOME/z4/p6/shape-alone.log`. The two rows above stand on their own
 captures.
 
 ## Pending rows and boundaries (IA41-002, SC-010)

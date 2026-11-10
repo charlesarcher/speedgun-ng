@@ -1140,6 +1140,12 @@ Two reviewers read the spec against the code and against the gates. Rulings:
   `PERF_METRICS`, Intel hybrid, Arm, AMD Zen 4 and Zen 5 while no lane has a gap)
   stand as synthetic-test rows, and the report of the feature names them as
   pending rows.
+- **SC-010 Zen 4 row (2026-11-10)**: AMD Zen 4 stands measured on `chilly`
+  (family 25, model 97): the hunter reading stands at `1f1f9b20` in
+  `results/acceptance-zen4.md`, and the counter count parity stands in
+  `specs/041-counter-probe/results/acceptance-zen4.md`. The AMD Zen 4 entry of
+  the row above is answered by these two records; the `PERF_METRICS`, Intel
+  hybrid, and Arm entries stand pending.
 
 ## Constraints
 

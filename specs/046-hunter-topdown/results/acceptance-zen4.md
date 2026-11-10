@@ -15,10 +15,10 @@ all twelve hunt consoles, six of the documented shape and six of the multiplex
 group.
 
 Every capture of the first pass sits under `$HOME/z4/p1/`. The final-head sweep of
-the claimed set stands at `$HOME/z4/p3/` on head
-`24e379266e6fa49119972ef1000db23effa5d8c5`; its host-fact re-read prints that head
-in `$HOME/z4/p3/facts-reread.log`, and its claimed rows answer in the pull-request
-body. Every figure below names the command and the capture that printed it. A figure that moves from run to run prints as an
+the claimed set stands at `$HOME/z4/p6/`, the sweep at the head named in the
+pull-request body; its host-fact re-read prints that head in
+`$HOME/z4/p6/facts-reread.log`, and its claimed rows answer in the
+pull-request body. Every figure below names the command and the capture that printed it. A figure that moves from run to run prints as an
 instability reading and is claimed by no run, per the non-repeat clause of
 `Z4-046-001`.
 
@@ -58,9 +58,10 @@ capture `$HOME/z4/p1/build.log` runs 1076 lines and ends at
 this record takes the build as answered by the binaries it ran: every console prints
 `speedgun-ng 0.34.0 build=Release`.
 
-One capture that `Z4-000.3` names stands absent: `$HOME/z4/p1/version.log`. The
-version line it was to carry reads in the header of every hunt console, and
-`$HOME/z4/p1/facts.log` prints `VERSION 0.34.0`.
+The version line reads in the header of every console capture, and
+`$HOME/z4/p1/facts.log` prints `VERSION 0.34.0`; the build answers from
+`$HOME/z4/p1/cmake-configure.log` and `$HOME/z4/p1/build.log`, the captures
+`Z4-000.3` names.
 
 ## The commands
 
@@ -201,8 +202,10 @@ node whose formula names the event, else the list grouping, else `unmapped`.
 
 Every cell of every run starts `topdown.`, names one of the seven stems above, or reads
 `unmapped`. `Z4-046-002` answers on all twelve captures. The twelve grep counts and the cell-class
-totals above come from the captures themselves and from the figure file that
-`Z4-046-002.1` names, `$HOME/z4/p1/hunt-figures.txt`.
+totals above come from the captures themselves, from the six `huntmx-*.log`
+captures, and from the figure file that `Z4-046-002.1` names,
+`$HOME/z4/p1/hunt-figures.txt`, whose entries cover the six documented-shape
+consoles and the three isolation arms.
 
 ## The multiplex console group (Z4-046-001.1, Z4-046-002)
 
@@ -245,9 +248,11 @@ multiplex group agrees with the documented-shape group on every one of those fig
 ## The level-1 block (SC-007, Z4-046-001)
 
 The block prints after the ranked rows and before the summary line of its own benchmark.
-It prints once per benchmark, in the documented-shape consoles; the multiplex consoles
-print no level-1 block. Runs 2 and 3 print their blocks in their captures, and the
-record claims the cell readings of every run from those captures. The two blocks of
+It prints once per benchmark, in the documented-shape consoles and in the
+multiplex consoles alike: the five cells stand in every `huntmx-*.log` capture.
+The multiplex consoles print no rank-numbered rows. Runs 2 and 3 print their
+blocks in their captures, and the record claims the cell readings of every run
+from those captures. The two blocks of
 run 1 of each benchmark follow verbatim, with the ten table files and their digests
 inside:
 
@@ -404,8 +409,10 @@ host carried before the runs and after them.
   `87d745d6c7e62d4da80198c689ddc7078f08ff3d` and the closeout head
   `2d4d8c57975a86db6c77536f7090aba2bdaf6417` of `results/acceptance-final-intel.md`. No
   completed row reopens.
-- The `SC-010` AMD Zen 4 hardware row is answered by this record: the Zen 4 hunter
-  reading stands measured at `1f1f9b20` on `chilly`.
+- The `SC-010` AMD Zen 4 hardware row carries its dated row in the spec section
+  and answers from two records: the hunter reading stands measured at
+  `1f1f9b20` on `chilly`, and the counter count parity stands in
+  `specs/041-counter-probe/results/acceptance-zen4.md`.
 - The `SC-009` command-shape row needs no option on this host: the documented command
   completed, so the Zen 5 note that the shape needs `--metric-method multiplex` on that
   host keeps its own scope and gains no Zen 4 clause.

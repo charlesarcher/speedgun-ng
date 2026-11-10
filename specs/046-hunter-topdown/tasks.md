@@ -1658,18 +1658,22 @@ Ticks land in the one commit of the phase.
   six hunt consoles of the documented shape, the three probe runs, and the two
   suite rows, each with its witness, in the same windows; the identity and
   device facts re-read once. The multiplex group and the isolation arms stand
-  not re-run. Writes: `$HOME/z4/p3/`, the sweep at head
-  24e379266e6fa49119972ef1000db23effa5d8c5; the earlier pass at
-  `$HOME/z4/p2/` stands as a dry run at 273c960d, whose pinned row was voided
-  by the suite's own load and retaken. Verify: `git rev-parse HEAD` names `H`;
-  each sweep row matches its p1 row in shape and its counts repeat; durations
-  carry their witness loadavg and claim no repetition. Runs: after
-  Z4-001.1, sequential, each run alone.
+  not re-run. Writes: `$HOME/z4/p6/`, the sweep at the head named in the
+  pull-request body. The pass at `$HOME/z4/p3/` stands at 24e37926 as figures
+  published at completion, its captures overwritten by a driver path defect and
+  moved to `$HOME/z4/p4/`; the pass at `$HOME/z4/p2/` stands as a dry run at
+  273c960d, whose pinned row was voided by the suite's own load and retaken;
+  the pass at `$HOME/z4/p4/` stands superseded by the sweep at c22133e8
+  (p5), itself superseded by this p6 sweep. Verify:
+  `git rev-parse HEAD` names `H` and the manifest `HEAD=` line agrees; each
+  sweep row matches its p1 row in shape and its counts repeat; durations carry
+  their witness loadavg and claim no repetition. Runs: after Z4-001.1,
+  sequential, each run alone.
 - [ ] Z4-001.3 [US6 M10] Push and the pull request: `git push -u
   origin fix/zen4-acceptance`, later pushes with
   `--force-with-lease=fix/zen4-acceptance:<sha last pushed>` and the
   `git ls-remote` read-back; one pull request whose body prints the head and
-  the final-sweep rows from `$HOME/z4/p3/`: the six hunter consoles, the three
+  the final-sweep rows from `$HOME/z4/p6/`: the six hunter consoles, the three
   probe consoles, and the two suite rows, each figure labeled with the head it
   was measured at. Verify: the remote ref equals `H`; the merge stands open.
   Runs: after Z4-001.2.
