@@ -25,7 +25,7 @@ same source `affinityCount` at `test/source/harness_hunt_collect_test.cpp:1454`
 reads for FR-092.
 
 Both restricted runs drove one test at a time (no `ctest -j`) over the same
-test tree, `/home/archerc/sg029-lanes/r4b/build`, the first line of each log.
+test tree, `$HOME/sg029-lanes/r4b/build`, the first line of each log.
 Those two logs record no commit, so the commit pin below stands for the
 whole-suite run alone.
 
@@ -48,8 +48,8 @@ runs and no line reports a skip, which is the second clause of FR-092. The
 selection is eight because `-R hunt` matches
 `report_shape_hunt_rank_sample` beside the seven `harness_hunt_*` tests.
 
-Captured logs: `/home/archerc/sg029-lanes/t116-cpu2.log` and
-`/home/archerc/sg029-lanes/t116-cpu4.log`.
+Captured logs: `$HOME/sg029-lanes/t116-cpu2.log` and
+`$HOME/sg029-lanes/t116-cpu4.log`.
 
 ## 3. The whole suite beside them, and the one failure
 
@@ -73,7 +73,7 @@ carries no `TIMEOUT` property (`test/CMakeLists.txt:654` registers it bare), so
 1500 s is ctest's own default limit. Co-tenancy disclosure: seven concurrent
 `cmake --build -j 4` lanes stood on the box through the run, 28 build workers
 over the 24 CPUs. Captured log:
-`/home/archerc/sg029-lanes/t116-fullsuite.log`, byte-identical to
+`$HOME/sg029-lanes/t116-fullsuite.log`, byte-identical to
 `/tmp/h-tall.log`.
 
 ## 4. The eight tests across the three measurements
@@ -111,7 +111,7 @@ it at the boundary, so the threaded arm of that scenario really ran there.
 `/tmp/cli-only.log` holds the whole of a single-test re-run in two lines:
 
 ```text
-Test project /home/archerc/sg029-lanes/r4b/build
+Test project $HOME/sg029-lanes/r4b/build
     Start 65: harness_cli_test
 ```
 

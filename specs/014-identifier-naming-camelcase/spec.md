@@ -44,7 +44,7 @@ PC-2 holds. No local branch and no remote branch has a harness name.
 
 PC-4 holds. `CMakeLists.txt` sets the project version to 0.4.1 and the shared-object version to 1. `cmake/install-rules.cmake` writes `SameMinorVersion`. The follow-up documents call the shared-object version a hand-kept number. The rule at the audit point matches that account. FR-008 follows that rule.
 
-PC-3 does not hold. Continuous Integration run [37553123469](https://github.com/charlesarcher/speedgun-ng/actions/runs/37553123469) on the audit point finished with a format-check failure. The lint job listed 21 badly formatted files. Every other job was skipped. The audit point therefore has no passing test set, no remaining gate results, and no name-check finding count per translation unit.
+PC-3 does not hold. Continuous Integration run 37553123469 on the audit point finished with a format-check failure. The lint job listed 21 badly formatted files. Every other job was skipped. The audit point therefore has no passing test set, no remaining gate results, and no name-check finding count per translation unit.
 
 The 21 files are:
 

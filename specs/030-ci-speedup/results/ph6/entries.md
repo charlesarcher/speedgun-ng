@@ -27,12 +27,12 @@ already carried these names, and that list is untouched here.
 ```text
 $ cmake --preset=ci-ubuntu-test -B build/entries-on
 -- Generating done (0.4s)
--- Build files have been written to: /home/archerc/code/speedgun-ng/build/entries-on
+-- Build files have been written to: $HOME/code/speedgun-ng/build/entries-on
 exit 0
 
 $ cmake --preset=ci-coverage -B build/entries-off
 -- Generating done (0.5s)
--- Build files have been written to: /home/archerc/code/speedgun-ng/build/entries-off
+-- Build files have been written to: $HOME/code/speedgun-ng/build/entries-off
 exit 0
 ```
 
@@ -43,7 +43,7 @@ leaves it unset, so the guard registers nothing there (D-5).
 
 ```text
 $ ctest --test-dir build/entries-on -N -R dbc_matrix
-Test project /home/archerc/code/speedgun-ng/build/entries-on
+Test project $HOME/code/speedgun-ng/build/entries-on
   Test #21: dbc_matrix_off_o0
   Test #22: dbc_matrix_off_o2
   Test #23: dbc_matrix_on_o0
@@ -56,7 +56,7 @@ exit 0
 
 ```text
 $ ctest --test-dir build/entries-off -N -R dbc_matrix
-Test project /home/archerc/code/speedgun-ng/build/entries-off
+Test project $HOME/code/speedgun-ng/build/entries-off
 
 Total Tests: 0
 exit 0

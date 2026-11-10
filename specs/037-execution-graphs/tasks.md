@@ -94,7 +94,7 @@ release developer-mode build:
 - `cmake -D FORMAT_COMMAND=clang-format -P cmake/lint.cmake`,
   `cmake -P cmake/spell.cmake`, `cmake -P cmake/prose-lint.cmake`
 
-The lcov run needs `PERL5LIB=/home/archerc/perl5/lib/perl5` exported.
+The lcov run needs `PERL5LIB=$HOME/perl5/lib/perl5` exported.
 The suite runs `ctest -j 2` and passes under `taskset -c 0,1` and on a
 2-cpu host (FR-027).
 
@@ -1058,7 +1058,7 @@ wave 4 the full `ctest` matrix and the Phase 7 gates.
   `cmake --preset=ci-coverage`, `cmake --build build/coverage -j 24`,
   `ctest --test-dir build/coverage -j 1`,
   `cmake --build build/coverage -t coverage`, with
-  `PERL5LIB=/home/archerc/perl5/lib/perl5` exported for the lcov run. The
+  `PERL5LIB=$HOME/perl5/lib/perl5` exported for the lcov run. The
   figures read 100.0% lines and 100.0% branches over every new unit, no
   `LCOV_EXCL` marker joins, no new `--ignore-errors` entry joins, and the
   coverage plan of the plan stands driven arm by arm (FR-028, SC-007,

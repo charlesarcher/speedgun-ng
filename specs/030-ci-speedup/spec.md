@@ -1072,7 +1072,7 @@ carries each:
 
 ## Dependencies and Citations
 
-- `gh api` reads of `charlesarcher/speedgun-ng` actions runs: 39708015373
+- `gh api` reads of `<owner>/speedgun-ng` actions runs: 39708015373
   (`bd10d76`), 39910150207, 39883295074, 39941934864 (`d6d60f2`),
   40042928839 (`fea69c5`), 40135765542 (`7d8dfdd`), 40203022166
   (`f507b8f`, the base). Job and step durations come from

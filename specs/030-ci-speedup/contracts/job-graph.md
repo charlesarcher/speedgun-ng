@@ -75,7 +75,7 @@ lines and 97.5% branches, and `prose-lint` on one XI.2 finding (PC-10).
 ## Verify
 
 ```sh
-gh api repos/charlesarcher/speedgun-ng/actions/runs/<id>/jobs \
+gh api repos/<owner>/speedgun-ng/actions/runs/<id>/jobs \
   --jq '.jobs[] | [.name, .status, .conclusion,
         ((.completed_at | fromdate) - (.started_at | fromdate))] | @tsv'
 gh run view <id> --log-failed

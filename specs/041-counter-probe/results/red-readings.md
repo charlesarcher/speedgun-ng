@@ -9,7 +9,7 @@ The unit at `test/source/counters_group_probe_test.cpp` was written first, and t
 build of its target at the base answers:
 
 ```text
-/home/archerc/code/speedgun-ng/test/source/counters_group_probe_test.cpp:32:10: fatal error: ../source/counters/detail/group_probe.hpp: No such file or directory
+$HOME/code/speedgun-ng/test/source/counters_group_probe_test.cpp:32:10: fatal error: ../source/counters/detail/group_probe.hpp: No such file or directory
 ```
 
 The red reading is the missing declaration of

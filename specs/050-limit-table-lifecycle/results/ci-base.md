@@ -75,10 +75,10 @@ assertions, which this lane reads at
 ## The commands behind these lines
 
 ```text
-gh api 'repos/charlesarcher/speedgun-ng/actions/runs?head_branch=master&per_page=3'
-gh api repos/charlesarcher/speedgun-ng/actions/runs/42156116508/jobs
-gh run view --log-failed --job 127690738360 --repo charlesarcher/speedgun-ng
-gh api --allow-escape-sequences repos/charlesarcher/speedgun-ng/actions/jobs/<id>/logs
+gh api 'repos/<owner>/speedgun-ng/actions/runs?head_branch=master&per_page=3'
+gh api repos/<owner>/speedgun-ng/actions/runs/42156116508/jobs
+gh run view --log-failed --job 127690738360 --repo <owner>/speedgun-ng
+gh api --allow-escape-sequences repos/<owner>/speedgun-ng/actions/jobs/<id>/logs
 ```
 
 The three failed jobs read `127690738360` for `sanitize`, `127690738365` for

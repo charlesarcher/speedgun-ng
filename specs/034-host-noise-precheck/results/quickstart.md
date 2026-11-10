@@ -27,7 +27,7 @@ real scheduling signal stands unbounded by construction.
 ## The CI run of the pushed head
 
 The CI run of the pushed head
-[40621765799](https://github.com/charlesarcher/speedgun-ng/actions/runs/40621765799)
+run 40621765799
 closed green: `lint`, `test`, `test-rocky`, `sanitize`, `tsan`, the
 three `static-analysis` jobs, `coverage`, `dbc-gate`, `prose-lint`,
 `shared-audit`, `downstream-consumer`, and `consumer-release` all

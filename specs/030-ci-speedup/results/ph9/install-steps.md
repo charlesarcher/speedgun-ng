@@ -8,7 +8,7 @@ T049, T050, FR-035, FR-036, FR-037, SC-002).
 **Run id**: 40042928839, 39708015373, 39659845534, 40242340926, 40252253175 and
 40255220576.
 **Command**: `gh api
-repos/charlesarcher/speedgun-ng/actions/runs/<run>/jobs --paginate` through
+repos/<owner>/speedgun-ng/actions/runs/<run>/jobs --paginate` through
 `/tmp/instasum.js`, which sums each job's steps whose name matches `Install`,
 `toolchain` or `bootstrap`, and `gh run view --log --job=<job>` for the
 `actions/cache` lines quoted under What the cache lines say.

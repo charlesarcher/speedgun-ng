@@ -16,7 +16,7 @@ reported as it stands.
 ## The commands
 
 ```text
-cd /home/archerc/code/speedgun-ng
+cd $HOME/code/speedgun-ng
 cmake -D FORMAT_COMMAND=clang-format -P cmake/lint.cmake
 git diff --name-only
 python3 -c "import json;d=json.load(open('CMakePresets.json'));print([x['name'] for x in d['configurePresets']])"

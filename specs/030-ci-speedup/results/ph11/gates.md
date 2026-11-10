@@ -8,7 +8,7 @@ branch run; `fea69c5` for the master shape of the same lanes.
 **Run id**: 40259383390 attempt 1 and attempt 2 for the CI lanes, 40042928839 for
 master's lane walls.
 **Command**: the lines quoted in each section, run from the repository root;
-`gh api repos/charlesarcher/speedgun-ng/actions/runs/40259383390/attempts/<n>/jobs`
+`gh api repos/<owner>/speedgun-ng/actions/runs/40259383390/attempts/<n>/jobs`
 for the CI conclusions and job walls.
 **Numbers**: three text gates at exit 0, two contract tests in 1.70 s, fifteen CI
 jobs with twelve green, one skipped and two red at attempt 1, thirteen green and

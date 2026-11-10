@@ -22,7 +22,7 @@ feature head: each command, its exit code, and the lines it answered
 ## The graph file
 
 The chain the quickstart names stands at
-`/home/archerc/.hermes/cache/scratch/speedgun-quickstart-t048/stages.json`, the file's own bytes:
+`$HOME/.hermes/cache/scratch/speedgun-quickstart-t048/stages.json`, the file's own bytes:
 
 ```json
 {

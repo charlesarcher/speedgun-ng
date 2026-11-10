@@ -1,7 +1,7 @@
 # AC-10 hardware record: corsairone, hunter mode
 
 Date: 2026-10-22. Host: CorsairOne (Intel i9-9920X, Cascade Lake-W
-layout, single core device `cpu`). Tree: `/home/archerc/sg029-lanes/head-wt`
+layout, single core device `cpu`). Tree: `$HOME/sg029-lanes/head-wt`
 at commit `08ebe0a`, preset `ci-rocky`, release build. Binary:
 `build/example/first_benchmark`, the quickstart benchmark (one benchmark,
 `bmSum`). Every output below was captured in this session; exit statuses
@@ -19,7 +19,7 @@ Primary run (the AC-10 run):
 
 ```text
 $ cd /tmp/t060
-$ /home/archerc/sg029-lanes/head-wt/build/example/first_benchmark \
+$ $HOME/sg029-lanes/head-wt/build/example/first_benchmark \
     --hunt=all --json=/tmp/t060/hunt.json
 $ echo $?
 134
@@ -29,7 +29,7 @@ The abort killed stdio buffers, so the same invocation was repeated with
 line-buffered stdout to preserve whatever printed before the abort:
 
 ```text
-$ stdbuf -oL /home/archerc/sg029-lanes/head-wt/build/example/first_benchmark \
+$ stdbuf -oL $HOME/sg029-lanes/head-wt/build/example/first_benchmark \
     --hunt=all --json=/tmp/t060/hunt2.json > hunt2_out.txt 2> hunt2_err.txt
 $ echo $?
 134
@@ -39,7 +39,7 @@ $ cat hunt2_err.txt
 [assertion] every address with no refusal kind holds at least one sample
 free of a disclosure, the guard `statisticsOf` carries (predicate:
 !rates.empty() || event.skipped.has_value()) at
-/home/archerc/sg029-lanes/head-wt/source/harness/hunt_plan.cpp:246
+$HOME/sg029-lanes/head-wt/source/harness/hunt_plan.cpp:246
 $ # the shell reported: Aborted (core dumped), exit status 134
 ```
 
@@ -282,7 +282,7 @@ prose_gate.py: error: argument --mode: invalid choice: 'files' (choose from 'ran
 
 The gate's `tree` mode lists tracked files (`git ls-files`), so the
 record was gated on a snapshot copy under
-`/home/archerc/sg029-lanes/t060/pgate` (the tool, its rules file and
+`$HOME/sg029-lanes/t060/pgate` (the tool, its rules file and
 this record, nothing else). The first run reported one finding
 (XI2.CONTRASTIVE at an early revision of the opening paragraph); after
 that sentence was rewritten, the gate reads 0 findings on every
@@ -301,7 +301,7 @@ stood also reported 0 findings, pasted in the session report.)
 
 The hunter defect has a dedicated fixer (hwfix2) working in
 `source/harness/runner.cpp` and `source/harness/hunt.cpp`, checkpointing
-to `/home/archerc/.hermes/omo/waves/029-implement-hw/hwfix2.md`. This
+to `$HOME/.hermes/omo/waves/029-implement-hw/hwfix2.md`. This
 record waited for that fix with one bounded wait of 50 minutes, polling
 the checkpoint every 30 seconds for a line starting `STAGE 4`, `STAGE4`,
 `STOP WHEN MET` or `VERDICT`. The checkpoint file was never created
@@ -318,7 +318,7 @@ sources identical between them). The invocation, verbatim:
 
 ```text
 $ cd /tmp/t060
-$ stdbuf -oL /home/archerc/sg029-lanes/t060/wt/build/example/first_benchmark \
+$ stdbuf -oL $HOME/sg029-lanes/t060/wt/build/example/first_benchmark \
     --hunt=all --json=/tmp/t060/lane_all.json
 $ echo $?
 134
@@ -331,7 +331,7 @@ only difference the source path naming the second lane:
 [assertion] every address with no refusal kind holds at least one sample
 free of a disclosure, the guard `statisticsOf` carries (predicate:
 !rates.empty() || event.skipped.has_value()) at
-/home/archerc/sg029-lanes/t060/wt/source/harness/hunt_plan.cpp:246
+$HOME/sg029-lanes/t060/wt/source/harness/hunt_plan.cpp:246
 ```
 
 stdout again holds only the banner and `lane_all.json` was never
@@ -359,14 +359,14 @@ Date: 2026-10-23. Tree: `029-hunter-core` at `1f19e31` with the hunt
 slice uncommitted: `skippedOf` in `source/harness/hunt.cpp` answers
 `SkippedKind::ABSENT` for an address whose windows opened and yielded no
 rate, and the refusal route of `source/harness/cli.cpp` sets the failed
-flag its status comes from. Lane `/home/archerc/sg029-lanes/hwfix`,
+flag its status comes from. Lane `$HOME/sg029-lanes/hwfix`,
 preset `ci-rocky`, release build. Binary: `build/example/first_benchmark`,
 the same quickstart benchmark of §1, on the same host.
 
 ```text
-$ cd /home/archerc/sg029-lanes/ac10
-$ stdbuf -oL /home/archerc/sg029-lanes/hwfix/build/example/first_benchmark \
-    --hunt=all --json=/home/archerc/sg029-lanes/ac10/hunt.json \
+$ cd $HOME/sg029-lanes/ac10
+$ stdbuf -oL $HOME/sg029-lanes/hwfix/build/example/first_benchmark \
+    --hunt=all --json=$HOME/sg029-lanes/ac10/hunt.json \
     > out.txt 2> err.txt
 $ echo $?
 0

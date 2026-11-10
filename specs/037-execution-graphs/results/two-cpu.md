@@ -17,7 +17,7 @@ of the log, verbatim:
 
 ```
 $ taskset -c 0,1 ctest --test-dir build --output-on-failure
-Test project /home/archerc/code/speedgun-ng/build
+Test project $HOME/code/speedgun-ng/build
         Start   1: speedgun-ng_test
   1/151 Test   #1: speedgun-ng_test ...............................   Passed    0.00 sec
 ...

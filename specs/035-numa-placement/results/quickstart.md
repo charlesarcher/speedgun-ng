@@ -73,7 +73,7 @@ The 2-cpu single-node host stands out of reach like the `NPS2` and
 
 ## The CI run
 
-The pull request [#56](https://github.com/charlesarcher/speedgun-ng/pull/56)
+The pull request #56
 carries the branch, and the run of the pushed head `3d45dd7` reads
 green job by job (T027, run `40774867120`, read 2026-10-28 with a
 supplied token):

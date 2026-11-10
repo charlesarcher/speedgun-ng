@@ -102,7 +102,7 @@ dbc-gate / Test dbc gate fixtures
 ## The commands
 
 ```text
-cd /home/archerc/code/speedgun-ng
+cd $HOME/code/speedgun-ng
 python3 -c "import yaml; print(len(yaml.safe_load(open('.github/workflows/ci.yml'))['jobs']))"
 grep -c -- '-j 2' .github/workflows/ci.yml
 grep -c -- '-j "$(nproc)"' .github/workflows/ci.yml

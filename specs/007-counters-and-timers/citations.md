@@ -628,8 +628,8 @@ exits 0 and reports 734 lines carrying `warning:` and 0 carrying
 
 ```
 run-clang-tidy -p build/dev \
-  -header-filter='^/home/archerc/code/speedgun-ng/' \
-  -exclude-header-filter='^/home/archerc/code/speedgun-ng/external/' \
+  -header-filter='^$HOME/code/speedgun-ng/' \
+  -exclude-header-filter='^$HOME/code/speedgun-ng/external/' \
   -source-filter='.*/source/counters/.*' \
   $(find source/counters -name '*.cpp' | sort)
 ```
@@ -977,7 +977,7 @@ targets and 0 compile actions, which is why the Phase 39, Phase 40, and
 Phase 41 preambles each state no total.
 
 `cmake --preset=ci-ubuntu` exits 0 with `CMAKE_BUILD_TYPE:STRING=Release`
-and `CMAKE_CXX_CLANG_TIDY:UNINITIALIZED=clang-tidy;--header-filter=^/home/archerc/code/speedgun-ng/;--exclude-header-filter=^/home/archerc/code/speedgun-ng/external/`
+and `CMAKE_CXX_CLANG_TIDY:UNINITIALIZED=clang-tidy;--header-filter=^$HOME/code/speedgun-ng/;--exclude-header-filter=^$HOME/code/speedgun-ng/external/`
 in the cache. The 38 object files under `build/CMakeFiles`,
 `build/test/CMakeFiles`, and `build/example/CMakeFiles` were then
 deleted, the ci-ubuntu tree's own project targets, and 0 object or gcov

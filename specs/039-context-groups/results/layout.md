@@ -133,9 +133,9 @@ transcript spells them (FR-038).
 The capture, whole from `reports/layout.seam-ctest.txt`:
 
 ```
-UpdateCTestConfiguration  from :/home/archerc/code/speedgun-ng/build-w7a/DartConfiguration.tcl
-Parse Config file:/home/archerc/code/speedgun-ng/build-w7a/DartConfiguration.tcl
-Test project /home/archerc/code/speedgun-ng/build-w7a
+UpdateCTestConfiguration  from :$HOME/code/speedgun-ng/build-w7a/DartConfiguration.tcl
+Parse Config file:$HOME/code/speedgun-ng/build-w7a/DartConfiguration.tcl
+Test project $HOME/code/speedgun-ng/build-w7a
 Constructing a list of tests
 Done constructing a list of tests
 Updating test list for fixtures
@@ -145,8 +145,8 @@ Checking test dependency graph end
 test 97
     Start 97: harness_group_run_test
 
-97: Test command: /home/archerc/code/speedgun-ng/build-w7a/test/harness_group_run_test
-97: Working Directory: /home/archerc/code/speedgun-ng/build-w7a/test
+97: Test command: $HOME/code/speedgun-ng/build-w7a/test/harness_group_run_test
+97: Working Directory: $HOME/code/speedgun-ng/build-w7a/test
 97: Test timeout computed to be: 300
 97: harness_group_run_test core-four-groups: ok
 97: harness_group_run_test node-two-nodes: ok
@@ -220,7 +220,7 @@ document is decided, and the named test read green beside this record:
 
 ```
 $ ctest --test-dir build-w7a -R '^harness_group_layout_test$' --output-on-failure
-Test project /home/archerc/code/speedgun-ng/build-w7a
+Test project $HOME/code/speedgun-ng/build-w7a
     Start 94: harness_group_layout_test
 1/1 Test #94: harness_group_layout_test ........   Passed    0.01 sec
 

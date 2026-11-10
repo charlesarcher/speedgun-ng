@@ -99,9 +99,9 @@ name `ccache`, and the preset sets no `CCACHE_DIR`: the host default applies.
 
 ```console
 $ ccache -p | grep -E 'cache_dir|max_size'
-(default) cache_dir = /home/archerc/.cache/ccache
+(default) cache_dir = $HOME/.cache/ccache
 (default) max_size = 5.0 GiB
-$ du -sh /home/archerc/.cache/ccache
+$ du -sh $HOME/.cache/ccache
 566M
 ```
 

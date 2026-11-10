@@ -18,7 +18,7 @@ captured status now splits the two cases (FR-043, P-12).
 | --- | --- | --- | --- |
 | no argument | `bash tools/dbc/coverage_gate.sh` | `usage: coverage_gate.sh <coverage.info>` | 2 |
 | no tool | `LCOV= PATH=/usr/bin:/bin bash tools/dbc/coverage_gate.sh <info>` | `lcov is required` | 2 |
-| tool refusal, real | `/tmp/covg/short.info` through `/home/archerc/.local/bin/lcov` | `coverage-gate: lcov failed to read /tmp/covg/short.info (exit 1)` | 3 |
+| tool refusal, real | `/tmp/covg/short.info` through `$HOME/.local/bin/lcov` | `coverage-gate: lcov failed to read /tmp/covg/short.info (exit 1)` | 3 |
 | tool refusal, real | `/tmp/covg/broken.info` through the same `lcov` | `coverage-gate: lcov failed to read /tmp/covg/broken.info (exit 1)` | 3 |
 | measured shortfall | `/tmp/covg/short.info` through a substitute that prints the measure lines | `coverage-gate: line coverage is not 100%` | 1 |
 | tool exits 2, no measure | a substitute that prints nothing and exits 2 | `coverage-gate: lcov failed to read /tmp/covg/short.info (exit 2)` | 3 |

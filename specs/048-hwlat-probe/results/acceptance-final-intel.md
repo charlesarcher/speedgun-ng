@@ -215,7 +215,7 @@ the fixture tests, and the claim that this host saw none stands on this row alon
 | `clang-format` | 18.1.8 |
 | `codespell` | 2.4.3 |
 | `python3` on `PATH` | `/usr/bin/python3`, Python 3.14.8, PyYAML 6.0.3 |
-| gate target interpreter | `/home/archerc/.local/bin/python3.11`, CPython 3.11.16, no PyYAML |
+| gate target interpreter | `$HOME/.local/bin/python3.11`, CPython 3.11.16, no PyYAML |
 | `ccache`, `cmake`, `ctest` | 4.11.3, 4.4.2, 4.4.2 |
 
 One step of the lane's own script stood listed twice, and its second copy answered 127
@@ -337,7 +337,7 @@ That reading names load as its cause, and this run leaves the code unimplicated.
 | Time source | `bash test/time_source_gate.sh .` | 0 | no finding |
 | Prose, tree | `cmake -D PROSE_MODE=tree -D PROSE_CHECK=prose -P cmake/prose-lint.cmake` | 0 | 1082 sources, 209,402 units, 0 findings |
 | Prose, range | after the squash | | |
-| DBC target | `cmake --build build --target dbc-gate` | 2 | `dbc gates require PyYAML (install python3-yaml): No module named 'yaml'` from `/home/archerc/.local/bin/python3.11`, a host fact |
+| DBC target | `cmake --build build --target dbc-gate` | 2 | `dbc gates require PyYAML (install python3-yaml): No module named 'yaml'` from `$HOME/.local/bin/python3.11`, a host fact |
 | DBC doxygen | `doxygen build/dbc-gate/Doxyfile` | 0 | XML written |
 | DBC document gate | `/usr/bin/python3 tools/dbc/dbc_doc_gate.py ...` | 0 | `doc-gate: 349 interfaces, 0 gaps` |
 | DBC pair gate | `/usr/bin/python3 tools/dbc/dbc_pair_gate.py --src include/speedgun-ng --src2 source tools ...` | 0 | `pair-gate: 349 interfaces, 0 gaps` |
@@ -562,7 +562,7 @@ give the instrumented lanes a ceiling of their own, raise the 110 s grant in
 Forty-seven steps ran in the order of the plan and every one answered exit 0 except
 `cmake --build build --target dbc-gate`, which answers exit 2 with
 `dbc gates require PyYAML (install python3-yaml): No module named 'yaml'` from
-`/home/archerc/.local/bin/python3.11`, a host fact the first pass recorded too.
+`$HOME/.local/bin/python3.11`, a host fact the first pass recorded too.
 
 | Gate | Reading |
 |---|---|
@@ -1543,8 +1543,8 @@ Python3_EXECUTABLE:UNINITIALIZED=/usr/bin/python3
 exit 0 and the witness `1.66 2.50 2.86 1/1568 3095846`, and printed:
 
 ```text
-doc-gate: 349 interfaces, 0 gaps (/home/archerc/code/sg042-closeout/build/dev/dbc-gate/doc-matrix.json)
-pair-gate: 349 interfaces, 0 gaps (/home/archerc/code/sg042-closeout/build/dev/dbc-gate/pair-matrix.json)
+doc-gate: 349 interfaces, 0 gaps ($HOME/code/sg042-closeout/build/dev/dbc-gate/doc-matrix.json)
+pair-gate: 349 interfaces, 0 gaps ($HOME/code/sg042-closeout/build/dev/dbc-gate/pair-matrix.json)
 ```
 
 `f5-gates.log` then ran ten commands in one step and answered exit 2 at the

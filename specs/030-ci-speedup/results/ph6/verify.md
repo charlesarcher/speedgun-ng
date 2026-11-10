@@ -120,17 +120,17 @@ $ ctest --test-dir build/ph6-verify-on -N --show-only=json-v1 > /tmp/ph6-verify-
 $ ctest --test-dir build/ph6-verify-jobs -N --show-only=json-v1 > /tmp/ph6-verify-jobs.json
 $ python3 /tmp/ph6-verify-cmd.py /tmp/ph6-verify-on.json /tmp/ph6-verify-jobs.json
 tree=/tmp/ph6-verify-on.json matrix_entries=5
-  dbc_matrix_observe_off_o0 argc=5 script=semantics_matrix.sh dir=/home/archerc/code/speedgun-ng cell=dbc_matrix_observe_off_o0 jobs=2 PROCESSORS=2
-  dbc_matrix_off_o0 argc=5 script=semantics_matrix.sh dir=/home/archerc/code/speedgun-ng cell=dbc_matrix_off_o0 jobs=2 PROCESSORS=2
-  dbc_matrix_off_o2 argc=5 script=semantics_matrix.sh dir=/home/archerc/code/speedgun-ng cell=dbc_matrix_off_o2 jobs=2 PROCESSORS=2
-  dbc_matrix_on_o0 argc=5 script=semantics_matrix.sh dir=/home/archerc/code/speedgun-ng cell=dbc_matrix_on_o0 jobs=2 PROCESSORS=2
-  dbc_matrix_on_o2 argc=5 script=semantics_matrix.sh dir=/home/archerc/code/speedgun-ng cell=dbc_matrix_on_o2 jobs=2 PROCESSORS=2
+  dbc_matrix_observe_off_o0 argc=5 script=semantics_matrix.sh dir=$HOME/code/speedgun-ng cell=dbc_matrix_observe_off_o0 jobs=2 PROCESSORS=2
+  dbc_matrix_off_o0 argc=5 script=semantics_matrix.sh dir=$HOME/code/speedgun-ng cell=dbc_matrix_off_o0 jobs=2 PROCESSORS=2
+  dbc_matrix_off_o2 argc=5 script=semantics_matrix.sh dir=$HOME/code/speedgun-ng cell=dbc_matrix_off_o2 jobs=2 PROCESSORS=2
+  dbc_matrix_on_o0 argc=5 script=semantics_matrix.sh dir=$HOME/code/speedgun-ng cell=dbc_matrix_on_o0 jobs=2 PROCESSORS=2
+  dbc_matrix_on_o2 argc=5 script=semantics_matrix.sh dir=$HOME/code/speedgun-ng cell=dbc_matrix_on_o2 jobs=2 PROCESSORS=2
 tree=/tmp/ph6-verify-jobs.json matrix_entries=5
-  dbc_matrix_observe_off_o0 argc=5 script=semantics_matrix.sh dir=/home/archerc/code/speedgun-ng cell=dbc_matrix_observe_off_o0 jobs=3 PROCESSORS=3
-  dbc_matrix_off_o0 argc=5 script=semantics_matrix.sh dir=/home/archerc/code/speedgun-ng cell=dbc_matrix_off_o0 jobs=3 PROCESSORS=3
-  dbc_matrix_off_o2 argc=5 script=semantics_matrix.sh dir=/home/archerc/code/speedgun-ng cell=dbc_matrix_off_o2 jobs=3 PROCESSORS=3
-  dbc_matrix_on_o0 argc=5 script=semantics_matrix.sh dir=/home/archerc/code/speedgun-ng cell=dbc_matrix_on_o0 jobs=3 PROCESSORS=3
-  dbc_matrix_on_o2 argc=5 script=semantics_matrix.sh dir=/home/archerc/code/speedgun-ng cell=dbc_matrix_on_o2 jobs=3 PROCESSORS=3
+  dbc_matrix_observe_off_o0 argc=5 script=semantics_matrix.sh dir=$HOME/code/speedgun-ng cell=dbc_matrix_observe_off_o0 jobs=3 PROCESSORS=3
+  dbc_matrix_off_o0 argc=5 script=semantics_matrix.sh dir=$HOME/code/speedgun-ng cell=dbc_matrix_off_o0 jobs=3 PROCESSORS=3
+  dbc_matrix_off_o2 argc=5 script=semantics_matrix.sh dir=$HOME/code/speedgun-ng cell=dbc_matrix_off_o2 jobs=3 PROCESSORS=3
+  dbc_matrix_on_o0 argc=5 script=semantics_matrix.sh dir=$HOME/code/speedgun-ng cell=dbc_matrix_on_o0 jobs=3 PROCESSORS=3
+  dbc_matrix_on_o2 argc=5 script=semantics_matrix.sh dir=$HOME/code/speedgun-ng cell=dbc_matrix_on_o2 jobs=3 PROCESSORS=3
 [exit status: 0]
 ```
 

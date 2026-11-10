@@ -240,9 +240,9 @@ Observed runs on `master`, from `gh run list --branch master --limit 12`:
 
 | Run | Head | Conclusion | Why it is not the baseline |
 | --- | --- | --- | --- |
-| [37553123469](https://github.com/charlesarcher/speedgun-ng/actions/runs/37553123469) | `6d32efcab3c13c3d41470c1c621d78839ce11543` | failure | Audit point. The lint job failed. Every other job was skipped. |
-| [37533305027](https://github.com/charlesarcher/speedgun-ng/actions/runs/37533305027) | `daa4b6db8c46783d7f0ad05190d246ffc5abcfef` | failure | `test`, `test-rocky`, `sanitize`, `coverage`, and `tsan` failed. |
-| [37175047162](https://github.com/charlesarcher/speedgun-ng/actions/runs/37175047162) | `6aafd2dc8a1310ee335820ad8dc4dedd0eb0ae17` | success | Last green run. It predates the counters work FR-013 renames. |
+| run 37553123469 | `6d32efcab3c13c3d41470c1c621d78839ce11543` | failure | Audit point. The lint job failed. Every other job was skipped. |
+| run 37533305027 | `daa4b6db8c46783d7f0ad05190d246ffc5abcfef` | failure | `test`, `test-rocky`, `sanitize`, `coverage`, and `tsan` failed. |
+| run 37175047162 | `6aafd2dc8a1310ee335820ad8dc4dedd0eb0ae17` | success | Last green run. It predates the counters work FR-013 renames. |
 
 Predecessor, before any rename commit:
 

@@ -90,7 +90,7 @@ runs, and it sits outside CI.
 ## The commands
 
 ```text
-cd /home/archerc/code/speedgun-ng
+cd $HOME/code/speedgun-ng
 python3 - <<'PY'
 import json, re, yaml
 text = open('.github/workflows/ci.yml').read()

@@ -37,7 +37,7 @@ the ordinary host load.
 - load command line: none
 
 ```sh
-stdbuf --output=0 /home/archerc/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 --jitter-probe=0\,method=fwq\,mode=precheck\,precheck=10000\,gaps=10485760 
+stdbuf --output=0 $HOME/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 --jitter-probe=0\,method=fwq\,mode=precheck\,precheck=10000\,gaps=10485760 
 ```
 
 Exit status: 139
@@ -121,7 +121,7 @@ The figures of this section:
 - load command line: `taskset -c 16 sh -c 'while :; do :; done'`
 
 ```sh
-stdbuf --output=0 /home/archerc/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 --jitter-probe=0\,method=fwq\,mode=precheck\,precheck=10000\,gaps=10485760 
+stdbuf --output=0 $HOME/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 --jitter-probe=0\,method=fwq\,mode=precheck\,precheck=10000\,gaps=10485760 
 ```
 
 Exit status: 139
@@ -204,7 +204,7 @@ The figures of this section:
 - load command line: none
 
 ```sh
-stdbuf --output=0 /home/archerc/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 --jitter-probe=8\,method=fwq\,mode=precheck\,precheck=10000\,gaps=10485760 
+stdbuf --output=0 $HOME/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 --jitter-probe=8\,method=fwq\,mode=precheck\,precheck=10000\,gaps=10485760 
 ```
 
 Exit status: 139
@@ -288,7 +288,7 @@ The figures of this section:
 - load command line: `taskset -c 24 sh -c 'while :; do :; done'`
 
 ```sh
-stdbuf --output=0 /home/archerc/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 --jitter-probe=8\,method=fwq\,mode=precheck\,precheck=10000\,gaps=10485760 
+stdbuf --output=0 $HOME/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 --jitter-probe=8\,method=fwq\,mode=precheck\,precheck=10000\,gaps=10485760 
 ```
 
 Exit status: 139
@@ -371,7 +371,7 @@ The figures of this section:
 - load command line: none
 
 ```sh
-stdbuf --output=0 /home/archerc/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 --jitter-probe=0\,method=ftq\,mode=precheck\,precheck=10000\,gaps=131072 
+stdbuf --output=0 $HOME/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 --jitter-probe=0\,method=ftq\,mode=precheck\,precheck=10000\,gaps=131072 
 ```
 
 Exit status: 0
@@ -485,7 +485,7 @@ The figures of this section:
 - load command line: `taskset -c 16 sh -c 'while :; do :; done'`
 
 ```sh
-stdbuf --output=0 /home/archerc/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 --jitter-probe=0\,method=ftq\,mode=precheck\,precheck=10000\,gaps=131072 
+stdbuf --output=0 $HOME/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 --jitter-probe=0\,method=ftq\,mode=precheck\,precheck=10000\,gaps=131072 
 ```
 
 Exit status: 0
@@ -598,7 +598,7 @@ The figures of this section:
 - load command line: none
 
 ```sh
-stdbuf --output=0 /home/archerc/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 --jitter-probe=8\,method=ftq\,mode=precheck\,precheck=10000\,gaps=131072 
+stdbuf --output=0 $HOME/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 --jitter-probe=8\,method=ftq\,mode=precheck\,precheck=10000\,gaps=131072 
 ```
 
 Exit status: 0
@@ -712,7 +712,7 @@ The figures of this section:
 - load command line: `taskset -c 24 sh -c 'while :; do :; done'`
 
 ```sh
-stdbuf --output=0 /home/archerc/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 --jitter-probe=8\,method=ftq\,mode=precheck\,precheck=10000\,gaps=131072 
+stdbuf --output=0 $HOME/code/speedgun-ng/build/example/benchmark_example --filter=bmTouch --min-time=10 --repetitions=1 --jitter-probe=8\,method=ftq\,mode=precheck\,precheck=10000\,gaps=131072 
 ```
 
 Exit status: 0

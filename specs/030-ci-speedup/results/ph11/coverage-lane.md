@@ -9,7 +9,7 @@ that follows `80de3f9`.
 **Run id**: 39708015373 and 40042928839 for master, 40242340926, 40252253175 and
 40255220576 for the branch.
 **Command**: `gh api
-repos/charlesarcher/speedgun-ng/actions/jobs/<job>` for the `Test` step's
+repos/<owner>/speedgun-ng/actions/jobs/<job>` for the `Test` step's
 `started_at` and `completed_at`, and `gh run view --log --job=<job>` for the
 `ctest` line each step ran.
 **Numbers**: 326 s and 334 s at `-j 2` on master, 229 s and 228 s at `-j 1` on
@@ -121,7 +121,7 @@ point", which is what this run is.
 Excluding one entry from the lane was offered as the fix that stays inside FR-041.
 It is measured here, and there is no single entry to exclude. A throwaway
 instrumented tree of this head (`ci-coverage` preset at
-`/home/archerc/sg030-t57/attrib`) was rebuilt with only the hunt targets, each
+`$HOME/sg030-t57/attrib`) was rebuilt with only the hunt targets, each
 entry was run alone after `find -name '*.gcda' -delete`, and the per-function
 counts came from `gcov --json-format -j hunt_plan.cpp.gcda`, which reports
 gcov's own function records: the maximum `execution_count` among the functions of

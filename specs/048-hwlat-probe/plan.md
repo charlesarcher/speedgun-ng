@@ -1159,7 +1159,7 @@ figures of the primary pair at the final head.
      keep the watchdog rule applied once, at
      `source/counters/linux_pmu/limit_fill.cpp:93`, and name no second
      application as a correction (IP-001).
-   Verify: one grep per correction. A search for `/home/archerc` over the new
+   Verify: one grep per correction. A search for `$HOME` over the new
    sections answers 0, the three refusal texts stand distinct, six
    before-and-after rows stand beside a seventh, and each corrected line names
    the file and the id it cites.

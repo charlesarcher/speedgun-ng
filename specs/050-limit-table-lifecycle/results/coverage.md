@@ -65,7 +65,7 @@ one. The difference therefore belongs to the flags of the two presets, and
 not to the change under test.
 
 The trace step wrote the file first and died after. Its log prints `Writing
-data to /home/archerc/code/speedgun-ng/build/coverage/coverage.info` at
+data to $HOME/code/speedgun-ng/build/coverage/coverage.info` at
 21:41, then a summary run of the plain host `lcov` fails on one inconsistent
 record, and the make rule ends with `Error 2`. The trace file stands written,
 so every figure below reads it.

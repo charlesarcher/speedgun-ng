@@ -168,7 +168,7 @@ Call Stack (most recent call first):
 
 ```bash
 gh api --allow-escape-sequences \
-  repos/charlesarcher/speedgun-ng/actions/jobs/121308544924/logs
+  repos/<owner>/speedgun-ng/actions/jobs/121308544924/logs
 ```
 
 The endpoint needs the escape flag because the runner log carries terminal

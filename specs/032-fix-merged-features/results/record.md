@@ -345,7 +345,7 @@ hash the branch cuts from; the local measurements stand in
   `6d31c950c2c212a8c9aaa530e60fa41b102c6e44`, the local head's own
   hash. The branch carried no merge commit, rebase only.
 - T074 (FR-065): the pull request stands open at
-  `https://github.com/charlesarcher/speedgun-ng/pull/53`, its body the
+  `PR #53`, its body the
   record comment the task drafted, and the run reference below stands
   beside it.
 - FR-061: the run of the pushed head is `40464069553`, conclusion

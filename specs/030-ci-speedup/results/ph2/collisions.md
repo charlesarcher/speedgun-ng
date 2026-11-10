@@ -26,7 +26,7 @@ The registrations, read out of the tree already configured in `build`.
 This audit configures nothing and changes no file outside its own record:
 
 ```text
-cd /home/archerc/code/speedgun-ng
+cd $HOME/code/speedgun-ng
 ctest --test-dir build -N --show-only=json-v1 > /tmp/roster.json
 ```
 
@@ -38,7 +38,7 @@ one command:
 ```text
 python3 - <<'PY'
 import json, collections, os, re
-repo = "/home/archerc/code/speedgun-ng"
+repo = "$HOME/code/speedgun-ng"
 roster = json.load(open("/tmp/roster.json"))["tests"]
 prop = collections.Counter()
 workdirs = set()

@@ -61,7 +61,7 @@ The new executables run beside the standing harness tests:
 - The suite runs `ctest -j 2`; the coverage run uses
   `ctest --test-dir build/coverage -j 1`. The suite passes under
   `taskset -c 0,1` and on a 2-cpu host. `PERL5LIB` stands at
-  `/home/archerc/perl5/lib/perl5` for the lcov run.
+  `$HOME/perl5/lib/perl5` for the lcov run.
 
 ## The gates
 

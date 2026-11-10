@@ -27,17 +27,17 @@ of the lane that ran the cell.
 ```text
 $ cmake --preset=ci-ubuntu-test -B build/comp-ci-ubuntu-test
 -- The CXX compiler identification is GNU 16.2.1
--- Build files have been written to: /home/archerc/code/speedgun-ng/build/comp-ci-ubuntu-test
+-- Build files have been written to: $HOME/code/speedgun-ng/build/comp-ci-ubuntu-test
 exit 0
 
 $ cmake --preset=ci-rocky -B build/comp-ci-rocky
 -- The CXX compiler identification is GNU 16.2.1
--- Build files have been written to: /home/archerc/code/speedgun-ng/build/comp-ci-rocky
+-- Build files have been written to: $HOME/code/speedgun-ng/build/comp-ci-rocky
 exit 0
 
 $ CXX=clang++ cmake --preset=ci-tsan -B build/comp-ci-tsan
 -- The CXX compiler identification is Clang 23.1.3
--- Build files have been written to: /home/archerc/code/speedgun-ng/build/comp-ci-tsan
+-- Build files have been written to: $HOME/code/speedgun-ng/build/comp-ci-tsan
 exit 0
 ```
 

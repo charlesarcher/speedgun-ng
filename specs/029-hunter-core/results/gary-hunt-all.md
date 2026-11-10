@@ -2,7 +2,7 @@
 
 Task T061, acceptance AC-10, FR-093. Every figure below comes from the run
 captured on 2026-10-22 in the lane directory
-`/home/archerc/sg029-lanes/t061-gary/` (`hunt_rec.log`,
+`$HOME/sg029-lanes/t061-gary/` (`hunt_rec.log`,
 `gary-hunt-rec.json`, `catalog.log`, `hunt_rec_wrap.log`, `glob_wrap.log`).
 
 The companion record `corsairone-hunt-all.md` in this directory takes its
@@ -36,7 +36,7 @@ process. The host printed `speedgun-ng 0.19.0 build=Release` as the first
 line of the log.
 
 The binary is `example/docs_throughput` of this repository, built on
-`corsairone` in `/home/archerc/sg029-lanes/t061-gary` with
+`corsairone` in `$HOME/sg029-lanes/t061-gary` with
 `cmake --preset=ci-rocky` followed by
 `cmake --build build --target docs_throughput`, then copied to the host.
 It needs only `libstdc++`, `libm`, `libgcc_s` and `libc` at run time, and
