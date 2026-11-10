@@ -1526,3 +1526,208 @@ Both write this file, and a dated line names the record row it lands beside.
   git merge-base a55728af HEAD
   sed -n '2439p' docs/pages/harness.md
   ```
+
+
+## Zen 4 acceptance phase on chilly (2026-11-10) - tasks
+
+The requirements stand in `Zen 4 acceptance phase: the AMD Zen 4 host chilly
+(2026-11-10)` of `spec.md`; the modules, the witness, and the order stand in
+`Zen 4 acceptance plan on chilly (2026-11-10) - the hunter part and the shared
+plan` of `plan.md`. A `Runs:` line names what may run beside a task. Every
+task writes under `$HOME/z4/` or under the two spec trees, and nothing else.
+Ticks land in the one commit of the phase.
+
+- [x] Z4-000.1 [US6 M0] M0 preflight: the branch gate and the host identity. The
+  branch gate reads `1f1f9b20` as an ancestor of `origin/master`, names the tip,
+  and answers no remote `fix/zen4-acceptance`. The identity step prints host,
+  model name, family, model, stepping, cpu count, kernel, gcc, cmake,
+  `perf_event_paranoid`, `nmi_watchdog`, the device list, the `cpu` device
+  `type`, the standing absence of `caps/pmu_name`, and the two elevation
+  readings. Writes: `$HOME/z4/p1/identity.log`. Verify: the log prints family
+  `25` and model `97`, paranoid `2`, nmi `0`, and both elevation refusals.
+  Runs: first; nothing runs beside it.
+  ```
+  git merge-base --is-ancestor 1f1f9b20cec97198e5cd88778167431eef2c6eb6 origin/master
+  git ls-remote origin refs/heads/fix/zen4-acceptance
+  uname -n; grep -m1 'model name' /proc/cpuinfo; grep -m1 'cpu family' /proc/cpuinfo
+  cat /proc/sys/kernel/perf_event_paranoid /proc/sys/kernel/nmi_watchdog
+  sudo -n -l; pkexec --disable-internal-agent id
+  ```
+- [x] Z4-000.2 [US6 M0] Facts gate at the measured tip: the version, schema,
+  `SOVERSION` pair, and marker count equal the table of the spec section.
+  Writes: `$HOME/z4/p1/facts.log`. Verify: `0.34.0`, `1.16`, 22, 8, 84. Runs:
+  parallel with Z4-000.1.
+  ```
+  grep -m1 'VERSION 0.34.0' CMakeLists.txt
+  grep -m1 'kSchemaVersion' source/harness/json_report.cpp
+  grep -c LCOV_EXCL -r source include | awk -F: '{s+=$NF} END {print s}'
+  ```
+- [x] Z4-000.3 [US6 M1] M1 build: `cmake --preset=ci-rocky` and `cmake --build
+  build -j"$(nproc)"` at the measured tip. Writes: `build/`,
+  `$HOME/z4/p1/cmake-configure.log`, `$HOME/z4/p1/build.log`. Verify: both
+  captures exit 0; the version line `speedgun-ng 0.34.0 build=Release` reads
+  in the header of every console capture. Runs: alone.
+- [x] Z4-046-001.1 [US6 M2] M2 hunt runs: the two commands of
+  `results/acceptance-hunt.md` three times each, each run alone, each capture
+  opening with the witness of the plan; then the same two commands three times
+  each with `--metric-method multiplex` added, as the second console group of
+  the same head. Writes: `$HOME/z4/p1/hunt-memory_walk-<n>.log`,
+  `$HOME/z4/p1/hunt-first_benchmark-<n>.log`,
+  `$HOME/z4/p1/huntmx-memory_walk-<n>.log`,
+  `$HOME/z4/p1/huntmx-first_benchmark-<n>.log`. Verify: twelve exits, twelve
+  plan lines, one `table=` line per log; a window whose witness count is not 0
+  is void and re-taken. Runs: after Z4-000.3; nothing else runs.
+- [x] Z4-046-001.2 [US6 M2] Read the figures out of the twelve hunt captures,
+  the two console groups kept apart: per log the printed-row count, the three
+  area counts over the printed `area=` cells, the unmapped count, and the
+  selected table; the level-1 block verbatim stands in each documented-shape
+  capture, and the multiplex consoles print no block. Writes:
+  `$HOME/z4/p1/hunt-figures.txt`, which covers the six documented-shape
+  consoles and the three isolation arms; the record reads the multiplex
+  figures from the six `huntmx-*.log` captures.
+  Verify: per log the three counts add to the printed-row count, and the
+  printed-row count equals the plan line's event count; the rank-numbered split
+  and the block percentages print as instability readings, claimed by no run.
+  Runs: parallel with any quiet-window task that starts no benchmark.
+  ```
+  grep -c ' area=' "$HOME/z4/p1/hunt-memory_walk-1.log"
+  ```
+- [x] Z4-046-002.1 [US6 M2] The AMD rule over all twelve hunt captures: the
+  `intel` grep answers 0 in every log, and every `area=` cell names a node
+  under `topdown.`, a listing group, or `unmapped`. Writes: the twelve grep
+  counts and the cell-class totals, printed in `$HOME/z4/p1/hunt-figures.txt`.
+  Verify: the twelve grep counts and the cell-class totals. Runs: parallel with
+  Z4-046-001.2.
+  ```
+  grep -ci intel "$HOME/z4/p1/hunt-memory_walk-1.log"
+  ```
+- [x] Z4-046-001.3 [US6 M2] Abort rule, conditional: if any documented-shape run
+  exits non-zero, print the abort verbatim, isolate the trigger with the arms
+  this host answers (repeats at the carried `perf_event_paranoid` value, one
+  30 s passes run, one one-event hunt), and answer the rule with
+  `--metric-method multiplex` three runs each. The tracer arm and the -1 arm
+  land as BLOCKED rows in the IP-002 shape: the control, the value this host
+  reads first (2), the set line `sysctl -w kernel.perf_event_paranoid=-1`, the
+  restore line `sysctl -w kernel.perf_event_paranoid=2`, and the missing
+  right; no tracer installed, no control weakened. A ratio-pair abort lands as
+  one dated row in the abort section of
+  `specs/046-hunter-topdown/results/acceptance-amd-zen5.md`, named by the head
+  that printed it. Writes: `$HOME/z4/p1/abort-*.log` at a non-zero exit; when
+  the arms are taken as a check at a completing head they write
+  `$HOME/z4/p1/hunt-iso-passes30.log`, `$HOME/z4/p1/hunt-iso-named.log`, and
+  `$HOME/z4/p1/hunt-iso-paranoid-read.log`. Verify: the record names the arms
+  and cites their captures with the exits they answered, the BLOCKED rows
+  print both command lines and no figure, and the multiplex exits close
+  `Z4-046-002`. Runs: as the isolation set inside a non-zero exit; once as a
+  check at a completing head; nothing else runs beside it.
+- [x] Z4-046-003.1 [US6 M5] Write `results/acceptance-zen4.md`: identity, host,
+  commands, the six-run documented-shape table, the multiplex table beside it,
+  the three counts, the level-1 block, the instability readings, the suite
+  rows, the pending rows, and the rules this record answers. Writes: the
+  record. Verify: every path starts `$HOME/` or `build/`; every figure names
+  its capture. Runs: after Z4-046-001.2, Z4-000.4, and Z4-000.5.
+- [x] Z4-046-003.2 [US6 M5] The dated `SC-009` row in the spec section names AMD
+  Zen 4 measured at the head sha with its three counts, keeps the Zen 5 row
+  standing, keeps `SC-010`'s hybrid, Arm, and `PERF_METRICS` rows pending, and
+  ticks this phase's rows. Writes: the spec section, this file's ticks. Verify:
+  the dated row prints the head sha; no standing row lost a line. Runs: after
+  Z4-046-003.1.
+- [x] Z4-000.4 [US6 M4] The full local suite row:
+  `ctest --test-dir build --output-on-failure`. Writes:
+  `$HOME/z4/p1/suite-full.log`. Verify: the totals
+  row prints entries, passed, failed, skipped; each skip names its reason.
+  Runs: after M2 and M3 close; nothing else runs.
+- [x] Z4-000.5 [US6 M4] The two-cpu pinned suite row: `taskset -c 0,1 ctest
+  --test-dir build --output-on-failure`. Writes: `$HOME/z4/p1/suite-pinned.log`.
+  Verify: as Z4-000.4. Runs: after Z4-000.4; nothing else runs.
+- [x] Z4-000.6 [US6 M7] Text gates after the records land: spell, tree prose,
+  lint. Writes: `$HOME/z4/p1/gates.log` (the first pass, prose found seven
+  findings in the new prose, all recast) and `$HOME/z4/p1/gates2.log` (the
+  passing pass). Verify: all three exit 0. Runs: after Z4-046-003.2 and the
+  counter part's record task.
+  ```
+  cmake -P cmake/spell.cmake
+  cmake -D PROSE_MODE=tree -P cmake/prose-lint.cmake
+  ```
+- [x] Z4-001.1 [US6 M8] One commit, author and committer `OmO`, title 50
+  characters or fewer, why-body at 72, the two `Refs:` lines, then
+  `Approved-by: OmO`; squash to one commit `H`. Writes: the branch. Verify:
+  `git diff --name-only 1f1f9b20..H` names the two spec trees only; one commit
+  between. Runs: after Z4-000.6.
+- [ ] Z4-001.2 [US6 M9] The final-head re-run at `H` of the claimed set only: the
+  six hunt consoles of the documented shape, the three probe runs, and the two
+  suite rows, each with its witness, in the same windows; the identity and
+  device facts re-read once. The multiplex group and the isolation arms stand
+  not re-run. Writes: `$HOME/z4/p3/`, the sweep at head
+  24e379266e6fa49119972ef1000db23effa5d8c5; the earlier pass at
+  `$HOME/z4/p2/` stands as a dry run at 273c960d, whose pinned row was voided
+  by the suite's own load and retaken. Verify: `git rev-parse HEAD` names `H`;
+  each sweep row matches its p1 row in shape and its counts repeat; durations
+  carry their witness loadavg and claim no repetition. Runs: after
+  Z4-001.1, sequential, each run alone.
+- [ ] Z4-001.3 [US6 M10] Push and the pull request: `git push -u
+  origin fix/zen4-acceptance`, later pushes with
+  `--force-with-lease=fix/zen4-acceptance:<sha last pushed>` and the
+  `git ls-remote` read-back; one pull request whose body prints the head and
+  the final-sweep rows from `$HOME/z4/p3/`: the six hunter consoles, the three
+  probe consoles, and the two suite rows, each figure labeled with the head it
+  was measured at. Verify: the remote ref equals `H`; the merge stands open.
+  Runs: after Z4-001.2.
+
+Converge assessment (2026-11-10):
+
+The assessment reads `spec.md` (the Zen 4 section with clarification rounds 7
+and 8, the dated `SC-009` Zen 4 row, and the pending rows), `plan.md` (the Zen
+4 section with modules M0 to M10), the Zen 4 tasks of this file with their
+ticks, `results/acceptance-zen4.md`, `results/acceptance-amd-zen5.md`, the
+pull-request body at `$HOME/z4/pr-body.md`, and the captures at `$HOME/z4/p1/`,
+`$HOME/z4/p2/`, and `$HOME/z4/p3/` at the head
+`24e379266e6fa49119972ef1000db23effa5d8c5`. It ran no build, no test, and no
+benchmark. Every tick of this section stands as it is: `Z4-001.2` and
+`Z4-001.3` stay open by ruling, and the pull-request body closes them in words.
+The counter part's rows stand as `CV41-1` to `CV41-5` of
+`specs/041-counter-probe/tasks.md`. Each row below names the file it touches
+and carries its severity in the first bracket.
+
+- [x] CV46-1 [P2] `results/acceptance-zen4.md` (Z4-046-001.2, Z4-046-002.1): the
+  Writes artifact `$HOME/z4/p1/hunt-figures.txt` prints per-log figures for nine
+  captures, the six documented-shape hunts and the three isolation arms. It
+  prints no entry for the six `huntmx-*` multiplex captures and no per-log
+  level-1 block, so the twelve-capture read the two ticks name stands
+  half-written.
+- [x] CV46-2 [P3] `results/acceptance-zen4.md` (Z4-046-002.1): the record names
+  `$HOME/z4/p1/hunt-rule.txt` as the capture `Z4-046-002.1` writes, and no task
+  names that path. The task's Writes file is `hunt-figures.txt`, which exists.
+  Recast the sentence to name the file the task writes and the nine captures it
+  covers.
+- [x] CV46-3 [P2] `spec.md` (Z4-046-003): the dated `SC-009` Zen 4 row states
+  that "`SC-010`'s Zen 4 hardware row now points to that record", and the
+  `SC-010` bullet of this spec carries no dated Zen 4 row and no pointer.
+  `specs/041-counter-probe/spec.md` carries one beside its `SC-010` bullet. Add
+  the dated Zen 4 row beside `SC-010` here, with the head sha and the record
+  path.
+- [x] CV46-4 [P2] `results/acceptance-zen4.md` (Z4-046-001): the per-run figure
+  list names the level-1 block. The record prints it verbatim for run 1 of each
+  benchmark, prints the `frontend_bound` cell alone for runs 2 and 3, and prints
+  no block for the six multiplex consoles, whose captures each carry the five
+  cells. Print the five cells of every run as the instability readings the
+  round-8 ruling names.
+- [x] CV46-5 [P2] `tasks.md` (Z4-001.2, Z4-001.3): the task text names the
+  Writes directory `$HOME/z4/p2/` and a Verify line that reads "each p2 row
+  matches its p1 row". The sweep at the final head stands at `$HOME/z4/p3/` at
+  `24e379266e6fa49119972ef1000db23effa5d8c5`; `$HOME/z4/p2/` is a dry run at
+  `273c960d` whose pinned suite exited 8 and stands retaken. Name the sweep
+  directory and its sha in the task text, so the open tick names the evidence
+  that answers it.
+- [x] CV46-6 [P3] `$HOME/z4/pr-body.md` (Z4-001.3): the suite paragraph reads
+  "full suite 273.25 sec against 303.06 sec" and names 273.25 the first pass;
+  273.25 s is the dry-run row, and the record's first-pass row reads 332.33 s.
+  The body also says the tree-mode gate scan skipped the eight files while they
+  stood untracked; `$HOME/z4/p1/gates2.log` prints `0 skipped`, and `gates.log`
+  prints its seven findings in the new prose. Recast both lines.
+- [x] CV46-7 [P3] `results/acceptance-zen4.md` (Z4-001 shared rows): the record
+  states "Every capture sits under `$HOME/z4/p1/`" and carries no final-head
+  line. The sweep consoles stand in `$HOME/z4/p3/`, and the host-fact re-read at
+  the final head stands in `$HOME/z4/p3/facts-reread.log`. Add one dated line
+  for the sweep and the re-read at
+  `24e379266e6fa49119972ef1000db23effa5d8c5`, as the counter record does.

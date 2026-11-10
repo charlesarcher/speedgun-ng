@@ -760,6 +760,33 @@ The reviewer checked and left standing: a probed value of 1 against `publishMinu
 the watchdog rule (D-8), the tie inside the Arm event list (FR-033), the project
 version, and the one-probe claim (SC-005, FR-022).
 
+### Session 2026-11-10, round 3
+
+The Zen 4 acceptance phase on `chilly`. Round 1 settled five questions and
+round 2 settled three; the full text of both rounds' rulings stands under
+`Session 2026-11-10, round 7` and `round 8` of
+`specs/046-hunter-topdown/spec.md`. In short:
+
+- The claimed set for the final-head re-run: six documented-shape hunt
+  consoles, three example consoles, two suite rows. Host facts re-read once;
+  the multiplex group and the isolation arms stand not re-run.
+- Witness: the competitor count reads 0, and a window that reports a
+  competitor stands void and re-taken; the load average prints with no
+  numeric bound beside the host's standing desktop load; a figure of a
+  three-run group that does not repeat reads BLOCKED with its witnesses.
+  A row of one capture (a suite row, a host-fact row, a BLOCKED row)
+  stands on its own capture; a suite row repeats between the two passes of
+  `Z4-001` and reads BLOCKED with both witnesses when it does not.
+- A ratio-pair abort at a phase head is one dated row in the abort section
+  of `specs/046-hunter-topdown/results/acceptance-amd-zen5.md`, head-labelled,
+  no second row.
+- Isolation arms: repeats at the carried value, one short-budget passes run,
+  one one-event hunt. The tracer arm and the `-1` arm read BLOCKED in the
+  IP-002 shape. No tool installed, no control weakened.
+- The measured parity row at the carried value 2 answers its own claim; the
+  `-1` row reads BLOCKED; no row borrows a figure from another value
+  (IP-002).
+
 ## Key Entities
 
 - **Counter limit**: how many programmable counters one context may hold open at
@@ -813,6 +840,15 @@ version, and the one-probe claim (SC-005, FR-022).
   FR-071. The Intel hybrid row also carries the device-shape limit of FR-013a: a
   device the calling thread never runs on answers no limit, so a hybrid check
   needs a host whose threads reach the device the row asks about.
+- **SC-010 Zen 4 row (2026-11-10)**: measured on `chilly` (the Ryzen 9 7950X3D,
+  family 25, model 97) at `1f1f9b20cec97198e5cd88778167431eef2c6eb6`: three
+  consoles of `./build/example/docs_counter_probe` exit 0 and each prints
+  `counter limit: cpu limit=6 source=decode probe=6`; the published limit and
+  the probe answer agree at `perf_event_paranoid` 2, the value this host
+  answers; the walk's opens and reads stand derived beside their cites; the
+  watchdog rule stands applied once. The `-1` parity row reads BLOCKED
+  (IP-002). The Arm row and the Intel hybrid row stay pending. See
+  `results/acceptance-zen4.md`.
 
 ## Constraints
 
@@ -1173,3 +1209,120 @@ application gains no raw event code in this phase. SC-010 owns the pending class
 and it names a fourth row: the Intel non-hybrid check-mode equality row. The three consoles and
 the parity reading IP-001 asks for at the final head answer that row, and no
 reading stands closed here today.
+
+
+## Zen 4 acceptance phase: the AMD Zen 4 host `chilly` (2026-11-10)
+
+Owner G-38 names `chilly`, an AMD Ryzen 9 7950X3D (family 25, model 97), as
+the host that answers the AMD Zen 4 row of `SC-010` and of `IA41-002` now;
+`IP-002` owns the shape of the blocked parity row. The Arm row and the Intel
+hybrid row stay pending, and this phase claims neither.
+This phase writes records and task ticks. It changes no product code, no test,
+no build file, no gate, no schema, and no `README.md`. `G-31` is not this
+host: the phase adds no raw event code support, and no record prints a raw
+configuration word.
+
+### The base this work reads
+
+| Field | Reading | Source |
+|---|---|---|
+| Base head | `1f1f9b20cec97198e5cd88778167431eef2c6eb6` | the `origin/master` tip at the fetch of this phase |
+| Version | 0.34.0 | `CMakeLists.txt:82` |
+| Schema | 1.16 | `source/harness/json_report.cpp:58` |
+| Harness SOVERSION, archive SOVERSION | 22, 8 | `CMakeLists.txt:456`, `:454` |
+| `LCOV_EXCL` markers | 84 | the standing count line of `specs/041-counter-probe/results/gates.md:81` |
+| Branch | `fix/zen4-acceptance` from that tip, one squashed commit | this phase |
+| Author, committer | `OmO` | the owner record |
+
+The branch, push, pull-request, and commit rules stand in
+`specs/046-hunter-topdown/spec.md`, section `Zen 4 acceptance phase: the AMD
+Zen 4 host chilly (2026-11-10)`, and this phase obeys them with the same
+text. Files this phase may change: files under `specs/041-counter-probe/` and
+`specs/046-hunter-topdown/` only, plus a pure record typo fix inside those
+trees. No timeout raise, and no new exclusion marker.
+
+### User Story 5 - A reviewer reads the measured Zen 4 counter-count reading (Priority: P1)
+
+**Why this priority**: `IA41-001` and `IP-001` ask for the limit line, the
+parity, the opens and reads, and the watchdog rule on hardware; the Zen 4 row
+is the pending hardware row in reach.
+
+**Independent Test**: the record `results/acceptance-zen4.md` of this phase,
+read at the measured head, beside the captures it names.
+
+**Acceptance scenarios**:
+
+1. **Given** a Release tree built from the measured tip, **When** the
+  counter example runs three times, **Then** each run exits 0 and prints its
+  limit line, and the record prints the published limit, the source word, and
+  the probe answer for every run.
+2. **Given** those runs, **When** a reader checks the parity, **Then** the
+  published limit and the probe answer agree at the `perf_event_paranoid`
+  value this host answers now, and the record names that value.
+3. **Given** the watchdog rule, **When** a reader counts its applications,
+  **Then** the record shows one application on the decoded figure, with the
+  code cite and this host's `nmi_watchdog` reading.
+
+### Requirements - the Zen 4 counter-count phase (Z4-041-001 to Z4-041-002)
+
+- **Z4-041-001**: The lane SHALL run `./build/example/docs_counter_probe`
+  three times on the Release tree of the measured tip, each run standing alone
+  with its load witness printed at its start, with the existing approved
+  tooling of this spec and no new tool. The witness SHALL print the one-minute
+  load average and the count of other build, test, capture, and trace
+  processes; a window whose count is not 0 stands void, and the lane SHALL
+  re-take that run alone. The load average carries no bound: the host is a
+  workstation with a standing desktop load, and the record SHALL state that
+  character beside every witness. The measured parity row at the value this
+  host carries answers that claim alone, and the row of any other value SHALL
+  NOT borrow its figure (IP-002). The non-repeat clause binds figures printed
+  from a three-run group: a suite row, a host-fact row, and a BLOCKED row
+  stand on their own capture, and a suite row additionally repeats between the
+  passes of `Z4-001` and reads BLOCKED with both witnesses when it does not.
+  The record SHALL print for every run:
+  the exit, the limit line with the published limit, the source of the
+  published count (the word `decode` or the word `probe`), and the example's
+  own probe answer. The record SHALL print the device identity of this AMD
+  host: the device list, the `cpu` device `type`, the standing absence of the
+  `caps/pmu_name` file on this vendor, `kernel.perf_event_paranoid`,
+  `kernel.nmi_watchdog`, and the two elevation readings. The record SHALL give
+  the number of opens and reads the example's walk pays at the answer it
+  prints, measured where the run measures it and else derived with the code
+  cites and the arithmetic printed (the IP-001 shape). The record SHALL show
+  the watchdog rule applied exactly once on the decoded figure, with its code
+  cite and the host reading that decides the deduction.
+- **Z4-041-002**: The lane SHALL write
+  `specs/041-counter-probe/results/acceptance-zen4.md` with the same path and
+  identity rules as the hunter record: `$HOME/`-rooted or build-relative paths
+  only, the base sha, and the measured head sha. The record SHALL add a dated
+  row beside the AMD Zen 4 clause of `SC-010` and the pending clause of
+  `IA41-002` that names AMD Zen 4 measured at its head sha, SHALL keep the Arm
+  row and the Intel hybrid row pending, and SHALL tick the
+  `tasks.md` rows that name this record. A parity row that needs a value of
+  `perf_event_paranoid` this host does not answer SHALL read BLOCKED in the
+  `IP-002` shape: the control, the value the host answered first, the line
+  that sets, the line that restores, and the right this session lacks, with no
+  figure. The lane SHALL add no raw-code support (G-31), SHALL publish no raw
+  configuration word, and SHALL weaken no kernel control.
+- **Shared rows**: `Z4-000` and `Z4-001` bind this phase as written in
+  `specs/046-hunter-topdown/spec.md`: the full local suite row and the
+  two-cpu pinned suite row with their entries, passed, failed, and skipped
+  counts, local only (G-20); and the re-run of every row the pull-request body
+  claims at the exact final squashed head sha, whose sha the body prints. The claimed
+  set is the six hunt consoles of the documented shape, the three example
+  consoles, and the two suite rows; the identity, device, and BLOCKED rows are
+  host facts, re-read once at the final head, and the multiplex group and the
+  abort isolation arms stand not re-run.
+
+### Boundaries this phase keeps
+
+- The standing Zen 5 readings (`results/requirement-1-zen5-paranoid2.txt`,
+  `results/requirement-1-zen5-paranoid-minus1.txt`) keep their lines, and no
+  row reopens without contradicting evidence (IA41-002).
+- The Intel non-hybrid rows stand measured at their heads, and the standing
+  BLOCKED parity row of `results/acceptance-final-intel.md` keeps its text.
+- `tools/group_probe.c` answers no row of this phase, per the standing
+  History labels row of `results/acceptance-final-intel.md`, and
+  `tools/probe_window.c` stands run only where a row names its shape.
+- A permission refusal stands blocked hardware acceptance and never success
+  (IA41-002).

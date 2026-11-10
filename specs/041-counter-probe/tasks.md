@@ -707,3 +707,84 @@ names the record row it answers.
   ```
   cat /proc/sys/kernel/perf_event_paranoid
   ```
+
+
+## Zen 4 acceptance phase on chilly (2026-11-10) - tasks
+
+The requirements stand in `Zen 4 acceptance phase: the AMD Zen 4 host chilly
+(2026-11-10)` of `spec.md`; the shared modules and witness stand in
+`specs/046-hunter-topdown/plan.md`; the counter part stands in `Plan: Zen 4
+acceptance on chilly (2026-11-10) - the counter-count part` of `plan.md`.
+Z4-000 and Z4-001 run under `specs/046-hunter-topdown/tasks.md` and this part
+reads their logs.
+
+- [x] Z4-041-001.1 [US5 M3] M3 counter runs: `./build/example/docs_counter_probe`
+  three times, each run alone with the witness of the plan; then the device
+  reads: device list, `cpu` device `type` with its mode line, the standing
+  absence of `caps/pmu_name`, `perf_event_paranoid`, `nmi_watchdog`, and the
+  two elevation readings. Writes: `$HOME/z4/p1/probe-<n>.log`,
+  `$HOME/z4/p1/devices.log`. Verify: three exits 0; three identical limit
+  lines; the device log prints the type and both control values. Runs: after
+  the hunter window (Z4-046-001.1) closes; nothing else runs.
+- [x] Z4-041-001.2 [US5 M3] The three rows of the record, from the captures: the
+  parity row at this host's `paranoid` value (published limit, source word,
+  probe answer, agreement), stated as the row of the value this host carries
+  and borrowing no figure to the `-1` row (IP-002); the opens and reads row
+  with the walk's arithmetic and the example's cites, stated as measured or
+  derived; the watchdog row with the one decoded-arm cite and the host's
+  `nmi_watchdog` reading.
+  Writes: the three rows in `results/acceptance-zen4.md`, read from
+  `$HOME/z4/p1/probe-1.log`, `probe-2.log`, `probe-3.log`, `devices.log`, and
+  the code cites. Verify: the limit equals the
+  probe answer in all three consoles; the arithmetic matches the printed
+  answer. Runs: parallel with any quiet-window reading task.
+- [x] Z4-041-002.1 [US5 M6] Write `results/acceptance-zen4.md`: identity, device
+  and settings, three consoles, parity row, opens and reads row, watchdog row,
+  the blocked parity row at `-1` in the IP-002 shape (control, host value,
+  set line, restore line, missing right, no figure), the pending rows. Writes:
+  the record. Verify: every path starts `$HOME/` or `build/`; the blocked row
+  prints both command lines and no figure. Runs: after Z4-041-001.2 and
+  Z4-000.4.
+- [x] Z4-041-002.2 [US5 M6] The dated measured row beside the Zen 4 pending row
+  of this spec names the head sha; the Arm row and the Intel hybrid row keep
+  their pending text; the ticks of this file land. Writes: the spec section,
+  this file's ticks. Verify: no standing row lost a line; the dated row prints
+  the sha. Runs: after Z4-041-002.1.
+- [x] Z4-000.7 [US5 M4] The shared rows beside this record: the two p1 suite
+  rows of `Z4-000` in `specs/046-hunter-topdown/tasks.md` carry their figures
+  into this record's suite section. The p2 re-run rows of `Z4-001` stand in
+  the pull-request body of `Z4-001.3`, and enter no record file, so no writing
+  follows the one commit. Writes: the record's suite section. Verify: each row
+  prints entries, passed, failed, skipped. Runs: after Z4-041-002.1 and
+  Z4-000.5, and before Z4-000.6 and Z4-001.1, so the record suite section
+  stands inside the one commit.
+
+Converge assessment (2026-11-10):
+
+The assessment reads `spec.md`, `plan.md`, this file,
+`results/acceptance-zen4.md`, the pull-request body at `$HOME/z4/pr-body.md`,
+and the captures at `$HOME/z4/p1/` and `$HOME/z4/p3/` at the head
+`24e379266e6fa49119972ef1000db23effa5d8c5`. It ran no build, no test, and no
+benchmark, and every tick of this section stands as it is. Each CV41 row names
+the file it touches and carries its severity in the first bracket.
+
+- [x] CV41-1 [P2] `tasks.md` (Z4-041-001.2): its Writes artifact
+  `$HOME/z4/p1/counter-figures.txt` stands absent on disk, so the tick names a
+  file no pass wrote; the three rows it produced stand in
+  `results/acceptance-zen4.md` with their figures.
+- [x] CV41-2 [P2] `results/acceptance-zen4.md` (Z4-041-001): the witness line
+  counts `ctest|cc1plus|cc1|gcc|g++|as|ninja|make`, the build and test classes
+  of `$HOME/z4/p1/driver.sh`, and the record draws the void-window verdict from
+  that count; add one line naming the counted classes, cite the driver, and
+  state that no capture and no trace process ran in these windows.
+- [x] CV41-3 [P3] `results/acceptance-zen4.md` (Z4-001 shared rows): the
+  identity, device, and BLOCKED rows cite captures at `1f1f9b20` alone; add one
+  dated line for the final-head re-read at
+  `$HOME/z4/p3/facts-reread.log` of `24e379266e6fa49119972ef1000db23effa5d8c5`.
+- [x] CV41-4 [P3] `results/acceptance-zen4.md` (Z4-041-001): the suite section
+  states the standing desktop load and names no standing service; add the
+  service line beside each suite row with its witness at
+  `$HOME/z4/p3/strata-witness.log`, the pair the pull-request body prints.
+- [x] CV41-5 [P3] `prompt.md` at the repository root stands untracked and
+  outside the two spec trees this phase may change; keep it out of the records
+  commit.

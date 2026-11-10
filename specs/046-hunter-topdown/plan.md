@@ -472,3 +472,77 @@ witness line; eight reading pairs per command, each answered or reading
 level line, the reference line and the digest lines at the length the binary
 printed them; four pending rows with their part and their reason; one grep for
 the re-read anchor.
+
+
+## Zen 4 acceptance plan on chilly (2026-11-10) - the hunter part and the shared plan
+
+The spec section `Zen 4 acceptance phase: the AMD Zen 4 host chilly
+(2026-11-10)` owns the requirements. This section plans the phase and carries
+no acceptance figure. The module breakdown here is the shared plan of the
+whole phase: `specs/041-counter-probe/plan.md` names this section for the
+shared modules and plans only its counter part.
+
+### Modules
+
+| Module | Work | Needs | Produces |
+|---|---|---|---|
+| M0 preflight | host identity block (host name, cpu, family, model, kernel, gcc, cmake, paranoid, nmi, device list, `cpu` type, the standing absence of `caps/pmu_name`, two elevation readings); branch gate: `1f1f9b20` an ancestor of `origin/master`, `fix/zen4-acceptance` at the tip, no remote branch; facts gate: version 0.34.0, schema 1.16, SOVERSION 22 and 8, markers 84 | - | `$HOME/z4/p1/identity.log`, `$HOME/z4/p1/facts.log`, the branch |
+| M1 build | `cmake --preset=ci-rocky` then `cmake --build build` at the measured tip | M0 | `build/`, the version-line capture |
+| M2 hunt runs (046) | the two commands of `results/acceptance-hunt.md` three times each, each run alone with its load witness, console captured by redirection; then the same two commands three times each with `--metric-method multiplex` added, as the second console group of the same head | M1 | `$HOME/z4/p1/hunt-<bench>-<n>.log` (6), `$HOME/z4/p1/huntmx-<bench>-<n>.log` (6) |
+| M3 counter runs (041) | `./build/example/docs_counter_probe` three times, each run alone with its load witness; the device reads | M1, quiet window after M2 | `$HOME/z4/p1/probe-<n>.log`, `$HOME/z4/p1/devices.log` |
+| M4 suites (shared, Z4-000) | `ctest --test-dir build --output-on-failure`, then `taskset -c 0,1 ctest --test-dir build --output-on-failure` | M1, quiet window after M2 and M3 | `$HOME/z4/p1/suite-full.log`, `$HOME/z4/p1/suite-pinned.log` |
+| M5 record 046 | write `results/acceptance-zen4.md`, the dated `SC-009` row, the tasks ticks | M2, M4 | the hunter record, ticks |
+| M6 record 041 | write `results/acceptance-zen4.md`, the dated pending-row entry, the tasks ticks | M3 | the counter record, ticks |
+| M7 text gates | `cmake -P cmake/spell.cmake`, `cmake -D PROSE_MODE=tree -P cmake/prose-lint.cmake` from the checkout root | M5, M6, and the record suite section written by `Z4-000.7` | `$HOME/z4/p1/gates.log` |
+| M8 commit and squash | one commit with the Pull Request Quality template, author and committer `OmO` | M7 | head `H`, the tree of every record and tick |
+| M9 final-head re-run (shared, Z4-001) | at the exact sha `H`: the claimed set only — the six documented-shape hunt consoles, the three probe runs, the two suite rows, each with its witness — plus one re-read of the identity and device facts | M8 | `$HOME/z4/p2/*.log`, the re-run figures for the pull-request body |
+| M10 push and PR | `git push -u`, then `--force-with-lease=fix/zen4-acceptance:<sha last pushed>` with the remote read-back; one pull request whose body names `H` and the re-run rows; never merge, no issue close | M9 | the branch, the pull request |
+
+M5 and M6 run parallel with each other. M2, M3 and M4 never overlap: each
+measured run stands alone inside a quiet window. The witness line of each
+capture prints the one-minute load average and the count of other compiler,
+test, capture, and trace processes, and a run whose witness reports a busy
+host is re-taken and the void reading is named.
+
+### Load witness
+
+Each capture opens with three lines, in this order: the command line, the
+output of `cat /proc/loadavg`, and the count from
+`ps -eo comm= | grep -cE '^(ctest|cc1plus|cc1|gcc|g\+\+|as|ninja|make|perf|strace|bpftrace|trace-cmd)$'`.
+That is the standing Intel witness count of compiler and test processes,
+widened by the trace tools the ruling names. Capture processes stand covered: a run
+starts no capture pipeline of its own, and any concurrent trace tool shows in
+the count. A window whose count is not 0 is void, and the run is re-taken
+alone. The load average carries no bound: `chilly` is a workstation with a
+standing desktop load, and the record states that character beside every
+witness. The capture keeps its exit code through the last line of the run, and
+the driver prints it. A figure that does not repeat across the three runs of
+one command is not claimed, and its row reads BLOCKED with its witnesses.
+
+### Test plan for the Zen 4 phase (every requirement, checked before the record ships)
+
+| Requirement | Check that answers it, written before the record text |
+|---|---|
+| Z4-046-001 | twelve logs in two console groups, each exit 0; each plan line present; per log the printed-row count, the three area counts over the printed cells, the level-1 block, the unmapped count, and the `table=` line; per log the three counts add to the printed-row count and the printed-row count equals the plan line's event count; family 25 and model 97 in the identity log; the claimed figures repeat across the three runs of each command, and the rank-numbered split and the block percentages print as instability readings, claimed by no run |
+| Z4-046-002 | `grep -ci intel` over all twelve logs answers 0; every `area=` cell starts `topdown.` and names a node of the selected `arch/x86/amdzen4/` tree, answers a vendor file stem of that directory, or answers `unmapped`; the rule runs over both console groups |
+| Z4-046-003 | the record file exists; every path it prints starts `$HOME/` or `build/`; the base sha and measured head sha rows print; the dated `SC-009` row names the head sha, cites the documented-shape group, and states the multiplex agreement in one line; the tasks ticks link the record |
+| Z4-041-001 | three probe logs, each exit 0, each printing the limit line; the source word names the finder that seated the limit (`decode` on this host), and the probe answer equals the published limit at the host `paranoid` value; the opens and reads row carries its arithmetic and cites; the watchdog row cites the decoded arm once and the host `nmi_watchdog` reading prints beside the deduction it decides (the reading in hand is 0) |
+| Z4-041-002 | the record exists with `$HOME/`-rooted paths; the dated measured row replaces the claim of the Zen 4 pending row without deleting it; the blocked parity row at `-1` carries the control, the set line, the restore line, and the two elevation readings, and carries no figure |
+| Z4-000 | two suite logs; each totals row prints entries, passed, failed, skipped; skipped entries name their skip reason line |
+| Z4-001 | the p2 set ran at the sha the pull-request body prints; `git rev-parse HEAD` in the run tree equals that sha; the p2 rows equal in shape the p1 rows they re-run |
+| gates | `spell.cmake` exit 0 and `prose-lint.cmake` exit 0 from the checkout root after the records land |
+| scope | `git diff --name-only 1f1f9b20..H` lists files under `specs/046-hunter-topdown/` and `specs/041-counter-probe/` only |
+
+### Order and gates
+
+M0 gates the branch and the facts before any build. M1 gates the version
+line. M2, then M3, then M4 fill the quiet windows in order. M5 and M6 write
+the records from the captures only, with no new runs. M7 runs the text gates.
+M8 lands one commit. M9 re-runs the claimed rows at `H` and M10 opens the
+pull request. The phase ends with the pull request open and merged nothing.
+
+### What this plan leaves untouched
+
+No source file, test file, build file, CI file, schema, version, `README.md`,
+timeout, exclusion marker, kernel control, `.expected` file, and no Zen 5
+line. No base re-run: the base build stands out of scope, named not run.
