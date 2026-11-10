@@ -144,7 +144,9 @@ auto printHuntRanks() -> void
                                      {"cpu/hunt_stores", 1000.0}};
   sg::detail::stampSensitivity(entries);
   sg::detail::stampDelta(entries, baseline);
-  const auto& records = entries.back().hunt->entries;
+  // The only call reads this name inside `SG_ENSURE`, so the
+  // contracts=ignore build leaves it unused (specs/052 FR-003).
+  [[maybe_unused]] const auto& records = entries.back().hunt->entries;
   SG_ENSURE(records.front().sensitivityCorrelation.has_value()
                 && !records.back().sensitivityCorrelation.has_value()
                 && records.back().delta.has_value(),

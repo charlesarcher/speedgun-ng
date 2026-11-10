@@ -495,8 +495,11 @@ auto osnoiseFiguresOfCpu(std::uint32_t cpu,
 // line, stands missing, or stands unreadable answers the two counts absent.
 // Whether one timerlat record answers exactly the two counts beside a
 // parsed activation line and nothing beside none, the three figures the
-// engine states nothing for standing absent (FR-028, D-10).
-auto activationAnswered(const PrecheckTracerCpuRecord& record, bool any) -> bool
+// engine states nothing for standing absent (FR-028, D-10). The call site
+// stands inside `SG_ENSURE`, so the contracts=ignore build leaves the helper
+// unused (specs/052 FR-002).
+[[maybe_unused]] auto activationAnswered(const PrecheckTracerCpuRecord& record,
+                                         bool any) -> bool
 {
   const std::size_t present = static_cast<std::size_t>(record.irq.has_value())
       + static_cast<std::size_t>(record.thread.has_value())
