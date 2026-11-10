@@ -722,6 +722,79 @@ is a recorded pending row.
 
 ## Clarifications
 
+### Session 2026-11-10, round 8
+
+The second clarify round on the Zen 4 phase settled three questions.
+
+- Q: Which figures can the non-repeat rule leave claimed, and what does the
+  sum check bind?
+  A: The three area counts stand over every printed `area=` cell: the six
+  documented-shape consoles each print 344 cells and answer 11 nodes, 325
+  listing groups, and 8 `unmapped`, and these figures repeat, so they are
+  claimed. The split over the rows that carry a rank number, and the
+  percentage cells of the level-1 block, move from run to run and print as
+  instability readings beside the standing AP-9 note, claimed by no run. The
+  sum check reads: the three counts add to the printed-cell count, and the
+  printed-cell count equals the plan line's event count.
+- Q: What does the multiplex console group answer, and over which logs does
+  the AMD rule run?
+  A: The group is a printed second table of the same head with its own per-run
+  figures, and claims nothing. The `intel` grep and the cell-class check run
+  over all twelve hunt captures. The `SC-009` Zen 4 row cites the
+  documented-shape group and adds one line that the multiplex group agrees.
+- Q: On what basis does a one-run row stand claimed?
+  A: The non-repeat clause binds figures printed from a three-run group. A
+  suite row, a host-fact row, and a BLOCKED row stand on their own capture;
+  a suite row additionally repeats between the passes of `Z4-001`, and reads
+  BLOCKED with both witnesses when it does not.
+- Q: On the abort branch, which group carries the claimed set?
+  A: The measured consoles completed at this head in the documented shape, so
+  the documented-shape group carries the row. On an abort at a later phase
+  head, the completing multiplex group answers the `SC-009` Zen 4 row and
+  enters the claimed set in place of the aborted group.
+
+### Session 2026-11-10, round 7
+
+The Zen 4 acceptance phase on `chilly`. A fresh reviewer raised five material
+questions; the lane answered each against the standing precedent, and the
+ruling lands beside the requirement it settles.
+
+- Q: Which rows does the final-head re-run cover?
+  A: The claimed set: the six hunt consoles that answer the `SC-009` hunter
+  row, the three example consoles that answer the parity row, and the two
+  suite rows. The identity, device, and BLOCKED rows are host facts, re-read
+  once at the final head; they carry no measurement to re-take. The multiplex
+  group and the abort isolation arms answer rows the pull-request body does
+  not claim, so they stand not re-run.
+- Q: Does the busy-host rule bind, and what prints when the host cannot idle?
+  A: The witness prints the one-minute load average and the count of other
+  build, test, capture, and trace processes. A window whose count is not 0 is
+  void, and the lane re-takes that run alone. The load average carries no
+  bound: `chilly` is a workstation host with a standing desktop load, and the
+  record states that character beside every witness. The record claims figures
+  that repeat across the three runs of one command, and the row of a figure
+  that does not repeat reads BLOCKED with its witnesses.
+- Q: Is a ratio-pair abort at this head older or fresh?
+  A: The standing defect. `source/counters/fold.cpp` and
+  `source/counters/plan.cpp` stand byte-identical to the state the Zen 5
+  record names, so an abort of the ratio pair at a phase head reproduces the
+  standing specs/024 row: it lands as one dated row at the standing place,
+  the abort section of
+  `specs/046-hunter-topdown/results/acceptance-amd-zen5.md`, names the head
+  that printed it, and opens no second defect row. An abort of
+  a trigger that section does not name stands as its own defect row.
+- Q: Which isolation arms answer on a host with no root session and no
+  `strace`?
+  A: The arms this host answers: repeats at the carried `perf_event_paranoid`
+  value, one short-budget passes run, and one one-event hunt. The tracer arm
+  and the `paranoid` -1 arm read BLOCKED in the IP-002 shape with the set
+  line, the restore line, and the missing right. The phase installs no tool
+  and weakens no control.
+- Q: Who owns the parity row when the host already carries the historical
+  value?
+  A: The measured row at the value this host carries, which is 2, answers its
+  own claim. The row of `-1` reads BLOCKED, and borrows no figure (IP-002).
+
 ### Session 2026-11-03, round 6
 
 A reviewer read the byte consequences of the companion route and named four that had
@@ -1053,6 +1126,16 @@ Two reviewers read the spec against the code and against the gates. Rulings:
   specs/024's ratio pair, not of this feature, and it stands as its own open row
   in the same record. AMD Zen 4 stays a pending row, with no hardware claim for
   it.
+- **SC-009 Zen 4 row (2026-11-10)**: measured on AMD Zen 4 on `chilly` (the
+  Ryzen 9 7950X3D, family 25, model 97) at
+  `1f1f9b20cec97198e5cd88778167431eef2c6eb6`: the documented-shape runs
+  completed (exit 0, `events=344 passes=86 method=PASSES`), the run selected
+  `arch/x86/amdzen4/`, named 11 nodes, 325 listing groups, and 8 `unmapped`
+  ranks, and named no Intel node — the string `intel` appears 0 times in all
+  twelve consoles of both collection methods; the multiplex group agrees. See
+  `results/acceptance-zen4.md`. SC-010 of `specs/041-counter-probe/spec.md`
+  carries the dated Zen 4 row that answers the Zen 4 hardware claim in that
+  feature's record.
 - **SC-010**: The parts with no host (Intel parts measured through
   `PERF_METRICS`, Intel hybrid, Arm, AMD Zen 4 and Zen 5 while no lane has a gap)
   stand as synthetic-test rows, and the report of the feature names them as
@@ -1507,3 +1590,150 @@ hybrid parts, because this part is non-hybrid; Arm parts, because no Arm host
 stands in reach; and AMD Zen 4 parts, because no Zen 4 host stands in reach. Each
 row keeps its synthetic seam rows and carries no hardware figure. Zen 5 stands
 measured under `SC-009` and keeps that reading at the head it ran.
+
+
+## Zen 4 acceptance phase: the AMD Zen 4 host `chilly` (2026-11-10)
+
+The owner record lists one host per hardware row. Owner G-38 names `chilly`, an
+AMD Ryzen 9 7950X3D (family 25, model 97), as the host that answers the AMD
+Zen 4 rows of `SC-009` and `SC-010` now. The Intel hybrid rows and the Arm rows
+stay pending until a host is named, and this phase claims none of them. This
+phase writes records and task ticks. It changes no product code, no test, no
+build file, no gate, no schema, no version, and no `README.md`. A failure
+stands recorded, and the lane patches nothing to force a pass.
+
+### The base this work reads
+
+| Field | Reading | Source |
+|---|---|---|
+| Base head | `1f1f9b20cec97198e5cd88778167431eef2c6eb6` | the `origin/master` tip at the fetch of this phase |
+| Version | 0.34.0 | `CMakeLists.txt:82` |
+| Schema | 1.16 | `source/harness/json_report.cpp:58` |
+| Harness SOVERSION, archive SOVERSION | 22, 8 | `CMakeLists.txt:456`, `:454` |
+| `LCOV_EXCL` markers | 84 | the standing count line of `specs/041-counter-probe/results/gates.md:81` |
+| Branch | `fix/zen4-acceptance` from that tip, one squashed commit | this phase |
+| Author, committer | `OmO` | the owner record |
+
+The lane fetches `origin` and requires the base head to stand an ancestor of
+`origin/master`. The lane pushes with `-u` first, then with
+`--force-with-lease=fix/zen4-acceptance:<sha last pushed>`, then reads the
+remote ref back, and stops on a lease failure. The lane opens one pull request
+and merges nothing, and closes no issue. The commit follows Pull Request
+Quality: a title of 50 characters or fewer, a why-body wrapped at 72, the
+`Refs:` lines for the Zen 4 rows of `specs/046-hunter-topdown` and
+`specs/041-counter-probe`, and the `Approved-by: OmO` footer. A `gh` session
+that is not signed in gets the branch push and a local file with the title and
+the body, and the lane invents no token.
+
+Files this phase may change: files under `specs/046-hunter-topdown/` and
+`specs/041-counter-probe/` only, plus a pure record typo fix inside those
+trees. No timeout raise, and no new exclusion marker.
+
+### User Story 6 - A reviewer reads the measured Zen 4 hunter reading (Priority: P1)
+
+**Why this priority**: `SC-009` carries the AMD rule, and its Zen 4 row is the
+next pending hardware row in reach.
+
+**Independent Test**: the record `results/acceptance-zen4.md` of this phase,
+read at the measured head, beside the captures it names.
+
+**Acceptance scenarios**:
+
+1. **Given** a Release tree built from the measured tip, **When** each
+   documented hunt command runs three times, **Then** the record prints the
+   plan line, the ranked-row counts, the three area counts, the level-1 block,
+   the unmapped count, the family and model, and the selected table for every
+   run.
+2. **Given** those runs, **When** a reader checks the `SC-009` rule, **Then**
+   every ranked area names a node of the selected AMD Zen 4 table or a group of
+   the listing, and no log spells `intel`.
+3. **Given** a run that answers a refusal, **When** the reader opens the
+   record, **Then** the refusal stands there with its evidence, and no product
+   line moved to hide it.
+
+### Requirements - the Zen 4 hunter phase (Z4-046-001 to Z4-046-003)
+
+- **Z4-046-001**: The lane SHALL build a Release tree from the measured tip
+  with the documented preset pair, `cmake --preset=ci-rocky` and
+  `cmake --build build`. The lane SHALL run the two documented hunt commands
+  of `results/acceptance-hunt.md` three times each on that tree, each run
+  standing alone with its load witness printed at its start. The lane SHALL
+  also run the same two commands three times each with
+  `--metric-method multiplex` added, and SHALL report the two methods as
+  separate console groups of the same head. The witness SHALL print the one-minute load average
+  and the count of other build, test, capture, and trace processes; a window
+  whose count is not 0 stands void, and the lane SHALL re-take that run alone.
+  The load average carries no bound: the host is a workstation with a standing
+  desktop load, and the record SHALL state that character beside every witness.
+  The record SHALL print for every run: the exit, the plan line, the printed
+  row count (every printed `area=` cell), the three area counts over those
+  cells (a node of the selected table, a group of the listing, `unmapped`),
+  the level-1 block, the unmapped count, the family and the model the identity
+  reads, and the selected table line. A figure that does not repeat across the
+  three runs of one command SHALL NOT stand claimed; the row of that figure
+  SHALL read BLOCKED with its witnesses. The split over the rows that carry a
+  rank number, and the percentage cells of the level-1 block, move from run to
+  run, SHALL print as instability readings beside the standing AP-9 note, and
+  SHALL NOT stand claimed. The non-repeat clause binds figures printed from a
+  three-run group: a suite row, a host-fact row, and a BLOCKED row stand on
+  their own capture, and a suite row additionally repeats between the passes of
+  `Z4-001` and reads BLOCKED with both witnesses when it does not.
+- **Z4-046-002**: The AMD host success rule of `SC-009` binds this phase. The
+  areas of a completing run SHALL name nodes of the selected AMD Zen 4 table
+  and the groups of the listing, and SHALL name no Intel node: the string
+  `intel` SHALL appear 0 times in the logs. The rule SHALL run over every
+  capture of both console groups. On a refusal of this rule the lane SHALL
+  record the answer, SHALL stop code changes, and SHALL report. The lane SHALL
+  NOT patch product code to force a pass.
+- **Z4-046-003**: The lane SHALL write
+  `specs/046-hunter-topdown/results/acceptance-zen4.md` with the host, the
+  cpu, the kernel, the compiler, the base sha, the measured head sha, the perf
+  rights, the commands, and the figures. Every path in the record SHALL stand
+  `$HOME/`-rooted or build-relative. The record SHALL add a dated row beside
+  the `SC-009` clause that names AMD Zen 4 measured with its head sha, SHALL
+  keep the Zen 5 reading standing, and SHALL keep the `SC-010` rows of the
+  Intel hybrid parts, the Arm parts, and the `PERF_METRICS` parts pending. The
+  dated row SHALL cite the documented-shape console group and SHALL state in
+  one line that the multiplex group agrees. The ticks of `tasks.md` SHALL name
+  this record.
+- **Shared rows**: the canonical text of `Z4-000` and `Z4-001` stands here,
+  and `specs/041-counter-probe/spec.md` cites it with the same words. The
+  phase obeys them: the two suite rows, local only (G-20), and the re-run of every row the
+  pull-request body claims at the exact final squashed head sha. The claimed
+  set is the six hunt consoles of the documented shape that answer the
+  `SC-009` hunter row, the three example consoles that answer the parity row,
+  and the two suite rows. The identity, device, and BLOCKED rows are host
+  facts: the lane re-reads them once at the final head and re-measures
+  nothing. The multiplex group and the abort isolation arms answer rows the
+  body does not claim, and stand not re-run.
+- **Abort rule**: if a documented hunt shape exits non-zero, the record SHALL
+  print the abort verbatim and SHALL isolate its trigger with the arms this
+  host answers, per the standing abort section of
+  `results/acceptance-amd-zen5.md`: repeats at the carried
+  `perf_event_paranoid` value, one short-budget passes run, and one one-event
+  hunt. The tracer arm and the `paranoid` -1 arm SHALL read BLOCKED in the
+  IP-002 shape, with the set line, the restore line, and the missing right;
+  the lane SHALL install no tool and SHALL weaken no control. The lane SHALL
+  then answer `Z4-046-002` with runs of the same commands plus
+  `--metric-method multiplex`, three each. `source/counters/fold.cpp` and
+  `source/counters/plan.cpp` stand byte-identical to the state the Zen 5
+  record names, so an abort of the ratio pair at a phase head reproduces the
+  standing specs/024 defect: it SHALL land as one dated row in the abort
+  section of `specs/046-hunter-topdown/results/acceptance-amd-zen5.md`, named
+  by the head that printed it, and SHALL open no second defect row. An abort
+  of a trigger that section does not name SHALL stand as its own defect row.
+  This phase fixes none of them. On a documented-shape abort, the completing
+  multiplex group answers the `SC-009` Zen 4 row, and the multiplex consoles
+  enter the claimed set in place of the aborted group: the cited group and the
+  re-run group are the group that completed.
+
+### Boundaries this phase keeps
+
+- The Zen 5 history keeps its lines: `SC-009` stands measured at `858c55d9`
+  with its multiplex note, and the abort row of that record keeps its text.
+- The Intel rows stand measured at their heads, and no completed row reopens
+  (IA41-002, IH-002).
+- The Intel hybrid, Arm, and `PERF_METRICS` rows of `SC-010` stay pending, and
+  this phase answers none of them.
+- No figure of one host stands for the figure of another. Every figure names
+  the command, the capture, and the head that printed it.

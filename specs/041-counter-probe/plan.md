@@ -534,3 +534,57 @@ This base moves none of them (`Boundaries this base keeps` of
 | This file | keeps every line it carried before this section, and this section adds | IC-006 |
 | The two bounded widths | `taskset -c 0,1,2,3` with `-j 4` and `taskset -c 0,1` with `-j 2` belong to the `IC-003` triple, where the narrow shape stands beside the bounded run, and to the `Two-cpu release` row and the `Four-cpu release` row of the `Lane Table` of `specs/048-hwlat-probe/plan.md`, so the two sanitizer trees and the two release trees run both shapes and both of those rows name `build`, and no counter console runs either | IC-003 |
 | Plan file beside the record | `specs/041-counter-probe/plan.md` stands inside the file list under `Files this phase may change` of `specs/048-hwlat-probe/spec.md`, whose seventh entry names the plan among the markdown artifacts of `specs/041-counter-probe`, so this section plans and carries no acceptance figure, and only `specs/041-counter-probe/results/acceptance-final-intel.md` takes acceptance rows | IC-006 |
+
+
+## Plan: Zen 4 acceptance on chilly (2026-11-10) - the counter-count part
+
+The spec section `Zen 4 acceptance phase: the AMD Zen 4 host chilly
+(2026-11-10)` owns the requirements. The shared modules M0, M1, M2, M4, M7,
+M8, M9, M10, the load witness, and the order stand in
+`specs/046-hunter-topdown/plan.md`, section `Zen 4 acceptance plan on chilly
+(2026-11-10) - the hunter part and the shared plan`. This section plans the
+counter part and carries no acceptance figure.
+
+### Modules of this part
+
+| Module | Work | Needs | Produces |
+|---|---|---|---|
+| M3 counter runs | `./build/example/docs_counter_probe` three times, each run alone with its load witness, console captured by redirection; then the device reads: the device list, the `cpu` device `type` with its mode line, the standing absence of `caps/pmu_name`, `perf_event_paranoid`, `nmi_watchdog`, the two elevation readings. The witness void rule and the parity non-borrowing rule of the 046 plan apply to these consoles | M1, the quiet window after M2 | `$HOME/z4/p1/probe-<n>.log` (3), `$HOME/z4/p1/devices.log` |
+| M6 record 041 | write `specs/041-counter-probe/results/acceptance-zen4.md`: the identity block, the device and settings table, the three consoles, the parity row at the host `paranoid` value, the opens and reads row with its arithmetic and cites, the watchdog row, the blocked parity row at `-1` in the IP-002 shape, the pending rows, and the dated measured row; tick the tasks | M3, M4 (suite figures), M5 (shared capture conventions) | the record, the ticks |
+
+M3 runs after the hunter window closes, so no hunt process shares the host.
+M6 runs parallel with M5.
+
+### The parity reading, and what is measurable
+
+This host answers `perf_event_paranoid` at 2. The parity of the published
+limit against the probe answer is a measured row at that value, and the
+example needs no elevation for it. The parity at `-1` needs the write, which
+needs a root session; the two elevation readings of the identity step close
+that door, so the `-1` row stands BLOCKED with the control, the value the
+host answers, the set line, the restore line, and the missing right (IP-002).
+No control is weakened.
+
+### Opens and reads
+
+The example walk answers the limit it prints. Where no tracer runs, the opens
+and reads stand derived: the walk of `example/docs/counter_probe.cpp` pays
+one open per copy of each size and one read of the group leader per size that
+opens whole, and the short size pays its opens and no read. The record prints
+the arithmetic beside the answer of the consoles, cites the lines of the
+example that hold the walk and the cap, and states that the figure is derived
+(standing IP-001 shape).
+
+### Watchdog, once
+
+The decoded arm applies the watchdog rule once. The record cites the decoded
+arm of `source/counters/linux_pmu/limit_fill.cpp` and the nmi gate of
+`source/counters/linux_pmu/counter_limits.cpp`, prints this host's
+`nmi_watchdog` reading, and states the deduction that reading decides. No
+second application stands anywhere in the record.
+
+### What this part leaves untouched
+
+No raw event code (G-31), no raw configuration word, no new tool, no new
+option, no `.expected` compare claim, no source line, and no standing row of
+the Zen 5 or Intel records. `tools/group_probe.c` answers no row.
