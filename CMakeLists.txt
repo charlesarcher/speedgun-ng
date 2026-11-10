@@ -79,7 +79,12 @@ project(
     # free minor past 0.33.0, 0.34.0. JitterStats gains three figures, and the
     # pre-check tracer record gains three settings beside the three figures its
     # cpu record gains, so the exported layouts move again.
-    VERSION 0.34.0
+    # specs/051-raw-events FR-012 (D-6): under the reservation rule of
+    # specs/029 FR-090 this feature takes the next free minor past 0.34.0,
+    # 0.35.0. No public header moves and no exported layout moves, so the
+    # counters number stays 8, the harness SOVERSION stays 22, and the
+    # report schema stays 1.16.
+    VERSION 0.35.0
     DESCRIPTION "Speedgun Next Generation - a modern C++ benchmarking framework"
     HOMEPAGE_URL "https://github.com/charlesarcher/speedgun-ng"
     LANGUAGES CXX
@@ -169,6 +174,11 @@ set_target_properties(
     # System leave its private section and gain exported definitions. No existing
     # layout moves and no existing symbol changes, and hard rule 12 asks the
     # number to move with a public header change, so it goes to 8.
+    # specs/051-raw-events FR-012 (D-6): the raw entry reaches the counters
+    # core lookup where that lookup already stands, so this lane moves no
+    # public header of this archive. The condition hard rule 12 names stays
+    # unanswered, and the hand-kept number stays 8; a public header move
+    # takes it to 9.
     SOVERSION 8
     EXPORT_NAME speedgun-ng
     OUTPUT_NAME speedgun-ng

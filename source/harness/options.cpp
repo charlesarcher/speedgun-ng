@@ -561,7 +561,7 @@ auto optionRows() -> std::span<const OptionRow>
        'c',
        OptionArgument::REQUIRED,
        true,
-       "Adds one catalog counter to the report columns",
+       "Adds one catalog counter or raw event code; --hunt refuses raw codes",
        "specs/015"},
       {"metric",
        'M',

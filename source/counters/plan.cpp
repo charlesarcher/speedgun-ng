@@ -447,7 +447,7 @@ auto compileCore(const System& sys,
       // LCOV_EXCL_BR_START : coverage exclusion (T066): the null side. Every
       // leaf address reaching `compileCore` came from a resolved handle or
       // from `instantiate_core`, and the object it names is in the frozen
-      // tree, so the lookup never misses.
+      // tree, so the null side never runs.
       if (const auto* node = impl.find(objectPath); node != nullptr)
       {  // LCOV_EXCL_BR_LINE
         for (const auto& candidate : node->leaves) {
@@ -458,6 +458,21 @@ auto compileCore(const System& sys,
         }
       }  // LCOV_EXCL_BR_LINE
       // LCOV_EXCL_BR_STOP
+      // A raw address seeds no leaf of the frozen tree, so the scan above
+      // answers a miss for it. The plan reads its record from the
+      // raw-entry table, one of the three readers FR-015 names. The row
+      // carries the availability its probe settled and its device's
+      // provider index, so the gate and the grouping below need no change.
+      if (record == nullptr) {
+        const auto& table = rawEventTable();
+        const auto row = table.find(leaf.address);
+        if (row != table.end()) {
+          record = &row->second.record;
+          SG_ENSURE(record->core.address == leaf.address,
+                    "a raw-entry table row carries the canonical address it "
+                    "is keyed by (FR-015)");
+        }
+      }
       if (record == nullptr) {
         return std::unexpected(
             Error {.message = "leaf '" + leaf.address

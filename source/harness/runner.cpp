@@ -17,6 +17,7 @@
 #include "detail/complexity.hpp"
 #include "detail/graph.hpp"
 #include "detail/hunt_plan.hpp"
+#include "detail/hunt_selection.hpp"
 #include "detail/internal.hpp"
 #include "detail/json_report.hpp"
 #include "detail/options.hpp"
@@ -983,6 +984,50 @@ auto appendCounterColumns(std::vector<double>& printed,
   }
 }
 
+namespace
+{
+// FR-005, D-2: the widest hex run one config word carries. The counters
+// layer gates the same width beside its own copy of the raw shape predicate
+// at `source/counters/detail/pmu.hpp:327`, and the two gates stand apart
+// because the harness takes no counters private header (R-01).
+constexpr std::size_t kMaxRawHexDigits = 16;
+
+// FR-005, FR-015: the answer of the identity checkpoint for a leaf that
+// spells one raw event code, in the order FR-005 sets. The width gate reads
+// first and answers ahead of the device read, so a leaf wider than one
+// config word answers the width line even where the device it names stands
+// absent (FR-011). The device read follows, and it hands back the standing
+// wording of the counters layer for a path the host does not publish (FR-002).
+// The state read stands last: no published listing carries a raw entry, so
+// the state comes from the raw-aware core lookup, whose resolved row carries
+// the availability the one probe pair of the counters layer settled
+// (`counters_measurement.hpp:103`, FR-004). The harness opens nothing of its
+// own. The answer is the message field of the standing line, and an empty
+// answer names a leaf the host counts. The caller holds the shape test, so
+// the leaf reaches here with a leading `r` ahead of one or more hex digits.
+[[nodiscard]] auto rawAddressFailure(sg::counters::System& sys,
+                                     const std::string_view objectPath,
+                                     const std::string_view leaf) -> std::string
+{
+  if (leaf.size() - 1U > kMaxRawHexDigits) {
+    return "raw event code exceeds 16 hex digits";
+  }
+  const auto object = sys.object(objectPath);
+  if (!object.has_value()) {
+    return quotedText(object.error().message);
+  }
+  const auto settled = sg::counters::detail::resolveLeafCore(*object, leaf);
+  if (!settled.has_value()) {
+    return quotedText(settled.error().message);
+  }
+  if (settled->avail != sg::counters::Availability::COUNTABLE) {
+    return std::string("listed as ") + availabilityName(settled->avail)
+        + " (FR-023)";
+  }
+  return {};
+}
+}  // namespace
+
 auto counterAddressFailure(std::span<const CounterAddress> addresses) -> int
 {
   // The host resolves every address through the object it names and that
@@ -992,8 +1037,12 @@ auto counterAddressFailure(std::span<const CounterAddress> addresses) -> int
   for (const CounterAddress& item : addresses) {
     const auto [objectPath, leafName] = splitAddress(item.address);
     std::string message;
-    const auto object = sys.object(objectPath);
-    if (!object.has_value()) {
+    // FR-001, FR-007: a leaf spelling a raw event code takes the raw arms
+    // above, and every other name keeps the catalog route it had at base.
+    if (hasRawCodeShape(leafName)) {
+      message = rawAddressFailure(sys, objectPath, leafName);
+    } else if (const auto object = sys.object(objectPath); !object.has_value())
+    {
       message = quotedText(object.error().message);
     } else {
       const sg::counters::CatalogEntry* found = nullptr;
@@ -1450,6 +1499,33 @@ auto Runner::run(Instance& instance) -> BenchmarkResult
                    "%s: %s\n",
                    quotedText(address).c_str(),
                    quotedText(object.error().message).c_str());
+      columns.push_back(std::move(column));
+      continue;
+    }
+
+    // FR-015: a leaf that spells a raw event code skips the catalog search
+    // below, because the published listings carry no raw entry, and the
+    // no-such-leaf line of that search stays reserved for a name outside
+    // the raw shape. The synthesized row carries the unit token `none`,
+    // which `unitFromToken` and `dimensionOf` map to events^1
+    // (`counters_core.hpp:162-184`, `:196-211`), so the typed route names
+    // the dimension with no catalog entry to pick it. This is the same raw
+    // lookup the identity checkpoint runs, and one probe settles the row
+    // the two reads share (R-05).
+    if (hasRawCodeShape(leafName)) {
+      const auto leaf = object->counter<sg::counters::Dim<0, 1>>(leafName);
+      if (!leaf.has_value()) {
+        column.unavailable = true;
+        column.availability = sg::counters::Availability::ABSENT;
+        std::fprintf(stderr,
+                     "%s: %s\n",
+                     quotedText(address).c_str(),
+                     quotedText(leaf.error().message).c_str());
+        columns.push_back(std::move(column));
+        continue;
+      }
+      const sg::counters::Expression<sg::counters::Dim<0, 1>> expression(*leaf);
+      column.core = expression.core;
       columns.push_back(std::move(column));
       continue;
     }

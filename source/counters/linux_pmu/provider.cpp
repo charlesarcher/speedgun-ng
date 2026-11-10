@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <fstream>
 #include <memory>
 #include <string>
@@ -60,6 +61,26 @@ std::unique_ptr<WindowReader> PmuProvider::open(const LeafSet& /*leaves*/,
 {
   return nullptr;
 }
+
+// A raw address settles on the device facts the Linux loader states. Off
+// Linux no PMU device is ever seeded, so the standing no-object refusal
+// answers and no probe runs (FR-042, R-06).
+namespace detail
+{
+
+auto synthesizeRawEntry(const std::string_view devicePath,
+                        const std::string_view /*leaf*/)
+    -> std::expected<const RawEventEntry*, Error>
+{
+  const std::string refusal =
+      "no object at path '" + std::string(devicePath) + "'";
+  SG_ENSURE(refusal == "no object at path '" + std::string(devicePath) + "'",
+            "a raw address off Linux answers the standing no-object wording "
+            "for the path it names, and no probe runs for it (FR-042, R-06)");
+  return std::unexpected(Error {.message = refusal, .suggestions = {}});
+}
+
+}  // namespace detail
 
 #else
 
@@ -729,6 +750,205 @@ auto pmuProbe(const int type,
   }
 }
 
+namespace
+{
+
+// The device state of the live PMU provider that answers raw synthesis.
+// Raw synthesis is a free function the counters lookup calls, and the
+// device facts it reads are the ones this loader settled at device load,
+// so the released state stands beside it (FR-002, R-05). A constructor
+// publishes that state once its catalog has settled and only while no
+// live provider holds it, and a destructor withdraws the state it
+// published, so no resolve reads a state the provider has released.
+auto settledDeviceState() -> const PmuState*&
+{
+  static const PmuState* state = nullptr;
+  return state;
+}
+
+// The device the raw address names, held in that state: the `type` read
+// and the `cpumask` presence already stand there, so a raw address opens
+// no sysfs file of its own (FR-002, R-05). A state holding no device at
+// that path answers null, which is the standing no-object refusal.
+auto settledDevice(const std::string_view devicePath) noexcept
+    -> const PmuDevice*
+{
+  const PmuState* const state = settledDeviceState();
+  if (state == nullptr) {
+    return nullptr;
+  }
+  const auto found =
+      std::ranges::find_if(state->devices,
+                           [devicePath](const PmuDevice& device)
+                           { return device.path == devicePath; });
+  return found == state->devices.end() ? nullptr : &*found;
+}
+
+// The read mode this device states for its entries. It is one device-wide
+// verdict, so the raw leaf is read the way a catalog row of that device
+// is read and no second event-page verdict runs for it (FR-003, R-07).
+auto deviceReadMode(const PmuDevice& device) noexcept -> ReadMode
+{
+  const auto countable =
+      std::ranges::find_if(device.entries,
+                           [](const PmuEntry& entry)
+                           { return entry.avail == Availability::COUNTABLE; });
+  return countable == device.entries.end() ? ReadMode::SYSCALL
+                                           : countable->mode;
+}
+
+// The radix a raw leaf spells its config word in: the leaf of FR-001 is
+// hex text.
+constexpr int kHexRadix = 16;
+
+// The availability the standing chain settles for a raw address out of the
+// two probe verdicts and the device's own scope. The scope arm is the rule
+// `scopeSettledState` spells for itself, and the rest is the chain
+// `probeDevice` runs for a seeded entry (FR-004, FR-021, FR-022).
+[[maybe_unused]] auto rawStateRule(const Availability perTask,
+                                   const Availability onCpu,
+                                   const bool deviceScoped) noexcept
+    -> Availability
+{
+  const bool scopeRefusal =
+      deviceScoped && onCpu == Availability::PERMISSION_BLOCKED;
+  if (onCpu == Availability::COUNTABLE) {
+    return Availability::COUNTABLE;
+  }
+  if (deviceScoped) {
+    return scopeRefusal ? Availability::SCOPE_REFUSED : onCpu;
+  }
+  return perTask == Availability::COUNTABLE ? perTask : onCpu;
+}
+
+// Settles a raw entry's availability, target kinds, and read mode on the
+// standing probe pair: a cpumask device refuses the per-task kind, the cpu
+// probe answers for every device, and each verdict settles through the one
+// errno table of the probe, so no second errno table joins this path and no
+// host capability check joins it (FR-004, FR-022, D-3, R-05).
+auto probeRawEntry(const PmuDevice& device, PmuEntry& entry) -> void
+{
+  Availability perTask = Availability::SCOPE_REFUSED;
+  if (!device.deviceScoped) {
+    perTask = detail::pmuProbe(device.type, entry.words, Target {});
+  }
+  const Availability onCpu = detail::pmuProbe(
+      device.type, entry.words, Target {.kind = TargetKind::CPU, .cpu = 0});
+  entry.probedKinds = detail::probedKindMask(perTask, onCpu);
+  // A kind the kernel counts settles the entry, and the device's own scope
+  // decides which kinds that is, on the standing chain that settles a
+  // seeded entry (FR-021, FR-022).
+  Availability state = perTask;
+  if (onCpu == Availability::COUNTABLE) {
+    state = Availability::COUNTABLE;
+  } else if (device.deviceScoped) {
+    state = detail::scopeSettledState(onCpu, device.deviceScoped);
+  } else if (state != Availability::COUNTABLE) {
+    state = onCpu;
+  }
+  entry.avail = state;
+  // The state and the kinds, each spelled the way the extracted decision
+  // for that half spells its own rule, so neither half of the check can
+  // disagree with the verdicts it reads (FR-004, FR-021, FR-022).
+  SG_ENSURE(entry.avail == rawStateRule(perTask, onCpu, device.deviceScoped)
+                && entry.probedKinds
+                       == ((perTask == Availability::COUNTABLE
+                                ? kTargetThreadBit
+                                : TargetMask {})
+                           | (onCpu == Availability::COUNTABLE
+                                  ? kTargetCpuBit
+                                  : TargetMask {})),
+            "the state names the kind the kernel counted, the scope's own "
+            "refusal where a device-scoped device refused, and the cpu "
+            "probe's verdict elsewhere, and the kinds name exactly the "
+            "kinds that probe counted (FR-004, FR-021, FR-022)");
+  if (state == Availability::COUNTABLE) {
+    entry.mode = deviceReadMode(device);
+  }
+}
+
+}  // namespace
+
+auto synthesizeRawEntry(const std::string_view devicePath,
+                        const std::string_view leaf)
+    -> std::expected<const RawEventEntry*, Error>
+{
+  const std::string address {std::string(devicePath) + "/" + std::string(leaf)};
+  // An address the one table already holds answers the stored row and runs
+  // no probe: one address pays one probe pair however often it is looked
+  // up, and the same config word written under two spellings stays two
+  // addresses over two rows (FR-008).
+  auto& table = rawEventTable();
+  const auto settled = table.find(address);
+  if (settled != table.end()) {
+    return &settled->second;
+  }
+  // A path this provider holds no PMU device at answers the standing
+  // no-object wording the object route already gives, so a raw address on
+  // such a path prints one line with every other refused address, and the
+  // refusal costs no probe (FR-002, R-06).
+  const PmuDevice* const device = settledDevice(devicePath);
+  if (device == nullptr) {
+    const std::string refusal =
+        "no object at path '" + std::string(devicePath) + "'";
+    SG_ENSURE(refusal == "no object at path '" + std::string(devicePath) + "'",
+              "a raw address at a path holding no PMU device answers the "
+              "standing no-object wording, and no other line answers it "
+              "(FR-002, R-06)");
+    return std::unexpected(Error {.message = refusal, .suggestions = {}});
+  }
+  // The leaf text is the config word, read as hexadecimal: nothing
+  // reinterprets it and nothing truncates it (FR-001, D-2). The shape test
+  // and the width gate stand ahead of this call, where the catalog-name
+  // route takes a leaf that fails either (FR-001, FR-005).
+  const std::string leafText {leaf};
+  RawEventEntry row;
+  row.entry.name = leafText;
+  row.entry.words = {
+      {0, std::strtoull(leafText.substr(1).c_str(), nullptr, kHexRadix)},
+  };
+  row.entry.description = "raw event code '" + leafText + "' on device '"
+      + device->path + "', PMU type " + std::to_string(device->type)
+      + "; the leaf text names the config word as typed";
+  // The availability, the target kinds, and the read mode come from the
+  // standing probe pair, and that pair runs once for the address
+  // (FR-004, R-05).
+  probeRawEntry(*device, row.entry);
+  // The core side carries what this provider seeds for a catalog row of
+  // the same device: the canonical address, the leaf as typed, the closed
+  // unit token `none`, and the state and mode this probe settled (FR-007,
+  // FR-015). The ratio pair and the provider index hold their defaults
+  // here, because the records seeded under that node state them and the
+  // provider holds no view of the tree (R-07).
+  row.record.core = LeafCore {
+      .address = address,
+      .name = leafText,
+      .description = row.entry.description,
+      .unit = "none",
+      .avail = row.entry.avail,
+      .mode = row.entry.mode,
+      .frequencyHz = 0,
+      .scaled = false,
+  };
+  // The settled row lands in the one table under the canonical address,
+  // and the answer names the stored row. A `std::map` keeps its nodes in
+  // place as the table grows, so a pointer to a row holds for every later
+  // read of that address (FR-015, R-04, R-05).
+  const auto stored = table.emplace(address, std::move(row));
+  const RawEventEntry* const answer = &stored.first->second;
+  SG_ENSURE(answer == &rawEventTable()[address]
+                && stored.first->first == std::string(devicePath) + "/"
+                                              + leafText
+                && answer->record.core.address == address,
+            "the row stands in the one table under the address it names, "
+            "and its record carries that same address (FR-015, R-04)");
+  SG_ENSURE(answer->entry.words.size() == 1U
+                && answer->entry.words.front().first == 0,
+            "the settled row carries its one config word at index 0, the "
+            "shape the window programs for a raw leaf (FR-003)");
+  return answer;
+}
+
 }  // namespace detail
 
 PmuProvider::PmuProvider()
@@ -790,9 +1010,26 @@ PmuProvider::PmuProvider()
       m_state->devices.push_back(std::move(*device));
     }
   }
+  // A raw address settles on the devices this catalog holds, so the
+  // settled state stands for the synthesis entry point from here: every
+  // device fact that route reads is fixed once this loop has run
+  // (FR-002, R-05). One live PMU provider answers raw synthesis, so a
+  // state a live provider already holds stands, and a second provider
+  // the system refuses leaves the first standing.
+  if (detail::settledDeviceState() == nullptr) {
+    detail::settledDeviceState() = m_state.get();
+  }
 }
 
-PmuProvider::~PmuProvider() = default;
+PmuProvider::~PmuProvider()
+{
+  // The synthesis entry point reads no device state past this point, and
+  // a provider withdraws only the state it published, so a provider the
+  // system refused releases nothing a live provider holds (FR-002, R-05).
+  if (detail::settledDeviceState() == m_state.get()) {
+    detail::settledDeviceState() = nullptr;
+  }
+}
 
 void PmuProvider::enumerate(ObjectSink& sink) const
 {

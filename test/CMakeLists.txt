@@ -557,6 +557,14 @@ target_link_libraries(counters_pmu_provider_test
 target_compile_features(counters_pmu_provider_test PRIVATE cxx_std_23)
 add_test(NAME counters_pmu_provider_test
          COMMAND counters_pmu_provider_test)
+
+add_executable(counters_raw_event_test
+               source/counters_raw_event_test.cpp)
+target_link_libraries(counters_raw_event_test
+                      PRIVATE speedgun-ng::speedgun-ng)
+target_compile_features(counters_raw_event_test PRIVATE cxx_std_23)
+add_test(NAME counters_raw_event_test COMMAND counters_raw_event_test)
+
 # The source record a table owes the reader (specs/042-topdown T006; FR-015,
 # PC-12, spec D-12): the reference the manifest states, the digest of every
 # contributing file, and the file every loaded row names. The fixture tree is
@@ -1839,6 +1847,12 @@ target_link_libraries(harness_hunt_cli_test PRIVATE speedgun-ng::harness)
 target_include_directories(harness_hunt_cli_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
 target_compile_features(harness_hunt_cli_test PRIVATE cxx_std_23)
 add_test(NAME harness_hunt_cli_test COMMAND harness_hunt_cli_test)
+
+add_executable(harness_raw_events_test source/harness_raw_events_test.cpp)
+target_link_libraries(harness_raw_events_test PRIVATE speedgun-ng::harness)
+target_include_directories(harness_raw_events_test PRIVATE ${CMAKE_SOURCE_DIR}/source/harness)
+target_compile_features(harness_raw_events_test PRIVATE cxx_std_23)
+add_test(NAME harness_raw_events_test COMMAND harness_raw_events_test)
 
 # The plan line, the ranked table, the skipped list, the estimate and the cut
 # line (T032; US2, FR-040 to FR-043, D-19, D-20).

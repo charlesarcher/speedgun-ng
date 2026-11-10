@@ -182,6 +182,21 @@ auto resolve(const PmuState& state,
         break;
       }
     }
+    if (found == nullptr) {
+      // A raw address adds no leaf to the frozen tree, so the entry the
+      // synthesis step settled for it stands in the raw-entry table beside
+      // the tree under the canonical address (FR-015, D-5). The
+      // availability that step settled rides the row, so the check below
+      // refuses a raw leaf the kernel refused.
+      const auto& table = rawEventTable();
+      const auto settled = table.find(device.path + "/" + leafName);
+      if (settled != table.end()) {
+        found = &settled->second.entry;
+        SG_ENSURE(found->words.size() == 1 && found->words.front().first == 0,
+                  "the settled row carries its one config word at index 0 "
+                  "(FR-003)");
+      }
+    }
     if (found == nullptr || found->avail != Availability::COUNTABLE) {
       return false;
     }
