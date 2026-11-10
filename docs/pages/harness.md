@@ -634,21 +634,21 @@ prints its refusal kind in place of the number, and the run continues. The
 `--catalog` listing marks a metric line with `mode=metric` and prints it under
 the object its first leaf reaches, after that object's counter lines.
 
-`--counter` names one catalog counter address, in the shape
-`--counter=machine/monotonic`, and adds one column per address in the order
-the addresses are given. One item may stand as the `@path` of a file of
-addresses, read one level deep, the reading `--hunt=@path` gives: blank lines
-and `#` comments stand ignored, and a line of comma-separated addresses answers
-one element per address. A file no host opens, a
-comma that leaves an address empty and a file that holds no address each stop
-the run with status 2 on one line naming the value the option carried. An
-address this host does not find, a typo or a valid
-path whose device the host lacks, stops the run before any measurement with
-status 2, on one line naming the source that held the address, the address,
-and what the host found there. The listing and the catalog answer before the
-addresses are read, so `--counter=/no/such/leaf --list` still prints them. A
-caller that hands addresses to the runner keeps the absent column the runner
-answers for a leaf it cannot resolve.
+`--counter` names one catalog counter address or a raw event code such as
+`cpu/r4000`, and adds one column per address in the order given. A raw event
+code is a leaf spelled `r` then hex digits: the hex text is the perf config
+word and the device part names the PMU. `--hunt` keeps refusing raw event
+codes, as the hunt section states. One item may stand as the `@path` of a file,
+read one level deep as `--hunt=@path` reads: blank lines and `#` comments stand
+ignored, and a comma-separated line answers one element per address. A file no
+host opens, a comma that leaves an address empty and a file that holds none
+each stop the run with status 2 on one line naming the value carried. An
+address this host does not find, a typo or a path whose device the host lacks
+stops the run before any measurement with status 2, on one line naming the
+source, the address and what the host found there. The listing and the catalog
+answer before the addresses are read, so `--counter=/no/such/leaf --list` still
+prints them. A caller that hands addresses to the runner keeps the absent
+column the runner answers for a leaf it cannot resolve.
 
 The aggregate row of the quick-start benchmark carries the built-in statistics
 for one benchmark: mean, median, `sd=`, `cv=`, min, max and the repetition
@@ -672,7 +672,7 @@ variable.
 | `iterations` | required | `SPEEDGUN_ITERATIONS` | Fixes the iteration count and skips calibration |
 | `warmup-time` | required | `SPEEDGUN_WARMUP_TIME` | Sets the untimed warm-up seconds |
 | `dry-run` | none |  | Runs one iteration and prints the row shape |
-| `counter` | required | `SPEEDGUN_COUNTER` | Adds one catalog counter to the report columns |
+| `counter` | required | `SPEEDGUN_COUNTER` | Adds one catalog counter or raw event code; `--hunt` refuses raw codes |
 | `metric` | required | `SPEEDGUN_METRIC` | Adds one metric of the host's table to the report columns |
 | `catalog` | none |  | Prints the counter catalog and stops |
 | `percentiles` | required | `SPEEDGUN_PERCENTILES` | Sets the percentile points one run reports |

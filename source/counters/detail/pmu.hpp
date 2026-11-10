@@ -8,9 +8,12 @@
 // source/counters/ lives in table_parse.cpp; nothing here leaks JSON
 // types.
 
+#include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <filesystem>
 #include <iosfwd>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -21,6 +24,7 @@
 
 #include <sys/types.h>
 
+#include "core.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_provider.hpp"
 
@@ -290,6 +294,123 @@ void noteProbedKinds(const std::string& address, TargetMask probed);
 // leaf's kinds inside the `noexcept` mask decision (FR-021).
 [[nodiscard]] auto probedKindsAt(const std::string& address) noexcept
     -> TargetMask;
+
+/// @brief FR-001: whether `leaf` spells a perf raw event code: a lower-case
+/// `r` then one or more hex digits of either case.
+///
+/// The leaf of `cpu/r4000` answers yes. `R4000`, a bare `r`, `rgg` and
+/// `r4g` answer no and stay on the catalog-name route with the standing
+/// refusals (FR-007). The width of the digit run is no part of this answer:
+/// a leaf of seventeen digits answers yes here and the caller refuses it
+/// against `kMaxRawHexDigits` ahead of any probe (FR-001, FR-005, D-2).
+///
+/// The counters layer carries its own copy of this contract. The hunter and
+/// harness routes read the predicate of the same name at
+/// `source/harness/detail/hunt_selection.hpp:116`, the shape specs/029
+/// FR-005 pins. The two copies stand apart because the counters library
+/// takes no harness header and an exported counters predicate would move a
+/// public header (specs/051-raw-events R-01).
+///
+/// \pre none
+/// \post The answer is true exactly when `leaf` begins with a lower-case
+///       `r`, carries at least one character after it, and every character
+///       after it is a hex digit of either case.
+[[nodiscard]] auto hasRawCodeShape(std::string_view leaf) noexcept -> bool;
+
+// The width rule of D-2: sixteen hex digits is the 64-bit config word, so a
+// raw leaf whose digit run is longer names no config word this library
+// opens. The harness leaf-match stage answers the FR-005 width line for such
+// a leaf ahead of the device lookup and ahead of any probe, and the
+// counters raw arm gates the same width, so a wide leaf reaches no probe and
+// no near-miss candidate list. Its hex text is never truncated (FR-005,
+// D-2, specs/051-raw-events R-02).
+constexpr std::size_t kMaxRawHexDigits = 16;
+
+// One raw address settled by one probe, in the two shapes its readers take:
+// `entry` is the row the provider window opens, its one config word and the
+// availability that probe settled; `record` is the row the core lookup hands
+// back and the plan compiles, carrying the ratio pair and provider index of
+// the device the address names (FR-003, FR-004, FR-007). One probe settles
+// both halves, and nothing settles either of them a second time
+// (specs/051-raw-events R-05).
+struct RawEventEntry
+{
+  PmuEntry entry;
+  LeafRecord record;
+};
+
+/// @brief The one table of settled raw entries, keyed by the canonical
+/// `<device>/<leaf>` address a resolved leaf carries (FR-015, D-5).
+///
+/// A raw address adds no leaf to the frozen tree, so its settled row rides
+/// beside it the way the probed-kinds records above do: written once by the
+/// raw synthesis step before any read, and read-only afterward, so no read
+/// races a write (specs/051-raw-events R-04).
+///
+/// Three readers, and only these: the counters core lookup
+/// (`resolveLeafCore`), the plan's leaf-record read (`compileCore`), and the
+/// provider window resolve (`resolve` of `group_io.cpp`). Never a reader:
+/// `PmuProvider::enumerate`, the near-miss candidate loops, and every
+/// listing surface, so `--catalog`, the `--list` family and the published
+/// listings answer as at base (FR-015).
+///
+/// The width rule stands with this table because a wide leaf is the raw
+/// spelling that must reach no row: a leaf whose raw text exceeds sixteen
+/// hex digits is refused with the width line `raw event code exceeds 16 hex
+/// digits`, ahead of the device lookup and ahead of any probe, and it is
+/// never probed and its text is never truncated (FR-005, D-2).
+///
+/// \pre none. An address this table holds no row for names no settled raw
+///      leaf, and a reader treats the miss that way.
+/// \post The answer is the one table of this process: one row per address,
+///       a row the synthesis step writes stands in every later answer, and
+///       each key names the address its own row's entry and record carry.
+[[nodiscard]] auto rawEventTable() -> std::map<std::string, RawEventEntry>&;
+
+/// @brief Settle one raw address on the device its path names, and store the
+/// entry the provider synthesizes for `devicePath` and `leaf` (FR-002,
+/// FR-003, FR-004, D-5).
+///
+/// The provider holds the device facts, so the definition stands in
+/// `provider.cpp` beside the probe it runs. The `type` and the `cpumask`
+/// presence the loader settled at device load stand there already, and a raw
+/// address opens no sysfs file of its own (FR-002, R-05). The availability
+/// comes from the standing probe pair and the one errno table, and the
+/// standing scope rule relabels a device-scoped device, so no second errno
+/// table joins the path and no host capability check joins it (FR-004, D-3).
+/// The read mode, ratio pair and provider index come from the records
+/// already seeded under that device, so the raw leaf takes the exclusion,
+/// group-read and time-pair settings a catalog row of that device takes
+/// (FR-003, R-07).
+///
+/// The settled row lands in `rawEventTable()` under the canonical address,
+/// and an address that table already holds answers from that row, so one
+/// address pays one probe pair however often it is looked up (FR-008, R-05).
+///
+/// A path the provider holds no PMU device for answers the recoverable
+/// refusal in the standing wording `no object at path '<devicePath>'`, the
+/// line the object route already answers, and that refusal costs no probe
+/// (FR-002, R-06). A probe refusal leaves the address settled: the row
+/// stands with the state that probe published, and the caller prints the
+/// standing listed-as line for it (FR-004).
+///
+/// \pre none. The shape and width gate stands ahead of the call, where the
+///      catalog-name route takes a leaf that fails either (FR-001, FR-005),
+///      and a refusal of a user address is recoverable (D-2).
+/// \post The answer names a row of `rawEventTable()` keyed by
+///       `devicePath + "/" + leaf`, and its entry carries exactly one config
+///       word, word zero, spelling the leaf's hex text.
+/// \post The row's availability is the state the one errno table settled for
+///       that open, and the scope rule relabels it on a device-scoped
+///       device, and its probed kinds name exactly the kinds that probe
+///       counted (FR-004, FR-021).
+/// \post A call for an address the table already holds answers the stored
+///       row and runs no further probe (FR-008).
+/// \post The refusal answers `no object at path '<devicePath>'` exactly when
+///       the provider holds no PMU device at `devicePath`.
+[[nodiscard]] auto synthesizeRawEntry(std::string_view devicePath,
+                                      std::string_view leaf)
+    -> std::expected<const RawEventEntry*, Error>;
 
 // One event-source device: its canonical path, its PMU type, the bit
 // layouts it publishes, and the merged catalog in seed order (kernel

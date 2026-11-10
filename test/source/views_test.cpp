@@ -305,17 +305,19 @@ auto run() -> int
   // specs/046-hunter-topdown FR-004, FR-008, FR-028, D-8, D-16;
   // specs/041-counter-probe FR-053, D-3a; specs/050-limit-table-lifecycle
   // FR-010, FR-012, D-5; specs/048-hwlat-probe FR-004, FR-038, D-5): the
-  // project block reads 0.34.0, the harness target answers SOVERSION 22, and
+  // project block reads 0.35.0, the harness target answers SOVERSION 22, and
   // the archive target answers SOVERSION 8. Two members of System leave the
   // private section of the counters header, and the figures the detector
   // surfaces add move the harness layouts, so the project and the harness
   // numbers move while the archive number stands where specs/050 left it.
-  // Each read below names the target whose property line it reads.
+  // specs/051-raw-events FR-012 later takes the next free minor for the
+  // project figure alone, under the specs/029 reservation rule. Each read
+  // below names the target whose property line it reads.
   {
     auto const cmake = rootCMakeText();
     check(!cmake.empty(), "pass: the root CMakeLists.txt can be read");
-    check(projectVersion(cmake) == "0.34.0",
-          "pass: the project version reads 0.34.0");
+    check(projectVersion(cmake) == "0.35.0",
+          "pass: the project version reads 0.35.0");
     check(soVersionOf(cmake, "speedgun-ng_harness") == "22",
           "pass: the harness property line reads SOVERSION 22");
     check(soVersionOf(cmake, "speedgun-ng_speedgun-ng") == "8",

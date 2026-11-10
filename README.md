@@ -967,7 +967,7 @@ The run writes its document at `--json=path`, loads it back with `loadReport`, a
 | `--os-noise` | Runs the `osnoise`, `timerlat` or `hwlat` tracer across the pre-check window |
 | `--graph` | Orders the context starts of every threaded run by that graph file; the bare form reads its path from the option file |
 | `--dry-run` | Runs one iteration and prints the row shape |
-| `--counter` | Adds one catalog counter address or `@file` of addresses to the report columns |
+| `--counter` | Adds one catalog counter address, a raw event code such as `cpu/r4000`, or a `@file` of addresses to the report columns; `--hunt` refuses raw event codes |
 | `--metric` | Adds one metric of the host's table to the report columns |
 | `--metric-method` | Sets the metric collection method to `auto`, `passes` or `multiplex` |
 | `--catalog` | Prints the counter catalog and stops |

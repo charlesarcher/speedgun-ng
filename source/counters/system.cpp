@@ -2,6 +2,7 @@
 // (specs/007-counters-and-timers, US1/US3).
 
 #include <algorithm>
+#include <cctype>
 #include <cstddef>
 #include <expected>
 #include <map>
@@ -177,6 +178,22 @@ auto probedKindTable() -> std::map<std::string, TargetMask>&
 }
 
 }  // namespace
+
+// The one table of settled raw entries, keyed by the canonical
+// `<device>/<leaf>` address. A raw address adds no leaf to the frozen tree,
+// so its settled row rides beside the tree in the shape of the store above
+// (specs/051-raw-events D-5, R-04). The lifecycle matches too: the raw
+// synthesis step writes one row per address ahead of every read of it, and a
+// later read looks that row up, so no read races a write (FR-015). The
+// definition stands outside the anonymous namespace, the way the
+// limit-source record does at `limit_source.cpp:35`, because the plan's
+// leaf-record read and the provider window resolve reach this same table
+// from their own translation units (FR-015).
+auto detail::rawEventTable() -> std::map<std::string, detail::RawEventEntry>&
+{
+  static std::map<std::string, detail::RawEventEntry> table;
+  return table;
+}
 
 System::System()
     : m_impl(std::make_unique<Impl>())
@@ -570,6 +587,69 @@ auto settledTargets(const Availability probed,
   return settled;
 }
 
+namespace
+{
+
+// Whether `digit` spells one hexadecimal digit of either case, the run a
+// raw event code carries after its leading `r` (FR-001).
+[[nodiscard]] auto isHexDigit(const char digit) noexcept -> bool
+{
+  return std::isxdigit(static_cast<unsigned char>(digit)) != 0;
+}
+
+// The device-level fields a raw row takes from the leaves the provider
+// seeded under the same node (specs/051-raw-events R-07). The synthesis
+// holds no view of the tree, so its row reaches the tree with the ratio
+// pair, the scaled disclosure and the provider index at their `LeafRecord`
+// defaults. A plan reads all three: the pair lays out the enabled and
+// running slots, and the index places the leaf in its provider's read group
+// (FR-003, FR-047). One provider seeds one node, a path the tree or a
+// staging batch already holds being refused at registration (FR-008), so any
+// event leaf of the node states that provider's index. The enabled and
+// running leaves disclose the pair they carry, so the search names an event
+// leaf, the same two names the window reads at `group_io.cpp:204-208`. Each
+// assignment reads a seeded leaf and writes the row, so a row the table holds
+// already answers unchanged however often it is stamped again (FR-008).
+void stampRawRecord(const TreeNode& node, LeafRecord& record)
+{
+  const auto eventLeaf = std::ranges::find_if(
+      node.leaves,
+      [](const LeafRecord& one)
+      { return one.core.name != "enabled" && one.core.name != "running"; });
+  // The provider drops a device with no entries at `provider.cpp:1006`, but a
+  // device whose every entry the seed probe refused still registers. So a node
+  // whose leaves all carry the two control names reaches this return: the
+  // counters case `rawStampSkipsControlLeafNames` scripts such a node, and its
+  // raw row keeps the device-level figures the synthesis settled. A node with
+  // no seeded event leaf states no provider index: the tree carries that index
+  // on a leaf alone (`detail/core.hpp:36-38`).
+  if (eventLeaf == node.leaves.end()) {
+    return;
+  }
+  record.hasRatioPair = eventLeaf->hasRatioPair;
+  record.core.scaled = eventLeaf->core.scaled;
+  record.providerIndex = eventLeaf->providerIndex;
+}
+
+}  // namespace
+
+auto hasRawCodeShape(const std::string_view leaf) noexcept -> bool
+{
+  // The digit run is the text past the leading `r`, and one test per
+  // character decides it. The answer and the postcondition read that same
+  // test, so the check cannot disagree with the decision it checks (FR-001,
+  // FR-005).
+  const bool shaped = leaf.size() >= 2U && leaf.front() == 'r'
+      && std::ranges::all_of(leaf.substr(1), isHexDigit);
+  SG_ENSURE(shaped
+                == (leaf.size() >= 2U && leaf.front() == 'r'
+                    && std::ranges::all_of(leaf.substr(1), isHexDigit)),
+            "a lower-case `r` carrying one or more hex digits of either case "
+            "answers true, and the width of that run names no part of the "
+            "answer (FR-001, FR-005)");
+  return shaped;
+}
+
 auto resolveLeafCore(const Object& obj,
                      std::string_view name) -> std::expected<LeafCore, Error>
 {
@@ -578,6 +658,41 @@ auto resolveLeafCore(const Object& obj,
     if (leaf.core.name == name) {
       return leaf.core;
     }
+  }
+  // A leaf spelling a raw event code names no catalog name, so the raw arm
+  // answers ahead of the near-miss arm and the candidate list keeps coming
+  // from seeded leaves (FR-001, FR-015). The width gate stands here too: a
+  // run of more than `kMaxRawHexDigits` hex digits names no config word this
+  // library opens, so it answers one recoverable line naming the leaf and
+  // the width, and it reaches no probe and no candidate list (FR-005, D-2,
+  // R-02). FR-005 fixes the printed width line in the harness, and the
+  // counters wording is unpinned.
+  if (hasRawCodeShape(name)) {
+    // The shape test leaves one leading `r` and a run of one or more digits.
+    const std::size_t digits = name.size() - 1U;
+    if (digits > kMaxRawHexDigits) {
+      return std::unexpected(Error {
+          .message = "raw event code '" + std::string(name) + "' exceeds "
+              + std::to_string(kMaxRawHexDigits) + " hex digits (FR-005)",
+          .suggestions = {}});
+    }
+    const auto settled = synthesizeRawEntry(node->path, name);
+    if (!settled.has_value()) {
+      // A path the provider holds no PMU device at answers the standing
+      // no-object wording, and that refusal costs no probe (FR-002, R-06).
+      return std::unexpected(settled.error());
+    }
+    // The synthesis holds no view of the tree, so the row it settled reaches
+    // the lookup with its device-level fields at their defaults. The seeded
+    // records state them, so the lookup writes them into the stored row
+    // before it answers (R-07, FR-003).
+    auto& table = rawEventTable();
+    auto row = table.find(node->path + "/" + std::string(name));
+    SG_ENSURE(row != table.end(),
+              "a settled raw address stands in the one table under that "
+              "address (FR-015, R-04)");
+    stampRawRecord(*node, row->second.record);
+    return row->second.record.core;
   }
   std::vector<std::pair<std::string, std::string>> candidates;
   for (const auto& leaf : node->leaves) {
