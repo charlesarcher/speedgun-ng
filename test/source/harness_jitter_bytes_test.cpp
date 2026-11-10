@@ -338,6 +338,29 @@ auto theNewKeysStandAbsentFromTheDocument() -> void
   }
 }
 
+// specs/045-merge-fixes phase 16 (FR-039): the record's disclosure carries
+// the time-base clause the probe measured, and the writer puts the text
+// beside the jitter object verbatim, so the document answers the record
+// unchanged in structure (FR-026).
+auto theTimeBaseClauseRidesTheDisclosureUnchanged() -> void
+{
+  auto record = tscRecord();
+  record.disclosure =
+      "probe on cpus 0,1; loop period 20 ns, threshold 200 ns; time base "
+      "tsc ticks scaled to ns at 250000 Hz; cpu 0 kept 3 dropped 1; cpu 1 "
+      "kept 3 dropped 1; split and percentiles use the kept gaps only";
+  const auto data = tscData();
+  check(sg::detail::writeReport(kDocument, data, {}, record),
+        "the writer wrote the document of the tsc run (FR-026)");
+  const std::string document = sg::test::readText(kDocument);
+  const std::string clause =
+      std::string("\"disclosure\"") + ":" + "\"" + record.disclosure + "\"";
+  check(document.find(clause) != std::string::npos,
+        "theTimeBaseClauseRidesTheDisclosureUnchanged: the document carries "
+        "the disclosure the record carries, the time-base clause included, "
+        "verbatim beside the jitter object (FR-039, FR-026)");
+}
+
 // The pre-check record of a standing tracer engine: one measured cpu that
 // carries the three detector figures of the record, and the tracer entry of
 // `osnoise` with the settings and the detector figures set as well. The
@@ -498,6 +521,7 @@ auto main() -> int
   aTscRunMatchesTheFixtureBytes();
   eachMaskedSpanHoldsANumber();
   theNewKeysStandAbsentFromTheDocument();
+  theTimeBaseClauseRidesTheDisclosureUnchanged();
   theStandingConsoleLinesMatchTheRecordedBytes();
   aTscRunPassesTheSchemaAtTheStampedMinor();
   // specs/048-hwlat-probe T035: the byte identity a standing run owes while

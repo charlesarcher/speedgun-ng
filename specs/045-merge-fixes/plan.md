@@ -869,3 +869,330 @@ threshold or a fake cpu.
   file for the operator.
 - O-5, O-6 and O-8 stand as phase 14 wrote them. O-7 closes with FR-034 and
   FR-035.
+
+## Phase 16 plan: Match the probe's printed units to the counter ticks (2026-11-10)
+
+**Base**: `origin/master` at `1f1f9b20cec97198e5cd88778167431eef2c6eb6`,
+the PR #101 merge.
+**Branch**: `fix/probe-unit-labels`, cut from the latest
+`origin/master`.
+**Spec**: Phase 16 of [spec.md](./spec.md), rows BFW-013 to BFW-017.
+**Host of record**: thrawn, AMD Zen 5 Threadripper 9960X, 24 cores, 48
+threads, all 48 cpus in the affinity mask, kernel `7.3.0-5-cachyos`,
+GCC and gcov `16.2.1 20260810`, clang `23.1.3`, clang-format `18.1.8`,
+lcov and genhtml `2.6-0`, cmake and ctest `4.4.4`.
+
+Line numbers stand taken at the branch base, before the fix lands, the
+way the earlier phases of this file take theirs.
+
+### Summary of the phase
+
+One row stands open. O-8 of phases 14 and 15 names the defect, and the
+owner ruling G-35 orders it closed. The probe's one-leaf plan reads the
+catalog's `machine/tsc` leaf (`source/harness/jitter_probe.cpp:262`, the
+leaf the availability gate matched at Q-1), whose values stand in raw
+counter ticks (`source/counters/clock_provider.cpp:176-185`, `tscTicks`
+over `__rdtsc`), while every figure the probe stores and prints carries
+a name in nanoseconds: `unitTimeNs`, `targetNs`, `quantumNs`,
+`thresholdNs`, `loopPeriodNs`, `calibrationSpanNs`
+(`include/speedgun-ng/benchmark.hpp:618-640`; the constants
+`kDefaultThresholdNs = 200` at `:2463` and `kTargetUnitTimeNs = 1000`
+at `:2481`). On this host the two stand apart by a factor of about
+4.19: the tsc answers about 4.19 ticks per true nanosecond, so a
+figure named `unitTimeNs` carries about 4.19 times its name, and the
+calibration target of 1000 ns lands near 239 true ns, where the probe
+contract of specs/043 FR-010 names 1 us.
+
+The defect reaches four behaviors at one root, because one read fills
+them all:
+
+1. The printed figures carry ticks under ns names: the `jitter probe:`
+   block, the precheck per-cpu blocks and the per-benchmark worst-cpu
+   line of `source/harness/report.cpp` (`:1001`, `:816`, `:822`), and
+   the JSON document's jitter keys
+   (`source/harness/json_report.cpp:381-470`).
+2. The gap threshold comparison (`gap >= state->thresholdNs` at
+   `source/harness/jitter_probe.cpp:735` and `:825`) compares ticks
+   against nanoseconds: the kept-gap set stands about 4.19 times too
+   sensitive.
+3. The FWQ calibration target stands read in tick space
+   (`source/harness/jitter_probe.cpp:308` and `:375`), so the unit
+   lands near 239 true ns.
+4. The FTQ quantum edges (`edge += state->quantumNs` inside
+   `runFtqUnit`, the edges seeded at `:723` and `:816`) and the
+   precheck spans (`span` at `:693`, `precheckMs * 1000000`) compare
+   ticks against ns figures.
+
+This phase lands one fix at one point: the probe's own read move
+gains an exact integer projection from ticks to nanoseconds, at the
+tick rate the run measured at setup against the catalog's
+`machine/monotonic` leaf, and every figure, comparison and span
+downstream keeps the ns reading its name and its contract state. The
+fix moves no public header, no schema version, no `SOVERSION`, no
+gate, no filter, no allowance and no timeout, and it adds no console
+line, so every recorded block and `.expected` fold keeps its line
+count and its field names.
+
+### Design
+
+The fix stands at the read boundary, for four reasons the code fixes:
+
+- One point covers every behavior the defect reaches. The calibration
+  (`calibrationTrial` at `:335`, `calibrateUnit` at `:368`), the
+  measurement pass (`:668-680`), both gap loops (`:725-743`,
+  `:822-831`), both series loops (`runFwqUnit` at `:478` and
+  `runFtqUnit` at `:506`, the precheck and alongside calls) and the
+  hwlat stamp path all read through the one `readStamp` lambda the
+  item builds at `:640`. A projection inside that lambda scales every
+  consumer at once, and no comparison, no constant and no report site
+  moves: `kDefaultThresholdNs` and `kTargetUnitTimeNs` keep their ns
+  values and gain true ns readings, the FTQ edges accumulate in ns,
+  the precheck span counts ns, and the stored figures
+  (`state.unitTimeNs` at `:422` and `:489`, `loopPeriodNs` at `:676`)
+  carry the unit their names state before any fold or writer reads
+  them.
+- The contracts stay whole. specs/027 and specs/043 state the
+  threshold, the target, the quantum and the spans in nanoseconds;
+  the tick-space core was the deviation. The projection restores the
+  contracts, and no requirement row of either spec moves: D-2,
+  FR-007, FR-008 and FR-010 stand as written.
+- The disclosure shrinks to a sentence. After the fix the printed
+  units match the values they carry, which is the row G-35 orders
+  closed; the one statement the run still owes is the time base
+  itself, and the JSON document's free-text `jitter.disclosure`
+  (`source/harness/cli.cpp:539`, the record the writer puts at
+  `source/harness/json_report.cpp:1342`) carries it. No console line
+  moves, so the recorded blocks, the `.expected` folds and the shape
+  masks keep their bytes' structure: the mask folds a digit run to
+  one `#`, so every scaled value passes the fold unchanged.
+- The scripted tests stay byte-identical. The fake provider's tsc
+  leaf scripts stamps the tests treat as nanoseconds today. The fake
+  monotonic leaf stands scripted beside it so the measured rate
+  answers 1 tick per ns, and the projection of a 1 tick per ns rate
+  is the identity: every existing scripted stamp, figure and byte
+  keeps its reading, and the new tests script a rate other than one
+  to lock the scaling itself.
+
+In order:
+
+1. **The rate source** (BFW-014). The run measures its tick rate once,
+   at the holder's start, before the barrier stands arrived and
+   outside every window: two one-leaf recorders minted from the same
+   catalog the probe's gate read, one over `machine/tsc` and one over
+   `machine/monotonic` (`source/counters/clock_provider.cpp:10-16`,
+   `:68-85`, the ns leaf `monotonicNs` serves from the vDSO), a
+   bounded spin that reads both leaves until the ns delta passes
+   1,000,000 or a read-count cap of 100,000 pairs stands reached, no
+   sleep and no clock call anywhere, and the rate as
+   `deltaTicks * 1000000000 / deltaNs` in one 64-bit form the spin's
+   bound keeps in range. The rate stands one figure per run, stored
+   beside the session the items read, because the tsc rate stands
+   constant across the cpus of one host and the record states the
+   reading. The unavailable path stands unchanged: a host whose gate
+   refuses the tsc leaf opens no probe and measures no rate.
+2. **The projector** (BFW-014). One small type in the probe's detail
+   header, `TickProjector`: three fields (`lastTick`, `lastNs`, and a
+   carried remainder `rem`) and one method. The method takes the raw
+   tick read, computes `delta`, then
+   `(delta * 1000000000 + rem) / rateHz` into the running ns value,
+   folding the division's remainder back into `rem`, so the
+   projection stands drift-free over any run: the carried remainder
+   stays below `rateHz`, the per-read product stays in range because
+   the deltas between consecutive reads stand far below the 4-second
+   bound the form carries, and the require that reads stand monotonic
+   (a repeated or backward read stands a violated contract, the fuse
+   of II) makes the delta's sign hold. The first read seeds `lastTick`
+   and answers 0. The ns values the run carries therefore start at
+   the window's base and stand exact to the tick, with no
+   accumulated drift and no floating-point step.
+3. **The wiring** (BFW-014). `ProbeItem::operator()` builds one
+   projector beside the read move, and the `readStamp` lambda at
+   `:640` becomes the projection wrapper: the raw read (the
+   installed reader's thunk through the stack point sink, or the
+   system recorder's column) stands unchanged, and its answer passes
+   through the projector once. Both paths scale identically, so the
+   reader-install seam keeps its signature and its contract (R-02,
+   FR-004 of specs/027: the seam installs one counters `WindowReader`
+   and no second time source): the rate never arrives through the
+   seam, it stands measured through the catalog, and the fake
+   provider scripts both leaves in the tests. The projector and the
+   rate stand per run, so no option, no CLI key and no public
+   surface moves.
+4. **The disclosure** (BFW-014). The JSON document's
+   `jitter.disclosure` free text gains one clause stating the time
+   base and the measured rate, in the form the existing clauses
+   spell (a `;`-separated statement beside the loop period and
+   threshold clauses at `source/harness/cli.cpp:539-556`). The
+   unavailable path's disclosure stands unchanged. The console
+   prints no new line: the figures carry the unit their names state
+   after the fix, and the record states the rate. The JSON figure
+   keys stand unchanged and carry the scaled values, so the
+   document's readers read nanoseconds under ns names at schema
+   1.16, the schema unmoved.
+4a. **The window-sided folds' edges** (2026-11-10, the implement
+phase's dated refinement): the runner's `TimedWindow` edges stand in
+raw ticks (`windowStampNow` reads the catalog's `machine/tsc` leaf
+directly), while the records' stamps stand projected, so the
+window-sided folds of `gapStatsOf` and `seriesStatsOf` convert each
+edge at the state's own origin and rate, the mapping the item's reads
+used, and the placement compares one time base; a rate of 0 stands at
+the identity and the edges pass through, the reading the mono-less
+fixtures keep. The item captures the origin at its first read. The
+runner stands untouched.
+
+5. **The factor measurement** (BFW-013, before any code edit). The
+   record carries the factor measured at the branch base, taken with
+   the tree's own counters library: a scratch program under
+   `$HOME/scratch/probe-unit-labels/` links the built counters
+   library, reads the `machine/tsc` and `machine/monotonic` leaves
+   over the same bounded spin the rate source uses, and prints the
+   ratio. The ~4.19 reading of the PR #100 and PR #101 discussions
+   stands cited as the estimate this measurement verifies or
+   corrects, and the rate the landed fix prints cross-checks it. No
+   tracked file carries the scratch program.
+
+What stands untouched, with the rows that hold it closed:
+
+- `include/speedgun-ng/`: the two constants stay, and no declaration
+  moves (FR-039).
+- `example/docs/`, its `.expected` folds and `README.md`: the mask
+  folds digits, so the scaled values pass; no line count and no
+  field name moves.
+- The fwq sample's recorded block and `docs/pages/harness.md`: the
+  same fold, the same line count, the 156 lines and the warning pair
+  stand as phase 15 recorded them.
+- The hwlat detector's kernel-counter reads: the SMI and NMI deltas
+  stand counts, and the projection reaches the stamps alone.
+- Every gate, filter, allowance, timeout, preset and
+  continuous-integration file (O-5, O-6, G-34).
+
+### Record plan
+
+The record stands at
+`specs/045-merge-fixes/results/probe-unit-closeout.md`, and the
+quickstart gains one link row to it. Its sections:
+
+1. Host, base and head: the tool versions, the affinity and
+   online-cpu reads, the base SHA, the branch, and the rule that a
+   tracked file carries no SHA of its own commit while each dated
+   interim row names its pre-squash SHA.
+2. The factor (FR-038, SC-034): the scratch measurement's commands
+   and output at the branch base, the ~4.19 estimate beside its
+   verified or corrected reading, and the landed rate the disclosure
+   prints at the final head beside it.
+3. The before and after rows (US-13, SC-035): the base probe block's
+   sample output and the final-head sample output of the same entry,
+   the scaled figures beside the tick figures, and the JSON
+   disclosure clause.
+4. The tests (FR-040, SC-036): the new test names, the files they
+   stand in, and the failing-first reading against the pre-fix
+   behavior.
+5. The hot-path reading (edge case, VII): the alone-entry wall of the
+   `docs_jitter_probe` entry, five runs per side on an idle host,
+   base against final head, the medians and the ratio as a measured
+   figure with no threshold invented, and the projection's per-read
+   cost stated beside it.
+6. The lanes at the measured head (FR-042, SC-037, SC-038): the lane
+   table with the head, the exit and the counts beside each command,
+   the coverage figures, the marker count, the export counts and the
+   analyzer counts.
+7. The push and the pull request (SC-038): the push command, the
+   lease rule, the `git ls-remote` reading, and the path of the
+   untracked body artifact under
+   `$HOME/scratch/probe-unit-labels/` that names the measured head
+   beside every required lane.
+8. Rows left open (D-31): O-5 and O-6 as phases 14 and 15 wrote
+   them, O-7 closed by phase 15, and O-8 closed by FR-039 and
+   FR-040.
+
+The task rows BFW-013 to BFW-017 stand written into `tasks.md` by the
+tasks phase before implement. No test of this phase uses a sleep, a
+wall-clock threshold or a fake cpu.
+
+### Test plan
+
+TDD mode (III): every code task's covering test stands written and
+observed failing against the pre-fix behavior before the
+implementation turns it green, and the pairs stand recorded. The
+existing scripted tests keep their bytes at the 1 tick per ns fake
+rate, so the failing set names the new contract alone.
+
+| Case | File or gate | What it asserts |
+| --- | --- | --- |
+| the rate stands measured | `test/source/harness_jitter_probe_test.cpp`, the fake provider's two leaves | the run carries one rate figure, taken from the scripted pair, with the spin bounded and no sleep (FR-039) |
+| the unit time stands scaled | the same file, a scripted rate beside 1 tick per ns | the printed `unitTimeNs`-named figure equals the scripted ticks scaled at the measured rate, exact to the tick (SC-035) |
+| the threshold stands true | the same file, scripted gaps around the converted threshold | a gap the tick space kept at the old behavior stands dropped at the new, and a gap the ns contract keeps stands kept (US-14) |
+| the FWQ target stands true | the same file, the calibrated work count at a scripted rate | the unit the search lands stands near 1000 true ns, the contract specs/043 FR-010 names (SC-035) |
+| the FTQ edges stand true | the same file, scripted stamps and quanta | the counts per quantum match the ns contract at a rate beside 1 (US-14) |
+| the projection stands drift-free | the same file, a long scripted run at a rate beside 1 | the projected ns of the run's final stamp stands exact against the scripted pair, with the remainder carried (SC-036) |
+| the disclosure carries the rate | `test/source/harness_jitter_cli_test.cpp` | the JSON `jitter.disclosure` text carries the time-base clause with the measured rate, and the unavailable path keeps its bytes (FR-039) |
+| the document keeps its schema | `test/source/harness_jitter_bytes_test.cpp` | the jitter keys stand unchanged and carry the scaled values at schema 1.16 (SC-035) |
+| the shape folds keep their lines | `report_shape_jitter_sample` and `report_shape_fwq_ftq_sample` | exit 0: no line count and no field name moves (edge cases) |
+| coverage | the `ci-coverage` tree and the gate | 100 percent lines on the touched code, branch shortfall at or below 21, no new marker (G-25) |
+| no symbol moves | the exported-names audit | harness 210 and `libspeedgun-ng.so` 250 with no third-party name, the lists answering no difference against the base |
+| the measured head | `git rev-parse HEAD`, `git status --porcelain`, `git ls-remote origin refs/heads/fix/probe-unit-labels` | one SHA beside every required lane, a clean tracked tree, and the remote equal to the local head (FR-042, SC-038) |
+
+### Constitution Check
+
+- II: the projector's monotonic-read require stands a contract the
+  facility enforces, stated once in the detail header beside the
+  method it guards, and no comment copy stands beside it.
+- IV.1: no page change. The probe's figures change values alone, the
+  shape gates fold digits, and the quickstart gains one link row to
+  the record.
+- VI: the new tests ship with the fix in the same change, registered
+  with CTest, deterministic, and the coverage reading at the final
+  head answers the gates with no new exclusion.
+- VII: the projection touches the per-unit hot path, so the record
+  carries the alone-entry protocol of the `docs_jitter_probe` entry,
+  five runs per side on an idle host, and states the per-read cost.
+  No baseline moves: the probe's figures change by the scale
+  correction itself, which the record states.
+- VIII: no gate, filter, allowance, marker, timeout or
+  continuous-integration change moves. The time-source gate reads
+  clean: the ns leaf the rate reads stands a counters leaf, and no
+  forbidden source arrives anywhere.
+- X.2: one type with one method, one rate figure, one wrapper at one
+  lambda, one disclosure clause. No option, no helper family, no
+  configuration point and no new public surface.
+- X.3: the diff touches the probe's owned sources, its detail
+  header, `cli.cpp`'s disclosure assembly and the test files the
+  test plan names. The report writer, the JSON writer, the public
+  header, the examples and the docs pages stand untouched.
+- XI: the record, the comments and the commit follow ASD-STE100, and
+  the prose gate runs over the tree and over the range with `--base`
+  naming the branch base.
+
+### Risks and the open items
+
+- The fake provider's second leaf. The existing scripts declare the
+  tsc leaf alone; the monotonic leaf joins the registration in the
+  files the test plan names, and a file that scripts no monotonic
+  leaf stands the rate's require answering loud at the first probe
+  the file runs. The amendment traces to FR-040 in the tasks rows.
+- The rate's precision. The spin's ns bound of 1,000,000 stands the
+  reading at about one part in a million of relative error; the
+  record states the bound and the reading, and the scratch
+  measurement at the base cross-checks the landed rate.
+- The hot path. The projection adds two divisions and a multiply to
+  a read the unit body dwarfs, and the record's alone-entry protocol
+  states the measured cost. A reading that stands a regression
+  beyond noise stands re-measured on an idle host before any form
+  change, and a form change stands recorded with its reason (D-28).
+- The scripted bytes. Tests that assert the disclosure text or the
+  JSON bytes stand amended where the time-base clause lands, and
+  each amendment traces to FR-039 in the tasks rows. The stamp
+  scripts keep their bytes at the 1 tick per ns rate.
+- The measured head. A tracked change after a measurement produces a
+  new squashed head and a fresh run of every required lane. The
+  factor measurement stands taken once at the base and stands fixed.
+- The remote. A failed `--force-with-lease` stops the work and
+  stands reported, and the lease stands never refreshed and retried.
+  A remote that refuses the push stands the push row blocked with
+  the refusal, and the local half, a clean tracked tree and
+  `git rev-parse HEAD`, stands proved either way. The `gh`
+  credential of this machine stands absent, so the branch, the push
+  proof and the body text stand delivered through one local file for
+  the operator.
+- O-5, O-6 and O-7 stand as the earlier phases wrote them. O-8
+  closes with FR-039 and FR-040.

@@ -99,3 +99,64 @@ coverage-data fault"
 - Main-page impact check (IV.1): no page change. No user-visible
   behavior lands, and the quickstart gains the reproducible command
   example SC-013 names.
+## Phase 16 validation (2026-11-10, owner ruling G-35)
+
+**Feature**: [spec.md](../spec.md), section "Phase 16: Match the
+probe's printed units to the counter ticks"
+
+### Content Quality
+
+- [ ] No implementation details (languages, frameworks, APIs)
+- [x] Focused on user value and business needs
+- [ ] Written for non-technical stakeholders
+- [x] All mandatory sections completed
+
+### Requirement Completeness
+
+- [x] No [NEEDS CLARIFICATION] markers remain
+- [x] Requirements are testable and unambiguous
+- [x] Success criteria are measurable
+- [ ] Success criteria are technology-agnostic (no implementation details)
+- [x] All acceptance scenarios are defined
+- [x] Edge cases are identified
+- [x] Scope is clearly bounded
+- [x] Dependencies and assumptions identified
+
+### Feature Readiness
+
+- [x] All functional requirements have clear acceptance criteria
+- [x] User scenarios cover primary flows
+- [x] Feature meets measurable outcomes defined in Success Criteria
+- [ ] No implementation details leak into specification
+
+### Notes on the phase 16 pass
+
+- Validation pass 1 (2026-11-10): the three unticked items stay
+  unticked for the reason the 2026-11-03 pass recorded. This is a fix
+  lane: FR-038 to FR-042 name files, symbols and gate names because
+  the acceptance evidence the ruling fixes demands them, and a reader
+  cannot verify the repair without them. The design phase owns the
+  implementation detail.
+- The choice between disclosure and scale stands open by decision:
+  D-28 fixes the contract (the printed unit matches the ticks the
+  read answers) and leaves the mechanism to the plan phase, taken on
+  the measured factor and the shape-gate surface. No [NEEDS
+  CLARIFICATION] marker stands in the phase, because no answer blocks
+  the specification; the plan records the choice with its reason.
+- Main-page impact check (IV.1): no page change by default. The fix
+  reaches the probe's report rows, and the shape gates pass numbers;
+  a fix that moves a quoted block or a recorded line stands a shape
+  finding reported with the scope it needs (edge cases).
+- The dated correction lines on D-27 and the phase 15 O-8 row stand
+  applied in this pass, per FR-041 and the owner ruling.
+- Validation pass 2 (2026-11-10, clarify round 1): five questions stood
+  and each answer stands encoded in the phase text (FR-039, FR-040,
+  SC-035, SC-036 and the Clarifications section). All five print-site,
+  JSON, threshold, calibration-target and tick-rate answers carry
+  their grounding in the tree. No [NEEDS CLARIFICATION] marker stands.
+- Validation pass 3 (2026-11-10, clarify round 2): the round found no
+  remaining plan-blocking question. Three consistency findings, all
+  one root cause, stand fixed: D-28 settles on the scale reading,
+  FR-039 states the conversions unconditionally, and the `tsc` edge
+  case names the series rows alone. The phase stands ready for the
+  plan phase.

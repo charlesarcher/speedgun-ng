@@ -38,6 +38,41 @@ inline constexpr std::size_t kCacheLineBytes = 64;
 // once.
 inline constexpr std::uint64_t kPassReads = 1024;
 
+/// @brief specs/045-merge-fixes phase 16 (FR-039): the tick-to-ns
+/// projection of one probe cpu's read move. The probe's time source
+/// answers raw counter ticks; every figure, threshold and span the
+/// probe stores and compares carries a nanoseconds contract, so the
+/// read move projects each raw read at the tick rate the run measured
+/// at its start. A rate of 0 names the absent rate: the projection
+/// stands at the identity and the raw ticks pass through, the reading
+/// a catalog without the rate pair's second leaf answers, and the
+/// disclosure names it.
+struct TickProjector
+{
+  std::uint64_t lastTick = 0;
+  std::uint64_t lastNs = 0;
+  std::uint64_t remainder = 0;
+  std::uint64_t rateHz = 0;
+  bool seeded = false;
+
+  /// @brief Projects one raw tick read into the run's nanosecond base.
+  ///
+  /// The exact integer form: the delta's product with one billion,
+  /// plus the carried remainder, divided once by the rate, the new
+  /// remainder folded back, so the projection stands drift-free over a
+  /// run of any length the delta bound covers and carries no
+  /// floating-point step.
+  ///
+  /// \pre the rate stands below one tick per nanosecond times the
+  ///       ring, and the delta the unsigned subtraction answers stays
+  ///       inside the product's range: a backward read, one whose
+  ///       delta crosses half the ring, stands refused, while a
+  ///       genuine ring wrap answers its true delta
+  /// \post the answers stand monotone in ns, and the carried
+  ///       remainder stays below the rate
+  [[nodiscard]] auto project(std::uint64_t tick) noexcept -> std::uint64_t;
+};
+
 /// @brief One kept gap, 16 bytes, two unsigned fields (E-04, D-6).
 struct GapRecord
 {
@@ -176,6 +211,16 @@ struct ProbeCpuState
   std::vector<std::uint64_t> changes;
   std::uint64_t loopPeriodNs = 0;
   std::uint64_t thresholdNs = 0;
+  // specs/045-merge-fixes phase 16 (FR-039): the rate the run's start
+  // measured, so the disclosure names the time base the figures ride.
+  std::uint64_t tickRateHz = 0;
+  // specs/045-merge-fixes phase 16 (FR-039): the raw tick the item's
+  // first read answered, the origin the projection's stamps stand
+  // against. The window-sided folds convert the runner's raw-tick
+  // window edges at this origin and the state's rate, so the placement
+  // compares one time base; a rate of 0 stands at the identity and the
+  // edges pass through.
+  std::uint64_t firstTickRaw = 0;
   std::uint64_t workCount = 0;
   std::uint64_t unitTimeNs = 0;
   std::uint64_t targetNs = 0;
