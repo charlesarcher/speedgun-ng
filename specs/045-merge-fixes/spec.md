@@ -1845,7 +1845,8 @@ called a substitution, and `ci-coverage` names the instrumented tree.
   names in nanoseconds while the read that fills them answers raw
   counter ticks. On this host the two differ by a factor of 4.19. The
   row stands outside this phase, which changes no time base, and the
-  owner owns it.
+  owner owns it. Correction (2026-11-10, owner ruling G-35): the
+  ruling orders the fix, and phase 16 closes the row.
 - O-1 to O-4 of this spec stand unchanged by this phase.
 
 ## Phase 15: Land the approved FWQ example widen and measure the gain (owner order, 2026-11-09)
@@ -2232,6 +2233,9 @@ cpu.
   disclosure fix fits the owned jitter files while the schema and the
   two `SOVERSION` numbers stay unmoved, and the record carries that
   reading.
+  Correction (2026-11-10, owner ruling G-35): the ruling orders the
+  O-8 fix landed with the schema and the two `SOVERSION` numbers
+  unmoved, and phase 16 carries it.
 
 ### Clarifications (phase 15)
 
@@ -2394,5 +2398,494 @@ and closed the residue. It superseded one round-2 answer.
 - **O-7 (the example's ring bound)**: closed by this phase. FR-034
   lands the approved widen, and FR-035 measures the gain.
 - **O-8 (the probe's time base)**: stands deferred with the
-  disclosure D-27 states.
+  disclosure D-27 states. Correction (2026-11-10, owner ruling G-35):
+  the ruling overrules the deferral, and phase 16 closes the row.
+- O-1 to O-4 of this spec stand unchanged by this phase.
+
+## Phase 16: Match the probe's printed units to the counter ticks (owner ruling G-35, 2026-11-10)
+
+**Input**: Owner ruling G-35 of 2026-11-10, on thrawn. O-8 of phases
+14 and 15 names the defect: the probe's per-cpu figures carry names in
+nanoseconds while the read that fills them answers raw counter ticks,
+and the two stand apart by a factor of about 4.19 on this host. PR
+#101 landed the FWQ example widen and the N13e trace-line fold and
+left O-8 open; its review names the missing fix as the High finding.
+This phase closes O-8: it locates the labeling and scaling sites,
+measures the factor on this host, applies the narrow fix, locks the
+contract in deterministic tests, and records the reading. Short name:
+probe-unit-labels.
+
+This phase rides spec 045 as the owner directed. It adds no numbered
+spec, no option, no feature and no version reservation, and it
+replaces no earlier requirement, task row, ruling or record of this
+file. It adds FR-038 to FR-042, SC-034 to SC-038, D-28 to D-31, and
+the task rows BFW-013 to BFW-017 in `tasks.md`. In this phase "the
+record" names
+`specs/045-merge-fixes/results/probe-unit-closeout.md`; the
+pull-request body names the measured head. The probe contract of
+`specs/043-fwq-ftq` and the probe requirements of
+`specs/027-jitter-probe` stand unchanged apart from the figure units
+the fix discloses.
+
+### Run-time binding (phase 16)
+
+- Base: `origin/master` at `1f1f9b20cec97198e5cd88778167431eef2c6eb6`
+  (the PR #101 merge; version 0.34.0, report schema 1.16, harness
+  `SOVERSION` 22, archive `SOVERSION` 8, `git grep -c LCOV_EXCL --
+  source include` at 84). No open pull request stood at the live
+  check of 2026-11-10. The base SHA stood verified an ancestor of
+  `origin/master` at cut time, and the implement phase rechecks it.
+- The PR #101 measured head
+  `21750650efe475f0f3407dd9f36403bbd5bf5a47` stood tree-identical to
+  the merge `1f1f9b20`, and the acceptance of PR #101 answers for
+  this base. This phase reopens no proof of the FWQ widen, the N13e
+  fold or the barrier entry: a regression on this head stands
+  reported before any shared edit, and no shared edit stands made
+  without one.
+- Branch: `fix/probe-unit-labels`, cut from the latest
+  `origin/master`. The branch stood absent on the remote at the live
+  check. When it exists, the work inspects its head, reports, and
+  stops for scope reconciliation; it overwrites nothing and revives
+  no merged branch.
+- One branch, one squashed commit, one pull request. The work never
+  merges and closes no issue.
+- Version, schema, harness `SOVERSION` and archive `SOVERSION` shall
+  not change. No public header of `include/speedgun-ng/` moves. The
+  fix reaches the probe's owned sources, its detail header and its
+  tests.
+- Target host: thrawn, AMD Zen 5 Threadripper 9960X, 24 cores, 48
+  threads. Acceptance is local (G-20). Continuous-integration
+  results stand as diagnostics.
+- G-36 stands closed: the FWQ original failure stands unreproduced,
+  and this phase reopens no reproduction. G-34 stands closed: this
+  phase adds no disassembly gate.
+- Line numbers in the earlier phases of this file name the state at
+  their own base. This phase finds every item by its symbol.
+
+### Scope (phase 16)
+
+In scope:
+
+- `source/harness/jitter_probe.cpp` and
+  `source/harness/detail/jitter_probe.hpp`: the labeling and scaling
+  sites of the per-cpu probe figures, and the narrow fix.
+- `source/harness/report.cpp`: the print sites of the probe's own
+  rows, and the disclosure the fix lands there.
+- `test/`: the deterministic tests of the label and scale contract,
+  registered with CTest.
+- `specs/045-merge-fixes/`: its `results/` records, its quickstart
+  and this spec's phase sections.
+
+Out of scope:
+
+- `include/speedgun-ng/`: no public header moves, so no ABI, schema
+  or `SOVERSION` move stands opened or recorded.
+- `example/docs/`, its `.expected` blocks and `README.md`: the shape
+  gate passes numbers, and a fix that moves a quoted block or a
+  recorded line stands a shape finding reported with the scope it
+  needs.
+- The FWQ example widen, the N13e trace-line lane and the barrier
+  entry: landed at the base, and no regression stands proved on this
+  master.
+- O-5 (the two grants), O-6 (the arm-body swap gate), any
+  disassembly gate (G-34), any continuous-integration change, any
+  timeout raise, any shared preset or gate change, and Intel
+  acceptance records. No other machine stands named (G-24).
+- Trace raw event codes (G-31) and automatic ranks (G-32): both
+  stand future features.
+- Every report row outside the probe's own rows: the rows of other
+  features stand unchanged.
+
+### User scenarios (phase 16)
+
+#### US-13 The probe's printed units match the counter ticks on this host (Priority: P1)
+
+A reader of a probe report finds each per-cpu probe figure carrying
+the unit its name states: a figure the read filled from raw counter
+ticks stands disclosed or scaled so the printed unit and the ticks
+stand one fact. The record gives the measured factor between the
+ticks and the printed unit on this host, with the commands and the
+sample output.
+
+**Why this priority**: O-8 names the defect, and G-35 orders it
+closed. A benchmarking framework that prints a unit its figures do
+not carry publishes a wrong measurement (VI).
+
+**Independent test**: the record carries the before and after sample
+output of the probe rows and the measured factor, and the
+deterministic tests of FR-040 pass.
+
+**Acceptance scenarios**:
+
+1. **Given** the final squashed head, **When** a probe run prints its
+   per-cpu figures on this host, **Then** each figure's unit matches
+   the ticks the read answered, at the factor the record states.
+2. **Given** the pre-change tree at the branch base, **When** the
+   same probe rows print, **Then** the record carries that output
+   beside the final-head output, and the measured factor stands
+   between them.
+
+#### US-14 Deterministic tests lock the label and scale contract (Priority: P1)
+
+A maintainer runs the probe's test suite and finds the label and
+scale contract covered by tests that read no host clock, take no
+sleep and stand no fake cpu.
+
+**Why this priority**: VI makes the covering test the bug fix's
+ticket, and the contract outlives the host.
+
+**Independent test**: the new tests pass in every required lane, and
+their coverage rows give 100 percent lines.
+
+**Acceptance scenarios**:
+
+1. **Given** the final head, **When** the new tests run in the
+   release lane, **Then** they pass, and they fail against the
+   pre-fix probe behavior.
+2. **Given** the coverage lane, **When** the gate runs, **Then** the
+   branch shortfall stands at or below 21 with no new marker (G-25).
+
+#### US-15 A reviewer reads acceptance at the exact final squashed commit (Priority: P1)
+
+A reviewer reads the pull-request body or one artifact beside it and
+finds every required lane measured at the SHA the pull request
+ships. Acceptance measured at the PR #101 head answers nothing about
+this branch.
+
+**Why this priority**: G-23 makes the squashed head the measured
+head.
+
+**Independent test**: the pull-request body or the untracked
+artifact names one SHA, `git rev-parse HEAD` equals it, the tracked
+tree stands clean, and `git ls-remote origin
+refs/heads/fix/probe-unit-labels` equals it.
+
+**Acceptance scenarios**:
+
+1. **Given** the squashed head, **When** each required lane command
+   runs, **Then** the pull-request body or the untracked artifact
+   names that SHA beside the command, the exit and the counts, and
+   the tracked record names the pre-squash SHA of each interim row.
+2. **Given** any later change to a tracked file, **When** the work
+   commits it, **Then** every required lane runs again at the new
+   head, and the artifact names the new SHA.
+
+### Edge cases (phase 16)
+
+- A `work=` run discloses its unit time from the window's first unit,
+  the reading D-2 of the probe spec names. The fix keeps that
+  reading, and the test set covers it.
+- A `tsc` run keeps no series rows and prints no series record. The
+  fix reaches the series rows of the FWQ and FTQ runs alone, and the
+  gap rows a `tsc` run prints stand reached through the threshold
+  conversion like every other row. The test set names that bound.
+- The probe rows carry figure suffixes the shape gates scan. A fix
+  that renames a suffix stands a shape finding, reported with the
+  scope it needs; the fix the plan chooses stands checked against
+  `example/docs/jitter_probe.expected` and the recorded block before
+  any edit lands.
+- The fix may touch the per-unit hot path. When it does, the record
+  carries the alone-entry wall of the probe entry before and after
+  on this host, taken on an idle host, and the plan states the cost
+  the change adds. When it does not, the record states that reading.
+- A run on a contended host answers nothing (VII). The record names
+  `sched_getaffinity` and the online cpu list beside every measured
+  figure.
+- The coverage lane reads the host `~/.lcovrc` out of reach, and no
+  stale `.gcda` stands left in the tree. The lane's operational
+  host notes stand recorded facts; no gate stands weakened.
+- A remote that refuses a push stands the push row blocked with the
+  refusal, the local half (clean tree, `git rev-parse HEAD`) proved
+  either way, and the lease stands never refreshed and retried.
+- A tracked edit after a measurement produces a new squashed head and
+  a fresh run of every required lane.
+
+### Requirements (phase 16)
+
+- **FR-038** (BFW-013): The phase shall locate the sites that label
+  or scale the probe's per-cpu figures, and shall measure, on this
+  host, the factor between the counter ticks the read answers and
+  the unit the printed names state. The measurement shall run at the
+  branch base and shall stand recorded with its commands and its
+  sample output. The ~4.19 reading of the PR #100 and PR #101
+  discussions shall stand cited as the estimate to verify, and no
+  tracked line shall call it a fact until this phase's own
+  measurement stands recorded.
+- **FR-039** (BFW-014): The phase shall apply the narrow fix so the
+  printed unit of each per-cpu probe figure matches the counter
+  ticks the read that fills it answers. The fix shall reach every
+  site that prints the tick-filled probe statistics: the
+  `jitter probe:` block, the precheck per-cpu blocks and the
+  per-benchmark worst-cpu line of `source/harness/report.cpp`. It
+  shall scale the probe's read move from counter ticks to true
+  nanoseconds at the tick rate the setup measured, outside the
+  window runtime, so the gap threshold and the FWQ calibration
+  target keep the ns values their contracts state and gain true ns
+  readings, and it shall move no public header, no schema version
+  and no `SOVERSION`. Correction (2026-11-10, the analyze round): a
+  residual clause of clarification round 1 read the conversion the
+  other way, the constants into tick space, and the plan and the
+  tasks land the read-boundary projection this sentence states now;
+  the direction stands settled at the read boundary. The
+  JSON document's figure keys shall stand unchanged and shall carry
+  the scaled values the console carries, and its disclosure text
+  shall carry the time-base statement with the measured rate.
+  Correction (2026-11-10, the plan phase): the scale reading of
+  clarification round 2 puts the conversion at the read boundary, so
+  the JSON figures carry the scaled values at unchanged keys, the
+  reading this sentence states now; the round 1 answer that read the
+  values unchanged stood written under the disclosure reading and
+  stands superseded on that one clause. A fix that proves a public-header, schema or `SOVERSION`
+  move required shall stop the work and stand reported for an owner
+  ruling before any edit lands it.
+- **FR-040** (BFW-015): The phase shall ship deterministic tests
+  that lock the label and scale contract: no sleep, no wall-clock
+  threshold, no fake cpu. The tests shall cover all three print
+  sites FR-039 names, shall script the tick rate through the fake
+  provider, and shall fail against the pre-fix behavior and pass
+  against the fix. The coverage reading shall hold 100 percent lines
+  for the touched code with a tree-wide branch shortfall at or below
+  21, no new `LCOV_EXCL` marker and no new ignore-error class
+  (G-25).
+- **FR-041** (BFW-016): The record shall carry the measured factor
+  with its commands and sample output, the before and after rows,
+  the new test names, and the lane table of the final head. Every
+  statement of this spec that reads O-8 stands deferred shall stand
+  corrected by a dated line that names the owner ruling G-35 and
+  this phase.
+- **FR-042** (BFW-017): Every required local acceptance command
+  shall run at the final squashed head, and the pull-request body,
+  or one untracked artifact beside it, shall name that head beside
+  each reading. The tracked record carries dated rows labeled
+  preliminary with the head each was taken at. A lane that a host
+  refuses stands recorded as blocked with the command and the
+  refusal. A base failure stands identified and open.
+
+### Success criteria (phase 16)
+
+- **SC-034**: The record gives the measured factor between the
+  counter ticks and the printed unit on this host, with the
+  commands, the sample output and the base tree it was taken at, and
+  names the ~4.19 reading of the earlier phases as an estimate that
+  this measurement verified or corrected.
+- **SC-035**: At the final head, each per-cpu probe figure's printed
+  unit matches the counter ticks the read fills it from, at the
+  factor SC-034 names, the gap threshold and the FWQ calibration
+  target stand honored in true nanoseconds at the measured rate, the
+  JSON figures carry the scaled values at their unchanged keys with
+  the time-base statement in the disclosure text, and the new tests
+  lock the contract. Correction (2026-11-10, the analyze round): two
+  residual clauses of clarification round 1 read the constants
+  converted into tick space and the JSON values unchanged; the
+  round 2 scale reading supersedes both, and this criterion states
+  the settled reading.
+- **SC-036**: The new tests stand deterministic: the release lane
+  runs them with no sleep, no wall-clock threshold and no fake cpu,
+  they script the tick rate through the fake provider, and they fail
+  against the pre-fix behavior.
+- **SC-037**: The coverage reading at the measured head gives its
+  numerator, denominator, branch shortfall and marker count. The
+  shortfall stands at or below 21 with no new marker, filter,
+  allowance or ignore-error class (G-25), and the marker count
+  stands at or below 84.
+- **SC-038**: The pull-request body, or one untracked artifact under
+  `$HOME/scratch/`, names the final squashed SHA beside every
+  required lane reading, and after each push `git ls-remote origin
+  refs/heads/fix/probe-unit-labels` equals `git rev-parse HEAD`. The
+  tracked record names the pre-squash SHA of each dated interim row.
+  No tracked file carries the SHA of its own commit.
+
+### Local acceptance (phase 16)
+
+Acceptance is local (G-20) on thrawn. Before any pinned run the work
+records `sched_getaffinity` and the online cpu list. A test chooses a
+real allowed cpu. The pinned lane names `taskset -c 0,1`; when cpus 0
+and 1 stand outside the allowed set, that lane stands recorded as
+blocked with the refusal, and a run on another allowed pair stands as
+extra evidence.
+
+Required lanes at the measured head:
+
+1. A fresh full release suite (`ci-rocky` in `build`), configured,
+   built and run whole with `-j 48`, including the new O-8 tests.
+2. The same suite under `taskset -c 0,1` with `-j 2`.
+3. The `ci-sanitize` tree, `-j 48`.
+4. The `ci-tsan` tree, `-j 48`.
+5. The `ci-coverage` tree, `-j 48`, through the `coverage` target and
+   the gate.
+6. The cheap gates: format, spell, the prose gate over the tree, the
+   prose gate over the range with `--base` naming the branch base,
+   the prose gate fixtures, example drift in both forms, the drift
+   fixtures, the report-shape fixtures, example run and its fixtures,
+   snippet compile, time-source, the DBC documentation and pairing
+   gates, the DBC gate fixtures, and the downstream consumer build.
+7. The analyzer build: `ci-ubuntu` in its own `build-an` directory,
+   so no reconfiguration displaces `build`, once per feature.
+8. The exported-names audit: a `BUILD_SHARED_LIBS=ON` install and
+   `nm -D --defined-only`, answered against the standing export
+   counts (harness 210, `libspeedgun-ng.so` 250), the reading that
+   carries the no-symbol-change claim.
+
+The FWQ timing protocol of phase 15 stands out of this phase: no
+timing claim belongs to the fix unless the hot-path edge case above
+names one.
+
+Coverage stands measured under the rules of phase 13: 100 percent
+lines and branches subject only to the accepted R-1, R-2 and W-1
+exceptions, a tree-wide branch shortfall at or below 21, and at or
+below 84 markers. No new `LCOV_EXCL` marker, ignore-error class,
+omit or remove pattern, widened filter, allowance or host lcovrc
+bypass stands added, and G-25's removal stays gone.
+
+No test of this phase uses a sleep, a wall-clock threshold or a fake
+cpu.
+
+### Commit and record rules (phase 16)
+
+- History, authors and footers of earlier work stand as they are
+  (G-26, G-27). New commits carry author and committer `OmO`, and
+  the prose follows ASD-STE100. No new person name and no user home
+  path stands in a tracked record; the LICENSE exemption stands.
+  Tracked paths name `$HOME` or a build-relative root.
+- One squashed commit carries the fix. Title: `<Section>: <one-line
+  imperative>` at 50 characters or fewer. Body lines: 72 columns or
+  fewer. Footers, as real trailers in order: `Refs:
+  specs/045-merge-fixes BFW-013 to BFW-017`, then `Approved-by:
+  OmO`. The commit carries no `Fixes #n`: no tracking issue stands
+  for this row, and the body says so.
+- During the work, each change pairs with its test (TDD: the test
+  stands observed failing against the pre-fix behavior first), and
+  the record carries reproducible commands and dated interim
+  findings, each labeled preliminary with its pre-squash SHA. The
+  quickstart gains one link row to the new record.
+- The work fetches `origin`, rebases onto the latest
+  `origin/master`, and never merges. It finishes the tracked code,
+  tests and records, squashes the branch into one commit, requires a
+  clean tracked tree, and saves `git rev-parse HEAD` as the measured
+  head. Every required lane then runs at that head, and its readings
+  stand in the pull-request body or an external untracked artifact.
+  No tracked file carries its own SHA. A change to a tracked file
+  after a measurement produces a new squashed head and a fresh run
+  of every required lane.
+- First push: `git push -u origin fix/probe-unit-labels`. Each later
+  push saves the expected full remote SHA, requires it to equal the
+  last observed value, and uses `git push
+  --force-with-lease=fix/probe-unit-labels:<expected-full-sha>`. A
+  failed lease stops the work and stands reported; the lease stands
+  never refreshed and retried. After each push `git ls-remote origin
+  refs/heads/fix/probe-unit-labels` shall equal `git rev-parse HEAD`.
+- The `gh` credential of this machine stands absent at the live
+  check. The branch, the push proof and the pull-request body text
+  stand delivered through one local file for the operator; no token
+  stands invented.
+- `.specify/feature.json` stays a local file and stands out of the
+  pull request.
+- No new continuous-integration change, gate or exclusion approval
+  stands in this phase.
+
+### Decisions (phase 16)
+
+- **D-28 (the fix stands chosen after the factor)**: BFW-013
+  measures first. The spec fixes the contract alone: the printed
+  unit matches the ticks the read answers. Clarification round 1
+  (2026-11-10) settled the mechanism beside the contract: the scale
+  reading stands, the gap threshold and the FWQ calibration target
+  stand honored in true nanoseconds unconditionally (SC-035), and
+  the disclosure carries the unit statement beside the figures and
+  in the JSON disclosure text. Correction (2026-11-10, the analyze
+  round): the plan lands the scale reading as a read-boundary
+  projection, so the constants keep their ns values; no conversion
+  of the constants into tick space stands anywhere in the plan or
+  the tasks. The plan records the choice with its reason against
+  the measured factor.
+- **D-29 (the deferral stands overruled)**: the reading D-27 states,
+  that no narrow disclosure fix fits the owned jitter files while
+  the schema and the two `SOVERSION` numbers stay unmoved, stands
+  overruled by the owner ruling G-35. The phase records dated
+  corrections on the rows that read O-8 deferred; no earlier record
+  stands edited beyond its dated correction line.
+- **D-30 (the record)**: `results/probe-unit-closeout.md` carries
+  the reading, and the quickstart gains one link row to it.
+- **D-31 (the open rows)**: O-5 and O-6 stand as phase 14 and 15
+  wrote them. O-7 stands closed by phase 15. O-8 closes with this
+  phase. O-1 to O-4 stand unchanged by this phase.
+
+### Clarifications (phase 16)
+
+#### Round 1, 2026-11-10
+
+The clarification pass read the phase against the probe specs 027 and
+043, `source/harness/jitter_probe.cpp`,
+`source/harness/detail/jitter_probe.hpp`,
+`source/harness/report.cpp`, `source/harness/json_report.cpp` and the
+counters clock provider. Five questions stood; each answer stands
+encoded in the phase text this round amends.
+
+- Q: Which print sites does the phase's probe-row scope cover? (US-13,
+  FR-039) → A: all three: the `jitter probe:` block, the precheck
+  per-cpu blocks and the per-benchmark worst-cpu line, because the
+  same tick-filled statistics stand behind each. FR-039 names them.
+- Q: Does the contract reach the JSON document's jitter figures? (D-28,
+  FR-039) → A: the JSON figure keys and values stand unchanged, and the
+  JSON disclosure text carries the unit statement the console carries,
+  so the schema stays at 1.16. The record notes the JSON keeps ticks.
+  Correction (2026-11-10, the plan phase): the scale reading of round 2
+  puts the conversion at the read boundary, so the JSON figures carry
+  the scaled values at unchanged keys and the disclosure carries the
+  time-base statement with the measured rate; the schema stays at
+  1.16.
+- Q: Does the gap threshold honor true nanoseconds? (FR-039) → A: it
+  does. The fix converts the threshold into tick space once at setup,
+  because the threshold contract reads nanoseconds and the tick-space
+  comparison keeps the kept-gap set a factor of about 4.19 too
+  sensitive.
+- Q: Does the FWQ calibration honor its target in true nanoseconds?
+  (FR-039) → A: it does. The fix converts the 1000 ns target into tick
+  space at the measured rate once at setup, because the probe contract
+  names the 1 us unit the target seeks. The FTQ target stands
+  unaffected.
+- Q: Where does the tick rate stand measured, when the clock leaf
+  carries no rate? (FR-039, D-28) → A: once at setup, the counter read
+  against the counters library's own nanosecond leaf over a bounded
+  spin, outside the window runtime, the shape the calibration takes.
+  The tests script both leaves through the fake provider. The clock
+  entry's zero rate stays zero (specs/008 FR-11).
+
+#### Round 2, 2026-11-10
+
+The second pass read the amended phase end to end and found no
+remaining plan-blocking question. Three consistency findings stood,
+all one root cause: the round 1 answers settled the scale path, and
+three sentences still carried the open choice. The amendments land
+with this round: D-28 settles on the scale reading with its dated
+line, FR-039 states the threshold and target conversions
+unconditionally, and the `tsc` edge case names the series rows alone
+and the gap rows the threshold conversion reaches.
+
+### Assumptions (phase 16)
+
+- thrawn is the host of record: 48 online cpus, all 48 in the
+  affinity mask, kernel 7.3.0-5-cachyos, GCC and gcov 16.2.1, clang
+  23.1.3, lcov 2.6-0, cmake and ctest 4.4.4 at the live check of
+  2026-11-10.
+- The owner rulings G-20, G-23, G-24, G-25, G-26, G-27, G-28, G-34,
+  G-35 and G-36 sit outside this repository; the order of
+  2026-11-10 carries their operative content, and this phase cites
+  them from it.
+- The `gh` credential of this machine stands absent at the live
+  check, so the pull request opens through the owner's credential
+  when the branch and its record stand ready. The branch, the push
+  proof and the body text stand delivered either way.
+
+### Open, owner (phase 16)
+
+- **O-5 (the two grants)**: the 110 s grant inside
+  `tools/docs/report_shape.py` and the 120 s ceiling of
+  `report_shape_fwq_ftq_sample` stand unchanged by this phase.
+- **O-6 (the arm-body swap gate)**: stands as phase 14 wrote it;
+  this phase adds no disassembly gate.
+- **O-7 (the example's ring bound)**: stands closed by phase 15;
+  this phase moves nothing it landed.
+- **O-8 (the probe's time base)**: closed by this phase. FR-039
+  lands the fix, FR-040 locks it, and FR-041 records it.
 - O-1 to O-4 of this spec stand unchanged by this phase.

@@ -135,6 +135,17 @@ auto scriptedProvider() -> sg::counters::FakeProvider&
                    "raw tick counter",
                    sg::counters::Availability::COUNTABLE,
                    sg::counters::ReadMode::FAST_TSC);
+    // specs/045-merge-fixes phase 16 (FR-039): the rate pair's second
+    // leaf. The holder's start measures the tick rate against the
+    // machine/monotonic leaf, so the fixture declares it beside the tsc
+    // leaf the way the catalog's clock provider does: countable, the
+    // nanoseconds unit, the syscall mode.
+    ref.addCounter("machine",
+                   "monotonic",
+                   "nanoseconds",
+                   "scripted nanosecond counter",
+                   sg::counters::Availability::COUNTABLE,
+                   sg::counters::ReadMode::SYSCALL);
     const auto registered =
         sg::counters::System::local().registerProvider(std::move(owned));
     check(registered.has_value(), "the scripted tsc provider registers (R-02)");
@@ -244,20 +255,152 @@ auto passSeries(std::uint64_t step) -> std::vector<std::uint64_t>
 // scenarios hang on (FR-039): the wait spins on the atomic count, with no
 // sleep and no clock, and the bound turns a stalled series into a
 // reported failure; the wait cannot hang.
+// The mono-less catalog (specs/045-merge-fixes phase 16, FR-039): one
+// provider carrying the machine/tsc leaf alone, so the gate's
+// qualification passes and the rate pair stands missing its second
+// leaf. The holder's start reads rate 0 on the missing leaf, and every
+// figure the run reports keeps the raw tick the base names, the
+// identity passthrough the best-effort reading keeps.
+auto monoLessCatalogCase() -> void
+{
+  auto owned = std::make_unique<sg::counters::FakeProvider>();
+  auto& provider = *owned;
+  provider.addCounter("machine",
+                      "tsc",
+                      "none",
+                      "raw tick counter",
+                      sg::counters::Availability::COUNTABLE,
+                      sg::counters::ReadMode::FAST_TSC);
+  const auto registered =
+      sg::counters::System::local().registerProvider(std::move(owned));
+  check(registered.has_value(), "the mono-less provider registers (FR-039)");
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  auto points = passSeries(1);
+  points.push_back(1223);
+  points.push_back(1423);
+  provider.setPoints("machine", "tsc", points, 1);
+  const auto baseActions = provider.readActions();
+  sg::detail::JitterProbe probe(options);
+  probe.start();
+  std::uint64_t spins = 0;
+  while (provider.readActions() < baseActions + 1100) {
+    std::this_thread::yield();
+    if (++spins > 1000000000ULL) {
+      fail("the mono-less series never reached the waited action (FR-039)");
+    }
+  }
+  probe.stopAndJoin();
+  const auto& probed = probe.states().at(0);
+  check(probed.kept == 1,
+        "the mono-less run keeps the read at the threshold (FR-039)");
+  const auto fold = sg::detail::gapStatsOf(probed);
+  check(fold.gapCount == 1 && fold.minNs == 200 && fold.maxNs == 200
+            && fold.totalNs == 200,
+        "the mono-less catalog's figures keep the raw ticks the rate 0 "
+        "passthrough names (FR-039)");
+}
+
+// The narrow-window catalog (specs/045-merge-fixes phase 16, FR-039):
+// one provider carrying both rate leaves and a group leaf count of one,
+// so the rate pair's two-leaf group stands wider than the count the
+// provider opens and the plan compile refuses. The rate answers 0, and
+// the item's one-leaf reads stand inside the count, so the run reports
+// its figures at the raw ticks.
+auto narrowWindowCase() -> void
+{
+  auto owned = std::make_unique<sg::counters::FakeProvider>();
+  auto& provider = *owned;
+  provider.addCounter("machine",
+                      "tsc",
+                      "none",
+                      "raw tick counter",
+                      sg::counters::Availability::COUNTABLE,
+                      sg::counters::ReadMode::FAST_TSC);
+  provider.addCounter("machine",
+                      "monotonic",
+                      "nanoseconds",
+                      "scripted nanosecond counter",
+                      sg::counters::Availability::COUNTABLE,
+                      sg::counters::ReadMode::SYSCALL);
+  provider.setGroupLeafLimit("machine", 1);
+  const auto registered =
+      sg::counters::System::local().registerProvider(std::move(owned));
+  check(registered.has_value(), "the narrow-window provider registers (FR-039)");
+  sg::JitterProbeOptions options;
+  options.cpus = pickCpus(1);
+  auto points = passSeries(1);
+  points.push_back(1223);
+  points.push_back(1423);
+  provider.setPoints("machine", "tsc", points, 1);
+  const auto baseActions = provider.readActions();
+  sg::detail::JitterProbe probe(options);
+  probe.start();
+  std::uint64_t spins = 0;
+  while (provider.readActions() < baseActions + 1100) {
+    std::this_thread::yield();
+    if (++spins > 1000000000ULL) {
+      fail("the narrow-window series never reached the waited action "
+           "(FR-039)");
+    }
+  }
+  probe.stopAndJoin();
+  const auto& probed = probe.states().at(0);
+  check(probed.kept == 1,
+        "the narrow-window run keeps the read at the threshold (FR-039)");
+  const auto fold = sg::detail::gapStatsOf(probed);
+  check(fold.gapCount == 1 && fold.minNs == 200 && fold.maxNs == 200
+            && fold.totalNs == 200,
+        "the refused rate pair leaves the figures at the raw ticks "
+        "(FR-039)");
+}
+
+// The rate pair the holder's start measures (specs/045-merge-fixes
+// phase 16, FR-039): the two leaves stand on tail-only scripts, so the
+// spin's reads answer their deltas without consuming a point sequence,
+// and the tick step names the rate the run carries: one million ticks
+// per one million ns stands at the identity rate, one tick per ns, the
+// rate every scenario below the projection rows keeps.
+inline constexpr std::uint64_t kRateIdentityTicks = 1000000;
+inline constexpr std::uint64_t kRateScaledTicks = 4190000;
+// The nanosecond step of the rate pair, the spin's bound: the pair's
+// second read crosses the 1,000,000 ns bound, so the spin stands two
+// reads on both leaves, and the projection scales by the ratio.
+inline constexpr std::uint64_t kRateNanosecondStep = 1000000;
+
+auto scriptRatePair(std::uint64_t tickStep) -> void
+{
+  auto& provider = scriptedProvider();
+  provider.setPoints("machine", "tsc", {}, tickStep);
+  provider.setPoints("machine", "monotonic", {}, kRateNanosecondStep);
+}
+
 template<class Assert>
 auto runSeries(const sg::JitterProbeOptions& options,
                std::vector<std::uint64_t> points,
                std::uint64_t tailDelta,
                std::uint64_t waitActions,
-               Assert&& assertions) -> void
+               Assert&& assertions,
+               std::uint64_t rateTicks = kRateIdentityTicks) -> void
 {
   auto& provider = scriptedProvider();
+  // The rate pair stands scripted first, and the scenario's own points
+  // carry a two-read preamble the spin consumes: the pair's second read
+  // crosses the ns bound, so the spin stands two reads on the tsc leaf,
+  // and the item's window opens at the sequence's first point, the
+  // read order the scenarios script. The wait gains the spin's two
+  // reads, so the item's own budget stands where it stood before the
+  // rate measurement landed.
+  provider.setPoints("machine", "monotonic", {}, kRateNanosecondStep);
+  check(!points.empty(), "the scripted series carries points (FR-039)");
+  const std::uint64_t base = points.front();
+  points.insert(points.begin(), {base, base + rateTicks});
   provider.setPoints("machine", "tsc", std::move(points), tailDelta);
   const auto baseActions = provider.readActions();
   sg::detail::JitterProbe probe(options);
   probe.start();
   std::uint64_t spins = 0;
-  while (provider.readActions() < baseActions + waitActions) {
+  while (provider.readActions() < baseActions + waitActions + 2) {
     // The wait yields, so the pinned probe thread progresses under
     // concurrent test load; the bound turns a stalled series into a
     // reported failure; the wait cannot hang (FR-039).
@@ -424,6 +567,7 @@ auto runLatchOrderCase(sg::JitterProbeMode mode, std::uint64_t guarded) -> void
   options.cpus = pickCpus(1);
   options.mode = mode;
   options.precheckMs = 1;
+  scriptRatePair(kRateIdentityTicks);
   sg::detail::installTestReader(std::make_unique<LatchOrderReader>());
   sg::detail::JitterProbe probe(options);
   probe.start();
@@ -484,6 +628,7 @@ auto runLatchJumpCase() -> void
   sg::JitterProbeOptions options;
   options.cpus = pickCpus(1);
   options.mode = sg::JitterProbeMode::ALONGSIDE;
+  scriptRatePair(kRateIdentityTicks);
   sg::detail::installTestReader(std::make_unique<LatchJumpReader>());
   sg::detail::JitterProbe probe(options);
   probe.start();
@@ -503,6 +648,67 @@ auto runLatchJumpCase() -> void
         "a stamp jump across the latch records no gap (FR-006, R-04)");
   check(probed.thresholdNs == 10 * kLatchStep,
         "the default rises to ten times the period (FR-007, D-2)");
+}
+
+// The rate-step reader: one per-thread series whose per-call delta
+// stands at the constructor's under figure for the first two calls and
+// at its at figure after, so the calibration the fake's constant-delta
+// model cannot express reads a unit time below the target at one count
+// and at it at the next (specs/045-merge-fixes phase 16). The calls
+// mirror to the file-scope count the waits spin on, the way the latch
+// readers carry theirs (FR-006, R-04).
+struct RateThreadState
+{
+  std::uint64_t calls = 0;
+  std::uint64_t stamp = 0;
+  std::uint64_t ticket = 0;
+};
+
+thread_local RateThreadState rateThreadState;
+std::atomic<std::uint64_t> rateTicket {0};
+std::atomic<std::uint64_t> rateCalls {0};
+
+auto rateReset() -> void
+{
+  rateTicket.store(0, std::memory_order_relaxed);
+  rateCalls.store(0, std::memory_order_relaxed);
+}
+
+class RateStepReader final : public sg::counters::WindowReader
+{
+public:
+  RateStepReader(std::uint64_t under, std::uint64_t at)
+      : underTicks(under)
+      , atTicks(at)
+  {
+  }
+
+  auto readPoints(sg::counters::PointSink& sink) noexcept -> void override
+  {
+    auto& thread = rateThreadState;
+    if (thread.ticket == 0) {
+      thread.ticket = 1 + rateTicket.fetch_add(1, std::memory_order_relaxed);
+    }
+    ++thread.calls;
+    thread.stamp += thread.calls <= 2 ? underTicks : atTicks;
+    sink.put(thread.stamp);
+    rateCalls.fetch_add(1, std::memory_order_relaxed);
+  }
+
+private:
+  std::uint64_t underTicks = 0;
+  std::uint64_t atTicks = 0;
+};
+
+auto waitRateCalls(std::uint64_t target) -> void
+{
+  std::uint64_t spins = 0;
+  while (rateCalls.load(std::memory_order_relaxed) < target) {
+    std::this_thread::yield();
+    if (++spins > 1000000000ULL) {
+      fail("the rate-step series never reached the waited call (FR-039)");
+    }
+  }
 }
 
 }  // namespace
@@ -653,6 +859,14 @@ auto main() -> int
       "a tsc leaf whose count stands blocked leaves the probe unstarted "
       "(FR-037, R-11)",
       unavailableAvailabilityCase);
+  runUnavailableCase(
+      "a mono-less catalog keeps the figures at the raw ticks the base "
+      "read (specs/045-merge-fixes phase 16, FR-039)",
+      monoLessCatalogCase);
+  runUnavailableCase(
+      "a window the provider refuses leaves the rate unanswered and the "
+      "figures at the raw ticks (specs/045-merge-fixes phase 16, FR-039)",
+      narrowWindowCase);
 
   // FR-001, FR-005: the branches of the gap detection. The first kept gap
   // stands at the threshold, and the reads after it, every one below,
@@ -714,47 +928,31 @@ auto main() -> int
   }
 
   // E-03, R-05: the covered span reads the kept records' own stamp
-  // span over a series whose kept stamps stand out of order: the
-  // decreasing read answers a gap the threshold keeps and its stamp
-  // stands below the records before and after it, so the span loop
-  // narrows the first stamp down and the last stamp up.
+  // span over a kept set whose stamps stand out of order. The
+  // decreasing read the scenario once ran through the probe stands a
+  // backward read the projector refuses (specs/045-merge-fixes phase
+  // 16, FR-039), so the fold's span narrowing stands tested on the
+  // hand-built state the fold reads, the records in read order, the
+  // middle stamp below both neighbors.
   {
-    sg::JitterProbeOptions loopOptions;
-    loopOptions.cpus = pickCpus(1);
-    auto points = passSeries(1);
-    points.push_back(1024);  // the read behind the latch names no gap
-    points.push_back(2000);  // a gap of 976: kept, the front stamp
-    points.push_back(0);  // the decreasing read: the wrapped gap keeps
-    points.push_back(5000);  // a gap of 5000: kept, above every earlier stamp
-    runSeries(loopOptions,
-              std::move(points),
-              1000,
-              1100,
-              [](const auto& states)
-              {
-                const auto& probed = states.at(0);
-                check(probed.kept >= 3,
-                      "the series keeps its decreasing read (FR-001)");
-                check(probed.buffer.at(0).stamp == 2000
-                    && probed.buffer.at(1).stamp == 0
-                    && probed.buffer.at(2).stamp == 5000,
-                "the kept records stand in read order over the "
-                "out-of-order stamps (E-04)");
-                std::uint64_t low = probed.buffer.at(0).stamp;
-                std::uint64_t high = low;
-                for (std::size_t index = 1; index < probed.kept; ++index) {
-                  if (probed.buffer.at(index).stamp < low) {
-                    low = probed.buffer.at(index).stamp;
-                  }
-                  if (probed.buffer.at(index).stamp > high) {
-                    high = probed.buffer.at(index).stamp;
-                  }
-                }
-                const auto fold = sg::detail::gapStatsOf(probed);
-                check(fold.runtimeNs == high - low,
-                "the covered span reads the kept records' stamp span "
-                "(E-03, R-05)");
-              });
+    sg::detail::ProbeCpuState foldState;
+    foldState.cpu = 3;
+    foldState.buffer.resize(3);
+    auto& front = foldState.buffer.at(0);
+    front.stamp = 2000;
+    front.gapNs = 976;
+    auto& middle = foldState.buffer.at(1);
+    middle.stamp = 0;
+    middle.gapNs = 0ULL - 2000ULL;
+    auto& last = foldState.buffer.at(2);
+    last.stamp = 5000;
+    last.gapNs = 5000;
+    foldState.kept = 3;
+    const auto fold = sg::detail::gapStatsOf(foldState);
+    check(fold.gapCount == 3, "the fold reads the three kept records (FR-002)");
+    check(fold.runtimeNs == 5000,
+          "the covered span narrows the first stamp down and the last "
+          "stamp up over the out-of-order stamps (E-03, R-05)");
   }
 
   // FR-007, D-2, R-05: the default rises to ten times the measured
@@ -948,6 +1146,7 @@ auto main() -> int
     loopOptions.mode = sg::JitterProbeMode::PRECHECK;
     loopOptions.precheckMs = 1;
     phaseReaderCalls.store(0);
+    scriptRatePair(kRateIdentityTicks);
     sg::detail::installTestReader(std::make_unique<PhasedReader>());
     sg::detail::JitterProbe probe(loopOptions);
     probe.start();
@@ -978,6 +1177,7 @@ auto main() -> int
     phaseReaderSlots[0].store(0);
     phaseReaderSlots[1].store(0);
     phaseReaderBothPast.store(false);
+    scriptRatePair(kRateIdentityTicks);
     sg::detail::installTestReader(std::make_unique<PhasedReader>());
     sg::detail::JitterProbe probe(loopOptions);
     probe.start();
@@ -992,6 +1192,151 @@ auto main() -> int
                 && probed.buffer.at(1).gapNs == kPhaseGap,
             "the pre-check record and the alongside record both keep (R-10)");
     }
+  }
+
+  // specs/045-merge-fixes phase 16 (BFW-014 a, BFW-015 a, b, c): the
+  // tick-rate projection rows. The rate pair stands scripted at the
+  // scaled rate, 4,190,000 ticks per 1,000,000 ns, so the projection
+  // the run carries scales by 4.19, the factor the record's section 2
+  // measured, and the rows stand exact to the tick against the
+  // scripted pairs. The rows fail against the pre-fix behavior, whose
+  // figures carry the raw ticks, and pass against the fix.
+  {
+    scriptRatePair(kRateScaledTicks);
+
+    // The unit time row (FR-039, SC-035): the pass steps 4,190 ticks
+    // per read, the projection answers 1,000 ns, and the period the
+    // state carries stands at the scaled figure.
+    {
+      sg::JitterProbeOptions loopOptions;
+      loopOptions.cpus = pickCpus(1);
+      runSeries(
+          loopOptions,
+          passSeries(4190),
+          4190,
+          1100,
+          [](const auto& states)
+          {
+            const auto& probed = states.at(0);
+            check(probed.loopPeriodNs == 1000,
+                  "the pass period stands at the projected figure "
+                  "(specs/045-merge-fixes phase 16, FR-039)");
+          },
+          kRateScaledTicks);
+    }
+
+    // The threshold row (US-14): the kept-gap set answers the ns
+    // contract. The gaps step 500,000 ticks, 119,330 ns at the rate,
+    // below the explicit 200,000 ns threshold, so the fix keeps none,
+    // where the pre-fix tick-space comparison kept every one.
+    {
+      sg::JitterProbeOptions loopOptions;
+      loopOptions.cpus = pickCpus(1);
+      loopOptions.thresholdNs = 200000;
+      runSeries(
+          loopOptions,
+          passSeries(500000),
+          500000,
+          1100,
+          [](const auto& states)
+          {
+            const auto& probed = states.at(0);
+            check(probed.thresholdNs == 200000,
+                  "the explicit threshold stands as given (FR-007, FR-008)");
+            check(probed.kept == 0,
+                  "a gap the ns contract keeps below the threshold "
+                  "records none (specs/045-merge-fixes phase 16, "
+                  "FR-039)");
+          },
+          kRateScaledTicks);
+    }
+
+    // The drift row (SC-036): a long FWQ window keeps its unit times,
+    // each 4,190 ticks, and the runtime the fold names stands the kept
+    // count times the projected 1,000 ns figure, exact at any length
+    // the run reaches, the carried remainder keeping the projection
+    // drift-free.
+    {
+      sg::JitterProbeOptions loopOptions;
+      loopOptions.cpus = pickCpus(1);
+      loopOptions.method = sg::JitterMethod::FWQ;
+      runSeries(
+          loopOptions,
+          passSeries(4190),
+          4190,
+          5000,
+          [](const auto& states)
+          {
+            const auto& probed = states.at(0);
+            const auto fold =
+                sg::detail::seriesStatsOf(probed, probed.seriesKept);
+            check(fold.sampleCount > 1000,
+                  "the long window kept its samples (specs/045-merge-fixes "
+                  "phase 16)");
+            check(fold.seriesRuntimeNs == fold.sampleCount * 1000,
+                  "the runtime stands the kept count times the projected "
+                  "unit, drift-free (specs/045-merge-fixes phase 16, "
+                  "FR-039)");
+          },
+          kRateScaledTicks);
+    }
+
+    // The FWQ-target row (US-14, SC-035): the calibration reads the
+    // target in true ns. The reader's first trial steps 2,000 ticks,
+    // 477 ns at the rate, below the 1,000 ns target, and its next
+    // trials step 4,190 ticks, 1,000 ns at it, so the search lands the
+    // second count, where the pre-fix tick-space target landed the
+    // first.
+    {
+      sg::JitterProbeOptions loopOptions;
+      loopOptions.cpus = pickCpus(1);
+      loopOptions.method = sg::JitterMethod::FWQ;
+      scriptRatePair(kRateScaledTicks);
+      rateReset();
+      sg::detail::installTestReader(
+          std::make_unique<RateStepReader>(2000, 4190));
+      sg::detail::JitterProbe probe(loopOptions);
+      probe.start();
+      waitRateCalls(1100);
+      probe.stopAndJoin();
+      sg::detail::installTestReader(nullptr);
+      const auto& probed = probe.states().at(0);
+      check(probed.workCount == 2,
+            "the search lands the count whose unit stands at the true ns "
+            "target (specs/045-merge-fixes phase 16, FR-039)");
+      check(probed.unitTimeNs == 1000,
+            "the unit time stands at the projected target figure "
+            "(specs/045-merge-fixes phase 16, FR-039)");
+    }
+
+    // The FTQ row (US-14): the quantum edges stand in true ns. The
+    // series steps 4,190 ticks, 1,000 ns at the rate, and the 5 us
+    // quantum holds five units, so each kept count stands at five,
+    // where the pre-fix tick-space edge held one.
+    {
+      sg::JitterProbeOptions loopOptions;
+      loopOptions.cpus = pickCpus(1);
+      loopOptions.method = sg::JitterMethod::FTQ;
+      loopOptions.quantumUs = 5;
+      scriptRatePair(kRateScaledTicks);
+      rateReset();
+      sg::detail::installTestReader(
+          std::make_unique<RateStepReader>(4190, 4190));
+      sg::detail::JitterProbe probe(loopOptions);
+      probe.start();
+      waitRateCalls(1100);
+      probe.stopAndJoin();
+      sg::detail::installTestReader(nullptr);
+      const auto& probed = probe.states().at(0);
+      check(probed.seriesKept >= 3,
+            "the window kept its quantum counts (specs/045-merge-fixes "
+            "phase 16)");
+      check(probed.series.at(0) == 5 && probed.series.at(1) == 5,
+            "each quantum holds the five units the ns edge answers "
+            "(specs/045-merge-fixes phase 16, FR-039)");
+    }
+
+    scriptRatePair(kRateIdentityTicks);
   }
 
   // The latch order (FR-006, FR-014, R-04): in every mode, the first

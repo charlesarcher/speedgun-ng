@@ -539,6 +539,13 @@ auto buildJitterReportRecord(const JitterProbeOptions& probe,
   record.disclosure = "probe on cpus " + cpuList + "; loop period "
       + std::to_string(ordered.front()->loopPeriodNs) + " ns, threshold "
       + std::to_string(ordered.front()->thresholdNs) + " ns";
+  // specs/045-merge-fixes phase 16 (FR-039): the disclosure names the
+  // time base the figures ride; a run whose rate stands absent carries
+  // no clause, the rate-absent identity.
+  if (ordered.front()->tickRateHz != 0) {
+    record.disclosure += "; time base tsc ticks scaled to ns at "
+        + std::to_string(ordered.front()->tickRateHz) + " Hz";
+  }
   // E-07: the record carries the measured points the disclosure
   // names; every probe cpu's fold carries the same pair (FR-007).
   record.thresholdNs = ordered.front()->thresholdNs;

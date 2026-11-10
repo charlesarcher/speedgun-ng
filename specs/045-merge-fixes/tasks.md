@@ -1457,3 +1457,233 @@ interim row. A lane a host refuses stands open as blocked with its
 command and its refusal, and the pull-request artifact carries it. A
 shape finding from the widen stops the work and reports the scope it
 needs (D-26).
+
+## Phase 16 tasks: Match the probe's printed units to the counter
+ticks (2026-11-10)
+
+**Base**: `origin/master` at `1f1f9b20cec97198e5cd88778167431eef2c6eb6`
+(the PR #101 merge: version 0.34.0, report schema 1.16, harness
+`SOVERSION` 22, archive `SOVERSION` 8, `git grep -c LCOV_EXCL --
+source include` at 84). The branch is `fix/probe-unit-labels`, cut
+from the latest `origin/master`. One squashed commit, one pull
+request, no merge, no issue closed. No version, schema or `SOVERSION`
+value moves, no public header changes, and no gate, filter, allowance,
+marker, omit, ignore-error class, timeout ceiling or
+continuous-integration change joins the branch. The 110 s subprocess
+grant of `tools/docs/report_shape.py:368` and the 120 s `ctest`
+ceiling of `report_shape_fwq_ftq_sample` at `test/CMakeLists.txt:2197`
+stand unchanged (O-5), and no disassembly gate stands added (G-34).
+
+**Host of record**: thrawn, AMD Zen 5 Threadripper 9960X, 24 cores, 48
+threads, all 48 cpus in the affinity mask, kernel `7.3.0-5-cachyos`,
+GCC and gcov `16.2.1 20260810`, clang `23.1.3`, clang-format `18.1.8`,
+lcov and genhtml `2.6-0`, cmake and ctest `4.4.4`. Scratch stands under
+`$HOME/scratch/probe-unit-labels/`.
+
+**Row shape**: each lettered row names one file or one tightly-coupled
+pair, the command that verifies it, and one reading. `[P]` marks a row
+that touches different files from its siblings and runs in parallel
+once the rows its text names stand landed. A row that records a wall
+time runs while no other row runs, and the record names the affinity
+mask and the online cpu list beside it (Principle VII). Line numbers
+stand taken at the branch base, before the fix lands. Every code row
+runs TDD (III): the covering test stands written and observed failing
+against the pre-fix behavior before the code turns it green, and the
+record names the failing-first reading. No test of this phase uses a
+sleep, a wall-clock threshold or a fake cpu.
+
+- [ ] BFW-013 Measure the tick factor at the branch base (FR-038,
+      SC-034).
+  - a. The scratch measurement:
+    `$HOME/scratch/probe-unit-labels/factor.cpp`, a program linking
+    the built counters library that reads the `machine/tsc` and
+    `machine/monotonic` leaves over a bounded spin (the ns delta
+    bound of 1,000,000, a read-count cap of 100,000 pairs, no sleep
+    and no clock call) and prints the ratio as
+    `deltaTicks * 1000000000 / deltaNs`. Build it against the
+    branch-base tree in `build`, run it five times, and keep the
+    program and the outputs under the scratch directory. No tracked
+    file carries the program.
+    Verify: the record's factor section carries the five readings,
+    the commands, and the ~4.19 reading of the PR #100 and PR #101
+    discussions cited as the estimate the measurement verifies or
+    corrects. No tracked line calls the ~4.19 figure a fact before
+    this row's reading stands recorded.
+  - b. [P] Create
+    `specs/045-merge-fixes/results/probe-unit-closeout.md` as the
+    record of this phase, with the eight section headings of the
+    plan's record plan and no reading yet: host, base and head; the
+    factor; the before and after rows; the tests; the hot-path
+    reading; the lanes at the measured head; the push and the pull
+    request; rows left open.
+    Verify: the file exists with the eight headings, names no SHA of
+    its own commit, and `python3 tools/prose/prose_gate.py --mode
+    tree` exits 0.
+  - c. [P] `specs/045-merge-fixes/quickstart.md`: one link row to that
+    record. No other quickstart line moves.
+    Verify: the link path resolves on disk, and `git diff --name-only`
+    for that commit names the quickstart alone.
+- [ ] BFW-014 Land the scale-at-read fix in the probe's owned files
+      (FR-039, SC-035).
+  - a. The covering tests stand written first and stand observed
+      failing: in `test/source/harness_jitter_probe_test.cpp`, the
+      fake provider registers `machine/monotonic` beside
+      `machine/tsc` with the scripted pair answering one tick per ns,
+      and the new rows stand observed failing against the pre-fix
+      behavior, the rate row because the pre-fix run answers no rate
+      figure at all, the scaling rows (a scripted rate beside 1 tick
+      per ns) because the pre-fix run answers the raw ticks.
+      Verify: the failing-first reading stands recorded in the
+      record's test section with the test names, and the existing
+      scripted rows keep their green readings on the amended
+      fixture, which proves the 1 tick per ns identity before any
+      code edit.
+  - b. The rate source in `source/harness/jitter_probe.cpp`: the
+      holder's start measures the tick rate once, before the barrier
+      stands arrived and outside every window, through two one-leaf
+      recorders minted from the catalog the gate read, one over
+      `machine/tsc` and one over `machine/monotonic`, over the
+      bounded spin BFW-013 a states, the rate stored beside the
+      session the items read. The unavailable path stands unchanged.
+      Verify: the rate row of BFW-014 a stands green, the
+      time-source gate reads clean (`bash test/time_source_gate.sh
+      .`), and the unavailable path's tests keep their bytes.
+  - c. The projector in `source/harness/detail/jitter_probe.hpp` and
+      the wiring at the `readStamp` lambda of
+      `source/harness/jitter_probe.cpp:640`: one `TickProjector`
+      type with the exact integer form the plan states (the carried
+      remainder, the monotonic-read require, the drift-free
+      property), built once per item beside the read move, wrapping
+      the raw read of both paths.
+      Verify: the scaling rows of BFW-014 a stand green; the
+      threshold, FWQ-target, FTQ and drift-free rows of BFW-015
+      stand green; the existing scripted rows keep their bytes at
+      the 1 tick per ns rate.
+  - d. [P] The disclosure clause in `source/harness/cli.cpp` (the
+      assembly at `:539-556`): one `;`-separated clause stating the
+      time base and the measured rate, spelled the way the existing
+      clauses spell; the unavailable path's disclosure stands
+      unchanged. The covering rows in
+      `test/source/harness_jitter_cli_test.cpp` and
+      `test/source/harness_jitter_bytes_test.cpp` stand amended where
+      the clause lands, each amendment traced to this row.
+      Verify: the disclosure rows stand green, and
+      `test/source/harness_jitter_bytes_test.cpp` answers the jitter
+      keys unchanged at schema 1.16 with the scaled values.
+  - e. The format and static readings, no behavior edit:
+      `clang-format --style=file` over the touched files at
+      clang-format `18.1.8`, then
+      `cmake -D FORMAT_COMMAND=clang-format -P cmake/lint.cmake`.
+      Verify: the formatted answers equal the files byte for byte,
+      and the gate exits 0.
+- [ ] BFW-015 Lock the label and scale contract in deterministic
+      tests (FR-040, SC-036).
+  - a. [P] The threshold row in
+      `test/source/harness_jitter_probe_test.cpp`: scripted gaps
+      around the converted threshold, the kept set the ns contract
+      names.
+      Verify: the row fails against the pre-fix behavior and passes
+      against the fix, recorded with both readings.
+  - b. [P] The FWQ-target row and the FTQ row in the same file: the
+      calibrated unit exact to the tick at the scripted rate, at the
+      scripted stamps whose projection answers the 1000 ns target
+      the contract names, and the counts per quantum at the same
+      rate exact to the count the script names.
+      Verify: both rows fail against the pre-fix behavior and pass
+      against the fix.
+  - c. [P] The drift-free row in the same file: a long scripted run
+      at a rate beside 1, the final stamp's projection exact against
+      the scripted pair with the remainder carried.
+      Verify: the row passes, and the run answers no drift at any
+      length the script names.
+  - d. The coverage reading at the final head through the
+      `ci-coverage` tree and the gate: 100 percent lines on the
+      touched code, the tree-wide branch shortfall at or below 21,
+      and `git grep -c LCOV_EXCL -- source include` at or below 84,
+      with no new marker, filter, allowance, omit or ignore-error
+      class (G-25).
+      Verify: the record's coverage section carries the numerator,
+      the denominator, the shortfall and the marker count.
+  - e. [P] The shape folds keep their lines, no file edit:
+      `report_shape_jitter_sample` and
+      `report_shape_fwq_ftq_sample` in the release tree.
+      Verify: each exits 0, so no line count and no field name
+      moved.
+- [ ] BFW-016 Write the record (FR-041).
+  - a. The record's sections land as the plan's record plan names
+      them: the factor beside its estimate, the before and after
+      rows, the test names with the failing-first readings, the
+      hot-path reading (the alone-entry wall of `docs_jitter_probe`,
+      five runs per side on an idle host, base against final head,
+      the medians and the ratio as a measured figure with no
+      threshold invented), and the dated correction lines that name
+      the owner ruling G-35 on every statement of the spec that read
+      O-8 deferred.
+      Verify: the record carries each reading with its command, its
+      exit, the host and the tool versions, each dated interim row
+      names its pre-squash SHA, and no tracked file carries the SHA
+      of its own commit.
+- [ ] BFW-017 Final-head acceptance (FR-042, SC-037, SC-038).
+  - a. The squash stands one commit, the tracked tree stands clean,
+      and `git rev-parse HEAD` stands saved as the measured head.
+      Verify: the head stands in the pull-request body or the
+      untracked artifact, and the tracked record names only
+      pre-squash SHAs.
+  - b. The required lanes of the spec's local-acceptance section run
+      at the measured head, one lane at a time for the lanes that
+      record a wall: the release suite, the two-cpu pinned suite,
+      the sanitizer tree, the thread-sanitizer tree, the coverage
+      tree and gate, the cheap gates (the prose range naming the
+      branch base, the downstream consumer build riding this lane
+      beside the gates), the analyzer build in its own `build-an`
+      directory, and the exported-names audit (harness 210 and
+      `libspeedgun-ng.so` 250 with no third-party name), eight lanes
+      one-for-one with the spec's list.
+      Verify: the record's lane table names the head, the exit and
+      the counts beside each command; a lane a host refuses stands
+      recorded as blocked with its command and its refusal.
+  - c. The push and the pull request: first push `git push -u origin
+      fix/probe-unit-labels`; each later push saves the expected full
+      remote SHA, requires it to equal the last observed value, and
+      uses `git push
+      --force-with-lease=fix/probe-unit-labels:<expected-full-sha>`.
+      After each push `git ls-remote origin
+      refs/heads/fix/probe-unit-labels` equals `git rev-parse HEAD`.
+      The `gh` credential of this machine stands absent: the branch,
+      the push proof and the body text stand delivered through one
+      local file under `$HOME/scratch/probe-unit-labels/` for the
+      operator; no token stands invented.
+      Verify: a failed lease stops the work and stands reported, the
+      lease stands never refreshed and retried, and the record names
+      the artifact path.
+
+### Dependencies and parallel order for phase 16
+
+- BFW-013 a stands first: the factor stands measured at the branch
+  base before any code edit lands, and the reading stands fixed.
+- Block 1, parallel: BFW-013 b and BFW-013 c, the record skeleton and
+  the quickstart link, which touch different files from the
+  measurement.
+- Block 2, alone: BFW-014 a. The covering tests stand written and
+  observed failing before the code lands.
+- Block 3, in order: BFW-014 b, then BFW-014 c. The rate source
+  stands before the projector reads it.
+- Block 4, parallel once BFW-014 c lands: BFW-014 d, BFW-015 a,
+  BFW-015 b, BFW-015 c and BFW-015 e. Each owns a different file or
+  a different scenario row.
+- Block 5, alone: BFW-015 d, the coverage reading, which stands a
+  wall.
+- Block 6, alone: BFW-016 a, then BFW-017 a. The record closes only
+  once every lane names the measured head, so BFW-017 b gates the
+  record's lane section, and BFW-017 c stands last.
+
+### Completion rule for phase 16
+
+A row closes only with its verify reading in
+`specs/045-merge-fixes/results/probe-unit-closeout.md`: the command,
+the exit, the host, the tool versions and the figure, with the
+measured head beside every final-head reading and the pre-squash SHA
+beside every interim row. A lane a host refuses stands open as
+blocked with its command and its refusal, and the pull-request
+artifact carries it. A shape finding from the fix stops the work and
+reports the scope it needs.

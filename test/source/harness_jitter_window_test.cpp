@@ -220,8 +220,12 @@ auto scriptedProvider() -> sg::counters::FakeProvider&
   {
     auto owned = std::make_unique<sg::counters::FakeProvider>();
     auto& ref = *owned;
+    // specs/045-merge-fixes phase 16 (FR-039): the rate pair's second
+    // leaf stands at the tsc leaf's own step, so the measured rate
+    // answers one tick per ns and the projection is the identity the
+    // scenarios' figures read.
     ref.addCounter("machine", "monotonic", "nanoseconds", "wall clock");
-    ref.setPoints("machine", "monotonic", {0}, 4000);
+    ref.setPoints("machine", "monotonic", {0}, kPacedStepNs);
     ref.addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
     ref.setPoints("machine", "thread_cpu", {0}, 2000);
     ref.addCounter("machine",

@@ -121,7 +121,12 @@ auto scriptedProvider() -> sg::counters::FakeProvider&
                    "raw tick counter",
                    sg::counters::Availability::COUNTABLE,
                    sg::counters::ReadMode::FAST_TSC);
-    ref.setPoints("machine", "tsc", {0}, 1);
+    // specs/045-merge-fixes phase 16 (FR-039): the rate pair stands at
+    // the identity, 4,000 ticks per 4,000 ns, so the start measures
+    // 1,000,000,000 Hz and the projection answers every tick as the
+    // nanosecond the fixtures' stamps and thresholds stand in, the way
+    // the probe fixture's identity pair scripts it.
+    ref.setPoints("machine", "tsc", {0}, 4000);
     const auto registered =
         sg::counters::System::local().registerProvider(std::move(owned));
     check(registered.has_value(), "the scripted provider registers (R-02)");
@@ -773,6 +778,48 @@ auto childFileOverSuite() -> int
 // registers publishes the leaves the runner resolves its plans
 // through and no tsc leaf, so the catalog the availability check
 // reads carries no qualifying entry (Q-1, R-02).
+// specs/045-merge-fixes phase 16 (FR-039): the fresh process of the
+// time-base disclosure rows. The fake publishes the tsc leaf the probe
+// reads beside the rate pair's second leaf the holder's start measures
+// against: with `measured` the leaf steps, so the start measures the
+// pair's rate; with it frozen the spin cannot bound, and the rate
+// stands at the identity 0 the projection answers (FR-039).
+auto childRateProbed(const bool measured) -> int
+{
+  auto owned = std::make_unique<sg::counters::FakeProvider>();
+  auto& provider = *owned;
+  provider.addCounter("machine", "monotonic", "nanoseconds", "wall clock");
+  provider.setPoints("machine", "monotonic", {0}, measured ? 4000 : 0);
+  provider.addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
+  provider.setPoints("machine", "thread_cpu", {0}, 2000);
+  provider.addCounter("machine",
+                      "tsc",
+                      "none",
+                      "raw tick counter",
+                      sg::counters::Availability::COUNTABLE,
+                      sg::counters::ReadMode::FAST_TSC);
+  provider.setPoints("machine", "tsc", {0}, 1);
+  const auto registered =
+      sg::counters::System::local().registerProvider(std::move(owned));
+  check(registered.has_value(), "the fresh process registers its fake (R-02)");
+  const std::string probe = std::to_string(pickCpus(1).front());
+  std::vector<std::string> arguments {"--filter=bmQuiet",
+                                      "--repetitions=1",
+                                      "--iterations=2",
+                                      "--json=harness_jitter_cli_rate.json",
+                                      "--jitter-probe=" + probe};
+  std::vector<char*> argv;
+  argv.push_back(const_cast<char*>("harness_jitter_cli_test"));
+  for (auto& argument : arguments) {
+    argv.push_back(argument.data());
+  }
+  const int status =
+      sg::speedgunMain(static_cast<int>(argv.size()), argv.data());
+  std::fflush(stdout);
+  std::fflush(stderr);
+  return status;
+}
+
 auto childUnavailable(const bool strict) -> int
 {
   auto owned = std::make_unique<sg::counters::FakeProvider>();
@@ -1262,6 +1309,38 @@ auto scenarioUnavailableProbe() -> int
   return 0;
 }
 
+// specs/045-merge-fixes phase 16 (FR-039): a run whose probe carries a
+// measured rate answers a document whose disclosure names the time base
+// the figures ride; a run whose rate stands absent answers the
+// disclosure without the clause, the rate-absent identity (FR-039).
+auto scenarioRateDisclosure() -> int
+{
+  const Captured measured =
+      runExecChild("--jitter-cli-child=rate-probed", "rate-probed");
+  check(measured.status == 0, "the probed run stands status 0 (FR-039)");
+  check(measured.out.find("bmQuiet") != std::string::npos,
+        "the batch ran beside the disclosure (FR-037, D-10)");
+  const auto measuredDocument = readDocument("harness_jitter_cli_rate.json");
+  check(measuredDocument.find("; time base tsc ticks scaled to ns at 250000 Hz")
+            != std::string::npos,
+        "the disclosure names the time base at the measured rate (FR-039)");
+  const Captured absent = runExecChild("--jitter-cli-child=rate-absent-probed",
+                                       "rate-absent-probed");
+  check(absent.status == 0, "the probed run stands status 0 (FR-039)");
+  const auto absentDocument = readDocument("harness_jitter_cli_rate.json");
+  check(absentDocument.find("probe on cpus ") != std::string::npos,
+        "the rateless probe discloses the run it carried (FR-039)");
+  check(absentDocument.find("time base tsc ticks scaled to ns at")
+            == std::string::npos,
+        "the rate-absent run carries no time-base clause (FR-039)");
+  std::remove("harness_jitter_cli_rate.json");
+  std::remove("harness_jitter_cli_rate-probed-out.txt");
+  std::remove("harness_jitter_cli_rate-probed-err.txt");
+  std::remove("harness_jitter_cli_rate-absent-probed-out.txt");
+  std::remove("harness_jitter_cli_rate-absent-probed-err.txt");
+  return 0;
+}
+
 // FR-037, D-10: the same unavailable answer where the tsc leaf stands
 // in the tree at a count the catalog marks blocked: the runner's
 // window stamps refuse on the availability gate the compile answers,
@@ -1333,7 +1412,11 @@ auto childFamilyProbe(const int probeSource) -> int
   auto owned = std::make_unique<sg::counters::FakeProvider>();
   auto& provider = *owned;
   provider.addCounter("machine", "monotonic", "nanoseconds", "wall clock");
-  provider.setPoints("machine", "monotonic", {0}, 4000);
+  // specs/045-merge-fixes phase 16 (FR-039): the leaf stands frozen, so
+  // the rate pair's spin cannot bound and the holder answers the
+  // identity 0: the projection stands at the raw tick the orbit's
+  // tick-valued deltas and the explicit 65,000 ns threshold stand in.
+  provider.setPoints("machine", "monotonic", {0}, 0);
   provider.addCounter("machine", "thread_cpu", "nanoseconds", "thread cpu");
   provider.setPoints("machine", "thread_cpu", {0}, 2000);
   provider.addCounter("machine",
@@ -3483,6 +3566,14 @@ auto main(int argc, char** argv) -> int
     {
       return childThreadedUnpinnedProbed();
     }
+    if (mode == "--jitter-cli-child=rate-probed" && redirect("rate-probed")) {
+      return childRateProbed(true);
+    }
+    if (mode == "--jitter-cli-child=rate-absent-probed"
+        && redirect("rate-absent-probed"))
+    {
+      return childRateProbed(false);
+    }
     if (mode == "--jitter-cli-child=unavailable" && redirect("unavailable")) {
       return childUnavailable(false);
     }
@@ -3536,6 +3627,7 @@ auto main(int argc, char** argv) -> int
   check(scenarioFitBesideProbe() == 0, "fitBesideProbe");
   check(scenarioInterleaveProbe() == 0, "interleaveProbe");
   check(scenarioUnavailableProbe() == 0, "unavailableProbe");
+  check(scenarioRateDisclosure() == 0, "rateDisclosure");
   check(scenarioBothMethodPrecheckSeries() == 0, "bothMethodPrecheckSeries");
   check(scenarioBothRecordFoldsTheLatchSnapshot() == 0,
         "bothRecordFoldsTheLatchSnapshot");

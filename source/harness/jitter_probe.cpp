@@ -271,6 +271,78 @@ auto openSystemRecorder(
   recorder.emplace(std::move(minted.value()));
 }
 
+// The tick rate the run's projection scales by (specs/045-merge-fixes
+// The tick rate the run's projection scales by (specs/045-merge-fixes
+// phase 16, FR-039): the machine/tsc and machine/monotonic leaves read
+// in pairs over the bounded spin, the ratio answered as
+// deltaTicks * 1000000000 / deltaNs in Hz. The spin's bounds stand at
+// the one million ns stop and the 100,000 pair cap, no sleep and no
+// clock call anywhere: the leaves are the only time sources the spin
+// touches. The measurement stands best-effort by decision: a catalog
+// that resolves no monotonic leaf, or a pair the spin cannot bound,
+// answers 0, the identity the projection stands at, and the record
+// names it. The leaves stand resolved before any window opens, so a
+// fixture whose tsc leaf scripts a point sequence stands unconsumed.
+auto measureTickRate() -> std::uint64_t
+{
+  constexpr std::uint64_t kNsBound = 1000000;
+  constexpr std::uint64_t kPairCap = 100000;
+  auto& sys = counters::System::local();
+  // The machine object and the tsc leaf stand read unchecked: the
+  // availability gate the start ran owns both facts, the way
+  // `catalogCarriesTsc` reads them (Q-1). The mono leaf stands checked:
+  // the gate names the tsc leaf alone, and a catalog without the mono
+  // leaf is the mono-less fixture case the rate answers 0 on (FR-039).
+  const auto machine = sys.object("machine");
+  const auto tscLeaf = machine.value().counter<counters::Dim<0, 1>>("tsc");
+  const auto nsLeaf = machine.value().counter<counters::Dim<1, 0>>("monotonic");
+  if (!nsLeaf.has_value()) {
+    return 0;
+  }
+  counters::Expression<counters::Dim<0, 1>> tscExpr(tscLeaf.value());
+  counters::Expression<counters::Dim<1, 0>> nsExpr(nsLeaf.value());
+  auto compiled = counters::detail::compileCore(
+      sys, counters::Target {}, {&tscExpr.core, &nsExpr.core});
+  if (!compiled.has_value()) {
+    return 0;
+  }
+  auto plan = std::move(compiled.value());
+  // The recorder holds the spin's pairs without wrapping: the
+  // hard-stop capacity covers the cap's pairs exactly, so the view's
+  // points stand in sample order and the newest read sits at the index
+  // the pair count names.
+  auto recorder = plan.recorder(kPairCap + 1);
+  recorder.sample();
+  // The views resolve once: the recorder holds the spin's pairs without
+  // wrapping, so the points stand in sample order and the newest read
+  // sits at the index the pair count names, the shape the factor
+  // measurement at the branch base took.
+  // The plan bound the pair's leaves at the compile above, so the raw
+  // views answer and stand read unchecked.
+  const auto tscView = tscExpr.raw(recorder.view(), "machine", "tsc").value();
+  const auto nsView = nsExpr.raw(recorder.view(), "machine", "monotonic").value();
+  const std::uint64_t* tscPoints = tscView.points;
+  const std::uint64_t* nsPoints = nsView.points;
+  const std::uint64_t tscBase = tscPoints[0];
+  const std::uint64_t nsBase = nsPoints[0];
+  std::uint64_t pairs = 1;
+  std::uint64_t deltaNs = 0;
+  std::uint64_t deltaTicks = 0;
+  while (pairs < kPairCap) {
+    recorder.sample();
+    ++pairs;
+    if (nsPoints[pairs - 1] - nsBase >= kNsBound) {
+      deltaNs = nsPoints[pairs - 1] - nsBase;
+      deltaTicks = tscPoints[pairs - 1] - tscBase;
+      break;
+    }
+  }
+  if (deltaNs == 0) {
+    return 0;
+  }
+  return deltaTicks * 1000000000ULL / deltaNs;
+}
+
 struct ProbeSession;
 
 // specs/043 FR-010, FR-011, D-2, R-04: the calibration of one probe cpu.
@@ -568,6 +640,11 @@ auto publishLatchSnapshot(ProbeCpuState& state) noexcept -> void
 struct ProbeSession
 {
   std::unique_ptr<counters::WindowReader> reader;
+  // specs/045-merge-fixes phase 16 (FR-039): the tick rate the run's
+  // projection scales by, measured once at the start before the items
+  // read, the identity 0 stands at when the catalog answers no rate
+  // pair.
+  std::uint64_t rateHz = 0;
   std::optional<ContextBarrier> barrier;
   // The second synchronizer between the holder and the items: the round
   // the items reach after the buffer's first touch, the measurement
@@ -628,6 +705,11 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
   // gate's answer, so the item always reaches the latch line below
   // (FR-006, R-04).
   std::uint64_t cell = 0;
+  // specs/045-merge-fixes phase 16 (FR-039): the read move projects
+  // each raw read into the run's nanosecond base at the rate the start
+  // measured, so every figure, threshold and span downstream keeps the
+  // ns reading its contract states.
+  TickProjector projector {.rateHz = session->rateHz};
   counters::WindowReader* reader = session->reader.get();
   counters::WindowReader::ReadThunk thunk = nullptr;
   std::optional<counters::Plan> plan;
@@ -637,16 +719,26 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
   } else {
     openSystemRecorder(plan, recorder);
   }
+  bool seedCaptured = false;
   const auto readStamp = [&]() noexcept -> std::uint64_t
   {
-    if (thunk != nullptr) {
-      counters::PointSink sink(&cell, 1, 1, 1, 0);
-      thunk(*reader, sink);
-      return cell;
+    const auto raw = [&]() noexcept -> std::uint64_t
+    {
+      if (thunk != nullptr) {
+        counters::PointSink sink(&cell, 1, 1, 1, 0);
+        thunk(*reader, sink);
+        return cell;
+      }
+      recorder->sample();
+      return recorder
+          ->mColumns[(recorder->mHead - 1) & (recorder->mCapacity - 1)];
+    }();
+    const auto projected = projector.project(raw);
+    if (!seedCaptured) {
+      seedCaptured = true;
+      state->firstTickRaw = raw;
     }
-    recorder->sample();
-    return recorder
-        ->mColumns[(recorder->mHead - 1) & (recorder->mCapacity - 1)];
+    return projected;
   };
 
   // The calibration: FWQ and FTQ find their work count on this cpu,
@@ -674,6 +766,7 @@ auto ProbeItem::operator()(sg::WorkContext& /*work*/) noexcept -> void
     last = stamp;
   }
   state->loopPeriodNs = minDelta;
+  state->tickRateHz = session->rateHz;
   const std::uint64_t risen = kRiseFactor * minDelta;
   state->thresholdNs = options->thresholdNs.has_value()
       ? *options->thresholdNs
@@ -1077,6 +1170,43 @@ JitterProbe::JitterProbe(const JitterProbeOptions& options)
 {
 }
 
+// The projection's implementation (specs/045-merge-fixes phase 16,
+// FR-039): the exact integer form the header's contract states. The
+// rate-absent run returns the raw tick, the identity the fixture
+// catalogs without the rate pair's second leaf stand at.
+auto TickProjector::project(std::uint64_t tick) noexcept -> std::uint64_t
+{
+  if (rateHz == 0) {
+    return tick;
+  }
+  if (!seeded) {
+    seeded = true;
+    lastTick = tick;
+    return lastNs;
+  }
+  const std::uint64_t delta = tick - lastTick;
+  SG_REQUIRE(delta < (1ULL << 63),
+             "the read delta stands under half the ring: a backward read "
+             "stands refused");
+  lastTick = tick;
+  // The chunked exact form: a delta above one chunk's product range
+  // walks the chunks, and the carried remainder keeps the chunk sum
+  // the single-step projection answers, so a long pause between reads
+  // projects exact and drift-free like any other.
+  constexpr std::uint64_t kChunkTicks = 1000000000;
+  std::uint64_t left = delta;
+  while (left > kChunkTicks) {
+    const std::uint64_t chunkProduct = kChunkTicks * 1000000000ULL + remainder;
+    lastNs += chunkProduct / rateHz;
+    remainder = chunkProduct % rateHz;
+    left -= kChunkTicks;
+  }
+  const std::uint64_t product = left * 1000000000ULL + remainder;
+  lastNs += product / rateHz;
+  remainder = product % rateHz;
+  return lastNs;
+}
+
 auto JitterProbe::start() -> void
 {
   SG_REQUIRE(probeSession == nullptr,
@@ -1102,6 +1232,13 @@ auto JitterProbe::start() -> void
   }
 
   auto session = std::make_unique<ProbeSession>();
+
+  // specs/045-merge-fixes phase 16 (FR-039): the tick rate stands
+  // measured once per run, here before the items read and outside
+  // every window, so the calibration, the thresholds and the stored
+  // figures all project at the one rate. The best-effort reading
+  // stands at the identity when the catalog answers no rate pair.
+  session->rateHz = measureTickRate();
 
   // The states build once, in place: the work items reference them for
   // the whole run, so the vector never grows after this line (E-05).
@@ -1469,6 +1606,25 @@ auto gapStatsOf(const ProbeCpuState& state,
 {
   JitterStats stats {};
 
+  // specs/045-merge-fixes phase 16 (FR-039): the windows' edges stand
+  // in the runner's raw ticks, and the records' stamps stand in the
+  // run's projected nanoseconds, so each edge converts at the state's
+  // own origin and rate, the mapping the item's reads used, and the
+  // placement compares one time base. A rate of 0 stands at the
+  // identity and the edges pass through.
+  const bool convertsEdges = state.tickRateHz != 0;
+  const auto edgeNs = [&](std::uint64_t edge) noexcept -> std::uint64_t
+  {
+    if (!convertsEdges) {
+      return edge;
+    }
+    TickProjector projector {.lastTick = state.firstTickRaw,
+                             .remainder = 0,
+                             .rateHz = state.tickRateHz,
+                             .seeded = true};
+    return projector.project(edge);
+  };
+
   // The covered span the entry's fields divide (E-03, R-05): the
   // windows' total, the one duration the window set carries. The fold
   // of an empty placement answers the empty kept set's zeros below.
@@ -1491,7 +1647,8 @@ auto gapStatsOf(const ProbeCpuState& state,
         windows.begin(),
         windows.end(),
         [&](const TimedWindow& window) noexcept -> bool
-        { return window.start <= record.stamp && record.stamp < window.end; });
+        { return edgeNs(window.start) <= record.stamp
+                     && record.stamp < edgeNs(window.end); });
     if (!placed) {
       continue;
     }
@@ -1573,6 +1730,25 @@ auto seriesStatsOf(const ProbeCpuState& state,
                    std::span<const TimedWindow> windows)
     -> std::optional<JitterSeriesStats>
 {
+  // specs/045-merge-fixes phase 16 (FR-039): the windows' edges stand
+  // in the runner's raw ticks, and the recovered stamps stand in the
+  // run's projected nanoseconds, so each edge converts at the state's
+  // own origin and rate, the mapping the item's reads used, and the
+  // placement compares one time base. A rate of 0 stands at the
+  // identity and the edges pass through.
+  const bool convertsEdges = state.tickRateHz != 0;
+  const auto edgeNs = [&](std::uint64_t edge) noexcept -> std::uint64_t
+  {
+    if (!convertsEdges) {
+      return edge;
+    }
+    TickProjector projector {.lastTick = state.firstTickRaw,
+                             .remainder = 0,
+                             .rateHz = state.tickRateHz,
+                             .seeded = true};
+    return projector.project(edge);
+  };
+
   // The covered span the entry's fields divide (E-03, R-05): the
   // windows' total, the one duration the window set carries.
   std::uint64_t coveredNs = 0;
@@ -1599,7 +1775,8 @@ auto seriesStatsOf(const ProbeCpuState& state,
         windows.begin(),
         windows.end(),
         [&](const TimedWindow& window) noexcept -> bool {
-          return window.start <= recoveredStamp && recoveredStamp < window.end;
+          return edgeNs(window.start) <= recoveredStamp
+                 && recoveredStamp < edgeNs(window.end);
         });
     if (inside) {
       placed.push_back(value);
