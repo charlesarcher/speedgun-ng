@@ -752,9 +752,9 @@ reads their logs.
   the sha. Runs: after Z4-041-002.1.
 - [x] Z4-000.7 [US5 M4] The shared rows beside this record: the two p1 suite
   rows of `Z4-000` in `specs/046-hunter-topdown/tasks.md` carry their figures
-  into this record's suite section. The p2 re-run rows of `Z4-001` stand in
-  the pull-request body of `Z4-001.3`, and enter no record file, so no writing
-  follows the one commit. Writes: the record's suite section. Verify: each row
+  into this record's suite section. The final-sweep rows of `Z4-001` at
+  `$HOME/z4/p6/` stand in the pull-request body of `Z4-001.3`, and enter no
+  record file, so no writing follows the one commit. Writes: the record's suite section. Verify: each row
   prints entries, passed, failed, skipped. Runs: after Z4-041-002.1 and
   Z4-000.5, and before Z4-000.6 and Z4-001.1, so the record suite section
   stands inside the one commit.

@@ -495,7 +495,7 @@ shared modules and plans only its counter part.
 | M6 record 041 | write `results/acceptance-zen4.md`, the dated pending-row entry, the tasks ticks | M3 | the counter record, ticks |
 | M7 text gates | `cmake -P cmake/spell.cmake`, `cmake -D PROSE_MODE=tree -P cmake/prose-lint.cmake` from the checkout root | M5, M6, and the record suite section written by `Z4-000.7` | `$HOME/z4/p1/gates.log` |
 | M8 commit and squash | one commit with the Pull Request Quality template, author and committer `OmO` | M7 | head `H`, the tree of every record and tick |
-| M9 final-head re-run (shared, Z4-001) | at the exact sha `H`: the claimed set only — the six documented-shape hunt consoles, the three probe runs, the two suite rows, each with its witness — plus one re-read of the identity and device facts | M8 | `$HOME/z4/p2/*.log`, the re-run figures for the pull-request body |
+| M9 final-head re-run (shared, Z4-001) | at the exact sha `H`: the claimed set only — the six documented-shape hunt consoles, the three probe runs, the two suite rows, each with its witness — plus one re-read of the identity and device facts | M8 | `$HOME/z4/p6/*.log`, the re-run figures for the pull-request body |
 | M10 push and PR | `git push -u`, then `--force-with-lease=fix/zen4-acceptance:<sha last pushed>` with the remote read-back; one pull request whose body names `H` and the re-run rows; never merge, no issue close | M9 | the branch, the pull request |
 
 M5 and M6 run parallel with each other. M2, M3 and M4 never overlap: each
