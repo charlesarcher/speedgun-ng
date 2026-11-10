@@ -63,7 +63,7 @@ of one shape:
 
 ```
 lcov: WARNING: (inconsistent) mismatched end line for <name> at
-/home/archerc/code/speedgun-ng/test/source/harness_callback_test.cpp:278: 278 -> 285
+$HOME/code/speedgun-ng/test/source/harness_callback_test.cpp:278: 278 -> 285
 while capturing from ...
 ```
 

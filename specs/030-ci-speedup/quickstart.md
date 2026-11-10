@@ -13,7 +13,7 @@ a fresh clone with no `CMakeUserPresets.json` runs the whole guide.
 - clang-format 18.1.8, the version CI runs. `tools/ci/prepush.sh` stops at
   any other version.
 - `ccache` on the path, `lcov`, `python3`, `codespell`, and `gh`
-  authenticated on `charlesarcher/speedgun-ng`.
+  authenticated on `<owner>/speedgun-ng`.
 - `nproc` at least 4 on the lane host, which is what the 5-minute bound of
   SC-007 is read on.
 
@@ -133,9 +133,9 @@ Read the base and the branch with `gh`, then write the before and after
 table (FR-051, SC-001):
 
 ```sh
-gh api repos/charlesarcher/speedgun-ng/actions/runs/40042928839/timing \
+gh api repos/<owner>/speedgun-ng/actions/runs/40042928839/timing \
   --jq .run_duration_ms
-gh api repos/charlesarcher/speedgun-ng/actions/runs/40042928839/jobs \
+gh api repos/<owner>/speedgun-ng/actions/runs/40042928839/jobs \
   --jq '.jobs[] | [.name, .conclusion,
         ((.completed_at | fromdate) - (.started_at | fromdate))] | @tsv'
 gh run list --branch 030-ci-speedup --limit 5

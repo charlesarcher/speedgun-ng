@@ -148,11 +148,11 @@ none. A configured coverage tree shows what that leaves:
 $ cmake --preset=ci-coverage -B build/drop-cov
 -- Configuring done (4.2s)
 -- Generating done (0.3s)
--- Build files have been written to: /home/archerc/code/speedgun-ng/build/drop-cov
+-- Build files have been written to: $HOME/code/speedgun-ng/build/drop-cov
 exit 0
 
 $ ctest --test-dir build/drop-cov -N -R dbc_matrix
-Test project /home/archerc/code/speedgun-ng/build/drop-cov
+Test project $HOME/code/speedgun-ng/build/drop-cov
 
 Total Tests: 0
 exit 0
@@ -256,7 +256,7 @@ which imports `prose_gate`, hands `evaluate_prose` the one path in place
 of the candidate list, and prints the same summary line:
 
 ```text
-$ cd /home/archerc/code/speedgun-ng && python3 /tmp/dropping-prose.py
+$ cd $HOME/code/speedgun-ng && python3 /tmp/dropping-prose.py
 prose-lint: 1 sources, 223 units examined, 0 findings, 0 skipped
 exit 0
 ```

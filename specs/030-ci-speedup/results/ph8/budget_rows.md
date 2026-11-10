@@ -272,7 +272,7 @@ $ cmake -B build/prepush
 -- QUILL_BUILD_MODULE: OFF
 -- Configuring done (0.6s)
 -- Generating done (0.4s)
--- Build files have been written to: /home/archerc/code/speedgun-ng/build/prepush
+-- Build files have been written to: $HOME/code/speedgun-ng/build/prepush
 exit=0
 
 $ bash test/tier_labels.sh build/prepush ctest
@@ -281,7 +281,7 @@ ok: every entry carries one label and a budget, and neither registration breaks 
 exit=0
 
 $ ctest --test-dir build/prepush -R test_tier_labels --output-on-failure
-Test project /home/archerc/code/speedgun-ng/build/prepush
+Test project $HOME/code/speedgun-ng/build/prepush
     Start 23: test_tier_labels
 1/1 Test #23: test_tier_labels .................   Passed    0.23 sec
 

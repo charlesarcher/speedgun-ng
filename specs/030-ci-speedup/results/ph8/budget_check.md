@@ -105,7 +105,7 @@ ok: every entry carries one label and a budget, and neither registration breaks 
 exit=0
 
 $ ctest --test-dir build/prepush -R test_tier_labels --output-on-failure
-Test project /home/archerc/code/speedgun-ng/build/prepush
+Test project $HOME/code/speedgun-ng/build/prepush
     Start 23: test_tier_labels
 1/1 Test #23: test_tier_labels .................   Passed    0.17 sec
 
@@ -296,7 +296,7 @@ index under `/tmp`, where `git ls-files` finds it and tree mode has one
 source to examine:
 
 ```
-$ python3 /home/archerc/code/speedgun-ng/tools/prose/prose_gate.py \
+$ python3 $HOME/code/speedgun-ng/tools/prose/prose_gate.py \
     --check prose --mode tree --paths budget_check.md
 prose-lint: 1 sources, 263 units examined, 0 findings, 0 skipped
 exit=0

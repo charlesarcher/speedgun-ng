@@ -60,14 +60,14 @@ l3 1: 8-15,24-31
 node 0: 0-31
 exit 0
 
-$ ./build/example/docs_execution_graphs --threads=16 --iterations=1 --graph=/home/archerc/.hermes/cache/scratch/speedgun-graph-h31yat7d/fan-in-fan-out.json
+$ ./build/example/docs_execution_graphs --threads=16 --iterations=1 --graph=$HOME/.hermes/cache/scratch/speedgun-graph-h31yat7d/fan-in-fan-out.json
 speedgun-ng 0.25.0 build=Release
 bmChain/threads:16       iterations=        16  real time/iter (ns)=  510.000  cpu time/iter (ns)=  398.125  overhead floor (ns)=  100.000  endpoint samples=32
   contexts=16  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN  ctx2=SPIN/NO_PIN  ctx3=SPIN/NO_PIN  ctx4=SPIN/NO_PIN  ctx5=SPIN/NO_PIN  ctx6=SPIN/NO_PIN  ctx7=SPIN/NO_PIN  ctx8=SPIN/NO_PIN  ctx9=SPIN/NO_PIN  ctx10=SPIN/NO_PIN  ctx11=SPIN/NO_PIN  ctx12=SPIN/NO_PIN  ctx13=SPIN/NO_PIN  ctx14=SPIN/NO_PIN  ctx15=SPIN/NO_PIN
   graph nodes=root,leaf1,leaf2,leaf3,leaf4,leaf5,leaf6,leaf7,leaf8,leaf9,leaf10,leaf11,leaf12,leaf13,leaf14,join edges=leaf1->join,leaf2->join,leaf3->join,leaf4->join,leaf5->join,leaf6->join,leaf7->join,leaf8->join,leaf9->join,leaf10->join,leaf11->join,leaf12->join,leaf13->join,leaf14->join,root->leaf14,root->leaf13,root->leaf12,root->leaf11,root->leaf10,root->leaf9,root->leaf8,root->leaf7,root->leaf6,root->leaf5,root->leaf4,root->leaf3,root->leaf2,root->leaf1
 exit 0
 
-$ ./build/example/docs_execution_graphs --threads=16 --iterations=1 --graph=/home/archerc/.hermes/cache/scratch/speedgun-graph-h31yat7d/fan-in-fan-out.json --json=/home/archerc/.hermes/cache/scratch/speedgun-graph-h31yat7d/report.json
+$ ./build/example/docs_execution_graphs --threads=16 --iterations=1 --graph=$HOME/.hermes/cache/scratch/speedgun-graph-h31yat7d/fan-in-fan-out.json --json=$HOME/.hermes/cache/scratch/speedgun-graph-h31yat7d/report.json
 speedgun-ng 0.25.0 build=Release
 bmChain/threads:16       iterations=        16  real time/iter (ns)= 1120.625  cpu time/iter (ns)=  650.625  overhead floor (ns)=  110.000  endpoint samples=32
   contexts=16  ctx0=SPIN/NO_PIN  ctx1=SPIN/NO_PIN  ctx2=SPIN/NO_PIN  ctx3=SPIN/NO_PIN  ctx4=SPIN/NO_PIN  ctx5=SPIN/NO_PIN  ctx6=SPIN/NO_PIN  ctx7=SPIN/NO_PIN  ctx8=SPIN/NO_PIN  ctx9=SPIN/NO_PIN  ctx10=SPIN/NO_PIN  ctx11=SPIN/NO_PIN  ctx12=SPIN/NO_PIN  ctx13=SPIN/NO_PIN  ctx14=SPIN/NO_PIN  ctx15=SPIN/NO_PIN

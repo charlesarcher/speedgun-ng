@@ -13,7 +13,7 @@ and no workflow references this script.
 - uptime: ` 23:46:42 up 3 days,  1:20,  3 users,  load average: 3.71, 3.33, 2.32`
 - load average: `3.71 3.33 2.32 4/1360 1737055`
 - feature build: `build`
-- master build: `/home/archerc/sg024-waves/024-prereq/audit-wt/build`
+- master build: `$HOME/sg024-waves/024-prereq/audit-wt/build`
 
 ## The over-limit set under the three methods
 
@@ -86,7 +86,7 @@ own group: the value each event reaches with no sharing at all.
 
 ### reference cpu-cycles
 
-$ /home/archerc/sg024-waves/024-prereq/audit-wt/build/example/docs_counter_metrics --counter cpu/cpu-cycles --min-time=0.2
+$ $HOME/sg024-waves/024-prereq/audit-wt/build/example/docs_counter_metrics --counter cpu/cpu-cycles --min-time=0.2
 
 ```
 speedgun-ng 0.12.0 build=Release
@@ -100,7 +100,7 @@ exit=0 wall=2239 ms
 
 ### reference instructions
 
-$ /home/archerc/sg024-waves/024-prereq/audit-wt/build/example/docs_counter_metrics --counter cpu/instructions --min-time=0.2
+$ $HOME/sg024-waves/024-prereq/audit-wt/build/example/docs_counter_metrics --counter cpu/instructions --min-time=0.2
 
 ```
 speedgun-ng 0.12.0 build=Release
@@ -114,7 +114,7 @@ exit=0 wall=2267 ms
 
 ### reference branch-misses
 
-$ /home/archerc/sg024-waves/024-prereq/audit-wt/build/example/docs_counter_metrics --counter cpu/branch-misses --min-time=0.2
+$ $HOME/sg024-waves/024-prereq/audit-wt/build/example/docs_counter_metrics --counter cpu/branch-misses --min-time=0.2
 
 ```
 speedgun-ng 0.12.0 build=Release
@@ -128,7 +128,7 @@ exit=0 wall=2232 ms
 
 ### reference ref-cycles
 
-$ /home/archerc/sg024-waves/024-prereq/audit-wt/build/example/docs_counter_metrics --counter cpu/ref-cycles --min-time=0.2
+$ $HOME/sg024-waves/024-prereq/audit-wt/build/example/docs_counter_metrics --counter cpu/ref-cycles --min-time=0.2
 
 ```
 speedgun-ng 0.12.0 build=Release
@@ -142,7 +142,7 @@ exit=0 wall=2243 ms
 
 ### reference bus-cycles
 
-$ /home/archerc/sg024-waves/024-prereq/audit-wt/build/example/docs_counter_metrics --counter cpu/bus-cycles --min-time=0.2
+$ $HOME/sg024-waves/024-prereq/audit-wt/build/example/docs_counter_metrics --counter cpu/bus-cycles --min-time=0.2
 
 ```
 speedgun-ng 0.12.0 build=Release

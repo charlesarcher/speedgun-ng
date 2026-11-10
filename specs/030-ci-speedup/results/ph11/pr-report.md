@@ -49,7 +49,7 @@ commit brought `tsan` back green and left `coverage` red.
 
 ## `ccache` on this host and in CI
 
-Local bucket `/home/archerc/.cache/ccache`, 5.0 GiB cap, 99 MiB used, ccache
+Local bucket `$HOME/.cache/ccache`, 5.0 GiB cap, 99 MiB used, ccache
 4.11.3; `ccache -s` after the recorded runs reads 187 hits of 1244 cacheable
 calls (15.03%), counters since the last `ccache -z` (`results/ph4/timing.md`). In
 CI each building lane zeroes and prints its own counters around its `Build` step

@@ -3043,7 +3043,7 @@ items that survive it.
   the expression written `ca + cb` the run aborts with exit 134 on
   `[precondition] push counters are sampled on the thread that created them
   (FR-035) (predicate: std::this_thread::get_id() == owner) at
-  /home/archerc/code/speedgun-ng/source/counters/push_provider.cpp:40`; with
+  $HOME/code/speedgun-ng/source/counters/push_provider.cpp:40`; with
   the same two counters and the expression written `cb + ca` the run exits 0,
   prints `value=10 ratio=1 scaled=0`, and reads counter `b` from a thread
   that does not own it. No test reaches the guard's violating branch: the
@@ -4124,7 +4124,7 @@ residue item survives, and it is T288 below.
   calls; the run aborts with exit 134 on `[precondition] push counters are
   sampled on the thread that created them (FR-035) (predicate:
   std::this_thread::get_id() == owner) at
-  /home/archerc/code/speedgun-ng/source/counters/push_provider.cpp:40`, which
+  $HOME/code/speedgun-ng/source/counters/push_provider.cpp:40`, which
   is the violation no mode reaches. The new mode must keep the add a plain
   non-atomic increment and the sample read a plain load, must stay
   semantic-gated, and must leave the plan binding and the mixed-owner refusal
@@ -4529,7 +4529,7 @@ reporting `pmu catalog: 581 table-selected entries beyond kernel aliases` beside
 
 Release configuration. `cmake --preset=ci-ubuntu` exits 0 with
 `CMAKE_BUILD_TYPE:STRING=Release` and
-`CMAKE_CXX_CLANG_TIDY:UNINITIALIZED=clang-tidy;--header-filter=^/home/archerc/code/speedgun-ng/;--exclude-header-filter=^/home/archerc/code/speedgun-ng/external/`
+`CMAKE_CXX_CLANG_TIDY:UNINITIALIZED=clang-tidy;--header-filter=^$HOME/code/speedgun-ng/;--exclude-header-filter=^$HOME/code/speedgun-ng/external/`
 in the cache, and `cmake --build build`, the release build Principle IX
 requires once per feature, exits 0 in 0.32 s over a 26-target fully incremental
 log carrying 0 compile actions. No compile ran, so this pass states no
@@ -4935,7 +4935,7 @@ both executables exit 0.
 
 Release configuration. `cmake --preset=ci-ubuntu` exits 0 with
 `CMAKE_BUILD_TYPE:STRING=Release` in the cache, beside
-`CMAKE_CXX_CLANG_TIDY:UNINITIALIZED=clang-tidy;--header-filter=^/home/archerc/code/speedgun-ng/;--exclude-header-filter=^/home/archerc/code/speedgun-ng/external/`
+`CMAKE_CXX_CLANG_TIDY:UNINITIALIZED=clang-tidy;--header-filter=^$HOME/code/speedgun-ng/;--exclude-header-filter=^$HOME/code/speedgun-ng/external/`
 and `CMAKE_CXX_CPPCHECK:UNINITIALIZED=cppcheck;--inline-suppr`, and
 `cmake --build build`, the release build Principle IX requires once per
 feature, exits 0 over a fully incremental 27-line log carrying 0 lines
@@ -5261,7 +5261,7 @@ both executables exit 0.
 
 Release configuration. `cmake --preset=ci-ubuntu` exits 0 with
 `CMAKE_BUILD_TYPE:STRING=Release` in the cache, beside
-`CMAKE_CXX_CLANG_TIDY:UNINITIALIZED=clang-tidy;--header-filter=^/home/archerc/code/speedgun-ng/;--exclude-header-filter=^/home/archerc/code/speedgun-ng/external/`
+`CMAKE_CXX_CLANG_TIDY:UNINITIALIZED=clang-tidy;--header-filter=^$HOME/code/speedgun-ng/;--exclude-header-filter=^$HOME/code/speedgun-ng/external/`
 and `CMAKE_CXX_CPPCHECK:UNINITIALIZED=cppcheck;--inline-suppr`, and
 `cmake --build build` exits 0 over a fully incremental 27-line log carrying 0
 lines matching `Building` or `Linking`, 0 matching `warning`, and 0 matching

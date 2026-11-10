@@ -349,7 +349,7 @@ the two standing counts the phase asks for, and the first pass never took them.
 
 **The interpreter each build tree names.** Each reading comes from that tree's own
 `CMakeCache.txt`, and the key differs between trees. `build` and `build/coverage`
-carry `_Python3_EXECUTABLE:INTERNAL=/home/archerc/.local/bin/python3.11`.
+carry `_Python3_EXECUTABLE:INTERNAL=$HOME/.local/bin/python3.11`.
 `build/dev` carries `Python3_EXECUTABLE:FILEPATH=/usr/bin/python3`. The
 interpreter the `coverage` tree names answers 1 for a YAML import at step
 `f1-cov-py-yaml`, so that tree cannot run a gate that imports YAML. The system

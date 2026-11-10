@@ -123,7 +123,7 @@ ctest --test-dir build/tsan -j 20 --output-on-failure
 
 Those four steps exit 0, 2, 2 and 8, and they take 1, 29, 15 and 290 sec of
 wall time. The configure step answers 0 in its 26 lines and ends
-`Build files have been written to: /home/archerc/code/speedgun-ng/build/tsan`.
+`Build files have been written to: $HOME/code/speedgun-ng/build/tsan`.
 The first build step exits 2 on the same source that stops the other leg, and
 the keep-going build then linked every other program. The two build steps
 together recompiled 154 translation units and linked 167 programs, and one

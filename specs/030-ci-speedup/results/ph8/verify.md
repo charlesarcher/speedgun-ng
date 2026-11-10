@@ -276,7 +276,7 @@ prose-lint: 0 sources, 0 units examined, 0 findings, 0 skipped
 exit=0
 
 $ cd /tmp/ph8prose && python3 \
-    /home/archerc/code/speedgun-ng/tools/prose/prose_gate.py \
+    $HOME/code/speedgun-ng/tools/prose/prose_gate.py \
     --check prose --mode tree --paths specs/030-ci-speedup/results/ph8
 prose-lint: 4 sources, 973 units examined, 0 findings, 0 skipped
 exit=0

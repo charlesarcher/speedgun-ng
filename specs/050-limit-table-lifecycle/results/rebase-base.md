@@ -11,7 +11,7 @@ names the log of its own run.
 ## What this record measures
 
 Three trees carry the work, and no figure comes from a build tree inside the
-repository worktree at `/home/archerc/code/speedgun-ng`. That worktree kept
+repository worktree at `$HOME/code/speedgun-ng`. That worktree kept
 `HEAD` at `fba814d2` on `050-limit-table-lifecycle` through every command here.
 Every `path:line` citation below names a file under `/tmp/050-base-master`, and
 one citation stands outside it: `base-state.md:31` names a lane record inside
@@ -322,7 +322,7 @@ revision.
 ## Worklog: the trees this wave made and what stands now
 
 The one git write this wave ran is the authorized `git worktree add` line of the
-first section. `git rev-parse HEAD` in `/home/archerc/code/speedgun-ng` still
+first section. `git rev-parse HEAD` in `$HOME/code/speedgun-ng` still
 answers `fba814d2` on `050-limit-table-lifecycle` after every command above, and
 `git worktree list` names that worktree plus `/tmp/050-base-master` at
 `02892b57` in detached HEAD. This wave removed no worktree.

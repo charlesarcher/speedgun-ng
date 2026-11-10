@@ -17,4 +17,4 @@ runner exposed; `d471f620` covers the branch rows the lane owns;
 `c6ae33e3` walks the setup's write-failure orders the root-proof
 denials left, so `noise_tracer.cpp` reads 100% lines and branches.
 
-Run reference: https://github.com/charlesarcher/speedgun-ng/actions/runs/40912750824
+Run reference: run 40912750824

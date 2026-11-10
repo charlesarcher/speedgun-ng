@@ -32,14 +32,14 @@ listing, so they sit outside the five lanes this record compares.
 ## The two trees
 
 ```text
-$ git clone --shared /home/archerc/code/speedgun-ng /tmp/ph6-list-diff-master
+$ git clone --shared $HOME/code/speedgun-ng /tmp/ph6-list-diff-master
 exit 0
 $ git -C /tmp/ph6-list-diff-master checkout --detach f507b8f
 HEAD is now at f507b8f Docs: Restore jitter probe facts
 $ git -C /tmp/ph6-list-diff-master rev-parse HEAD
 f507b8fe5e18f1aa4749dc5412ef6b072fcae9b1
 exit 0
-$ cp -a /home/archerc/code/speedgun-ng/external/. /tmp/ph6-list-diff-master/external/
+$ cp -a $HOME/code/speedgun-ng/external/. /tmp/ph6-list-diff-master/external/
 exit 0
 ```
 
@@ -48,7 +48,7 @@ submodule `.git` file names a git directory that exists only in the
 origin repository, and `git checkout` in the shared clone aborts on it
 with exit 128 while those files stand in the way. The same gitfile makes
 a later git read inside the clone fail, so every git read quoted here
-ran in `/home/archerc/code/speedgun-ng`, and the only git write in this
+ran in `$HOME/code/speedgun-ng`, and the only git write in this
 task is the detach above, inside `/tmp/ph6-list-diff-master`.
 
 The clone holds one checkout, so the branch tree is an extracted copy

@@ -266,7 +266,7 @@ git worktree add /tmp/sg039-master bea6af5b
 cd /tmp/sg039-master
 git -c protocol.file.allow=always submodule update --init external/hwloc external/simdjson external/yaml-cpp external/hdrhistogram_c external/zlib external/quill external/pmu-events
 cmake --preset=ci-rocky -B build && cmake --build build -j 10
-cd /home/archerc/code/speedgun-ng
+cd $HOME/code/speedgun-ng
 cmake --preset=ci-rocky -B build-w7a && cmake --build build-w7a
 bash specs/039-context-groups/results/run_groups.sh --build build-w7a --master-build /tmp/sg039-master/build
 ```

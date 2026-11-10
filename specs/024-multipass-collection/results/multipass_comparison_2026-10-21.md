@@ -7,7 +7,7 @@ transcript does and does not prove, so a reader of SC-01 is not misled.
 Command, from the repository root on `corsairone`:
 
 ```
-$ ./tools/pmu_events/multipass_comparison.sh build /home/archerc/sg024-waves/024-prereq/audit-wt/build
+$ ./tools/pmu_events/multipass_comparison.sh build $HOME/sg024-waves/024-prereq/audit-wt/build
 ```
 
 The second argument is a master build (a `master` worktree at `7a75e95`,

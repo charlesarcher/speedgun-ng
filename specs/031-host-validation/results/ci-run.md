@@ -457,7 +457,7 @@ Run `41127479202` belongs to PR #60, head `30a2dfb`, and closed at conclusion `f
 fifteen jobs over thirteen check names, three of them shards of `static-analysis`. Every check
 reported except `docs`, which the run holds as skipped. Ten shard-level checks are green, four are
 broken: `test-rocky`, `coverage`, `consumer-release` and `dbc-gate`.This lane pulled the four failing job logs with `gh api
-repos/charlesarcher/speedgun-ng/actions/jobs/<id>/logs`, and re-ran the pair gate on this host over
+repos/<owner>/speedgun-ng/actions/jobs/<id>/logs`, and re-ran the pair gate on this host over
 an extracted checkout of the base `94c84ffd` whose `CMakeLists.txt`, `source/harness/cli.cpp` and
 `include/speedgun-ng/benchmark.hpp` hash-match that commit. Job windows run from the API's own
 `startedAt` to `completedAt`.| Check | Verdict | Reading |
@@ -688,7 +688,7 @@ s. Ten shard-level checks are green, four are broken: `test`, `sanitize`, `tsan`
 with a push event and a repository owner, so a pull-request run never builds docs.
 
 This lane pulled the four failing job logs with
-`gh api repos/charlesarcher/speedgun-ng/actions/jobs/<id>/logs`. Job windows run from the API's own
+`gh api repos/<owner>/speedgun-ng/actions/jobs/<id>/logs`. Job windows run from the API's own
 `startedAt` to `completedAt`.
 
 | Check | Verdict | Reading |

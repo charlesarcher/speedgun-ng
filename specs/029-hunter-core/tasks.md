@@ -881,7 +881,7 @@ finding this round filed as owned, so the section holds eleven rows.
 ## Phase 13: Convergence
 
 Assessed at `d3d89a0` ("Harness: Move the Settle Record Out of the Lambda")
-in the detached worktree `/home/archerc/sg029-lanes/ph9-converge`, created for
+in the detached worktree `$HOME/sg029-lanes/ph9-converge`, created for
 this round at 01:39 with the submodules initialized, with no write to
 `specs/029-hunter-core/tasks.md`, to the index or to any ref. Every ticked row
 of Phases 9 to 11 was checked against this tree by reading the code it names or
@@ -973,7 +973,7 @@ MEDIUM, two LOW.
 - [x] T169 HIGH Run the analyzer build of this work and write its report.
       `specs/029-hunter-core/tasks.md:280` (T057) is ticked for a `ci-ubuntu`
       build "clean of clang-tidy and cppcheck findings", and no analyzer report
-      exists in `/home/archerc/sg029-lanes/waves/ph9/` at any head, while
+      exists in `$HOME/sg029-lanes/waves/ph9/` at any head, while
       `git diff --shortstat 48e33ee..9b23fec -- source include test` answers
       901 insertions across 15 files, the whole of it unanalyzed.
       `docs/pages/building.md:266-284` states the route and the trap: no target
@@ -991,7 +991,7 @@ MEDIUM, two LOW.
       for the check `WarningsAsErrors` names, 0 in the hoisted region.
 
 - [x] T170 HIGH Land the sanitizer verdict over the two newest `json_load.cpp`
-      commits. `/home/archerc/sg029-lanes/waves/ph9/sanitize.md:1` names the
+      commits. `$HOME/sg029-lanes/waves/ph9/sanitize.md:1` names the
       measured head as `8914cf0`, three commits behind the tip; `:3-4` report
       123 of 124 passed with zero sanitizer reports and one `harness_cli_test`
       failure re-run solo, and `## Verdict` is `Pending.` The commits it misses
@@ -1016,7 +1016,7 @@ MEDIUM, two LOW.
       of it. The coverage target has produced no trace at any head: the lane at
       `d3d89a0` fails in one second on the box's moved Perl, with
       `Can't locate Capture/Tiny.pm ... at geninfo line 66` at
-      `/home/archerc/sg029-lanes/waves/ph9/logs/coverage.log:2` and `make`
+      `$HOME/sg029-lanes/waves/ph9/logs/coverage.log:2` and `make`
       exiting 2 at `:4`, which leaves the 100 percent line and branch bar of
       T055 (`tasks.md:278`) without evidence and FR-091 unevaluated. The
       sibling lane already names the remedy, `PERL5LIB` over the perl5 trees the
@@ -1275,7 +1275,7 @@ citation row are settled, and both say so where they stand.
 ## Phase 14: Convergence
 
 Assessed at `f5df59d` in the detached worktree
-`/home/archerc/sg029-lanes/ph12-audit`, with the tree clean before and after,
+`$HOME/sg029-lanes/ph12-audit`, with the tree clean before and after,
 with no write to any source, header, contract or doc file, to the index or to
 any ref. Reads only, plus the prose gate, which answered `prose-lint: 591
 sources, 105825 units examined, 0 findings, 0 skipped`. Of 299 citations in
@@ -1285,7 +1285,7 @@ this head, so a cite below its `:955` moves by two lines on integration, and
 the twin gate is not reopened below. No coverage row is drafted here: a branch
 gap needs the `coverage-info` artifact of a CI run, because a local `lcov`
 2.5-beta counts exception and cleanup edges that CI's gcov never emits. The
-full ledger is `/home/archerc/sg029-lanes/waves/ph12/converge.md`.
+full ledger is `$HOME/sg029-lanes/waves/ph12/converge.md`.
 
 - [x] T189 HIGH Correct the nine addresses `:634-639` records for the option
       table. Row T149 re-anchored the reads to `cli.cpp:390` and `:391`, `:602`,
@@ -1425,7 +1425,7 @@ no residual row, and `git grep -n 'LCOV_EXCL' -- source/harness
 include/speedgun-ng example test` answers 14 here and 14 at `origin/master`,
 so each outcome below closes under a test or a shape change. Per-outcome
 analysis, with the input that reaches each arm, is at
-`/home/archerc/sg029-lanes/waves/ph13/triage.md`; it proposes 57 exclusions,
+`$HOME/sg029-lanes/waves/ph13/triage.md`; it proposes 57 exclusions,
 which FR-091 rejects, so its Basis column is the part to use. Verify every
 address before writing: the triage measured `f5df59d`. No local coverage
 number counts here: the lcov capture lane in this checkout fails, so the CI

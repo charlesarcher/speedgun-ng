@@ -110,7 +110,7 @@ and contention notes stand carried in the sections that read them.
   combined default (decision 12.8-3) and stays out; the top-down area
   is N14c's and stays out.
 - Provenance: the roadmap file stands at
-  `/home/archerc/code/speedgun-roadmap.md` on this machine; the
+  `$HOME/code/speedgun-roadmap.md` on this machine; the
   `/workspace/` path the prompt names stands absent here (Citations).
 
 ## Standing facts this lane reads
@@ -675,7 +675,7 @@ names at least one test (FR-051).
 
 ## Citations
 
-- Roadmap: `/home/archerc/code/speedgun-roadmap.md`, section 3 (the
+- Roadmap: `$HOME/code/speedgun-roadmap.md`, section 3 (the
   lane table), 12.3 (sensitivity and delta), 12.5 (output and
   promotion), 12.6 (the CLI and library names, `--hunt-baseline` and
   `HuntResult` among them). The `/workspace/` path the prompt names

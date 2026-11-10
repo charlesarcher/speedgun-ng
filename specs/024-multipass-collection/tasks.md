@@ -615,7 +615,7 @@ the analyzers, the gate set and the landing move.
 
   Recorded 2026-10-21: `git ls-remote origin 024-multipass-collection` shows
   `0481fa73fe36`. Run
-  `https://github.com/charlesarcher/speedgun-ng/actions/runs/39617740469`
+  `run 39617740469`
   concludes `success` over 12 jobs: `lint`, `shared-audit`, `dbc-gate`, `test`,
   `test-rocky`, `coverage`, `tsan`, `sanitize`, `downstream-consumer`,
   `prose-lint` and `consumer-release` report `success`, and `docs` reports
@@ -640,7 +640,7 @@ the analyzers, the gate set and the landing move.
 
   Re-recorded 2026-10-21 for the rebased head: `git ls-remote origin
   024-multipass-collection` shows `b73140f37e18`. Run
-  `https://github.com/charlesarcher/speedgun-ng/actions/runs/39667437675`
+  `run 39667437675`
   concludes `success` over the same 12 jobs on its second attempt: the first
   attempt lost `test-rocky` before the build, because the runner could not
   download the EPEL metadata (`checksum doesn't match`, then a certificate

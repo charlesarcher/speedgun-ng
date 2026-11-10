@@ -86,7 +86,7 @@ git log --oneline -3 030-cold-cache-evidence
 git show 3b6b1fa | grep -E '^[+-].*CCACHE_KEY_PREFIX'
 gh run view 40242954391 --attempt 1 --log \
   | grep -E 'CCACHE_KEY_PREFIX|Cacheable calls|Direct cache hits|Hits: '
-gh api repos/charlesarcher/speedgun-ng/actions/runs/40242954391/attempts/1/jobs \
+gh api repos/<owner>/speedgun-ng/actions/runs/40242954391/attempts/1/jobs \
   --jq '.jobs[] | [.name, .conclusion,
         (.steps[] | select(.name | test("Build|Restore|Save"))
           | [.name, ((.completed_at|fromdateiso8601) - (.started_at|fromdateiso8601))])]'

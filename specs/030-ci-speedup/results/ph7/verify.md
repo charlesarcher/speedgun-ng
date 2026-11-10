@@ -155,7 +155,7 @@ before the read.
 $ cmake --preset=prepush -B build/prepush
 -- Configuring done (0.5s)
 -- Generating done (0.3s)
--- Build files have been written to: /home/archerc/code/speedgun-ng/build/prepush
+-- Build files have been written to: $HOME/code/speedgun-ng/build/prepush
 [exit status: 0]
 
 $ bash test/tier_labels.sh build/prepush ctest
@@ -256,9 +256,9 @@ rule file and this page staged:
 $ rm -rf /tmp/ph7-prose-check && mkdir -p /tmp/ph7-prose-check
 $ cd /tmp/ph7-prose-check && git init -q
 $ mkdir -p tools/prose specs/030-ci-speedup/results/ph7
-$ cp /home/archerc/code/speedgun-ng/tools/prose/prose_gate.py tools/prose/
-$ cp /home/archerc/code/speedgun-ng/tools/prose/prose_rules.yaml tools/prose/
-$ cp /home/archerc/code/speedgun-ng/specs/030-ci-speedup/results/ph7/verify.md specs/030-ci-speedup/results/ph7/
+$ cp $HOME/code/speedgun-ng/tools/prose/prose_gate.py tools/prose/
+$ cp $HOME/code/speedgun-ng/tools/prose/prose_rules.yaml tools/prose/
+$ cp $HOME/code/speedgun-ng/specs/030-ci-speedup/results/ph7/verify.md specs/030-ci-speedup/results/ph7/
 $ git add -A
 $ python3 tools/prose/prose_gate.py --check prose --mode tree --paths specs/030-ci-speedup/results/ph7/verify.md
 prose-lint: 1 sources, 241 units examined, 0 findings, 0 skipped

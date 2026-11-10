@@ -64,7 +64,7 @@ the two full-suite readings. The run selects CTest entry 145, reports
 assertions and nothing else:
 
 ```text
-a-topdown-level-names-the-block-of-a-hunter-run: status 1 from "/home/archerc/code/speedgun-ng/build/test/harness_hunt_cli_test":
+a-topdown-level-names-the-block-of-a-hunter-run: status 1 from "$HOME/code/speedgun-ng/build/test/harness_hunt_cli_test":
 HARNESS HUNT CLI TEST FAIL: one run of one benchmark answers one block, so the named level admits no second block of the companion (FR-016, FR-034)
 
 HARNESS HUNT CLI TEST FAIL: the re-executed scenario passes
@@ -222,9 +222,9 @@ The first diagnosis in the log names the private constructor behind the first
 `System` object of the first case.
 
 ```text
-/home/archerc/code/speedgun-ng/test/source/counters_limit_lifecycle_test.cpp:88:10: error: ‘sg::counters::System::System()’ is private within this context
+$HOME/code/speedgun-ng/test/source/counters_limit_lifecycle_test.cpp:88:10: error: ‘sg::counters::System::System()’ is private within this context
    88 |   System first;
-/home/archerc/code/speedgun-ng/include/speedgun-ng/counters_system.hpp:293:3: note: declared private here
+$HOME/code/speedgun-ng/include/speedgun-ng/counters_system.hpp:293:3: note: declared private here
   293 |   System();
 ```
 

@@ -51,7 +51,7 @@ the `docs` job carries a condition the branch never touched:
 $ grep -n "github.ref == 'refs/heads/master'" .github/workflows/ci.yml
 1416:    if: github.ref == 'refs/heads/master'
       && github.event_name == 'push'
-      && github.repository_owner == 'charlesarcher'
+      && github.repository_owner == '<owner>'
 ```
 
 That condition is false on a pull request, so `docs` ends `skipped` on every run

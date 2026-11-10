@@ -10,7 +10,7 @@ named in `results/ph11/tables.md`), 40042928839 stands
 outside the rule.
 **Command**: `gh run list --branch 030-ci-speedup` for the push pair,
 `gh run view <run> --json jobs` for the job conclusions, `gh api` on
-`repos/charlesarcher/speedgun-ng/actions/runs/<run>` for the two stamps, and
+`repos/<owner>/speedgun-ng/actions/runs/<run>` for the two stamps, and
 `gh run list --branch master` for the master count. Each listing asks for
 `databaseId,headSha,status,conclusion,createdAt`.
 **Numbers**: 205 s of life for the canceled run, 11 of its 15 jobs canceled mid
@@ -68,7 +68,7 @@ Among the last 25 `push` runs of `master` the count of `cancelled` conclusions i
 zero. The one named here ran the whole graph:
 
 ```text
-$ gh api repos/charlesarcher/speedgun-ng/actions/runs/40042928839 \
+$ gh api repos/<owner>/speedgun-ng/actions/runs/40042928839 \
     --jq '"\(.run_started_at) \(.updated_at)"'
 2026-10-24T00:02:20Z 2026-10-24T00:47:17Z
 ```

@@ -60,9 +60,9 @@ of a matrix-carrying tree and is worth correcting in that file.
 by one line because the lane's own edit to `runner.cpp` moved them:
 
 ```console
-lcov: ERROR: (inconsistent) "/home/archerc/code/speedgun-ng/source/harness/hunt_topdown.cpp":155: function '_ZZN2sg6detail18topdownDeepestNodeE…EKUlRKNS1_11TopdownNodeEE_clESB_' is hit but no contained lines are hit.
-lcov: WARNING: (inconsistent) "/home/archerc/code/speedgun-ng/source/harness/runner.cpp":708: function '…stripTopdownColumns…KUl…E_clEm' is hit but no contained lines are hit: function marked 'not hit'.
-lcov: WARNING: (inconsistent) "/home/archerc/code/speedgun-ng/source/harness/runner.cpp":821: function '…stripTopdownColumns…KUlRKSC_E_clESK_' is hit but no contained lines are hit: function marked 'not hit'.
+lcov: ERROR: (inconsistent) "$HOME/code/speedgun-ng/source/harness/hunt_topdown.cpp":155: function '_ZZN2sg6detail18topdownDeepestNodeE…EKUlRKNS1_11TopdownNodeEE_clESB_' is hit but no contained lines are hit.
+lcov: WARNING: (inconsistent) "$HOME/code/speedgun-ng/source/harness/runner.cpp":708: function '…stripTopdownColumns…KUl…E_clEm' is hit but no contained lines are hit: function marked 'not hit'.
+lcov: WARNING: (inconsistent) "$HOME/code/speedgun-ng/source/harness/runner.cpp":821: function '…stripTopdownColumns…KUlRKSC_E_clESK_' is hit but no contained lines are hit: function marked 'not hit'.
 ```
 
 Base named `hunt_topdown.cpp:155`, `runner.cpp:707` and `:820`. No script was edited and no
