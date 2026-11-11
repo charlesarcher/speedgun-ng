@@ -287,6 +287,16 @@ add_test(
       --out ${CMAKE_BINARY_DIR}/prose-gate-fixtures
       ${CMAKE_CURRENT_SOURCE_DIR}/prose-gate-fixture
 )
+# The whole-tree case lists this work tree with `git ls-files`. A tree
+# another user owns, the checkout a root container job reads, is one git
+# refuses as dubious ownership, and the case then lists nothing. The entry
+# names this one tree safe in the command scope git reads for that setting,
+# so the scan runs in full there; every check it holds stays (test-rocky).
+set_tests_properties(
+    prose_gate_fixtures PROPERTIES
+    ENVIRONMENT
+      "GIT_CONFIG_COUNT=1;GIT_CONFIG_KEY_0=safe.directory;GIT_CONFIG_VALUE_0=${CMAKE_SOURCE_DIR}"
+)
 
 # ---- Counters library tests (feature 007) ----
 

@@ -686,7 +686,10 @@ auto tracerStandsAsCurrent(const TracerEngine engine) -> bool
     return false;
   }
   const auto text = readTracerFile("sys/kernel/tracing/current_tracer");
-  return text.has_value() && trimmedWordOf(*text) == engineWordOf(engine);
+  if (!text.has_value()) {
+    return false;
+  }
+  return trimmedWordOf(*text) == engineWordOf(engine);
 }
 
 auto noiseTracerSetup(TracerEngine engine,

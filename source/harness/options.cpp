@@ -1538,7 +1538,12 @@ auto applySourceValue(const OptionRow& row,
   RunOptions& options = resolved.options;
   const std::string option = std::string("--") + row.name;
   const auto refuse = [&](const std::string& line)
-  { return std::unexpected(origin.empty() ? line : origin + ": " + line); };
+  {
+    if (origin.empty()) {
+      return std::unexpected(line);
+    }
+    return std::unexpected(origin + ": " + line);
+  };
   switch (row.value) {
     case 'f': {
       // FR-024, FR-050, FR-051: the pattern is compiled where the row

@@ -326,7 +326,8 @@ auto narrowWindowCase() -> void
   provider.setGroupLeafLimit("machine", 1);
   const auto registered =
       sg::counters::System::local().registerProvider(std::move(owned));
-  check(registered.has_value(), "the narrow-window provider registers (FR-039)");
+  check(registered.has_value(),
+        "the narrow-window provider registers (FR-039)");
   sg::JitterProbeOptions options;
   options.cpus = pickCpus(1);
   auto points = passSeries(1);
@@ -349,10 +350,10 @@ auto narrowWindowCase() -> void
   check(probed.kept == 1,
         "the narrow-window run keeps the read at the threshold (FR-039)");
   const auto fold = sg::detail::gapStatsOf(probed);
-  check(fold.gapCount == 1 && fold.minNs == 200 && fold.maxNs == 200
-            && fold.totalNs == 200,
-        "the refused rate pair leaves the figures at the raw ticks "
-        "(FR-039)");
+  check(
+      fold.gapCount == 1 && fold.minNs == 200 && fold.maxNs == 200
+          && fold.totalNs == 200,
+      "the refused rate pair leaves the figures at the raw ticks " "(FR-039)");
 }
 
 // The rate pair the holder's start measures (specs/045-merge-fixes
@@ -678,8 +679,8 @@ class RateStepReader final : public sg::counters::WindowReader
 {
 public:
   RateStepReader(std::uint64_t under, std::uint64_t at)
-      : underTicks(under)
-      , atTicks(at)
+      : m_underTicks(under)
+      , m_atTicks(at)
   {
   }
 
@@ -690,14 +691,14 @@ public:
       thread.ticket = 1 + rateTicket.fetch_add(1, std::memory_order_relaxed);
     }
     ++thread.calls;
-    thread.stamp += thread.calls <= 2 ? underTicks : atTicks;
+    thread.stamp += thread.calls <= 2 ? m_underTicks : m_atTicks;
     sink.put(thread.stamp);
     rateCalls.fetch_add(1, std::memory_order_relaxed);
   }
 
 private:
-  std::uint64_t underTicks = 0;
-  std::uint64_t atTicks = 0;
+  std::uint64_t m_underTicks = 0;
+  std::uint64_t m_atTicks = 0;
 };
 
 auto waitRateCalls(std::uint64_t target) -> void

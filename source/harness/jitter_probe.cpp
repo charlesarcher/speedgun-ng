@@ -320,7 +320,8 @@ auto measureTickRate() -> std::uint64_t
   // The plan bound the pair's leaves at the compile above, so the raw
   // views answer and stand read unchecked.
   const auto tscView = tscExpr.raw(recorder.view(), "machine", "tsc").value();
-  const auto nsView = nsExpr.raw(recorder.view(), "machine", "monotonic").value();
+  const auto nsView =
+      nsExpr.raw(recorder.view(), "machine", "monotonic").value();
   const std::uint64_t* tscPoints = tscView.points;
   const std::uint64_t* nsPoints = nsView.points;
   const std::uint64_t tscBase = tscPoints[0];
@@ -1643,12 +1644,14 @@ auto gapStatsOf(const ProbeCpuState& state,
     // contains its stamp (E-06, R-04); the entry's stats fold each
     // placed record once, the one reading that leaves `gapCount` the
     // count of the gaps the benchmark's windows placed.
-    const bool placed = std::any_of(
-        windows.begin(),
-        windows.end(),
-        [&](const TimedWindow& window) noexcept -> bool
-        { return edgeNs(window.start) <= record.stamp
-                     && record.stamp < edgeNs(window.end); });
+    const bool placed =
+        std::any_of(windows.begin(),
+                    windows.end(),
+                    [&](const TimedWindow& window) noexcept -> bool
+                    {
+                      return edgeNs(window.start) <= record.stamp
+                          && record.stamp < edgeNs(window.end);
+                    });
     if (!placed) {
       continue;
     }
@@ -1771,13 +1774,14 @@ auto seriesStatsOf(const ProbeCpuState& state,
     // reads each placed sample once, the one reading that leaves
     // `sampleCount` the count of the samples the benchmark's windows
     // placed (FR-020).
-    const bool inside = std::any_of(
-        windows.begin(),
-        windows.end(),
-        [&](const TimedWindow& window) noexcept -> bool {
-          return edgeNs(window.start) <= recoveredStamp
-                 && recoveredStamp < edgeNs(window.end);
-        });
+    const bool inside =
+        std::any_of(windows.begin(),
+                    windows.end(),
+                    [&](const TimedWindow& window) noexcept -> bool
+                    {
+                      return edgeNs(window.start) <= recoveredStamp
+                          && recoveredStamp < edgeNs(window.end);
+                    });
     if (inside) {
       placed.push_back(value);
     }
