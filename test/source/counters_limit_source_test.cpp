@@ -140,6 +140,54 @@ auto clearLeavesNoRecordScenario() -> void
         "the clear left no record behind for the second path (FR-040a)");
 }
 
+// The provider the registration refuses: it records a source for two
+// paths while it enumerates, the way the Linux PMU provider records
+// beside the limit it fills, then seeds a path the catalog already holds
+// (FR-008). It is never opened.
+class RefusedProvider final : public sg::counters::ProviderIface
+{
+public:
+  void enumerate(sg::counters::ObjectSink& sink) const override
+  {
+    recordLimitSource("cpu", LimitSource::PROBE);
+    recordLimitSource("uncore_imc_0", LimitSource::PROBE);
+    sink.addObject(sg::counters::ObjectSeed {.kind = "imc",
+                                             .path = "uncore_imc_0",
+                                             .alias = "",
+                                             .description = "a second imc",
+                                             .entries = {},
+                                             .programmableCounters = 3U});
+  }
+
+  auto open(const sg::counters::LeafSet& /*leaves*/,
+            const sg::counters::Target& /*where*/)
+      -> std::unique_ptr<sg::counters::WindowReader> override
+  {
+    fail("a refused provider is never opened (FR-008)");
+  }
+};
+
+// T029, S-2: a refused provider leaves no source behind. The records it
+// wrote while it enumerated go back with its batch, so a path whose limit
+// the batch never staged answers NONE, and a record standing ahead of
+// the refusal keeps its word (FR-008, FR-040a). The registration must
+// run with the catalog still shut, so this scenario stands ahead of the
+// first catalog read.
+auto refusedProviderLeavesNoSourceScenario() -> void
+{
+  resetFixture();
+  recordLimitSource("cpu", LimitSource::DECODE);
+  const auto refused =
+      System::local().registerProvider(std::make_unique<RefusedProvider>());
+  check(!refused.has_value(),
+        "a provider seeding a held path is refused (FR-008)");
+  check(objectLimitSource("uncore_imc_0") == LimitSource::NONE,
+        "a refused provider leaves no source on a path it never published "
+        "(FR-040a)");
+  check(objectLimitSource("cpu") == LimitSource::DECODE,
+        "a record standing ahead of the refusal keeps its word (FR-043)");
+}
+
 // FR-040a: the accessor and the published limit agree on one path. The
 // scripted writer follows the rule the provider follows: it records a
 // source beside a figure it published, and records nothing where it
@@ -177,6 +225,7 @@ auto main() -> int
   unrecordedPathScenario();
   recorderToldNoLimitScenario();
   clearLeavesNoRecordScenario();
+  refusedProviderLeavesNoSourceScenario();
   publishedLimitAndSourceAgreeScenario();
   std::printf("counters_limit_source_test: PASS\n");
   return 0;

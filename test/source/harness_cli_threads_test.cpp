@@ -415,6 +415,45 @@ auto aMalformedItemIsRefused() -> void
                 "refusal line (FR-046, SC-003)");
 }
 
+// W-5: a count or a range bound past the thread cap refuses with one line
+// naming the cap and the whole text, and the entry point answers status 2
+// with no benchmark row; the cap itself runs through the reader (FR-046,
+// SC-003). The cap is the harness's own constant, and no cpu count of this
+// host enters the row (FR-081).
+auto aCountAboveTheThreadCapIsRefused() -> void
+{
+  const std::string cap = std::to_string(sg::detail::kMaxThreadCount);
+  const std::string above = std::to_string(sg::detail::kMaxThreadCount + 1);
+  expectCounts("--threads=" + cap,
+               cap,
+               "a count at the thread cap answers that count (W-5)");
+  for (const std::string& value : {above, "2," + above, "1:" + above}) {
+    const auto answer = readWord("--threads=" + value);
+    const std::string expected =
+        "--threads: a count stands at most " + cap + ", got '" + value + "'";
+    if (answer.has_value()) {
+      report("a count past the thread cap refuses (W-5)",
+             expected,
+             "the reader accepted the counts: " + render(*answer));
+      continue;
+    }
+    if (answer.error() != expected) {
+      report("a count past the thread cap names the cap and the text (W-5)",
+             expected,
+             answer.error());
+    }
+  }
+  const auto run =
+      runEntry({"--threads=100000", "--filter=^bmThreads", "--iterations=1"});
+  check(run.status == 2,
+        "the entry point refuses a count past the cap at status 2 (W-5)");
+  check(run.err
+            == "--threads: a count stands at most " + cap + ", got '100000'\n",
+        "the refusal stands one line on stderr (W-5, SC-003)");
+  check(run.out.find("bmThreads") == std::string::npos,
+        "the refused count runs no benchmark (W-5, SC-003)");
+}
+
 // FR-047 sets no cpu cap: a count above the affinity count runs, and
 // the console discloses it. The count is the `sched_getaffinity` count
 // plus one, so no cpu count stands in this file (FR-081).
@@ -442,6 +481,7 @@ auto main() -> int
   aCountBelowOneIsRefused();
   aRangeWithItsLowAboveItsHighIsRefused();
   aMalformedItemIsRefused();
+  aCountAboveTheThreadCapIsRefused();
   aCountAboveTheAffinityCountRunsAndDisclosesItself();
   std::printf(failures == 0 ? "ok\n" : "%d checks failed\n", failures);
   return failures == 0 ? 0 : 1;

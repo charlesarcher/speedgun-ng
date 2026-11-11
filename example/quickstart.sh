@@ -6,13 +6,16 @@
 set -eu
 
 # sg-example:begin library
+git clone --recurse-submodules https://github.com/charlesarcher/speedgun-ng.git
+cd speedgun-ng
 cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
 cmake --build build -j
 cmake --install build --prefix "$HOME/.local"
 # sg-example:end library
 
 # sg-example:begin consumer
-cmake -S . -B build -DCMAKE_PREFIX_PATH="$HOME/.local"
+mkdir ../first-benchmark && cp example/quickstart/CMakeLists.txt example/first_benchmark.cpp ../first-benchmark && cd ../first-benchmark
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$HOME/.local"
 cmake --build build
 ./build/first_benchmark
 # sg-example:end consumer

@@ -66,6 +66,22 @@ inline constexpr std::array<std::string_view, 6> kAvailabilityWords {
 static_assert(kAvailabilityWords.size()
               == std::to_underlying(sg::counters::Availability::GAP) + 1);
 
+/// @brief Whether a metric column carries a figure of its own.
+///
+/// A counted value and a gap carry the figure their windows folded. A refusal
+/// kind (`PERMISSION_BLOCKED`, `NOT_ENCODABLE`, `ABSENT`, `SCOPE_REFUSED`)
+/// measured nothing, so the console prints `null` in place of its value and
+/// its running ratio and the document writes `null` for both, never the
+/// defaults of `sg::MetricValue` (FR-023, FR-024).
+///
+/// \post true for `COUNTABLE` and `GAP`, false for every refusal kind
+[[nodiscard]] constexpr auto metricCarriesFigure(
+    const sg::counters::Availability availability) noexcept -> bool
+{
+  return availability == sg::counters::Availability::COUNTABLE
+      || availability == sg::counters::Availability::GAP;
+}
+
 inline constexpr std::array<std::string_view, 4> kTimeUnitWords {
     "NANOSECONDS",
     "MICROSECONDS",

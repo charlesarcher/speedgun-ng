@@ -50,21 +50,19 @@ auto readText(std::filesystem::path const& path) -> std::string
   return text.str();
 }
 
-// The root CMakeLists.txt: the walk starts at the working directory
-// and climbs to the directory whose CMakeLists.txt carries the
-// project( block, the shape harness_cli_table_test's projectVersion()
-// runs (specs/038 FR-002, D-2).
+// The root CMakeLists.txt of the source tree the build named. The test
+// takes the source directory as its second argument, the way
+// harness_cli_table_test takes its start path, so a build directory outside
+// the source tree reads the same file as one inside it (specs/038 FR-002,
+// D-2).
+auto sourceDirectory = std::string {};
+
 auto rootCMakeText() -> std::string
 {
-  auto directory = std::filesystem::absolute(std::filesystem::current_path());
-  for (int hop = 0; hop <= 8 && !directory.empty(); ++hop) {
-    auto const text = readText(directory / "CMakeLists.txt");
-    if (text.find("project(") != std::string::npos) {
-      return text;
-    }
-    directory = directory.parent_path();
+  if (sourceDirectory.empty()) {
+    return {};
   }
-  return {};
+  return readText(std::filesystem::path(sourceDirectory) / "CMakeLists.txt");
 }
 
 // The version of the VERSION line, read the way
@@ -1175,6 +1173,9 @@ auto main(int argc, char** argv) -> int
 {
   if (argc > 1 && argv[1] != nullptr) {
     fixtureDirectory = argv[1];
+  }
+  if (argc > 2 && argv[2] != nullptr) {
+    sourceDirectory = argv[2];
   }
   try {
     return run();

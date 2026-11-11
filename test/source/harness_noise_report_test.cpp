@@ -453,10 +453,11 @@ auto theSchemaCarriesTheTracerKey() -> void
 
 // T015, T019: the checker takes a written document that carries the tracer
 // record against the extended schema, and the writer stands the minor at
-// 1.16 (FR-006, D-3; specs/039 took 1.10 at its cut, specs/043 took 1.12,
+// 1.17 (FR-006, D-3; specs/039 took 1.10 at its cut, specs/043 took 1.12,
 // specs/042-topdown took the minor past it, specs/046-hunter-topdown took it
 // again, specs/041-counter-probe took it once more, and specs/048-hwlat-probe
-// took the next one, 1.16, because 1.15 stood taken when its branch merged).
+// took the next one, 1.16, because 1.15 stood taken when its branch merged;
+// the null figures of a refused metric column then took 1.17).
 auto theWrittenTracerDocumentPassesTheSchema() -> void
 {
   auto record = standingRecord();
@@ -468,8 +469,8 @@ auto theWrittenTracerDocumentPassesTheSchema() -> void
         "the writer wrote the document (FR-006)");
   const std::string document =
       sg::test::readText("harness_noise_report_schema.json");
-  check(document.find("\"schemaVersion\":\"1.16\"") != std::string::npos,
-        "the writer stands the schema minor at 1.16 (D-3, R-11, specs/039"
+  check(document.find("\"schemaVersion\":\"1.17\"") != std::string::npos,
+        "the writer stands the schema minor at 1.17 (D-3, R-11, specs/039"
         " FR-032, specs/037 FR-005, specs/043 FR-006, specs/042-topdown"
         " FR-036, specs/046-hunter-topdown FR-020, specs/041-counter-probe"
         " FR-051)");
@@ -502,7 +503,7 @@ auto maskSpeedgun(std::string text) -> std::string
 // with `schemaVersion` at the minor this build stamps (FR-012, FR-015, R-10,
 // specs/046-hunter-topdown FR-023, specs/048-hwlat-probe FR-029).
 constexpr std::string_view kDocumentFixture =
-    "{\"schemaVersion\":\"1.16\",\"speedgun\":\"?\",\"precheck\":{"
+    "{\"schemaVersion\":\"1.17\",\"speedgun\":\"?\",\"precheck\":{"
     "\"serial\":false,\"windowMs\":0,\"cpus\":[],"
     "\"hostSettings\":{\"isolcpus\":null,\"nohz_full\":null,"
     "\"rcu_nocbs\":null,\"governors\":{},\"irqAffinity\":{}},"

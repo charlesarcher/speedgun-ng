@@ -82,9 +82,16 @@ struct NoiseTracerSession
   /// saved: the six files FR-019 names for the `hwlat` engine, and the
   /// word and the mask the two standing engines save (FR-021, D-8, P-8).
   /// The restore walks it in reverse. `tracing_on` stands outside the set:
-  /// the restore writes `0` there, the standing shape spec SC-007 measures
-  /// (D-8).
+  /// the restore writes `0` there first, the stop spec SC-007 measures
+  /// (D-8), and puts back `previousTracingOn` last, only when every saved
+  /// file stood back.
   std::vector<TracerSetting> saved;
+  /// @brief The word `tracing_on` held before the setup's start write,
+  /// read after the saved set's writes and before that start write, so the
+  /// read stands outside the six reads FR-019 orders. A file that answers
+  /// nothing reads as `0`, the value the restore writes for its stop
+  /// (S-5).
+  std::string previousTracingOn = "0";
 };
 
 /// @brief The word the engine writes into `current_tracer` (specs/036
@@ -184,9 +191,12 @@ struct NoiseTracerSession
 /// FR-021, FR-022, D-8, P-8): the function writes `tracing_on` at `0`,
 /// then the saved set in the reverse of the write order, so the engine
 /// word goes back before the threshold and the kernel's own reset runs
-/// ahead of the host threshold. The two standing engines carry the same
-/// shape over the two pairs they save, so the walk stands the same for
-/// all three engines (D-15). Every file resolves
+/// ahead of the host threshold. Where `tracing_on` read a word other
+/// than `0` before the setup started the tracer, the restore writes that
+/// word back last, so a host that traced before the run traces after it
+/// (S-5); a failed saved write keeps the stop in place. The two standing
+/// engines carry the same shape over the two pairs they save, so the walk
+/// stands the same for all three engines (D-15). Every file resolves
 /// `procRootPath("sys/kernel/tracing/<file>")` (R-01). A failed write
 /// refuses nothing: the run never fails on the tracer (FR-016). The
 /// function stands on the entry-point thread, outside every timed
@@ -196,7 +206,9 @@ struct NoiseTracerSession
 ///       tracer
 /// \post every file whose write stood through stands at the value the
 ///       session carries, and a file beside a failed write stands
-///       unchanged
+///       unchanged; `tracing_on` stands at `session.previousTracingOn`
+///       where its writes and every saved write stood through, and at
+///       the stop `0` where a saved write failed
 /// \post the answer carries one pair per saved file whose write
 ///       failed, in the order the restore wrote them, and stands empty
 ///       where every write stood through (FR-022, D-12); `tracing_on`

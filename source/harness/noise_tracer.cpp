@@ -772,11 +772,18 @@ auto noiseTracerSetup(TracerEngine engine,
     }
     saved.push_back(step.saved);
   }
+  // S-5: the word `tracing_on` held before the start write, so the restore
+  // can put it back. The read stands after the saved set's writes, outside
+  // the six reads FR-019 orders ahead of the first write, and before the one
+  // write of this file. A file that answers nothing reads as the stop word.
+  const std::string standingOn = trimmedWordOf(
+      readTracerFile("sys/kernel/tracing/tracing_on").value_or("0\n"));
   if (!writeTracerFile("sys/kernel/tracing/tracing_on", "1\n")) {
     writeSavedBack(saved, undone);
     return std::nullopt;
   }
   NoiseTracerSession session;
+  session.previousTracingOn = standingOn;
   session.engine = engine;
   session.cpus = cpus;
   session.previousTracer = trimmedWordOf(*word);
@@ -831,6 +838,14 @@ auto noiseTracerRestore(const NoiseTracerSession& session)
   writeTracerFile("sys/kernel/tracing/tracing_on", "0\n");
   std::vector<TracerSetting> failed;
   writeSavedBack(session.saved, failed);
+  // S-5: a host that traced before the run traces after it. The stop above
+  // stays first, so the engine never runs over a half-restored set; the word
+  // the setup read goes back only once every saved file stands back. A failed
+  // write-back keeps the stop: a word that stayed `hwlat` must not run again.
+  if (failed.empty() && session.previousTracingOn != "0") {
+    writeTracerFile("sys/kernel/tracing/tracing_on",
+                    session.previousTracingOn + "\n");
+  }
   SG_ENSURE(failed.size() <= session.saved.size(),
             "noiseTracerRestore answers no more failures than the saved set "
             "holds files");

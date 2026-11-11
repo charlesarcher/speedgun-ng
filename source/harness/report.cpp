@@ -727,11 +727,17 @@ auto printResult(const BenchmarkResult& result,
     for (std::size_t column = 0; column < row.metrics.size(); ++column) {
       const auto& metric = row.metrics[column];
       const char* label = result.metricLabels[column].c_str();
+      // A refused column measured nothing, so the row prints `null` in place
+      // of its value and its running ratio, the word the document writes for
+      // the same column, and names the refusal kind below (FR-023, FR-024).
+      if (metricCarriesFigure(metric.availability)) {
+        std::printf(
+            "  %s=%9.3f ratio=%.3f", label, metric.value, metric.runningRatio);
+      } else {
+        std::printf("  %s=%9s ratio=null", label, "null");
+      }
       std::printf(
-          "  %s=%9.3f ratio=%.3f scaled=%d gap=%d",
-          label,
-          metric.value,
-          metric.runningRatio,
+          " scaled=%d gap=%d",
           metric.scaled ? 1 : 0,
           metric.availability == sg::counters::Availability::GAP ? 1 : 0);
       // specs/024 FR-019, FR-021: the tag names the pass that measured this

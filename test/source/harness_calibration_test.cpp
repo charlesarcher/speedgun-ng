@@ -52,18 +52,6 @@ constexpr std::uint64_t kWalkMonotonicStep = 100;
 constexpr std::uint64_t kWalkThreadCpuBase = 1000;
 constexpr std::uint64_t kFivefoldMonotonicStep = 5000;
 constexpr std::uint64_t kFivefoldThreadCpuStep = 100;
-// PR-2 (PR #32): the setup and the teardown of bmWindow each burn a
-// dependent chain of this length, far past one pass of its loop, and
-// the reported per-iteration time must show the loop alone. The bound
-// stands at the contamination scale's hundredth: the setup's chain
-// reports tens of thousands of nanoseconds per iteration when a
-// window reaches it, the loop reports single digits unbuilt and
-// hundreds under the sanitizer's own instrumentation, so five
-// thousand nanoseconds keep the discrimination the case owns and
-// leave the runner's load spikes outside it.
-constexpr std::uint64_t kWindowBurn = 1'000'000;
-constexpr double kWindowBoundNs = 5000.0;
-
 sg::counters::FakeProvider* fake = nullptr;
 
 auto fail(const char* what) -> void
@@ -114,25 +102,37 @@ auto bmCapped(sg::State& state) -> void
   }
 }
 
-// PR-2 (PR #32): the three marks of the measured window. The setup burn
-// before the loop, the loop itself, and the teardown burn after it are
-// each longer than a pass of the loop, so a window that reached the
-// setup or the teardown would report a per-iteration time orders of
-// magnitude above the loop's own (FR-004, FR-017).
+// PR-2 (PR #32): the marks of the measured window, read off the scripted
+// provider's sampling-action count. The setup mark stands before the loop,
+// the two loop marks at its first and its last pass, and the teardown mark
+// after it, so the scenario reads where the two endpoint actions of the run
+// landed with no clock: one between the setup and the first pass, none
+// inside the loop, one between the last pass and the teardown (FR-004,
+// FR-017).
+struct WindowMarks
+{
+  std::uint64_t setup = 0;
+  std::uint64_t firstPass = 0;
+  std::uint64_t lastPass = 0;
+  std::uint64_t teardown = 0;
+  std::uint64_t passes = 0;
+};
+
+WindowMarks windowMarks;
+
 auto bmWindow(sg::State& state) -> void
 {
-  std::uint64_t mark = 0;
-  for (std::uint64_t index = 0; index < kWindowBurn; ++index) {
-    mark += index;
-  }
-  sg::doNotOptimize(mark);
+  windowMarks = WindowMarks {};
+  windowMarks.setup = fake->readActions();
   for (auto _ : state) {
-    sg::doNotOptimize(mark);
+    const std::uint64_t actions = fake->readActions();
+    if (windowMarks.passes == 0) {
+      windowMarks.firstPass = actions;
+    }
+    windowMarks.lastPass = actions;
+    ++windowMarks.passes;
   }
-  for (std::uint64_t index = 0; index < kWindowBurn; ++index) {
-    mark += index;
-  }
-  sg::doNotOptimize(mark);
+  windowMarks.teardown = fake->readActions();
 }
 
 // PR-2 (PR #32): a function with no timed loop has no measured window.
@@ -396,22 +396,41 @@ auto scenarioFivefold() -> int
   return 0;
 }
 
-// PR-2 (PR #32): the measured window bounds the timed loop. The setup
-// and the teardown of bmWindow each burn about a millisecond of real
-// time; over 64 iterations a window that reached either of them would
-// report tens of microseconds per iteration, while a window that bounds
-// the loop reports nanoseconds.
+// PR-2 (PR #32): the measured window bounds the timed loop. The scripted
+// provider owns the time leaves, so the scenario reads the window from the
+// sampling actions themselves: the run's two endpoint actions land one
+// between the setup and the first pass and one between the last pass and
+// the teardown, no action lands inside the loop, and the row reports the
+// scripted delta of that one pair over the iteration count. No real clock
+// and no time bound stands in the check (FR-004, FR-017, FR-020).
 auto scenarioWindow() -> int
 {
+  scriptedProvider(kWalkMonotonicStep, kWalkThreadCpuBase);
+  const std::uint64_t planActions = probePlanActions();
+
+  const std::uint64_t before = fake->readActions();
   const std::string report =
       captureRun({"--filter", "^bmWindow$", "--iterations=64"});
+  const std::uint64_t consumed = fake->readActions() - before;
   const std::vector<std::string> rows = linesOf(report, "bmWindow");
   check(rows.size() == 1,
         "the window scenario prints one measured row (FR-012)");
-  const double perIteration = doubleFieldOf(rows[0], "real time/iter (ns)=");
-  check(perIteration < kWindowBoundNs,
-        "the measured window covers the loop, not the setup or the "
+  check(consumed == planActions + 2,
+        "the fixed run owns one plan's calibration and its two endpoint "
+        "actions (FR-017)");
+  check(windowMarks.passes == 64, "the loop ran the fixed count (FR-013)");
+  check(windowMarks.firstPass - windowMarks.setup == 1,
+        "the start endpoint lands after the setup and before the first "
+        "pass (FR-004, FR-017)");
+  check(windowMarks.lastPass == windowMarks.firstPass,
+        "no sampling action lands inside the timed loop (FR-004)");
+  check(windowMarks.teardown - windowMarks.lastPass == 1,
+        "the end endpoint lands after the last pass and before the "
         "teardown (FR-004, FR-017)");
+  check(closeTo(doubleFieldOf(rows[0], "real time/iter (ns)="),
+                static_cast<double>(kWalkMonotonicStep) / 64.0),
+        "the row reports the scripted delta of the one endpoint pair over "
+        "the iteration count (FR-020)");
   std::puts("harness_calibration_test window: ok");
   return 0;
 }

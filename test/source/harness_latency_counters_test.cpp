@@ -451,6 +451,30 @@ auto theNmiRows() -> void
                                                              "FR-011)");
 }
 
+// S-4, FR-009, FR-011: `proc/interrupts` lists the online cpus alone, so a
+// host whose cpu 1 stands offline prints `CPU0 CPU2 CPU3` and cpu 2 owns the
+// second column. The reader maps the cpu through the header line: cpu 2
+// reads the second column, cpu 3 the third, and the offline cpu 1 reads no
+// count.
+auto theNmiColumnFollowsTheHeader() -> void
+{
+  const std::string gapped = "           CPU0       CPU2       CPU3\n"
+                             "NMI:          3          7          9   NMI\n";
+  const auto two = sg::detail::nmiCountOfText(gapped, 2);
+  check(two.has_value() && *two == 7,
+        "a cpu behind an offline cpu reads the column the header names for "
+        "it (S-4, FR-009)");
+  const auto three = sg::detail::nmiCountOfText(gapped, 3);
+  check(three.has_value() && *three == 9,
+        "the last cpu reads the last column the header names (S-4, FR-009)");
+  const auto zero = sg::detail::nmiCountOfText(gapped, kFirstCpu);
+  check(zero.has_value() && *zero == 3,
+        "the first cpu keeps the first column (S-4, FR-009)");
+  check(!sg::detail::nmiCountOfText(gapped, kSecondCpu).has_value(),
+        "an offline cpu the header names no column for reads no count (S-4, "
+        "FR-011)");
+}
+
 // T090, FR-009, FR-011: one token that carries digits beside text stands no
 // figure, the shape a kernel column answers when a count stands with a unit.
 // The column of digits alone beside it stands the figure the reader takes.
@@ -530,6 +554,7 @@ auto main() -> int
   theVendorGateRows();
   theNmiRows();
   theNmiFigureBesideItsDigits();
+  theNmiColumnFollowsTheHeader();
   theStandingInterruptsRows();
   theGatePredicatesAnswerEachArm();
   std::printf(failures == 0 ? "ok\n" : "%d checks failed\n", failures);

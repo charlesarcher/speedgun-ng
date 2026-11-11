@@ -358,6 +358,19 @@ auto readRawColumns(Element value, const std::string& where)
   return raw;
 }
 
+// One figure of a metric column: a number, or the `null` a refused column
+// writes, which answers `fallback` (FR-023, FR-024).
+auto metricFigure(Element value,
+                  const std::string& where,
+                  const bool refused,
+                  const double fallback) -> std::expected<double, std::string>
+{
+  if (refused && value.is_null()) {
+    return fallback;
+  }
+  return asDouble(value, where);
+}
+
 auto readMetricValue(Element value, const std::string& where)
     -> std::expected<sg::MetricValue, std::string>
 {
@@ -374,12 +387,25 @@ auto readMetricValue(Element value, const std::string& where)
     return std::unexpected(keys.error());
   }
   auto label = asString(parts[0].second.value(), where + "/label");
-  auto answer = asDouble(parts[1].second.value(), where + "/value");
-  auto running = asDouble(parts[2].second.value(), where + "/runningRatio");
   auto flag = asBool(parts[3].second.value(), where + "/scaled");
   auto state = asEnum<sg::counters::Availability>(detail::kAvailabilityWords,
                                                   parts[4].second.value(),
                                                   where + "/availability");
+  // A refused column stands `null` in its value and its running ratio from
+  // minor 1.17 on, and a document of an earlier minor wrote the defaults
+  // there; either reading leaves the defaults of `sg::MetricValue` in place.
+  // The availability tells a reader the column measured nothing. A counted
+  // column or a gap carries a number in both, so a `null` there is the wrong
+  // kind (FR-023, FR-024).
+  const bool refused = !detail::metricCarriesFigure(
+      state.value_or(sg::counters::Availability::COUNTABLE));
+  const sg::MetricValue defaults {};
+  auto answer = metricFigure(
+      parts[1].second.value(), where + "/value", refused, defaults.value);
+  auto running = metricFigure(parts[2].second.value(),
+                              where + "/runningRatio",
+                              refused,
+                              defaults.runningRatio);
   auto settledValues = allSettled(label, answer, running, flag, state);
   if (!settledValues.has_value()) {
     return std::unexpected(settledValues.error());

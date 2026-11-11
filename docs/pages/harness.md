@@ -630,7 +630,8 @@ printf '%s\n' 'time@median:lower:5%' > "$dir"/rules.txt
 one column per name, in the order the names are given. A name the table
 carries nothing for stops the run before any measurement with status 2, on one
 line naming the near-miss names; a metric the host carries but cannot count
-prints its refusal kind in place of the number, and the run continues. The
+prints `null` in place of the number and the ratio and names its refusal
+kind, and the run continues. The
 `--catalog` listing marks a metric line with `mode=metric` and prints it under
 the object its first leaf reaches, after that object's counter lines.
 
@@ -1301,8 +1302,9 @@ auto attachMetric(sg::BenchmarkHandle& handle) -> void
 ```
 
 The row carries the metric label with `ratio=`, `scaled=`, and `gap=` fields,
-and on a host where the leaf is unavailable the row prints the refusal kind in
-place of the number and the run continues. These walks are the snippets that
+and on a host where the leaf is unavailable the row prints `null` in place of
+the value and the ratio, names the refusal kind in a `refusal=` field, and the
+run continues. These walks are the snippets that
 add a header to the pair: `speedgun-ng/counters.hpp` and
 `speedgun-ng/counters_metrics.hpp`.
 
@@ -1437,11 +1439,12 @@ a guessed one.
 `schemaVersion` names the shape of the document. A document whose major stands
 at 1 loads, whatever its minor says; a later major is refused, and the refusal
 names the version the document carries. The writer moves the minor for a key
-it adds inside major 1. A run writes `1.16`, the shape that carries the
-`method` key and the `series` array of the `jitter` object, the `topdown`
-object of the entry record, the `topdownArea` key of each ranked event, the
-run-level `counterLimits` array and the keys the detector run adds to the
-`jitter` and `precheck` records; a `1.0` document, which carries neither the
+it adds inside major 1, and for a value kind it adds to a key. A run writes
+`1.17`, the shape that carries the `method` key and the `series` array of the
+`jitter` object, the `topdown` object of the entry record, the `topdownArea`
+key of each ranked event, the run-level `counterLimits` array, the keys the
+detector run adds to the `jitter` and `precheck` records, and the `null`
+figures of a refused metric column; a `1.0` document, which carries neither the
 hunt keys nor the pass fields, loads through the same rule.
 
 ### The null rule
@@ -1453,7 +1456,12 @@ statistic whose sample set stands empty answers `null` for every quantity.
 `passSpread` and each metric column's `pass` stand `null` where fewer than two
 passes measured the run. An entry of a run that named no `--topdown` carries no
 `topdown` key at all, and a node the merge left as a gap stands `null` in its
-`value`, where a counted node carries a number.
+`value`, where a counted node carries a number. A metric column whose
+`availability` names a refusal kind (`PERMISSION_BLOCKED`, `NOT_ENCODABLE`,
+`ABSENT` or `SCOPE_REFUSED`) measured nothing, so its `value` and its
+`runningRatio` stand `null`; a counted column and a gap carry numbers. A
+document older than minor 1.17 wrote `0.0` and `1.0` there, and the reader
+answers either form through the availability.
 
 ### The raw column rule
 
@@ -2483,7 +2491,11 @@ cannot see, and a probe run of the `hwlat` method discloses
 
 The restore writes every saved value back, and one value stays behind. The kernel
 remembers the threshold the run wrote as the threshold the detector keeps, so a
-later run that names no threshold takes the value this run wrote. The two surfaces
+later run that names no threshold takes the value this run wrote. The restore
+stops the tracer first and puts `tracing_on` back last at the word it held before
+the run, so a host that traced before the run traces after it. A run killed by a
+signal or a crash before the restore leaves the tracer running until
+`tracing_on` and `current_tracer` are written back by hand. The two surfaces
 differ in three ways. The engine needs the rights that let it write the trace file
 system, and the probe needs none. The engine states its threshold in microseconds,
 and the probe states its gap threshold in nanoseconds. The engine samples with

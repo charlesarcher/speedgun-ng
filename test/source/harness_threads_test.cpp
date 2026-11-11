@@ -910,9 +910,9 @@ auto scenarioUnavailableFold() -> int
   check(merged.contains("work="),
         "the attached metric keeps its column when its fold carries a gap "
         "(FR-020, FR-022)");
-  check(closeTo(fieldOf(merged, "machine/nosuch="), 0.0),
-        "the column of the leaf no provider names carries no fold (FR-020, "
-        "FR-024)");
+  check(merged.contains("machine/nosuch=     null ratio=null "),
+        "the column of the leaf no provider names carries no fold, so it "
+        "prints null in place of a value and a ratio (FR-020, FR-024, B-2)");
   check(merged.contains("refusal=absent"),
         "the row names the refusal of the column that carries no fold "
         "(FR-024)");

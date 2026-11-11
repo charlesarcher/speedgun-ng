@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "detail/core.hpp"
+#include "detail/limit_source_record.hpp"
 #include "detail/pmu.hpp"
 #include "speedgun-ng/counters_core.hpp"
 #include "speedgun-ng/counters_measurement.hpp"
@@ -232,6 +233,24 @@ auto System::registerProvider(std::unique_ptr<ProviderIface> provider)
     void addObject(const ObjectSeed& seed) override { seeds.push_back(seed); }
   } sink;
 
+  // T029, S-2: a provider records the source of each limit while it
+  // enumerates, ahead of the validation below, so the records stand staged
+  // with the limits: a refused batch hands the store back at the records it
+  // held before the enumeration, and only a committed batch keeps what the
+  // provider wrote (FR-008, FR-040a).
+  struct SourceRollback
+  {
+    detail::LimitSourceRecords standing;
+    bool committed = false;
+
+    ~SourceRollback()
+    {
+      if (!committed) {
+        detail::restoreLimitSources(std::move(standing));
+      }
+    }
+  } rollback {.standing = detail::limitSourceSnapshot()};
+
   provider->enumerate(sink);
 
   const int providerIndex = static_cast<int>(m_impl->providers.size());
@@ -310,6 +329,7 @@ auto System::registerProvider(std::unique_ptr<ProviderIface> provider)
     m_impl->limits.insert_or_assign(path, limit);
   }
   m_impl->providers.push_back(std::move(provider));
+  rollback.committed = true;
   return {};
 }
 

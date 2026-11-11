@@ -17,14 +17,17 @@
 // there, one table per System, and this store keeps the source of each
 // figure for the life of the process (FR-043).
 //
-// The seam is private: never installed, and read by three places, the
-// provider's enumeration, the accessor's own definition, and the unit
-// that drives both.
+// The seam is private: never installed, and read by four places, the
+// provider's enumeration, the accessor's own definition, the
+// registration that takes back what a refused provider recorded, and the
+// unit that drives them.
 // ============================================================================
 
 #ifndef SG_COUNTERS_DETAIL_LIMIT_SOURCE_RECORD_HPP
 #define SG_COUNTERS_DETAIL_LIMIT_SOURCE_RECORD_HPP
 
+#include <map>
+#include <string>
 #include <string_view>
 
 #include "speedgun-ng/counters_system.hpp"
@@ -56,6 +59,32 @@ auto recordLimitSource(std::string_view objectPath, LimitSource source) -> void;
 /// \post `objectLimitSource` answers `NONE` for every path, and a record
 ///       written after the call stands on its own (FR-040a)
 auto clearLimitSources() -> void;
+
+/// The whole store, keyed by object path (T029, S-2).
+using LimitSourceRecords = std::map<std::string, LimitSource>;
+
+/// A copy of every record the process holds (T029, S-2).
+///
+/// `System::registerProvider` takes it ahead of the provider's
+/// enumeration, because the provider records a source while it
+/// enumerates and the registration validates the batch only after.
+///
+/// \pre none
+/// \post the answer holds one entry per recorded path, each naming a
+///       finder
+[[nodiscard]] auto limitSourceSnapshot() -> LimitSourceRecords;
+
+/// Put the store back at one snapshot (T029, S-2).
+///
+/// A refused provider leaves no source behind: the registration hands
+/// back the snapshot it took, so the post of `objectLimitSource`, `NONE`
+/// exactly where `programmableCounters()` answers no value, holds for
+/// the records of a refused batch too.
+///
+/// \pre `records` came from `limitSourceSnapshot`
+/// \post `objectLimitSource` answers what it answered when the snapshot
+///       was taken, for every path
+auto restoreLimitSources(LimitSourceRecords records) -> void;
 
 }  // namespace sg::counters::detail
 

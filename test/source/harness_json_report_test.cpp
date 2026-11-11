@@ -536,6 +536,128 @@ auto aValueOutsideTheTableWritesTheGuardWord() -> void
         "a value outside the enumeration writes the guard word (FR-015)");
 }
 
+// B-2, FR-023, FR-024: a refused metric column measured nothing, so the
+// document writes `null` for its value and its running ratio and the console
+// prints `null` in their places, beside a counted column that keeps its
+// numbers. The defaults of `sg::MetricValue` (`0.0`, `1.0`) would otherwise
+// read as a zero counted at full coverage. The reader answers the refused
+// column through its availability, refuses a `null` where the column counts,
+// and still loads a document of an earlier minor that wrote the defaults.
+auto refusedColumnData() -> sg::ReportData
+{
+  sg::ReportData data;
+  auto& result = data.results.emplace_back();
+  result.name = "bmRefusedColumn";
+  result.metricLabels = {"cpi", "ipc"};
+  auto& row = result.rows.emplace_back();
+  row.kind = sg::RowKind::REPETITION;
+  row.iterations = 4;
+  row.timePerIterationNs = 10.0;
+  row.cpuTimePerIterationNs = 10.0;
+  row.endpointSamples = 4;
+  row.metrics.push_back(sg::MetricValue {
+      .value = 0.0,
+      .runningRatio = 1.0,
+      .scaled = false,
+      .availability = sg::counters::Availability::ABSENT,
+      .pass = std::nullopt,
+  });
+  row.metrics.push_back(sg::MetricValue {
+      .value = 2.5,
+      .runningRatio = 0.5,
+      .scaled = true,
+      .availability = sg::counters::Availability::COUNTABLE,
+      .pass = std::nullopt,
+  });
+  data.rowRaw.push_back({});
+  data.contextRaw.push_back({});
+  return data;
+}
+
+auto aRefusedMetricColumnWritesNullFigures() -> void
+{
+  constexpr const char* kPath = "harness_json_refused_column.json";
+  const auto data = refusedColumnData();
+  check(sg::detail::writeReport(kPath, data),
+        "the writer wrote the document of a refused metric column");
+  const std::string text = sg::test::readText(kPath);
+  check(text.find("{\"label\":\"cpi\",\"value\":null,\"runningRatio\":null,"
+                  "\"scaled\":false,\"availability\":\"ABSENT\",\"pass\":null}")
+            != std::string::npos,
+        "the refused column writes null for its value and its running ratio "
+        "(B-2, FR-023, FR-024)");
+  check(
+      text.find(
+          "{\"label\":\"ipc\",\"value\":2.5,\"runningRatio\":0.5," "\"scaled" "\":true," "\"availab" "ility\":" "\"COUNTAB" "LE\"")
+          != std::string::npos,
+      "the counted column beside it keeps its numbers (FR-024)");
+  const auto clean = sg::detail::checkReport(SG_SCHEMA_PATH, text);
+  check(clean.has_value(),
+        "the document of a refused metric column passes the schema (B-2)");
+  if (!clean.has_value()) {
+    std::printf("  %s\n", clean.error().c_str());
+  }
+
+  const auto loaded = sg::loadReport(kPath);
+  const bool answered = loaded.has_value() && loaded->results.size() == 1
+      && loaded->results[0].rows.size() == 1
+      && loaded->results[0].rows[0].metrics.size() == 2;
+  check(answered, "the document of a refused metric column loads (B-2)");
+  if (answered) {
+    const auto& refused = loaded->results[0].rows[0].metrics[0];
+    const auto& counted = loaded->results[0].rows[0].metrics[1];
+    check(refused.availability == sg::counters::Availability::ABSENT,
+          "the loaded refused column answers its refusal kind (FR-023)");
+    check(counted.availability == sg::counters::Availability::COUNTABLE
+              && sg::test::sameValue(counted.value, 2.5)
+              && sg::test::sameValue(counted.runningRatio, 0.5),
+          "the loaded counted column answers its own numbers (FR-024)");
+  }
+
+  const std::string printed = capturePrint(data.results[0]);
+  check(printed.find("  cpi=     null ratio=null scaled=0 gap=0 "
+                     "refusal=absent")
+            != std::string::npos,
+        "the console prints null in place of the refused column's value and "
+        "ratio, and names the refusal (B-2, FR-023)");
+  check(printed.find("  ipc=    2.500 ratio=0.500 scaled=1 gap=0")
+            != std::string::npos,
+        "the console keeps the numbers of the counted column (FR-024)");
+  check(printed.find("cpi=    0.000") == std::string::npos
+            && printed.find("ratio=1.000") == std::string::npos,
+        "the console prints no made-up figure for the refused column (B-2)");
+
+  // A `null` where the column counts is the wrong kind, named by its
+  // pointer.
+  std::string counted = text;
+  const std::string countedNumber = "\"value\":2.5";
+  counted.replace(
+      counted.find(countedNumber), countedNumber.size(), "\"value\":null");
+  sg::test::writeText(kPath, counted);
+  const auto refusedLoad = sg::loadReport(kPath);
+  check(!refusedLoad.has_value()
+            && refusedLoad.error().find("/metrics/1/value")
+                != std::string::npos,
+        "a null value in a counted column refuses the document and names "
+        "its pointer (FR-024)");
+
+  // A document of an earlier minor wrote the defaults in a refused column;
+  // it still loads, and the availability tells the column apart.
+  std::string legacy = text;
+  const std::string nullFigures = "\"value\":null,\"runningRatio\":null";
+  legacy.replace(legacy.find(nullFigures),
+                 nullFigures.size(),
+                 "\"value\":0.0,\"runningRatio\":1.0");
+  sg::test::writeText(kPath, legacy);
+  const auto legacyLoad = sg::loadReport(kPath);
+  check(legacyLoad.has_value() && legacyLoad->results.size() == 1
+            && legacyLoad->results[0].rows[0].metrics[0].availability
+                == sg::counters::Availability::ABSENT,
+        "a document that wrote the defaults in a refused column still loads "
+        "(FR-010)");
+  std::remove(kPath);
+}
+
 // FR-086, FR-043: the document stamps the schema minor this feature takes.
 // The writer holds one constant for the stamp (`source/harness/json_report.cpp`
 // `kSchemaVersion`), so the value the document carries is that constant read
@@ -543,10 +665,10 @@ auto aValueOutsideTheTableWritesTheGuardWord() -> void
 auto theDocumentStampsTheMinorThisFeatureRequires() -> void
 {
   const std::string text = sg::test::readText("harness_json_report.json");
-  check(text.starts_with("{\"schemaVersion\":\"1.16\""),
-        "the written document stamps schema minor 1.16, the minor "
-        "specs/048-hwlat-probe takes past the 1.15 of "
-        "specs/041-counter-probe (FR-086, FR-043, specs/039 FR-032, specs/037 "
+  check(text.starts_with("{\"schemaVersion\":\"1.17\""),
+        "the written document stamps schema minor 1.17, the minor that writes "
+        "null figures for a refused metric column, one past the 1.16 of "
+        "specs/048-hwlat-probe (FR-086, FR-043, specs/039 FR-032, specs/037 "
         "FR-005, specs/043 FR-006, specs/042-topdown FR-036, "
         "specs/046-hunter-topdown FR-020, specs/041-counter-probe FR-051)");
 }
@@ -1380,6 +1502,7 @@ auto main() -> int
   aPartialDetectorSettingWritesNoName();
   theLimitsKeyStandsBesideTheDisclosure();
   theDetectorDocumentPassesTheSchema();
+  aRefusedMetricColumnWritesNullFigures();
   std::printf(sg::test::failures == 0 ? "ok\n" : "%d checks failed\n",
               sg::test::failures);
   return sg::test::failures == 0 ? 0 : 1;
