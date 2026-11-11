@@ -730,27 +730,15 @@ auto scenarioIndexDropsTheDevicePrefix() -> void
   return count;
 }
 
-// The mappings this process holds, counted through its own mapping listing. A
-// sampled event maps a page, so a call that sampled a counter moves this
-// listing (FR-001, D-7).
-// GCC answers `__SANITIZE_ADDRESS__` and `__SANITIZE_THREAD__`; Clang answers
-// `__has_feature`. The allocator of a sanitizer maps its pages as it needs
-// them, so the mapping count of such a build moves on calls that read nothing.
-// The mapping claim of the case below stands where that count is the proxy for
-// a page a call maps.
-#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__)
-#  define SG_TEST_TRACKS_MAPPINGS 0
-#elif defined(__has_feature)
-#  if __has_feature(address_sanitizer) || __has_feature(thread_sanitizer)
-#    define SG_TEST_TRACKS_MAPPINGS 0
-#  else
-#    define SG_TEST_TRACKS_MAPPINGS 1
-#  endif
-#else
-#  define SG_TEST_TRACKS_MAPPINGS 1
-#endif
+// The sampled pages this process holds, counted through its own mapping
+// listing. The kernel names the ring a sampled event maps
+// `anon_inode:[perf_event]`, so a call that sampled a counter moves this count
+// (FR-001, D-7). The count reads that one name and no other row: the allocator
+// may split or add a heap or anonymous mapping between two reads, on any build,
+// and such a row says nothing about a sampled page.
+constexpr std::string_view kSampledPageName {"[perf_event]"};
 
-[[maybe_unused]] [[nodiscard]] auto mappingCount() -> std::size_t
+[[nodiscard]] auto sampledPageCount() -> std::size_t
 {
   auto maps = std::ifstream("/proc/self/maps");
   if (!maps) {
@@ -758,7 +746,9 @@ auto scenarioIndexDropsTheDevicePrefix() -> void
   }
   std::size_t count = 0;
   for (std::string line; std::getline(maps, line);) {
-    ++count;
+    if (line.find(kSampledPageName) != std::string::npos) {
+      ++count;
+    }
   }
   return count;
 }
@@ -814,9 +804,7 @@ auto scenarioOneCallReadsNoSourceOfItsOwn() -> void
   const auto groups = plantedGroups();
   const auto absent = std::optional<sg::counters::TopdownTree> {};
   const auto descriptors = openDescriptorCount();
-#if SG_TEST_TRACKS_MAPPINGS
-  const auto mappings = mappingCount();
-#endif
+  const auto sampled = sampledPageCount();
 
   const auto path = sg::detail::topdownArea(kDeepAddress, tree, groups);
   const auto stem = sg::detail::topdownArea(kListedAddress, tree, groups);
@@ -825,11 +813,9 @@ auto scenarioOneCallReadsNoSourceOfItsOwn() -> void
   check(openDescriptorCount() == descriptors,
         "three calls leave the process holding the descriptors it held before, "
         "so no event stands open behind an area (FR-001, D-7)");
-#if SG_TEST_TRACKS_MAPPINGS
-  check(mappingCount() == mappings,
-        "three calls leave the process holding the mappings it held before, so "
-        "no sampled page stands behind an area (FR-001, D-7)");
-#endif
+  check(sampledPageCount() == sampled,
+        "three calls leave the process holding the sampled pages it held "
+        "before, so no sampled page stands behind an area (FR-001, D-7)");
   check(!path.empty() && !stem.empty() && !refused.empty(),
         "the three calls measured above settled three answers, so the claim "
         "weighs calls that reached every arm (FR-001)");

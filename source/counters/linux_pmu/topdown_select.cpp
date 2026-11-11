@@ -123,9 +123,12 @@ auto fillSourceRecord(TopdownSource& source) -> void
         table,
         [name](const PmuTableEntry& entry) { return entry.fileName == name; });
     if (contributed) {
-      source.files.push_back(
-          TableFile {.name = std::string {name},
-                     .manifestHash = std::string {file.sha256}});
+      // Both members are set on a whole record, so neither stands half
+      // built while the other one is copied in.
+      auto row = TableFile {};
+      row.name = std::string {name};
+      row.manifestHash = std::string {file.sha256};
+      source.files.push_back(std::move(row));
     }
   }
 }

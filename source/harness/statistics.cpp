@@ -81,9 +81,9 @@ auto rankInPlace(std::vector<std::pair<double, double>>& points,
   while (start < order.size()) {
     auto end = start + 1U;
     const double value = points[order[start]].*coordinate;
-    while (end < order.size() && !less(points[order[end]].*coordinate, value)
-           && !less(value, points[order[end]].*coordinate))
-    {
+    // `order` stands ascending, so no later coordinate stands below `value`,
+    // and the run of ties ends at the first coordinate above it.
+    while (end < order.size() && !less(value, points[order[end]].*coordinate)) {
       ++end;
     }
     const auto group = static_cast<double>(end - start);

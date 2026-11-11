@@ -274,10 +274,12 @@ auto metricNameFailure(std::span<const MetricName> names) -> int
     const std::string line = metricNameFailureLine(item.name, miss.error());
     // The line of the words names the option the name came from, so only a
     // file and a variable carry an origin ahead of it (FR-033, FR-038).
-    std::fprintf(stderr,
-                 "%s\n",
-                 item.origin.empty() ? line.c_str()
-                                     : (item.origin + ": " + line).c_str());
+    if (item.origin.empty()) {
+      std::fprintf(stderr, "%s\n", line.c_str());
+    } else {
+      const std::string placed = item.origin + ": " + line;
+      std::fprintf(stderr, "%s\n", placed.c_str());
+    }
     return 2;
   }
   return 0;

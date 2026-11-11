@@ -836,15 +836,17 @@ auto stripTopdownColumns(sg::BenchmarkResult& result,
       value.reset();
       availability = sg::counters::Availability::ABSENT;
     }
-    record.nodes.push_back(sg::TopdownNode {
-        .name = node.name,
-        .vendorName = node.vendorName,
-        .parent = node.parent,
-        .level = static_cast<std::uint64_t>(node.level),
-        .value = value,
-        .availability = availability,
-        .threshold = node.threshold,
-    });
+    // Each member is set on a whole node, so no member stands half built
+    // while another one is copied in.
+    auto entry = sg::TopdownNode {};
+    entry.name = node.name;
+    entry.vendorName = node.vendorName;
+    entry.parent = node.parent;
+    entry.level = static_cast<std::uint64_t>(node.level);
+    entry.value = value;
+    entry.availability = availability;
+    entry.threshold = node.threshold;
+    record.nodes.push_back(std::move(entry));
   }
   result.topdown = std::move(record);
 

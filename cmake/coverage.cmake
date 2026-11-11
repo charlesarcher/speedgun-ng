@@ -27,24 +27,17 @@ endif()
 # We use variables separate from what CTest uses, because those have
 # customization issues
 #
-# The mismatch error class is ignored: a vendored header's inline code is
-# emitted into
-# this project's own instrumented translation units, so the capture sees it.
-# Every vendored tree lands in the raw trace today (simdjson, hwloc,
-# HdrHistogram_c, zlib, and yaml-cpp all appear in it), and the extract step
-# below then removes every vendored path before the gate reads a number. The
-# gate's metrics are therefore unaffected by anything a vendored header
-# contributes. quill is the first vendored tree whose headers trip lcov's
-# exception-tag consistency check, which would otherwise abort the capture
-# and take the whole coverage target down with it. Narrowing this to the one
-# error class keeps every other lcov check, and gcov's own diagnostics, live.
-#
-# `negative` is the second class, and this toolchain needs it. gcov 16 emits
-# counters that lcov 2.3 misreads, so a branch the test never took arrives
-# as a negative taken count and lcov aborts the capture. The class is
-# narrowed for the same reason as `mismatch`: it names one parsing complaint,
-# and every other lcov check stays live.
-# The third class, `inconsistent`, stands gone from every read here. Two
+# The capture ignores no error class. It reads the three application roots
+# the extract step below keeps, and no other path. The `mismatch` class it
+# once ignored came from vendored headers alone: the inline code of
+# yaml-cpp, simdjson and quill is emitted into this project's own
+# translation units, and lcov saw one header line with an exception tag in
+# one unit and none in another. No such header is part of any gated figure,
+# because the extract step always removed every vendored path, so the
+# capture now leaves those paths out at the read, ahead of any merge. The
+# `negative` class named a gcov counter lcov misread; no capture of the
+# coverage job reports one, so it is gone with `mismatch`.
+# The `inconsistent` class stands gone from every read here. Two
 # shapes produced it. A contract closure written inside an `SG_*` predicate
 # was recorded as a hit function with no hit contained line, and each such
 # closure body now stands in a named helper outside the macro.
@@ -70,7 +63,9 @@ set(
     "${LCOV_EXECUTABLE}" -c -q
     --branch-coverage
     --no-external
-    --ignore-errors mismatch,negative
+    --include "${PROJECT_SOURCE_DIR}/include/speedgun-ng/*"
+    --include "${PROJECT_SOURCE_DIR}/source/*"
+    --include "${PROJECT_SOURCE_DIR}/tools/hostcheck/*"
     --base-directory "${PROJECT_SOURCE_DIR}"
     --rc geninfo_unexecuted_blocks=1
     -o "${PROJECT_BINARY_DIR}/coverage.raw.info"
