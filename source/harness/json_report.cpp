@@ -55,7 +55,7 @@ using Builder = simdjson::builder::string_builder;
 // specs/037 FR-005, specs/043 FR-006, specs/042-topdown FR-036,
 // specs/046-hunter-topdown FR-020, specs/041-counter-probe FR-051,
 // specs/048-hwlat-probe FR-004, D-5).
-constexpr std::string_view kSchemaVersion = "1.16";
+constexpr std::string_view kSchemaVersion = "1.17";
 
 // The `source` word of one disclosed use, spelled as the enum of
 // `docs/schema/report-v1.json` states it (specs/028 E-04, FR-040). The
@@ -347,8 +347,18 @@ void writeMetricValue(Builder& builder,
 {
   JsonObjectWriter object(builder);
   put(builder, object, "label", label);
-  put(builder, object, "value", metric.value);
-  put(builder, object, "runningRatio", metric.runningRatio);
+  // A refused column measured nothing, so its value and its running ratio
+  // stand `null` rather than the defaults of `sg::MetricValue`, which a
+  // reader of the file alone would take for a zero counted at full coverage
+  // (FR-023, FR-024).
+  auto figure = std::optional<double> {};
+  auto ratio = std::optional<double> {};
+  if (metricCarriesFigure(metric.availability)) {
+    figure = metric.value;
+    ratio = metric.runningRatio;
+  }
+  putOrNull(builder, object, "value", figure);
+  putOrNull(builder, object, "runningRatio", ratio);
   put(builder, object, "scaled", metric.scaled);
   put(builder,
       object,

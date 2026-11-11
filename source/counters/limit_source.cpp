@@ -5,6 +5,7 @@
 #include <map>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "detail/limit_source_record.hpp"
 #include "speedgun-ng/counters_system.hpp"
@@ -50,6 +51,16 @@ auto detail::recordLimitSource(std::string_view objectPath,
 auto detail::clearLimitSources() -> void
 {
   limitSourceTable().clear();
+}
+
+auto detail::limitSourceSnapshot() -> LimitSourceRecords
+{
+  return limitSourceTable();
+}
+
+auto detail::restoreLimitSources(LimitSourceRecords records) -> void
+{
+  limitSourceTable() = std::move(records);
 }
 
 auto objectLimitSource(std::string_view objectPath) noexcept -> LimitSource

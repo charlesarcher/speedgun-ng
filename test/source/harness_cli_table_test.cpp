@@ -130,6 +130,10 @@
 //                                  harness target answers SOVERSION 22,
 //                                  and the counters archive answers
 //                                  SOVERSION 8 (FR-050)
+//   theSampleOutputNamesTheProjectVersion
+//                                  the version line of the README sample,
+//                                  `example/first_benchmark.expected`,
+//                                  names the project version (G-S8)
 //   theHelpAnswerPrintsOneLinePerRow
 //                                  `--help` prints one line per table row
 //                                  in table order, each the two leading
@@ -1501,6 +1505,31 @@ auto soVersionOf(const std::string& cmake,
   return {};
 }
 
+// G-S8: the sample output the README quotes stands in
+// `example/first_benchmark.expected`, and the drift gate holds the README to
+// that file alone. Its version line names the project version, so a version
+// move that leaves the sample behind turns this row red.
+/// \pre the root `CMakeLists.txt` can be read
+/// \post the sample's version line reads `speedgun-ng <version> build=`
+auto theSampleOutputNamesTheProjectVersion(const std::filesystem::path& start,
+                                           const std::string& version) -> void
+{
+  std::filesystem::path directory = std::filesystem::absolute(start);
+  for (int hop = 0; hop <= 8 && !directory.empty(); ++hop) {
+    if (readText(directory / "CMakeLists.txt").find("project(")
+        != std::string::npos)
+    {
+      break;
+    }
+    directory = directory.parent_path();
+  }
+  const std::string sample =
+      readText(directory / "example" / "first_benchmark.expected");
+  check(
+      sample.find("\nspeedgun-ng " + version + " build=") != std::string::npos,
+      "the README sample output names the project version (G-S8)");
+}
+
 // FR-050: the version bindings read the numbers the version move lands:
 // the project version `0.35.0`, the harness archive `SOVERSION 22` and the
 // counters archive `SOVERSION 8`. specs/043 FR-005 took the project and the
@@ -2091,6 +2120,7 @@ auto main(int argc, char** argv) -> int
   check(!version.empty(),
         "the project version of the build can be read (FR-016)");
   theVersionBindingsReadTheMovedNumbers(*directory);
+  theSampleOutputNamesTheProjectVersion(*directory, version);
 
   theHelpAnswerPrintsOneLinePerRow();
   theVersionAnswerPrintsTheProjectVersion(version);

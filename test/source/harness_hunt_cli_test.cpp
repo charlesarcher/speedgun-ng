@@ -559,6 +559,25 @@ auto scenarioSelectionRefusals() -> void
   std::printf("selection-refusals: ok\n");
 }
 
+// T230, E-01: the machine object's own entries are clock leaves, which the
+// run's catalog walk never seats, so the option route lists none of them
+// either. A selection that names one, by its whole address or by a pattern
+// that only those leaves would match, refuses with one line and the usage
+// status before any benchmark runs (FR-081).
+auto scenarioMachineLeavesRefuseBeforeTheRun() -> void
+{
+  checkRefusals({{"full",
+                  {"--hunt=machine/monotonic"},
+                  "--hunt: 'machine/monotonic' is not a catalog address"},
+                 {"full",
+                  {"--hunt=machine/mono*"},
+                  "--hunt: pattern 'machine/mono*' matches no catalog address"},
+                 {"full",
+                  {"--hunt=machine/*"},
+                  "--hunt: pattern 'machine/*' matches no catalog address"}});
+  std::printf("machine-leaves-refuse-before-the-run: ok\n");
+}
+
 // An attached value with nothing in it is one thing and a bare `--hunt` is
 // another: the bare form parks the record for the scan to settle, while
 // `--hunt=` carried a value, and that value is the empty text, which is no
@@ -3500,6 +3519,8 @@ auto scenarioAVendoredIdentityAnswersTheBlockOfAHunterRun() -> void
   static const std::vector<Scenario> kList {
       Scenario {"selection-refusals", &scenarioSelectionRefusals},
       Scenario {"empty-attached-value", &scenarioEmptyAttachedValue},
+      Scenario {"machine-leaves-refuse-before-the-run",
+                &scenarioMachineLeavesRefuseBeforeTheRun},
       Scenario {"option-value-refusals", &scenarioOptionValueRefusals},
       Scenario {"budget-clause-refusals", &scenarioBudgetClauseRefusals},
       Scenario {"budget-clause-accepted", &scenarioBudgetClauseAccepted},

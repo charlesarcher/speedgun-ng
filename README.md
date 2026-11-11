@@ -17,9 +17,11 @@ read a report of time per iteration.
 
 ## Quick start
 
-Linux, a C++23 compiler, and CMake 3.20 or newer. Configure, build, and install the library:
+Linux, a C++23 compiler, CMake 3.20 or newer, and autoconf, automake, libtool and patch for the vendored hwloc tree ([docs/pages/building.md](docs/pages/building.md#hwloc) names the packages); a hardware counter or `--os-noise` also needs the rights [docs/pages/building.md](docs/pages/building.md#counter-and-tracer-rights) names. Clone the repository with its submodules (a clone made without `--recurse-submodules` takes `git submodule update --init`), then configure, build, and install the library:
 <!-- sg-example: example/quickstart.sh#library -->
 ```sh
+git clone --recurse-submodules https://github.com/charlesarcher/speedgun-ng.git
+cd speedgun-ng
 cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
 cmake --build build -j
 cmake --install build --prefix "$HOME/.local"
@@ -68,10 +70,11 @@ auto main(int argc, char** argv) -> int
 }
 ```
 
-Configure, build, and run it:
+The two files go in a directory of their own beside the clone, `first-benchmark`, which the block below makes and enters. Configure, build, and run it there. The consumer names its own build type: the `build=Release` of the header names the library's build, and a benchmark built with no build type runs unoptimized code:
 <!-- sg-example: example/quickstart.sh#consumer -->
 ```sh
-cmake -S . -B build -DCMAKE_PREFIX_PATH="$HOME/.local"
+mkdir ../first-benchmark && cp example/quickstart/CMakeLists.txt example/first_benchmark.cpp ../first-benchmark && cd ../first-benchmark
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$HOME/.local"
 cmake --build build
 ./build/first_benchmark
 ```
@@ -79,8 +82,8 @@ cmake --build build
 Its output on one host's run, with the numbers of that machine:
 <!-- sg-sample-output: example/first_benchmark.expected#report -->
 ```text
-speedgun-ng 0.9.0 build=Release
-bmSum                    iterations=   1066261  real time/iter (ns)=  657.575  cpu time/iter (ns)=  656.663  overhead floor (ns)=  684.000  endpoint samples=2
+speedgun-ng 0.35.0 build=Release
+bmSum                    iterations=   1074412  real time/iter (ns)=  658.145  cpu time/iter (ns)=  658.107  overhead floor (ns)=  231.000  endpoint samples=2
 ```
 
 Check the machine the numbers come from: developer mode (`-D speedgun-ng_DEVELOPER_MODE=ON`) adds the `validate` target, which writes a record of the running host and reads it back.
@@ -90,9 +93,7 @@ cmake --build build --target validate
 ./build/test/host_record_check --root . --records validation
 ```
 
-The reader prints one line per record and answers 0 when every record reads `valid`, 2 when a reading says `broken` or `stale` or a refusal names the schema, the mapfile or the record root; `docs/pages/building.md` carries the record path and the four staleness rules.
-
-Run `tools/ci/prepush.sh` before you push: [docs/pages/prepush.md](docs/pages/prepush.md) carries the two tiers and the step map.
+The reader prints one line per record and answers 0 when every record reads `valid`, 2 when a reading says `broken` or `stale` or a refusal names the schema, the mapfile or the record root; `docs/pages/building.md` carries the record path and the four staleness rules. Run `tools/ci/prepush.sh` before you push: [docs/pages/prepush.md](docs/pages/prepush.md) carries the two tiers and the step map.
 
 ## How you do it
 ### The run loop
@@ -403,7 +404,7 @@ SG_BENCHMARK(bmRead).argNames({"cells"}).arg(256);
 An option can also come from a file of one option per line named by `--options`, or from a `SPEEDGUN_*` environment variable named after the option, and `--env=off` takes the environment away from one run.
 The highest source that sets an option wins: the command line, then the option file, then the environment, then the built-in default.
 A run that took an option from a file or the environment, or that ran `--interleave`, prints one line after the version line naming each such option and the value that took effect.
-`--threads=1,4` runs every family at one context and then at four, and `--threads=2:16` takes the doubling counts from 2 to 16.
+`--threads=1,4` runs every family at one context and then at four, and `--threads=2:16` takes the doubling counts from 2 to 16. A count above 1024, the cpus one cpu mask holds, stops the run with one line and status 2.
 `--interleave` runs the selected instances in a random order, and `--interleave=7` fixes the seed that order uses.
 `--help` prints one line per option and stops, and `--version` prints the project version and stops; neither runs a benchmark.
 ### Reading the report

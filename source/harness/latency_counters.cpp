@@ -163,6 +163,32 @@ auto figureAtColumn(const std::string& row,
   return figureOfToken(token);
 }
 
+// The column of one cpu in the text of `proc/interrupts`: the header line
+// names the online cpus in column order, `CPU0 CPU2` where cpu 1 stands
+// offline, so the column is the position of `CPU<id>` in that line, and a
+// cpu the header does not name answers nothing (S-4, FR-009, FR-011). A text
+// whose first line is no header counts the columns from zero by cpu id, the
+// shape a row read alone takes.
+auto columnOfCpu(const std::string& text,
+                 std::uint32_t cpu) -> std::optional<std::uint32_t>
+{
+  std::istringstream header(text.substr(0, text.find('\n')));
+  std::string token;
+  header >> token;
+  if (!token.starts_with("CPU")) {
+    return cpu;
+  }
+  const std::string wanted = "CPU" + std::to_string(cpu);
+  std::uint32_t column = 0;
+  do {
+    if (token == wanted) {
+      return column;
+    }
+    ++column;
+  } while (header >> token);
+  return std::nullopt;
+}
+
 // The figure the counter bytes carry: the bytes stand least significant
 // first, the form the node answers (FR-007).
 auto figureOfBytes(const std::array<std::byte, kSmiCountBytes>& bytes)
@@ -250,8 +276,9 @@ auto nmiCountOfText(const std::string& text,
              "nmiCountOfText reaches a text that is not one whole text");
   std::string row;
   std::optional<std::uint64_t> answer;
-  if (rowOfLabel(text, kNmiLabel, row)) {
-    answer = figureAtColumn(row, cpu);
+  const auto column = columnOfCpu(text, cpu);
+  if (column.has_value() && rowOfLabel(text, kNmiLabel, row)) {
+    answer = figureAtColumn(row, *column);
   }
   SG_ENSURE(rowNamesFigure(row, answer),
             "nmiCountOfText answers a figure the NMI row names in the "

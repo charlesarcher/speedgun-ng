@@ -705,8 +705,8 @@
                     "additionalProperties": false,
                     "properties": {
                       "label": { "type": "string" },
-                      "value": { "type": "number" },
-                      "runningRatio": { "type": "number" },
+                      "value": { "type": ["number", "null"] },
+                      "runningRatio": { "type": ["number", "null"] },
                       "scaled": { "type": "boolean" },
                       "availability": {
                         "type": "string",

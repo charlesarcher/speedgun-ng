@@ -44,6 +44,7 @@
 #include "detail/options.hpp"
 
 #include <getopt.h>
+#include <sched.h>
 
 #include "detail/compare.hpp"
 #include "detail/hunt_selection.hpp"
@@ -1142,6 +1143,9 @@ auto readFlag(const std::string_view text) -> std::expected<bool, std::string>
  * names the option and the text as the operator typed it, and no count of
  * a refused list reaches the run (FR-046, SC-003).
  */
+static_assert(kMaxThreadCount == CPU_SETSIZE,
+              "the thread cap is the cpus one cpu_set_t mask holds (W-5)");
+
 auto readThreadList(const std::string_view text)
     -> std::expected<std::vector<int>, std::string>
 {
@@ -1153,6 +1157,14 @@ auto readThreadList(const std::string_view text)
     SG_ENSURE(line.find(quoted) != std::string::npos,
               "the refusal names the text the source spelled (SC-003)");
     return std::unexpected(line);
+  };
+  // W-5: a count past the cap refuses with its own line, and that line
+  // names the cap.
+  const auto refuseAboveCap = [text]
+  {
+    return std::unexpected("--threads: a count stands at most "
+                           + std::to_string(kMaxThreadCount) + ", got '"
+                           + quotedText(text) + "'");
   };
   std::vector<int> counts;
   for (std::size_t at = 0;;) {
@@ -1166,12 +1178,18 @@ auto readThreadList(const std::string_view text)
       if (!count.has_value() || *count < 1) {
         return refuse();
       }
+      if (*count > kMaxThreadCount) {
+        return refuseAboveCap();
+      }
       counts.push_back(*count);
     } else {
       const auto low = readItemCount(item.substr(0, colon));
       const auto high = readItemCount(item.substr(colon + 1));
       if (!low.has_value() || !high.has_value() || *low < 1 || *low > *high) {
         return refuse();
+      }
+      if (*high > kMaxThreadCount) {
+        return refuseAboveCap();
       }
       const std::vector<int> range = buildThreadCounts(*low, *high);
       counts.insert(counts.end(), range.begin(), range.end());

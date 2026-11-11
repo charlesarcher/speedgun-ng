@@ -77,7 +77,9 @@ tmp, reg_test, reg_example = sys.argv[1:4]
 # The two top-down rows reserve the skip code for the units T006 and T010
 # register. The groups row reserves it for the grouping unit specs/046-hunter-
 # topdown T012 registers. A name no registration lists yet answers nothing to
-# the check below, so the row costs nothing until its unit exists.
+# the check below, so the row costs nothing until its unit exists. The
+# ignore-semantic shape gate reads 2 as the host that compiles nothing, so
+# that host reports a skip where it reported a pass.
 MASTER_SKIP = {
     "counters_pmu_test": "2",
     "counters_metric_formula_test": "2",
@@ -91,6 +93,7 @@ MASTER_SKIP = {
     "counters_topdown_source_test": "2",
     "counters_topdown_groups_test": "2",
     "harness_topdown_run_test": "2",
+    "ignore_contracts_shape": "2",
 }
 
 # FR-048 closes the list of constructs a registration may not carry, and

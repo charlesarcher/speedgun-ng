@@ -13,6 +13,26 @@ distribution families the CI jobs cover: Ubuntu for the main jobs and Rocky
 Linux for the container job. macOS and Windows are unsupported, and no build
 is offered for either. A future specification may add a platform.
 
+## Counter and tracer rights
+
+The first run needs no rights: the `machine/` clock leaves count no hardware
+event. The rest do:
+
+- `--metric`, `--topdown`, `--hunt` and a hardware address of `--counter`
+  open the kernel's perf events and count the user space of the benchmark
+  thread. The kernel allows that at a `perf_event_paranoid` of 2 or lower
+  (`cat /proc/sys/kernel/perf_event_paranoid`). Some distributions ship a
+  higher value, which refuses every unprivileged open.
+- An uncore address, or any count across a whole cpu, needs a value of 0 or
+  lower, or the `CAP_PERFMON` capability (Linux 5.8 and later;
+  `CAP_SYS_ADMIN` on older kernels). This line lowers the value until the
+  next boot: `sudo sysctl kernel.perf_event_paranoid=1`.
+- `--os-noise` writes the tracer controls under tracefs at
+  `/sys/kernel/tracing`, which on most hosts only root may write.
+- A virtual machine often exposes no hardware counters at all. `--catalog`
+  prints each entry with its refusal kind, and a refused column prints
+  `null` and its refusal while the run continues.
+
 ## Contract checks
 
 Public interfaces carry design-by-contract annotations: doxygen

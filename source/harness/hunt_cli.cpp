@@ -171,24 +171,23 @@ auto readHuntPercent(const char* text) -> double
   return detail::hasRawCodeShape(leaf) ? leaf : std::string_view {};
 }
 
-// The catalog addresses of the host: the machine object's own entries first,
-// then the walk of `detail::catalogWalkOrder`, which is the listing
-// `printObject` of `catalog.cpp` prints - the address has the one spelling
+// The catalog addresses a hunt can select: the walk of
+// `detail::catalogWalkOrder`, the same walk and the same order `walkCatalog`
+// of `hunt.cpp` seats the run's catalog from, so the option route and the run
+// route read one address set (E-01, T230). The address has the one spelling
 // `Object::path() + "/" + entry.name`, in the order the walk reaches the
-// devices and the order each device reports its counters (spec PC-1).
+// devices and the order each device reports its counters (spec PC-1). The
+// machine object's own entries are its clock leaves, which count no event, so
+// they stand outside both lists: a selection that names one refuses here,
+// before any benchmark runs (FR-081).
 auto collectCatalog(const counters::Object& object,
                     std::vector<std::string>& addresses) -> void
 {
-  const auto addEntries = [&addresses](const counters::Object& node)
-  {
-    const std::string prefix = std::string(node.path()) + "/";
-    for (const auto& entry : node.counters()) {
+  for (const auto* walked : detail::catalogWalkOrder(object)) {
+    const std::string prefix = std::string(walked->path()) + "/";
+    for (const auto& entry : walked->counters()) {
       addresses.push_back(prefix + std::string(entry.name));
     }
-  };
-  addEntries(object);
-  for (const auto* walked : detail::catalogWalkOrder(object)) {
-    addEntries(*walked);
   }
 }
 

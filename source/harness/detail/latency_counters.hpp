@@ -80,13 +80,16 @@ auto closeMsrNode(int descriptor) -> void;
 
 /// @brief The non-maskable-interrupt count of one cpu out of the text of
 /// `proc/interrupts` (FR-009, FR-011, D-4, P-4): the figure of the `NMI`
-/// row in the column that names `cpu`, the columns counted from zero the
-/// way the standing `interrupts` reader counts them. The figure stands
-/// named apart from the standing `interrupts` figure of
+/// row in the column the header line names `CPU<cpu>`. The header lists
+/// the online cpus alone, so a cpu offline below `cpu` moves its column,
+/// and a cpu the header does not name answers nothing (S-4). A text whose
+/// first line is no header counts the columns from zero by cpu id. The figure
+/// stands named apart from the standing `interrupts` figure of
 /// `precheckReadSnapshot`, which keeps its sum over every labeled row
 /// (FR-009). A text that holds no `NMI` row, a row that names fewer
-/// columns than the cpu asks for, and a figure that parses as no number
-/// each answer the empty optional (FR-011).
+/// columns than the cpu asks for, a header that names no column for the
+/// cpu, and a figure that parses as no number each answer the empty
+/// optional (FR-011).
 ///
 /// \pre `text` stands one whole text
 /// \post a held answer stands one figure of the `NMI` row of the column

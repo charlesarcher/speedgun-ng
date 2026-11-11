@@ -214,11 +214,11 @@ inline constexpr std::size_t kHuntPassSlots {3};
 /// every descendant of `root`, each object before its own children and
 /// siblings in the order the parent reports them.
 ///
-/// The option route reads the walked objects beside the machine object's own
-/// entries as the catalog of addresses the host answers (spec PC-1); the
-/// library route leaves the root out, whose entries are the clock leaves,
-/// which count no event (E-01). Whoever walks filters that; the order of the
-/// walk is one rule (spec PC-8).
+/// The option route and the library route both read the walked objects
+/// alone as the catalog of addresses the host answers (spec PC-1, T230):
+/// the root stays out, whose entries are the clock leaves, which count no
+/// event (E-01). Whoever walks filters that; the order of the walk is one
+/// rule (spec PC-8).
 ///
 /// \post the answer holds every descendant of `root` exactly once in the
 ///       depth-first order of the walk, and never `root` itself

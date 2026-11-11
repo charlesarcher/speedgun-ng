@@ -511,6 +511,14 @@ using RuleFileReader = std::expected<std::vector<CompareRule>, std::string> (*)(
 /// token, so every refusal stands one line (FR-038).
 [[nodiscard]] auto quotedText(std::string_view text) -> std::string;
 
+/// @brief The largest thread count one `--threads=` item may name: the cpus
+/// one `cpu_set_t` mask holds (`CPU_SETSIZE` of glibc), so no count asks for
+/// more threads than a placement mask of this harness can name. FR-047 sets no
+/// cap relative to the host's cpus, and a count above the affinity count still
+/// runs and discloses itself; this cap only keeps a typing slip such as
+/// `--threads=100000` from starting a host's worth of threads (W-5).
+inline constexpr int kMaxThreadCount = 1024;
+
 /// @brief The thread counts of one `--threads=` list: a comma-separated
 /// sequence of counts and `min:max` ranges, the ranges expanded by
 /// `buildThreadCounts` (E-11, FR-045, FR-046, D-14). The same reader
@@ -518,7 +526,8 @@ using RuleFileReader = std::expected<std::vector<CompareRule>, std::string> (*)(
 /// \pre `text` is one value word of one source: the gather splits the
 /// environment on `;` and the file on newlines before it hands a word here.
 /// \post A refusal names the text the source spelled, the one line the
-/// operator reads at status 2 (SC-003).
+/// operator reads at status 2 (SC-003). A count or a range bound above
+/// `kMaxThreadCount` refuses with a line naming that cap (W-5).
 [[nodiscard]] auto readThreadList(std::string_view text)
     -> std::expected<std::vector<int>, std::string>;
 

@@ -354,7 +354,12 @@ private:
       const auto* event =
           reinterpret_cast<const inotify_event*>(buffer + offset);
       offset += sizeof(inotify_event) + event->len;
-      if (event->len == 0U) {
+      // A directory event names no file of the tree. The kernel queues one
+      // `IN_ACCESS` on the watched parent whenever any process lists the
+      // detector's directory, and a test running beside this one may walk the
+      // build directory the fake root stands in, so a directory event is no
+      // step of the session (T021).
+      if (event->len == 0U || (event->mask & IN_ISDIR) != 0U) {
         continue;
       }
       TracingStep step {prefixOf(event->wd) + std::string(event->name),
@@ -665,6 +670,78 @@ auto theRestoreWritesTheStopThenTheSavedSetInReverse() -> void
         "the mode file stands back at the one saved word (T022, P-16)");
 }
 
+// S-5: a host whose `tracing_on` read `1` before the run reads `1` after it.
+// The restore still writes the stop first and the saved set in reverse, and
+// puts the standing word back last, so the engine never runs over a
+// half-restored set.
+auto theRestorePutsBackAStandingTracingOn() -> void
+{
+  const auto cpus = pickCpus(1);
+  if (cpus.empty()) {
+    return;
+  }
+  TracingRootGuard guard;
+  installDetectorTree(guard.root());
+  writeTracingFile(guard.root(), "sys/kernel/tracing/tracing_on", "1\n");
+  TracingEventLog log(guard.root());
+  const auto session =
+      sg::detail::noiseTracerSetup(sg::TracerEngine::HWLAT, cpus);
+  check(session.has_value(), "the setup answers the session (S-5)");
+  if (!session.has_value()) {
+    return;
+  }
+  check(session->previousTracingOn == "1",
+        "the session carries the word tracing_on held before the start "
+        "write (S-5)");
+  log.steps();
+  sg::detail::noiseTracerRestore(*session);
+  const auto written = writtenOrder(log.steps());
+  check(written.size() >= 2 && written.front() == "sys/kernel/tracing/tracing_on"
+            && written.back() == "sys/kernel/tracing/tracing_on",
+        "the restore writes the stop first and the standing word last (S-5, "
+        "FR-021, P-8)");
+  check(
+      readStream(guard.root() / "sys/kernel/tracing/tracing_on") == "1\n",
+      "the on-off file stands back at the word it held before the run " "(S-"
+                                                                        "5)");
+  check(
+      readStream(guard.root() / "sys/kernel/tracing/current_tracer") == "nop\n",
+      "the word file stands back at its standing text (S-5, FR-021)");
+}
+
+// S-5: a restore whose saved write-back fails keeps the stop. The word
+// file stands a directory after the setup, so `hwlat` stays the word; a
+// `tracing_on` put back at `1` would run the detector again. The restore
+// answers the failed pair and leaves the on-off file at `0`.
+auto aFailedRestoreKeepsTheStopOverAStandingTracingOn() -> void
+{
+  const auto cpus = pickCpus(1);
+  if (cpus.empty()) {
+    return;
+  }
+  TracingRootGuard guard;
+  installDetectorTree(guard.root());
+  writeTracingFile(guard.root(), "sys/kernel/tracing/tracing_on", "1\n");
+  const auto session =
+      sg::detail::noiseTracerSetup(sg::TracerEngine::HWLAT, cpus);
+  check(session.has_value(), "the setup answers the session (S-5)");
+  if (!session.has_value()) {
+    return;
+  }
+  check(session->previousTracingOn == "1",
+        "the session carries the standing word 1 (S-5)");
+  check(denyTracingPath(guard.root(), "sys/kernel/tracing/current_tracer"),
+        "the word path stands a directory (S-5, FR-017)");
+  const auto failed = sg::detail::noiseTracerRestore(*session);
+  checkWith(failed.size() == 1
+                && failed.front().path == "sys/kernel/tracing/current_tracer"
+                && failed.front().value == "nop",
+            "the restore answers the failed word write (S-5, FR-022)",
+            describeSaved(failed));
+  check(readStream(guard.root() / "sys/kernel/tracing/tracing_on") == "0\n",
+        "a failed restore leaves tracing_on at the stop (S-5, FR-021)");
+}
+
 // T022, FR-003, FR-021, D-15, P-9: a setup that fails after one write
 // restores the file it wrote before it answers the empty session. The run's
 // file-size limit stands at the byte count of the mask write the row
@@ -672,8 +749,9 @@ auto theRestoreWritesTheStopThenTheSavedSetInReverse() -> void
 // open of that write fails for every user, the root of a CI container included.
 // The path bounds no other write of the process: a file-size limit bounds every
 // write in it, the writes of the unit itself among them. The on-off file is the
-// one control the setup writes and never reads, so the read set stays whole and
-// the refusal lands on a write. Four facts stand observable: the log names no
+// one control the setup reads only after the saved set's writes, and a read of
+// the denied directory answers nothing, so the read set stays whole and the
+// refusal lands on a write. Four facts stand observable: the log names no
 // file beyond the six the setup writes, the last write names the mask, the mask
 // file stands back at its standing text, which the render differs from, and the
 // denied file stands unwritten. The queue merges one file's consecutive writes,
@@ -2151,8 +2229,10 @@ auto main() -> int
   theSetupWritesTheSevenInOrder();
   theMaskWriteTakesTheWidthTheStandingMaskCarried();
   theRestoreWritesTheStopThenTheSavedSetInReverse();
+  theRestorePutsBackAStandingTracingOn();
   theSetupWhoseDeniedWriteFailsRestoresWhatItWrote();
   aFailedRestoreWriteNamesItsFileAndItsValue();
+  aFailedRestoreKeepsTheStopOverAStandingTracingOn();
   theFiguresFoldTheLinesOfEachCpuBuffer();
   theColumnRuleSkipsTheLegendLines();
   theNmiCountSumsItsFieldAcrossLines();

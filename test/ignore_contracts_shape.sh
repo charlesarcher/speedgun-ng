@@ -49,9 +49,10 @@
 # and the seconds it took, read from the SECONDS builtin, and each
 # compiler crossed with each semantic prints the wall time of its steps.
 #
-# Exit 0 clean, 1 with the count of failed steps, 0 with one skip line
+# Exit 0 clean, 1 with the count of failed steps, 2 with one skip line
 # where no compiler on PATH targets x86-64 on Linux, the platform the
-# registration names in test/CMakeLists.txt.
+# registration names in test/CMakeLists.txt. The registration reads 2 as
+# a skip, so a host that compiles nothing shows a skip.
 
 set -uo pipefail
 
@@ -181,7 +182,7 @@ done
 if [ "${#COMPILERS[@]}" -eq 0 ]; then
   echo "skip: no compiler on PATH targets x86-64 on Linux, so neither unit" \
     "reaches a compile whose unused names this gate reads"
-  exit 0
+  exit 2
 fi
 
 NAMES=()

@@ -233,12 +233,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # fails the semantic-0 compile and passes the semantic-2 compile, so a clean
   # run cannot come from a scan that inspects nothing. Same pure-script
   # registration pattern as the two neighbors; the script exits 0 clean, 1
-  # naming the count, and 0 with a skip line where no compiler on PATH targets
-  # x86-64.
+  # naming the count, and 2 with a skip line where no compiler on PATH targets
+  # x86-64, which ctest reports as a skip.
   add_test(
     NAME ignore_contracts_shape
     COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/ignore_contracts_shape.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}
   )
+  set_tests_properties(ignore_contracts_shape PROPERTIES SKIP_RETURN_CODE 2)
 
   # Tier and budget audit of the registration (030 T010; FR-026, FR-031,
   # FR-047, FR-048): the tier label and the time budget are set by the two
@@ -973,9 +974,12 @@ target_link_libraries(views_test PRIVATE speedgun-ng::harness)
 target_include_directories(views_test PRIVATE ${CMAKE_SOURCE_DIR}/source/views)
 target_compile_features(views_test PRIVATE cxx_std_23)
 # The fixture directory the resolver block loads its documents from, the
-# shape harness_compare_test gives its fixture directory.
+# shape harness_compare_test gives its fixture directory, then the source
+# directory whose root CMakeLists.txt the version block reads, so a build
+# directory outside the source tree passes the same way.
 add_test(NAME views_test
-         COMMAND views_test ${CMAKE_SOURCE_DIR}/test/data/report_views)
+         COMMAND views_test ${CMAKE_SOURCE_DIR}/test/data/report_views
+                 ${CMAKE_SOURCE_DIR})
 
 # The driver's command line over the fixture documents (specs/038
 # T017; FR-014 to FR-017, contracts/views-api.md B-6 and the refusal
