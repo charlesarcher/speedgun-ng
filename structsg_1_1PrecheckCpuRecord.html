@@ -64,7 +64,7 @@
           <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span>PrecheckCpuRecord <span class="m-thin">struct</span>
           <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
         </h1>
-        <p>One measured cpu of the pre-check: its index, whether the run plans it (the planned cpus stand the run&#x27;s own; the candidates stand the cpus the <code>idle</code> preset would take), the sixteen-field stats of its pre-check window, and its attribution deltas (specs/034 FR-010, FR-012).</p>
+        <p>One measured cpu of the pre-check: its index, whether the run plans it (the planned cpus stand the run&#x27;s own; the candidates stand the cpus the <code>idle</code> preset would take), the nineteen-field stats of its pre-check window, and its attribution deltas (specs/034 FR-010, FR-012). The series record of the same window rides beside the gap stats, so the pair of the two figures stands readable for one measured cpu (specs/043 FR-004, FR-020, E-23).</p>
         <nav class="m-block m-default">
           <h3>Contents</h3>
           <ul>
@@ -89,6 +89,10 @@
             <dd><span></span></dd>
             <dt id="a9136630ad12531e1d32a2d32ec52155c">
               <a href="structsg_1_1JitterStats.html" class="m-doc">JitterStats</a> <a href="#a9136630ad12531e1d32a2d32ec52155c" class="m-doc-self">stats</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="ad0eea58200feb86bc990d6b3b978c187">
+              std::optional&lt;<a href="structsg_1_1JitterSeriesStats.html" class="m-doc">JitterSeriesStats</a>&gt; <a href="#ad0eea58200feb86bc990d6b3b978c187" class="m-doc-self">series</a>
             </dt>
             <dd><span></span></dd>
             <dt id="aaa2eeb51b344846ff4742de4011fc578">

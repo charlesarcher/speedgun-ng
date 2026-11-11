@@ -102,6 +102,16 @@
             </dt>
             <dd><span></span></dd>
             <dt>
+              <div class="m-doc-template">template&lt;typename Derived&gt;</div>
+              <span class="m-doc-wrap-bumper">void <a href="#a0a8176612bb0024f40ac6a3aae6292a7" class="m-doc">fixtureCaseEntry</a>(</span><span class="m-doc-wrap"><a href="classsg_1_1State.html" class="m-doc">::<wbr />sg::<wbr />State</a>&amp; state)</span>
+            </dt>
+            <dd>Run <code>sgBenchmarkCase</code> on the fixture object of the run in progress for the derived class <code>Derived</code> (FR-016, R-09).</dd>
+            <dt>
+              <div class="m-doc-template">template&lt;typename Derived&gt;</div>
+              <span class="m-doc-wrap-bumper">auto <a href="#a9e311b71c0bc8b9bb1bd3d415925adf9" class="m-doc">fixtureFactoryEntry</a>(</span><span class="m-doc-wrap">) -&gt; std::unique_ptr&lt;<a href="classsg_1_1Fixture.html" class="m-doc">::<wbr />sg::<wbr />Fixture</a>&gt;</span>
+            </dt>
+            <dd>Build the fixture object of the derived class <code>Derived</code> and name it as the object of the run in progress (FR-016, R-09).</dd>
+            <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#aca95ef4aaf190bacb0ee5615e014b631" class="m-doc">controlOf</a>(</span><span class="m-doc-wrap">const <a href="classsg_1_1ExecutionContext.html" class="m-doc">ExecutionContext</a>&amp; context) -&gt; ContextControl&amp; <span class="m-label m-flat m-success">noexcept</span></span>
             </dt>
             <dd>The control block this context owns (FR-001, FR-024).</dd>
@@ -125,6 +135,28 @@
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="a0a8176612bb0024f40ac6a3aae6292a7"><div>
+            <h3>
+              <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+              <div class="m-doc-template">
+                template&lt;typename Derived&gt;
+              </div>
+              <span class="m-doc-wrap-bumper">void sg::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a0a8176612bb0024f40ac6a3aae6292a7" class="m-doc-self">fixtureCaseEntry</a>(</span><span class="m-doc-wrap"><a href="classsg_1_1State.html" class="m-doc">::<wbr />sg::<wbr />State</a>&amp; state)</span></span>
+            </h3>
+            <p>Run <code>sgBenchmarkCase</code> on the fixture object of the run in progress for the derived class <code>Derived</code> (FR-016, R-09).</p>
+<p>The fixture macros hand this function to <code><a href="namespacesg.html#a6d93b8e4d35aa559828831d711540d6d" class="m-doc">registerFixtureBenchmark</a></code> in place of a lambda written at the macro site. A lambda written there stands on the same line as the method definition the same macro starts, so the coverage record holds two functions at one line with two different end lines, and the coverage tool stops on that record (G-25). A named function keeps each record on its own line.</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>Derived::sgCurrentCase</code> names the fixture object the run owns (R-09, D-07)</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p><code>sgBenchmarkCase</code> has run on that object (FR-016)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a9e311b71c0bc8b9bb1bd3d415925adf9"><div>
+            <h3>
+              <div class="m-doc-include m-code m-inverted m-right-m m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+              <div class="m-doc-template">
+                template&lt;typename Derived&gt;
+              </div>
+              <span class="m-doc-wrap-bumper">std::unique_ptr&lt;<a href="classsg_1_1Fixture.html" class="m-doc">::<wbr />sg::<wbr />Fixture</a>&gt; sg::<wbr />detail::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a9e311b71c0bc8b9bb1bd3d415925adf9" class="m-doc-self">fixtureFactoryEntry</a>(</span><span class="m-doc-wrap">)</span></span>
+            </h3>
+            <p>Build the fixture object of the derived class <code>Derived</code> and name it as the object of the run in progress (FR-016, R-09).</p>
+<aside class="m-note m-success"><h4>Postcondition</h4><p>the caller owns the object, and <code>Derived::sgCurrentCase</code> names it for the duration of the run (R-09)</p></aside>
           </div></section>
           <section class="m-doc-details" id="aca95ef4aaf190bacb0ee5615e014b631"><div>
             <h3>

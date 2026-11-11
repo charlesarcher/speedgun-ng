@@ -76,7 +76,7 @@
             </li>
           </ul>
         </nav>
-<p>The suite and case pair splits the instance name the way <code>contracts/result-fields.md</code> derives it, and a later JSON report of the roadmap reuses the pair (FR-021, R-07). <code><a href="structsg_1_1ResultRow.html" class="m-doc">ResultRow</a></code> carries neither field: it is one repetition or aggregate (FR-021).</p><p>The jitter result of one probe cpu over one set of covered windows: the sixteen fields of data-model.md E-03 in the E-03 order (FR-002, R-05).</p><p>The percentile fields follow the nearest-rank rule of <code>source/harness/percentiles.cpp</code> over the sorted kept gaps (PC-4), the rule the report columns fill through. The fold of an empty kept set leaves every field at 0. The fold of a kept set whose stamp span stands at zero, one record&#x27;s own, leaves the rate fields at 0 beside the record&#x27;s own figures, so no division by the zero span reaches the writer. The fold functions of the probe carry the field relations this struct&#x27;s fills establish; the aggregate itself imposes nothing at construction.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+<p>The suite and case pair splits the instance name the way <code>contracts/result-fields.md</code> derives it, and a later JSON report of the roadmap reuses the pair (FR-021, R-07). <code><a href="structsg_1_1ResultRow.html" class="m-doc">ResultRow</a></code> carries neither field: it is one repetition or aggregate (FR-021).</p><p>The jitter result of one probe cpu over one set of covered windows: the sixteen standing fields of data-model.md E-03 in the E-03 order (FR-002, R-05), beside three further figures.</p><p>The percentile fields follow the nearest-rank rule of <code>source/harness/percentiles.cpp</code> over the sorted kept gaps (PC-4), the rule the report columns fill through. The fold of an empty kept set leaves every field at 0. The fold of a kept set whose stamp span stands at zero, one record&#x27;s own, leaves the rate fields at 0 beside the record&#x27;s own figures, so no division by the zero span reaches the writer. The fold functions of the probe carry the field relations this struct&#x27;s fills establish; the aggregate itself imposes nothing at construction.</p><p>The three figures of specs/048 ride beside the sixteen. <code><a href="#abc356ce7e3830b5ae47c307f21e3fa66" class="m-doc">smiDelta</a></code> holds the change of the <code>MSR_SMI_COUNT</code> counter of spec FR-013 across the cpu&#x27;s window, and it stands absent when the counter answers nothing. <code><a href="#a51e896a39256b62c66a7db1a5c7d74d4" class="m-doc">nmiDelta</a></code> holds the change of the <code>NMI</code> count of spec FR-009 across the same window, and it stands absent when the line stands unread. <code><a href="#afddcb13f3ff27551e3c7c3ca23b9c5d3" class="m-doc">smiGapCount</a></code> counts the kept gaps whose span carried a change above 0, and it answers 0 when the source stands unavailable, the standing rule of spec FR-015 (FR-025, D-13, P-5).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
         <section id="pub-attribs">
           <h2><a href="#pub-attribs">Public variables</a></h2>
           <dl class="m-doc">
@@ -142,6 +142,18 @@
             <dd><span></span></dd>
             <dt id="a3d9d649a7fd9fa8a789442ccfc676a5a">
               std::uint64_t <a href="#a3d9d649a7fd9fa8a789442ccfc676a5a" class="m-doc-self">droppedGaps</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="abc356ce7e3830b5ae47c307f21e3fa66">
+              std::optional&lt;std::uint64_t&gt; <a href="#abc356ce7e3830b5ae47c307f21e3fa66" class="m-doc-self">smiDelta</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a51e896a39256b62c66a7db1a5c7d74d4">
+              std::optional&lt;std::uint64_t&gt; <a href="#a51e896a39256b62c66a7db1a5c7d74d4" class="m-doc-self">nmiDelta</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="afddcb13f3ff27551e3c7c3ca23b9c5d3">
+              std::uint64_t <a href="#afddcb13f3ff27551e3c7c3ca23b9c5d3" class="m-doc-self">smiGapCount</a>
             </dt>
             <dd><span></span></dd>
           </dl>

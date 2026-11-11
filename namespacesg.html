@@ -133,6 +133,18 @@
             </dt>
             <dd>The C++ value the harness exposes for one benchmark; the console report formats it and adds nothing to it (FR-036, E-07).</dd>
             <dt>
+              struct <a href="structsg_1_1JitterPeriodRecord.html" class="m-doc">JitterPeriodRecord</a>
+            </dt>
+            <dd>specs/043-fwq-ftq: one reported period of the series spectrum, nested inside one probe cpu&#x27;s series record (FR-018, FR-019, E-24).</dd>
+            <dt>
+              struct <a href="structsg_1_1JitterSeriesStats.html" class="m-doc">JitterSeriesStats</a>
+            </dt>
+            <dd>specs/043-fwq-ftq: the series record of one probe cpu: the five calibration figures of E-22, the twelve series figures of FR-007, the two spectrum keys of FR-019, and the period list of FR-018 (FR-007, FR-011, FR-019, FR-020, E-23).</dd>
+            <dt>
+              struct <a href="structsg_1_1JitterRunRecord.html" class="m-doc">JitterRunRecord</a>
+            </dt>
+            <dd>specs/043-fwq-ftq: the run-level record <code><a href="namespacesg.html#a59d2ce0d2cfd165637238e77ee452a4c" class="m-doc">loadReport</a></code> reads back: the method word of the run that wrote the document (FR-020, E-25).</dd>
+            <dt>
               struct <a href="structsg_1_1PrecheckAttribution.html" class="m-doc">PrecheckAttribution</a>
             </dt>
             <dd>The attribution figures one pre-check measured cpu discloses, beside its gap figures: the window delta of the interrupt count, one delta per softirq kind the host states, and the context-switch and schedule counts (specs/034 FR-016, D-5). A figure the host does not state, states unreadable, or states unparsable stands <code>not available</code>, carried as an absent optional, and the run never fails on it (FR-018).</dd>
@@ -143,15 +155,15 @@
             <dt>
               struct <a href="structsg_1_1PrecheckCpuRecord.html" class="m-doc">PrecheckCpuRecord</a>
             </dt>
-            <dd>One measured cpu of the pre-check: its index, whether the run plans it (the planned cpus stand the run&#x27;s own; the candidates stand the cpus the <code>idle</code> preset would take), the sixteen-field stats of its pre-check window, and its attribution deltas (specs/034 FR-010, FR-012).</dd>
+            <dd>One measured cpu of the pre-check: its index, whether the run plans it (the planned cpus stand the run&#x27;s own; the candidates stand the cpus the <code>idle</code> preset would take), the nineteen-field stats of its pre-check window, and its attribution deltas (specs/034 FR-010, FR-012). The series record of the same window rides beside the gap stats, so the pair of the two figures stands readable for one measured cpu (specs/043 FR-004, FR-020, E-23).</dd>
             <dt>
               struct <a href="structsg_1_1PrecheckTracerCpuRecord.html" class="m-doc">PrecheckTracerCpuRecord</a>
             </dt>
-            <dd>One measured cpu of the tracer: its index and the five noise-by-source counts the engine&#x27;s count files state (specs/036 FR-010, data-model.md E-17). A figure the source states nothing for stands absent, the file form of the console&#x27;s <code>not available</code> wording (specs/036 FR-013).</dd>
+            <dd>One measured cpu of the tracer: its index and the five noise-by-source counts the engine&#x27;s count files state (specs/036 FR-010, data-model.md E-17), beside the three detector figures specs/048 states (D-13). A figure the source states nothing for stands absent, the file form of the console&#x27;s <code>not available</code> wording (specs/036 FR-013).</dd>
             <dt>
               struct <a href="structsg_1_1PrecheckTracerRecord.html" class="m-doc">PrecheckTracerRecord</a>
             </dt>
-            <dd>The tracer record one run carries: the engine word the value named, and one entry per tracer cpu ascending (specs/036 FR-014, data-model.md E-17). The entry names its cpu, so the cpus the tracer ran on stand the array itself (specs/036 D-3).</dd>
+            <dd>The tracer record one run carries: the engine word the value named, the three settings a detector run wrote, and one entry per tracer cpu ascending (specs/036 FR-014, data-model.md E-17). The entry names its cpu, so the cpus the tracer ran on stand the array itself (specs/036 D-3).</dd>
             <dt>
               struct <a href="structsg_1_1PrecheckRecord.html" class="m-doc">PrecheckRecord</a>
             </dt>
@@ -159,7 +171,19 @@
             <dt>
               struct <a href="structsg_1_1JitterEntryFold.html" class="m-doc">JitterEntryFold</a>
             </dt>
-            <dd>One probe cpu&#x27;s fold over one benchmark&#x27;s timed windows (E-08): the cpu index and the fold the split placed into them. A probe cpu whose kept gaps landed inside no window of the benchmark carries no entry here (E-06, FR-021). The split reads the probe&#x27;s buffers only after the probe contexts are joined (R-04).</dd>
+            <dd>One probe cpu&#x27;s fold over one benchmark&#x27;s timed windows (E-08): the cpu index and the fold the split placed into them. A probe cpu whose kept gaps landed inside no window of the benchmark carries no entry here (E-06, FR-021). The split reads the probe&#x27;s buffers only after the probe contexts are joined (R-04). The series record of the same windows rides beside the gap stats, and it stands absent when the windows kept no sample (specs/043 FR-020, E-23).</dd>
+            <dt>
+              struct <a href="structsg_1_1TopdownNode.html" class="m-doc">TopdownNode</a>
+            </dt>
+            <dd>One node of the top-down tree one run collected and folded (specs/042-topdown data-model.md E-16, FR-030, FR-032).</dd>
+            <dt>
+              struct <a href="structsg_1_1TopdownRefusal.html" class="m-doc">TopdownRefusal</a>
+            </dt>
+            <dd>One row of a level one run refused, as the record states it (specs/042-topdown data-model.md E-16, FR-016, FR-031, FR-033).</dd>
+            <dt>
+              struct <a href="structsg_1_1TopdownRecord.html" class="m-doc">TopdownRecord</a>
+            </dt>
+            <dd>The top-down record one benchmark carries: the source of its nodes, the nodes, and the rows the table refused (specs/042-topdown data-model.md E-16, FR-032, FR-033, spec D-14).</dd>
             <dt>
               struct <a href="structsg_1_1BenchmarkResult.html" class="m-doc">BenchmarkResult</a>
             </dt>
@@ -340,6 +364,13 @@
             </dt>
             <dd>The curve class a complexity fit tries or keeps (FR-019, FR-020).</dd>
             <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#a40e0f38a8b1be54824aba01d8c5cf285" class="m-doc">JitterMethod</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a40e0f38a8b1be54824aba01d8c5cf285a28e098175bb05703eb34c5adbb234370" class="m-doc">TSC</a>,
+              <a href="#a40e0f38a8b1be54824aba01d8c5cf285a9f9dc0b5a8a44d66ecc1a3b519c857a8" class="m-doc">FWQ</a>,
+              <a href="#a40e0f38a8b1be54824aba01d8c5cf285a4b37de5d13dbfbb1a0cb63c9504afbe4" class="m-doc">FTQ</a>,
+              <a href="#a40e0f38a8b1be54824aba01d8c5cf285a5b0129acd164d398741b9ab17d08e10b" class="m-doc">HWLAT</a> }</span>
+            </dt>
+            <dd>specs/043-fwq-ftq: the method one probe run measures, the four closed values of data-model.md E-21 and specs/048 E-01 (FR-001, D-1).</dd>
+            <dt>
               <span class="m-doc-wrap-bumper">enum class <a href="#ad626a5f80441d08b1733d4e34d0e731c" class="m-doc">RawContent</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#ad626a5f80441d08b1733d4e34d0e731cab50339a10e1de285ac99d4c3990b8693" class="m-doc">NONE</a>,
               <a href="#ad626a5f80441d08b1733d4e34d0e731cafa1dcd12e09557b24430608a70572218" class="m-doc">CHUNKS</a>,
               <a href="#ad626a5f80441d08b1733d4e34d0e731cace4aeb5506e613ef645194eb0276c5b9" class="m-doc">GAPS</a> }</span>
@@ -376,7 +407,8 @@
             <dt>
               <span class="m-doc-wrap-bumper">enum class <a href="#a6f9ed1f2de4aab5e0cd5f3afba2a98ef" class="m-doc">TracerEngine</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a6f9ed1f2de4aab5e0cd5f3afba2a98efab50339a10e1de285ac99d4c3990b8693" class="m-doc">NONE</a>,
               <a href="#a6f9ed1f2de4aab5e0cd5f3afba2a98efae4a27fe02149de5061690e22090c584a" class="m-doc">OSNOISE</a>,
-              <a href="#a6f9ed1f2de4aab5e0cd5f3afba2a98efa0ebabe63c87b85eb2d11d739948867b2" class="m-doc">TIMERLAT</a> }</span>
+              <a href="#a6f9ed1f2de4aab5e0cd5f3afba2a98efa0ebabe63c87b85eb2d11d739948867b2" class="m-doc">TIMERLAT</a>,
+              <a href="#a6f9ed1f2de4aab5e0cd5f3afba2a98efa5b0129acd164d398741b9ab17d08e10b" class="m-doc">HWLAT</a> }</span>
             </dt>
             <dd>The engine the <code>--os-noise</code> value names (specs/036 FR-002, D-4, data-model.md E-16, R-06). The enum closes the engine set at the type level the way <code><a href="#ad1de9d92c896b2ce4d1be9aaebc4ef75" class="m-doc">JitterProbeMode</a></code> closes the modes; <code>NONE</code> names no tracer, and a run whose value stands absent carries <code>NONE</code>.</dd>
             <dt>
@@ -591,6 +623,38 @@
             </dt>
             <dd><span></span></dd>
             <dt>
+              std::uint32_t <a href="#a7c5c05b952d8e4d88e3488a1715c772e" class="m-doc">kDefaultQuantumUs</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              std::uint32_t <a href="#a1469601a3e0dd43828248b8a48c2ea83" class="m-doc">kMinQuantumUs</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              std::uint32_t <a href="#aadc53bba01de6d6815ced6522154ce1e" class="m-doc">kMaxQuantumUs</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              std::uint32_t <a href="#ae4256ea08a42ae31067c4bc58efa8f69" class="m-doc">kMaxWorkCount</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              std::uint64_t <a href="#a86b6a008f3f3e23fcc27829fafba1d8b" class="m-doc">kTargetUnitTimeNs</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              std::uint32_t <a href="#af14ae2599989b00d3c469bcb0612452f" class="m-doc">kCalibrationTrials</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              std::uint32_t <a href="#ab8db6dee97fc137e46226e07bc78f666" class="m-doc">kCalibrationSteps</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
+              std::uint32_t <a href="#a18a9a7ebbe478b9a5dbb3bcad759c29c" class="m-doc">kDefaultNoisePercent</a> <span class="m-label m-flat m-primary">constexpr</span>
+            </dt>
+            <dd><span></span></dd>
+            <dt>
               std::uint32_t <a href="#a9eba5764189804281c74c00259bbcbdc" class="m-doc">kNoPin</a> <span class="m-label m-flat m-primary">constexpr</span>
             </dt>
             <dd><span></span></dd>
@@ -663,6 +727,14 @@
             </h3>
             <p>The curve class a complexity fit tries or keeps (FR-019, FR-020).</p>
 <p><code>NONE</code> asks for no fit and stands as the default, so a family that never calls <code>complexity</code> prints no fit rows. <code>AUTOMATIC</code> tries each curve and keeps the least root-mean relative error, with the constant curve as the fallback (FR-021).</p>
+          </div></section>
+          <section class="m-doc-details" id="a40e0f38a8b1be54824aba01d8c5cf285"><div>
+            <h3>
+              enum class sg::<wbr /><a href="#a40e0f38a8b1be54824aba01d8c5cf285" class="m-doc-self">JitterMethod</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p>specs/043-fwq-ftq: the method one probe run measures, the four closed values of data-model.md E-21 and specs/048 E-01 (FR-001, D-1).</p>
+<p><code>TSC</code> stands the probe of specs/027 as it shipped, and a value with no <code>method</code> key takes it (FR-001, FR-031). <code>FWQ</code> times one calibrated unit of fixed work, and <code>FTQ</code> counts whole units in each fixed quantum (FR-012, FR-015). One run carries one method, and the two words the value takes name it: the console spells it in lower case and the JSON in upper case (D-1, FR-019). The enum closes the set at the type level the way <code><a href="#ad1de9d92c896b2ce4d1be9aaebc4ef75" class="m-doc">JitterProbeMode</a></code> closes the modes.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
           <section class="m-doc-details" id="ad626a5f80441d08b1733d4e34d0e731c"><div>
             <h3>
@@ -1066,6 +1138,62 @@
           <section class="m-doc-details" id="ab770566c40790960041f90ff72b5089e"><div>
             <h3>
               std::uint32_t sg::<wbr /><a href="#ab770566c40790960041f90ff72b5089e" class="m-doc-self">kDefaultPrecheckMs</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="a7c5c05b952d8e4d88e3488a1715c772e"><div>
+            <h3>
+              std::uint32_t sg::<wbr /><a href="#a7c5c05b952d8e4d88e3488a1715c772e" class="m-doc-self">kDefaultQuantumUs</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="a1469601a3e0dd43828248b8a48c2ea83"><div>
+            <h3>
+              std::uint32_t sg::<wbr /><a href="#a1469601a3e0dd43828248b8a48c2ea83" class="m-doc-self">kMinQuantumUs</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="aadc53bba01de6d6815ced6522154ce1e"><div>
+            <h3>
+              std::uint32_t sg::<wbr /><a href="#aadc53bba01de6d6815ced6522154ce1e" class="m-doc-self">kMaxQuantumUs</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="ae4256ea08a42ae31067c4bc58efa8f69"><div>
+            <h3>
+              std::uint32_t sg::<wbr /><a href="#ae4256ea08a42ae31067c4bc58efa8f69" class="m-doc-self">kMaxWorkCount</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="a86b6a008f3f3e23fcc27829fafba1d8b"><div>
+            <h3>
+              std::uint64_t sg::<wbr /><a href="#a86b6a008f3f3e23fcc27829fafba1d8b" class="m-doc-self">kTargetUnitTimeNs</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="af14ae2599989b00d3c469bcb0612452f"><div>
+            <h3>
+              std::uint32_t sg::<wbr /><a href="#af14ae2599989b00d3c469bcb0612452f" class="m-doc-self">kCalibrationTrials</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="ab8db6dee97fc137e46226e07bc78f666"><div>
+            <h3>
+              std::uint32_t sg::<wbr /><a href="#ab8db6dee97fc137e46226e07bc78f666" class="m-doc-self">kCalibrationSteps</a> <span class="m-label m-primary">constexpr</span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+            </h3>
+            <p><span></span></p>
+          </div></section>
+          <section class="m-doc-details" id="a18a9a7ebbe478b9a5dbb3bcad759c29c"><div>
+            <h3>
+              std::uint32_t sg::<wbr /><a href="#a18a9a7ebbe478b9a5dbb3bcad759c29c" class="m-doc-self">kDefaultNoisePercent</a> <span class="m-label m-primary">constexpr</span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
             </h3>
             <p><span></span></p>

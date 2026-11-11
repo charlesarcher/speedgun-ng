@@ -234,6 +234,50 @@
               class <a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a>
             </dt>
             <dd>The root handle to the local machine&#x27;s counting world (E-01).</dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1CpuIdentity.html" class="m-doc">CpuIdentity</a>
+            </dt>
+            <dd>The cpu identity a top-down selection reads (specs/042-topdown FR-003, spec D-13, data-model E-01).</dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1TableFile.html" class="m-doc">TableFile</a>
+            </dt>
+            <dd>One file of a table directory, as the source record states it (specs/042-topdown FR-015, spec D-12, PC-12, data-model E-02).</dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1TopdownSource.html" class="m-doc">TopdownSource</a>
+            </dt>
+            <dd>Where the rows of a table came from (specs/042-topdown FR-015, spec D-12, data-model E-03).</dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1TopdownRow.html" class="m-doc">TopdownRow</a>
+            </dt>
+            <dd>One metric row of a table directory, published or refused (specs/042-topdown FR-010, FR-016, FR-017, data-model E-04).</dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1TopdownTable.html" class="m-doc">TopdownTable</a>
+            </dt>
+            <dd>The listing a top-down selection reads: one directory&#x27;s rows beside the record of where they came from (specs/042-topdown FR-001, FR-015, FR-016, data-model E-05).</dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1TopdownEventGroup.html" class="m-doc">TopdownEventGroup</a>
+            </dt>
+            <dd>specs/046-hunter-topdown FR-004, FR-008, D-16: the vendor grouping of one row of the selected directory: the bare name beside the file stem that row stands in.</dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1TopdownNode.html" class="m-doc">TopdownNode</a>
+            </dt>
+            <dd>One node of a top-down tree: a row the host publishes (specs/042-topdown FR-010 to FR-014, FR-017, data-model E-06).</dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1TopdownRefusal.html" class="m-doc">TopdownRefusal</a>
+            </dt>
+            <dd>One row of a level the host refuses: the library&#x27;s refused row and the record&#x27;s refused row (specs/042-topdown FR-016, FR-031, data-model E-07).</dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1TopdownTree.html" class="m-doc">TopdownTree</a>
+            </dt>
+            <dd>The tree one selection answered, with the rows it refused (specs/042-topdown FR-009, FR-010, FR-015, FR-016, FR-020, data-model E-08).</dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1TopdownSelection.html" class="m-doc">TopdownSelection</a>
+            </dt>
+            <dd>What a caller asks a selection for: one identity, one level, and the table a test plants (specs/042-topdown FR-002, FR-009, FR-018, data-model E-09).</dd>
+            <dt>
+              struct <a href="structsg_1_1counters_1_1TopdownUnsupported.html" class="m-doc">TopdownUnsupported</a>
+            </dt>
+            <dd>The refusal a selection answers when it can answer no tree (specs/042-topdown FR-004 to FR-007, FR-040, spec D-14, data-model E-10 and E-11).</dd>
           </dl>
         </section>
         <section id="enum-members">
@@ -276,10 +320,29 @@
             </dt>
             <dd></dd>
             <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#a58bf08f2295fbd32c5d0472e7e5b800f" class="m-doc">CoreCoverage</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a58bf08f2295fbd32c5d0472e7e5b800fa65d54b5261d9db66551a0e24ffca6bdf" class="m-doc">WHOLE_CORE</a>,
+              <a href="#a58bf08f2295fbd32c5d0472e7e5b800fa6b490cf4103c5da741ee83a0949e5505" class="m-doc">ONE_THREAD</a> }</span>
+            </dt>
+            <dd></dd>
+            <dt>
               <span class="m-doc-wrap-bumper">enum class <a href="#a56bb795bd3571af03570db84e9e982cb" class="m-doc">TargetKind</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a56bb795bd3571af03570db84e9e982cba57f8b9e1bf05e9058d703c68ac2d53b0" class="m-doc">THREAD</a>,
               <a href="#a56bb795bd3571af03570db84e9e982cba2b55387dd066c5bac646ac61543d152d" class="m-doc">CPU</a> }</span>
             </dt>
             <dd>What a plan samples on: the current thread, or a pinned cpu.</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#a58775da07d16e043b70aff253f2f7a3a" class="m-doc">LimitSource</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a58775da07d16e043b70aff253f2f7a3aab50339a10e1de285ac99d4c3990b8693" class="m-doc">NONE</a>,
+              <a href="#a58775da07d16e043b70aff253f2f7a3aa31b1c3e891cbbcff9f9433a5dc99cb7d" class="m-doc">DECODE</a>,
+              <a href="#a58775da07d16e043b70aff253f2f7a3aa5a9b37d8d9e76a99e6f5160c3eff9057" class="m-doc">PROBE</a> }</span>
+            </dt>
+            <dd>Where the limit one object published came from (FR-040a, FR-043, D-3).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">enum class <a href="#a3d5623305647b3269ad4c09f2827a1fa" class="m-doc">TopdownUnsupport</a>: std::uint8_t { </span><span class="m-doc-wrap"><a href="#a3d5623305647b3269ad4c09f2827a1faae980279c1fdcf3633240e22e54a2e6d6" class="m-doc">UNKNOWN_VENDOR</a>,
+              <a href="#a3d5623305647b3269ad4c09f2827a1faaf4c008b676671919924f3e48b0eb35c2" class="m-doc">NO_DIRECTORY</a>,
+              <a href="#a3d5623305647b3269ad4c09f2827a1faa3bf07fe8ac3883060b1558113ba248d4" class="m-doc">HYBRID</a>,
+              <a href="#a3d5623305647b3269ad4c09f2827a1faa47f45e65244c17ec9fa8771a5c6d60e1" class="m-doc">ARM</a>,
+              <a href="#a3d5623305647b3269ad4c09f2827a1faae31820c359d4fec28877e77a99f6bcb3" class="m-doc">NO_TOPDOWN_ROWS</a> }</span>
+            </dt>
+            <dd></dd>
           </dl>
         </section>
         <section id="typedef-members">
@@ -388,9 +451,33 @@
             </dt>
             <dd></dd>
             <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ad5779a284f21b494d93c1e21e8f32ed8" class="m-doc">coreWideCoverage</a>(</span><span class="m-doc-wrap">) -&gt; std::optional&lt; CoreCoverage &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd></dd>
+            <dt>
               <span class="m-doc-wrap-bumper">auto <a href="#a1135c8c340e3eedf28cd2379fead16f8" class="m-doc">catalogMetrics</a>(</span><span class="m-doc-wrap">) -&gt; std::vector&lt; MetricListing &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
             </dt>
             <dd></dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#aec7da27ecd6b4ff8190e799161e02d2d" class="m-doc">objectLimitSource</a>(</span><span class="m-doc-wrap">std::string_view objectPath) noexcept -&gt; LimitSource -&gt; SPEEDGUN_NG_EXPORT auto <span class="m-label m-flat m-success">noexcept</span></span>
+            </dt>
+            <dd>The source of the limit <code>programmableCounters()</code> answers for <code>objectPath</code> (FR-040a, FR-043, FR-053, D-3, D-3a).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#ac26af0bda7585dd3cce28a9c490a0704" class="m-doc">cpuIdentity</a>(</span><span class="m-doc-wrap">) -&gt; CpuIdentity -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>The identity of the cpu this process runs on.</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#aceb37bf3e6c1e4119480b469a6b43a66" class="m-doc">topdownTable</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1CpuIdentity.html" class="m-doc">CpuIdentity</a>&amp; identity) -&gt; TopdownTable -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>The table of one identity: the directory the vendored mapping file gives it, beside the rows of that directory.</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a8bea1732929737ea021aa810073c38b4" class="m-doc">topdownEventGroups</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1CpuIdentity.html" class="m-doc">CpuIdentity</a>&amp; identity) -&gt; std::vector&lt; TopdownEventGroup &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>specs/046-hunter-topdown FR-004, FR-008, D-16: the grouping listing of one identity: the pairs the directory that identity selects holds.</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper">auto <a href="#a25f7ad543fcc1a9cf712943d3feed87d" class="m-doc">topdownTree</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1TopdownSelection.html" class="m-doc">TopdownSelection</a>&amp; options) -&gt; std::expected&lt; TopdownTree, TopdownUnsupported &gt; -&gt; SPEEDGUN_NG_EXPORT auto</span>
+            </dt>
+            <dd>The tree one selection asks for, built from the rows of one table (specs/042-topdown FR-002, FR-008 to FR-016, FR-020; data-model E-08).</dd>
           </dl>
         </section>
         <section id="var-members">
@@ -509,12 +596,109 @@
               </tbody>
             </table>
           </div></section>
+          <section class="m-doc-details" id="a58bf08f2295fbd32c5d0472e7e5b800f"><div>
+            <h3>
+              enum class sg::<wbr />counters::<wbr /><a href="#a58bf08f2295fbd32c5d0472e7e5b800f" class="m-doc-self">CoreCoverage</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__metrics_8hpp.html">&lt;speedgun-ng/counters_metrics.hpp&gt;</a></div>
+            </h3>
+<p>How much of a core the cpus of this process cover (specs/042-topdown FR-042, spec D-6).</p><p>A top-down table states its slots over a whole core. A row that names <code>#core_wide</code> asks whether the cpus this process may run on cover every core they touch, and the answer decides whether those slots mean what the table says. The value states no slot width: the width is a literal of the table and no host fact changes it.</p>
+            <table class="m-table m-fullwidth m-flat m-doc">
+              <thead><tr><th style="width: 1%">Enumerators</th><th></th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><a href="#a58bf08f2295fbd32c5d0472e7e5b800fa65d54b5261d9db66551a0e24ffca6bdf" class="m-doc-self" id="a58bf08f2295fbd32c5d0472e7e5b800fa65d54b5261d9db66551a0e24ffca6bdf">WHOLE_CORE</a></td>
+                  <td>
+                  <p>Every sibling of every cpu of the set stands inside it.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#a58bf08f2295fbd32c5d0472e7e5b800fa6b490cf4103c5da741ee83a0949e5505" class="m-doc-self" id="a58bf08f2295fbd32c5d0472e7e5b800fa6b490cf4103c5da741ee83a0949e5505">ONE_THREAD</a></td>
+                  <td>
+                  <p>One sibling of one cpu of the set stands outside it.</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div></section>
           <section class="m-doc-details" id="a56bb795bd3571af03570db84e9e982cb"><div>
             <h3>
               enum class sg::<wbr />counters::<wbr /><a href="#a56bb795bd3571af03570db84e9e982cb" class="m-doc-self">TargetKind</a>: std::uint8_t
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__provider_8hpp.html">&lt;speedgun-ng/counters_provider.hpp&gt;</a></div>
             </h3>
             <p>What a plan samples on: the current thread, or a pinned cpu.</p>
+          </div></section>
+          <section class="m-doc-details" id="a58775da07d16e043b70aff253f2f7a3a"><div>
+            <h3>
+              enum class sg::<wbr />counters::<wbr /><a href="#a58775da07d16e043b70aff253f2f7a3a" class="m-doc-self">LimitSource</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__system_8hpp.html">&lt;speedgun-ng/counters_system.hpp&gt;</a></div>
+            </h3>
+            <p>Where the limit one object published came from (FR-040a, FR-043, D-3).</p>
+<p>The published limit is one figure, and this label names the finder that answered it. The set is closed: a figure came from the decode, from the probe, or it stands absent.</p>
+            <table class="m-table m-fullwidth m-flat m-doc">
+              <thead><tr><th style="width: 1%">Enumerators</th><th></th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><a href="#a58775da07d16e043b70aff253f2f7a3aab50339a10e1de285ac99d4c3990b8693" class="m-doc-self" id="a58775da07d16e043b70aff253f2f7a3aab50339a10e1de285ac99d4c3990b8693">NONE</a></td>
+                  <td>
+                  <p>The path publishes no limit (FR-040a).</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#a58775da07d16e043b70aff253f2f7a3aa31b1c3e891cbbcff9f9433a5dc99cb7d" class="m-doc-self" id="a58775da07d16e043b70aff253f2f7a3aa31b1c3e891cbbcff9f9433a5dc99cb7d">DECODE</a></td>
+                  <td>
+<p>The CPUID or event-table decode answered the figure (specs/041-counter-probe FR-030).</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#a58775da07d16e043b70aff253f2f7a3aa5a9b37d8d9e76a99e6f5160c3eff9057" class="m-doc-self" id="a58775da07d16e043b70aff253f2f7a3aa5a9b37d8d9e76a99e6f5160c3eff9057">PROBE</a></td>
+                  <td>
+                  <p>The group probe answered the figure (FR-018, FR-043).</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div></section>
+          <section class="m-doc-details" id="a3d5623305647b3269ad4c09f2827a1fa"><div>
+            <h3>
+              enum class sg::<wbr />counters::<wbr /><a href="#a3d5623305647b3269ad4c09f2827a1fa" class="m-doc-self">TopdownUnsupport</a>: std::uint8_t
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__topdown_8hpp.html">&lt;speedgun-ng/counters_topdown.hpp&gt;</a></div>
+            </h3>
+<p>Why a selection answered no tree at all: the closed set of reasons the vendored data gives (specs/042-topdown FR-004 to FR-007).</p>
+            <table class="m-table m-fullwidth m-flat m-doc">
+              <thead><tr><th style="width: 1%">Enumerators</th><th></th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><a href="#a3d5623305647b3269ad4c09f2827a1faae980279c1fdcf3633240e22e54a2e6d6" class="m-doc-self" id="a3d5623305647b3269ad4c09f2827a1faae980279c1fdcf3633240e22e54a2e6d6">UNKNOWN_VENDOR</a></td>
+                  <td>
+                  <p>The vendored tree holds no table of this vendor.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#a3d5623305647b3269ad4c09f2827a1faaf4c008b676671919924f3e48b0eb35c2" class="m-doc-self" id="a3d5623305647b3269ad4c09f2827a1faaf4c008b676671919924f3e48b0eb35c2">NO_DIRECTORY</a></td>
+                  <td>
+                  <p>The mapping file names no table for this identity.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#a3d5623305647b3269ad4c09f2827a1faa3bf07fe8ac3883060b1558113ba248d4" class="m-doc-self" id="a3d5623305647b3269ad4c09f2827a1faa3bf07fe8ac3883060b1558113ba248d4">HYBRID</a></td>
+                  <td>
+                  <p>The selected directory publishes two core scopes.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#a3d5623305647b3269ad4c09f2827a1faa47f45e65244c17ec9fa8771a5c6d60e1" class="m-doc-self" id="a3d5623305647b3269ad4c09f2827a1faa47f45e65244c17ec9fa8771a5c6d60e1">ARM</a></td>
+                  <td>
+                  <p>An Arm part, and no Arm table is vendored.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#a3d5623305647b3269ad4c09f2827a1faae31820c359d4fec28877e77a99f6bcb3" class="m-doc-self" id="a3d5623305647b3269ad4c09f2827a1faae31820c359d4fec28877e77a99f6bcb3">NO_TOPDOWN_ROWS</a></td>
+                  <td>
+                  <p>The selected directory holds no top-down row.</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div></section>
         </section>
         <section>
@@ -709,12 +893,59 @@
             </h3>
 <p>Resolves one metric by name against the event table of the CPU this process runs on.</p><p>The name is the table&#x27;s <code>MetricName</code>, case-sensitive. The first call for a directory parses that directory&#x27;s metric rows and every later call reuses the result, so the call parses no text and reads no counter; the view it returns holds its own spine, and its leaves are catalog leaves of the open system.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
+          <section class="m-doc-details" id="ad5779a284f21b494d93c1e21e8f32ed8"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ad5779a284f21b494d93c1e21e8f32ed8" class="m-doc-self">coreWideCoverage</a>(</span><span class="m-doc-wrap">) -&gt; std::optional&lt; CoreCoverage &gt;</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__metrics_8hpp.html">&lt;speedgun-ng/counters_metrics.hpp&gt;</a></div>
+            </h3>
+<p>Answers how much of a core the cpus of this process cover, and answers nothing where the host states no sibling lists (specs/042-topdown FR-042, FR-043, spec D-6).</p><p>The answer comes from the cpu set this process holds and the sibling list of every cpu that set holds. That is the one reader the <code>#core_wide</code> row of a table reads through, so the query and a folded row answer one thing and a caller that states the scope of a run asks here.</p><p>Nothing stands settled before the first call. One value then stands for the life of the process, because a table resolves once per directory and the conditional over the constant folds when it resolves, so a second call answers what the first answered and a caller carries no reader of its own (FR-042, spec D-6). A settled value never moves inside one process. The value names a whole core with every sibling of it, or one thread of a core, and states no slot width: the width is a literal of the table. An absent answer keeps the standing refusal of <code>#core_wide</code>, so a row that needs the fact stays refused (FR-043).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
           <section class="m-doc-details" id="a1135c8c340e3eedf28cd2379fead16f8"><div>
             <h3>
               <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a1135c8c340e3eedf28cd2379fead16f8" class="m-doc-self">catalogMetrics</a>(</span><span class="m-doc-wrap">) -&gt; std::vector&lt; MetricListing &gt;</span></span>
               <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__metrics_8hpp.html">&lt;speedgun-ng/counters_metrics.hpp&gt;</a></div>
             </h3>
 <p>Every metric row of the table this CPU selected, in table order: the published rows and the refusals alike (FR-020, FR-021). An empty result means this host selected no event table, which is a catalog fact and it states no refusal of a single row.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="aec7da27ecd6b4ff8190e799161e02d2d"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aec7da27ecd6b4ff8190e799161e02d2d" class="m-doc-self">objectLimitSource</a>(</span><span class="m-doc-wrap">std::string_view objectPath) noexcept -&gt; LimitSource <span class="m-label m-success">noexcept</span></span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__system_8hpp.html">&lt;speedgun-ng/counters_system.hpp&gt;</a></div>
+            </h3>
+            <p>The source of the limit <code>programmableCounters()</code> answers for <code>objectPath</code> (FR-040a, FR-043, FR-053, D-3, D-3a).</p>
+<p>A provider records the source beside the limit it publishes, and this accessor answers the pair, so a run can say which finder answered the count it planned with (FR-050, FR-051). <code>objectPath</code> is the catalog address: the same text <code><a href="classsg_1_1counters_1_1Object.html#aa720877667c569699160d3dea8697fdc" class="m-doc">Object::<wbr />programmableCounters()</a></code> reads. A path no provider recorded answers <code>NONE</code>, and so does a path whose published limit stands absent.</p><p>The accessor states no claim about the catalog of the process. It reads one record beside the tree, resolves no path, and opens nothing.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>the answer is <code>NONE</code> exactly where <code><a href="classsg_1_1counters_1_1Object.html#aa720877667c569699160d3dea8697fdc" class="m-doc">Object::<wbr />programmableCounters()</a></code> answers no value for that path (FR-040a)</p><p>a recorded path answers the source that filled its limit, and the answer stands for the life of the process once the catalog is open (FR-043, FR-009)</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ac26af0bda7585dd3cce28a9c490a0704"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ac26af0bda7585dd3cce28a9c490a0704" class="m-doc-self">cpuIdentity</a>(</span><span class="m-doc-wrap">) -&gt; CpuIdentity</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__topdown_8hpp.html">&lt;speedgun-ng/counters_topdown.hpp&gt;</a></div>
+            </h3>
+            <p>The identity of the cpu this process runs on.</p>
+<p>The four fields the library already reads come from its own reader, and the two fields no reader answers stand absent, so a caller cannot tell a hybrid part or an Arm part from a production identity. The reader caches, so the call runs its reader once per process at the first call and reads nothing at a later one.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>The first four fields equal the library&#x27;s own cpu reader&#x27;s answer, <code>coreType</code> is empty and <code>midr</code> is unset: no reader for either exists in this feature (FR-003, spec D-13).</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="aceb37bf3e6c1e4119480b469a6b43a66"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#aceb37bf3e6c1e4119480b469a6b43a66" class="m-doc-self">topdownTable</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1CpuIdentity.html" class="m-doc">CpuIdentity</a>&amp; identity) -&gt; TopdownTable</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__topdown_8hpp.html">&lt;speedgun-ng/counters_topdown.hpp&gt;</a></div>
+            </h3>
+            <p>The table of one identity: the directory the vendored mapping file gives it, beside the rows of that directory.</p>
+<p>The mapping file is matched row by row and the first row that hits names the directory, so the identity&#x27;s vendor, family, model and stepping decide the answer between them. A core type and an <code>MIDR</code> join no key, so neither moves a selection: no mapping-file row reads either (spec D-13).</p><p>The call reads no counter, opens no event, reads no clock and calls no cpu reader of its own, so the same identity answers the same table in the same process (FR-002, FR-009).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>An empty <code>source.directory</code> names an identity the mapping file matched no row for, and <code>rows</code> then stands empty. Every row of the selected directory answers a verdict, published or refused, in the sorted file order the embedder emits (FR-001, FR-016).</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a8bea1732929737ea021aa810073c38b4"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a8bea1732929737ea021aa810073c38b4" class="m-doc-self">topdownEventGroups</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1CpuIdentity.html" class="m-doc">CpuIdentity</a>&amp; identity) -&gt; std::vector&lt; TopdownEventGroup &gt;</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__topdown_8hpp.html">&lt;speedgun-ng/counters_topdown.hpp&gt;</a></div>
+            </h3>
+            <p>specs/046-hunter-topdown FR-004, FR-008, D-16: the grouping listing of one identity: the pairs the directory that identity selects holds.</p>
+<p>The call reads the embedded table of the selected directory, and that table is build-time data the loader holds once per directory. No vendored path opens at run time and no host probe is made (D-16).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>The answer holds one pair per name of the selected directory, in the order that directory loads, and the first row that carries a repeated name owns its pair (D-16). <code>group</code> names <code>PmuTableEntry::fileName</code> with its suffix dropped, and the call renames nothing (FR-004). An identity that selects no directory answers an empty listing (D-16). The call reads no counter, opens no event, reads no clock, opens no path, and reads no <code>MIDR</code> field beyond the directory the identity selects (D-13).</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a25f7ad543fcc1a9cf712943d3feed87d"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper">SPEEDGUN_NG_EXPORT auto sg::<wbr />counters::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a25f7ad543fcc1a9cf712943d3feed87d" class="m-doc-self">topdownTree</a>(</span><span class="m-doc-wrap">const <a href="structsg_1_1counters_1_1TopdownSelection.html" class="m-doc">TopdownSelection</a>&amp; options) -&gt; std::expected&lt; TopdownTree, TopdownUnsupported &gt;</span></span>
+              <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="counters__topdown_8hpp.html">&lt;speedgun-ng/counters_topdown.hpp&gt;</a></div>
+            </h3>
+            <p>The tree one selection asks for, built from the rows of one table (specs/042-topdown FR-002, FR-008 to FR-016, FR-020; data-model E-08).</p>
+<p>The answer follows from <code>options.identity</code> and from one table: the planted <code>options.table</code> where one stands, and the table of the identity where none stands. The call reads no counter, opens no event, reads no clock and calls no cpu reader of its own, so two calls over one identity and one table answer one tree (FR-002, FR-009). The rows reach the call as the verdicts the metric layer answers, and a directory resolves once, so the pass that builds a tree reads those verdicts as data.</p><p>A row reaches a node when its group text carries a level token of <code>TopdownL1</code> to <code>TopdownL6</code>, <code>PipelineL1</code> or <code>PipelineL2</code>, when that level stands at or above the depth the answer states, and when its parent already stands in the tree (FR-013, FR-014). A level-1 row roots a node and names no parent. A deeper row names its parent with the <code>_group</code> token of its own group text: Intel spells that token <code>tma_&lt;name&gt;_group</code> and AMD spells it <code>&lt;name&gt;_group</code>, and the stem of either names another row of the table. A row whose token stems to no row reaches no node, and no part of this feature invents a parent for it (FR-013). The rows are walked level by level, so every parent names an earlier element of <code>nodes</code>: a caller folds a parent before it folds the children of that parent. A node&#x27;s level stands one below its parent&#x27;s level. Measured over the vendored tables: 98 group tokens of <code>arch/x86/skylakex/</code> and 111 of <code>arch/x86/sapphirerapids/</code> stem to a row of the same table, and every one of them names a row exactly one level above.</p><p><code>depth</code> is the asked level clamped to the deepest level token the table holds, so a table of level-1 rows answers level 1 whatever the ask (FR-008, FR-020). A row the host refuses stands in <code>refused</code> with the metric layer&#x27;s kind and reason beside its own name, its parent and its level, and it builds no node (FR-016, FR-031). A node carries the spine of its row and the address of every leaf that spine reads, which is what a run groups its passes on (FR-010, FR-021).</p><p>An identity no table serves, a table that names no directory, a directory that publishes the two core scopes of a hybrid part, an <code>MIDR</code>, and a directory that holds no row of any top-down group answer one <code><a href="structsg_1_1counters_1_1TopdownUnsupported.html" class="m-doc">TopdownUnsupported</a></code> in place of a tree, in that order. Each carries a kind and the fields its rule states, so it names the vendor, the identity and the directory or sentence its rule read, and none of them reaches a node, an event or a counter (FR-004 to FR-007). The scope rule reads the <code><a href="#ad98116374d6a4fb0018dca88dcb93564" class="m-doc">Unit</a></code> text of the directory&#x27;s own event rows, so the rows carry the two-scope fact and no list of directory names stands in this feature (FR-006). <code>message()</code> owns the one line a caller prints for any of the five (FR-040, spec D-14).</p><aside class="m-note m-success"><h4>Precondition</h4><p><code>options.level</code> stands in 1 to 6, and <code><a href="dbc_8hpp.html#aae2bcf476d4ea0ae734ee3caf01b0c8e" class="m-doc">SG_<wbr />REQUIRE</a></code> enforces that.</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>The answer is pure over the identity and the rows: no counter read, no event open, no clock read and no CPUID read stand behind it (FR-002, FR-009). <code>depth</code> is the asked level clamped to the deepest level the table holds (FR-008, FR-020), and no node stands that a row of the table does not state (FR-013). A refusal carries the kind its rule states, the vendor and identity text of the identity it read, and the directory or sentence its rule read (FR-004 to FR-007, FR-040).</p></aside><aside class="m-note m-success"><h4>Invariant</h4><p>none</p></aside>
           </div></section>
         </section>
         <section>

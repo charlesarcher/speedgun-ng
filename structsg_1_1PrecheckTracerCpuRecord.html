@@ -64,7 +64,7 @@
           <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span>PrecheckTracerCpuRecord <span class="m-thin">struct</span>
           <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
         </h1>
-        <p>One measured cpu of the tracer: its index and the five noise-by-source counts the engine&#x27;s count files state (specs/036 FR-010, data-model.md E-17). A figure the source states nothing for stands absent, the file form of the console&#x27;s <code>not available</code> wording (specs/036 FR-013).</p>
+        <p>One measured cpu of the tracer: its index and the five noise-by-source counts the engine&#x27;s count files state (specs/036 FR-010, data-model.md E-17), beside the three detector figures specs/048 states (D-13). A figure the source states nothing for stands absent, the file form of the console&#x27;s <code>not available</code> wording (specs/036 FR-013).</p>
         <nav class="m-block m-default">
           <h3>Contents</h3>
           <ul>
@@ -76,7 +76,7 @@
             </li>
           </ul>
         </nav>
-<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+<p>The three figures fold from the detector lines of that cpu&#x27;s buffer. <code><a href="#a4ac3580fb7a9141fbab1fb19998a6bda" class="m-doc">maxGapNs</a></code> takes the longer of the two sample figures of one detection, in nanoseconds. <code><a href="#af0f2c7a8338da30c4c7e7f1458985939" class="m-doc">gapCount</a></code> counts that cpu&#x27;s detection lines, and <code><a href="#a7372612547ca49da4c17567aad2d7615" class="m-doc">nmiCount</a></code> sums their <code>nmi-count</code> fields. The sum stands at 0 when no line of the buffer carries that field. Each of the three figures stands absent when that buffer holds no detector line, the file form of the console&#x27;s <code>not available</code> (FR-027, A-6, P-10).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
         <section id="pub-attribs">
           <h2><a href="#pub-attribs">Public variables</a></h2>
           <dl class="m-doc">
@@ -102,6 +102,18 @@
             <dd><span></span></dd>
             <dt id="a5720e05f28458911a34ecc7bd3a45bb5">
               std::optional&lt;std::uint64_t&gt; <a href="#a5720e05f28458911a34ecc7bd3a45bb5" class="m-doc-self">hardware</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a4ac3580fb7a9141fbab1fb19998a6bda">
+              std::optional&lt;std::uint64_t&gt; <a href="#a4ac3580fb7a9141fbab1fb19998a6bda" class="m-doc-self">maxGapNs</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="af0f2c7a8338da30c4c7e7f1458985939">
+              std::optional&lt;std::uint64_t&gt; <a href="#af0f2c7a8338da30c4c7e7f1458985939" class="m-doc-self">gapCount</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a7372612547ca49da4c17567aad2d7615">
+              std::optional&lt;std::uint64_t&gt; <a href="#a7372612547ca49da4c17567aad2d7615" class="m-doc-self">nmiCount</a>
             </dt>
             <dd><span></span></dd>
           </dl>

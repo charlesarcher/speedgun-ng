@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>sg::JitterSeriesStats struct | speedgun-ng</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i%7CSource+Code+Pro:400,400i,600" />
+  <link rel="stylesheet" href="m-dark+documentation.compiled.css" />
+  <link rel="icon" href="favicon-dark.png" type="image/png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#22272e" />
+</head>
+<body>
+<header><nav id="navigation">
+  <div class="m-container">
+    <div class="m-row">
+      <a href="index.html" id="m-navbar-brand" class="m-col-t-8 m-col-m-none m-left-m">speedgun-ng</a>
+      <div class="m-col-t-4 m-hide-m m-text-right m-nopadr">
+        <a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+          <path id="m-doc-search-icon-path" d="m6 0c-3.31 0-6 2.69-6 6 0 3.31 2.69 6 6 6 1.49 0 2.85-0.541 3.89-1.44-0.0164 0.338 0.147 0.759 0.5 1.15l3.22 3.79c0.552 0.614 1.45 0.665 2 0.115 0.55-0.55 0.499-1.45-0.115-2l-3.79-3.22c-0.392-0.353-0.812-0.515-1.15-0.5 0.895-1.05 1.44-2.41 1.44-3.89 0-3.31-2.69-6-6-6zm0 1.56a4.44 4.44 0 0 1 4.44 4.44 4.44 4.44 0 0 1-4.44 4.44 4.44 4.44 0 0 1-4.44-4.44 4.44 4.44 0 0 1 4.44-4.44z"/>
+        </svg></a>
+        <a id="m-navbar-show" href="#navigation" title="Show navigation"></a>
+        <a id="m-navbar-hide" href="#" title="Hide navigation"></a>
+      </div>
+      <div id="m-navbar-collapse" class="m-col-t-12 m-show-m m-col-m-none m-right-m">
+        <div class="m-row">
+          <ol class="m-col-t-6 m-col-m-none">
+            <li>
+              <a href="pages.html">User guide</a>
+              <ol>
+                <li><a href="about.html">About</a></li>
+                <li><a href="md_docs_2pages_2building.html">Building speedgun-ng</a></li>
+                <li><a href="md_docs_2pages_2harness.html">The benchmark harness surface</a></li>
+              </ol>
+            </li>
+            <li>
+              <a href="pages.html">Internals</a>
+              <ol>
+                <li><a href="md_docs_2pages_2barrier-rule.html">The optimization barrier rule (015 FR-029, FR-030)</a></li>
+                <li><a href="md_docs_2pages_2counters-overhead.html">Counters sampling cost (SC-004, SC-010)</a></li>
+                <li><a href="md_docs_2pages_2dbc-migration.html">C++26 Contract Migration Mapping (SC-010)</a></li>
+                <li><a href="md_docs_2pages_2dbc-overhead.html">DBC checked-build overhead (SC-008)</a></li>
+                <li><a href="md_docs_2pages_2identifier-rename-map.html">Rename map</a></li>
+              </ol>
+            </li>
+            <li><a href="namespaces.html">Namespaces</a></li>
+          </ol>
+          <ol class="m-col-t-6 m-col-m-none" start="4">
+            <li><a href="annotated.html">Classes</a></li>
+            <li><a href="files.html">Files</a></li>
+            <li class="m-show-m"><a href="#search" class="m-doc-search-icon" title="Search" onclick="return showSearch()"><svg style="height: 0.9rem;" viewBox="0 0 16 16">
+              <use href="#m-doc-search-icon-path" />
+            </svg></a></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav></header>
+<main><article>
+  <div class="m-container m-container-inflatable">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <h1>
+          <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span>JitterSeriesStats <span class="m-thin">struct</span>
+          <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
+        </h1>
+        <p>specs/043-fwq-ftq: the series record of one probe cpu: the five calibration figures of E-22, the twelve series figures of FR-007, the two spectrum keys of FR-019, and the period list of FR-018 (FR-007, FR-011, FR-019, FR-020, E-23).</p>
+        <nav class="m-block m-default">
+          <h3>Contents</h3>
+          <ul>
+            <li>
+              Reference
+              <ul>
+                <li><a href="#pub-attribs">Public variables</a></li>
+              </ul>
+            </li>
+          </ul>
+        </nav>
+<p>The method sets the unit of the series figures: ns for <code>FWQ</code>, counts for <code>FTQ</code> (FR-013, FR-016). The percentile fields follow the nearest-rank rule of <code>source/harness/percentiles.cpp</code> over the kept samples read in place, and the fold of an empty kept set leaves every field at 0 (FR-008). <code><a href="#ab2353450ff5bbc1308d5ac257b414e1d" class="m-doc">noisePercent</a></code> is the method&#x27;s noise fraction in the range 0 through 100, and a maximum count of 0 answers 100 (FR-009). <code><a href="#a2955e0d40eaba35dbda541c51a995cd8" class="m-doc">seriesRuntimeNs</a></code> carries the window runtime, the name that keeps the rule table free of a second reading of <code>runtimeNs</code> (FR-021). <code><a href="#a7f824e195241b0319f5a270fe437e215" class="m-doc">droppedSamples</a></code> counts the records a full buffer dropped (FR-014, FR-022). <code><a href="#aa5c0e67f4f05608fb5744dc931dc1545" class="m-doc">resampleStepNs</a></code> and <code><a href="#a2b37954a95d43d181038bb6edce826ca" class="m-doc">spectrumPoints</a></code> state the resample the transform read, and <code><a href="#afaade534d2bb4e1b3c158753a940c809" class="m-doc">periods</a></code> carries at most five closed records, strongest first (FR-017, FR-018). The record stands absent for a <code>TSC</code> run (FR-006).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+        <section id="pub-attribs">
+          <h2><a href="#pub-attribs">Public variables</a></h2>
+          <dl class="m-doc">
+            <dt id="af456bb3c0877c6687f34b5b22563b3a7">
+              std::uint64_t <a href="#af456bb3c0877c6687f34b5b22563b3a7" class="m-doc-self">workCount</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a195009ddf4287c56cb45bcc5db4cb25e">
+              std::uint64_t <a href="#a195009ddf4287c56cb45bcc5db4cb25e" class="m-doc-self">unitTimeNs</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a5a6bd09d6415606a0ab61ddaacc180a0">
+              std::uint64_t <a href="#a5a6bd09d6415606a0ab61ddaacc180a0" class="m-doc-self">targetNs</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="ac027c8e3ac50a2368d82369c01a0efe7">
+              std::uint64_t <a href="#ac027c8e3ac50a2368d82369c01a0efe7" class="m-doc-self">quantumNs</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="ab8ef49f90a4d3c8a975b3777c38e7c87">
+              std::uint64_t <a href="#ab8ef49f90a4d3c8a975b3777c38e7c87" class="m-doc-self">calibrationSpanNs</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="aa200b989268abbfc3a37c4cc0309f7b5">
+              std::uint64_t <a href="#aa200b989268abbfc3a37c4cc0309f7b5" class="m-doc-self">sampleCount</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a4c948274b7c092597a656141519ea25e">
+              std::uint64_t <a href="#a4c948274b7c092597a656141519ea25e" class="m-doc-self">minValue</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a2c71a033213e85d6fd7ada964f12be1e">
+              std::uint64_t <a href="#a2c71a033213e85d6fd7ada964f12be1e" class="m-doc-self">medianValue</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a6fadaad46a9eb6282c58392e6cbc732d">
+              double <a href="#a6fadaad46a9eb6282c58392e6cbc732d" class="m-doc-self">meanValue</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a41d58c119250e0cc33d20901b0f2d216">
+              std::uint64_t <a href="#a41d58c119250e0cc33d20901b0f2d216" class="m-doc-self">p90Value</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a6186344d7c45bc820580bd6892e703ae">
+              std::uint64_t <a href="#a6186344d7c45bc820580bd6892e703ae" class="m-doc-self">p99Value</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="ae7b260a823376953a1c7d936ea70f086">
+              std::uint64_t <a href="#ae7b260a823376953a1c7d936ea70f086" class="m-doc-self">p999Value</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="afd30d6ed74243eceabfc121910485a43">
+              std::uint64_t <a href="#afd30d6ed74243eceabfc121910485a43" class="m-doc-self">p9999Value</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a5b489768003a558dd3376e7dceaabd93">
+              std::uint64_t <a href="#a5b489768003a558dd3376e7dceaabd93" class="m-doc-self">maxValue</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="ab2353450ff5bbc1308d5ac257b414e1d">
+              double <a href="#ab2353450ff5bbc1308d5ac257b414e1d" class="m-doc-self">noisePercent</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a2955e0d40eaba35dbda541c51a995cd8">
+              std::uint64_t <a href="#a2955e0d40eaba35dbda541c51a995cd8" class="m-doc-self">seriesRuntimeNs</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a7f824e195241b0319f5a270fe437e215">
+              std::uint64_t <a href="#a7f824e195241b0319f5a270fe437e215" class="m-doc-self">droppedSamples</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="aa5c0e67f4f05608fb5744dc931dc1545">
+              std::uint64_t <a href="#aa5c0e67f4f05608fb5744dc931dc1545" class="m-doc-self">resampleStepNs</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a2b37954a95d43d181038bb6edce826ca">
+              std::uint64_t <a href="#a2b37954a95d43d181038bb6edce826ca" class="m-doc-self">spectrumPoints</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="afaade534d2bb4e1b3c158753a940c809">
+              std::vector&lt;<a href="structsg_1_1JitterPeriodRecord.html" class="m-doc">JitterPeriodRecord</a>&gt; <a href="#afaade534d2bb4e1b3c158753a940c809" class="m-doc-self">periods</a>
+            </dt>
+            <dd><span></span></dd>
+          </dl>
+        </section>
+      </div>
+    </div>
+  </div>
+</article></main>
+<div class="m-doc-search" id="search">
+  <a href="#!" onclick="return hideSearch()"></a>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-m-8 m-push-m-2">
+        <div class="m-doc-search-header m-text m-small">
+          <div><span class="m-label m-default">Tab</span> / <span class="m-label m-default">T</span> to search, <span class="m-label m-default">Esc</span> to close</div>
+          <div id="search-symbolcount">&hellip;</div>
+        </div>
+        <div class="m-doc-search-content">
+          <form>
+            <input type="search" name="q" id="search-input" placeholder="Loading &hellip;" disabled="disabled" autofocus="autofocus" autocomplete="off" spellcheck="false" />
+          </form>
+          <noscript class="m-text m-danger m-text-center">Unlike everything else in the docs, the search functionality <em>requires</em> JavaScript.</noscript>
+          <div id="search-help" class="m-text m-dim m-text-center">
+            <p class="m-noindent">Search for symbols, directories, files, pages or
+            modules. You can omit any prefix from the symbol or file path; adding a
+            <code>:</code> or <code>/</code> suffix lists all members of given symbol or
+            directory.</p>
+            <p class="m-noindent">Use <span class="m-label m-dim">&darr;</span>
+            / <span class="m-label m-dim">&uarr;</span> to navigate through the list,
+            <span class="m-label m-dim">Enter</span> to go.
+            <span class="m-label m-dim">Tab</span> autocompletes common prefix, you can
+            copy a link to the result using <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">L</span> while <span class="m-label m-dim">⌘</span>
+            <span class="m-label m-dim">M</span> produces a Markdown link.</p>
+          </div>
+          <div id="search-notfound" class="m-text m-warning m-text-center">Sorry, nothing was found.</div>
+          <ul id="search-results"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="search-v2.js"></script>
+<script src="searchdata-v2.js" async="async"></script>
+<footer><nav>
+  <div class="m-container">
+    <div class="m-row">
+      <div class="m-col-l-10 m-push-l-1">
+        <p>speedgun-ng. Created with <a href="https://doxygen.org/">Doxygen</a> 1.15.0 and <a href="https://mcss.mosra.cz/">m.css</a>.</p>
+      </div>
+    </div>
+  </div>
+</nav></footer>
+</body>
+</html>

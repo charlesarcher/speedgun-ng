@@ -80,7 +80,7 @@
             </li>
           </ul>
         </nav>
-<p>Registration is accepted before the first use; the first use opens the boundary, closes registration, and freezes the catalog, which makes concurrent catalog reads safe by construction (FR-009).</p>
+<p>Registration is accepted before the first use; the first use opens the boundary, closes registration, and freezes the catalog, which makes concurrent catalog reads safe by construction (FR-009).</p><p>Each <code><a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a></code> owns its tree, its merged catalog and its limit table, and the limit table ends with its <code><a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a></code> (FR-005). A read through a handle reaches the table of the <code><a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a></code> that owns that handle&#x27;s node, and no other table (FR-007). A program may build a <code><a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a></code> of its own, and two such objects hold two trees and answer their own limits (FR-008).</p>
         <section id="pub-types">
           <h2><a href="#pub-types">Public types</a></h2>
           <dl class="m-doc">
@@ -106,6 +106,14 @@
               <span class="m-doc-wrap-bumper"><a href="#a9c8f4a9bef9034ffa2b517ed88ec9850" class="m-doc-self">System</a>(</span><span class="m-doc-wrap">const System&amp;) <span class="m-label m-flat m-danger">deleted</span></span>
             </dt>
             <dd><span></span></dd>
+            <dt>
+              <span class="m-doc-wrap-bumper"><a href="#ae7fc35d9291fc095b562ea22905f37aa" class="m-doc">System</a>(</span><span class="m-doc-wrap">)</span>
+            </dt>
+            <dd>Builds a system the program owns, with its own tree, its own catalog and its own limit table (FR-008).</dd>
+            <dt>
+              <span class="m-doc-wrap-bumper"><a href="#a0de9492b5ea751c72e18d4063ac09277" class="m-doc">~System</a>(</span><span class="m-doc-wrap">)</span>
+            </dt>
+            <dd>Ends one <code><a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a></code> and releases its tree, its merged catalog and its limit table (FR-005).</dd>
           </dl>
         </section>
         <section id="pub-methods">
@@ -157,6 +165,20 @@
               <span class="m-doc-wrap-bumper">static <a href="#a9c8f4a9bef9034ffa2b517ed88ec9850" class="m-doc">System</a>&amp; sg::<wbr />counters::<wbr />System::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ac425993486dbe462cc4ccacb9a1f6ffe" class="m-doc-self">local</a>(</span><span class="m-doc-wrap">)</span></span>
             </h3>
             <p>The process-local root handle.</p>
+<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="ae7fc35d9291fc095b562ea22905f37aa"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"> sg::<wbr />counters::<wbr />System::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#ae7fc35d9291fc095b562ea22905f37aa" class="m-doc-self">System</a>(</span><span class="m-doc-wrap">)</span></span>
+            </h3>
+            <p>Builds a system the program owns, with its own tree, its own catalog and its own limit table (FR-008).</p>
+<p>Registration stays open on a new object until its first use opens the boundary and freezes the catalog (FR-009).</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+          </div></section>
+          <section class="m-doc-details" id="a0de9492b5ea751c72e18d4063ac09277"><div>
+            <h3>
+              <span class="m-doc-wrap-bumper"> sg::<wbr />counters::<wbr />System::<wbr /></span><span class="m-doc-wrap"><span class="m-doc-wrap-bumper"><a href="#a0de9492b5ea751c72e18d4063ac09277" class="m-doc-self">~System</a>(</span><span class="m-doc-wrap">)</span></span>
+            </h3>
+            <p>Ends one <code><a href="classsg_1_1counters_1_1System.html" class="m-doc">System</a></code> and releases its tree, its merged catalog and its limit table (FR-005).</p>
 <aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
           </div></section>
           <section class="m-doc-details" id="a7f85da2ade60fceff6d85b6656fe6121"><div>

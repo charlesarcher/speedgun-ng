@@ -64,7 +64,7 @@
           <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span>PrecheckTracerRecord <span class="m-thin">struct</span>
           <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
         </h1>
-        <p>The tracer record one run carries: the engine word the value named, and one entry per tracer cpu ascending (specs/036 FR-014, data-model.md E-17). The entry names its cpu, so the cpus the tracer ran on stand the array itself (specs/036 D-3).</p>
+        <p>The tracer record one run carries: the engine word the value named, the three settings a detector run wrote, and one entry per tracer cpu ascending (specs/036 FR-014, data-model.md E-17). The entry names its cpu, so the cpus the tracer ran on stand the array itself (specs/036 D-3).</p>
         <nav class="m-block m-default">
           <h3>Contents</h3>
           <ul>
@@ -76,12 +76,24 @@
             </li>
           </ul>
         </nav>
-<aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
+<p>The three settings of specs/048 carry the values the run wrote to the detector, in microseconds (FR-027, FR-020, A-3). The setup reads each file before it writes it, so a record of the <code>hwlat</code> engine holds a value for each of the three, and a record of another engine holds no value for any of them.</p><aside class="m-note m-success"><h4>Precondition</h4><p>none</p></aside><aside class="m-note m-success"><h4>Postcondition</h4><p>none</p></aside>
         <section id="pub-attribs">
           <h2><a href="#pub-attribs">Public variables</a></h2>
           <dl class="m-doc">
             <dt id="ae6b15eab2768cc3dff728f957df119e1">
               std::string <a href="#ae6b15eab2768cc3dff728f957df119e1" class="m-doc-self">engine</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a923bf8f1152bd305b1c9beca8976e67c">
+              std::optional&lt;std::uint64_t&gt; <a href="#a923bf8f1152bd305b1c9beca8976e67c" class="m-doc-self">windowUs</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="ad9ff4a4bc7bf2ebfe5ad64ce20f92bdc">
+              std::optional&lt;std::uint64_t&gt; <a href="#ad9ff4a4bc7bf2ebfe5ad64ce20f92bdc" class="m-doc-self">widthUs</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="a3403a41ae24fb4d4babf987208efa8ee">
+              std::optional&lt;std::uint64_t&gt; <a href="#a3403a41ae24fb4d4babf987208efa8ee" class="m-doc-self">thresholdUs</a>
             </dt>
             <dd><span></span></dd>
             <dt id="a3e1f0f939d606d3a0cdc88a3388e769f">

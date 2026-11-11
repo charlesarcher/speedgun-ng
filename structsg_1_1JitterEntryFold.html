@@ -64,7 +64,7 @@
           <span class="m-breadcrumb"><a href="namespacesg.html">sg</a>::<wbr/></span>JitterEntryFold <span class="m-thin">struct</span>
           <div class="m-doc-include m-code m-inverted m-text-right"><span class="cp">#include</span> <a class="cpf" href="benchmark_8hpp.html">&lt;speedgun-ng/benchmark.hpp&gt;</a></div>
         </h1>
-        <p>One probe cpu&#x27;s fold over one benchmark&#x27;s timed windows (E-08): the cpu index and the fold the split placed into them. A probe cpu whose kept gaps landed inside no window of the benchmark carries no entry here (E-06, FR-021). The split reads the probe&#x27;s buffers only after the probe contexts are joined (R-04).</p>
+        <p>One probe cpu&#x27;s fold over one benchmark&#x27;s timed windows (E-08): the cpu index and the fold the split placed into them. A probe cpu whose kept gaps landed inside no window of the benchmark carries no entry here (E-06, FR-021). The split reads the probe&#x27;s buffers only after the probe contexts are joined (R-04). The series record of the same windows rides beside the gap stats, and it stands absent when the windows kept no sample (specs/043 FR-020, E-23).</p>
         <nav class="m-block m-default">
           <h3>Contents</h3>
           <ul>
@@ -86,6 +86,10 @@
             <dd><span></span></dd>
             <dt id="a568219364e7c6dcd85965a4c8fe1ff92">
               <a href="structsg_1_1JitterStats.html" class="m-doc">JitterStats</a> <a href="#a568219364e7c6dcd85965a4c8fe1ff92" class="m-doc-self">stats</a>
+            </dt>
+            <dd><span></span></dd>
+            <dt id="afa0d6ad0f4fbbdfd77e47d88fdf888ed">
+              std::optional&lt;<a href="structsg_1_1JitterSeriesStats.html" class="m-doc">JitterSeriesStats</a>&gt; <a href="#afa0d6ad0f4fbbdfd77e47d88fdf888ed" class="m-doc-self">series</a>
             </dt>
             <dd><span></span></dd>
           </dl>

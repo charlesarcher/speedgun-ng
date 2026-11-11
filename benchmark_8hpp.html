@@ -127,6 +127,18 @@
             </dt>
             <dd>The C++ value the harness exposes for one benchmark; the console report formats it and adds nothing to it (FR-036, E-07).</dd>
             <dt>
+              struct <a href="structsg_1_1JitterPeriodRecord.html" class="m-doc">sg::JitterPeriodRecord</a>
+            </dt>
+            <dd>specs/043-fwq-ftq: one reported period of the series spectrum, nested inside one probe cpu&#x27;s series record (FR-018, FR-019, E-24).</dd>
+            <dt>
+              struct <a href="structsg_1_1JitterSeriesStats.html" class="m-doc">sg::JitterSeriesStats</a>
+            </dt>
+            <dd>specs/043-fwq-ftq: the series record of one probe cpu: the five calibration figures of E-22, the twelve series figures of FR-007, the two spectrum keys of FR-019, and the period list of FR-018 (FR-007, FR-011, FR-019, FR-020, E-23).</dd>
+            <dt>
+              struct <a href="structsg_1_1JitterRunRecord.html" class="m-doc">sg::JitterRunRecord</a>
+            </dt>
+            <dd>specs/043-fwq-ftq: the run-level record <code><a href="namespacesg.html#a59d2ce0d2cfd165637238e77ee452a4c" class="m-doc">loadReport</a></code> reads back: the method word of the run that wrote the document (FR-020, E-25).</dd>
+            <dt>
               struct <a href="structsg_1_1PrecheckAttribution.html" class="m-doc">sg::PrecheckAttribution</a>
             </dt>
             <dd>The attribution figures one pre-check measured cpu discloses, beside its gap figures: the window delta of the interrupt count, one delta per softirq kind the host states, and the context-switch and schedule counts (specs/034 FR-016, D-5). A figure the host does not state, states unreadable, or states unparsable stands <code>not available</code>, carried as an absent optional, and the run never fails on it (FR-018).</dd>
@@ -137,15 +149,15 @@
             <dt>
               struct <a href="structsg_1_1PrecheckCpuRecord.html" class="m-doc">sg::PrecheckCpuRecord</a>
             </dt>
-            <dd>One measured cpu of the pre-check: its index, whether the run plans it (the planned cpus stand the run&#x27;s own; the candidates stand the cpus the <code>idle</code> preset would take), the sixteen-field stats of its pre-check window, and its attribution deltas (specs/034 FR-010, FR-012).</dd>
+            <dd>One measured cpu of the pre-check: its index, whether the run plans it (the planned cpus stand the run&#x27;s own; the candidates stand the cpus the <code>idle</code> preset would take), the nineteen-field stats of its pre-check window, and its attribution deltas (specs/034 FR-010, FR-012). The series record of the same window rides beside the gap stats, so the pair of the two figures stands readable for one measured cpu (specs/043 FR-004, FR-020, E-23).</dd>
             <dt>
               struct <a href="structsg_1_1PrecheckTracerCpuRecord.html" class="m-doc">sg::PrecheckTracerCpuRecord</a>
             </dt>
-            <dd>One measured cpu of the tracer: its index and the five noise-by-source counts the engine&#x27;s count files state (specs/036 FR-010, data-model.md E-17). A figure the source states nothing for stands absent, the file form of the console&#x27;s <code>not available</code> wording (specs/036 FR-013).</dd>
+            <dd>One measured cpu of the tracer: its index and the five noise-by-source counts the engine&#x27;s count files state (specs/036 FR-010, data-model.md E-17), beside the three detector figures specs/048 states (D-13). A figure the source states nothing for stands absent, the file form of the console&#x27;s <code>not available</code> wording (specs/036 FR-013).</dd>
             <dt>
               struct <a href="structsg_1_1PrecheckTracerRecord.html" class="m-doc">sg::PrecheckTracerRecord</a>
             </dt>
-            <dd>The tracer record one run carries: the engine word the value named, and one entry per tracer cpu ascending (specs/036 FR-014, data-model.md E-17). The entry names its cpu, so the cpus the tracer ran on stand the array itself (specs/036 D-3).</dd>
+            <dd>The tracer record one run carries: the engine word the value named, the three settings a detector run wrote, and one entry per tracer cpu ascending (specs/036 FR-014, data-model.md E-17). The entry names its cpu, so the cpus the tracer ran on stand the array itself (specs/036 D-3).</dd>
             <dt>
               struct <a href="structsg_1_1PrecheckRecord.html" class="m-doc">sg::PrecheckRecord</a>
             </dt>
@@ -153,7 +165,19 @@
             <dt>
               struct <a href="structsg_1_1JitterEntryFold.html" class="m-doc">sg::JitterEntryFold</a>
             </dt>
-            <dd>One probe cpu&#x27;s fold over one benchmark&#x27;s timed windows (E-08): the cpu index and the fold the split placed into them. A probe cpu whose kept gaps landed inside no window of the benchmark carries no entry here (E-06, FR-021). The split reads the probe&#x27;s buffers only after the probe contexts are joined (R-04).</dd>
+            <dd>One probe cpu&#x27;s fold over one benchmark&#x27;s timed windows (E-08): the cpu index and the fold the split placed into them. A probe cpu whose kept gaps landed inside no window of the benchmark carries no entry here (E-06, FR-021). The split reads the probe&#x27;s buffers only after the probe contexts are joined (R-04). The series record of the same windows rides beside the gap stats, and it stands absent when the windows kept no sample (specs/043 FR-020, E-23).</dd>
+            <dt>
+              struct <a href="structsg_1_1TopdownNode.html" class="m-doc">sg::TopdownNode</a>
+            </dt>
+            <dd>One node of the top-down tree one run collected and folded (specs/042-topdown data-model.md E-16, FR-030, FR-032).</dd>
+            <dt>
+              struct <a href="structsg_1_1TopdownRefusal.html" class="m-doc">sg::TopdownRefusal</a>
+            </dt>
+            <dd>One row of a level one run refused, as the record states it (specs/042-topdown data-model.md E-16, FR-016, FR-031, FR-033).</dd>
+            <dt>
+              struct <a href="structsg_1_1TopdownRecord.html" class="m-doc">sg::TopdownRecord</a>
+            </dt>
+            <dd>The top-down record one benchmark carries: the source of its nodes, the nodes, and the rows the table refused (specs/042-topdown data-model.md E-16, FR-032, FR-033, spec D-14).</dd>
             <dt>
               struct <a href="structsg_1_1BenchmarkResult.html" class="m-doc">sg::BenchmarkResult</a>
             </dt>
